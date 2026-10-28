@@ -27,7 +27,15 @@ After setup, runtime requires Python and the checkout/build files, with **no Nod
 ./.venv/Scripts/python.exe -m worklog.cli check
 ```
 
-`start` launches one hidden Uvicorn worker bound to loopback, serving the frontend and API. Windows Python's virtual environment redirector also remains as a hidden parent process. It waits for `/health` and verifies Worklog identity, persistent data identity, PID, and OS process creation identity. The PowerShell launcher opens the browser only after readiness; use `./scripts/Worklog.ps1 start -NoBrowser` for background automation. CLI `worklog start` always returns JSON without opening a browser. Repeating `start` safely reuses that same instance. An unrelated or unverified listener on port 8877 produces an error; the launcher never kills it. `stop` verifies the same identities and requests graceful shutdown through an instance-specific local marker. It never guesses from a PID or forcefully terminates an unrelated process. If startup fails, inspect `server.log` in the data directory. The `serve` command is the internal foreground server entry point.
+`start` launches one hidden Uvicorn worker bound to loopback, serving the frontend and API. Windows Python's virtual environment redirector also remains as a hidden parent process. It waits for `/health` and verifies Worklog identity, persistent data identity, PID, and OS process creation identity. The PowerShell launcher opens the browser only after readiness; use `./scripts/Worklog.ps1 start -NoBrowser` for background automation. CLI `worklog start` always returns JSON without opening a browser. Repeating `start` safely reuses that same instance. An unrelated or unverified listener on the selected port produces an error; the launcher never kills it. `stop` verifies the same identities and requests graceful shutdown through an instance-specific local marker. It never guesses from a PID or forcefully terminates an unrelated process. If startup fails, inspect `server.log` in the data directory. The `serve` command is the internal foreground server entry point.
+
+The default port is 8877. Choose another loopback port with `-Port` (launcher), `--port` (CLI) or `WORKLOG_PORT`, for example to run a disposable test instance beside your everyday one. An explicit option wins over `WORKLOG_PORT`. Use the same port and data directory for every command against an instance; the browser address and the agent CLI follow the selected port.
+
+```powershell
+./scripts/Worklog.ps1 start -Port 8878 -DataDir 'D:/Scratch/worklog-test' -NoBrowser
+./scripts/Worklog.ps1 check -Port 8878 -DataDir 'D:/Scratch/worklog-test'
+./scripts/Worklog.ps1 stop -Port 8878 -DataDir 'D:/Scratch/worklog-test'
+```
 
 Data defaults to **`%LOCALAPPDATA%/Worklog`**, outside the checkout. The SQLite database (`worklog.sqlite3`) includes attachment and import bytes. Backups, log, lock, and launcher state files live alongside it. Do not put a live database in a network share or cloud-sync folder. Choose a data directory consistently for every command:
 
@@ -121,7 +129,8 @@ npm run lint
 npm run typecheck
 npm test
 npm run build
-# Requires port 8877 to be free; uses isolated ../.local/frontend-playwright data:
+# Uses isolated ../.local/frontend-playwright data on WORKLOG_PORT (default 8877), which must be free.
+# Beside a running instance on 8877, pick another port first: $env:WORKLOG_PORT = '8878'
 npm run test:e2e
 ```
 

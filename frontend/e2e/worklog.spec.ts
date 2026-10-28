@@ -266,14 +266,16 @@ test("quick capture distinguishes work already performed from a plan", async ({
 });
 test("work pages stay bounded and neighbor reorder works across a page boundary", async ({
   page,
+  baseURL,
 }) => {
+  const origin = new URL(baseURL!).origin;
   await page.goto("/");
   const prefix = "Paging" + Date.now();
   await expect(
     page.getByRole("heading", { name: "Today", exact: true }),
   ).toBeVisible();
   const boot = await page.request.post("/api/v1/session/bootstrap", {
-    headers: { Origin: "http://127.0.0.1:8877", "X-Worklog-Bootstrap": "1" },
+    headers: { Origin: origin, "X-Worklog-Bootstrap": "1" },
     data: {},
   });
   expect(boot.ok()).toBeTruthy();
@@ -281,7 +283,7 @@ test("work pages stay bounded and neighbor reorder works across a page boundary"
   for (let i = 0; i < 105; i++) {
     const result = await page.request.post("/api/v1/work-items", {
       headers: {
-        Origin: "http://127.0.0.1:8877",
+        Origin: origin,
         "X-CSRF-Token": csrfToken,
         "Idempotency-Key": crypto.randomUUID(),
       },
