@@ -1,0 +1,691 @@
+import { useState } from "react";
+import { localStore } from "./storage";
+import { request, download, contextStorageKey } from "./api";
+import { useAction, useData } from "./hooks";
+import {
+  Empty,
+  ErrorMessage,
+  Files,
+  History,
+  Markdown,
+  Notes,
+  RecoverRecords,
+  StatusSelect,
+} from "./components";
+import type { List, Roadmap, Step } from "./types";
+type Preview = {
+  id: string;
+  title: string;
+  overview: string;
+  steps: Step[];
+  warnings: string[];
+  sha256: string;
+};
+export function Roadmaps({ selected }: { selected?: string }) {
+  const roads = useData<List<Roadmap>>("/roadmaps?archived=false");
+  const [archive, setArchive] = useState(false);
+  const old = useData<List<Roadmap>>("/roadmaps?archived=true");
+  const action = useAction();
+  const [title, setTitle] = useState("");
+  if (selected) return <RoadmapDetail id={selected} />;
+  return (
+    <>
+      <header>
+        <p className="eyebrow">See the shape of the work</p>
+        <h1>Roadmaps</h1>
+        <p className="lede">A living plan, with a history you can trust.</p>
+      </header>
+      <form
+        className="quick-add"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          await action
+            .mutateAsync({
+              path: "/roadmaps",
+              body: { title, overview: "", steps: [] },
+            })
+            .then(() => setTitle(""))
+            .catch(() => undefined);
+        }}
+      >
+        <input
+          aria-label="Roadmap title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Name a new roadmap"
+          required
+        />
+        <button className="primary">Create roadmap</button>
+      </form>
+      <ImportRoadmap />
+      <div className="toolbar">
+        <label>
+          <input
+            type="checkbox"
+            checked={archive}
+            onChange={(e) => setArchive(e.target.checked)}
+          />{" "}
+          Show archive
+        </label>
+      </div>
+      <ErrorMessage error={roads.error || old.error || action.error} />
+      {!(archive ? old : roads).data?.items.length ? (
+        <Empty>Your bigger picture starts here.</Empty>
+      ) : (
+        (archive ? old : roads).data?.items.map((r) => (
+          <article className="roadmap-row" key={r.id}>
+            <div>
+              <a className="item-title" href={"#roadmaps/" + r.id}>
+                {r.title}
+              </a>
+              <p>{r.overview?.slice(0, 160)}</p>
+            </div>
+            <button
+              onClick={() =>
+                action.mutate({
+                  path: `/roadmaps/${r.id}/${archive ? "recover" : "archive"}`,
+                  body: { revision: r.revision },
+                })
+              }
+            >
+              {archive ? "Recover" : "Archive"}
+            </button>
+          </article>
+        ))
+      )}
+    </>
+  );
+}
+function ImportRoadmap() {
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [error, setError] = useState("");
+  const action = useAction();
+  const roads = useData<List<Roadmap>>("/roadmaps?archived=false");
+  const [referenceTarget, setReferenceTarget] = useState("");
+  return (
+    <section className="import-box">
+      <h3>Bring in an HTML plan</h3>
+      <p className="muted">
+        Review the extracted structure before creating a roadmap. Original HTML
+        is download only.
+      </p>
+      <input
+        aria-label="Import HTML plan"
+        type="file"
+        accept=".html,.htm,text/html"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          if (file.size > 5000000) {
+            setError("HTML imports must be 5 MB or smaller.");
+            return;
+          }
+          try {
+            const result = await request<Preview>(
+              "/imports/preview?name=" + encodeURIComponent(file.name),
+              "POST",
+              file,
+            );
+            setPreview(result);
+            setSelected(new Set(result.steps.map((s) => s.id)));
+            setError("");
+          } catch (error) {
+            setError(String(error));
+          }
+        }}
+      />
+      <ErrorMessage error={error || action.error} />
+      {preview && (
+        <div>
+          <label>
+            Imported title
+            <input
+              value={preview.title}
+              onChange={(e) =>
+                setPreview({ ...preview, title: e.target.value })
+              }
+            />
+          </label>
+          <label>
+            Overview
+            <textarea
+              value={preview.overview}
+              onChange={(e) =>
+                setPreview({ ...preview, overview: e.target.value })
+              }
+            />
+          </label>
+          {preview.warnings.map((w, i) => (
+            <p key={i} className="warning">
+              {w}
+            </p>
+          ))}
+          {preview.steps.map((s) => (
+            <div className="import-candidate" key={s.id}>
+              <label className="line">
+                <input
+                  type="checkbox"
+                  checked={selected.has(s.id)}
+                  onChange={(e) => {
+                    const next = new Set(selected);
+                    if (e.target.checked) {
+                      next.add(s.id);
+                      let parent = preview.steps.find(
+                        (p) => p.id === s.parentId,
+                      );
+                      while (parent) {
+                        next.add(parent.id);
+                        parent = preview.steps.find(
+                          (p) => p.id === parent?.parentId,
+                        );
+                      }
+                    } else {
+                      next.delete(s.id);
+                      let changed = true;
+                      while (changed) {
+                        changed = false;
+                        preview.steps.forEach((p) => {
+                          if (
+                            p.parentId &&
+                            !next.has(p.parentId) &&
+                            next.delete(p.id)
+                          )
+                            changed = true;
+                        });
+                      }
+                    }
+                    setSelected(next);
+                  }}
+                />
+                {s.title}
+              </label>
+              <details>
+                <summary>Preview extracted content</summary>
+                <Markdown text={s.description} />
+              </details>
+            </div>
+          ))}
+          <label>
+            Or keep the original as a reference on an existing roadmap
+            <select
+              value={referenceTarget}
+              onChange={(e) => setReferenceTarget(e.target.value)}
+            >
+              <option value="">Create a new roadmap from the selection</option>
+              {roads.data?.items.map((r) => (
+                <option value={r.id} key={r.id}>
+                  {r.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="toolbar">
+            <button
+              className="primary"
+              disabled={action.isPending}
+              onClick={async () => {
+                await action
+                  .mutateAsync({
+                    path: `/imports/${preview.id}/commit`,
+                    body: {
+                      title: preview.title,
+                      overview: preview.overview,
+                      steps: preview.steps.filter((s) => selected.has(s.id)),
+                      ...(referenceTarget
+                        ? {
+                            roadmapId: referenceTarget,
+                            revision: roads.data?.items.find(
+                              (r) => r.id === referenceTarget,
+                            )?.revision,
+                          }
+                        : {}),
+                    },
+                  })
+                  .then(() => setPreview(null))
+                  .catch(() => undefined);
+              }}
+            >
+              {referenceTarget
+                ? "Attach original as reference"
+                : "Create from selected steps"}
+            </button>
+            <a href={download(`/imports/${preview.id}/download`)}>
+              Download original
+            </a>
+            <button onClick={() => setPreview(null)}>Cancel</button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+function RoadmapDetail({ id }: { id: string }) {
+  const query = useData<Roadmap>("/roadmaps/" + id);
+  const action = useAction();
+  const [editing, setEditing] = useState(false);
+  const [snapshot, setSnapshot] = useState<unknown>(null);
+  const road = query.data;
+  if (!road)
+    return (
+      <>
+        <ErrorMessage error={query.error} />
+        <p>Loading roadmap…</p>
+      </>
+    );
+  const active = road.steps.filter((s) => !s.retired);
+  const leaves = active.filter(
+    (s) => !active.some((child) => child.parentId === s.id),
+  );
+  const completed = leaves.filter((s) => s.status === "done").length;
+  const render = (parent: string | null, depth = 0): React.ReactNode =>
+    active
+      .filter((s) => s.parentId === parent)
+      .sort((a, b) => a.position - b.position)
+      .map((s) => (
+        <div key={s.id} className="step" style={{ marginLeft: depth ? 20 : 0 }}>
+          <div className="section-heading">
+            <div>
+              <strong>{s.title}</strong>
+              {s.description && <Markdown text={s.description} />}
+            </div>
+            <StatusSelect
+              disabled={
+                road.archived || active.some((child) => child.parentId === s.id)
+              }
+              label={"Progress for " + s.title}
+              value={s.status}
+              onChange={(status) =>
+                action.mutate({
+                  path: "/steps/" + s.id + "/progress",
+                  method: "PATCH",
+                  body: { revision: s.revision, status },
+                })
+              }
+            />
+          </div>
+          <button
+            className="quiet"
+            onClick={async () => {
+              try {
+                setSnapshot(await request("/steps/" + s.id + "/history"));
+              } catch (error) {
+                setSnapshot({ error: String(error) });
+              }
+            }}
+          >
+            Step history
+          </button>
+          <details>
+            <summary>Step notes & files</summary>
+            <Notes ownerType="step" ownerId={s.id} notes={s.notes ?? []} />
+            <Files
+              ownerType="step"
+              ownerId={s.id}
+              files={s.attachments ?? []}
+            />
+            <RecoverRecords
+              groups={[
+                { label: "Notes", path: "notes", records: s.notes ?? [] },
+                {
+                  label: "Files",
+                  path: "attachments",
+                  records: s.attachments ?? [],
+                },
+              ]}
+            />
+          </details>
+          {render(s.id, depth + 1)}
+        </div>
+      ));
+  return (
+    <>
+      <a className="back" href="#roadmaps">
+        ← All roadmaps
+      </a>
+      <header>
+        <p className="eyebrow">Roadmap / revision {road.revision}</p>
+        <h1>{road.title}</h1>
+        <Markdown text={road.overview} />
+        <div className="toolbar">
+          <button
+            className="primary"
+            disabled={road.archived}
+            onClick={() => setEditing(!editing)}
+          >
+            {editing ? "Close editor" : "Edit structure"}
+          </button>
+          <button
+            onClick={() =>
+              action.mutate({
+                path: `/roadmaps/${id}/${road.archived ? "recover" : "archive"}`,
+                body: { revision: road.revision },
+              })
+            }
+          >
+            {road.archived ? "Recover" : "Archive"}
+          </button>
+          <span>
+            {completed} / {leaves.length} steps complete
+          </span>
+        </div>
+        <progress
+          max={leaves.length || 1}
+          value={completed}
+          aria-label="Roadmap completion"
+        />
+      </header>
+      <ErrorMessage error={action.error} />
+      {editing && !road.archived && (
+        <StructureEditor
+          key={road.revision}
+          roadmap={road}
+          onDone={() => setEditing(false)}
+        />
+      )}
+      <h2>Plan & progress</h2>
+      {!active.length ? (
+        <Empty>Add the first step in the structure editor.</Empty>
+      ) : (
+        render(null)
+      )}
+      {road.steps.some((s) => s.retired) && (
+        <details>
+          <summary>Retired steps</summary>
+          {road.steps
+            .filter((s) => s.retired)
+            .map((s) => (
+              <p key={s.id}>
+                {s.title} · {s.status}
+              </p>
+            ))}
+        </details>
+      )}
+      <section>
+        <h3>Immutable versions</h3>
+        {road.versions.map((v) => (
+          <div className="line" key={v.number}>
+            <button
+              onClick={async () => {
+                try {
+                  setSnapshot(
+                    await request(`/roadmaps/${id}/revisions/${v.number}`),
+                  );
+                } catch (error) {
+                  setSnapshot({ error: String(error) });
+                }
+              }}
+            >
+              View version {v.number}
+            </button>
+            <span>{v.note || "Structure saved"}</span>
+            <small>{new Date(v.createdAt).toLocaleString()}</small>
+            <button
+              onClick={() =>
+                action.mutate({
+                  path: `/roadmaps/${id}/restore`,
+                  body: { revision: road.revision, number: v.number },
+                })
+              }
+            >
+              Restore as new version
+            </button>
+          </div>
+        ))}
+      </section>
+      {!!road.imports?.length && (
+        <section>
+          <h3>Original plan references</h3>
+          {road.imports.map((file) => (
+            <div className="line" key={file.id}>
+              <a href={download(`/imports/${file.id}/download`)}>{file.name}</a>
+              <small title={file.sha256}>
+                SHA-256 {file.sha256.slice(0, 12)}…
+              </small>
+            </div>
+          ))}
+        </section>
+      )}
+      {snapshot !== null && (
+        <section>
+          <div className="section-heading">
+            <h3>Historical record</h3>
+            <button onClick={() => setSnapshot(null)}>Close</button>
+          </div>
+          <pre>{JSON.stringify(snapshot, null, 2)}</pre>
+        </section>
+      )}
+      <Notes ownerType="roadmap" ownerId={id} notes={road.notes} />
+      <Files ownerType="roadmap" ownerId={id} files={road.attachments} />
+      <RecoverRecords
+        groups={[
+          { label: "Notes", path: "notes", records: road.notes },
+          { label: "Files", path: "attachments", records: road.attachments },
+        ]}
+      />
+      <History items={road.history} />
+    </>
+  );
+}
+function StructureEditor({
+  roadmap,
+  onDone,
+}: {
+  roadmap: Roadmap;
+  onDone: () => void;
+}) {
+  const key = contextStorageKey("roadmap-structure", roadmap.id);
+  const storedResult = localStore.read(key);
+  const stored = storedResult.value;
+  let draft: {
+    title: string;
+    overview: string;
+    steps: Step[];
+    revision: number;
+  } | null = null;
+  try {
+    draft = stored ? JSON.parse(stored) : null;
+  } catch {
+    /* Preserve corrupt draft; start from canonical. */
+  }
+  const [title, setTitle] = useState(draft?.title ?? roadmap.title);
+  const [overview, setOverview] = useState(draft?.overview ?? roadmap.overview);
+  const [steps, setSteps] = useState<Step[]>(
+    draft?.steps ?? roadmap.steps.filter((s) => !s.retired),
+  );
+  const [note, setNote] = useState("");
+  const [storageWarning, setStorageWarning] = useState(!storedResult.ok);
+  const action = useAction();
+  const revision = draft?.revision ?? roadmap.revision;
+  function persist(nextTitle: string, nextOverview: string, nextSteps: Step[]) {
+    const persisted = localStore.write(
+      key,
+      JSON.stringify({
+        title: nextTitle,
+        overview: nextOverview,
+        steps: nextSteps,
+        revision,
+      }),
+    );
+    if (!persisted) setStorageWarning(true);
+  }
+  function update(id: string, fields: Partial<Step>) {
+    const next = steps.map((s) => (s.id === id ? { ...s, ...fields } : s));
+    setSteps(next);
+    persist(title, overview, next);
+  }
+  const move = (i: number, delta: number) => {
+    const next = [...steps];
+    [next[i], next[i + delta]] = [next[i + delta], next[i]];
+    next.forEach((s, index) => (s.position = index));
+    setSteps(next);
+    persist(title, overview, next);
+  };
+  return (
+    <form
+      className="structure-editor"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        await action
+          .mutateAsync({
+            path: `/roadmaps/${roadmap.id}/revisions`,
+            body: {
+              revision,
+              title,
+              overview,
+              steps: steps.map((s, index) => ({
+                id: s.id,
+                title: s.title,
+                description: s.description,
+                parentId: s.parentId,
+                position: index,
+              })),
+              note,
+            },
+          })
+          .then(() => {
+            localStore.remove(key);
+            onDone();
+          })
+          .catch(() => undefined);
+      }}
+    >
+      <h2>Edit roadmap structure</h2>
+      {storageWarning && (
+        <p className="warning">
+          Browser draft storage unavailable; keep this tab open until saved.
+        </p>
+      )}
+      <p className="muted">
+        Saving creates an immutable version. Removed steps retire and keep their
+        history.
+      </p>
+      {draft && (
+        <p className="warning">
+          Recovered a local draft. Its base revision is {revision}.
+        </p>
+      )}
+      <label>
+        Title
+        <input
+          value={title}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            persist(e.target.value, overview, steps);
+          }}
+          required
+        />
+      </label>
+      <label>
+        Overview · Markdown
+        <textarea
+          value={overview}
+          onChange={(e) => {
+            setOverview(e.target.value);
+            persist(title, e.target.value, steps);
+          }}
+        />
+      </label>
+      {steps.map((s, i) => (
+        <fieldset key={s.id}>
+          <legend>Step {i + 1}</legend>
+          <input
+            aria-label={"Step " + (i + 1) + " title"}
+            value={s.title}
+            onChange={(e) => update(s.id, { title: e.target.value })}
+            required
+          />
+          <textarea
+            aria-label={"Step " + (i + 1) + " description"}
+            value={s.description}
+            onChange={(e) => update(s.id, { description: e.target.value })}
+          />
+          <select
+            aria-label={"Step " + (i + 1) + " parent"}
+            value={s.parentId ?? ""}
+            onChange={(e) => update(s.id, { parentId: e.target.value || null })}
+          >
+            <option value="">Top level</option>
+            {steps
+              .filter((p) => {
+                let ancestor: Step | undefined = p;
+                const visited = new Set<string>();
+                while (ancestor && !visited.has(ancestor.id)) {
+                  if (ancestor.id === s.id) return false;
+                  visited.add(ancestor.id);
+                  ancestor = steps.find((a) => a.id === ancestor?.parentId);
+                }
+                return true;
+              })
+              .map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.title}
+                </option>
+              ))}
+          </select>
+          <div className="toolbar">
+            <button
+              type="button"
+              aria-label={"Move step " + (i + 1) + " up"}
+              disabled={i === 0}
+              onClick={() => move(i, -1)}
+            >
+              ↑
+            </button>
+            <button
+              type="button"
+              aria-label={"Move step " + (i + 1) + " down"}
+              disabled={i === steps.length - 1}
+              onClick={() => move(i, 1)}
+            >
+              ↓
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const next = steps
+                  .filter((p) => p.id !== s.id)
+                  .map((p) =>
+                    p.parentId === s.id ? { ...p, parentId: s.parentId } : p,
+                  );
+                setSteps(next);
+                persist(title, overview, next);
+              }}
+            >
+              Retire step
+            </button>
+          </div>
+        </fieldset>
+      ))}
+      <button
+        type="button"
+        onClick={() => {
+          const next = [
+            ...steps,
+            {
+              id: crypto.randomUUID(),
+              title: "New step",
+              description: "",
+              parentId: null,
+              position: steps.length,
+              status: "open" as const,
+              revision: 0,
+            },
+          ];
+          setSteps(next);
+          persist(title, overview, next);
+        }}
+      >
+        Add step
+      </button>
+      <label>
+        Version note
+        <input value={note} onChange={(e) => setNote(e.target.value)} />
+      </label>
+      <ErrorMessage error={action.error} />
+      <button className="primary" disabled={action.isPending}>
+        Save new version
+      </button>
+    </form>
+  );
+}

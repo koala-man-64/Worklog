@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools==84.2.1"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "worklog-local"
+version = "1.0.0"
+description = "A local personal workbench for daily work, structured plans, and reviewed agent proposals"
+requires-python = ">=3.12"
+dependencies = ["fastapi==0.162.0", "uvicorn==0.54.0", "pydantic==2.14.1", "markdownify==1.2.3", "tzdata==2026.6"]
+
+[project.optional-dependencies]
+dev = ["pytest==9.2.0", "httpx==0.28.1", "ruff==0.17.3", "mypy==2.4.0"]
+
+[project.scripts]
+worklog = "worklog.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "backend"}
+
+[tool.setuptools.packages.find]
+where = ["backend"]
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+pythonpath = ["backend"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501", "B008"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["backend/worklog"]
+check_untyped_defs = true
+ignore_missing_imports = true
