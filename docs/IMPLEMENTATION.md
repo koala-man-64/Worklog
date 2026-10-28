@@ -2,7 +2,7 @@
 
 Task: WORKLOG-BUILD. Owner: root. Branch: `agent/root/worklog-build/worklog`.
 
-This is a new local application built in an initially empty workspace. There is no remote repository or CI provider configured. Delivery evidence here concerns local source, Windows execution, automated tests, browser workflows, and recovery. No publication, remote deployment, ADO synchronization, or legacy migration was performed.
+This is a new local application built in an initially empty workspace, without a remote repository or CI provider. It has since been published at `github.com/koala-man-64/Worklog` with `main` as the base branch and GitHub Actions CI (`.github/workflows/ci.yml`); remediation of the 2026-10-28 audit is tracked in [REMEDIATION.md](REMEDIATION.md). Delivery evidence here concerns local source, Windows execution, automated tests, browser workflows, and recovery. No publication, remote deployment, ADO synchronization, or legacy migration was performed.
 
 ## What was built
 

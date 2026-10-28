@@ -17,7 +17,7 @@ Waves 0–4 change no database schema and add no runtime dependency. Wave 5 (sch
 
 | Wave | Theme | Entry gate | Streams | Items | Merged | Exit met | Effort | Elapsed |
 |---|---|---|---|---|---|---|---|---|
-| 0 | Foundation | D1 | 3 | 3 | 2 | No | ~2 d | ~1.5 d |
+| 0 | Foundation | D1 | 3 | 3 | 3 | Yes | ~2 d | ~1.5 d |
 | 1 | High findings and isolated fixes | Wave 0 exit | 5 | 10 | 0 | No | ~5.5 d | ~2 d |
 | 2 | Concurrency and session lifecycle | Wave 1 exit, D2 | 3 | 4 | 0 | No | ~4 d | ~3 d |
 | 3 | Growth, scale and agent limits | Wave 2 exit, D3, D4 | 3 | 4 | 0 | No | ~5 d | ~2.5 d |
@@ -59,7 +59,7 @@ Entry gate: D1 decided.
 
 | Stream | Items, in order | Owns | Owner |
 |---|---|---|---|
-| 0A Repo governance | REM-01 | `main`, branch protection, `docs/IMPLEMENTATION.md` | Rudy (protection), Claude |
+| 0A Repo governance | REM-01 | `main`, branch protection, `docs/IMPLEMENTATION.md` | Rudy, Claude |
 | 0B CI | REM-02 | `.github/workflows/ci.yml` | Claude |
 | 0C Port configuration | REM-03 | `cli.py` host/port constants, lifecycle commands and `AgentClient` default; `scripts/Worklog.ps1`; `frontend/playwright.config.ts`; README run section | Claude |
 
@@ -67,7 +67,7 @@ Coordination: REM-01 creates `main` before 0B and 0C open PRs, and turns on requ
 
 Exit checklist:
 
-- [ ] `main` exists on origin, is the default branch, and requires a PR with green CI (exists and is default; protection pending)
+- [x] `main` exists on origin, is the default branch, and requires a PR with green CI (protected 2026-10-28)
 - [x] CI is green on `main` for backend, frontend, OpenAPI drift and e2e ([run 40785191133](https://github.com/koala-man-64/Worklog/actions/runs/40785191133))
 - [x] The e2e suite runs locally on a port other than 8877 while the personal instance is running (REM-03, #4)
 
@@ -169,7 +169,7 @@ Exit checklist:
 
 #### REM-01 · Establish `main` and protect it
 
-Status: In progress: `main` created; protection (Rudy) and the IMPLEMENTATION.md fix pending · Owner: Rudy, Claude · Branch: `claude/WORKLOG-REM-01-implementation-doc` · PR: —
+Status: Merged · Owner: Rudy, Claude · Branch: `claude/WORKLOG-REM-01-implementation-doc` · PR: [#5](https://github.com/koala-man-64/Worklog/pull/5)
 
 Fixes G1 · Stream 0A · Lite · S · Depends on D1 · Review: none (repository administration)
 
@@ -181,8 +181,8 @@ Fixes G1 · Stream 0A · Lite · S · Depends on D1 · Review: none (repository 
 Done when:
 
 - [x] `main` exists on origin and is the default branch (created at `d19a39e`)
-- [ ] Direct pushes are blocked and the CI checks are required
-- [ ] IMPLEMENTATION.md is accurate
+- [x] Direct pushes are blocked and the CI checks are required (PR required; Backend, Frontend and End-to-end required and up to date; admins included; no force pushes or deletion)
+- [x] IMPLEMENTATION.md is accurate (#5)
 
 #### REM-02 · CI on `windows-latest`
 
@@ -656,3 +656,4 @@ Line references are at `d19a39e` and will drift as fixes land.
 | 2026-10-28 | Plan created from the audit of `d19a39e`: waves 0–5, work items REM-01 to REM-26, decisions D1 to D7 |
 | 2026-10-28 | Wave 0 started: REM-02 (#2) and REM-03 (#4) in review, REM-01 awaiting D1. Found N7 while building a worktree; tracked as REM-27 in Wave 1 |
 | 2026-10-28 | D1 decided: `main` created at `d19a39e` and made the default branch. REM-02 (#2) and REM-03 (#4) merged; branch protection and REM-01's IMPLEMENTATION.md fix pending |
+| 2026-10-28 | Wave 0 closed: branch protection enabled on `main` with Rudy's approval, and REM-01 (#5) merged. Wave 1's entry gate is met |
