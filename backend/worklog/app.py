@@ -111,7 +111,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False) -> 
     app.state.sessions = {}
     app.state.instance_id = os.environ.get("WORKLOG_INSTANCE_ID", uid())
     app.state.backup_error = None
-    port = os.environ.get("WORKLOG_PORT", "8877")
+    port = os.environ.get("WORKLOG_PORT") or "8877"
     origin = f"http://127.0.0.1:{port}"
     allowed_hosts = {f"127.0.0.1:{port}"}
     allowed_origins = {origin}
