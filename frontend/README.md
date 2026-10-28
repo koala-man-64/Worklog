@@ -19,7 +19,7 @@ npm run build
 npm run test:e2e
 ```
 
-E2E starts a disposable backend at 127.0.0.1:8877 with data in `.local/frontend-playwright`, using the repository virtual environment. An occupied port fails the run instead of reusing another instance. Tests create work and roadmaps. To test an already-running **disposable** backend, explicitly set `WORKLOG_BASE_URL`. Never point the tests at a personal worklog.
+E2E starts a disposable backend on 127.0.0.1 at `WORKLOG_PORT` (default 8877) with data in `.local/frontend-playwright`, using the repository virtual environment. Set `WORKLOG_PORT` to another port to run beside an everyday instance. An occupied port fails the run instead of reusing another instance. Tests create work and roadmaps. To test an already-running **disposable** backend, explicitly set `WORKLOG_BASE_URL`. Never point the tests at a personal worklog.
 
 `npm run generate:api` regenerates request models from `docs/openapi.json`; refresh that schema from the root with `.venv/Scripts/python.exe tools/export_openapi.py`. `commands.ts` uses generated payload types for the actual create and autosave requests. TypeScript is pinned to the latest compatible 5.x version because openapi-typescript requires that peer range.
 
