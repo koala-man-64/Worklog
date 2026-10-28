@@ -22,7 +22,7 @@ test("daily capture, outcome persistence and keyboard planning controls", async 
 }) => {
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "Today", exact: true }),
+    page.getByRole("heading", { name: "Today (probe: must fail)", exact: true }),
   ).toBeVisible();
   const title = "Browser check " + Date.now();
   await page.getByRole("textbox", { name: "New work item" }).fill(title);
