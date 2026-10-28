@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Worklog Local API",
+    "title": "Stale API (drift probe)",
     "version": "1.0.0"
   },
   "paths": {
