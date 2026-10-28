@@ -18,7 +18,7 @@ Waves 0–4 change no database schema and add no runtime dependency. Wave 5 (sch
 | Wave | Theme | Entry gate | Streams | Items | Merged | Exit met | Effort | Elapsed |
 |---|---|---|---|---|---|---|---|---|
 | 0 | Foundation | D1 | 3 | 3 | 0 | No | ~2 d | ~1.5 d |
-| 1 | High findings and isolated fixes | Wave 0 exit | 5 | 9 | 0 | No | ~5 d | ~2 d |
+| 1 | High findings and isolated fixes | Wave 0 exit | 5 | 10 | 0 | No | ~5.5 d | ~2 d |
 | 2 | Concurrency and session lifecycle | Wave 1 exit, D2 | 3 | 4 | 0 | No | ~4 d | ~3 d |
 | 3 | Growth, scale and agent limits | Wave 2 exit, D3, D4 | 3 | 4 | 0 | No | ~5 d | ~2.5 d |
 | 4 | Authorization and hardening | Wave 3 exit, D5, D7 | 3 | 4 | 0 | No | ~4.5 d | ~3.5 d |
@@ -60,8 +60,8 @@ Entry gate: D1 decided.
 | Stream | Items, in order | Owns | Owner |
 |---|---|---|---|
 | 0A Repo governance | REM-01 | `main`, branch protection, `docs/IMPLEMENTATION.md` | Rudy |
-| 0B CI | REM-02 | `.github/workflows/ci.yml` | |
-| 0C Port configuration | REM-03 | `cli.py` host/port constants, lifecycle commands and `AgentClient` default; `scripts/Worklog.ps1`; `frontend/playwright.config.ts`; README run section | |
+| 0B CI | REM-02 | `.github/workflows/ci.yml` | Claude |
+| 0C Port configuration | REM-03 | `cli.py` host/port constants, lifecycle commands and `AgentClient` default; `scripts/Worklog.ps1`; `frontend/playwright.config.ts`; README run section | Claude |
 
 Coordination: REM-01 creates `main` before 0B and 0C open PRs, and turns on required checks after REM-02 merges. Streams 1A and 1B may start development during this wave.
 
@@ -81,13 +81,13 @@ Entry gate: Wave 0 exit checklist complete.
 | 1B Roadmap editor | REM-05 | `Roadmaps.tsx` `StructureEditor` | |
 | 1C Backend robustness and privacy | REM-06, then REM-07 | `plans.py` `_validate_steps`; `app.py` `protect` CSRF check and error handling; `proposals.py` visibility; new `tests/test_robustness.py` | |
 | 1D Link safety | REM-08 and REM-09, in parallel | `components.tsx` `Markdown`; `plans.py` `preview` URL handling | |
-| 1E Small fixes | REM-10, REM-11, REM-12 | `cli.py` export command; `Review.tsx` `OperationDiff`; `pyproject.toml`; README | |
+| 1E Small fixes | REM-10, REM-11, REM-12, REM-27 | `cli.py` export command; `Review.tsx` `OperationDiff`; `pyproject.toml`; README; `scripts/Setup.ps1` | |
 
 Coordination: 1A and 1D both edit `components.tsx` (`DraftField` vs `Markdown`); 1C and 1D both edit `plans.py` (`_validate_steps` vs `preview`).
 
 Exit checklist:
 
-- [ ] All nine items merged, each with its regression test
+- [ ] All ten items merged, each with its regression test
 - [ ] Browser check on an isolated instance: the ADO two-tab scenario keeps the newer value, and a stale structure draft offers Discard and Rebase
 - [ ] Personal instance upgraded and `check` passes
 
@@ -169,7 +169,7 @@ Exit checklist:
 
 #### REM-01 · Establish `main` and protect it
 
-Status: Not started · Owner: Rudy · Branch: n/a · PR: n/a
+Status: Blocked: awaiting D1 · Owner: Rudy · Branch: n/a · PR: n/a
 
 Fixes G1 · Stream 0A · Lite · S · Depends on D1 · Review: none (repository administration)
 
@@ -186,7 +186,7 @@ Done when:
 
 #### REM-02 · CI on `windows-latest`
 
-Status: Not started · Owner: — · Branch: — · PR: —
+Status: In review · Owner: Claude · Branch: `claude/WORKLOG-REM-02-ci` · PR: [#2](https://github.com/koala-man-64/Worklog/pull/2)
 
 Fixes G2 · Stream 0B · Standard · M · Depends on REM-01 (`main` created) · Review: standard
 
@@ -200,13 +200,13 @@ Fixes G2 · Stream 0B · Standard · M · Depends on REM-01 (`main` created) · 
 
 Done when:
 
-- [ ] Every job is green on `main`
-- [ ] A deliberately stale `openapi.json` fails the drift job
-- [ ] e2e traces are uploaded when the suite fails
+- [ ] Every job is green on `main` (green on #2; `main` waits on D1)
+- [x] A deliberately stale `openapi.json` fails the drift job (probe #3)
+- [x] e2e traces are uploaded when the suite fails (probe #3)
 
 #### REM-03 · Configurable port
 
-Status: Not started · Owner: — · Branch: — · PR: —
+Status: In review · Owner: Claude · Branch: `claude/WORKLOG-REM-03-port` · PR: [#4](https://github.com/koala-man-64/Worklog/pull/4)
 
 Fixes G3 · Stream 0C · Standard · S–M · Review: standard
 
@@ -217,9 +217,9 @@ Fixes G3 · Stream 0C · Standard · S–M · Review: standard
 
 Done when:
 
-- [ ] An instance on 8878 with isolated data starts, checks and stops while 8877 runs
-- [ ] `npm run test:e2e` passes with `WORKLOG_PORT=8878`
-- [ ] The Host and Origin allowlist follows the configured port
+- [x] An instance on 8878 with isolated data starts, checks and stops while 8877 runs (local, see #4)
+- [x] `npm run test:e2e` passes with `WORKLOG_PORT=8878` (local: 9 passed)
+- [x] The Host and Origin allowlist follows the configured port (pytest)
 
 ### Wave 1
 
@@ -352,6 +352,19 @@ Fixes N3 and N4 · Stream 1E · Lite · S · Review: standard
 Done when:
 
 - [ ] `pip check` is clean and the README matches `db.py`
+
+#### REM-27 · Setup survives redirected output on Windows PowerShell 5.1
+
+Status: Not started · Owner: — · Branch: — · PR: —
+
+Fixes N7 · Stream 1E · Lite · S · Review: standard
+
+- [Setup.ps1](../scripts/Setup.ps1) sets `$ErrorActionPreference = "Stop"`. Under Windows PowerShell 5.1 with output redirected, that turns harmless native stderr, such as an npm config warning, into a terminating error. Scope the preference to cmdlets and rely on the script's existing `$LASTEXITCODE` checks for native commands.
+
+Done when:
+
+- [ ] `Setup.ps1` completes under Windows PowerShell 5.1 with all output redirected while npm prints warnings
+- [ ] A failing native command still stops the script with its message
 
 ### Wave 2
 
@@ -616,6 +629,7 @@ Line references are at `d19a39e` and will drift as fixes land.
 | N4 | Minor | `bs4` is imported but not declared | `plans.py:12` | REM-12 |
 | N5 | Minor | The lock file has no hashes and installs dev tools into the runtime | `requirements.lock`, `scripts/Setup.ps1` | REM-24 |
 | N6 | Minor | The middleware relies on Starlette's private `request._body` | `app.py:195` | REM-22 |
+| N7 | Minor | `Setup.ps1` aborts under Windows PowerShell 5.1 when output is redirected and npm writes a warning to stderr | `scripts/Setup.ps1:3`; reproduced while building the REM-03 worktree | REM-27 |
 | G1 | Process | origin has no `main`, and IMPLEMENTATION.md is out of date | `git ls-remote` | REM-01 |
 | G2 | Process | There is no CI | Repository tree | REM-02 |
 | G3 | Process | e2e can't run beside the personal instance because the port is fixed | `cli.py:35`, `playwright.config.ts` | REM-03 |
@@ -640,3 +654,4 @@ Line references are at `d19a39e` and will drift as fixes land.
 | Date | Change |
 |---|---|
 | 2026-10-28 | Plan created from the audit of `d19a39e`: waves 0–5, work items REM-01 to REM-26, decisions D1 to D7 |
+| 2026-10-28 | Wave 0 started: REM-02 (#2) and REM-03 (#4) in review, REM-01 awaiting D1. Found N7 while building a worktree; tracked as REM-27 in Wave 1 |
