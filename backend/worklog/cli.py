@@ -32,8 +32,23 @@ from worklog.recovery import (
 )
 
 HOST = "127.0.0.1"
-PORT = 8877
-URL = f"http://{HOST}:{PORT}"
+DEFAULT_PORT = 8877
+
+
+def resolve_port(value: int | None = None) -> int:
+    """An explicit --port wins over WORKLOG_PORT; both fall back to 8877."""
+    raw: Any = value if value is not None else os.environ.get("WORKLOG_PORT") or DEFAULT_PORT
+    try:
+        port = int(raw)
+    except (TypeError, ValueError):
+        port = 0
+    if not 1 <= port <= 65535:
+        raise ValueError(f"Invalid port {raw!r}; use a port number 1-65535")
+    return port
+
+
+def local_url(port: int) -> str:
+    return f"http://{HOST}:{port}"
 
 
 class _NoRedirect(HTTPRedirectHandler):
@@ -111,18 +126,18 @@ def _process_identity(pid: int) -> dict[str, Any] | None:
         return None
 
 
-def _health() -> dict[str, Any] | None:
+def _health(port: int) -> dict[str, Any] | None:
     try:
-        with _open(URL + "/health", timeout=0.6) as response:
+        with _open(local_url(port) + "/health", timeout=0.6) as response:
             value = json.load(response)
             return value if isinstance(value, dict) else None
     except (OSError, ValueError):
         return None
 
 
-def _port_busy() -> bool:
+def _port_busy(port: int) -> bool:
     with socket.socket() as sock:
-        return sock.connect_ex((HOST, PORT)) == 0
+        return sock.connect_ex((HOST, port)) == 0
 
 
 def _owned(directory: Path, health: dict[str, Any] | None,
@@ -142,21 +157,21 @@ def _owned(directory: Path, health: dict[str, Any] | None,
         return False
 
 
-def check(directory: Path) -> dict[str, Any]:
+def check(directory: Path, port: int = DEFAULT_PORT) -> dict[str, Any]:
     state = _json_file(directory / "server-state.json")
-    health = _health()
+    health = _health(port)
     if _owned(directory, health, state):
-        return {"running": True, "url": URL, **(health or {}), "pid": state["pid"],
+        return {"running": True, "url": local_url(port), **(health or {}), "pid": state["pid"],
                 "dataDir": str(directory)}
-    if _port_busy():
-        raise RuntimeError(f"Port {PORT} belongs to an unverified instance. Nothing was stopped")
-    return {"running": False, "url": URL, "dataDir": str(directory)}
+    if _port_busy(port):
+        raise RuntimeError(f"Port {port} belongs to an unverified instance. Nothing was stopped")
+    return {"running": False, "url": local_url(port), "dataDir": str(directory)}
 
 
-def start(directory: Path) -> dict[str, Any]:
+def start(directory: Path, port: int = DEFAULT_PORT) -> dict[str, Any]:
     directory.mkdir(parents=True, exist_ok=True)
     with InstanceLock(directory, ".launcher.lock"):
-        current = check(directory)
+        current = check(directory, port)
         if current["running"]:
             return {**current, "reused": True}
         # Refuse another managed instance still booting or running on a different port.
@@ -169,7 +184,7 @@ def start(directory: Path) -> dict[str, Any]:
         flags = (subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP) if os.name == "nt" else 0
         with (directory / "server.log").open("ab") as log:
             process = subprocess.Popen(
-                [sys.executable, "-m", "worklog.cli", "--data-dir", str(directory), "serve"],
+                [sys.executable, "-m", "worklog.cli", "--data-dir", str(directory), "--port", str(port), "serve"],
                 stdin=subprocess.DEVNULL, stdout=log, stderr=log, env=environment,
                 creationflags=flags, start_new_session=os.name != "nt", close_fds=True,
             )
@@ -178,21 +193,21 @@ def start(directory: Path) -> dict[str, Any]:
             if process.poll() is not None:
                 raise RuntimeError(f"Worklog startup failed; inspect {directory / 'server.log'}")
             state = _json_file(directory / "server-state.json")
-            health = _health()
+            health = _health(port)
             if _owned(directory, health, state):
-                return {"running": True, "url": URL, **(health or {}), "pid": state["pid"],
+                return {"running": True, "url": local_url(port), **(health or {}), "pid": state["pid"],
                         "dataDir": str(directory), "reused": False}
             time.sleep(0.1)
         raise RuntimeError(f"Startup did not become ready; inspect {directory / 'server.log'} and run check")
 
 
-def stop(directory: Path) -> dict[str, Any]:
+def stop(directory: Path, port: int = DEFAULT_PORT) -> dict[str, Any]:
     directory.mkdir(parents=True, exist_ok=True)
     with InstanceLock(directory, ".launcher.lock"):
         state = _json_file(directory / "server-state.json")
-        health = _health()
+        health = _health(port)
         if not _owned(directory, health, state):
-            if not _port_busy():
+            if not _port_busy(port):
                 # A stopped or stale PID is never a reason to signal a process.
                 with InstanceLock(directory):
                     pass
@@ -208,14 +223,14 @@ def stop(directory: Path) -> dict[str, Any]:
         raise RuntimeError("Graceful shutdown did not finish; no process was forcefully terminated")
 
 
-def serve(directory: Path) -> None:
+def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
     """Private foreground entry point; start launches this in one hidden process."""
     import uvicorn
 
     from worklog.app import create_app
 
     os.environ["WORKLOG_DATA_DIR"] = str(directory)
-    os.environ["WORKLOG_PORT"] = str(PORT)
+    os.environ["WORKLOG_PORT"] = str(port)
     os.environ["WORKLOG_INSTANCE_ID"] = instance_id = str(uuid.uuid4())
     with InstanceLock(directory):
         app = create_app()
@@ -228,7 +243,7 @@ def serve(directory: Path) -> None:
                  "dataId": data_id, "dataDir": str(directory.resolve()), "version": __version__}
         _write_json(directory / "server-state.json", state)
         marker = directory / ("stop-" + instance_id + ".json")
-        server = uvicorn.Server(uvicorn.Config(app, host=HOST, port=PORT, access_log=False))
+        server = uvicorn.Server(uvicorn.Config(app, host=HOST, port=port, access_log=False))
         finished = threading.Event()
 
         def watch() -> None:
@@ -260,7 +275,8 @@ def serve(directory: Path) -> None:
 
 
 class AgentClient:
-    def __init__(self, base_url: str = URL) -> None:
+    def __init__(self, base_url: str | None = None) -> None:
+        base_url = base_url or local_url(resolve_port())
         parsed = urlsplit(base_url)
         if (parsed.scheme != "http" or parsed.hostname != HOST or parsed.username
                 or parsed.password or parsed.path not in {"", "/"} or parsed.query or parsed.fragment):
@@ -328,8 +344,8 @@ def _payload(path: str) -> dict[str, Any]:
     return value
 
 
-def agent_command(args: argparse.Namespace) -> Any:
-    client = AgentClient(args.url)
+def agent_command(args: argparse.Namespace, port: int) -> Any:
+    client = AgentClient(args.url or local_url(port))
     if args.agent_action == "context":
         return client.request("GET", "/context" + ("?" + urlencode({"date": args.date}) if args.date else ""))
     if args.agent_action == "search":
@@ -360,15 +376,19 @@ def agent_command(args: argparse.Namespace) -> Any:
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="worklog", description=__doc__)
     root.add_argument("--data-dir", help="Override persistent data directory")
+    root.add_argument("--port", type=int, help=f"Loopback port (default: WORKLOG_PORT or {DEFAULT_PORT})")
     root.add_argument("--version", action="version", version=__version__)
     commands = root.add_subparsers(dest="command", required=True)
     for command in ("start", "stop", "check", "serve", "backup", "backups", "restore", "export"):
         sub = commands.add_parser(command, help="Internal server entry" if command == "serve" else None)
         sub.add_argument("--data-dir", default=argparse.SUPPRESS)
+        if command in {"start", "stop", "check", "serve"}:
+            sub.add_argument("--port", type=int, default=argparse.SUPPRESS)
         if command in {"restore", "export"}:
             sub.add_argument("file")
     agent = commands.add_parser("agent", help="Read context and propose reviewed changes")
-    agent.add_argument("--url", default=URL)
+    agent.add_argument("--url", help="Agent base URL (default: the selected local port)")
+    agent.add_argument("--port", type=int, default=argparse.SUPPRESS)
     actions = agent.add_subparsers(dest="agent_action", required=True)
     context = actions.add_parser("context")
     context.add_argument("--date")
@@ -397,15 +417,16 @@ def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     try:
         if args.command == "agent":
-            result = agent_command(args)
+            result = agent_command(args, resolve_port(args.port))
         else:
             directory = data_directory(args.data_dir)
             database = directory / "worklog.sqlite3"
             if args.command == "serve":
-                serve(directory)
+                serve(directory, resolve_port(args.port))
                 return 0
             if args.command in {"start", "stop", "check"}:
-                result = {"start": start, "stop": stop, "check": check}[args.command](directory)
+                result = {"start": start, "stop": stop, "check": check}[args.command](
+                    directory, resolve_port(args.port))
             elif args.command == "backup":
                 result = backup_database(database, directory / "backups")
             elif args.command == "backups":

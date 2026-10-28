@@ -304,3 +304,18 @@ def test_backup_storage_failure_is_actionable(client, monkeypatch):
     response = write(client, "POST", "/backups", {})
     assert response.status_code == 503
     assert response.json()["error"]["code"] == "storage_error"
+
+
+def test_host_and_origin_allowlist_follow_the_configured_port(tmp_path, monkeypatch):
+    monkeypatch.setenv("WORKLOG_PORT", "8878")
+    app = create_app(tmp_path, testing=True)
+    with TestClient(app, base_url="http://127.0.0.1:8878") as c:
+        assert c.get("/health").status_code == 200
+        assert c.get("/health", headers={"Host": "127.0.0.1:8877"}).status_code == 400
+        bootstrap = {"X-Worklog-Bootstrap": "1"}
+        own = c.post("/api/v1/session/bootstrap", json={},
+                     headers={**bootstrap, "Origin": "http://127.0.0.1:8878"})
+        assert own.status_code == 200
+        default = c.post("/api/v1/session/bootstrap", json={},
+                         headers={**bootstrap, "Origin": "http://127.0.0.1:8877"})
+        assert default.status_code == 403

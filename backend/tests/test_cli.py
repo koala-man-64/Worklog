@@ -145,14 +145,14 @@ def test_lifecycle_reuses_only_matching_health_process_and_data(tmp_path, monkey
     process = {"created": 123, "executable": "python"}
     state = {**health, "dataDir": str(tmp_path.resolve()), "pid": 4321, "process": process}
     cli._write_json(tmp_path / "server-state.json", state)
-    monkeypatch.setattr(cli, "_health", lambda: health)
+    monkeypatch.setattr(cli, "_health", lambda port: health)
     monkeypatch.setattr(cli, "_process_identity", lambda pid: process)
     assert cli.start(tmp_path)["reused"] is True
-    monkeypatch.setattr(cli, "_port_busy", lambda: True)
+    monkeypatch.setattr(cli, "_port_busy", lambda port: True)
     for field in ("instanceId", "dataId"):
         changed = dict(health)
         changed[field] = "other"
-        monkeypatch.setattr(cli, "_health", lambda value=changed: value)
+        monkeypatch.setattr(cli, "_health", lambda port, value=changed: value)
         with pytest.raises(RuntimeError, match="unverified"):
             cli.start(tmp_path)
         with pytest.raises(RuntimeError, match="nothing was stopped"):
@@ -163,9 +163,9 @@ def test_pid_reuse_and_unrelated_listener_never_signal(tmp_path, monkeypatch):
     health = {"app": "worklog", "ready": True, "instanceId": "instance", "dataId": "data"}
     cli._write_json(tmp_path / "server-state.json", {**health, "dataDir": str(tmp_path.resolve()),
                     "pid": 10, "process": {"created": 123, "executable": "python"}})
-    monkeypatch.setattr(cli, "_health", lambda: health)
+    monkeypatch.setattr(cli, "_health", lambda port: health)
     monkeypatch.setattr(cli, "_process_identity", lambda pid: {"created": 999, "executable": "python"})
-    monkeypatch.setattr(cli, "_port_busy", lambda: True)
+    monkeypatch.setattr(cli, "_port_busy", lambda port: True)
     with pytest.raises(RuntimeError, match="nothing was stopped"):
         cli.stop(tmp_path)
     assert not list(tmp_path.glob("stop-*.json"))
@@ -175,3 +175,52 @@ def test_data_directory_override_precedence(tmp_path, monkeypatch):
     monkeypatch.setenv("WORKLOG_DATA_DIR", str(tmp_path / "environment"))
     assert cli.data_directory() == (tmp_path / "environment").resolve()
     assert cli.data_directory(str(tmp_path / "argument")) == (tmp_path / "argument").resolve()
+
+
+def test_port_precedence_and_validation(monkeypatch):
+    monkeypatch.delenv("WORKLOG_PORT", raising=False)
+    assert cli.resolve_port() == 8877
+    monkeypatch.setenv("WORKLOG_PORT", "8878")
+    assert cli.resolve_port() == 8878
+    assert cli.resolve_port(9000) == 9000
+    for invalid in ("0", "65536", "port"):
+        monkeypatch.setenv("WORKLOG_PORT", invalid)
+        with pytest.raises(ValueError, match="1-65535"):
+            cli.resolve_port()
+
+
+def test_agent_commands_follow_the_selected_port(requests, monkeypatch):
+    monkeypatch.setenv("WORKLOG_PORT", "8878")
+    assert cli.main(["agent", "context"]) == 0
+    assert requests[-1].full_url.startswith("http://127.0.0.1:8878/api/v1/context")
+    assert cli.main(["--port", "8879", "agent", "context"]) == 0
+    assert requests[-1].full_url.startswith("http://127.0.0.1:8879/api/v1/context")
+
+
+def test_start_launches_and_verifies_the_selected_port(tmp_path, monkeypatch):
+    health = {"app": "worklog", "ready": True, "instanceId": "instance", "dataId": "data"}
+    process = {"created": 123, "executable": "python"}
+    launched, probed = [], []
+
+    class Launched:
+        def poll(self):
+            return None
+
+    def popen(args, **kwargs):
+        launched.append(args)
+        cli._write_json(tmp_path / "server-state.json",
+                        {**health, "dataDir": str(tmp_path.resolve()), "pid": 4321, "process": process})
+        return Launched()
+
+    def health_on(port):
+        probed.append(port)
+        return health if launched else None
+
+    monkeypatch.setattr(cli.subprocess, "Popen", popen)
+    monkeypatch.setattr(cli, "_health", health_on)
+    monkeypatch.setattr(cli, "_port_busy", lambda port: False)
+    monkeypatch.setattr(cli, "_process_identity", lambda pid: process)
+    result = cli.start(tmp_path, 8878)
+    assert result["url"] == "http://127.0.0.1:8878" and result["reused"] is False
+    assert launched[0][-3:] == ["--port", "8878", "serve"]
+    assert set(probed) == {8878}
