@@ -292,7 +292,7 @@ Done when:
 
 #### REM-08 · Safe link rendering
 
-Status: Not started · Owner: — · Branch: — · PR: —
+Status: Merged · Owner: Claude (stream 1D helper) · Branch: `claude/WORKLOG-REM-08-safe-links` · PR: [#10](https://github.com/koala-man-64/Worklog/pull/10)
 
 Fixes L3 (frontend) · Stream 1D · Standard · S · Review: standard plus a light security review
 
@@ -300,7 +300,7 @@ Fixes L3 (frontend) · Stream 1D · Standard · S · Review: standard plus a lig
 
 Done when:
 
-- [ ] A vitest table covers `//evil.example`, `/\evil.example`, `JaVaScRiPt:alert(1)`, `#today`, `/`, `mailto:a@b.c` and `https://example.com`
+- [x] A vitest table covers `//evil.example`, `/\evil.example`, `JaVaScRiPt:alert(1)`, `#today`, `/`, `mailto:a@b.c` and `https://example.com` (components.test.tsx table; 2 rows fail on main, all pass after; vitest 23 passed, eslint and tsc clean)
 
 #### REM-09 · Normalize links in HTML imports
 
