@@ -304,7 +304,7 @@ Done when:
 
 #### REM-09 · Normalize links in HTML imports
 
-Status: Not started · Owner: — · Branch: — · PR: —
+Status: Merged · Owner: Claude (stream 1D helper) · Branch: `claude/WORKLOG-REM-09-import-links` · PR: [#6](https://github.com/koala-man-64/Worklog/pull/6)
 
 Fixes L3 (backend) · Stream 1D · Standard · S · Review: standard
 
