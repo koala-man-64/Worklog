@@ -319,3 +319,28 @@ def test_host_and_origin_allowlist_follow_the_configured_port(tmp_path, monkeypa
         default = c.post("/api/v1/session/bootstrap", json={},
                          headers={**bootstrap, "Origin": "http://127.0.0.1:8877"})
         assert default.status_code == 403
+
+
+def test_withdrawn_unsubmitted_drafts_stay_private(client):
+    credentials = [write(client, "POST", "/credentials", {"label": label}).json() for label in ("A", "B")]
+    a, b = [{"Authorization": "Bearer " + credential["token"]} for credential in credentials]
+    draft = write(client, "POST", "/proposals", {"title": "Abandoned idea", "rationale": "Never submitted", "operations": []}, headers=a).json()
+    route = f"/attachments?ownerType=proposal&ownerId={draft['id']}&name=abandoned.txt"
+    evidence = write(client, "POST", route, content=b"abandoned evidence", headers=a).json()
+    withdrawn = write(client, "POST", f"/proposals/{draft['id']}/withdraw", {"revision": draft["revision"]}, headers=a)
+    assert withdrawn.status_code == 200, withdrawn.text
+    assert client.get(f"/api/v1/proposals/{draft['id']}", headers=b).status_code == 404
+    assert draft["id"] not in {p["id"] for p in client.get("/api/v1/proposals", headers=b).json()["items"]}
+    assert client.get(f"/api/v1/attachments?ownerType=proposal&ownerId={draft['id']}", headers=b).status_code == 404
+    assert client.get(f"/api/v1/attachments/{evidence['id']}", headers=b).status_code == 404
+    for identity in (draft["id"], evidence["id"]):
+        assert client.get(f"/api/v1/history?entityId={identity}", headers=b).status_code == 404
+    # The author and the human reviewer still see it.
+    assert client.get(f"/api/v1/proposals/{draft['id']}", headers=a).status_code == 200
+    assert client.get(f"/api/v1/proposals/{draft['id']}").status_code == 200
+    # A proposal withdrawn after submission stays visible to other agents, as before.
+    operations = [{"action": "item.create", "payload": {"title": "Reviewed"}}]
+    shared = write(client, "POST", "/proposals", {"title": "Reviewed idea", "rationale": "Submitted first", "operations": operations}, headers=a).json()
+    submitted = write(client, "POST", f"/proposals/{shared['id']}/submit", {"revision": shared["revision"]}, headers=a).json()
+    write(client, "POST", f"/proposals/{shared['id']}/withdraw", {"revision": submitted["revision"]}, headers=a)
+    assert client.get(f"/api/v1/proposals/{shared['id']}", headers=b).status_code == 200

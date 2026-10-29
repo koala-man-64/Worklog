@@ -5,6 +5,18 @@ import { download } from "./api";
 import { commands } from "./commands";
 import { useAction, useDraft } from "./hooks";
 import type { Attachment, Note, Status } from "./types";
+const ALLOWED_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
+function resolveLink(url: string): URL | null {
+  try {
+    const resolved = new URL(url, window.location.origin);
+    return ALLOWED_PROTOCOLS.has(resolved.protocol) ? resolved : null;
+  } catch {
+    return null;
+  }
+}
+function isSameOrigin(url: string): boolean {
+  return resolveLink(url)?.origin === window.location.origin;
+}
 export function Markdown({ text }: { text: string }) {
   return (
     <div className="markdown">
@@ -17,24 +29,21 @@ export function Markdown({ text }: { text: string }) {
               [Image: {alt || "image reference"}]
             </span>
           ),
-          a: ({ href, title, children }) => (
-            <a
-              href={href}
-              title={title}
-              target={
-                href?.startsWith("#") || href?.startsWith("/")
-                  ? undefined
-                  : "_blank"
-              }
-              rel="noopener noreferrer"
-            >
-              {children}
-            </a>
-          ),
+          a: ({ href, title, children }) => {
+            const external = href ? !isSameOrigin(href) : false;
+            return (
+              <a
+                href={href || undefined}
+                title={title}
+                target={external ? "_blank" : undefined}
+                rel={external ? "noopener noreferrer" : undefined}
+              >
+                {children}
+              </a>
+            );
+          },
         }}
-        urlTransform={(url) =>
-          /^(https?:|mailto:|#|\/)/i.test(url) ? url : ""
-        }
+        urlTransform={(url) => (resolveLink(url) ? url : "")}
       >
         {text || "Nothing written yet."}
       </ReactMarkdown>
@@ -82,6 +91,7 @@ export function DraftField({
   revision,
   save,
   multiline = true,
+  placeholder,
 }: {
   draftKey: string;
   label: string;
@@ -89,6 +99,7 @@ export function DraftField({
   revision: number;
   save: (text: string, revision: number) => Promise<{ revision: number }>;
   multiline?: boolean;
+  placeholder?: string;
 }) {
   const draft = useDraft(draftKey, initial, revision, save);
   const [preview, setPreview] = useState(false);
@@ -109,6 +120,7 @@ export function DraftField({
         <textarea
           id={draftKey}
           value={draft.value}
+          placeholder={placeholder}
           onChange={(e) => draft.set(e.target.value)}
           onBlur={draft.flush}
         />
@@ -116,6 +128,7 @@ export function DraftField({
         <input
           id={draftKey}
           value={draft.value}
+          placeholder={placeholder}
           onChange={(e) => draft.set(e.target.value)}
           onBlur={draft.flush}
         />

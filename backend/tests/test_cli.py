@@ -224,3 +224,42 @@ def test_start_launches_and_verifies_the_selected_port(tmp_path, monkeypatch):
     assert result["url"] == "http://127.0.0.1:8878" and result["reused"] is False
     assert launched[0][-3:] == ["--port", "8878", "serve"]
     assert set(probed) == {8878}
+
+
+def _export_args(tmp_path, target):
+    return ["--data-dir", str(tmp_path / "data"), "export", str(target)]
+
+
+def test_failed_export_leaves_no_target_or_temporary_file(tmp_path, monkeypatch, capsys):
+    def explode(database):
+        raise RuntimeError("injected export failure")
+
+    monkeypatch.setattr(cli, "export_database", explode)
+    target = tmp_path / "out" / "export.zip"
+    target.parent.mkdir()
+    assert cli.main(_export_args(tmp_path, target)) == 1
+    assert "injected export failure" in capsys.readouterr().err
+    assert not target.exists()
+    assert list(target.parent.iterdir()) == []
+
+
+def test_export_refuses_existing_target_and_leaves_no_temporary_file(tmp_path, monkeypatch, capsys):
+    def unexpected(database):
+        raise AssertionError("export must not start when the target exists")
+
+    monkeypatch.setattr(cli, "export_database", unexpected)
+    target = tmp_path / "export.zip"
+    target.write_bytes(b"precious")
+    assert cli.main(_export_args(tmp_path, target)) == 1
+    assert "already exists" in capsys.readouterr().err
+    assert target.read_bytes() == b"precious"
+    assert [path.name for path in tmp_path.iterdir() if path.name != "data"] == ["export.zip"]
+
+
+def test_successful_export_publishes_target_without_temporary_file(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(cli, "export_database", lambda database: b"zip-bytes")
+    target = tmp_path / "export.zip"
+    assert cli.main(_export_args(tmp_path, target)) == 0
+    assert target.read_bytes() == b"zip-bytes"
+    assert [path.name for path in tmp_path.iterdir() if path.name != "data"] == ["export.zip"]
+    assert json.loads(capsys.readouterr().out)["size"] == len(b"zip-bytes")
