@@ -304,7 +304,7 @@ Done when:
 
 #### REM-09 · Normalize links in HTML imports
 
-Status: Not started · Owner: — · Branch: — · PR: —
+Status: Merged · Owner: Claude (stream 1D helper) · Branch: `claude/WORKLOG-REM-09-import-links` · PR: [#6](https://github.com/koala-man-64/Worklog/pull/6)
 
 Fixes L3 (backend) · Stream 1D · Standard · S · Review: standard
 
@@ -312,8 +312,8 @@ Fixes L3 (backend) · Stream 1D · Standard · S · Review: standard
 
 Done when:
 
-- [ ] The href `https://x/a) [c](javascript:alert(1)` yields no `javascript:` link
-- [ ] `//host/path` becomes `https://host/path`
+- [x] The href `https://x/a) [c](javascript:alert(1)` yields no `javascript:` link (test_import_href_cannot_smuggle_an_extra_markdown_link; no `](javascript:` in output)
+- [x] `//host/path` becomes `https://host/path` (test_import_protocol_relative_and_whitespace_urls_are_normalized; pytest 93 passed, ruff and mypy clean)
 
 #### REM-10 · Atomic CLI export
 
