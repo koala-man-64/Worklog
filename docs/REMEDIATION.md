@@ -37,7 +37,7 @@ Waves 0–4 total about 21 engineer-days of effort and 12–13 working days elap
 | D5 | Agent read scope | Allowlist: context, search, proposals, work items, days, roadmaps, steps, notes, tasks, references, history; deny attachment bytes and import originals | REM-21 | Open | |
 | D6 | Schema v2 with migrations | Defer until Wave 4 exits; do it only if reflection conflicts or receipt growth still matter | Wave 5 | Open | |
 | D7 | Hash-locked dependency tooling | `uv` or `pip-tools`, dev-only | REM-24 | Open | |
-| D8 | Where the personal instance's data lives (M6) | Move it to a local, non-synced folder outside AppData and set `WORKLOG_DATA_DIR` for the user account so every launcher uses one path; keep the redirected copy until `check` passes from both the Codex app and a normal shell. Also make `start` reject a data directory that silently resolves into package storage | None; protects personal data | Open | |
+| D8 | Where the personal instance's data lives (M6) | Move it to a local, non-synced folder outside AppData and set `WORKLOG_DATA_DIR` for the user account so every launcher uses one path; keep the redirected copy until `check` passes from both the Codex app and a normal shell. Also make `start` reject a data directory that silently resolves into package storage | None; protects personal data | Decided for the data: moved outside AppData and named by the user-level `WORKLOG_DATA_DIR`. The `start` guard is still open | 2026-10-29, Rudy (Claude moved the data on his instruction) |
 
 ## Conventions
 
@@ -48,8 +48,8 @@ Waves 0–4 total about 21 engineer-days of effort and 12–13 working days elap
 - Streams in one wave own separate files or symbols. When two streams touch the same file they change different symbols, and the second PR merges `main` and re-runs CI before merging.
 - A wave's PRs merge only after the previous wave's exit checklist is complete. Development may start earlier.
 - Independent review where an item says so. An agent review never replaces Rudy's approval on a protected gate.
-- Verify against an isolated data directory, and after REM-03 on a port other than 8877. Never point tests at `%LOCALAPPDATA%\Worklog`.
-- Upgrade the personal instance at wave exit per the README: stop, manual backup, update, `Setup.ps1`, start, `check`. Keep the previous checkout and backup until `check` and one day of normal use pass. Until D8 is decided, the personal data sits in the Codex app's package storage (M6); from any other shell, pass that path with `-DataDir`.
+- Verify against an isolated data directory, and after REM-03 on a port other than 8877. Never point tests at the personal data directory. Since D8 the user-level `WORKLOG_DATA_DIR` names it, so a manual `start`, `serve` or `backup` run for testing must pass its own `-DataDir`. The test suites already pass their own directory.
+- Upgrade the personal instance at wave exit per the README: stop, manual backup, update, `Setup.ps1`, start, `check`. Keep the previous checkout and backup until `check` and one day of normal use pass. Since D8, every launcher finds the personal data through the user-level `WORKLOG_DATA_DIR`; an app started before the variable was set needs a restart first.
 - Rollback: Waves 0–4 change no schema, so rollback is the previous checkout. Wave 5 rollback requires the automatic pre-migration backup.
 
 ## Waves and streams
@@ -619,7 +619,7 @@ Line references are at `d19a39e` and will drift as fixes land.
 | M3 | Medium | An agent can exhaust resources; the proposal list is unpaginated | `proposals.py:97`, `app.py:502`; probe: 58 MB responses | REM-17 |
 | M4 | Medium | Export is built in memory, and Settings hashes every backup | `recovery.py:433`, `recovery.py:145`; read plus timing | REM-18 |
 | M5 | Medium | Long-lived tabs break, and Today is frozen at page load | `app.py:251`, `api.ts:87`, `App.tsx:25`; read | REM-15 |
-| M6 | Medium | Started from the Codex desktop app (MSIX-packaged), Worklog's default data directory is silently redirected into that app's package storage. A normal shell finds no data at `%LOCALAPPDATA%\Worklog`, and its `start` creates a second, empty dataset whenever the instance isn't running. Uninstalling or resetting the app removes that storage, including the data and every backup | Personal instance at Wave 1 exit: `server-state.json` records `dataDir` as `%LOCALAPPDATA%\Packages\OpenAI.Codex_2p2nqsd0c76g0\LocalCache\Local\Worklog`, and `%LOCALAPPDATA%\Worklog` does not exist outside the app | D8 |
+| M6 | Medium | Started from the Codex desktop app (MSIX-packaged), Worklog's default data directory is silently redirected into that app's package storage. A normal shell finds no data at `%LOCALAPPDATA%\Worklog`, and its `start` creates a second, empty dataset whenever the instance isn't running. Uninstalling or resetting the app removes that storage, including the data and every backup | Personal instance at Wave 1 exit: `server-state.json` records `dataDir` as `%LOCALAPPDATA%\Packages\OpenAI.Codex_2p2nqsd0c76g0\LocalCache\Local\Worklog`, and `%LOCALAPPDATA%\Worklog` does not exist outside the app | D8: data moved 2026-10-29; the `start` guard is still open |
 | L1 | Low | Unhandled 500 errors from a list-typed `parentId` and a non-ASCII CSRF header | `plans.py:178`, `app.py:189`; probe | REM-06 |
 | L2 | Low | A draft withdrawn without submission becomes readable by every agent | `proposals.py:82`; probe | REM-07 |
 | L3 | Low | `//host` links are treated as internal; import sanitizing has gaps | `components.tsx:35`, `plans.py:292`; read plus probe | REM-08, REM-09 |
@@ -662,3 +662,4 @@ Line references are at `d19a39e` and will drift as fixes land.
 | 2026-10-28 | Wave 0 closed: branch protection enabled on `main` with Rudy's approval, and REM-01 (#5) merged. Wave 1's entry gate is met |
 | 2026-10-29 | Wave 1 items merged: #6, #7, #8, #9, #10, #11, #12, #13, #14 and #15. The integrated build was verified in tests and in the browser. Upgrading the personal instance awaits Rudy's go-ahead |
 | 2026-10-29 | Wave 1 closed: the personal instance was upgraded to `main` (`fb98883`) and `check` passes. Found M6 during the upgrade (the data directory is redirected into the Codex app's package storage) and opened D8 |
+| 2026-10-29 | D8 decided for the data. The personal data moved from the Codex app's package storage to a folder outside AppData, named by the user-level `WORKLOG_DATA_DIR`. Verification: SHA-256 matched for all 9 files, and the copy passed `PRAGMA integrity_check`. With only the variable set, `check` passes and the `dataId` is unchanged. The redirected copy is kept under a new name until Rudy confirms. The `start` guard stays open |
