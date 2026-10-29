@@ -292,7 +292,7 @@ Done when:
 
 #### REM-08 · Safe link rendering
 
-Status: Not started · Owner: — · Branch: — · PR: —
+Status: Merged · Owner: Claude (stream 1D helper) · Branch: `claude/WORKLOG-REM-08-safe-links` · PR: [#10](https://github.com/koala-man-64/Worklog/pull/10)
 
 Fixes L3 (frontend) · Stream 1D · Standard · S · Review: standard plus a light security review
 
@@ -300,11 +300,11 @@ Fixes L3 (frontend) · Stream 1D · Standard · S · Review: standard plus a lig
 
 Done when:
 
-- [ ] A vitest table covers `//evil.example`, `/\evil.example`, `JaVaScRiPt:alert(1)`, `#today`, `/`, `mailto:a@b.c` and `https://example.com`
+- [x] A vitest table covers `//evil.example`, `/\evil.example`, `JaVaScRiPt:alert(1)`, `#today`, `/`, `mailto:a@b.c` and `https://example.com` (components.test.tsx table; 2 rows fail on main, all pass after; vitest 23 passed, eslint and tsc clean)
 
 #### REM-09 · Normalize links in HTML imports
 
-Status: Not started · Owner: — · Branch: — · PR: —
+Status: Merged · Owner: Claude (stream 1D helper) · Branch: `claude/WORKLOG-REM-09-import-links` · PR: [#6](https://github.com/koala-man-64/Worklog/pull/6)
 
 Fixes L3 (backend) · Stream 1D · Standard · S · Review: standard
 
@@ -312,12 +312,12 @@ Fixes L3 (backend) · Stream 1D · Standard · S · Review: standard
 
 Done when:
 
-- [ ] The href `https://x/a) [c](javascript:alert(1)` yields no `javascript:` link
-- [ ] `//host/path` becomes `https://host/path`
+- [x] The href `https://x/a) [c](javascript:alert(1)` yields no `javascript:` link (test_import_href_cannot_smuggle_an_extra_markdown_link; no `](javascript:` in output)
+- [x] `//host/path` becomes `https://host/path` (test_import_protocol_relative_and_whitespace_urls_are_normalized; pytest 93 passed, ruff and mypy clean)
 
 #### REM-10 · Atomic CLI export
 
-Status: Not started · Owner: — · Branch: — · PR: —
+Status: Merged · Owner: Claude (stream 1E helper) · Branch: `claude/WORKLOG-REM-10-atomic-export` · PR: [#7](https://github.com/koala-man-64/Worklog/pull/7)
 
 Fixes N2 · Stream 1E · Standard · S · Review: standard
 
@@ -325,12 +325,12 @@ Fixes N2 · Stream 1E · Standard · S · Review: standard
 
 Done when:
 
-- [ ] An injected export failure leaves nothing at the target path
-- [ ] An existing target is refused and the temporary file is cleaned up
+- [x] An injected export failure leaves nothing at the target path — `test_failed_export_leaves_no_target_or_temporary_file` passes; first commit failed on main
+- [x] An existing target is refused and the temporary file is cleaned up — `test_export_refuses_existing_target_and_leaves_no_temporary_file` passes; target bytes untouched
 
 #### REM-11 · Path-safe proposal review
 
-Status: Not started · Owner: — · Branch: — · PR: —
+Status: Merged · Owner: Claude (stream 1E helper) · Branch: `claude/WORKLOG-REM-11-review-paths` · PR: [#9](https://github.com/koala-man-64/Worklog/pull/9)
 
 Fixes L6 (frontend) · Stream 1E · Standard · S · Review: standard
 
@@ -338,11 +338,11 @@ Fixes L6 (frontend) · Stream 1E · Standard · S · Review: standard
 
 Done when:
 
-- [ ] A payload with `date: "../export"` sends no request and shows the warning
+- [x] A payload with `date: "../export"` sends no request and shows the warning — `Review.test.tsx` asserts no request and the 'Malformed target' warning for `date: "../export"` and six malformed-ID cases; fails on main (7 of 14), passes after
 
 #### REM-12 · Packaging and docs corrections
 
-Status: Not started · Owner: — · Branch: — · PR: —
+Status: Merged · Owner: Claude (stream 1E helper) · Branch: `claude/WORKLOG-REM-12-packaging-docs` · PR: [#12](https://github.com/koala-man-64/Worklog/pull/12)
 
 Fixes N3 and N4 · Stream 1E · Lite · S · Review: standard
 
@@ -351,7 +351,7 @@ Fixes N3 and N4 · Stream 1E · Lite · S · Review: standard
 
 Done when:
 
-- [ ] `pip check` is clean and the README matches `db.py`
+- [x] `pip check` is clean and the README matches `db.py` — fresh venv from requirements.lock + editable install: `pip check` clean, metadata lists beautifulsoup4==4.15.0; CI Backend job is the authoritative run; README now matches `db.py:70` (rollback journal) and warns about untrusted `imports/*.html`
 
 #### REM-27 · Setup survives redirected output on Windows PowerShell 5.1
 

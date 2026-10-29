@@ -11,6 +11,7 @@ import socket
 import sqlite3
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import uuid
@@ -413,6 +414,31 @@ def parser() -> argparse.ArgumentParser:
     return root
 
 
+def _publish_new_file(output: Path, produce: Any) -> None:
+    """Write produce() to output without ever overwriting it or leaving a partial file.
+
+    The bytes go to a temporary file beside the target, then are published by a rename
+    (Windows) or hard link (elsewhere); both fail if the target already exists.
+    """
+    exists = f"{output} already exists; choose another path"
+    if output.exists():
+        raise ValueError(exists)
+    descriptor, name = tempfile.mkstemp(dir=output.parent, prefix=".worklog-export-", suffix=".zip")
+    temporary = Path(name)
+    try:
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(produce())
+        try:
+            if os.name == "nt":
+                os.rename(temporary, output)
+            else:
+                os.link(temporary, output)
+        except FileExistsError:
+            raise ValueError(exists) from None
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     try:
@@ -435,9 +461,7 @@ def main(argv: list[str] | None = None) -> int:
                 result = restore_database(database, Path(args.file), directory / "backups")
             else:
                 output = Path(args.file).resolve()
-                # Preserve existing archives and files unless the user explicitly chooses another path.
-                with output.open("xb") as stream:
-                    stream.write(export_database(database))
+                _publish_new_file(output, lambda: export_database(database))
                 result = {"exported": str(output), "size": output.stat().st_size}
         rendered = json.dumps(result, ensure_ascii=False, indent=2)
         token = os.environ.get("WORKLOG_AGENT_TOKEN")
