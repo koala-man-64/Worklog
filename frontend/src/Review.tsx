@@ -159,7 +159,7 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
     </section>
   );
 }
-function OperationDiff({
+export function OperationDiff({
   action,
   payload,
 }: {
