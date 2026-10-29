@@ -278,7 +278,7 @@ Done when:
 
 #### REM-07 · Withdrawn drafts stay private
 
-Status: Not started · Owner: — · Branch: — · PR: —
+Status: Merged · Owner: Claude · Branch: `claude/WORKLOG-REM-07-withdrawn-privacy` · PR: [#11](https://github.com/koala-man-64/Worklog/pull/11)
 
 Fixes L2 · Stream 1C, after REM-06 · Standard · S · Review: standard plus a light security review
 
@@ -287,8 +287,8 @@ Fixes L2 · Stream 1C, after REM-06 · Standard · S · Review: standard plus a 
 
 Done when:
 
-- [ ] Agent B gets 404 for agent A's draft that was withdrawn without being submitted, for its attachments and for its history
-- [ ] A proposal withdrawn after submission stays visible, as before
+- [x] Agent B gets 404 for agent A's draft that was withdrawn without being submitted, for its attachments and for its history (also absent from B's list)
+- [x] A proposal withdrawn after submission stays visible, as before
 
 #### REM-08 · Safe link rendering
 
