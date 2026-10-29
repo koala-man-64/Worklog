@@ -355,7 +355,7 @@ Done when:
 
 #### REM-27 · Setup survives redirected output on Windows PowerShell 5.1
 
-Status: Not started · Owner: — · Branch: — · PR: —
+Status: Merged · Owner: Claude (stream 1E helper) · Branch: `claude/WORKLOG-REM-27-ps51-output` · PR: [#14](https://github.com/koala-man-64/Worklog/pull/14)
 
 Fixes N7 · Stream 1E · Lite · S · Review: standard
 
@@ -363,8 +363,8 @@ Fixes N7 · Stream 1E · Lite · S · Review: standard
 
 Done when:
 
-- [ ] `Setup.ps1` completes under Windows PowerShell 5.1 with all output redirected while npm prints warnings
-- [ ] A failing native command still stops the script with its message
+- [x] `Setup.ps1` completes under Windows PowerShell 5.1 with all output redirected while npm prints warnings — `powershell.exe` 5.1 `& ./scripts/Setup.ps1 *> setup.log` exits 0 with the npm always-auth warning; exit 1 on main
+- [x] A failing native command still stops the script with its message — throwaway copy with empty package-lock.json: `npm ci` fails, script stops with 'Locked frontend dependency installation failed', exit 1; `Worklog.ps1` keeps the CLI exit code (2 vs 1 on main)
 
 ### Wave 2
 
