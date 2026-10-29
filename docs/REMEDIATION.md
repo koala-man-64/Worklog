@@ -18,7 +18,7 @@ Waves 0–4 change no database schema and add no runtime dependency. Wave 5 (sch
 | Wave | Theme | Entry gate | Streams | Items | Merged | Exit met | Effort | Elapsed |
 |---|---|---|---|---|---|---|---|---|
 | 0 | Foundation | D1 | 3 | 3 | 3 | Yes | ~2 d | ~1.5 d |
-| 1 | High findings and isolated fixes | Wave 0 exit | 5 | 10 | 0 | No | ~5.5 d | ~2 d |
+| 1 | High findings and isolated fixes | Wave 0 exit | 5 | 10 | 10 | No (upgrade pending) | ~5.5 d | ~2 d |
 | 2 | Concurrency and session lifecycle | Wave 1 exit, D2 | 3 | 4 | 0 | No | ~4 d | ~3 d |
 | 3 | Growth, scale and agent limits | Wave 2 exit, D3, D4 | 3 | 4 | 0 | No | ~5 d | ~2.5 d |
 | 4 | Authorization and hardening | Wave 3 exit, D5, D7 | 3 | 4 | 0 | No | ~4.5 d | ~3.5 d |
@@ -77,19 +77,19 @@ Entry gate: Wave 0 exit checklist complete.
 
 | Stream | Items, in order | Owns | Owner |
 |---|---|---|---|
-| 1A Item editing | REM-04 | `Work.tsx` `ItemDetail` ADO field; `hooks.ts` record-key normalization; `components.tsx` `DraftField`; item e2e spec | |
-| 1B Roadmap editor | REM-05 | `Roadmaps.tsx` `StructureEditor` | |
-| 1C Backend robustness and privacy | REM-06, then REM-07 | `plans.py` `_validate_steps`; `app.py` `protect` CSRF check and error handling; `proposals.py` visibility; new `tests/test_robustness.py` | |
-| 1D Link safety | REM-08 and REM-09, in parallel | `components.tsx` `Markdown`; `plans.py` `preview` URL handling | |
-| 1E Small fixes | REM-10, REM-11, REM-12, REM-27 | `cli.py` export command; `Review.tsx` `OperationDiff`; `pyproject.toml`; README; `scripts/Setup.ps1` | |
+| 1A Item editing | REM-04 | `Work.tsx` `ItemDetail` ADO field; `hooks.ts` record-key normalization; `components.tsx` `DraftField`; item e2e spec | Claude |
+| 1B Roadmap editor | REM-05 | `Roadmaps.tsx` `StructureEditor` | Claude |
+| 1C Backend robustness and privacy | REM-06, then REM-07 | `plans.py` `_validate_steps`; `app.py` `protect` CSRF check and error handling; `proposals.py` visibility; new `tests/test_robustness.py` | Claude |
+| 1D Link safety | REM-08 and REM-09, in parallel | `components.tsx` `Markdown`; `plans.py` `preview` URL handling | Claude (Sonnet helper) |
+| 1E Small fixes | REM-10, REM-11, REM-12, REM-27 | `cli.py` export command; `Review.tsx` `OperationDiff`; `pyproject.toml`; README; `scripts/Setup.ps1` | Claude (Sonnet helper) |
 
-Coordination: 1A and 1D both edit `components.tsx` (`DraftField` vs `Markdown`); 1C and 1D both edit `plans.py` (`_validate_steps` vs `preview`).
+Coordination: 1A and 1D both edit `components.tsx` (`DraftField` vs `Markdown`); 1C and 1D both edit `plans.py` (`_validate_steps` vs `preview`). In practice, 1A and 1B both appended a test to `frontend/e2e/worklog.spec.ts`; the conflict was resolved by keeping both tests.
 
 Exit checklist:
 
-- [ ] All ten items merged, each with its regression test
-- [ ] Browser check on an isolated instance: the ADO two-tab scenario keeps the newer value, and a stale structure draft offers Discard and Rebase
-- [ ] Personal instance upgraded and `check` passes
+- [x] All ten items merged, each with its regression test (REM-12 and REM-27 have no committed test; their PRs record before/after runs instead)
+- [x] Browser check on an isolated instance: the ADO two-tab scenario keeps the newer value, and a stale structure draft offers Discard and Rebase (integrated Wave 1 build on port 8878; that build also passed 106 backend, 49 vitest and 11 e2e tests)
+- [ ] Personal instance upgraded and `check` passes (awaiting Rudy's go-ahead)
 
 ### Wave 2 — Concurrency and session lifecycle
 
@@ -536,6 +536,7 @@ Status: Not started · Owner: — · Branch: — · PR: —
 Fixes N6 · Stream 4A, after REM-21 · Standard · M · Review: independent (security)
 
 - Replace `BaseHTTPMiddleware` and the private `request._body` with an ASGI middleware that enforces body limits by wrapping `receive` and adds security headers to every response, including errors.
+- Import `run_in_threadpool` from `fastapi.concurrency` rather than `starlette.concurrency`. `app.py` imports `starlette` directly even though it is only a transitive dependency; REM-12 found this.
 
 Done when:
 
@@ -657,3 +658,4 @@ Line references are at `d19a39e` and will drift as fixes land.
 | 2026-10-28 | Wave 0 started: REM-02 (#2) and REM-03 (#4) in review, REM-01 awaiting D1. Found N7 while building a worktree; tracked as REM-27 in Wave 1 |
 | 2026-10-28 | D1 decided: `main` created at `d19a39e` and made the default branch. REM-02 (#2) and REM-03 (#4) merged; branch protection and REM-01's IMPLEMENTATION.md fix pending |
 | 2026-10-28 | Wave 0 closed: branch protection enabled on `main` with Rudy's approval, and REM-01 (#5) merged. Wave 1's entry gate is met |
+| 2026-10-29 | Wave 1 items merged: #6, #7, #8, #9, #10, #11, #12, #13, #14 and #15. The integrated build was verified in tests and in the browser. Upgrading the personal instance awaits Rudy's go-ahead |
