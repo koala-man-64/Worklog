@@ -30,7 +30,9 @@ from .db import Database
 
 def item_record(r: Any) -> dict:
     return {"id": r["id"], "title": r["title"], "description": r["description"],
-            "status": r["status"], "adoUrl": r["ado_url"], "stepId": r["step_id"],
+            "status": r["status"], "adoUrl": r["ado_url"],
+            "roadmapId": r["roadmap_id"] if "roadmap_id" in r.keys() else None,
+            "stepId": r["step_id"],
             "backlogOrder": r["backlog_order"], "archived": bool(r["archived"]),
             "revision": r["revision"], "createdAt": r["created_at"], "updatedAt": r["updated_at"]}
 
@@ -43,9 +45,48 @@ def entry_record(r: Any) -> dict:
 
 def support_record(r: Any) -> dict:
     keys = {"owner_type": "ownerType", "owner_id": "ownerId", "item_id": "itemId",
+            "chat_id": "chatId", "created_date": "createdDate", "chat_title": "chatTitle",
             "created_at": "createdAt", "updated_at": "updatedAt"}
     return {keys.get(k, k): bool(v) if k in {"archived", "done"} else v
             for k, v in dict(r).items() if k != "content"}
+
+
+def valid_http_url(raw: Any, field: str = "url") -> str:
+    link = text(raw, field, required=True, limit=2048).strip()
+    url = urlsplit(link)
+    if url.scheme not in {"http", "https"} or not url.hostname or url.username or url.password or re.search(r"[\x00-\x20]", link):
+        raise AppError(422, "validation", f"{field} must be an absolute HTTP(S) URL")
+    return link
+
+
+def infer_github_reference(kind: str, link: str) -> str:
+    path = urlsplit(link).path.strip("/")
+    pr_match = re.search(r"(?:^|/)([^/]+/[^/]+)/pull/(\d+)(?:/|$)", path)
+    if pr_match:
+        return f"{pr_match.group(1)}#{pr_match.group(2)}"
+    commit_match = re.search(r"(?:^|/)(?:([^/]+/[^/]+)/)?commit/([0-9a-fA-F]{7,40})(?:/|$)", path)
+    if commit_match:
+        repo, sha = commit_match.group(1), commit_match.group(2)[:7]
+        return f"{repo}@{sha}" if repo else sha
+    return ""
+
+
+def person_record(r: Any) -> dict:
+    keys = set(r.keys())
+    res = {"id": r["id"], "name": r["name"], "role": r["role"], "notes": r["notes"],
+           "archived": bool(r["archived"]), "revision": r["revision"],
+           "createdAt": r["created_at"], "updatedAt": r["updated_at"]}
+    if "work_item_count" in keys:
+        res["workItemCount"] = r["work_item_count"]
+    if "roadmap_count" in keys:
+        res["roadmapCount"] = r["roadmap_count"]
+    return res
+
+
+def person_assignment_record(r: Any) -> dict:
+    return {"id": r["id"], "personId": r["person_id"], "name": r["name"],
+            "personRole": r["person_role"], "relationship": r["relationship"],
+            "archived": bool(r["archived"]), "createdAt": r["created_at"]}
 
 
 def boolean(value: Any, field: str) -> bool:
@@ -78,7 +119,32 @@ class WorkService:
             raise AppError(404, "not_found", "Work item does not exist or is archived")
         return row
 
+    def person(self, conn: sqlite3.Connection, person_id: str, *, active: bool = False) -> Any:
+        row = conn.execute("SELECT * FROM people WHERE id=?", (person_id,)).fetchone()
+        if row is None or (active and row["archived"]):
+            raise AppError(404, "not_found", "Person does not exist or is archived")
+        return row
+
+    def target_people(self, c: sqlite3.Connection, target_type: str, target_ids: builtins.list[str]) -> dict[str, builtins.list[dict]]:
+        if not target_ids:
+            return {}
+        placeholders = ",".join("?" for _ in target_ids)
+        rows = c.execute(
+            f"""SELECT pl.id, pl.person_id, pl.target_id, pl.relationship, pl.created_at,
+                       p.name, p.role AS person_role, p.archived
+                FROM person_links pl
+                JOIN people p ON p.id = pl.person_id
+                WHERE pl.target_type = ? AND pl.target_id IN ({placeholders})
+                ORDER BY p.name COLLATE NOCASE, pl.created_at, pl.id""",
+            [target_type, *target_ids],
+        ).fetchall()
+        grouped: dict[str, builtins.list[dict]] = {tid: [] for tid in target_ids}
+        for r in rows:
+            grouped.setdefault(r["target_id"], []).append(person_assignment_record(r))
+        return grouped
+
     def list(self, *, view: str = "all", archived: bool = False, state: str | None = None,
+             roadmap_id: str | None = None, person_id: str | None = None,
              limit: int = 100, offset: int = 0, q: str = "") -> dict:
         with self.db.read() as c:
             where = ["w.archived=?"]
@@ -86,6 +152,12 @@ class WorkService:
             if state:
                 where.append("w.status=?")
                 args.append(status(state))
+            if roadmap_id:
+                where.append("(w.roadmap_id=? OR w.step_id IN(SELECT id FROM steps WHERE roadmap_id=?))")
+                args.extend([roadmap_id, roadmap_id])
+            if person_id:
+                where.append("w.id IN(SELECT target_id FROM person_links WHERE target_type='item' AND person_id=?)")
+                args.append(person_id)
             if view == "backlog":
                 where.extend(["w.status!='done'", "NOT EXISTS(SELECT 1 FROM daily_entries e WHERE e.item_id=w.id AND e.planned=1 AND e.date>=?)"])
                 args.append(today(setting(c, "timezone", "America/Chicago")))
@@ -98,26 +170,131 @@ class WorkService:
             clause = " AND ".join(where)
             total = c.execute(f"SELECT count(*) FROM work_items w WHERE {clause}", args).fetchone()[0]
             current = today(setting(c, "timezone", "America/Chicago"))
-            rows = c.execute(f"SELECT w.*, (w.archived=0 AND w.status!='done' AND NOT EXISTS(SELECT 1 FROM daily_entries de WHERE de.item_id=w.id AND de.planned=1 AND de.date>=?)) AS is_backlog FROM work_items w WHERE {clause} ORDER BY backlog_order,id LIMIT ? OFFSET ?", [current, *args, limit, offset])
-            return {"items": [{**item_record(r), "isBacklog": bool(r["is_backlog"])} for r in rows], "total": total,
+            rows = c.execute(f"SELECT w.*, (w.archived=0 AND w.status!='done' AND NOT EXISTS(SELECT 1 FROM daily_entries de WHERE de.item_id=w.id AND de.planned=1 AND de.date>=?)) AS is_backlog FROM work_items w WHERE {clause} ORDER BY backlog_order,id LIMIT ? OFFSET ?", [current, *args, limit, offset]).fetchall()
+            people_map = self.target_people(c, "item", [r["id"] for r in rows])
+            return {"items": [{**item_record(r), "isBacklog": bool(r["is_backlog"]), "people": people_map.get(r["id"], [])} for r in rows], "total": total,
                     "collectionRevision": setting(c, "backlogRevision", 1)}
+
+    def roadmap_items(self, c: sqlite3.Connection, roadmap_id: str) -> builtins.list[dict]:
+        rows = c.execute(
+            "SELECT * FROM work_items WHERE archived=0 AND (roadmap_id=? OR step_id IN (SELECT id FROM steps WHERE roadmap_id=?)) ORDER BY backlog_order,id",
+            (roadmap_id, roadmap_id),
+        ).fetchall()
+        people_map = self.target_people(c, "item", [r["id"] for r in rows])
+        return [
+            {**item_record(r), "roadmapId": r["roadmap_id"] or roadmap_id, "people": people_map.get(r["id"], [])}
+            for r in rows
+        ]
 
     def detail(self, item_id: str) -> dict:
         with self.db.read() as c:
             result = item_record(self.item(c, item_id))
             result.update(self.support(c, "item", item_id))
+            result["people"] = self.target_people(c, "item", [item_id]).get(item_id, [])
             result["dailyEntries"] = [entry_record(r) for r in c.execute("SELECT * FROM daily_entries WHERE item_id=? ORDER BY date DESC", (item_id,))]
             result["history"] = read_events(c, item_id)
+            result["linkedRoadmap"] = None
             result["linkedStep"] = None
             if result["stepId"]:
-                linked = c.execute("SELECT s.id,s.title,s.roadmap_id,s.retired,r.title AS roadmap_title FROM steps s JOIN roadmaps r ON r.id=s.roadmap_id WHERE s.id=?", (result["stepId"],)).fetchone()
+                linked = c.execute("SELECT s.id,s.title,s.roadmap_id,s.retired,r.title AS roadmap_title,r.archived AS roadmap_archived FROM steps s JOIN roadmaps r ON r.id=s.roadmap_id WHERE s.id=?", (result["stepId"],)).fetchone()
                 if linked:
+                    result["roadmapId"] = linked["roadmap_id"]
+                    result["linkedRoadmap"] = {"id": linked["roadmap_id"], "title": linked["roadmap_title"], "archived": bool(linked["roadmap_archived"])}
                     result["linkedStep"] = {"id": linked["id"], "title": linked["title"], "roadmapId": linked["roadmap_id"], "roadmapTitle": linked["roadmap_title"], "retired": bool(linked["retired"])}
+            elif result["roadmapId"]:
+                roadmap = c.execute("SELECT id,title,archived FROM roadmaps WHERE id=?", (result["roadmapId"],)).fetchone()
+                if roadmap:
+                    result["linkedRoadmap"] = {"id": roadmap["id"], "title": roadmap["title"], "archived": bool(roadmap["archived"])}
+            return result
+
+    def people_list(self, *, archived: bool = False, q: str = "") -> dict:
+        with self.db.read() as c:
+            where = ["p.archived=?"]
+            args: builtins.list[Any] = [int(archived)]
+            terms = re.findall(r"\w+", q, re.UNICODE)
+            if terms:
+                where.append("p.id IN(SELECT entity_id FROM search_index WHERE search_index MATCH ? AND type='person')")
+                args.append(" AND ".join('"' + word + '"*' for word in terms[:30]))
+            clause = " AND ".join(where)
+            rows = c.execute(
+                f"""SELECT p.*,
+                    (SELECT count(*) FROM person_links pl JOIN work_items w ON w.id=pl.target_id WHERE pl.person_id=p.id AND pl.target_type='item' AND w.archived=0) AS work_item_count,
+                    (SELECT count(*) FROM person_links pl JOIN roadmaps r ON r.id=pl.target_id WHERE pl.person_id=p.id AND pl.target_type='roadmap' AND r.archived=0) AS roadmap_count
+                    FROM people p WHERE {clause} ORDER BY p.name COLLATE NOCASE, p.id""",
+                args,
+            ).fetchall()
+            items = [person_record(r) for r in rows]
+            return {"items": items, "total": len(items)}
+
+    def person_detail(self, person_id: str) -> dict:
+        with self.db.read() as c:
+            result = person_record(self.person(c, person_id))
+            roadmaps = []
+            for r in c.execute(
+                """SELECT pl.id AS link_id, pl.person_id, pl.target_id AS roadmap_id, pl.relationship, pl.created_at AS link_created_at,
+                          rm.id, rm.title, rm.overview, rm.archived, rm.revision, rm.created_at, rm.updated_at
+                   FROM person_links pl
+                   JOIN roadmaps rm ON rm.id = pl.target_id
+                   WHERE pl.person_id = ? AND pl.target_type = 'roadmap'
+                   ORDER BY rm.archived, rm.created_at, rm.id""",
+                (person_id,),
+            ):
+                roadmaps.append({
+                    "linkId": r["link_id"],
+                    "personId": r["person_id"],
+                    "roadmapId": r["roadmap_id"],
+                    "relationship": r["relationship"],
+                    "createdAt": r["link_created_at"],
+                    "roadmap": {
+                        "id": r["id"],
+                        "title": r["title"],
+                        "overview": r["overview"],
+                        "archived": bool(r["archived"]),
+                        "revision": r["revision"],
+                        "createdAt": r["created_at"],
+                        "updatedAt": r["updated_at"],
+                    },
+                })
+            work_items = []
+            for r in c.execute(
+                """SELECT pl.id AS link_id, pl.person_id, pl.target_id AS item_id, pl.relationship, pl.created_at AS link_created_at,
+                          w.*
+                   FROM person_links pl
+                   JOIN work_items w ON w.id = pl.target_id
+                   WHERE pl.person_id = ? AND pl.target_type = 'item'
+                   ORDER BY w.archived, w.backlog_order, w.id""",
+                (person_id,),
+            ):
+                work_items.append({
+                    "linkId": r["link_id"],
+                    "personId": r["person_id"],
+                    "itemId": r["item_id"],
+                    "relationship": r["relationship"],
+                    "createdAt": r["link_created_at"],
+                    "item": item_record(r),
+                })
+            result["roadmaps"] = roadmaps
+            result["workItems"] = work_items
+            result["history"] = read_events(c, person_id)
             return result
 
     def support(self, c: sqlite3.Connection, owner_type: str, owner_id: str) -> dict:
         result = {"notes": [support_record(r) for r in c.execute("SELECT * FROM notes WHERE owner_type=? AND owner_id=? ORDER BY created_at", (owner_type, owner_id))],
                   "attachments": [support_record(r) for r in c.execute("SELECT id,owner_type,owner_id,name,mime,size,sha256,archived,revision,created_at FROM attachments WHERE owner_type=? AND owner_id=? ORDER BY created_at", (owner_type, owner_id))]}
+        if owner_type in {"item", "roadmap"}:
+            result["links"] = [support_record(r) for r in c.execute("SELECT * FROM web_links WHERE owner_type=? AND owner_id=? ORDER BY created_at,id", (owner_type, owner_id))]
+            result["chats"] = [support_record(r) for r in c.execute("SELECT * FROM agent_chats WHERE owner_type=? AND owner_id=? ORDER BY created_date DESC,created_at DESC,id", (owner_type, owner_id))]
+            result["github"] = [
+                support_record(r)
+                for r in c.execute(
+                    """SELECT g.*, ac.title AS chat_title
+                       FROM github_refs g
+                       LEFT JOIN agent_chats ac ON ac.id = g.chat_id
+                       WHERE g.owner_type=? AND g.owner_id=?
+                       ORDER BY g.created_at, g.id""",
+                    (owner_type, owner_id),
+                )
+            ]
         if owner_type == "item":
             result["tasks"] = [support_record(r) for r in c.execute("SELECT * FROM tasks WHERE item_id=? ORDER BY created_at", (owner_id,))]
             result["references"] = [support_record(r) for r in c.execute("SELECT * FROM file_references WHERE item_id=? ORDER BY created_at", (owner_id,))]
@@ -173,14 +350,119 @@ class WorkService:
             return self._item_apply(c, actor, action, p)
         if action == "entry.upsert":
             return self._entry_apply(c, actor, p)
-        if action.startswith(("note.", "task.", "reference.", "attachment.")):
+        if action.startswith(("note.", "task.", "reference.", "attachment.", "link.", "chat.", "github.")):
             return self._support_apply(c, actor, action, p)
         if action.startswith(("roadmap.", "progress.")):
             result = self.plans.apply(c, actor, action, p)
             if not action.startswith("progress."):
                 self.refresh_plans(c, result["id"])
             return result
+        if action.startswith("person."):
+            return self._person_apply(c, actor, action, p)
         raise AppError(422, "operation", "Unsupported operation")
+
+    def _person_apply(self, c: sqlite3.Connection, actor: dict, action: str, p: dict) -> dict:
+        if action == "person.link":
+            person_id = text(p.get("personId", ""), "personId", required=True, limit=200)
+            target_type = p.get("targetType", "")
+            if target_type not in {"item", "roadmap"}:
+                raise AppError(422, "validation", "Invalid targetType for person link")
+            target_id = text(p.get("targetId", ""), "targetId", required=True, limit=200)
+            relationship = text(p.get("relationship", ""), "relationship", limit=200).strip()
+            person_row = self.person(c, person_id, active=True)
+            self.owner(c, target_type, target_id)
+            existing = c.execute(
+                "SELECT * FROM person_links WHERE person_id=? AND target_type=? AND target_id=?",
+                (person_id, target_type, target_id),
+            ).fetchone()
+            before = (
+                {"id": existing["id"], "personId": person_id, "targetType": target_type,
+                 "targetId": target_id, "relationship": existing["relationship"], "createdAt": existing["created_at"]}
+                if existing
+                else None
+            )
+            link_id = existing["id"] if existing else uid()
+            created_at = existing["created_at"] if existing else now()
+            c.execute(
+                "INSERT INTO person_links VALUES(?,?,?,?,?,?) ON CONFLICT(person_id,target_type,target_id) DO UPDATE SET relationship=excluded.relationship",
+                (link_id, person_id, target_type, target_id, relationship, created_at),
+            )
+            after = {
+                "id": link_id,
+                "personId": person_id,
+                "name": person_row["name"],
+                "personRole": person_row["role"],
+                "targetType": target_type,
+                "targetId": target_id,
+                "relationship": relationship,
+                "archived": bool(person_row["archived"]),
+                "createdAt": created_at,
+            }
+            event(c, actor, "person.link", person_id, before, after)
+            event(c, actor, "person.link", target_id, before, after)
+            return after
+        if action == "person.unlink":
+            person_id = text(p.get("personId", ""), "personId", required=True, limit=200)
+            target_type = p.get("targetType", "")
+            if target_type not in {"item", "roadmap"}:
+                raise AppError(422, "validation", "Invalid targetType for person link")
+            target_id = text(p.get("targetId", ""), "targetId", required=True, limit=200)
+            existing = c.execute(
+                "SELECT * FROM person_links WHERE person_id=? AND target_type=? AND target_id=?",
+                (person_id, target_type, target_id),
+            ).fetchone()
+            if existing is None:
+                raise AppError(404, "not_found", "Person link does not exist")
+            before = {
+                "id": existing["id"],
+                "personId": person_id,
+                "targetType": target_type,
+                "targetId": target_id,
+                "relationship": existing["relationship"],
+                "createdAt": existing["created_at"],
+            }
+            c.execute("DELETE FROM person_links WHERE id=?", (existing["id"],))
+            event(c, actor, "person.unlink", person_id, before, None)
+            event(c, actor, "person.unlink", target_id, before, None)
+            return {"ok": True, "id": existing["id"], "personId": person_id, "targetType": target_type, "targetId": target_id}
+        creating = action == "person.create"
+        row = None if creating else self.person(c, p.get("id", ""))
+        if row is not None:
+            require_revision(row, p.get("revision"))
+        before = person_record(row) if row else None
+        val: dict[str, Any] = (
+            before.copy()
+            if before
+            else {
+                "id": uid(),
+                "name": "",
+                "role": "",
+                "notes": "",
+                "archived": False,
+                "revision": 0,
+                "createdAt": now(),
+            }
+        )
+        if action in {"person.archive", "person.recover"}:
+            val["archived"] = action == "person.archive"
+        elif action in {"person.create", "person.update"}:
+            for k in ("name", "role", "notes"):
+                if k in p and p[k] is not None:
+                    val[k] = p[k]
+            val["name"] = text(val["name"], "name", required=True, limit=500)
+            val["role"] = text(val["role"], "role", limit=500).strip()
+            val["notes"] = text(val["notes"], "notes")
+        else:
+            raise AppError(422, "operation", "Unsupported person operation")
+        val["revision"] += 1
+        val["updatedAt"] = now()
+        c.execute(
+            """INSERT INTO people VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,role=excluded.role,notes=excluded.notes,archived=excluded.archived,revision=excluded.revision,updated_at=excluded.updated_at""",
+            (val["id"], val["name"], val["role"], val["notes"], int(val["archived"]), val["revision"], val["createdAt"], val["updatedAt"]),
+        )
+        event(c, actor, action, val["id"], before, val)
+        self.index(c, val["id"], "person", val["name"], (val["role"] + "\n" + val["notes"]).strip(), val["id"], val["archived"])
+        return val
 
     def _item_apply(self, c: sqlite3.Connection, actor: dict, action: str, p: dict) -> dict:
         creating = action == "item.create"
@@ -188,13 +470,15 @@ class WorkService:
         if row is not None:
             require_revision(row, p.get("revision"))
         before = item_record(row) if row else None
-        val = before.copy() if before else {"id": uid(), "title": "", "description": "", "status": "open", "adoUrl": None, "stepId": None, "archived": False,
+        val = before.copy() if before else {"id": uid(), "title": "", "description": "", "status": "open", "adoUrl": None, "roadmapId": None, "stepId": None, "archived": False,
                                             "backlogOrder": c.execute("SELECT coalesce(max(backlog_order),0)+1 FROM work_items").fetchone()[0],
                                             "revision": 0, "createdAt": now()}
         if action in {"item.archive", "item.recover"}:
             val["archived"] = action == "item.archive"
         elif action in {"item.create", "item.update"}:
-            for k in ("title", "description", "status", "adoUrl", "stepId"):
+            if "roadmapId" in p and "stepId" not in p and p["roadmapId"] != val["roadmapId"]:
+                val["stepId"] = None
+            for k in ("title", "description", "status", "adoUrl", "roadmapId", "stepId"):
                 if k in p:
                     val[k] = p[k]
             val["title"] = text(val["title"], "title", required=True, limit=2000)
@@ -208,16 +492,31 @@ class WorkService:
                 val["adoUrl"] = link
             else:
                 val["adoUrl"] = None
+            if val["stepId"] is not None and not isinstance(val["stepId"], str):
+                raise AppError(422, "validation", "Invalid stepId")
+            if val["roadmapId"] is not None and not isinstance(val["roadmapId"], str):
+                raise AppError(422, "validation", "Invalid roadmapId")
             if val["stepId"]:
-                step = c.execute("SELECT id FROM steps WHERE id=?", (val["stepId"],)).fetchone()
+                step = c.execute("SELECT id,roadmap_id FROM steps WHERE id=?", (val["stepId"],)).fetchone()
                 if not step:
                     raise AppError(422, "validation", "Roadmap step does not exist")
+                if p.get("roadmapId") and p["roadmapId"] != step["roadmap_id"]:
+                    raise AppError(422, "validation", "Roadmap step does not belong to the selected roadmap")
+                val["roadmapId"] = step["roadmap_id"]
+            else:
+                val["stepId"] = None
+                if val["roadmapId"]:
+                    roadmap = c.execute("SELECT id FROM roadmaps WHERE id=?", (val["roadmapId"],)).fetchone()
+                    if not roadmap:
+                        raise AppError(422, "validation", "Roadmap does not exist")
+                else:
+                    val["roadmapId"] = None
         else:
             raise AppError(422, "operation", "Unsupported work item operation")
         val["revision"] += 1
         val["updatedAt"] = now()
-        c.execute("""INSERT INTO work_items VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,description=excluded.description,status=excluded.status,ado_url=excluded.ado_url,step_id=excluded.step_id,archived=excluded.archived,revision=excluded.revision,updated_at=excluded.updated_at""",
-                  (val["id"], val["title"], val["description"], val["status"], val["adoUrl"], val["stepId"], val["backlogOrder"], int(val["archived"]), val["revision"], val["createdAt"], val["updatedAt"]))
+        c.execute("""INSERT INTO work_items VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,description=excluded.description,status=excluded.status,ado_url=excluded.ado_url,step_id=excluded.step_id,archived=excluded.archived,revision=excluded.revision,updated_at=excluded.updated_at,roadmap_id=excluded.roadmap_id""",
+                  (val["id"], val["title"], val["description"], val["status"], val["adoUrl"], val["stepId"], val["backlogOrder"], int(val["archived"]), val["revision"], val["createdAt"], val["updatedAt"], val["roadmapId"]))
         audit = {**val, "_statusChanged": bool(before and before["status"] != val["status"])}
         event(c, actor, action, val["id"], before, audit)
         self.index(c, val["id"], "item", val["title"], val["description"], val["id"], val["archived"])
@@ -321,7 +620,15 @@ class WorkService:
 
     def _support_apply(self, c: sqlite3.Connection, actor: dict, action: str, p: dict) -> dict:
         kind, verb = action.split(".", 1)
-        table = {"note": "notes", "task": "tasks", "reference": "file_references", "attachment": "attachments"}[kind]
+        table = {
+            "note": "notes",
+            "task": "tasks",
+            "reference": "file_references",
+            "attachment": "attachments",
+            "link": "web_links",
+            "chat": "agent_chats",
+            "github": "github_refs",
+        }[kind]
         creating = verb == "create"
         row = None if creating else c.execute(f"SELECT * FROM {table} WHERE id=?", (p.get("id", ""),)).fetchone()
         if not creating:
@@ -343,6 +650,67 @@ class WorkService:
                 raise AppError(422, "validation", "A note needs a title or text")
             c.execute("INSERT INTO notes VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,text=excluded.text,updated_at=excluded.updated_at,revision=excluded.revision",
                       (val["id"], val["ownerType"], val["ownerId"], val["title"], val["text"], 0, val["revision"] + 1, val["createdAt"], now()))
+            p = {**p, "id": val["id"]}
+        elif kind == "link" and verb in {"create", "update"}:
+            val = before.copy() if before else {"id": uid(), "ownerType": p.get("ownerType"), "ownerId": p.get("ownerId"), "url": "", "title": "", "description": "", "createdAt": now(), "revision": 0}
+            if val["ownerType"] not in {"item", "roadmap"}:
+                raise AppError(422, "validation", "Links must belong to a work item or roadmap")
+            self.owner(c, val["ownerType"], val["ownerId"])
+            for k in ("url", "title", "description"):
+                if k in p and p[k] is not None:
+                    val[k] = p[k]
+            val["url"] = valid_http_url(val["url"], "url")
+            val["title"] = text(val["title"], "title", limit=1000).strip()
+            val["description"] = text(val["description"], "description", limit=100_000).strip()
+            c.execute(
+                "INSERT INTO web_links VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET url=excluded.url,title=excluded.title,description=excluded.description,revision=excluded.revision,updated_at=excluded.updated_at",
+                (val["id"], val["ownerType"], val["ownerId"], val["url"], val["title"], val["description"], 0, val["revision"] + 1, val["createdAt"], now()),
+            )
+            p = {**p, "id": val["id"]}
+        elif kind == "chat" and verb in {"create", "update"}:
+            default_date = today(setting(c, "timezone", "America/Chicago"))
+            val = before.copy() if before else {"id": uid(), "ownerType": p.get("ownerType"), "ownerId": p.get("ownerId"), "chatId": "", "title": "", "createdDate": default_date, "createdAt": now(), "revision": 0}
+            if val["ownerType"] not in {"item", "roadmap"}:
+                raise AppError(422, "validation", "Agent chats must belong to a work item or roadmap")
+            self.owner(c, val["ownerType"], val["ownerId"])
+            for k in ("chatId", "title", "createdDate"):
+                if k in p and p[k] is not None:
+                    val[k] = p[k]
+            val["chatId"] = text(val["chatId"], "chatId", required=True, limit=500)
+            val["title"] = text(val["title"], "title", required=True, limit=1000)
+            raw_date = str(val.get("createdDate") or "").strip()
+            val["createdDate"] = valid_date(raw_date) if raw_date else default_date
+            c.execute(
+                "INSERT INTO agent_chats VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET chat_id=excluded.chat_id,title=excluded.title,created_date=excluded.created_date,revision=excluded.revision,updated_at=excluded.updated_at",
+                (val["id"], val["ownerType"], val["ownerId"], val["chatId"], val["title"], val["createdDate"], 0, val["revision"] + 1, val["createdAt"], now()),
+            )
+            p = {**p, "id": val["id"]}
+        elif kind == "github" and verb in {"create", "update"}:
+            val = before.copy() if before else {"id": uid(), "ownerType": p.get("ownerType"), "ownerId": p.get("ownerId"), "kind": "pr", "url": "", "reference": "", "title": "", "description": "", "chatId": None, "createdAt": now(), "revision": 0}
+            if val["ownerType"] not in {"item", "roadmap"}:
+                raise AppError(422, "validation", "GitHub references must belong to a work item or roadmap")
+            self.owner(c, val["ownerType"], val["ownerId"])
+            for k in ("kind", "url", "reference", "title", "description", "chatId"):
+                if k in p and (k == "chatId" or p[k] is not None):
+                    val[k] = p[k]
+            if val["kind"] not in {"commit", "pr"}:
+                raise AppError(422, "validation", "GitHub reference kind must be commit or pr")
+            val["url"] = valid_http_url(val["url"], "url")
+            val["reference"] = text(val["reference"], "reference", limit=300).strip() or infer_github_reference(val["kind"], val["url"])
+            val["title"] = text(val["title"], "title", limit=1000).strip()
+            val["description"] = text(val["description"], "description", limit=100_000).strip()
+            if val["chatId"]:
+                if not isinstance(val["chatId"], str):
+                    raise AppError(422, "validation", "Invalid chatId")
+                chat_row = c.execute("SELECT id,owner_type,owner_id FROM agent_chats WHERE id=?", (val["chatId"],)).fetchone()
+                if not chat_row or chat_row["owner_type"] != val["ownerType"] or chat_row["owner_id"] != val["ownerId"]:
+                    raise AppError(422, "validation", "Agent chat does not belong to this record")
+            else:
+                val["chatId"] = None
+            c.execute(
+                "INSERT INTO github_refs VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET kind=excluded.kind,url=excluded.url,reference=excluded.reference,title=excluded.title,description=excluded.description,chat_id=excluded.chat_id,revision=excluded.revision,updated_at=excluded.updated_at",
+                (val["id"], val["ownerType"], val["ownerId"], val["kind"], val["url"], val["reference"], val["title"], val["description"], val["chatId"], 0, val["revision"] + 1, val["createdAt"], now()),
+            )
             p = {**p, "id": val["id"]}
         elif kind == "task" and verb in {"create", "update"}:
             val = before.copy() if before else {"id": uid(), "itemId": p.get("itemId"), "text": "", "done": False, "createdAt": now(), "revision": 0}
@@ -366,9 +734,23 @@ class WorkService:
             p = {**p, "id": identity}
         else:
             raise AppError(422, "operation", "Unsupported supporting-record operation")
-        after = support_record(c.execute(f"SELECT * FROM {table} WHERE id=?", (p["id"],)).fetchone())
+        if kind == "github":
+            after = support_record(
+                c.execute(
+                    "SELECT g.*, ac.title AS chat_title FROM github_refs g LEFT JOIN agent_chats ac ON ac.id=g.chat_id WHERE g.id=?",
+                    (p["id"],),
+                ).fetchone()
+            )
+        else:
+            after = support_record(c.execute(f"SELECT * FROM {table} WHERE id=?", (p["id"],)).fetchone())
         if kind in {"note", "attachment"} and after.get("ownerType") != "proposal":
             self.index(c, after["id"], kind, after.get("title", after.get("name", "")), after.get("text", ""), after["ownerId"], after["archived"])
+        elif kind == "link":
+            self.index(c, after["id"], "link", after.get("title") or after["url"], (after["url"] + "\n" + after.get("description", "")).strip(), after["ownerId"], after["archived"])
+        elif kind == "chat":
+            self.index(c, after["id"], "chat", after["title"], f"{after['chatId']} {after['createdDate']}", after["ownerId"], after["archived"])
+        elif kind == "github":
+            self.index(c, after["id"], "github", after.get("title") or after.get("reference") or after["url"], f"{after['kind']} {after.get('reference', '')} {after['url']}\n{after.get('description', '')}".strip(), after["ownerId"], after["archived"])
         elif kind == "attachment":
             c.execute("DELETE FROM search_index WHERE entity_id=?", (after["id"],))
         event(c, actor, action, p["id"], before, after)
@@ -426,20 +808,28 @@ class WorkService:
         source = """FROM search_index s
             LEFT JOIN notes n ON s.type='note' AND n.id=s.entity_id
             LEFT JOIN attachments a ON s.type='attachment' AND a.id=s.entity_id
+            LEFT JOIN web_links wl ON s.type='link' AND wl.id=s.entity_id
+            LEFT JOIN agent_chats ac ON s.type='chat' AND ac.id=s.entity_id
+            LEFT JOIN github_refs gr ON s.type='github' AND gr.id=s.entity_id
             LEFT JOIN work_items w ON w.id=CASE WHEN s.type='item' THEN s.entity_id
-                WHEN n.owner_type='item' THEN n.owner_id WHEN a.owner_type='item' THEN a.owner_id END
+                WHEN n.owner_type='item' THEN n.owner_id WHEN a.owner_type='item' THEN a.owner_id
+                WHEN wl.owner_type='item' THEN wl.owner_id WHEN ac.owner_type='item' THEN ac.owner_id
+                WHEN gr.owner_type='item' THEN gr.owner_id END
             LEFT JOIN steps st ON st.id=CASE WHEN s.type='step' THEN s.entity_id
                 WHEN n.owner_type='step' THEN n.owner_id WHEN a.owner_type='step' THEN a.owner_id END
             LEFT JOIN roadmaps rm ON rm.id=CASE WHEN s.type='roadmap' THEN s.entity_id
                 WHEN n.owner_type='roadmap' THEN n.owner_id WHEN a.owner_type='roadmap' THEN a.owner_id
+                WHEN wl.owner_type='roadmap' THEN wl.owner_id WHEN ac.owner_type='roadmap' THEN ac.owner_id
+                WHEN gr.owner_type='roadmap' THEN gr.owner_id
                 ELSE st.roadmap_id END
+            LEFT JOIN people p ON p.id=CASE WHEN s.type='person' THEN s.entity_id END
             WHERE search_index MATCH ? AND
              (CAST(s.archived AS INTEGER)=1 OR coalesce(w.archived,0)=1
-              OR coalesce(st.retired,0)=1 OR coalesce(rm.archived,0)=1)=?"""
+              OR coalesce(st.retired,0)=1 OR coalesce(rm.archived,0)=1 OR coalesce(p.archived,0)=1)=?"""
         with self.db.read() as c:
             rows = c.execute("""SELECT s.entity_id,s.type,s.title,s.body,s.owner_id,
-                             CASE WHEN w.id IS NOT NULL THEN 'work' ELSE 'roadmaps' END AS route_type,
-                             coalesce(w.id,rm.id) AS route_id """ + source + " ORDER BY rank LIMIT ? OFFSET ?", (match, int(archived), limit, offset)).fetchall()
+                             CASE WHEN w.id IS NOT NULL THEN 'work' WHEN p.id IS NOT NULL THEN 'people' ELSE 'roadmaps' END AS route_type,
+                             coalesce(w.id,p.id,rm.id) AS route_id """ + source + " ORDER BY rank LIMIT ? OFFSET ?", (match, int(archived), limit, offset)).fetchall()
             total = c.execute("SELECT count(*) " + source, (match, int(archived))).fetchone()[0]
             return {"items": [{"id": r[0], "type": r[1], "title": r[2], "snippet": r[3][:220], "ownerId": r[4],
                                "routeType": r["route_type"], "routeId": r["route_id"]} for r in rows], "total": total}

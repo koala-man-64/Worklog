@@ -93,6 +93,15 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False) -> 
             "task.create": m.TaskCreate, "task.update": m.TaskUpdate,
             "roadmap.create": m.RoadmapCreate, "roadmap.revise": m.RoadmapRevision,
             "progress.set": m.Progress,
+            "person.create": m.PersonCreate, "person.update": m.PersonUpdate,
+            "person.archive": m.Expected, "person.recover": m.Expected,
+            "person.link": m.PersonLinkCreate, "person.unlink": m.PersonLinkRemove,
+            "link.create": m.LinkCreate, "link.update": m.LinkUpdate,
+            "link.archive": m.Expected, "link.recover": m.Expected,
+            "chat.create": m.ChatCreate, "chat.update": m.ChatUpdate,
+            "chat.archive": m.Expected, "chat.recover": m.Expected,
+            "github.create": m.GithubRefCreate, "github.update": m.GithubRefUpdate,
+            "github.archive": m.Expected, "github.recover": m.Expected,
         }
         model = contracts.get(action)
         if model:
@@ -263,9 +272,10 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False) -> 
         return response
 
     @app.get("/api/v1/work-items")
-    def items(view: str = "all", archived: bool = False, status: str | None = None, q: str = "",
+    def items(view: str = "all", archived: bool = False, status: str | None = None,
+              roadmapId: str | None = None, personId: str | None = None, q: str = "",
               limit: int = Query(100, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
-        return work.list(view=view, archived=archived, state=status, limit=limit, offset=offset, q=q)
+        return work.list(view=view, archived=archived, state=status, roadmap_id=roadmapId, person_id=personId, limit=limit, offset=offset, q=q)
 
     @app.post("/api/v1/work-items")
     def create_item(request: Request, body: m.ItemCreate) -> dict:
@@ -334,9 +344,19 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False) -> 
     @app.get("/api/v1/notes/{identity}")
     @app.get("/api/v1/tasks/{identity}")
     @app.get("/api/v1/references/{identity}")
+    @app.get("/api/v1/links/{identity}")
+    @app.get("/api/v1/chats/{identity}")
+    @app.get("/api/v1/github/{identity}")
     def supporting_detail(identity: str, request: Request) -> dict:
         resource = request.url.path.split("/")[-2]
-        table = {"notes": "notes", "tasks": "tasks", "references": "file_references"}[resource]
+        table = {
+            "notes": "notes",
+            "tasks": "tasks",
+            "references": "file_references",
+            "links": "web_links",
+            "chats": "agent_chats",
+            "github": "github_refs",
+        }[resource]
         with db.read() as c:
             row = c.execute(f"SELECT * FROM {table} WHERE id=?", (identity,)).fetchone()
             if row is None:
@@ -363,9 +383,41 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False) -> 
     def create_reference(request: Request, body: m.ReferenceCreate) -> dict:
         return apply(request, "reference.create", body.model_dump(), create=True)
 
+    @app.post("/api/v1/links")
+    def create_link(request: Request, body: m.LinkCreate) -> dict:
+        return apply(request, "link.create", body.model_dump(), create=True)
+
+    @app.patch("/api/v1/links/{identity}")
+    def update_link(identity: str, request: Request, body: m.LinkUpdate) -> dict:
+        return apply(request, "link.update", {**body.model_dump(exclude_unset=True), "id": identity})
+
+    @app.post("/api/v1/chats")
+    def create_chat(request: Request, body: m.ChatCreate) -> dict:
+        return apply(request, "chat.create", body.model_dump(), create=True)
+
+    @app.patch("/api/v1/chats/{identity}")
+    def update_chat(identity: str, request: Request, body: m.ChatUpdate) -> dict:
+        return apply(request, "chat.update", {**body.model_dump(exclude_unset=True), "id": identity})
+
+    @app.post("/api/v1/github")
+    def create_github_ref(request: Request, body: m.GithubRefCreate) -> dict:
+        return apply(request, "github.create", body.model_dump(), create=True)
+
+    @app.patch("/api/v1/github/{identity}")
+    def update_github_ref(identity: str, request: Request, body: m.GithubRefUpdate) -> dict:
+        return apply(request, "github.update", {**body.model_dump(exclude_unset=True), "id": identity})
+
     @app.post("/api/v1/{resource}/{identity}/{verb}")
     def support_archive(resource: str, identity: str, verb: str, request: Request, body: m.Expected) -> dict:
-        kind = {"notes": "note", "tasks": "task", "references": "reference", "attachments": "attachment"}.get(resource)
+        kind = {
+            "notes": "note",
+            "tasks": "task",
+            "references": "reference",
+            "attachments": "attachment",
+            "links": "link",
+            "chats": "chat",
+            "github": "github",
+        }.get(resource)
         if not kind or verb not in {"archive", "recover"}:
             raise AppError(404, "not_found", "Unknown supporting-record command")
         return apply(request, kind + "." + verb, {"id": identity, **body.model_dump()})
@@ -405,9 +457,16 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False) -> 
             return download_response(row["content"], row["name"], row["mime"], inline)
 
     @app.get("/api/v1/roadmaps")
-    def roadmap_list(archived: bool = False) -> dict:
+    def roadmap_list(archived: bool = False, personId: str | None = None) -> dict:
         result = plans.list(archived)
-        return result if isinstance(result, dict) else {"items": result, "total": len(result)}
+        items_list = result["items"] if isinstance(result, dict) else result
+        with db.read() as c:
+            if personId:
+                linked_ids = {r[0] for r in c.execute("SELECT target_id FROM person_links WHERE target_type='roadmap' AND person_id=?", (personId,))}
+                items_list = [r for r in items_list if r["id"] in linked_ids]
+            people_map = work.target_people(c, "roadmap", [r["id"] for r in items_list])
+            enriched = [{**r, "people": people_map.get(r["id"], [])} for r in items_list]
+        return {"items": enriched, "total": len(enriched)}
 
     @app.post("/api/v1/roadmaps")
     def roadmap_create(request: Request, body: m.RoadmapCreate) -> dict:
@@ -420,6 +479,8 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False) -> 
             result.update(work.support(c, "roadmap", identity))
             for step in result["steps"]:
                 step.update(work.support(c, "step", step["id"]))
+            result["workItems"] = work.roadmap_items(c, identity)
+            result["people"] = work.target_people(c, "roadmap", [identity]).get(identity, [])
             result["history"] = read_events(c, identity)
             result["imports"] = [{"id": r["id"], "name": r["name"], "sha256": r["sha256"], "createdAt": r["created_at"]} for r in c.execute("SELECT * FROM plan_imports WHERE roadmap_id=?", (identity,))]
         return result
@@ -510,7 +571,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False) -> 
         with db.read() as c:
             current = today(setting(c, "timezone", "America/Chicago"))
         return {"day": work.day(date or current), "workItems": work.list(),
-                "roadmaps": plans.list(), "proposals": proposals.list(request.state.actor)}
+                "roadmaps": plans.list(), "people": work.people_list(), "proposals": proposals.list(request.state.actor)}
 
     @app.get("/api/v1/settings")
     def settings() -> dict:
@@ -565,6 +626,36 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False) -> 
     # Move broad command matcher behind all named routes to avoid shadowing them.
     generic = next(r for r in app.router.routes if getattr(r, "name", "") == "support_archive")
     app.router.routes.remove(generic)
+
+    @app.get("/api/v1/people")
+    def people_list(archived: bool = False, q: str = "") -> dict:
+        return work.people_list(archived=archived, q=q)
+
+    @app.post("/api/v1/people")
+    def person_create(request: Request, body: m.PersonCreate) -> dict:
+        return apply(request, "person.create", body.model_dump(), create=True)
+
+    @app.get("/api/v1/people/{identity}")
+    def person_detail(identity: str) -> dict:
+        return work.person_detail(identity)
+
+    @app.patch("/api/v1/people/{identity}")
+    def person_update(identity: str, request: Request, body: m.PersonUpdate) -> dict:
+        return apply(request, "person.update", {**body.model_dump(exclude_unset=True), "id": identity})
+
+    @app.post("/api/v1/people/{identity}/{verb}")
+    def person_archive(identity: str, verb: str, request: Request, body: m.Expected) -> dict:
+        if verb not in {"archive", "recover"}:
+            raise AppError(404, "not_found", "Unknown person command")
+        return apply(request, "person." + verb, {"id": identity, **body.model_dump()})
+
+    @app.post("/api/v1/person-links")
+    def person_link_create(request: Request, body: m.PersonLinkCreate) -> dict:
+        return apply(request, "person.link", body.model_dump())
+
+    @app.post("/api/v1/person-links/unlink")
+    def person_link_remove(request: Request, body: m.PersonLinkRemove) -> dict:
+        return apply(request, "person.unlink", body.model_dump())
 
     @app.post("/api/v1/roadmaps/{identity}/{verb}")
     def roadmap_archive(identity: str, verb: str, request: Request, body: m.Expected) -> dict:

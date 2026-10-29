@@ -177,11 +177,19 @@ function currentPath(
   if (action === "progress.set") return "/steps/" + id;
   const collection = action.startsWith("roadmap.")
     ? "roadmaps"
-    : action.startsWith("note.")
-      ? "notes"
-      : action.startsWith("task.")
-        ? "tasks"
-        : "work-items";
+    : action.startsWith("person.")
+      ? "people"
+      : action.startsWith("note.")
+        ? "notes"
+        : action.startsWith("task.")
+          ? "tasks"
+          : action.startsWith("link.")
+            ? "links"
+            : action.startsWith("chat.")
+              ? "chats"
+              : action.startsWith("github.")
+                ? "github"
+                : "work-items";
   return "/" + collection + "/" + id;
 }
 export function OperationDiff({

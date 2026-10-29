@@ -355,3 +355,32 @@ def test_export_original_html_bytes_have_hashed_manifest_entry(tmp_path):
         manifest = json.loads(archive.read("manifest.json"))
         entry = next(file for file in manifest["files"] if file["path"] == member)
         assert entry["sha256"] == hashlib.sha256(original).hexdigest()
+
+
+def test_legacy_v1_database_without_roadmap_id_migrates_and_restores(tmp_path):
+    from worklog.db import SCHEMA
+    from worklog.plans import SCHEMA as PLAN_SCHEMA
+    from worklog.proposals import SCHEMA as PROPOSAL_SCHEMA
+
+    legacy_path = tmp_path / "legacy.sqlite3"
+    legacy_schema = (PLAN_SCHEMA + PROPOSAL_SCHEMA + SCHEMA).replace(
+        ", roadmap_id TEXT REFERENCES roadmaps(id)", ""
+    )
+    from worklog.db import LINKS_CHATS_GITHUB_SCHEMA, PEOPLE_SCHEMA
+    legacy_schema = legacy_schema.replace(PEOPLE_SCHEMA, "").replace(LINKS_CHATS_GITHUB_SCHEMA, "")
+    with closing(sqlite3.connect(legacy_path)) as conn:
+        conn.executescript(legacy_schema)
+        for key, value in {"timezone": "America/Chicago", "dataId": str(os.urandom(16).hex()), "backlogRevision": 1}.items():
+            conn.execute("INSERT INTO settings VALUES(?,?)", (key, json.dumps("11111111-1111-4111-8111-111111111111" if key == "dataId" else value)))
+        conn.execute("INSERT INTO roadmaps VALUES('r1','Road','',1,0,'2026-01-01','2026-01-01')")
+        conn.execute("INSERT INTO steps VALUES('s1','r1','Step','',NULL,0,'open',1,0)")
+        conn.execute("INSERT INTO work_items(id,title,step_id,backlog_order,created_at,updated_at) VALUES ('w1','Legacy item','s1',0,'2026-01-01','2026-01-01')")
+        conn.execute("PRAGMA user_version=1")
+        conn.commit()
+    target = make_database(tmp_path / "active.sqlite3")
+    recovery.restore_database(target, legacy_path, tmp_path / "backups")
+    with closing(sqlite3.connect(target)) as conn:
+        assert conn.execute("SELECT roadmap_id FROM work_items WHERE id='w1'").fetchone() == ("r1",)
+    Database(legacy_path).initialize()
+    with closing(sqlite3.connect(legacy_path)) as conn:
+        assert conn.execute("SELECT roadmap_id FROM work_items WHERE id='w1'").fetchone() == ("r1",)

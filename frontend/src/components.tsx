@@ -3,8 +3,18 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { download } from "./api";
 import { commands } from "./commands";
-import { useAction, useDraft } from "./hooks";
-import type { Attachment, Note, Status } from "./types";
+import { useAction, useData, useDraft } from "./hooks";
+import type {
+  AgentChat,
+  Attachment,
+  GithubRef,
+  List,
+  Note,
+  Person,
+  PersonAssignment,
+  Status,
+  WebLink,
+} from "./types";
 const ALLOWED_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
 function resolveLink(url: string): URL | null {
   try {
@@ -317,12 +327,18 @@ export function RecoverRecords({
     records: (
       | Attachment
       | Note
+      | WebLink
+      | AgentChat
+      | GithubRef
       | {
           id: string;
           revision: number;
           archived?: boolean;
           text?: string;
           path?: string;
+          url?: string;
+          title?: string;
+          reference?: string;
         }
     )[];
   }[];
@@ -346,13 +362,17 @@ export function RecoverRecords({
               <span>
                 {"name" in r
                   ? r.name
-                  : "title" in r
-                    ? r.title || r.text
-                    : "text" in r
-                      ? r.text
-                      : "path" in r
-                        ? r.path
-                        : r.id}
+                  : "title" in r && r.title
+                    ? r.title
+                    : "reference" in r && r.reference
+                      ? r.reference
+                      : "url" in r && r.url
+                        ? r.url
+                        : "text" in r && r.text
+                          ? r.text
+                          : "path" in r && r.path
+                            ? r.path
+                            : r.id}
               </span>
               <button
                 disabled={action.isPending}
@@ -371,5 +391,524 @@ export function RecoverRecords({
       ))}
       <ErrorMessage error={action.error} />
     </details>
+  );
+}
+export function PersonBadges({ people }: { people?: PersonAssignment[] }) {
+  if (!people?.length) return null;
+  return (
+    <span className="person-badges">
+      {people.map((p) => (
+        <a
+          key={p.id}
+          className="person-badge"
+          href={"#people/" + p.personId}
+          title={p.personRole || undefined}
+        >
+          {p.name}
+          {p.relationship ? ` (${p.relationship})` : ""}
+        </a>
+      ))}
+    </span>
+  );
+}
+export function PeopleLinks({
+  targetType,
+  targetId,
+  people = [],
+  disabled = false,
+}: {
+  targetType: "item" | "roadmap";
+  targetId: string;
+  people?: PersonAssignment[];
+  disabled?: boolean;
+}) {
+  const directory = useData<List<Person>>("/people?archived=false");
+  const action = useAction();
+  const [personId, setPersonId] = useState("");
+  const [newName, setNewName] = useState("");
+  const [relationship, setRelationship] = useState("");
+  const [error, setError] = useState("");
+  return (
+    <section>
+      <h3>
+        People <span className="count">{people.length}</span>
+      </h3>
+      {people.map((p) => (
+        <div className="line person-assignment" key={p.id}>
+          <a href={"#people/" + p.personId}>{p.name}</a>
+          {p.personRole && <small>{p.personRole}</small>}
+          <input
+            aria-label={"Role for " + p.name}
+            defaultValue={p.relationship}
+            key={p.id + ":" + p.relationship}
+            disabled={disabled}
+            placeholder="Role (e.g. Owner, Stakeholder)…"
+            onBlur={(e) => {
+              const next = e.target.value.trim();
+              if (next !== p.relationship) {
+                action.mutate({
+                  path: "/person-links",
+                  body: {
+                    personId: p.personId,
+                    targetType,
+                    targetId,
+                    relationship: next,
+                  },
+                });
+              }
+            }}
+          />
+          <button
+            type="button"
+            className="quiet"
+            disabled={disabled}
+            aria-label={"Unlink " + p.name}
+            onClick={() =>
+              action.mutate({
+                path: "/person-links/unlink",
+                body: { personId: p.personId, targetType, targetId },
+              })
+            }
+          >
+            Unlink
+          </button>
+        </div>
+      ))}
+      <form
+        className="inline"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (disabled || !personId) return;
+          setError("");
+          try {
+            let resolvedPersonId = personId;
+            if (personId === "__new__") {
+              if (!newName.trim()) return;
+              const created = await commands.createPerson({
+                name: newName.trim(),
+                role: "",
+                notes: "",
+              });
+              resolvedPersonId = created.id;
+            }
+            await action.mutateAsync({
+              path: "/person-links",
+              body: {
+                personId: resolvedPersonId,
+                targetType,
+                targetId,
+                relationship: relationship.trim(),
+              },
+            });
+            setPersonId("");
+            setNewName("");
+            setRelationship("");
+          } catch (err) {
+            setError(err instanceof Error ? err.message : String(err));
+          }
+        }}
+      >
+        <select
+          aria-label="Choose person"
+          value={personId}
+          disabled={disabled}
+          onChange={(e) => setPersonId(e.target.value)}
+        >
+          <option value="">Select person to tie…</option>
+          {directory.data?.items?.map((person) => (
+            <option key={person.id} value={person.id}>
+              {person.name}
+              {person.role ? " (" + person.role + ")" : ""}
+            </option>
+          ))}
+          <option value="__new__">+ New person…</option>
+        </select>
+        {personId === "__new__" && (
+          <input
+            aria-label="New person name"
+            placeholder="New person name…"
+            value={newName}
+            disabled={disabled}
+            onChange={(e) => setNewName(e.target.value)}
+            required
+          />
+        )}
+        <input
+          aria-label="Relationship or role"
+          placeholder="Role (e.g. Owner, Stakeholder, Reviewer)…"
+          value={relationship}
+          disabled={disabled}
+          onChange={(e) => setRelationship(e.target.value)}
+        />
+        <button
+          type="submit"
+          disabled={
+            disabled ||
+            action.isPending ||
+            !personId ||
+            (personId === "__new__" && !newName.trim())
+          }
+        >
+          Tie person
+        </button>
+      </form>
+      <ErrorMessage error={error || action.error} />
+    </section>
+  );
+}
+export function LinksSection({
+  ownerType,
+  ownerId,
+  links = [],
+  disabled = false,
+}: {
+  ownerType: "item" | "roadmap";
+  ownerId: string;
+  links?: WebLink[];
+  disabled?: boolean;
+}) {
+  const action = useAction();
+  const [title, setTitle] = useState("");
+  const [url, setUrl] = useState("");
+  const [description, setDescription] = useState("");
+  const active = links.filter((l) => !l.archived);
+  return (
+    <section>
+      <h3>
+        Links <span className="count">{active.length}</span>
+      </h3>
+      {active.map((l) => (
+        <div className="line" key={l.id}>
+          <div>
+            <a href={l.url} target="_blank" rel="noopener noreferrer">
+              {l.title || l.url} ↗
+            </a>
+            {l.title && (
+              <>
+                {" "}
+                <small>{l.url}</small>
+              </>
+            )}
+            {l.description && (
+              <div>
+                <small>{l.description}</small>
+              </div>
+            )}
+          </div>
+          {!disabled && (
+            <button
+              type="button"
+              className="quiet"
+              aria-label={"Archive link " + (l.title || l.url)}
+              onClick={() =>
+                action.mutate({
+                  path: `/links/${l.id}/archive`,
+                  body: { revision: l.revision },
+                })
+              }
+            >
+              Archive
+            </button>
+          )}
+        </div>
+      ))}
+      {!disabled && (
+        <form
+          className="inline"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!url.trim()) return;
+            await action
+              .mutateAsync({
+                path: "/links",
+                body: {
+                  ownerType,
+                  ownerId,
+                  url: url.trim(),
+                  title: title.trim(),
+                  description: description.trim(),
+                },
+              })
+              .then(() => {
+                setTitle("");
+                setUrl("");
+                setDescription("");
+              })
+              .catch(() => undefined);
+          }}
+        >
+          <input
+            aria-label="Link title"
+            placeholder="Link title (optional)…"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+          <input
+            aria-label="Link URL"
+            placeholder="https://…"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            required
+          />
+          <input
+            aria-label="Link description"
+            placeholder="Description…"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+          <button type="submit" disabled={action.isPending || !url.trim()}>
+            Add link
+          </button>
+        </form>
+      )}
+      <ErrorMessage error={action.error} />
+    </section>
+  );
+}
+export function AgentChatsSection({
+  ownerType,
+  ownerId,
+  chats = [],
+  disabled = false,
+}: {
+  ownerType: "item" | "roadmap";
+  ownerId: string;
+  chats?: AgentChat[];
+  disabled?: boolean;
+}) {
+  const action = useAction();
+  const [title, setTitle] = useState("");
+  const [chatId, setChatId] = useState("");
+  const [createdDate, setCreatedDate] = useState("");
+  const active = chats.filter((c) => !c.archived);
+  return (
+    <section>
+      <h3>
+        Agent chats <span className="count">{active.length}</span>
+      </h3>
+      {active.map((c) => (
+        <div className="line" key={c.id}>
+          <strong>{c.title}</strong>
+          <code>{c.chatId}</code>
+          <small>Created {c.createdDate}</small>
+          <button
+            type="button"
+            onClick={() => navigator.clipboard.writeText(c.chatId)}
+          >
+            Copy ID
+          </button>
+          {!disabled && (
+            <button
+              type="button"
+              className="quiet"
+              aria-label={"Archive chat " + c.title}
+              onClick={() =>
+                action.mutate({
+                  path: `/chats/${c.id}/archive`,
+                  body: { revision: c.revision },
+                })
+              }
+            >
+              Archive
+            </button>
+          )}
+        </div>
+      ))}
+      {!disabled && (
+        <form
+          className="inline"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!title.trim() || !chatId.trim()) return;
+            await action
+              .mutateAsync({
+                path: "/chats",
+                body: {
+                  ownerType,
+                  ownerId,
+                  title: title.trim(),
+                  chatId: chatId.trim(),
+                  ...(createdDate ? { createdDate } : {}),
+                },
+              })
+              .then(() => {
+                setTitle("");
+                setChatId("");
+                setCreatedDate("");
+              })
+              .catch(() => undefined);
+          }}
+        >
+          <input
+            aria-label="Agent chat title"
+            placeholder="Chat title…"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+          />
+          <input
+            aria-label="Agent chat ID"
+            placeholder="Chat ID…"
+            value={chatId}
+            onChange={(e) => setChatId(e.target.value)}
+            required
+          />
+          <input
+            aria-label="Agent chat date created"
+            type="date"
+            value={createdDate}
+            onChange={(e) => setCreatedDate(e.target.value)}
+          />
+          <button
+            type="submit"
+            disabled={action.isPending || !title.trim() || !chatId.trim()}
+          >
+            Add chat
+          </button>
+        </form>
+      )}
+      <ErrorMessage error={action.error} />
+    </section>
+  );
+}
+export function GithubRefsSection({
+  ownerType,
+  ownerId,
+  github = [],
+  chats = [],
+  disabled = false,
+}: {
+  ownerType: "item" | "roadmap";
+  ownerId: string;
+  github?: GithubRef[];
+  chats?: AgentChat[];
+  disabled?: boolean;
+}) {
+  const action = useAction();
+  const [kind, setKind] = useState<"pr" | "commit">("pr");
+  const [url, setUrl] = useState("");
+  const [title, setTitle] = useState("");
+  const [reference, setReference] = useState("");
+  const [description, setDescription] = useState("");
+  const [chatId, setChatId] = useState("");
+  const active = github.filter((g) => !g.archived);
+  const activeChats = chats.filter((c) => !c.archived);
+  return (
+    <section>
+      <h3>
+        GitHub commits & PRs <span className="count">{active.length}</span>
+      </h3>
+      {active.map((g) => (
+        <div className="line" key={g.id}>
+          <span className="person-badge">
+            {g.kind === "pr" ? "PR" : "Commit"}
+          </span>
+          <a href={g.url} target="_blank" rel="noopener noreferrer">
+            {g.title || g.reference || g.url} ↗
+          </a>
+          {g.reference && <code>{g.reference}</code>}
+          {g.chatTitle && <small>Chat: {g.chatTitle}</small>}
+          {g.description && <small>{g.description}</small>}
+          {!disabled && (
+            <button
+              type="button"
+              className="quiet"
+              aria-label={
+                "Archive GitHub " + (g.title || g.reference || g.url)
+              }
+              onClick={() =>
+                action.mutate({
+                  path: `/github/${g.id}/archive`,
+                  body: { revision: g.revision },
+                })
+              }
+            >
+              Archive
+            </button>
+          )}
+        </div>
+      ))}
+      {!disabled && (
+        <form
+          className="inline"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!url.trim()) return;
+            await action
+              .mutateAsync({
+                path: "/github",
+                body: {
+                  ownerType,
+                  ownerId,
+                  kind,
+                  url: url.trim(),
+                  title: title.trim(),
+                  reference: reference.trim(),
+                  description: description.trim(),
+                  chatId: chatId || null,
+                },
+              })
+              .then(() => {
+                setUrl("");
+                setTitle("");
+                setReference("");
+                setDescription("");
+                setChatId("");
+              })
+              .catch(() => undefined);
+          }}
+        >
+          <select
+            aria-label="GitHub reference type"
+            value={kind}
+            onChange={(e) => setKind(e.target.value as "pr" | "commit")}
+          >
+            <option value="pr">Pull request</option>
+            <option value="commit">Commit</option>
+          </select>
+          <input
+            aria-label="GitHub URL"
+            placeholder="https://github.com/org/repo/pull/123 or /commit/sha…"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            required
+          />
+          <input
+            aria-label="GitHub title"
+            placeholder="Title or summary…"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+          <input
+            aria-label="GitHub SHA or PR number"
+            placeholder="SHA or PR # (auto if blank)…"
+            value={reference}
+            onChange={(e) => setReference(e.target.value)}
+          />
+          <input
+            aria-label="GitHub description"
+            placeholder="Description (optional)…"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+          <select
+            aria-label="Associated agent chat"
+            value={chatId}
+            onChange={(e) => setChatId(e.target.value)}
+          >
+            <option value="">No linked agent chat</option>
+            {activeChats.map((c) => (
+              <option key={c.id} value={c.id}>
+                Chat: {c.title} ({c.chatId})
+              </option>
+            ))}
+          </select>
+          <button type="submit" disabled={action.isPending || !url.trim()}>
+            Add GitHub ref
+          </button>
+        </form>
+      )}
+      <ErrorMessage error={action.error} />
+    </section>
   );
 }

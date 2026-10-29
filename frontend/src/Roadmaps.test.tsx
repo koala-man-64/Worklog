@@ -3,8 +3,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { contextStorageKey, setDataContext } from "./api";
-import { StructureEditor } from "./Roadmaps";
-import type { Roadmap, Step } from "./types";
+import { RoadmapDetail, StructureEditor } from "./Roadmaps";
+import type { Item, Roadmap, Step } from "./types";
 
 const ROADMAP = "22222222-2222-4222-8222-222222222222";
 function step(id: string, title: string, position: number): Step {
@@ -141,4 +141,124 @@ it("reorders steps without mutating the cached roadmap", async () => {
     ["Alpha", 0],
     ["Beta", 1],
   ]);
+});
+it("adds, attaches, reassigns, and unlinks work items on a roadmap", async () => {
+  const existingItem: Item = {
+    id: "bbbbbbbb-0000-4000-8000-000000000001",
+    revision: 2,
+    title: "Existing item",
+    description: "",
+    status: "open",
+    adoUrl: null,
+    roadmapId: null,
+    stepId: null,
+  };
+  const linkedItem: Item = {
+    id: "bbbbbbbb-0000-4000-8000-000000000002",
+    revision: 1,
+    title: "Roadmap item",
+    description: "",
+    status: "open",
+    adoUrl: null,
+    roadmapId: ROADMAP,
+    stepId: null,
+  };
+  const roadData: Roadmap = {
+    ...roadmap(4, [A, B]),
+    workItems: [linkedItem],
+  };
+  const calls: { url: string; method: string; body: unknown }[] = [];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const url = String(input);
+    const method = init?.method ?? "GET";
+    if (method === "GET" && url.includes(`/roadmaps/${ROADMAP}`))
+      return new Response(JSON.stringify(roadData), { status: 200 });
+    if (method === "GET" && url.includes("/work-items"))
+      return new Response(
+        JSON.stringify({ items: [existingItem, linkedItem], total: 2 }),
+        { status: 200 },
+      );
+    if (method === "GET" && url.includes("/people"))
+      return new Response(JSON.stringify({ items: [], total: 0 }), {
+        status: 200,
+      });
+    calls.push({
+      url,
+      method,
+      body: init?.body ? JSON.parse(String(init.body)) : null,
+    });
+    return new Response(JSON.stringify({ id: "new", revision: 1 }), {
+      status: 200,
+    });
+  });
+  render(
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      <RoadmapDetail id={ROADMAP} />
+    </QueryClientProvider>,
+  );
+  expect(await screen.findByText("Roadmap item")).toBeInTheDocument();
+
+  // Create a new work item directly on the roadmap
+  await userEvent.type(
+    screen.getByRole("textbox", { name: "New roadmap work item" }),
+    "Fresh roadmap task",
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Add work item" }));
+  await waitFor(() =>
+    expect(calls.at(-1)).toEqual({
+      url: "/api/v1/work-items",
+      method: "POST",
+      body: {
+        title: "Fresh roadmap task",
+        description: "",
+        roadmapId: ROADMAP,
+        stepId: null,
+        worked: false,
+      },
+    }),
+  );
+
+  // Attach an existing work item to step Alpha
+  await userEvent.selectOptions(
+    screen.getByRole("combobox", { name: "Choose existing work" }),
+    existingItem.id,
+  );
+  await userEvent.selectOptions(
+    screen.getByRole("combobox", { name: "Step for existing work item" }),
+    A.id,
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Attach work item" }),
+  );
+  await waitFor(() =>
+    expect(calls.at(-1)).toEqual({
+      url: `/api/v1/work-items/${existingItem.id}`,
+      method: "PATCH",
+      body: {
+        revision: existingItem.revision,
+        roadmapId: ROADMAP,
+        stepId: A.id,
+      },
+    }),
+  );
+
+  // Unlink a work item from the roadmap
+  await userEvent.click(
+    screen.getByRole("button", { name: "Unlink Roadmap item" }),
+  );
+  await waitFor(() =>
+    expect(calls.at(-1)).toEqual({
+      url: `/api/v1/work-items/${linkedItem.id}`,
+      method: "PATCH",
+      body: {
+        revision: linkedItem.revision,
+        roadmapId: null,
+        stepId: null,
+      },
+    }),
+  );
 });

@@ -344,3 +344,183 @@ def test_withdrawn_unsubmitted_drafts_stay_private(client):
     submitted = write(client, "POST", f"/proposals/{shared['id']}/submit", {"revision": shared["revision"]}, headers=a).json()
     write(client, "POST", f"/proposals/{shared['id']}/withdraw", {"revision": submitted["revision"]}, headers=a)
     assert client.get(f"/api/v1/proposals/{shared['id']}", headers=b).status_code == 200
+
+
+def test_roadmap_work_items_create_attach_step_move_and_unlink(client):
+    roadmap = write(client, "POST", "/roadmaps", {"title": "Platform roadmap", "steps": [{"title": "Phase 1"}]}).json()
+    other = write(client, "POST", "/roadmaps", {"title": "Other roadmap", "steps": [{"title": "Other step"}]}).json()
+    step_id = roadmap["steps"][0]["id"]
+    other_step_id = other["steps"][0]["id"]
+
+    # Create work item directly on roadmap without a step
+    direct = item(client, title="Roadmap-level work", roadmapId=roadmap["id"])
+    assert direct["roadmapId"] == roadmap["id"] and direct["stepId"] is None
+    detail = client.get(f"/api/v1/work-items/{direct['id']}").json()
+    assert detail["linkedRoadmap"]["id"] == roadmap["id"]
+    assert detail["linkedStep"] is None
+
+    # Create work item on a step and verify roadmapId is derived
+    on_step = item(client, title="Step-level work", stepId=step_id)
+    assert on_step["roadmapId"] == roadmap["id"] and on_step["stepId"] == step_id
+
+    # Mismatched roadmapId and stepId is rejected
+    mismatch = write(client, "POST", "/work-items", {"title": "Mismatch", "roadmapId": roadmap["id"], "stepId": other_step_id})
+    assert mismatch.status_code == 422
+    assert write(client, "POST", "/work-items", {"title": "Missing roadmap", "roadmapId": str(uuid.uuid4())}).status_code == 422
+
+    # Roadmap detail includes both work items
+    road_detail = client.get(f"/api/v1/roadmaps/{roadmap['id']}").json()
+    assert [w["id"] for w in road_detail["workItems"]] == [direct["id"], on_step["id"]]
+    assert client.get(f"/api/v1/work-items?roadmapId={roadmap['id']}").json()["total"] == 2
+
+    # Attach existing unlinked item to roadmap, move to step, move back to roadmap level, then unlink
+    existing = item(client, title="Existing backlog item")
+    attached = write(client, "PATCH", f"/work-items/{existing['id']}", {"revision": existing["revision"], "roadmapId": roadmap["id"]}).json()
+    assert attached["roadmapId"] == roadmap["id"] and attached["stepId"] is None
+    moved_step = write(client, "PATCH", f"/work-items/{existing['id']}", {"revision": attached["revision"], "stepId": step_id}).json()
+    assert moved_step["roadmapId"] == roadmap["id"] and moved_step["stepId"] == step_id
+    roadmap_only = write(client, "PATCH", f"/work-items/{existing['id']}", {"revision": moved_step["revision"], "stepId": None}).json()
+    assert roadmap_only["roadmapId"] == roadmap["id"] and roadmap_only["stepId"] is None
+    unlinked = write(client, "PATCH", f"/work-items/{existing['id']}", {"revision": roadmap_only["revision"], "roadmapId": None}).json()
+    assert unlinked["roadmapId"] is None and unlinked["stepId"] is None
+
+
+def test_people_directory_and_roadmap_work_item_links(client):
+    alice = write(client, "POST", "/people", {"name": "Alice Rivera", "role": "Staff Engineer", "notes": "Platform architecture lead"}).json()
+    bob = write(client, "POST", "/people", {"name": "Bob Chen", "role": "Product Manager"}).json()
+    assert alice["name"] == "Alice Rivera" and alice["role"] == "Staff Engineer"
+
+    roadmap = write(client, "POST", "/roadmaps", {"title": "Reliability roadmap", "steps": [{"title": "SLO rollout"}]}).json()
+    work_item = item(client, title="Define service SLOs", roadmapId=roadmap["id"])
+
+    # Tie Alice and Bob to both the roadmap and the work item with optional role labels
+    r_link1 = write(client, "POST", "/person-links", {"personId": alice["id"], "targetType": "roadmap", "targetId": roadmap["id"], "relationship": "Owner"}).json()
+    r_link2 = write(client, "POST", "/person-links", {"personId": bob["id"], "targetType": "roadmap", "targetId": roadmap["id"], "relationship": "Stakeholder"}).json()
+    w_link1 = write(client, "POST", "/person-links", {"personId": alice["id"], "targetType": "item", "targetId": work_item["id"], "relationship": "Owner"}).json()
+    w_link2 = write(client, "POST", "/person-links", {"personId": bob["id"], "targetType": "item", "targetId": work_item["id"], "relationship": "Reviewer"}).json()
+    assert r_link1["relationship"] == "Owner" and r_link2["relationship"] == "Stakeholder"
+    assert w_link1["relationship"] == "Owner" and w_link2["relationship"] == "Reviewer"
+
+    # Upserting an existing link updates its relationship label
+    updated_link = write(client, "POST", "/person-links", {"personId": bob["id"], "targetType": "item", "targetId": work_item["id"], "relationship": "Approver"}).json()
+    assert updated_link["id"] == w_link2["id"] and updated_link["relationship"] == "Approver"
+
+    # Roadmap detail and Work item detail include linked people
+    road_detail = client.get(f"/api/v1/roadmaps/{roadmap['id']}").json()
+    assert [(p["name"], p["relationship"]) for p in road_detail["people"]] == [("Alice Rivera", "Owner"), ("Bob Chen", "Stakeholder")]
+    assert [(p["name"], p["relationship"]) for p in road_detail["workItems"][0]["people"]] == [("Alice Rivera", "Owner"), ("Bob Chen", "Approver")]
+
+    item_detail = client.get(f"/api/v1/work-items/{work_item['id']}").json()
+    assert [(p["name"], p["relationship"]) for p in item_detail["people"]] == [("Alice Rivera", "Owner"), ("Bob Chen", "Approver")]
+
+    # Filter work items and roadmaps by personId
+    assert client.get(f"/api/v1/work-items?personId={alice['id']}").json()["total"] == 1
+    assert client.get(f"/api/v1/roadmaps?personId={alice['id']}").json()["total"] == 1
+
+    # Person detail returns tied roadmaps and work items, and directory counts reflect active links
+    alice_detail = client.get(f"/api/v1/people/{alice['id']}").json()
+    assert len(alice_detail["roadmaps"]) == 1 and alice_detail["roadmaps"][0]["relationship"] == "Owner"
+    assert len(alice_detail["workItems"]) == 1 and alice_detail["workItems"][0]["relationship"] == "Owner"
+    people_list = client.get("/api/v1/people").json()["items"]
+    alice_summary = next(p for p in people_list if p["id"] == alice["id"])
+    assert alice_summary["roadmapCount"] == 1 and alice_summary["workItemCount"] == 1
+
+    # Search finds person and routes to #people/{id}
+    search_hit = client.get("/api/v1/search?q=Rivera").json()["items"][0]
+    assert search_hit["type"] == "person" and search_hit["routeType"] == "people" and search_hit["routeId"] == alice["id"]
+
+    # Update, archive, recover person, and unlink
+    patched = write(client, "PATCH", f"/people/{alice['id']}", {"revision": alice["revision"], "role": "Principal Engineer"}).json()
+    assert patched["role"] == "Principal Engineer"
+    archived = write(client, "POST", f"/people/{alice['id']}/archive", {"revision": patched["revision"]}).json()
+    assert archived["archived"] is True
+    assert client.get("/api/v1/search?q=Rivera").json()["total"] == 0
+    recovered = write(client, "POST", f"/people/{alice['id']}/recover", {"revision": archived["revision"]}).json()
+    assert recovered["archived"] is False
+
+    unlinked = write(client, "POST", "/person-links/unlink", {"personId": bob["id"], "targetType": "item", "targetId": work_item["id"]})
+    assert unlinked.status_code == 200
+    assert [p["name"] for p in client.get(f"/api/v1/work-items/{work_item['id']}").json()["people"]] == ["Alice Rivera"]
+
+
+def test_links_agent_chats_and_github_commits_and_prs_on_items_and_roadmaps(client):
+    roadmap = write(client, "POST", "/roadmaps", {"title": "Core roadmap", "steps": [{"title": "Step 1"}]}).json()
+    work_item = item(client, title="Ship feature", roadmapId=roadmap["id"])
+
+    # Web links with descriptions on work item and roadmap
+    item_link = write(client, "POST", "/links", {
+        "ownerType": "item",
+        "ownerId": work_item["id"],
+        "url": "https://example.com/design-doc",
+        "title": "Architecture RFC",
+        "description": "Detailed design and trade-offs for the new subsystem",
+    }).json()
+    road_link = write(client, "POST", "/links", {
+        "ownerType": "roadmap",
+        "ownerId": roadmap["id"],
+        "url": "https://example.com/roadmap-brief",
+        "title": "Product brief",
+        "description": "Quarterly goals and KPIs",
+    }).json()
+    assert item_link["title"] == "Architecture RFC" and road_link["title"] == "Product brief"
+    assert write(client, "POST", "/links", {"ownerType": "item", "ownerId": work_item["id"], "url": "javascript:alert(1)"}).status_code == 422
+
+    # Agent chat metadata (title, chatId, createdDate) on work item and roadmap
+    item_chat = write(client, "POST", "/chats", {
+        "ownerType": "item",
+        "ownerId": work_item["id"],
+        "chatId": "conv-abc-123",
+        "title": "Debug race condition in worker",
+        "createdDate": "2026-10-28",
+    }).json()
+    road_chat = write(client, "POST", "/chats", {
+        "ownerType": "roadmap",
+        "ownerId": roadmap["id"],
+        "chatId": "conv-road-999",
+        "title": "Scope Q4 milestones",
+        "createdDate": "2026-10-29",
+    }).json()
+    assert item_chat["chatId"] == "conv-abc-123" and item_chat["createdDate"] == "2026-10-28"
+
+    # GitHub commit and pull request (with auto-inferred reference and chat association)
+    pr_ref = write(client, "POST", "/github", {
+        "ownerType": "item",
+        "ownerId": work_item["id"],
+        "kind": "pr",
+        "url": "https://github.com/acme/worklog/pull/142",
+        "title": "Fix worker race condition",
+        "description": "Adds lock around queue drain",
+        "chatId": item_chat["id"],
+    }).json()
+    commit_ref = write(client, "POST", "/github", {
+        "ownerType": "roadmap",
+        "ownerId": roadmap["id"],
+        "kind": "commit",
+        "url": "https://github.com/acme/worklog/commit/9f8e7d6c5b4a3210",
+        "title": "Initial milestone scaffolding",
+        "chatId": road_chat["id"],
+    }).json()
+    assert pr_ref["reference"] == "acme/worklog#142" and pr_ref["chatTitle"] == "Debug race condition in worker"
+    assert commit_ref["reference"] == "acme/worklog@9f8e7d6" and commit_ref["chatTitle"] == "Scope Q4 milestones"
+
+    # Verify work item detail and roadmap detail return links, chats, and github refs
+    item_detail = client.get(f"/api/v1/work-items/{work_item['id']}").json()
+    assert len(item_detail["links"]) == 1 and item_detail["links"][0]["description"].startswith("Detailed design")
+    assert len(item_detail["chats"]) == 1 and item_detail["chats"][0]["chatId"] == "conv-abc-123"
+    assert len(item_detail["github"]) == 1 and item_detail["github"][0]["reference"] == "acme/worklog#142"
+
+    road_detail = client.get(f"/api/v1/roadmaps/{roadmap['id']}").json()
+    assert len(road_detail["links"]) == 1 and road_detail["links"][0]["title"] == "Product brief"
+    assert len(road_detail["chats"]) == 1 and road_detail["chats"][0]["chatId"] == "conv-road-999"
+    assert len(road_detail["github"]) == 1 and road_detail["github"][0]["reference"] == "acme/worklog@9f8e7d6"
+
+    # Search indexes links, chats, and github refs and routes to their owning work item or roadmap
+    assert client.get("/api/v1/search?q=subsystem").json()["items"][0]["routeId"] == work_item["id"]
+    assert client.get("/api/v1/search?q=conv-abc-123").json()["items"][0]["routeId"] == work_item["id"]
+    assert client.get("/api/v1/search?q=9f8e7d6").json()["items"][0]["routeId"] == roadmap["id"]
+
+    # Update, archive, and recover
+    patched_link = write(client, "PATCH", f"/links/{item_link['id']}", {"revision": item_link["revision"], "description": "Updated RFC summary"}).json()
+    assert patched_link["description"] == "Updated RFC summary"
+    assert write(client, "POST", f"/github/{pr_ref['id']}/archive", {"revision": pr_ref["revision"]}).json()["archived"] is True
+    assert write(client, "POST", f"/github/{pr_ref['id']}/recover", {"revision": 2}).json()["archived"] is False
