@@ -52,6 +52,32 @@ it("renders image references as alt text and isolates external links", () => {
     "target",
   );
 });
+// [markdown destination, href rendered (null = dropped), target]. The Markdown
+// parser percent-encodes a backslash, so `/\evil.example` reaches the renderer as the
+// same-origin path `/%5Cevil.example`.
+it.each([
+  ["//evil.example", "//evil.example", "_blank"],
+  ["/\\evil.example", "/%5Cevil.example", undefined],
+  ["JaVaScRiPt:alert(1)", null, undefined],
+  ["#today", "#today", undefined],
+  ["/", "/", undefined],
+  ["mailto:a@b.c", "mailto:a@b.c", "_blank"],
+  ["https://example.com", "https://example.com", "_blank"],
+] as const)(
+  "renders the link %j as href %j with target %j",
+  (destination, href, target) => {
+    render(<Markdown text={`[probe](${destination})`} />);
+    const link = screen.getByText("probe").closest("a");
+    expect(link).not.toBeNull();
+    expect(link?.getAttribute("href") || null).toBe(href);
+    if (target) {
+      expect(link).toHaveAttribute("target", target);
+      expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    } else {
+      expect(link).not.toHaveAttribute("target");
+    }
+  },
+);
 it("keeps the local draft after a revision conflict", async () => {
   const save = vi.fn().mockRejectedValue({ status: 409 });
   render(
