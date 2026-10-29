@@ -186,7 +186,8 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False) -> 
                         raise AppError(401, "session", "Open Worklog to establish a local session")
                     actor = {"id": "local-user", "label": "You", "kind": "human"}
                     if method not in {"GET", "HEAD"}:
-                        if supplied_origin not in allowed_origins or not secrets.compare_digest(request.headers.get("x-csrf-token", ""), session["csrf"]):
+                        # Compare bytes: compare_digest rejects non-ASCII str input with a TypeError.
+                        if supplied_origin not in allowed_origins or not secrets.compare_digest(request.headers.get("x-csrf-token", "").encode(), session["csrf"].encode()):
                             raise AppError(403, "csrf", "Refresh Worklog before saving")
                 request.state.actor = actor
                 # Bound JSON requests before FastAPI's body parser can allocate arbitrarily.
@@ -196,6 +197,11 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False) -> 
             response = await call_next(request)
         except AppError as exc:
             response = error_response(exc)
+        except Exception:
+            # Unhandled failures still get the error envelope and the security headers below.
+            incident = uid()
+            logger.exception("Unhandled request failure (incident %s)", incident)
+            response = error_response(AppError(500, "internal_error", f"Unexpected server error. Reference {incident}."))
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
