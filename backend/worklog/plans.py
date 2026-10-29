@@ -100,6 +100,21 @@ def _steps(conn, identifier, retired=False):
     return steps
 
 
+_URL_UNSAFE = re.compile(r"[()<>\s]")
+
+
+def _normalize_url(value: str) -> str:
+    """Make a kept URL safe to embed in Markdown link syntax.
+
+    Protocol-relative URLs become https; parentheses, angle brackets and whitespace are
+    percent-encoded so a crafted value cannot close the link and open another one.
+    """
+    value = value.strip()
+    if value.startswith("//"):
+        value = "https:" + value
+    return _URL_UNSAFE.sub(lambda m: "".join(f"%{b:02X}" for b in m.group().encode()), value)
+
+
 class PlanService:
     def __init__(self, db):
         self.db = db
@@ -295,6 +310,8 @@ class PlanService:
                 if compact and (re.match(r"[a-z][a-z0-9+.-]*:", compact, re.I)
                                 and not re.match(r"https?://", compact, re.I)):
                     del tag.attrs[key]
+                elif compact:
+                    tag.attrs[key] = _normalize_url(str(value))
         body = soup.body or soup
         if body is soup and soup.head:
             soup.head.decompose()
