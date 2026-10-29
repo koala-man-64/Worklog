@@ -363,6 +363,67 @@ test("native day drag reorders actual entries without losing an outcome", async 
       .getByLabel("Outcome / next action"),
   ).toHaveValue("Keep this outcome");
 });
+test("a link changed in another tab survives tabbing through a stale field", async ({
+  context,
+  page,
+  baseURL,
+}) => {
+  const origin = new URL(baseURL!).origin;
+  await page.goto("/");
+  // Let the app finish its own bootstrap so both share one session cookie.
+  await expect(
+    page.getByRole("heading", { name: "Today", exact: true }),
+  ).toBeVisible();
+  const boot = await page.request.post("/api/v1/session/bootstrap", {
+    headers: { Origin: origin, "X-Worklog-Bootstrap": "1" },
+    data: {},
+  });
+  const { csrfToken } = await boot.json();
+  const created = await page.request.post("/api/v1/work-items", {
+    headers: {
+      Origin: origin,
+      "X-CSRF-Token": csrfToken,
+      "Idempotency-Key": crypto.randomUUID(),
+    },
+    data: { title: "Link race " + Date.now() },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { id } = await created.json();
+  const mine = "https://dev.azure.com/org/project/_workitems/edit/1";
+  const url = "https://dev.azure.com/org/project/_workitems/edit/2";
+  const link = (p: typeof page) =>
+    p.getByRole("textbox", { name: "Azure DevOps link" });
+  const savedLink = async () =>
+    (await (await page.request.get(`/api/v1/work-items/${id}`)).json()).adoUrl;
+  // The first tab sets the link itself, so its field has been edited by the user.
+  await page.goto("/#work/" + id);
+  await link(page).fill(mine);
+  await link(page).press("Tab");
+  await expect.poll(savedLink).toBe(mine);
+  const other = await context.newPage();
+  await other.goto("/#work/" + id);
+  await expect(link(other)).toHaveValue(mine);
+  await link(other).fill(url);
+  await link(other).press("Tab");
+  await expect.poll(savedLink).toBe(url);
+  // Returning to the first tab refetches the item; tabbing through must not write.
+  const writes: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() !== "GET") writes.push(request.url());
+  });
+  await page.bringToFront();
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event("visibilitychange"));
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await expect(link(page)).toHaveValue(url);
+  await link(page).focus();
+  await page.keyboard.press("Tab");
+  await page.waitForTimeout(300);
+  expect(writes).toEqual([]);
+  expect(await savedLink()).toBe(url);
+  await other.close();
+});
 test("a structure draft survives a progress change made while editing", async ({
   page,
   baseURL,
