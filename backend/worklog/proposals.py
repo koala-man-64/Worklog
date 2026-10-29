@@ -79,8 +79,16 @@ def _row(conn, identifier):
     return row
 
 
-def _visible(row, actor):
-    if actor["kind"] == "agent" and row["status"] == "draft" and row["actor_id"] != actor["id"]:
+def _can_see(conn, row, actor):
+    # Agents see other agents' proposals only once submitted; withdrawing an unsubmitted draft keeps it private.
+    if actor["kind"] != "agent" or row["actor_id"] == actor["id"] or row["status"] in {"submitted", "approved", "rejected"}:
+        return True
+    return row["status"] == "withdrawn" and conn.execute(
+        "SELECT 1 FROM events WHERE entity_id=? AND kind='proposal.submit'", (row["id"],)).fetchone() is not None
+
+
+def _visible(conn, row, actor):
+    if not _can_see(conn, row, actor):
         raise AppError(404, "not_found", "Proposal not found")
 
 
@@ -100,13 +108,13 @@ class ProposalService:
         with self.db.read() as conn:
             rows = conn.execute("SELECT * FROM proposals ORDER BY created_at,id").fetchall()
             items = [_record(r) for r in rows if (not status or r["status"] == status)
-                     and (actor["kind"] != "agent" or r["status"] != "draft" or r["actor_id"] == actor["id"])]
+                     and _can_see(conn, r, actor)]
             return {"items": items, "total": len(items)}
 
     def detail(self, identifier, actor):
         with self.db.read() as conn:
             row = _row(conn, identifier)
-            _visible(row, actor)
+            _visible(conn, row, actor)
             return _record(row)
 
     def create(self, payload, actor, conn=None):
@@ -119,7 +127,7 @@ class ProposalService:
             supersedes = payload.get("supersedesId")
             if supersedes:
                 prior = _row(connection, supersedes)
-                _visible(prior, actor)
+                _visible(connection, prior, actor)
                 _owner(prior, actor)
                 if prior["status"] not in {"rejected", "withdrawn"}:
                     raise AppError(409, "conflict", "Only rejected or withdrawn proposals may be superseded")
@@ -136,7 +144,7 @@ class ProposalService:
             raise AppError(422, "validation", "Unknown proposal fields")
         with self.db.transaction() as conn:
             row = _row(conn, identifier)
-            _visible(row, actor)
+            _visible(conn, row, actor)
             _owner(row, actor)
             require_revision(row, payload.get("revision"))
             if row["status"] != "draft":
@@ -156,7 +164,7 @@ class ProposalService:
             raise AppError(422, "validation", "Unsupported proposal transition")
         with self.db.transaction() if conn is None else nullcontext(conn) as connection:
             row = _row(connection, identifier)
-            _visible(row, actor)
+            _visible(connection, row, actor)
             require_revision(row, payload.get("revision"))
             if verb in {"approve", "reject"}:
                 if actor["kind"] != "human":
@@ -187,7 +195,7 @@ class ProposalService:
 
     def check_upload(self, conn, identifier, actor):
         row = _row(conn, identifier)
-        _visible(row, actor)
+        _visible(conn, row, actor)
         if actor["kind"] == "agent":
             _owner(row, actor)
             if row["status"] != "draft":
