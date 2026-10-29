@@ -23,6 +23,9 @@ type Result = {
 export default function App() {
   const [route, setRoute] = useState(location.hash.slice(1) || "today");
   const [search, setSearch] = useState("");
+  const [roadmapsOpen, setRoadmapsOpen] = useState(
+    () => localStore.read("nav-roadmaps").value !== "closed",
+  );
   const session = useQuery({
     queryKey: ["session"],
     queryFn: bootstrap,
@@ -39,6 +42,17 @@ export default function App() {
     return () => window.removeEventListener("hashchange", change);
   }, []);
   const [page, id] = route.split("/");
+  const link = (key: string, icon: string, label: string) => (
+    <a
+      href={"#" + key}
+      aria-current={
+        page !== key ? undefined : key === "roadmaps" && id ? "true" : "page"
+      }
+    >
+      <span aria-hidden="true">{icon}</span>
+      {label}
+    </a>
+  );
   useEffect(() => {
     document.documentElement.dataset.theme =
       localStore.read("theme").value ?? "system";
@@ -72,21 +86,36 @@ export default function App() {
             ["settings", "⚙", "Settings"],
           ].map(([key, icon, label]) => (
             <Fragment key={key}>
-              <a
-                href={"#" + key}
-                aria-current={
-                  page !== key
-                    ? undefined
-                    : key === "roadmaps" && id
-                      ? "true"
-                      : "page"
-                }
-              >
-                <span aria-hidden="true">{icon}</span>
-                {label}
-              </a>
+              {key === "roadmaps" ? (
+                <div className="nav-row">
+                  {link(key, icon, label)}
+                  <button
+                    type="button"
+                    className="nav-toggle"
+                    aria-expanded={roadmapsOpen}
+                    aria-controls="roadmap-subnav"
+                    aria-label={
+                      roadmapsOpen ? "Collapse roadmaps" : "Expand roadmaps"
+                    }
+                    onClick={() => {
+                      localStore.write(
+                        "nav-roadmaps",
+                        roadmapsOpen ? "closed" : "open",
+                      );
+                      setRoadmapsOpen(!roadmapsOpen);
+                    }}
+                  >
+                    <span aria-hidden="true">{roadmapsOpen ? "▾" : "▸"}</span>
+                  </button>
+                </div>
+              ) : (
+                link(key, icon, label)
+              )}
               {key === "roadmaps" && session.data && (
-                <RoadmapNav selected={page === "roadmaps" ? id : undefined} />
+                <RoadmapNav
+                  open={roadmapsOpen}
+                  selected={page === "roadmaps" ? id : undefined}
+                />
               )}
             </Fragment>
           ))}

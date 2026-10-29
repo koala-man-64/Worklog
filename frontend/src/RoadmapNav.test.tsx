@@ -48,3 +48,20 @@ it("renders nothing when there are no roadmaps", async () => {
   await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
   expect(container).toBeEmptyDOMElement();
 });
+
+it("hides the list but keeps it addressable when closed", async () => {
+  mockRoadmaps([{ id: A, title: "Platform" }]);
+  render(
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      <RoadmapNav open={false} />
+    </QueryClientProvider>,
+  );
+  await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+  const list = await screen.findByRole("list", { hidden: true });
+  expect(list).toHaveAttribute("id", "roadmap-subnav");
+  expect(list).not.toBeVisible();
+});
