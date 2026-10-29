@@ -243,7 +243,7 @@ Done when:
 
 #### REM-05 · Recoverable roadmap structure drafts
 
-Status: Not started · Owner: — · Branch: — · PR: —
+Status: Merged · Owner: Claude · Branch: `claude/WORKLOG-REM-05-structure-drafts` · PR: [#15](https://github.com/koala-man-64/Worklog/pull/15)
 
 Fixes H2 and N1 · Stream 1B · Standard · M · Review: standard
 
@@ -254,11 +254,11 @@ Fixes H2 and N1 · Stream 1B · Standard · M · Review: standard
 
 Done when:
 
-- [ ] A stale draft shows the banner
-- [ ] Discard removes the stored draft and loads the current structure
-- [ ] Rebase keeps steps added elsewhere and saves without a 409
-- [ ] `move()` leaves the cached roadmap steps unchanged
-- [ ] e2e: changing step progress while the editor is open no longer strands the draft
+- [x] A stale draft shows the banner (saving is disabled until it's resolved)
+- [x] Discard removes the stored draft and loads the current structure
+- [x] Rebase keeps steps added elsewhere and saves without a 409 (steps the user removed stay retired)
+- [x] `move()` leaves the cached roadmap steps unchanged
+- [x] e2e: changing step progress while the editor is open no longer strands the draft
 
 #### REM-06 · No unhandled 500 errors
 
