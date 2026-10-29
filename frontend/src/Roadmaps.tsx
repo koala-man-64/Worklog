@@ -482,29 +482,47 @@ export function StructureEditor({
     overview: string;
     steps: Step[];
     revision: number;
+    // Active step ids when the draft started; missing on drafts saved before it was recorded.
+    baseStepIds?: string[];
   } | null = null;
   try {
     draft = stored ? JSON.parse(stored) : null;
   } catch {
     /* Preserve corrupt draft; start from canonical. */
   }
+  // Editor state never shares objects with the query cache.
+  const active = () => roadmap.steps.filter((s) => !s.retired);
   const [title, setTitle] = useState(draft?.title ?? roadmap.title);
   const [overview, setOverview] = useState(draft?.overview ?? roadmap.overview);
   const [steps, setSteps] = useState<Step[]>(
-    draft?.steps ?? roadmap.steps.filter((s) => !s.retired),
+    () => draft?.steps ?? active().map((s) => ({ ...s })),
   );
+  const [revision, setRevision] = useState(draft?.revision ?? roadmap.revision);
+  const [baseStepIds, setBaseStepIds] = useState<string[] | null>(() =>
+    draft ? (draft.baseStepIds ?? null) : active().map((s) => s.id),
+  );
+  const [recovered, setRecovered] = useState(draft !== null);
+  const serverOnly = active().filter((s) => !steps.some((d) => d.id === s.id));
+  const [keep, setKeep] = useState(() => new Set(serverOnly.map((s) => s.id)));
   const [note, setNote] = useState("");
   const [storageWarning, setStorageWarning] = useState(!storedResult.ok);
   const action = useAction();
-  const revision = draft?.revision ?? roadmap.revision;
-  function persist(nextTitle: string, nextOverview: string, nextSteps: Step[]) {
+  const stale = revision !== roadmap.revision;
+  function persist(
+    nextTitle: string,
+    nextOverview: string,
+    nextSteps: Step[],
+    base = revision,
+    baseIds = baseStepIds,
+  ) {
     const persisted = localStore.write(
       key,
       JSON.stringify({
         title: nextTitle,
         overview: nextOverview,
         steps: nextSteps,
-        revision,
+        revision: base,
+        ...(baseIds ? { baseStepIds: baseIds } : {}),
       }),
     );
     if (!persisted) setStorageWarning(true);
@@ -515,12 +533,42 @@ export function StructureEditor({
     persist(title, overview, next);
   }
   const move = (i: number, delta: number) => {
-    const next = [...steps];
+    const next = steps.map((s) => ({ ...s }));
     [next[i], next[i + delta]] = [next[i + delta], next[i]];
     next.forEach((s, index) => (s.position = index));
     setSteps(next);
     persist(title, overview, next);
   };
+  function discard() {
+    localStore.remove(key);
+    setTitle(roadmap.title);
+    setOverview(roadmap.overview);
+    setSteps(active().map((s) => ({ ...s })));
+    setRevision(roadmap.revision);
+    setBaseStepIds(active().map((s) => s.id));
+    setRecovered(false);
+  }
+  function rebase() {
+    // Keep steps created elsewhere since the draft's base; steps the user removed stay retired.
+    // Without a recorded base, the user chose which server-only steps to keep.
+    const added = serverOnly
+      .filter((s) =>
+        baseStepIds ? !baseStepIds.includes(s.id) : keep.has(s.id),
+      )
+      .map((s) => ({ ...s }));
+    const ids = new Set([...steps, ...added].map((s) => s.id));
+    const next = [...steps, ...added].map((s, index) => ({
+      ...s,
+      parentId: s.parentId && ids.has(s.parentId) ? s.parentId : null,
+      position: index,
+    }));
+    const baseIds = active().map((s) => s.id);
+    setSteps(next);
+    setRevision(roadmap.revision);
+    setBaseStepIds(baseIds);
+    setRecovered(false);
+    persist(title, overview, next, roadmap.revision, baseIds);
+  }
   return (
     <form
       className="structure-editor"
@@ -560,10 +608,50 @@ export function StructureEditor({
         Saving creates an immutable version. Removed steps retire and keep their
         history.
       </p>
-      {draft && (
-        <p className="warning">
-          Recovered a local draft. Its base revision is {revision}.
-        </p>
+      {stale ? (
+        <div className="warning" role="alert">
+          <p>
+            This draft is based on revision {revision}, but the roadmap is now
+            at revision {roadmap.revision}, so saving it would be rejected.
+            Rebase keeps your edits on the current revision; discard drops them.
+          </p>
+          {!baseStepIds && serverOnly.length > 0 && (
+            <fieldset>
+              <legend>
+                Steps saved elsewhere that this draft does not include
+              </legend>
+              {serverOnly.map((s) => (
+                <label key={s.id}>
+                  <input
+                    type="checkbox"
+                    checked={keep.has(s.id)}
+                    onChange={(e) => {
+                      const next = new Set(keep);
+                      if (e.target.checked) next.add(s.id);
+                      else next.delete(s.id);
+                      setKeep(next);
+                    }}
+                  />
+                  Keep “{s.title}”
+                </label>
+              ))}
+            </fieldset>
+          )}
+          <div className="toolbar">
+            <button type="button" onClick={rebase}>
+              Rebase onto current
+            </button>
+            <button type="button" onClick={discard}>
+              Discard draft
+            </button>
+          </div>
+        </div>
+      ) : (
+        recovered && (
+          <p className="warning">
+            Recovered a local draft. Its base revision is {revision}.
+          </p>
+        )
       )}
       <label>
         Title
@@ -683,7 +771,7 @@ export function StructureEditor({
         <input value={note} onChange={(e) => setNote(e.target.value)} />
       </label>
       <ErrorMessage error={action.error} />
-      <button className="primary" disabled={action.isPending}>
+      <button className="primary" disabled={action.isPending || stale}>
         Save new version
       </button>
     </form>

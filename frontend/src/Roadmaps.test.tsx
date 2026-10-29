@@ -56,13 +56,27 @@ beforeEach(() => {
   setDataContext("roadmap-test-" + crypto.randomUUID());
 });
 it("flags a draft whose base revision is behind the roadmap and blocks saving", () => {
-  storeDraft({ title: "Plan", overview: "", steps: [A], revision: 3, baseStepIds: [A.id] });
+  storeDraft({
+    title: "Plan",
+    overview: "",
+    steps: [A],
+    revision: 3,
+    baseStepIds: [A.id],
+  });
   render(view(roadmap(4, [A])));
   expect(screen.getByText(/based on revision 3/)).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Save new version" })).toBeDisabled();
+  expect(
+    screen.getByRole("button", { name: "Save new version" }),
+  ).toBeDisabled();
 });
 it("discards a stale draft and loads the current structure", async () => {
-  storeDraft({ title: "Old title", overview: "", steps: [A], revision: 3, baseStepIds: [A.id] });
+  storeDraft({
+    title: "Old title",
+    overview: "",
+    steps: [A],
+    revision: 3,
+    baseStepIds: [A.id],
+  });
   render(view(roadmap(4, [A, B])));
   await userEvent.click(screen.getByRole("button", { name: "Discard draft" }));
   expect(localStorage.getItem(draftKey())).toBeNull();
@@ -83,22 +97,31 @@ it("rebases onto the current revision, keeping steps added elsewhere", async () 
     baseStepIds: [A.id, C.id],
   });
   render(view(roadmap(4, [A, B, C])));
-  await userEvent.click(screen.getByRole("button", { name: "Rebase onto current" }));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Rebase onto current" }),
+  );
   expect(stepTitle(1)).toHaveValue("Alpha edited");
   expect(stepTitle(2)).toHaveValue("Beta");
   expect(stepTitle(3)).toBeNull();
-  await userEvent.click(screen.getByRole("button", { name: "Save new version" }));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Save new version" }),
+  );
   await waitFor(() => expect(network).toHaveBeenCalled());
   const body = JSON.parse(String(network.mock.calls.at(-1)?.[1]?.body));
   expect(body.revision).toBe(4);
-  expect(body.steps.map((s: Step) => s.title)).toEqual(["Alpha edited", "Beta"]);
+  expect(body.steps.map((s: Step) => s.title)).toEqual([
+    "Alpha edited",
+    "Beta",
+  ]);
 });
 it("asks about server-only steps when a legacy draft has no recorded base", async () => {
   storeDraft({ title: "Plan", overview: "", steps: [A], revision: 3 });
   render(view(roadmap(4, [A, B, C])));
   expect(screen.getByRole("checkbox", { name: /Beta/ })).toBeChecked();
   await userEvent.click(screen.getByRole("checkbox", { name: /Gamma/ }));
-  await userEvent.click(screen.getByRole("button", { name: "Rebase onto current" }));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Rebase onto current" }),
+  );
   expect(stepTitle(2)).toHaveValue("Beta");
   expect(stepTitle(3)).toBeNull();
 });
