@@ -285,18 +285,17 @@ export function ItemDetail({ id }: { id: string }) {
       <div className="two-column">
         <section>
           <h3>Context</h3>
-          <label>
-            Azure DevOps link
-            <input
-              type="url"
-              defaultValue={item.adoUrl ?? ""}
-              onBlur={(e) => {
-                if (e.target.value !== (item.adoUrl ?? ""))
-                  patch({ adoUrl: e.target.value || null });
-              }}
-              placeholder="https://dev.azure.com/…"
-            />
-          </label>
+          <DraftField
+            draftKey={"item-ado-" + id}
+            label="Azure DevOps link"
+            initial={item.adoUrl ?? ""}
+            revision={item.revision}
+            multiline={false}
+            placeholder="https://dev.azure.com/…"
+            save={(link, revision) =>
+              commands.updateItem(id, { revision, adoUrl: link.trim() || null })
+            }
+          />
           {item.adoUrl && /^https?:\/\//i.test(item.adoUrl) && (
             <a href={item.adoUrl} target="_blank" rel="noreferrer">
               Open work item ↗

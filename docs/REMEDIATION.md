@@ -225,7 +225,7 @@ Done when:
 
 #### REM-04 · Save the ADO link through a draft field
 
-Status: Not started · Owner: — · Branch: — · PR: —
+Status: Merged · Owner: Claude · Branch: `claude/WORKLOG-REM-04-ado-draft` · PR: [#13](https://github.com/koala-man-64/Worklog/pull/13)
 
 Fixes H1 · Stream 1A · Standard · S · Review: standard
 
@@ -235,11 +235,11 @@ Fixes H1 · Stream 1A · Standard · S · Review: standard
 
 Done when:
 
-- [ ] A server-side change while the page is open updates the field
-- [ ] Leaving the field without editing sends no request
-- [ ] A stale draft shows the conflict panel and never writes silently
-- [ ] An invalid URL shows the server's validation message
-- [ ] e2e with two pages: B changes the link, A tabs through the field, and B's value persists
+- [x] A server-side change while the page is open updates the field (`Work.test.tsx`)
+- [x] Leaving the field without editing sends no request (`Work.test.tsx`)
+- [x] A stale draft shows the conflict panel and never writes silently (`Work.test.tsx`)
+- [x] An invalid URL shows the server's validation message (`Work.test.tsx`)
+- [x] e2e with two pages: B changes the link, A tabs through the field, and B's value persists (`worklog.spec.ts`)
 
 #### REM-05 · Recoverable roadmap structure drafts
 
