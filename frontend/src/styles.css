@@ -204,7 +204,7 @@ small {
   border-right: 1px solid var(--line);
   display: flex;
   flex-direction: column;
-  padding: 37px 22px 26px;
+  padding: 24px 22px 18px;
 }
 .brand {
   display: flex;
@@ -236,12 +236,12 @@ small {
 }
 .sidebar nav {
   display: grid;
-  gap: 7px;
-  margin-top: 62px;
+  gap: 2px;
+  margin-top: 26px;
 }
 .sidebar nav a {
   color: var(--muted);
-  padding: 11px 14px;
+  padding: 8px 14px;
   display: flex;
   gap: 13px;
   align-items: center;
@@ -256,11 +256,14 @@ small {
 .sidebar nav a:hover {
   background: var(--teal-wash);
 }
+.sidebar nav .subnav[hidden] {
+  display: none;
+}
 .sidebar nav .subnav {
   list-style: none;
-  margin: -3px 0 0;
+  margin: 0 0 4px;
   padding: 0 0 0 36px;
-  max-height: 38vh;
+  max-height: 42vh;
   overflow-x: hidden;
   overflow-y: auto;
   display: grid;
@@ -269,11 +272,36 @@ small {
 }
 .sidebar nav .subnav a {
   display: block;
-  padding: 6px 10px;
+  padding: 4px 10px;
   font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.nav-row {
+  position: relative;
+}
+.nav-row > a {
+  padding-right: 38px;
+}
+.sidebar nav .nav-toggle {
+  position: absolute;
+  inset: 0 4px 0 auto;
+  margin: auto 0;
+  height: 28px;
+  width: 28px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.sidebar nav .nav-toggle:hover {
+  background: var(--teal-wash);
+}
+.sidebar nav .nav-toggle span {
+  font-size: 12px;
+  width: auto;
 }
 .sidebar nav a span {
   font-size: 18px;
@@ -284,8 +312,8 @@ small {
   margin-top: auto;
   color: var(--ink);
   font-size: 12px;
-  padding: 20px 8px 0;
-  line-height: 2;
+  padding: 12px 8px 0;
+  line-height: 1.7;
 }
 .sidebar-note small {
   display: inline-block;
@@ -693,8 +721,22 @@ section:not(.draft) > h3 {
   font-size: 11px;
 }
 .step {
-  padding: 20px 0 0;
+  padding: 10px 0 0;
   border-top: 1px solid var(--line);
+}
+.step details {
+  margin-top: 6px;
+  padding: 8px 0;
+}
+.step > .section-heading {
+  margin-bottom: 4px;
+}
+.tree-toggle {
+  border: 0;
+  background: none;
+  padding: 0 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
 }
 .step .markdown {
   font-size: 12px;
@@ -969,6 +1011,12 @@ footer {
   }
   .sidebar nav .subnav {
     display: none;
+  }
+  .sidebar nav .nav-toggle {
+    display: none;
+  }
+  .nav-row > a {
+    padding-right: 8px;
   }
   .workspace {
     margin-left: 0;

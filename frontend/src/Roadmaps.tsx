@@ -260,11 +260,12 @@ function ImportRoadmap() {
     </section>
   );
 }
-function RoadmapDetail({ id }: { id: string }) {
+export function RoadmapDetail({ id }: { id: string }) {
   const query = useData<Roadmap>("/roadmaps/" + id);
   const action = useAction();
   const [editing, setEditing] = useState(false);
   const [snapshot, setSnapshot] = useState<unknown>(null);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const road = query.data;
   if (!road)
     return (
@@ -277,67 +278,101 @@ function RoadmapDetail({ id }: { id: string }) {
   const leaves = active.filter(
     (s) => !active.some((child) => child.parentId === s.id),
   );
+  const parents = active
+    .filter((s) => active.some((child) => child.parentId === s.id))
+    .map((s) => s.id);
   const completed = leaves.filter((s) => s.status === "done").length;
   const render = (parent: string | null, depth = 0): React.ReactNode =>
     active
       .filter((s) => s.parentId === parent)
       .sort((a, b) => a.position - b.position)
-      .map((s) => (
-        <div key={s.id} className="step" style={{ marginLeft: depth ? 20 : 0 }}>
-          <div className="section-heading">
-            <div>
-              <strong>{s.title}</strong>
-              {s.description && <Markdown text={s.description} />}
-            </div>
-            <StatusSelect
-              disabled={
-                road.archived || active.some((child) => child.parentId === s.id)
-              }
-              label={"Progress for " + s.title}
-              value={s.status}
-              onChange={(status) =>
-                action.mutate({
-                  path: "/steps/" + s.id + "/progress",
-                  method: "PATCH",
-                  body: { revision: s.revision, status },
-                })
-              }
-            />
-          </div>
-          <button
-            className="quiet"
-            onClick={async () => {
-              try {
-                setSnapshot(await request("/steps/" + s.id + "/history"));
-              } catch (error) {
-                setSnapshot({ error: String(error) });
-              }
-            }}
+      .map((s) => {
+        const kids = active.filter((c) => c.parentId === s.id).length;
+        const closed = collapsed.has(s.id);
+        return (
+          <div
+            key={s.id}
+            className="step"
+            style={{ marginLeft: depth ? 20 : 0 }}
           >
-            Step history
-          </button>
-          <details>
-            <summary>Step notes & files</summary>
-            <Notes ownerType="step" ownerId={s.id} notes={s.notes ?? []} />
-            <Files
-              ownerType="step"
-              ownerId={s.id}
-              files={s.attachments ?? []}
-            />
-            <RecoverRecords
-              groups={[
-                { label: "Notes", path: "notes", records: s.notes ?? [] },
-                {
-                  label: "Files",
-                  path: "attachments",
-                  records: s.attachments ?? [],
-                },
-              ]}
-            />
-          </details>
-          {render(s.id, depth + 1)}
-        </div>
-      ));
+            <div className="section-heading">
+              <div>
+                {kids > 0 && (
+                  <button
+                    type="button"
+                    className="tree-toggle"
+                    aria-expanded={!closed}
+                    aria-label={(closed ? "Expand " : "Collapse ") + s.title}
+                    onClick={() => {
+                      const next = new Set(collapsed);
+                      if (closed) next.delete(s.id);
+                      else next.add(s.id);
+                      setCollapsed(next);
+                    }}
+                  >
+                    {closed ? "▸" : "▾"}
+                  </button>
+                )}
+                <strong>{s.title}</strong>
+                {closed && (
+                  <small className="muted">
+                    {" "}
+                    · {kids} sub-step{kids === 1 ? "" : "s"} hidden
+                  </small>
+                )}
+                {s.description && <Markdown text={s.description} />}
+              </div>
+              <StatusSelect
+                disabled={
+                  road.archived ||
+                  active.some((child) => child.parentId === s.id)
+                }
+                label={"Progress for " + s.title}
+                value={s.status}
+                onChange={(status) =>
+                  action.mutate({
+                    path: "/steps/" + s.id + "/progress",
+                    method: "PATCH",
+                    body: { revision: s.revision, status },
+                  })
+                }
+              />
+            </div>
+            <button
+              className="quiet"
+              onClick={async () => {
+                try {
+                  setSnapshot(await request("/steps/" + s.id + "/history"));
+                } catch (error) {
+                  setSnapshot({ error: String(error) });
+                }
+              }}
+            >
+              Step history
+            </button>
+            <details>
+              <summary>Step notes & files</summary>
+              <Notes ownerType="step" ownerId={s.id} notes={s.notes ?? []} />
+              <Files
+                ownerType="step"
+                ownerId={s.id}
+                files={s.attachments ?? []}
+              />
+              <RecoverRecords
+                groups={[
+                  { label: "Notes", path: "notes", records: s.notes ?? [] },
+                  {
+                    label: "Files",
+                    path: "attachments",
+                    records: s.attachments ?? [],
+                  },
+                ]}
+              />
+            </details>
+            {!closed && render(s.id, depth + 1)}
+          </div>
+        );
+      });
   return (
     <>
       <a className="back" href="#roadmaps">
@@ -383,7 +418,27 @@ function RoadmapDetail({ id }: { id: string }) {
           onDone={() => setEditing(false)}
         />
       )}
-      <h2>Plan & progress</h2>
+      <div className="section-heading">
+        <h2>Plan & progress</h2>
+        {parents.length > 0 && (
+          <span className="toolbar">
+            <button
+              className="quiet"
+              disabled={parents.every((p) => collapsed.has(p))}
+              onClick={() => setCollapsed(new Set(parents))}
+            >
+              Collapse all
+            </button>
+            <button
+              className="quiet"
+              disabled={!parents.some((p) => collapsed.has(p))}
+              onClick={() => setCollapsed(new Set())}
+            >
+              Expand all
+            </button>
+          </span>
+        )}
+      </div>
       {!active.length ? (
         <Empty>Add the first step in the structure editor.</Empty>
       ) : (
