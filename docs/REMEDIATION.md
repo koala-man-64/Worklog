@@ -330,7 +330,7 @@ Done when:
 
 #### REM-11 · Path-safe proposal review
 
-Status: Not started · Owner: — · Branch: — · PR: —
+Status: Merged · Owner: Claude (stream 1E helper) · Branch: `claude/WORKLOG-REM-11-review-paths` · PR: [#9](https://github.com/koala-man-64/Worklog/pull/9)
 
 Fixes L6 (frontend) · Stream 1E · Standard · S · Review: standard
 
@@ -338,7 +338,7 @@ Fixes L6 (frontend) · Stream 1E · Standard · S · Review: standard
 
 Done when:
 
-- [ ] A payload with `date: "../export"` sends no request and shows the warning
+- [x] A payload with `date: "../export"` sends no request and shows the warning — `Review.test.tsx` asserts no request and the 'Malformed target' warning for `date: "../export"` and six malformed-ID cases; fails on main (7 of 14), passes after
 
 #### REM-12 · Packaging and docs corrections
 
