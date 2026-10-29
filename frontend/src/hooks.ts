@@ -64,7 +64,7 @@ export function useDraft(
   const recordKey = contextStorageKey(
     "record",
     key
-      .replace(/^item-(title|description)-/, "item-")
+      .replace(/^item-(title|description|ado)-/, "item-")
       .replace(/^note-title-/, "note-"),
     dataId,
   );
@@ -152,7 +152,9 @@ export function useDraft(
         setState(
           error.status === 409
             ? "Conflict — draft kept. Reload to compare."
-            : "Save failed — draft kept. Retry.",
+            : error.status >= 400 && error.status < 500
+              ? `Not saved: ${error.message} Draft kept.`
+              : "Save failed — draft kept. Retry.",
         );
       })
       .finally(() => {

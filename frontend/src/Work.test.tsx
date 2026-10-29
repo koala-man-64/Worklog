@@ -2,7 +2,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ApiError } from "./api";
+import { ApiError, setDataContext } from "./api";
 import { commands } from "./commands";
 import type { Detail } from "./types";
 import { ItemDetail } from "./Work";
@@ -11,7 +11,9 @@ const state = vi.hoisted(() => ({ item: null as unknown }));
 vi.mock("./hooks", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./hooks")>()),
   useData: (path: string) => ({
-    data: path.startsWith("/work-items/") ? state.item : { items: [], total: 0 },
+    data: path.startsWith("/work-items/")
+      ? state.item
+      : { items: [], total: 0 },
   }),
 }));
 
@@ -48,6 +50,8 @@ function view(client: QueryClient) {
 const field = () => screen.getByRole("textbox", { name: "Azure DevOps link" });
 beforeEach(() => {
   vi.restoreAllMocks();
+  // Acknowledged revision chains are module-level; a fresh data context keeps tests independent.
+  setDataContext("work-test-" + crypto.randomUUID());
   state.item = item({});
 });
 it("shows a link that changed elsewhere while the page is open", () => {
