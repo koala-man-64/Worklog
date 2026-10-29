@@ -262,7 +262,7 @@ Done when:
 
 #### REM-06 · No unhandled 500 errors
 
-Status: Not started · Owner: — · Branch: — · PR: —
+Status: Merged · Owner: Claude · Branch: `claude/WORKLOG-REM-06-no-500s` · PR: [#8](https://github.com/koala-man-64/Worklog/pull/8)
 
 Fixes L1 · Stream 1C · Standard · S–M · Review: standard plus a light security review
 
@@ -272,9 +272,9 @@ Fixes L1 · Stream 1C · Standard · S–M · Review: standard plus a light secu
 
 Done when:
 
-- [ ] `parentId: []` returns 422
-- [ ] A non-ASCII `X-CSRF-Token` returns 403 with security headers
-- [ ] The sweep produces no 5xx, and every error uses the envelope
+- [x] `parentId: []` returns 422 (create, revise, import commit and proposal approval)
+- [x] A non-ASCII `X-CSRF-Token` returns 403 with security headers
+- [x] The sweep produces no 5xx, and every error uses the envelope (`test_robustness.py`)
 
 #### REM-07 · Withdrawn drafts stay private
 
