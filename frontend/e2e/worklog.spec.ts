@@ -424,3 +424,51 @@ test("a link changed in another tab survives tabbing through a stale field", asy
   expect(await savedLink()).toBe(url);
   await other.close();
 });
+test("a structure draft survives a progress change made while editing", async ({
+  page,
+  baseURL,
+}) => {
+  const origin = new URL(baseURL!).origin;
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Today", exact: true }),
+  ).toBeVisible();
+  const boot = await page.request.post("/api/v1/session/bootstrap", {
+    headers: { Origin: origin, "X-Worklog-Bootstrap": "1" },
+    data: {},
+  });
+  const { csrfToken } = await boot.json();
+  const created = await page.request.post("/api/v1/roadmaps", {
+    headers: {
+      Origin: origin,
+      "X-CSRF-Token": csrfToken,
+      "Idempotency-Key": crypto.randomUUID(),
+    },
+    data: {
+      title: "Draft race " + Date.now(),
+      steps: [{ title: "Leaf one" }, { title: "Leaf two" }],
+    },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { id } = await created.json();
+  await page.goto("/#roadmaps/" + id);
+  await page.getByRole("button", { name: "Edit structure" }).click();
+  await page
+    .getByRole("textbox", { name: "Step 1 title" })
+    .fill("Leaf one, renamed");
+  // Progress bumps the roadmap revision, which used to strand the draft.
+  await page.getByLabel("Progress for Leaf two").selectOption("doing");
+  await expect(page.getByText(/based on revision/)).toBeVisible();
+  await page.getByRole("button", { name: "Rebase onto current" }).click();
+  await page.getByRole("button", { name: "Save new version" }).click();
+  await expect(
+    page.getByRole("button", { name: "Edit structure" }),
+  ).toBeVisible();
+  const saved = await (await page.request.get(`/api/v1/roadmaps/${id}`)).json();
+  const active = saved.steps.filter((s: { retired: boolean }) => !s.retired);
+  expect(active.map((s: { title: string }) => s.title)).toEqual([
+    "Leaf one, renamed",
+    "Leaf two",
+  ]);
+  expect(active[1].status).toBe("doing");
+});
