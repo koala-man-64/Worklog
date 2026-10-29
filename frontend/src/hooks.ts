@@ -65,6 +65,7 @@ export function useDraft(
     "record",
     key
       .replace(/^item-(title|description|ado)-/, "item-")
+      .replace(/^person-(name|role|notes)-/, "person-")
       .replace(/^note-title-/, "note-"),
     dataId,
   );

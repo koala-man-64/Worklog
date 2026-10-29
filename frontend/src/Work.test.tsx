@@ -160,3 +160,19 @@ it("saves the link on the item's acknowledged revision after a title save", asyn
     }),
   );
 });
+it("links a work item directly to a roadmap without requiring a step", async () => {
+  state.item = item({
+    roadmapId: "22222222-2222-4222-8222-222222222222",
+    linkedRoadmap: {
+      id: "22222222-2222-4222-8222-222222222222",
+      title: "Platform roadmap",
+    },
+  });
+  render(view(newClient()));
+  expect(
+    screen.getByRole("link", { name: "Platform roadmap" }),
+  ).toHaveAttribute("href", "#roadmaps/22222222-2222-4222-8222-222222222222");
+  expect(screen.getByRole("combobox", { name: "Roadmap" })).toHaveValue(
+    "22222222-2222-4222-8222-222222222222",
+  );
+});

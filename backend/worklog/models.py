@@ -20,6 +20,7 @@ class ItemCreate(Command):
     title: str
     description: str = ""
     adoUrl: str | None = None
+    roadmapId: str | None = None
     stepId: str | None = None
     day: str | None = None
     worked: StrictBool = False
@@ -30,6 +31,7 @@ class ItemUpdate(Expected):
     description: str | None = None
     status: State | None = None
     adoUrl: str | None = None
+    roadmapId: str | None = None
     stepId: str | None = None
 
 
@@ -85,6 +87,79 @@ class ReferenceCreate(Command):
     path: str
 
 
+class LinkCreate(Command):
+    ownerType: Literal["item", "roadmap"]
+    ownerId: str
+    url: str
+    title: str = ""
+    description: str = ""
+
+
+class LinkUpdate(Expected):
+    url: str | None = None
+    title: str | None = None
+    description: str | None = None
+
+
+class ChatCreate(Command):
+    ownerType: Literal["item", "roadmap"]
+    ownerId: str
+    chatId: str
+    title: str
+    createdDate: str | None = None
+
+
+class ChatUpdate(Expected):
+    chatId: str | None = None
+    title: str | None = None
+    createdDate: str | None = None
+
+
+class GithubRefCreate(Command):
+    ownerType: Literal["item", "roadmap"]
+    ownerId: str
+    kind: Literal["commit", "pr"]
+    url: str
+    reference: str = ""
+    title: str = ""
+    description: str = ""
+    chatId: str | None = None
+
+
+class GithubRefUpdate(Expected):
+    kind: Literal["commit", "pr"] | None = None
+    url: str | None = None
+    reference: str | None = None
+    title: str | None = None
+    description: str | None = None
+    chatId: str | None = None
+
+
+class PersonCreate(Command):
+    name: str
+    role: str = ""
+    notes: str = ""
+
+
+class PersonUpdate(Expected):
+    name: str | None = None
+    role: str | None = None
+    notes: str | None = None
+
+
+class PersonLinkCreate(Command):
+    personId: str
+    targetType: Literal["item", "roadmap"]
+    targetId: str
+    relationship: str = ""
+
+
+class PersonLinkRemove(Command):
+    personId: str
+    targetType: Literal["item", "roadmap"]
+    targetId: str
+
+
 class RoadmapCreate(Command):
     title: str
     overview: str = ""
@@ -115,7 +190,12 @@ class ImportCommit(Command):
 class Operation(Command):
     action: Literal["item.create", "item.update", "item.archive", "item.recover", "entry.upsert",
                     "note.create", "note.update", "task.create", "task.update",
-                    "roadmap.create", "roadmap.revise", "progress.set"]
+                    "roadmap.create", "roadmap.revise", "progress.set",
+                    "person.create", "person.update", "person.archive", "person.recover",
+                    "person.link", "person.unlink",
+                    "link.create", "link.update", "link.archive", "link.recover",
+                    "chat.create", "chat.update", "chat.archive", "chat.recover",
+                    "github.create", "github.update", "github.archive", "github.recover"]
     payload: dict[str, Any]
 
 

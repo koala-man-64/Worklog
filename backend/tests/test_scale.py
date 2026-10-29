@@ -15,7 +15,7 @@ def test_ten_thousand_items_and_hundred_thousand_events(tmp_path):
     stamp = now()
     identities = [str(UUID(int=i + 1)) for i in range(10_000)]
     with db.transaction() as c:
-        c.executemany("INSERT INTO work_items VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+        c.executemany("INSERT INTO work_items(id,title,description,status,ado_url,step_id,backlog_order,archived,revision,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                       [(identity, f"Benchmark work {i:05}", "A bounded history fixture", "open", None, None, i, 0, 1, stamp, stamp) for i, identity in enumerate(identities)])
         c.executemany("INSERT INTO search_index(entity_id,type,title,body,owner_id,archived) VALUES(?,?,?,?,?,?)",
                       [(identity, "item", f"Benchmark work {i:05}", "A bounded history fixture", identity, 0) for i, identity in enumerate(identities)])

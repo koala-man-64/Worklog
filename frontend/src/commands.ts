@@ -1,6 +1,17 @@
 import { request } from "./api";
 import type { components } from "./generatedApi";
-import type { Item, Note, Task, Roadmap, Entry } from "./types";
+import type {
+  Item,
+  Note,
+  Task,
+  Roadmap,
+  Entry,
+  Person,
+  PersonAssignment,
+  WebLink,
+  AgentChat,
+  GithubRef,
+} from "./types";
 type Schema = components["schemas"];
 /** Actual command payloads are checked against the exported backend OpenAPI schema. */
 export const commands = {
@@ -22,4 +33,24 @@ export const commands = {
     request<Roadmap>("/roadmaps", "POST", body),
   reviseRoadmap: (id: string, body: Schema["RoadmapRevision"]) =>
     request<Roadmap>(`/roadmaps/${id}/revisions`, "POST", body),
+  createPerson: (body: Schema["PersonCreate"]) =>
+    request<Person>("/people", "POST", body),
+  updatePerson: (id: string, body: Schema["PersonUpdate"]) =>
+    request<Person>("/people/" + id, "PATCH", body),
+  linkPerson: (body: Schema["PersonLinkCreate"]) =>
+    request<PersonAssignment>("/person-links", "POST", body),
+  unlinkPerson: (body: Schema["PersonLinkRemove"]) =>
+    request<{ ok: boolean }>("/person-links/unlink", "POST", body),
+  createLink: (body: Schema["LinkCreate"]) =>
+    request<WebLink>("/links", "POST", body),
+  updateLink: (id: string, body: Schema["LinkUpdate"]) =>
+    request<WebLink>("/links/" + id, "PATCH", body),
+  createChat: (body: Schema["ChatCreate"]) =>
+    request<AgentChat>("/chats", "POST", body),
+  updateChat: (id: string, body: Schema["ChatUpdate"]) =>
+    request<AgentChat>("/chats/" + id, "PATCH", body),
+  createGithubRef: (body: Schema["GithubRefCreate"]) =>
+    request<GithubRef>("/github", "POST", body),
+  updateGithubRef: (id: string, body: Schema["GithubRefUpdate"]) =>
+    request<GithubRef>("/github/" + id, "PATCH", body),
 };

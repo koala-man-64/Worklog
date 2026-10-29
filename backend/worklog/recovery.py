@@ -41,6 +41,37 @@ def _expected_schema() -> dict[tuple[str, str], str]:
         return _schema_signature(conn)
 
 
+def _compatible_schemas() -> tuple[dict[tuple[str, str], str], ...]:
+    current = _expected_schema()
+    lcg_names = {
+        "web_links",
+        "web_links_owner",
+        "agent_chats",
+        "agent_chats_owner",
+        "github_refs",
+        "github_refs_owner",
+    }
+    people_names = {
+        "people",
+        "person_links",
+        "person_links_target",
+        "person_links_person",
+    }
+    without_lcg = {k: v for k, v in current.items() if k[1] not in lcg_names}
+    without_people = {
+        k: v for k, v in without_lcg.items() if k[1] not in people_names
+    }
+    legacy_roadmap = dict(without_people)
+    legacy_roadmap[("table", "work_items")] = without_people[("table", "work_items")].replace(
+        ", roadmap_id TEXT REFERENCES roadmaps(id)", ""
+    )
+    current_without_roadmap = dict(current)
+    current_without_roadmap[("table", "work_items")] = current[("table", "work_items")].replace(
+        ", roadmap_id TEXT REFERENCES roadmaps(id)", ""
+    )
+    return (current, without_lcg, without_people, legacy_roadmap, current_without_roadmap)
+
+
 class InstanceLock:
     """An OS lock held for the lifetime of a managed server or offline operation.
 
@@ -113,7 +144,7 @@ def validate_database(path: Path | str, *, require_current: bool = True) -> None
                 missing = REQUIRED_TABLES - tables
                 if missing:
                     raise ValueError("Database missing expected tables: " + ", ".join(sorted(missing)))
-                if _schema_signature(conn) != _expected_schema():
+                if _schema_signature(conn) not in _compatible_schemas():
                     raise ValueError("Database schema definitions do not match this Worklog version")
                 settings = {row[0]: row[1] for row in conn.execute(
                     "SELECT key,value FROM settings WHERE key IN ('dataId','timezone','backlogRevision')")}
@@ -361,6 +392,19 @@ def restore_database(db_path: Path | str, candidate_path: Path | str,
         try:
             _snapshot(candidate, stage)
             with closing(sqlite3.connect(stage)) as conn:
+                columns = {r[1] for r in conn.execute("PRAGMA table_info(work_items)")}
+                if "roadmap_id" not in columns:
+                    conn.execute("ALTER TABLE work_items ADD COLUMN roadmap_id TEXT REFERENCES roadmaps(id)")
+                    conn.execute("UPDATE work_items SET roadmap_id=(SELECT roadmap_id FROM steps WHERE steps.id=work_items.step_id) WHERE step_id IS NOT NULL AND roadmap_id IS NULL")
+                tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+                if not {"people", "person_links"} <= tables:
+                    from worklog.db import PEOPLE_SCHEMA
+
+                    conn.executescript(PEOPLE_SCHEMA)
+                if not {"web_links", "agent_chats", "github_refs"} <= tables:
+                    from worklog.db import LINKS_CHATS_GITHUB_SCHEMA
+
+                    conn.executescript(LINKS_CHATS_GITHUB_SCHEMA)
                 conn.execute("UPDATE credentials SET revoked=1")
                 conn.execute("UPDATE settings SET value=? WHERE key='dataId'", (json.dumps(new_data_id),))
                 conn.commit()

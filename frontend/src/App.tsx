@@ -8,6 +8,7 @@ import { Today } from "./Today";
 import { Work } from "./Work";
 import { Roadmaps } from "./Roadmaps";
 import { RoadmapNav } from "./RoadmapNav";
+import { People } from "./People";
 import { Review } from "./Review";
 import { Settings } from "./Settings";
 import type { List } from "./types";
@@ -82,6 +83,7 @@ export default function App() {
             ["today", "◉", "Today"],
             ["work", "☷", "Work"],
             ["roadmaps", "◇", "Roadmaps"],
+            ["people", "◎", "People"],
             ["review", "✓", "Review"],
             ["settings", "⚙", "Settings"],
           ].map(([key, icon, label]) => (
@@ -167,6 +169,8 @@ export default function App() {
             <Work key={id ?? "list"} selected={id} />
           ) : page === "roadmaps" ? (
             <Roadmaps key={id ?? "list"} selected={id} />
+          ) : page === "people" ? (
+            <People key={id ?? "list"} selected={id} />
           ) : page === "review" ? (
             <Review key={id ?? "list"} selectedId={id} />
           ) : page === "settings" ? (
@@ -228,9 +232,11 @@ function Search({ query }: { query: string }) {
                 ? "#" + r.routeType + "/" + r.routeId
                 : r.type === "roadmap"
                   ? "#roadmaps/" + r.id
-                  : r.type === "proposal"
-                    ? "#review/" + r.id
-                    : "#work/" + (r.ownerId ?? r.id)
+                  : r.type === "person"
+                    ? "#people/" + r.id
+                    : r.type === "proposal"
+                      ? "#review/" + r.id
+                      : "#work/" + (r.ownerId ?? r.id)
             }
           >
             {r.title || "Untitled"}

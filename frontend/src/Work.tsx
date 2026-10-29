@@ -4,16 +4,21 @@ import { request, getDataContext } from "./api";
 import { commands } from "./commands";
 import { useAction, useData, useCommand } from "./hooks";
 import {
+  AgentChatsSection,
   DraftField,
   Empty,
   ErrorMessage,
   Files,
+  GithubRefsSection,
   History,
+  LinksSection,
   Notes,
+  PeopleLinks,
+  PersonBadges,
   RecoverRecords,
   StatusSelect,
 } from "./components";
-import type { Detail, Item, List, Roadmap } from "./types";
+import type { Detail, Item, List, Person, Roadmap } from "./types";
 export function CreateItem({ day }: { day?: string }) {
   const [title, setTitle] = useState("");
   const [mode, setMode] = useState("plan");
@@ -60,11 +65,13 @@ export function Work({ selected }: { selected?: string }) {
 function WorkList() {
   const [archived, setArchived] = useState(false);
   const [status, setStatus] = useState("");
+  const [personId, setPersonId] = useState("");
   const [view, setView] = useState("all");
   const [offset, setOffset] = useState(0);
   const [q, setQ] = useState("");
+  const people = useData<List<Person>>("/people?archived=false");
   const list = useData<List<Item>>(
-    `/work-items?view=${view}&archived=${archived}&limit=100&offset=${offset}&q=${encodeURIComponent(q)}${status ? "&status=" + status : ""}`,
+    `/work-items?view=${view}&archived=${archived}&limit=100&offset=${offset}&q=${encodeURIComponent(q)}${status ? "&status=" + status : ""}${personId ? "&personId=" + encodeURIComponent(personId) : ""}`,
   );
   const action = useAction();
   const move = (id: string, delta: number) => {
@@ -129,6 +136,21 @@ function WorkList() {
             <option key={s}>{s}</option>
           ))}
         </select>
+        <select
+          aria-label="Filter by person"
+          value={personId}
+          onChange={(e) => {
+            setPersonId(e.target.value);
+            setOffset(0);
+          }}
+        >
+          <option value="">All people</option>
+          {people.data?.items?.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
       </div>
       <ErrorMessage error={list.error || action.error} />
       {list.isPending ? (
@@ -144,6 +166,7 @@ function WorkList() {
                 <a className="item-title" href={"#work/" + item.id}>
                   {item.title}
                 </a>
+                <PersonBadges people={item.people} />
                 <small>
                   {item.description?.slice(0, 130) || "Ready for a next step"}
                 </small>
@@ -215,17 +238,19 @@ function WorkList() {
 export function ItemDetail({ id }: { id: string }) {
   const query = useData<Detail>("/work-items/" + id);
   const roads = useData<List<Roadmap>>("/roadmaps?archived=false");
-  const [selectedRoad, setSelectedRoad] = useState("");
+  const [selectedRoad, setSelectedRoad] = useState<string | null>(null);
+  const item = query.data;
+  const activeRoadId =
+    selectedRoad ?? item?.roadmapId ?? item?.linkedStep?.roadmapId ?? "";
   const selectedRoadmap = useQuery({
-    queryKey: [getDataContext(), "/roadmaps/" + selectedRoad],
-    queryFn: () => request<Roadmap>("/roadmaps/" + selectedRoad),
-    enabled: !!selectedRoad,
+    queryKey: [getDataContext(), "/roadmaps/" + activeRoadId],
+    queryFn: () => request<Roadmap>("/roadmaps/" + activeRoadId),
+    enabled: !!activeRoadId,
   });
   const action = useAction();
   const [task, setTask] = useState("");
   const [path, setPath] = useState("");
   const [date, setDate] = useState("");
-  const item = query.data;
   if (!item)
     return (
       <>
@@ -304,10 +329,22 @@ export function ItemDetail({ id }: { id: string }) {
           <label>
             Roadmap
             <select
-              value={selectedRoad}
-              onChange={(e) => setSelectedRoad(e.target.value)}
+              value={activeRoadId}
+              onChange={(e) => {
+                const nextRoad = e.target.value;
+                setSelectedRoad(nextRoad);
+                patch({ roadmapId: nextRoad || null, stepId: null });
+              }}
             >
-              <option value="">Choose a roadmap to link a step…</option>
+              <option value="">No linked roadmap</option>
+              {activeRoadId &&
+                !roads.data?.items.some((r) => r.id === activeRoadId) && (
+                  <option value={activeRoadId}>
+                    {item.linkedRoadmap?.title ??
+                      item.linkedStep?.roadmapTitle ??
+                      "Current linked roadmap"}
+                  </option>
+                )}
               {roads.data?.items.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.title}
@@ -315,18 +352,31 @@ export function ItemDetail({ id }: { id: string }) {
               ))}
             </select>
           </label>
-          {item.linkedStep && (
+          {item.linkedStep ? (
             <p>
               <a href={"#roadmaps/" + item.linkedStep.roadmapId}>
                 {item.linkedStep.roadmapTitle} / {item.linkedStep.title}
               </a>
             </p>
+          ) : (
+            item.linkedRoadmap && (
+              <p>
+                <a href={"#roadmaps/" + item.linkedRoadmap.id}>
+                  {item.linkedRoadmap.title}
+                </a>
+              </p>
+            )
           )}
           <label>
             Roadmap step
             <select
               value={item.stepId ?? ""}
-              onChange={(e) => patch({ stepId: e.target.value || null })}
+              onChange={(e) =>
+                patch({
+                  ...(activeRoadId ? { roadmapId: activeRoadId } : {}),
+                  stepId: e.target.value || null,
+                })
+              }
             >
               <option value="">No linked step</option>
               {item.stepId &&
@@ -438,6 +488,15 @@ export function ItemDetail({ id }: { id: string }) {
         </section>
       </div>
       <Notes ownerType="item" ownerId={id} notes={item.notes} />
+      <PeopleLinks targetType="item" targetId={id} people={item.people} />
+      <LinksSection ownerType="item" ownerId={id} links={item.links} />
+      <AgentChatsSection ownerType="item" ownerId={id} chats={item.chats} />
+      <GithubRefsSection
+        ownerType="item"
+        ownerId={id}
+        github={item.github}
+        chats={item.chats}
+      />
       {!!item.dailyEntries?.length && (
         <section>
           <h3>Daily record</h3>
@@ -511,6 +570,17 @@ export function ItemDetail({ id }: { id: string }) {
           { label: "Tasks", path: "tasks", records: item.tasks },
           { label: "Files", path: "attachments", records: item.attachments },
           { label: "Paths", path: "references", records: item.references },
+          { label: "Links", path: "links", records: item.links ?? [] },
+          {
+            label: "Agent chats",
+            path: "chats",
+            records: item.chats ?? [],
+          },
+          {
+            label: "GitHub",
+            path: "github",
+            records: item.github ?? [],
+          },
         ]}
       />
       <History items={item.history} />

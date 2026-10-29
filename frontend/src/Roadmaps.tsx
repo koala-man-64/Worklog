@@ -1,18 +1,24 @@
 import { useState } from "react";
 import { localStore } from "./storage";
 import { request, download, contextStorageKey } from "./api";
-import { useAction, useData } from "./hooks";
+import { commands } from "./commands";
+import { useAction, useCommand, useData } from "./hooks";
 import {
+  AgentChatsSection,
   Empty,
   ErrorMessage,
   Files,
+  GithubRefsSection,
   History,
+  LinksSection,
   Markdown,
   Notes,
+  PeopleLinks,
+  PersonBadges,
   RecoverRecords,
   StatusSelect,
 } from "./components";
-import type { List, Roadmap, Step } from "./types";
+import type { Item, List, Person, Roadmap, Step } from "./types";
 type Preview = {
   id: string;
   title: string;
@@ -22,9 +28,15 @@ type Preview = {
   sha256: string;
 };
 export function Roadmaps({ selected }: { selected?: string }) {
-  const roads = useData<List<Roadmap>>("/roadmaps?archived=false");
   const [archive, setArchive] = useState(false);
-  const old = useData<List<Roadmap>>("/roadmaps?archived=true");
+  const [personId, setPersonId] = useState("");
+  const people = useData<List<Person>>("/people?archived=false");
+  const roads = useData<List<Roadmap>>(
+    `/roadmaps?archived=false${personId ? "&personId=" + encodeURIComponent(personId) : ""}`,
+  );
+  const old = useData<List<Roadmap>>(
+    `/roadmaps?archived=true${personId ? "&personId=" + encodeURIComponent(personId) : ""}`,
+  );
   const action = useAction();
   const [title, setTitle] = useState("");
   if (selected) return <RoadmapDetail id={selected} />;
@@ -67,6 +79,18 @@ export function Roadmaps({ selected }: { selected?: string }) {
           />{" "}
           Show archive
         </label>
+        <select
+          aria-label="Filter roadmaps by person"
+          value={personId}
+          onChange={(e) => setPersonId(e.target.value)}
+        >
+          <option value="">All people</option>
+          {people.data?.items?.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
       </div>
       <ErrorMessage error={roads.error || old.error || action.error} />
       {!(archive ? old : roads).data?.items.length ? (
@@ -78,6 +102,7 @@ export function Roadmaps({ selected }: { selected?: string }) {
               <a className="item-title" href={"#roadmaps/" + r.id}>
                 {r.title}
               </a>
+              <PersonBadges people={r.people} />
               <p>{r.overview?.slice(0, 160)}</p>
             </div>
             <button
@@ -263,9 +288,18 @@ function ImportRoadmap() {
 export function RoadmapDetail({ id }: { id: string }) {
   const query = useData<Roadmap>("/roadmaps/" + id);
   const action = useAction();
+  const createItem = useCommand(commands.createItem);
   const [editing, setEditing] = useState(false);
   const [snapshot, setSnapshot] = useState<unknown>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [newItemTitle, setNewItemTitle] = useState("");
+  const [newItemStepId, setNewItemStepId] = useState("");
+  const [workQuery, setWorkQuery] = useState("");
+  const [pickItemId, setPickItemId] = useState("");
+  const [pickStepId, setPickStepId] = useState("");
+  const workList = useData<List<Item>>(
+    `/work-items?view=all&archived=false&limit=100&q=${encodeURIComponent(workQuery)}`,
+  );
   const road = query.data;
   if (!road)
     return (
@@ -282,6 +316,77 @@ export function RoadmapDetail({ id }: { id: string }) {
     .filter((s) => active.some((child) => child.parentId === s.id))
     .map((s) => s.id);
   const completed = leaves.filter((s) => s.status === "done").length;
+  const roadWorkItems = road.workItems ?? [];
+  const unassignedWorkItems = roadWorkItems.filter(
+    (w) => !w.stepId || !active.some((s) => s.id === w.stepId),
+  );
+  const renderWorkItem = (item: Item) => (
+    <div className="line roadmap-work-item" key={item.id}>
+      <span className={"status-dot " + item.status} />
+      <a className="item-title" href={"#work/" + item.id}>
+        {item.title}
+      </a>
+      <PersonBadges people={item.people} />
+      <StatusSelect
+        disabled={road.archived}
+        label={"Status for " + item.title}
+        value={item.status}
+        onChange={(status) =>
+          action.mutate({
+            path: "/work-items/" + item.id,
+            method: "PATCH",
+            body: { revision: item.revision, status },
+          })
+        }
+      />
+      <select
+        aria-label={"Step for " + item.title}
+        disabled={road.archived}
+        value={
+          item.stepId && active.some((s) => s.id === item.stepId)
+            ? item.stepId
+            : ""
+        }
+        onChange={(e) =>
+          action.mutate({
+            path: "/work-items/" + item.id,
+            method: "PATCH",
+            body: {
+              revision: item.revision,
+              roadmapId: id,
+              stepId: e.target.value || null,
+            },
+          })
+        }
+      >
+        <option value="">Roadmap (no specific step)</option>
+        {active.map((s) => (
+          <option key={s.id} value={s.id}>
+            Step: {s.title}
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        className="quiet"
+        disabled={road.archived}
+        aria-label={"Unlink " + item.title}
+        onClick={() =>
+          action.mutate({
+            path: "/work-items/" + item.id,
+            method: "PATCH",
+            body: {
+              revision: item.revision,
+              roadmapId: null,
+              stepId: null,
+            },
+          })
+        }
+      >
+        Unlink
+      </button>
+    </div>
+  );
   const render = (parent: string | null, depth = 0): React.ReactNode =>
     active
       .filter((s) => s.parentId === parent)
@@ -289,6 +394,7 @@ export function RoadmapDetail({ id }: { id: string }) {
       .map((s) => {
         const kids = active.filter((c) => c.parentId === s.id).length;
         const closed = collapsed.has(s.id);
+        const stepItems = roadWorkItems.filter((w) => w.stepId === s.id);
         return (
           <div
             key={s.id}
@@ -338,6 +444,11 @@ export function RoadmapDetail({ id }: { id: string }) {
                 }
               />
             </div>
+            {stepItems.length > 0 && (
+              <div className="step-work-items">
+                {stepItems.map(renderWorkItem)}
+              </div>
+            )}
             <button
               className="quiet"
               onClick={async () => {
@@ -410,7 +521,7 @@ export function RoadmapDetail({ id }: { id: string }) {
           aria-label="Roadmap completion"
         />
       </header>
-      <ErrorMessage error={action.error} />
+      <ErrorMessage error={action.error || createItem.error || workList.error} />
       {editing && !road.archived && (
         <StructureEditor
           key={road.revision}
@@ -418,6 +529,143 @@ export function RoadmapDetail({ id }: { id: string }) {
           onDone={() => setEditing(false)}
         />
       )}
+      <PeopleLinks
+        targetType="roadmap"
+        targetId={id}
+        people={road.people}
+        disabled={road.archived}
+      />
+      <section>
+        <h3>
+          Work items <span className="count">{roadWorkItems.length}</span>
+        </h3>
+        <form
+          className="quick-add"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!newItemTitle.trim() || road.archived) return;
+            await createItem
+              .mutateAsync({
+                title: newItemTitle,
+                description: "",
+                roadmapId: id,
+                stepId: newItemStepId || null,
+                worked: false,
+              })
+              .then(() => setNewItemTitle(""))
+              .catch(() => undefined);
+          }}
+        >
+          <input
+            aria-label="New roadmap work item"
+            placeholder="Add a work item to this roadmap…"
+            value={newItemTitle}
+            onChange={(e) => setNewItemTitle(e.target.value)}
+            maxLength={500}
+            disabled={road.archived}
+          />
+          <select
+            aria-label="Step for new work item"
+            value={newItemStepId}
+            disabled={road.archived}
+            onChange={(e) => setNewItemStepId(e.target.value)}
+          >
+            <option value="">Roadmap (no specific step)</option>
+            {active.map((s) => (
+              <option key={s.id} value={s.id}>
+                Step: {s.title}
+              </option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            className="primary"
+            disabled={
+              road.archived || createItem.isPending || !newItemTitle.trim()
+            }
+          >
+            Add work item
+          </button>
+        </form>
+        <form
+          className="inline plan-picker"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const chosen = workList.data?.items.find(
+              (i) => i.id === pickItemId,
+            );
+            if (!chosen || road.archived) return;
+            await action
+              .mutateAsync({
+                path: "/work-items/" + chosen.id,
+                method: "PATCH",
+                body: {
+                  revision: chosen.revision,
+                  roadmapId: id,
+                  stepId: pickStepId || null,
+                },
+              })
+              .then(() => setPickItemId(""))
+              .catch(() => undefined);
+          }}
+        >
+          <input
+            aria-label="Find existing work"
+            placeholder="Find existing work…"
+            value={workQuery}
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            disabled={road.archived}
+            onChange={(e) => {
+              setWorkQuery(e.target.value);
+              setPickItemId("");
+            }}
+          />
+          <select
+            aria-label="Choose existing work"
+            value={pickItemId}
+            disabled={road.archived}
+            onChange={(e) => setPickItemId(e.target.value)}
+          >
+            <option value="">Attach existing work to this roadmap…</option>
+            {workList.data?.items
+              .filter(
+                (i) =>
+                  !roadWorkItems.some(
+                    (w) =>
+                      w.id === i.id &&
+                      (w.stepId ?? "") === (pickStepId || ""),
+                  ),
+              )
+              .map((i) => (
+                <option value={i.id} key={i.id}>
+                  {i.title}
+                </option>
+              ))}
+          </select>
+          <select
+            aria-label="Step for existing work item"
+            value={pickStepId}
+            disabled={road.archived}
+            onChange={(e) => setPickStepId(e.target.value)}
+          >
+            <option value="">Roadmap (no specific step)</option>
+            {active.map((s) => (
+              <option key={s.id} value={s.id}>
+                Step: {s.title}
+              </option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            disabled={road.archived || !pickItemId || action.isPending}
+          >
+            Attach work item
+          </button>
+        </form>
+        {unassignedWorkItems.map(renderWorkItem)}
+      </section>
       <div className="section-heading">
         <h2>Plan & progress</h2>
         {parents.length > 0 && (
@@ -511,11 +759,41 @@ export function RoadmapDetail({ id }: { id: string }) {
         </section>
       )}
       <Notes ownerType="roadmap" ownerId={id} notes={road.notes} />
+      <LinksSection
+        ownerType="roadmap"
+        ownerId={id}
+        links={road.links}
+        disabled={road.archived}
+      />
+      <AgentChatsSection
+        ownerType="roadmap"
+        ownerId={id}
+        chats={road.chats}
+        disabled={road.archived}
+      />
+      <GithubRefsSection
+        ownerType="roadmap"
+        ownerId={id}
+        github={road.github}
+        chats={road.chats}
+        disabled={road.archived}
+      />
       <Files ownerType="roadmap" ownerId={id} files={road.attachments} />
       <RecoverRecords
         groups={[
           { label: "Notes", path: "notes", records: road.notes },
           { label: "Files", path: "attachments", records: road.attachments },
+          { label: "Links", path: "links", records: road.links ?? [] },
+          {
+            label: "Agent chats",
+            path: "chats",
+            records: road.chats ?? [],
+          },
+          {
+            label: "GitHub",
+            path: "github",
+            records: road.github ?? [],
+          },
         ]}
       />
       <History items={road.history} />
