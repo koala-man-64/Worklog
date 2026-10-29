@@ -159,6 +159,31 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
     </section>
   );
 }
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+// Proposal payloads are agent-controlled, so only well-formed IDs and dates may
+// become URL path segments. Returns null when the target cannot be fetched safely.
+function currentPath(
+  action: string,
+  payload: Record<string, unknown>,
+  target: string,
+): string | null {
+  if (!UUID.test(target)) return null;
+  const id = encodeURIComponent(target);
+  if (action === "entry.upsert") {
+    const date = String(payload.date ?? "");
+    return DATE.test(date) ? "/days/" + encodeURIComponent(date) : null;
+  }
+  if (action === "progress.set") return "/steps/" + id;
+  const collection = action.startsWith("roadmap.")
+    ? "roadmaps"
+    : action.startsWith("note.")
+      ? "notes"
+      : action.startsWith("task.")
+        ? "tasks"
+        : "work-items";
+  return "/" + collection + "/" + id;
+}
 export function OperationDiff({
   action,
   payload,
@@ -169,6 +194,8 @@ export function OperationDiff({
   const target = String(
     payload.id ?? payload.itemId ?? payload.roadmapId ?? payload.stepId ?? "",
   );
+  const lookup = !!target && !action.endsWith(".create");
+  const path = lookup ? currentPath(action, payload, target) : null;
   const current = useQuery({
     queryKey: [
       getDataContext(),
@@ -177,10 +204,11 @@ export function OperationDiff({
       target,
       payload.date,
     ],
-    enabled: !!target && !action.endsWith(".create"),
+    enabled: path !== null,
     queryFn: async () => {
+      if (path === null) return null;
       if (action === "entry.upsert") {
-        const day = await request<Day>("/days/" + payload.date);
+        const day = await request<Day>(path);
         return (
           (day.entries.find((e) => e.itemId === target) as unknown as Record<
             string,
@@ -188,17 +216,7 @@ export function OperationDiff({
           >) ?? null
         );
       }
-      if (action === "progress.set") {
-        return request<Record<string, unknown>>("/steps/" + target);
-      }
-      const collection = action.startsWith("roadmap.")
-        ? "roadmaps"
-        : action.startsWith("note.")
-          ? "notes"
-          : action.startsWith("task.")
-            ? "tasks"
-            : "work-items";
-      return request<Record<string, unknown>>("/" + collection + "/" + target);
+      return request<Record<string, unknown>>(path);
     },
   });
   const before = current.data;
@@ -206,6 +224,12 @@ export function OperationDiff({
     <article className="operation">
       <h4>{action}</h4>
       <ErrorMessage error={current.error} />
+      {lookup && path === null && (
+        <p className="warning">
+          Malformed target: this operation's ID or date is not valid, so its
+          current value was not loaded.
+        </p>
+      )}
       {before &&
         payload.revision !== undefined &&
         before.revision !== payload.revision && (
