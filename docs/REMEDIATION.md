@@ -342,7 +342,7 @@ Done when:
 
 #### REM-12 · Packaging and docs corrections
 
-Status: Not started · Owner: — · Branch: — · PR: —
+Status: Merged · Owner: Claude (stream 1E helper) · Branch: `claude/WORKLOG-REM-12-packaging-docs` · PR: [#12](https://github.com/koala-man-64/Worklog/pull/12)
 
 Fixes N3 and N4 · Stream 1E · Lite · S · Review: standard
 
@@ -351,7 +351,7 @@ Fixes N3 and N4 · Stream 1E · Lite · S · Review: standard
 
 Done when:
 
-- [ ] `pip check` is clean and the README matches `db.py`
+- [x] `pip check` is clean and the README matches `db.py` — fresh venv from requirements.lock + editable install: `pip check` clean, metadata lists beautifulsoup4==4.15.0; CI Backend job is the authoritative run; README now matches `db.py:70` (rollback journal) and warns about untrusted `imports/*.html`
 
 #### REM-27 · Setup survives redirected output on Windows PowerShell 5.1
 
