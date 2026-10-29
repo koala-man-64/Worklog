@@ -183,9 +183,12 @@ class PlanService:
             position = data.get("position", index)
             if type(position) is not int or position < 0:
                 raise AppError(422, "validation", "Invalid step position")
+            parent = data.get("parentId")
+            if parent is not None and not isinstance(parent, str):
+                raise AppError(422, "validation", "Step parentId must be a step id or null")
             normalized.append({"id": sid, "title": _title(data.get("title")),
                                "description": _text(data.get("description"), "description", ""),
-                               "parentId": data.get("parentId"), "position": position})
+                               "parentId": parent, "position": position})
         parents = {s["id"]: s["parentId"] for s in normalized}
         for sid, parent in parents.items():
             path = {sid}

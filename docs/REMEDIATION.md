@@ -225,7 +225,7 @@ Done when:
 
 #### REM-04 · Save the ADO link through a draft field
 
-Status: Not started · Owner: — · Branch: — · PR: —
+Status: Merged · Owner: Claude · Branch: `claude/WORKLOG-REM-04-ado-draft` · PR: [#13](https://github.com/koala-man-64/Worklog/pull/13)
 
 Fixes H1 · Stream 1A · Standard · S · Review: standard
 
@@ -235,15 +235,15 @@ Fixes H1 · Stream 1A · Standard · S · Review: standard
 
 Done when:
 
-- [ ] A server-side change while the page is open updates the field
-- [ ] Leaving the field without editing sends no request
-- [ ] A stale draft shows the conflict panel and never writes silently
-- [ ] An invalid URL shows the server's validation message
-- [ ] e2e with two pages: B changes the link, A tabs through the field, and B's value persists
+- [x] A server-side change while the page is open updates the field (`Work.test.tsx`)
+- [x] Leaving the field without editing sends no request (`Work.test.tsx`)
+- [x] A stale draft shows the conflict panel and never writes silently (`Work.test.tsx`)
+- [x] An invalid URL shows the server's validation message (`Work.test.tsx`)
+- [x] e2e with two pages: B changes the link, A tabs through the field, and B's value persists (`worklog.spec.ts`)
 
 #### REM-05 · Recoverable roadmap structure drafts
 
-Status: Not started · Owner: — · Branch: — · PR: —
+Status: Merged · Owner: Claude · Branch: `claude/WORKLOG-REM-05-structure-drafts` · PR: [#15](https://github.com/koala-man-64/Worklog/pull/15)
 
 Fixes H2 and N1 · Stream 1B · Standard · M · Review: standard
 
@@ -254,15 +254,15 @@ Fixes H2 and N1 · Stream 1B · Standard · M · Review: standard
 
 Done when:
 
-- [ ] A stale draft shows the banner
-- [ ] Discard removes the stored draft and loads the current structure
-- [ ] Rebase keeps steps added elsewhere and saves without a 409
-- [ ] `move()` leaves the cached roadmap steps unchanged
-- [ ] e2e: changing step progress while the editor is open no longer strands the draft
+- [x] A stale draft shows the banner (saving is disabled until it's resolved)
+- [x] Discard removes the stored draft and loads the current structure
+- [x] Rebase keeps steps added elsewhere and saves without a 409 (steps the user removed stay retired)
+- [x] `move()` leaves the cached roadmap steps unchanged
+- [x] e2e: changing step progress while the editor is open no longer strands the draft
 
 #### REM-06 · No unhandled 500 errors
 
-Status: Not started · Owner: — · Branch: — · PR: —
+Status: Merged · Owner: Claude · Branch: `claude/WORKLOG-REM-06-no-500s` · PR: [#8](https://github.com/koala-man-64/Worklog/pull/8)
 
 Fixes L1 · Stream 1C · Standard · S–M · Review: standard plus a light security review
 
@@ -272,13 +272,13 @@ Fixes L1 · Stream 1C · Standard · S–M · Review: standard plus a light secu
 
 Done when:
 
-- [ ] `parentId: []` returns 422
-- [ ] A non-ASCII `X-CSRF-Token` returns 403 with security headers
-- [ ] The sweep produces no 5xx, and every error uses the envelope
+- [x] `parentId: []` returns 422 (create, revise, import commit and proposal approval)
+- [x] A non-ASCII `X-CSRF-Token` returns 403 with security headers
+- [x] The sweep produces no 5xx, and every error uses the envelope (`test_robustness.py`)
 
 #### REM-07 · Withdrawn drafts stay private
 
-Status: Not started · Owner: — · Branch: — · PR: —
+Status: Merged · Owner: Claude · Branch: `claude/WORKLOG-REM-07-withdrawn-privacy` · PR: [#11](https://github.com/koala-man-64/Worklog/pull/11)
 
 Fixes L2 · Stream 1C, after REM-06 · Standard · S · Review: standard plus a light security review
 
@@ -287,8 +287,8 @@ Fixes L2 · Stream 1C, after REM-06 · Standard · S · Review: standard plus a 
 
 Done when:
 
-- [ ] Agent B gets 404 for agent A's draft that was withdrawn without being submitted, for its attachments and for its history
-- [ ] A proposal withdrawn after submission stays visible, as before
+- [x] Agent B gets 404 for agent A's draft that was withdrawn without being submitted, for its attachments and for its history (also absent from B's list)
+- [x] A proposal withdrawn after submission stays visible, as before
 
 #### REM-08 · Safe link rendering
 
