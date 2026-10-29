@@ -467,7 +467,7 @@ function RoadmapDetail({ id }: { id: string }) {
     </>
   );
 }
-function StructureEditor({
+export function StructureEditor({
   roadmap,
   onDone,
 }: {
