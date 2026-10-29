@@ -129,3 +129,20 @@ def test_import_commit_supplied_transaction_rolls_back_source_and_association(pl
         assert conn.execute("SELECT COUNT(*) FROM events WHERE kind='roadmap.create'").fetchone()[0] == 0
     result = plans.import_commit(preview["id"], payload, HUMAN)
     assert result["title"] == "Atomic"
+
+
+def test_import_href_cannot_smuggle_an_extra_markdown_link(plans):
+    data = b'<h1>Plan</h1><p><a href="https://x/a) [c](javascript:alert(1)">text</a></p>'
+    preview = plans.preview(data, "smuggle.html", HUMAN)
+    assert "](javascript:" not in str(preview)
+    description = preview["steps"][0]["description"]
+    assert description.count("](") == 1
+
+
+def test_import_protocol_relative_and_whitespace_urls_are_normalized(plans):
+    data = (b'<h1>Plan</h1><p><a href="//host/path">a</a> '
+            b'<a href="https://x/a b&lt;c&gt;">b</a></p>')
+    preview = plans.preview(data, "relative.html", HUMAN)
+    description = preview["steps"][0]["description"]
+    assert "(https://host/path)" in description
+    assert "(https://x/a%20b%3Cc%3E)" in description
