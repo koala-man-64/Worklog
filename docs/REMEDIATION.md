@@ -317,7 +317,7 @@ Done when:
 
 #### REM-10 · Atomic CLI export
 
-Status: Not started · Owner: — · Branch: — · PR: —
+Status: Merged · Owner: Claude (stream 1E helper) · Branch: `claude/WORKLOG-REM-10-atomic-export` · PR: [#7](https://github.com/koala-man-64/Worklog/pull/7)
 
 Fixes N2 · Stream 1E · Standard · S · Review: standard
 
@@ -325,8 +325,8 @@ Fixes N2 · Stream 1E · Standard · S · Review: standard
 
 Done when:
 
-- [ ] An injected export failure leaves nothing at the target path
-- [ ] An existing target is refused and the temporary file is cleaned up
+- [x] An injected export failure leaves nothing at the target path — `test_failed_export_leaves_no_target_or_temporary_file` passes; first commit failed on main
+- [x] An existing target is refused and the temporary file is cleaned up — `test_export_refuses_existing_target_and_leaves_no_temporary_file` passes; target bytes untouched
 
 #### REM-11 · Path-safe proposal review
 
