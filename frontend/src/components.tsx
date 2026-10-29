@@ -91,6 +91,7 @@ export function DraftField({
   revision,
   save,
   multiline = true,
+  placeholder,
 }: {
   draftKey: string;
   label: string;
@@ -98,6 +99,7 @@ export function DraftField({
   revision: number;
   save: (text: string, revision: number) => Promise<{ revision: number }>;
   multiline?: boolean;
+  placeholder?: string;
 }) {
   const draft = useDraft(draftKey, initial, revision, save);
   const [preview, setPreview] = useState(false);
@@ -118,6 +120,7 @@ export function DraftField({
         <textarea
           id={draftKey}
           value={draft.value}
+          placeholder={placeholder}
           onChange={(e) => draft.set(e.target.value)}
           onBlur={draft.flush}
         />
@@ -125,6 +128,7 @@ export function DraftField({
         <input
           id={draftKey}
           value={draft.value}
+          placeholder={placeholder}
           onChange={(e) => draft.set(e.target.value)}
           onBlur={draft.flush}
         />
