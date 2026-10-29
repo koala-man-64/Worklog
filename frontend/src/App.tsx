@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { localStore } from "./storage";
 import { useQuery } from "@tanstack/react-query";
 import { bootstrap } from "./api";
@@ -7,6 +7,7 @@ import { ErrorMessage } from "./components";
 import { Today } from "./Today";
 import { Work } from "./Work";
 import { Roadmaps } from "./Roadmaps";
+import { RoadmapNav } from "./RoadmapNav";
 import { Review } from "./Review";
 import { Settings } from "./Settings";
 import type { List } from "./types";
@@ -70,14 +71,24 @@ export default function App() {
             ["review", "✓", "Review"],
             ["settings", "⚙", "Settings"],
           ].map(([key, icon, label]) => (
-            <a
-              key={key}
-              href={"#" + key}
-              aria-current={page === key ? "page" : undefined}
-            >
-              <span aria-hidden="true">{icon}</span>
-              {label}
-            </a>
+            <Fragment key={key}>
+              <a
+                href={"#" + key}
+                aria-current={
+                  page !== key
+                    ? undefined
+                    : key === "roadmaps" && id
+                      ? "true"
+                      : "page"
+                }
+              >
+                <span aria-hidden="true">{icon}</span>
+                {label}
+              </a>
+              {key === "roadmaps" && session.data && (
+                <RoadmapNav selected={page === "roadmaps" ? id : undefined} />
+              )}
+            </Fragment>
           ))}
         </nav>
         <div className="sidebar-note">

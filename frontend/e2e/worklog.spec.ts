@@ -180,7 +180,10 @@ test("HTML import previews safe content and preserves original reference", async
   await page
     .getByRole("button", { name: "Create from selected steps", exact: true })
     .click();
-  await page.getByRole("link", { name: title, exact: true }).click();
+  await page
+    .locator("#main")
+    .getByRole("link", { name: title, exact: true })
+    .click();
   await expect(page.getByRole("link", { name: "plan.html" })).toBeVisible();
   await expect(
     page.getByText("Build carefully", { exact: true }),

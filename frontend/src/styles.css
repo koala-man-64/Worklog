@@ -256,6 +256,25 @@ small {
 .sidebar nav a:hover {
   background: var(--teal-wash);
 }
+.sidebar nav .subnav {
+  list-style: none;
+  margin: -3px 0 0;
+  padding: 0 0 0 36px;
+  max-height: 38vh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1px;
+}
+.sidebar nav .subnav a {
+  display: block;
+  padding: 6px 10px;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .sidebar nav a span {
   font-size: 18px;
   width: 23px;
@@ -947,6 +966,9 @@ footer {
   .sidebar nav a span {
     font-size: 14px;
     width: 17px;
+  }
+  .sidebar nav .subnav {
+    display: none;
   }
   .workspace {
     margin-left: 0;
