@@ -83,13 +83,17 @@ export function StatusSelect({
 }) {
   return (
     <select
+      className={"status-select " + value}
+      data-status={value}
       disabled={disabled}
       aria-label={label}
       value={value}
       onChange={(e) => onChange(e.target.value as Status)}
     >
       {["open", "doing", "blocked", "done"].map((s) => (
-        <option key={s}>{s}</option>
+        <option key={s} value={s}>
+          {s}
+        </option>
       ))}
     </select>
   );
