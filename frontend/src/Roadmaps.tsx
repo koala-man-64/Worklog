@@ -398,7 +398,7 @@ export function RoadmapDetail({ id }: { id: string }) {
         return (
           <div
             key={s.id}
-            className="step"
+            className={"step status-" + s.status}
             style={{ marginLeft: depth ? 20 : 0 }}
           >
             <div className="section-heading">
@@ -419,6 +419,7 @@ export function RoadmapDetail({ id }: { id: string }) {
                     {closed ? "▸" : "▾"}
                   </button>
                 )}
+                <span className={"status-dot " + s.status} aria-hidden="true" />
                 <strong>{s.title}</strong>
                 {closed && (
                   <small className="muted">

@@ -15,6 +15,20 @@
   --danger: #a83b2e;
   --sidebar: #eeeee6;
   --input: #fffefa;
+  --status-open-bg: #eff0e8;
+  --status-open-ink: #474e49;
+  --status-open-border: #9ea498;
+  --status-doing-bg: #fef0c7;
+  --status-doing-ink: #783900;
+  --status-doing-border: #d97706;
+  --status-doing-ring: rgba(217, 119, 6, 0.18);
+  --status-blocked-bg: #fde6e2;
+  --status-blocked-ink: #8c2318;
+  --status-blocked-border: #c0392b;
+  --status-blocked-ring: rgba(192, 57, 43, 0.18);
+  --status-done-bg: #d6ede5;
+  --status-done-ink: #14493e;
+  --status-done-border: #27675d;
   color-scheme: light;
 }
 :root[data-theme="dark"] {
@@ -28,6 +42,20 @@
   --danger: #ffad9d;
   --sidebar: #202923;
   --input: #252a27;
+  --status-open-bg: #2d3430;
+  --status-open-ink: #c6cfc8;
+  --status-open-border: #68746b;
+  --status-doing-bg: #452a0a;
+  --status-doing-ink: #fde68a;
+  --status-doing-border: #f59e0b;
+  --status-doing-ring: rgba(245, 158, 11, 0.24);
+  --status-blocked-bg: #481b16;
+  --status-blocked-ink: #ffb4a6;
+  --status-blocked-border: #e56b5b;
+  --status-blocked-ring: rgba(229, 107, 91, 0.24);
+  --status-done-bg: #1c3b32;
+  --status-done-ink: #9ee0cb;
+  --status-done-border: #52a38c;
   color: var(--ink);
   background: var(--bg);
   color-scheme: dark;
@@ -44,6 +72,20 @@
     --danger: #ffad9d;
     --sidebar: #202923;
     --input: #252a27;
+    --status-open-bg: #2d3430;
+    --status-open-ink: #c6cfc8;
+    --status-open-border: #68746b;
+    --status-doing-bg: #452a0a;
+    --status-doing-ink: #fde68a;
+    --status-doing-border: #f59e0b;
+    --status-doing-ring: rgba(245, 158, 11, 0.24);
+    --status-blocked-bg: #481b16;
+    --status-blocked-ink: #ffb4a6;
+    --status-blocked-border: #e56b5b;
+    --status-blocked-ring: rgba(229, 107, 91, 0.24);
+    --status-done-bg: #1c3b32;
+    --status-done-ink: #9ee0cb;
+    --status-done-border: #52a38c;
     color: var(--ink);
     background: var(--bg);
     color-scheme: dark;
@@ -593,22 +635,82 @@ header {
   font-size: 12px;
 }
 .status-dot {
-  width: 8px;
-  height: 8px;
-  border: 1px solid var(--muted);
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--status-open-border);
+  background: var(--status-open-bg);
   border-radius: 50%;
   flex-shrink: 0;
+  vertical-align: middle;
 }
 .status-dot.doing {
-  background: var(--teal);
-  border-color: var(--teal);
+  background: var(--status-doing-border);
+  border-color: var(--status-doing-border);
+  box-shadow: 0 0 0 3px var(--status-doing-ring);
 }
 .status-dot.done {
-  background: var(--muted);
+  background: var(--status-done-border);
+  border-color: var(--status-done-border);
 }
 .status-dot.blocked {
-  background: var(--danger);
-  border-color: var(--danger);
+  background: var(--status-blocked-border);
+  border-color: var(--status-blocked-border);
+  box-shadow: 0 0 0 3px var(--status-blocked-ring);
+}
+.section-heading .status-dot {
+  margin-right: 8px;
+  vertical-align: 0;
+}
+select.status-select {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  line-height: 1.35;
+  padding: 6px 14px;
+  min-width: 98px;
+  border-radius: 999px;
+  border: 1.5px solid var(--status-open-border);
+  background: var(--status-open-bg);
+  color: var(--status-open-ink);
+  cursor: pointer;
+}
+select.status-select.doing {
+  background: var(--status-doing-bg);
+  color: var(--status-doing-ink);
+  border-color: var(--status-doing-border);
+  box-shadow: 0 0 0 3px var(--status-doing-ring);
+}
+select.status-select.done {
+  background: var(--status-done-bg);
+  color: var(--status-done-ink);
+  border-color: var(--status-done-border);
+}
+select.status-select.blocked {
+  background: var(--status-blocked-bg);
+  color: var(--status-blocked-ink);
+  border-color: var(--status-blocked-border);
+  box-shadow: 0 0 0 3px var(--status-blocked-ring);
+}
+select.status-select:disabled {
+  opacity: 1;
+  cursor: default;
+}
+select.status-select option {
+  background: var(--paper);
+  color: var(--ink);
+  font-weight: 600;
+}
+@media (forced-colors: active) {
+  select.status-select {
+    border: 2px solid ButtonText;
+  }
+  select.status-select.doing,
+  select.status-select.blocked {
+    outline: 2px solid Highlight;
+    outline-offset: 1px;
+  }
 }
 .reorder {
   display: flex;
@@ -721,8 +823,18 @@ section:not(.draft) > h3 {
   font-size: 11px;
 }
 .step {
-  padding: 10px 0 0;
+  padding: 10px 0 0 12px;
   border-top: 1px solid var(--line);
+  border-left: 3px solid var(--status-open-border);
+}
+.step.status-doing {
+  border-left-color: var(--status-doing-border);
+}
+.step.status-done {
+  border-left-color: var(--status-done-border);
+}
+.step.status-blocked {
+  border-left-color: var(--status-blocked-border);
 }
 .step details {
   margin-top: 6px;
@@ -750,8 +862,11 @@ section:not(.draft) > h3 {
 .step > .quiet {
   font-size: 10px;
 }
-.step select {
+.step select:not(.status-select) {
   font-size: 11px;
+  flex-shrink: 0;
+}
+.step select.status-select {
   flex-shrink: 0;
 }
 .step .section-heading {
@@ -760,7 +875,7 @@ section:not(.draft) > h3 {
 .step-work-items {
   margin: 8px 0 12px;
 }
-.roadmap-work-item select {
+.roadmap-work-item select:not(.status-select) {
   font-size: 12px;
   flex-shrink: 1;
 }

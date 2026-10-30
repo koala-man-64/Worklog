@@ -90,3 +90,14 @@ it("collapses and expands every parent at once", async () => {
   await userEvent.click(expand);
   expect(screen.getByText("Child")).toBeVisible();
 });
+
+it("applies prominent state classes to step containers, status dots, and status selects", async () => {
+  view();
+  await screen.findByText("Child");
+  const select = screen.getByRole("combobox", { name: "Progress for Solo" });
+  expect(select).toHaveClass("status-select", "open");
+  expect(select).toHaveAttribute("data-status", "open");
+  const soloStep = screen.getByText("Solo").closest(".step");
+  expect(soloStep).toHaveClass("step", "status-open");
+  expect(soloStep?.querySelector(".status-dot.open")).not.toBeNull();
+});

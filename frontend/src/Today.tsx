@@ -224,6 +224,10 @@ export function Today({
                   >
                     ⠿
                   </span>
+                  <span
+                    className={"status-dot " + entry.item.status}
+                    aria-hidden="true"
+                  />
                   <a className="item-title" href={"#work/" + entry.itemId}>
                     {entry.item.title}
                   </a>
