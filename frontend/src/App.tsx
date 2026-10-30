@@ -51,7 +51,7 @@ export default function App() {
     window.addEventListener("hashchange", change);
     return () => window.removeEventListener("hashchange", change);
   }, []);
-  const [page, id] = route.split("/");
+  const [page, id, sub] = route.split("/");
   const link = (key: IconName, label: string) => (
     <a
       href={"#" + key}
@@ -165,7 +165,7 @@ export default function App() {
           ) : page === "work" ? (
             <Work key={id ?? "list"} selected={id} />
           ) : page === "roadmaps" ? (
-            <Roadmaps key={id ?? "list"} selected={id} />
+            <Roadmaps key={id ?? "list"} selected={id} step={sub} />
           ) : page === "people" ? (
             <People key={id ?? "list"} selected={id} />
           ) : page === "review" ? (
