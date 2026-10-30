@@ -1,15 +1,29 @@
+/* Hallmark · checked: 2026-10-30 · genre: modern-minimal (inferred) · shape: app screen
+ * floor: 0 FAIL · fixed: 11 (19, 30a, 34, 39a, 39b, 40, 48, 54, 63, 67, 75) · structural: 4 printed (header, add-forms, title echo, date formats)
+ * built: the project · redesign: polish · v2.0.0 */
+/* Hallmark · waive 3 · step stripe beside the status dot and pill · the plan tree's status stripe was made prominent on purpose in the status pill change */
+/* Hallmark · waive 49b · the wrapping links are work item and roadmap titles the person typed · a long item title wraps rather than hiding part of its name */
+/* Hallmark · waive 72 · the crowding is the sidebar roadmap titles cut by text-overflow ellipsis · roadmap names truncate inside the sidebar by design */
+/* Hallmark · answered F23 · Worklog is served only on loopback, so no link preview ever reads a meta description */
 :root {
-  font-family: "Segoe UI", Tahoma, sans-serif;
-  color: #282e2b;
-  background: #f7f6f1;
+  --font-body: "Segoe UI", Tahoma, sans-serif;
+  --font-display: Georgia, "Times New Roman", serif;
+  --font-mono: Consolas, monospace;
+  --control-height: 36px;
+  font-family: var(--font-body);
+  color: var(--ink);
+  background: var(--bg);
+  caret-color: var(--teal);
+  scrollbar-color: var(--field-edge) var(--bg);
   font-synthesis: none;
   font-size: 14px;
   line-height: 1.6;
   --paper: #fffefa;
   --bg: #f7f6f1;
   --ink: #282e2b;
-  --muted: #71776f;
+  --muted: #62685f;
   --line: #dedfd6;
+  --field-edge: #80867c;
   --teal: #27675d;
   --teal-wash: #e8eee8;
   --danger: #a83b2e;
@@ -17,7 +31,7 @@
   --input: #fffefa;
   --status-open-bg: #eff0e8;
   --status-open-ink: #474e49;
-  --status-open-border: #9ea498;
+  --status-open-border: #80867c;
   --status-doing-bg: #fef0c7;
   --status-doing-ink: #783900;
   --status-doing-border: #d97706;
@@ -37,6 +51,7 @@
   --ink: #e6e9df;
   --muted: #a2afa4;
   --line: #424b43;
+  --field-edge: #7d887f;
   --teal: #9bcbb8;
   --teal-wash: #2f4339;
   --danger: #ffad9d;
@@ -44,7 +59,7 @@
   --input: #252a27;
   --status-open-bg: #2d3430;
   --status-open-ink: #c6cfc8;
-  --status-open-border: #68746b;
+  --status-open-border: #76827a;
   --status-doing-bg: #452a0a;
   --status-doing-ink: #fde68a;
   --status-doing-border: #f59e0b;
@@ -67,6 +82,7 @@
     --ink: #e6e9df;
     --muted: #a2afa4;
     --line: #424b43;
+    --field-edge: #7d887f;
     --teal: #9bcbb8;
     --teal-wash: #2f4339;
     --danger: #ffad9d;
@@ -74,7 +90,7 @@
     --input: #252a27;
     --status-open-bg: #2d3430;
     --status-open-ink: #c6cfc8;
-    --status-open-border: #68746b;
+    --status-open-border: #76827a;
     --status-doing-bg: #452a0a;
     --status-doing-ink: #fde68a;
     --status-doing-border: #f59e0b;
@@ -94,8 +110,16 @@
 * {
   box-sizing: border-box;
 }
+html,
+body {
+  overflow-x: clip;
+}
 body {
   margin: 0;
+}
+::selection {
+  background: var(--teal-wash);
+  color: var(--ink);
 }
 button,
 input,
@@ -109,12 +133,24 @@ button,
   background: var(--paper);
   color: var(--ink);
   padding: 7px 13px;
+  min-height: var(--control-height);
   border-radius: 5px;
   cursor: pointer;
   display: inline-block;
   line-height: 1.5;
   text-decoration: none;
   white-space: nowrap;
+}
+.icon {
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+button > .icon:only-child {
+  display: block;
+}
+.back .icon,
+button.quiet .icon:not(:only-child) {
+  margin-right: 4px;
 }
 button:hover,
 .button:hover {
@@ -139,10 +175,12 @@ button.quiet {
   background: transparent;
   color: var(--muted);
   padding: 5px 8px;
+  min-height: 32px;
 }
 .text-button {
   border: 0;
   padding: 0;
+  min-height: 0;
   background: none;
   white-space: normal;
   text-align: left;
@@ -163,11 +201,16 @@ textarea,
 select {
   background: var(--input);
   color: var(--ink);
-  border: 1px solid var(--line);
-  padding: 9px 11px;
+  border: 1px solid var(--field-edge);
+  padding: 7px 11px;
+  line-height: 1.5;
   border-radius: 5px;
   max-width: 100%;
   min-width: 0;
+}
+input:not([type="checkbox"]):not([type="file"]),
+select {
+  height: var(--control-height);
 }
 input[type="checkbox"] {
   accent-color: var(--teal);
@@ -178,6 +221,20 @@ input[type="checkbox"] {
 }
 input[type="file"] {
   max-width: 100%;
+}
+input[type="file"]::file-selector-button {
+  font: inherit;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  padding: 7px 13px;
+  margin-right: 12px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+input[type="file"]::file-selector-button:hover {
+  border-color: var(--teal);
+  background: var(--teal-wash);
 }
 textarea {
   width: 100%;
@@ -206,10 +263,13 @@ p {
 }
 h1,
 h2 {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-weight: 400;
   letter-spacing: -0.045em;
   line-height: 1.15;
+  overflow-wrap: break-word;
+  min-width: 0;
+  text-wrap: balance;
 }
 h1 {
   font-size: clamp(38px, 4vw, 56px);
@@ -260,7 +320,7 @@ small {
   line-height: 1.15;
 }
 .brand-mark {
-  font-family: Georgia, serif;
+  font-family: var(--font-display);
   font-size: 35px;
   background: var(--ink);
   color: var(--bg);
@@ -271,7 +331,7 @@ small {
 }
 .brand small {
   display: block;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 400;
   letter-spacing: 0;
   margin-top: 7px;
@@ -330,9 +390,12 @@ small {
   position: absolute;
   inset: 0 4px 0 auto;
   margin: auto 0;
-  height: 28px;
-  width: 28px;
+  height: 32px;
+  min-height: 32px;
+  width: 32px;
   padding: 0;
+  display: grid;
+  place-items: center;
   border: 0;
   background: none;
   color: var(--muted);
@@ -341,34 +404,12 @@ small {
 .sidebar nav .nav-toggle:hover {
   background: var(--teal-wash);
 }
-.sidebar nav .nav-toggle span {
-  font-size: 12px;
-  width: auto;
-}
-.sidebar nav a span {
-  font-size: 18px;
-  width: 23px;
-  text-align: center;
-}
 .sidebar-note {
   margin-top: auto;
-  color: var(--ink);
+  color: var(--muted);
   font-size: 12px;
   padding: 12px 8px 0;
   line-height: 1.7;
-}
-.sidebar-note small {
-  display: inline-block;
-  line-height: 1.7;
-  margin-top: 10px;
-}
-.live-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  background: var(--teal);
-  border-radius: 50%;
-  margin-right: 7px;
 }
 .workspace {
   margin-left: 230px;
@@ -391,15 +432,12 @@ small {
   align-items: center;
 }
 .search input[type="search"] {
-  border: 0;
-  background: transparent;
   max-width: 220px;
   margin: 0;
   font-size: 13px;
 }
-.search > span {
-  font-size: 24px;
-  font-weight: 400;
+.search > .icon {
+  color: var(--muted);
 }
 main {
   max-width: 1120px;
@@ -409,14 +447,6 @@ main {
 }
 header {
   margin-bottom: 32px;
-}
-.eyebrow {
-  text-transform: uppercase;
-  letter-spacing: 0.17em;
-  color: var(--teal);
-  font-size: 10px;
-  font-weight: 650;
-  margin-bottom: 18px;
 }
 .lede {
   font-size: 15px;
@@ -475,20 +505,20 @@ header {
 }
 .day-header {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 20px;
   align-items: center;
 }
+.day-header > div {
+  min-width: 0;
+}
 .date-label {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+  font-size: 12px;
   color: var(--muted);
 }
 .date-label input {
   font-size: 12px;
-  letter-spacing: 0;
-  text-transform: none;
 }
 .day-summary {
   display: flex;
@@ -504,14 +534,14 @@ header {
   flex-direction: column;
 }
 .day-summary strong {
-  font-family: Georgia, serif;
+  font-family: var(--font-display);
   font-size: 30px;
   font-weight: 400;
   line-height: 1.3;
 }
 .day-summary span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .day-summary p {
   margin: 0 0 0 auto;
@@ -520,9 +550,8 @@ header {
   font-size: 12px;
 }
 .count {
-  font:
-    12px "Segoe UI",
-    sans-serif;
+  font-family: var(--font-body);
+  font-size: 12px;
   color: var(--muted);
   vertical-align: middle;
   letter-spacing: 0;
@@ -540,9 +569,9 @@ header {
   display: inline-block;
   padding: 4px 8px;
   cursor: grab;
-  font-size: 17px;
   touch-action: none;
   margin-right: 7px;
+  vertical-align: middle;
 }
 .drag-handle:active {
   cursor: grabbing;
@@ -568,19 +597,18 @@ header {
 .field-heading span {
   margin-left: auto;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 .field-heading span:not(:last-child) {
   margin-left: auto;
 }
 .field-heading .quiet {
-  font-size: 11px;
+  font-size: 12px;
 }
 .ordinal {
   color: var(--muted);
-  font:
-    12px "Segoe UI",
-    sans-serif;
+  font-family: var(--font-body);
+  font-size: 12px;
   display: inline-block;
   width: 35px;
 }
@@ -600,7 +628,7 @@ header {
   width: 100%;
 }
 .draft > .quiet {
-  font-size: 11px;
+  font-size: 12px;
   padding-left: 0;
 }
 .empty {
@@ -609,7 +637,7 @@ header {
   padding: 45px 20px;
   text-align: center;
   color: var(--muted);
-  font-family: Georgia, serif;
+  font-family: var(--font-display);
   font-size: 20px;
 }
 .work-row {
@@ -665,8 +693,6 @@ header {
 select.status-select {
   font-size: 12px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   line-height: 1.35;
   padding: 6px 14px;
   min-width: 98px;
@@ -695,7 +721,8 @@ select.status-select.blocked {
 }
 select.status-select:disabled {
   opacity: 1;
-  cursor: default;
+  border-style: dashed;
+  cursor: not-allowed;
 }
 select.status-select option {
   background: var(--paper);
@@ -717,7 +744,7 @@ select.status-select option {
   gap: 3px;
 }
 .reorder button {
-  padding: 4px 8px;
+  padding: 4px 9px;
 }
 .two-column {
   display: grid;
@@ -756,11 +783,15 @@ section:not(.draft) > h3 {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+.line > a.line-date {
+  flex: none;
+  white-space: nowrap;
+}
 .line button {
-  font-size: 11px;
+  font-size: 12px;
 }
 .line small {
-  font-size: 10px;
+  font-size: 12px;
 }
 .note {
   border: 1px solid var(--line);
@@ -820,7 +851,7 @@ section:not(.draft) > h3 {
 }
 .structure-editor legend {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .step {
   padding: 10px 0 0 12px;
@@ -846,9 +877,14 @@ section:not(.draft) > h3 {
 .tree-toggle {
   border: 0;
   background: none;
-  padding: 0 6px 0 0;
+  padding: 0;
+  margin-right: 4px;
+  width: 32px;
+  min-height: 32px;
+  display: inline-grid;
+  place-items: center;
   color: var(--muted);
-  font-size: 13px;
+  vertical-align: middle;
 }
 .step .markdown {
   font-size: 12px;
@@ -860,10 +896,10 @@ section:not(.draft) > h3 {
   margin-bottom: 5px;
 }
 .step > .quiet {
-  font-size: 10px;
+  font-size: 12px;
 }
 .step select:not(.status-select) {
-  font-size: 11px;
+  font-size: 12px;
   flex-shrink: 0;
 }
 .step select.status-select {
@@ -921,12 +957,12 @@ pre {
   background: var(--sidebar);
   padding: 14px;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.7;
   max-height: 450px;
 }
 code {
-  font-family: Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
 }
 .markdown {
@@ -1009,7 +1045,7 @@ code {
   border: 1px solid var(--line);
   padding: 4px 10px;
   border-radius: 12px;
-  font-size: 10px;
+  font-size: 12px;
 }
 .token {
   background: var(--teal-wash);
@@ -1040,9 +1076,6 @@ code {
   display: block;
 }
 .search-result small {
-  text-transform: uppercase;
-  font-size: 9px;
-  letter-spacing: 0.1em;
   margin-bottom: 5px;
 }
 .search-result p {
@@ -1050,13 +1083,8 @@ code {
   color: var(--muted);
   margin: 8px 0;
 }
-footer {
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 0 6% 28px;
-  font-size: 10px;
-  letter-spacing: 0.03em;
-  color: var(--muted);
+.two-column form + label {
+  margin-top: 16px;
 }
 .skip-link {
   position: fixed;
@@ -1088,7 +1116,7 @@ footer {
     font-size: 20px;
   }
   .brand small {
-    font-size: 8px;
+    font-size: 11px;
   }
   .brand-mark {
     width: 40px;
@@ -1099,7 +1127,7 @@ footer {
     gap: 10px;
   }
   .work-row > .quiet {
-    font-size: 10px;
+    font-size: 12px;
   }
   .two-column {
     gap: 25px;
@@ -1135,21 +1163,15 @@ footer {
     font-size: 25px;
   }
   .sidebar nav {
-    display: flex;
-    overflow: auto;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 2px;
     margin-top: 18px;
-    justify-content: space-between;
   }
   .sidebar nav a {
-    font-size: 11px;
+    font-size: 12px;
     padding: 7px 8px;
-    gap: 4px;
+    gap: 6px;
     white-space: nowrap;
-  }
-  .sidebar nav a span {
-    font-size: 14px;
-    width: 17px;
   }
   .sidebar nav .subnav {
     display: none;
@@ -1170,12 +1192,12 @@ footer {
     gap: 10px;
   }
   .topbar > span {
-    font-size: 10px;
+    font-size: 12px;
     white-space: nowrap;
   }
   .search input[type="search"] {
     max-width: 160px;
-    font-size: 11px;
+    font-size: 12px;
   }
   main {
     padding: 32px 22px 50px;
@@ -1214,6 +1236,10 @@ footer {
   .quick-add {
     padding: 10px;
   }
+  .quick-add input,
+  .plan-picker input {
+    flex-basis: 100%;
+  }
   .diff-row {
     grid-template-columns: 1fr 1fr;
   }
@@ -1247,9 +1273,6 @@ footer {
   }
   .quick-add button {
     font-size: 12px;
-  }
-  footer {
-    padding-left: 22px;
   }
 }
 @media (prefers-reduced-motion: no-preference) {

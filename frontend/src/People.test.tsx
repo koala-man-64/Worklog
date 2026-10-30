@@ -87,7 +87,7 @@ it("lists people in the directory and creates a new person", async () => {
 
   expect(await screen.findByText("Alice Rivera")).toBeInTheDocument();
   expect(
-    screen.getByText(/Staff Engineer · 1 roadmaps · 1 work items/),
+    screen.getByText(/Staff Engineer, 1 roadmaps, 1 work items/),
   ).toBeInTheDocument();
 
   await userEvent.type(

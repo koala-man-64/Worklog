@@ -200,7 +200,7 @@ test("agent proposal remains unapplied until explicit human approval", async ({
     .getByRole("button", { name: "Create credential", exact: true })
     .click();
   const token = await page.locator(".token code").innerText();
-  await page.getByRole("button", { name: "I have saved it — dismiss" }).click();
+  await page.getByRole("button", { name: "I have saved it" }).click();
   await expect(page.locator(".token")).toHaveCount(0);
   const title = "Proposed browser " + Date.now();
   const headers = {
@@ -244,7 +244,7 @@ test("agent proposal remains unapplied until explicit human approval", async ({
   await page
     .getByRole("button", { name: "Confirm approve", exact: true })
     .click();
-  await expect(page.getByText(/approved · revision/)).toBeVisible();
+  await expect(page.getByText(/approved, revision/)).toBeVisible();
   await page.goto("/#work");
   await page.getByRole("textbox", { name: "Filter work by text" }).fill(title);
   await expect(

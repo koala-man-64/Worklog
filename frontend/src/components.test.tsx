@@ -92,7 +92,7 @@ it("keeps the local draft after a revision conflict", async () => {
   );
   await userEvent.type(screen.getByLabelText("Outcome"), "Unlost thought");
   await userEvent.click(screen.getByRole("button", { name: "Save now" }));
-  await screen.findByText(/Conflict — draft kept/);
+  await screen.findByText(/Conflict: draft kept/);
   expect(localStorage.getItem("worklog:test:draft:test-conflict")).toBe(
     "Unlost thought",
   );
@@ -136,7 +136,7 @@ it("keeps the original base revision after a reload of a conflicted draft", asyn
     { wrapper },
   );
   await userEvent.click(screen.getByRole("button", { name: "Save now" }));
-  await screen.findByText(/Conflict — draft kept/);
+  await screen.findByText(/Conflict: draft kept/);
   expect(save).toHaveBeenCalledWith("Local work", 2);
 });
 it("serializes different fields of the same record using acknowledged revisions", async () => {
@@ -204,7 +204,7 @@ it("does not promote a recovered stale body through a newer sibling title save",
     expect(title).toHaveBeenCalledWith("Server title edit", 7),
   );
   await userEvent.click(screen.getAllByRole("button", { name: "Save now" })[1]);
-  await screen.findByText(/Conflict — draft kept/);
+  await screen.findByText(/Conflict: draft kept/);
   expect(body).toHaveBeenCalledWith("Stale local body", 1);
   expect(localStorage.getItem("worklog:test:draft:note-stale-sibling")).toBe(
     "Stale local body",
@@ -228,7 +228,7 @@ it("preserves revision zero on a recovered reflection draft", async () => {
     { wrapper },
   );
   await userEvent.click(screen.getByRole("button", { name: "Save now" }));
-  await screen.findByText(/Conflict — draft kept/);
+  await screen.findByText(/Conflict: draft kept/);
   expect(save).toHaveBeenCalledWith("Unsent reflection", 0);
   expect(localStorage.getItem("worklog:test:draft:reflection-new-day")).toBe(
     "Unsent reflection",
@@ -305,7 +305,7 @@ it("does not send an old dataset draft that was queued behind another save", asy
   await waitFor(() => expect(title).toHaveBeenCalledTimes(1));
   setDataContext("queued-B");
   finish({ revision: 2 });
-  await screen.findByText(/Conflict — draft kept/);
+  await screen.findByText(/Conflict: draft kept/);
   expect(body).not.toHaveBeenCalled();
   expect(localStorage.getItem("worklog:queued-A:draft:note-queued")).toBe(
     "A body",

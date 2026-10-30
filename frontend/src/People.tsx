@@ -9,6 +9,7 @@ import {
   StatusSelect,
 } from "./components";
 import type { Item, List, Person, PersonDetail, Roadmap } from "./types";
+import { Icon } from "./icons";
 
 export function People({ selected }: { selected?: string }) {
   return selected ? <PersonDetailView id={selected} /> : <PeopleList />;
@@ -28,7 +29,6 @@ function PeopleList() {
   return (
     <>
       <header>
-        <p className="eyebrow">Who you work with</p>
         <h1>People</h1>
         <p className="lede">
           Track owners, collaborators, and stakeholders across roadmaps and work
@@ -105,8 +105,8 @@ function PeopleList() {
                   {person.name}
                 </a>
                 <small>
-                  {person.role ? `${person.role} · ` : ""}
-                  {person.roadmapCount ?? 0} roadmaps ·{" "}
+                  {person.role ? `${person.role}, ` : ""}
+                  {person.roadmapCount ?? 0} roadmaps,{" "}
                   {person.workItemCount ?? 0} work items
                 </small>
               </div>
@@ -153,10 +153,10 @@ export function PersonDetailView({ id }: { id: string }) {
   return (
     <>
       <a className="back" href="#people">
-        ← All people
+        <Icon name="back" />
+        All people
       </a>
       <header>
-        <p className="eyebrow">Person</p>
         <h1>{person.name}</h1>
         {person.role && <p className="lede">{person.role}</p>}
         <div className="toolbar">
@@ -187,12 +187,12 @@ export function PersonDetailView({ id }: { id: string }) {
         initial={person.role}
         revision={person.revision}
         multiline={false}
-        placeholder="e.g. Staff Engineer · Platform"
+        placeholder="e.g. Staff Engineer, Platform"
         save={(role, revision) => commands.updatePerson(id, { revision, role })}
       />
       <DraftField
         draftKey={"person-notes-" + id}
-        label="Notes · Markdown"
+        label="Notes (Markdown)"
         initial={person.notes}
         revision={person.revision}
         save={(notes, revision) =>
