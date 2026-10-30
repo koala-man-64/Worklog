@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { localStore } from "./storage";
 import { request, download, contextStorageKey } from "./api";
 import { commands } from "./commands";
@@ -28,7 +28,13 @@ type Preview = {
   warnings: string[];
   sha256: string;
 };
-export function Roadmaps({ selected }: { selected?: string }) {
+export function Roadmaps({
+  selected,
+  step,
+}: {
+  selected?: string;
+  step?: string;
+}) {
   const [archive, setArchive] = useState(false);
   const [personId, setPersonId] = useState("");
   const people = useData<List<Person>>("/people?archived=false");
@@ -40,87 +46,95 @@ export function Roadmaps({ selected }: { selected?: string }) {
   );
   const action = useAction();
   const [title, setTitle] = useState("");
-  if (selected) return <RoadmapDetail id={selected} />;
+  if (selected) return <RoadmapDetail id={selected} step={step} />;
   return (
-    <>
+    <div className="bounded-screen">
       <header>
         <h1>Roadmaps</h1>
         <p className="lede">
           Plans broken into steps, with every saved version kept.
         </p>
       </header>
-      <form
-        className="quick-add"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          await action
-            .mutateAsync({
-              path: "/roadmaps",
-              body: { title, overview: "", steps: [] },
-            })
-            .then(() => setTitle(""))
-            .catch(() => undefined);
-        }}
-      >
-        <input
-          aria-label="Roadmap title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Name a new roadmap"
-          required
-        />
-        <button className="primary">Create roadmap</button>
-      </form>
-      <ImportRoadmap />
-      <div className="toolbar">
-        <label>
-          <input
-            type="checkbox"
-            checked={archive}
-            onChange={(e) => setArchive(e.target.checked)}
-          />{" "}
-          Show archive
-        </label>
-        <select
-          aria-label="Filter roadmaps by person"
-          value={personId}
-          onChange={(e) => setPersonId(e.target.value)}
-        >
-          <option value="">All people</option>
-          {people.data?.items?.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-      </div>
       <ErrorMessage error={roads.error || old.error || action.error} />
-      {!(archive ? old : roads).data?.items.length ? (
-        <Empty>Your bigger picture starts here.</Empty>
-      ) : (
-        (archive ? old : roads).data?.items.map((r) => (
-          <article className="roadmap-row" key={r.id}>
-            <div>
-              <a className="item-title" href={"#roadmaps/" + r.id}>
-                {r.title}
-              </a>
-              <PersonBadges people={r.people} />
-              <p>{r.overview?.slice(0, 160)}</p>
-            </div>
-            <button
-              onClick={() =>
-                action.mutate({
-                  path: `/roadmaps/${r.id}/${archive ? "recover" : "archive"}`,
-                  body: { revision: r.revision },
-                })
-              }
+      <div className="split roadmaps-split">
+        <div className="panel" role="region" aria-label="Your roadmaps">
+          <div className="panel-head toolbar">
+            <label>
+              <input
+                type="checkbox"
+                checked={archive}
+                onChange={(e) => setArchive(e.target.checked)}
+              />{" "}
+              Show archive
+            </label>
+            <select
+              aria-label="Filter roadmaps by person"
+              value={personId}
+              onChange={(e) => setPersonId(e.target.value)}
             >
-              {archive ? "Recover" : "Archive"}
-            </button>
-          </article>
-        ))
-      )}
-    </>
+              <option value="">All people</option>
+              {people.data?.items?.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="panel-body">
+            {!(archive ? old : roads).data?.items.length ? (
+              <Empty>Your bigger picture starts here.</Empty>
+            ) : (
+              (archive ? old : roads).data?.items.map((r) => (
+                <article className="roadmap-row" key={r.id}>
+                  <div>
+                    <a className="item-title" href={"#roadmaps/" + r.id}>
+                      {r.title}
+                    </a>
+                    <PersonBadges people={r.people} />
+                    <p>{r.overview?.slice(0, 160)}</p>
+                  </div>
+                  <button
+                    onClick={() =>
+                      action.mutate({
+                        path: `/roadmaps/${r.id}/${archive ? "recover" : "archive"}`,
+                        body: { revision: r.revision },
+                      })
+                    }
+                  >
+                    {archive ? "Recover" : "Archive"}
+                  </button>
+                </article>
+              ))
+            )}
+          </div>
+        </div>
+        <div className="pane" role="region" aria-label="Start a roadmap">
+          <form
+            className="quick-add"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              await action
+                .mutateAsync({
+                  path: "/roadmaps",
+                  body: { title, overview: "", steps: [] },
+                })
+                .then(() => setTitle(""))
+                .catch(() => undefined);
+            }}
+          >
+            <input
+              aria-label="Roadmap title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Name a new roadmap"
+              required
+            />
+            <button className="primary">Create roadmap</button>
+          </form>
+          <ImportRoadmap />
+        </div>
+      </div>
+    </div>
   );
 }
 function ImportRoadmap() {
@@ -287,22 +301,59 @@ function ImportRoadmap() {
     </section>
   );
 }
-export function RoadmapDetail({ id }: { id: string }) {
+function readCollapsed(key: string) {
+  try {
+    const ids: unknown = JSON.parse(localStore.read(key).value ?? "[]");
+    return new Set(
+      Array.isArray(ids)
+        ? ids.filter((i): i is string => typeof i === "string")
+        : [],
+    );
+  } catch {
+    return new Set<string>();
+  }
+}
+export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
   const query = useData<Roadmap>("/roadmaps/" + id);
   const action = useAction();
   const createItem = useCommand(commands.createItem);
   const [editing, setEditing] = useState(false);
   const [snapshot, setSnapshot] = useState<unknown>(null);
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  // Collapsed steps persist per roadmap so a large plan reopens as it was left.
+  const collapsedKey = contextStorageKey("roadmap-collapsed", id);
+  const [collapsed, setCollapsedState] = useState<Set<string>>(() =>
+    readCollapsed(collapsedKey),
+  );
+  const [revealed, setRevealed] = useState<string | undefined>();
   const [newItemTitle, setNewItemTitle] = useState("");
   const [newItemStepId, setNewItemStepId] = useState("");
   const [workQuery, setWorkQuery] = useState("");
   const [pickItemId, setPickItemId] = useState("");
   const [pickStepId, setPickStepId] = useState("");
+  const outlineRef = useRef<HTMLDivElement>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
+  const snapshotRef = useRef<HTMLElement>(null);
   const workList = useData<List<Item>>(
     `/work-items?view=all&archived=false&limit=100&q=${encodeURIComponent(workQuery)}`,
   );
   const road = query.data;
+  const loaded = road !== undefined;
+  // Panes scroll on their own; when stacked on a narrow window, the page scrolls to the detail.
+  useEffect(() => {
+    if (!step || !loaded) return;
+    outlineRef.current
+      ?.querySelector('[aria-current="true"]')
+      ?.scrollIntoView?.({ block: "nearest" });
+    detailRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [step, loaded]);
+  useEffect(() => {
+    if (snapshot !== null)
+      snapshotRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [snapshot]);
+  function setCollapsed(next: Set<string>) {
+    setCollapsedState(next);
+    localStore.write(collapsedKey, JSON.stringify([...next]));
+  }
   if (!road)
     return (
       <>
@@ -319,9 +370,32 @@ export function RoadmapDetail({ id }: { id: string }) {
     .map((s) => s.id);
   const completed = leaves.filter((s) => s.status === "done").length;
   const roadWorkItems = road.workItems ?? [];
-  const unassignedWorkItems = roadWorkItems.filter(
-    (w) => !w.stepId || !active.some((s) => s.id === w.stepId),
-  );
+  const selected = step ? active.find((s) => s.id === step) : undefined;
+  // A step opened by link shows in the outline: expand its collapsed ancestors once.
+  if (step !== revealed) {
+    setRevealed(step);
+    const ancestors = new Set<string>();
+    let parent = active.find((s) => s.id === selected?.parentId);
+    while (parent && !ancestors.has(parent.id)) {
+      ancestors.add(parent.id);
+      parent = active.find((s) => s.id === parent?.parentId);
+    }
+    if ([...ancestors].some((a) => collapsed.has(a)))
+      setCollapsedState(
+        new Set([...collapsed].filter((c) => !ancestors.has(c))),
+      );
+  }
+  const parentStep = selected && active.find((s) => s.id === selected.parentId);
+  const selectedItems = selected
+    ? roadWorkItems.filter((w) => w.stepId === selected.id)
+    : [];
+  const showHistory = async (path: string) => {
+    try {
+      setSnapshot(await request(path));
+    } catch (error) {
+      setSnapshot({ error: String(error) });
+    }
+  };
   const renderWorkItem = (item: Item) => (
     <div className="line roadmap-work-item" key={item.id}>
       <span className={"status-dot " + item.status} />
@@ -389,53 +463,62 @@ export function RoadmapDetail({ id }: { id: string }) {
       </button>
     </div>
   );
-  const render = (parent: string | null, depth = 0): React.ReactNode =>
+  const render = (parent: string | null): React.ReactNode =>
     active
       .filter((s) => s.parentId === parent)
       .sort((a, b) => a.position - b.position)
       .map((s) => {
         const kids = active.filter((c) => c.parentId === s.id).length;
-        const closed = collapsed.has(s.id);
-        const stepItems = roadWorkItems.filter((w) => w.stepId === s.id);
+        const closed = kids > 0 && collapsed.has(s.id);
+        const items = roadWorkItems.filter((w) => w.stepId === s.id).length;
+        const current = s.id === selected?.id;
         return (
-          <div
-            key={s.id}
-            className={"step status-" + s.status}
-            style={{ marginLeft: depth ? 20 : 0 }}
-          >
-            <div className="section-heading">
-              <div>
-                {kids > 0 && (
-                  <button
-                    type="button"
-                    className="tree-toggle"
-                    aria-expanded={!closed}
-                    aria-label={(closed ? "Expand " : "Collapse ") + s.title}
-                    onClick={() => {
-                      const next = new Set(collapsed);
-                      if (closed) next.delete(s.id);
-                      else next.add(s.id);
-                      setCollapsed(next);
-                    }}
-                  >
-                    <Icon name={closed ? "expand" : "collapse"} size={14} />
-                  </button>
+          <li key={s.id} className={"step status-" + s.status}>
+            <div className={"step-row" + (current ? " selected" : "")}>
+              {kids > 0 ? (
+                <button
+                  type="button"
+                  className="tree-toggle"
+                  aria-expanded={!closed}
+                  aria-label={(closed ? "Expand " : "Collapse ") + s.title}
+                  onClick={() => {
+                    const next = new Set(collapsed);
+                    if (closed) next.delete(s.id);
+                    else next.add(s.id);
+                    setCollapsed(next);
+                  }}
+                >
+                  <Icon name={closed ? "expand" : "collapse"} size={14} />
+                </button>
+              ) : (
+                <span className="tree-spacer" />
+              )}
+              <span className={"status-dot " + s.status} aria-hidden="true" />
+              <span className="step-text">
+                <a
+                  className="step-link"
+                  href={`#roadmaps/${id}/${s.id}`}
+                  aria-current={current ? "true" : undefined}
+                >
+                  {s.title}
+                </a>
+                {(closed || items > 0) && (
+                  <span className="step-meta">
+                    {closed && (
+                      <small>
+                        ({kids} sub-step{kids === 1 ? "" : "s"} hidden)
+                      </small>
+                    )}
+                    {items > 0 && (
+                      <small>
+                        {items} work item{items === 1 ? "" : "s"}
+                      </small>
+                    )}
+                  </span>
                 )}
-                <span className={"status-dot " + s.status} aria-hidden="true" />
-                <strong>{s.title}</strong>
-                {closed && (
-                  <small className="muted">
-                    {" "}
-                    ({kids} sub-step{kids === 1 ? "" : "s"} hidden)
-                  </small>
-                )}
-                {s.description && <Markdown text={s.description} />}
-              </div>
+              </span>
               <StatusSelect
-                disabled={
-                  road.archived ||
-                  active.some((child) => child.parentId === s.id)
-                }
+                disabled={road.archived || kids > 0}
                 label={"Progress for " + s.title}
                 value={s.status}
                 onChange={(status) =>
@@ -447,91 +530,22 @@ export function RoadmapDetail({ id }: { id: string }) {
                 }
               />
             </div>
-            {stepItems.length > 0 && (
-              <div className="step-work-items">
-                {stepItems.map(renderWorkItem)}
-              </div>
-            )}
-            <button
-              className="quiet"
-              onClick={async () => {
-                try {
-                  setSnapshot(await request("/steps/" + s.id + "/history"));
-                } catch (error) {
-                  setSnapshot({ error: String(error) });
-                }
-              }}
-            >
-              Step history
-            </button>
-            <details>
-              <summary>Step notes & files</summary>
-              <Notes ownerType="step" ownerId={s.id} notes={s.notes ?? []} />
-              <Files
-                ownerType="step"
-                ownerId={s.id}
-                files={s.attachments ?? []}
-              />
-              <RecoverRecords
-                groups={[
-                  { label: "Notes", path: "notes", records: s.notes ?? [] },
-                  {
-                    label: "Files",
-                    path: "attachments",
-                    records: s.attachments ?? [],
-                  },
-                ]}
-              />
-            </details>
-            {!closed && render(s.id, depth + 1)}
-          </div>
+            {kids > 0 && !closed && <ul>{render(s.id)}</ul>}
+          </li>
         );
       });
-  return (
+  const overview = (
     <>
-      <a className="back" href="#roadmaps">
-        <Icon name="back" />
-        All roadmaps
-      </a>
-      <header>
-        <h1>{road.title}</h1>
+      {step && (
+        <p className="warning">
+          That step is not in the current plan. It may have been retired.
+        </p>
+      )}
+      <h2>Overview</h2>
+      {road.overview ? (
         <Markdown text={road.overview} />
-        <div className="toolbar">
-          <button
-            className="primary"
-            disabled={road.archived}
-            onClick={() => setEditing(!editing)}
-          >
-            {editing ? "Close editor" : "Edit structure"}
-          </button>
-          <button
-            onClick={() =>
-              action.mutate({
-                path: `/roadmaps/${id}/${road.archived ? "recover" : "archive"}`,
-                body: { revision: road.revision },
-              })
-            }
-          >
-            {road.archived ? "Recover" : "Archive"}
-          </button>
-          <span>
-            {completed} / {leaves.length} steps complete
-          </span>
-          <span className="muted">Revision {road.revision}</span>
-        </div>
-        <progress
-          max={leaves.length || 1}
-          value={completed}
-          aria-label="Roadmap completion"
-        />
-      </header>
-      <ErrorMessage error={action.error || createItem.error || workList.error} />
-      {editing && !road.archived && (
-        <StructureEditor
-          key={road.revision}
-          roadmap={road}
-          onDone={() => setEditing(false)}
-        />
+      ) : (
+        <p className="muted">No overview yet. Add one with Edit structure.</p>
       )}
       <PeopleLinks
         targetType="roadmap"
@@ -638,8 +652,7 @@ export function RoadmapDetail({ id }: { id: string }) {
                 (i) =>
                   !roadWorkItems.some(
                     (w) =>
-                      w.id === i.id &&
-                      (w.stepId ?? "") === (pickStepId || ""),
+                      w.id === i.id && (w.stepId ?? "") === (pickStepId || ""),
                   ),
               )
               .map((i) => (
@@ -668,60 +681,37 @@ export function RoadmapDetail({ id }: { id: string }) {
             Attach work item
           </button>
         </form>
-        {unassignedWorkItems.map(renderWorkItem)}
+        {roadWorkItems.map(renderWorkItem)}
       </section>
-      <div className="section-heading">
-        <h2>Plan & progress</h2>
-        {parents.length > 0 && (
-          <span className="toolbar">
-            <button
-              className="quiet"
-              disabled={parents.every((p) => collapsed.has(p))}
-              onClick={() => setCollapsed(new Set(parents))}
-            >
-              Collapse all
-            </button>
-            <button
-              className="quiet"
-              disabled={!parents.some((p) => collapsed.has(p))}
-              onClick={() => setCollapsed(new Set())}
-            >
-              Expand all
-            </button>
-          </span>
-        )}
-      </div>
-      {!active.length ? (
-        <Empty>Add the first step in the structure editor.</Empty>
-      ) : (
-        render(null)
-      )}
-      {road.steps.some((s) => s.retired) && (
-        <details>
-          <summary>Retired steps</summary>
-          {road.steps
-            .filter((s) => s.retired)
-            .map((s) => (
-              <p key={s.id}>
-                {s.title} ({s.status})
-              </p>
-            ))}
-        </details>
-      )}
+      <Notes ownerType="roadmap" ownerId={id} notes={road.notes} />
+      <LinksSection
+        ownerType="roadmap"
+        ownerId={id}
+        links={road.links}
+        disabled={road.archived}
+      />
+      <AgentChatsSection
+        ownerType="roadmap"
+        ownerId={id}
+        chats={road.chats}
+        disabled={road.archived}
+      />
+      <GithubRefsSection
+        ownerType="roadmap"
+        ownerId={id}
+        github={road.github}
+        chats={road.chats}
+        disabled={road.archived}
+      />
+      <Files ownerType="roadmap" ownerId={id} files={road.attachments} />
       <section>
         <h3>Immutable versions</h3>
         {road.versions.map((v) => (
           <div className="line" key={v.number}>
             <button
-              onClick={async () => {
-                try {
-                  setSnapshot(
-                    await request(`/roadmaps/${id}/revisions/${v.number}`),
-                  );
-                } catch (error) {
-                  setSnapshot({ error: String(error) });
-                }
-              }}
+              onClick={() =>
+                showHistory(`/roadmaps/${id}/revisions/${v.number}`)
+              }
             >
               View version {v.number}
             </button>
@@ -753,36 +743,18 @@ export function RoadmapDetail({ id }: { id: string }) {
           ))}
         </section>
       )}
-      {snapshot !== null && (
-        <section>
-          <div className="section-heading">
-            <h3>Historical record</h3>
-            <button onClick={() => setSnapshot(null)}>Close</button>
-          </div>
-          <pre>{JSON.stringify(snapshot, null, 2)}</pre>
-        </section>
+      {road.steps.some((s) => s.retired) && (
+        <details>
+          <summary>Retired steps</summary>
+          {road.steps
+            .filter((s) => s.retired)
+            .map((s) => (
+              <p key={s.id}>
+                {s.title} ({s.status})
+              </p>
+            ))}
+        </details>
       )}
-      <Notes ownerType="roadmap" ownerId={id} notes={road.notes} />
-      <LinksSection
-        ownerType="roadmap"
-        ownerId={id}
-        links={road.links}
-        disabled={road.archived}
-      />
-      <AgentChatsSection
-        ownerType="roadmap"
-        ownerId={id}
-        chats={road.chats}
-        disabled={road.archived}
-      />
-      <GithubRefsSection
-        ownerType="roadmap"
-        ownerId={id}
-        github={road.github}
-        chats={road.chats}
-        disabled={road.archived}
-      />
-      <Files ownerType="roadmap" ownerId={id} files={road.attachments} />
       <RecoverRecords
         groups={[
           { label: "Notes", path: "notes", records: road.notes },
@@ -802,6 +774,179 @@ export function RoadmapDetail({ id }: { id: string }) {
       />
       <History items={road.history} />
     </>
+  );
+  const stepDetail = selected && (
+    <>
+      <a className="back" href={"#roadmaps/" + id}>
+        <Icon name="back" />
+        Roadmap overview
+      </a>
+      <div className="section-heading step-title">
+        <h2>{selected.title}</h2>
+        <button
+          className="quiet"
+          onClick={() => showHistory("/steps/" + selected.id + "/history")}
+        >
+          Step history
+        </button>
+      </div>
+      {parentStep && (
+        <p className="muted">
+          Part of{" "}
+          <a href={`#roadmaps/${id}/${parentStep.id}`}>{parentStep.title}</a>
+        </p>
+      )}
+      {selected.description ? (
+        <Markdown text={selected.description} />
+      ) : (
+        <p className="muted">
+          No description yet. Add one with Edit structure.
+        </p>
+      )}
+      <section>
+        <h3>
+          Work items <span className="count">{selectedItems.length}</span>
+        </h3>
+        {selectedItems.length ? (
+          selectedItems.map(renderWorkItem)
+        ) : (
+          <p className="muted">
+            None on this step. Attach work from the roadmap overview.
+          </p>
+        )}
+      </section>
+      <Notes
+        ownerType="step"
+        ownerId={selected.id}
+        notes={selected.notes ?? []}
+      />
+      <Files
+        ownerType="step"
+        ownerId={selected.id}
+        files={selected.attachments ?? []}
+      />
+      <RecoverRecords
+        groups={[
+          { label: "Notes", path: "notes", records: selected.notes ?? [] },
+          {
+            label: "Files",
+            path: "attachments",
+            records: selected.attachments ?? [],
+          },
+        ]}
+      />
+    </>
+  );
+  const editor = editing && !road.archived;
+  return (
+    <div className="bounded-screen">
+      <header className="roadmap-head">
+        <a className="back" href="#roadmaps">
+          <Icon name="back" />
+          All roadmaps
+        </a>
+        <div className="roadmap-title">
+          <h1>{road.title}</h1>
+          <div className="toolbar">
+            <button
+              className="primary"
+              disabled={road.archived}
+              onClick={() => setEditing(!editing)}
+            >
+              {editing ? "Close editor" : "Edit structure"}
+            </button>
+            <button
+              onClick={() =>
+                action.mutate({
+                  path: `/roadmaps/${id}/${road.archived ? "recover" : "archive"}`,
+                  body: { revision: road.revision },
+                })
+              }
+            >
+              {road.archived ? "Recover" : "Archive"}
+            </button>
+          </div>
+        </div>
+        <div className="roadmap-progress">
+          <progress
+            max={leaves.length || 1}
+            value={completed}
+            aria-label="Roadmap completion"
+          />
+          <span>
+            {completed} / {leaves.length} steps complete
+          </span>
+          <span className="muted">Revision {road.revision}</span>
+        </div>
+      </header>
+      <ErrorMessage
+        error={action.error || createItem.error || workList.error}
+      />
+      <div className="split roadmap-split">
+        <div className="panel" role="region" aria-label="Plan outline">
+          <div className="panel-head">
+            <h2>Plan & progress</h2>
+            {parents.length > 0 && (
+              <span className="toolbar">
+                <button
+                  className="quiet"
+                  disabled={parents.every((p) => collapsed.has(p))}
+                  onClick={() => setCollapsed(new Set(parents))}
+                >
+                  Collapse all
+                </button>
+                <button
+                  className="quiet"
+                  disabled={!parents.some((p) => collapsed.has(p))}
+                  onClick={() => setCollapsed(new Set())}
+                >
+                  Expand all
+                </button>
+              </span>
+            )}
+          </div>
+          <div className="panel-body" ref={outlineRef}>
+            {!active.length ? (
+              <Empty>Add the first step in the structure editor.</Empty>
+            ) : (
+              <ul className="outline">{render(null)}</ul>
+            )}
+          </div>
+        </div>
+        <div
+          className="pane detail"
+          role="region"
+          aria-label={
+            editor
+              ? "Structure editor"
+              : selected
+                ? "Step details"
+                : "Roadmap details"
+          }
+          ref={detailRef}
+          key={(editor ? "editor:" : "") + (selected?.id ?? "roadmap")}
+        >
+          {snapshot !== null && (
+            <section className="snapshot" ref={snapshotRef}>
+              <div className="section-heading">
+                <h3>Historical record</h3>
+                <button onClick={() => setSnapshot(null)}>Close</button>
+              </div>
+              <pre>{JSON.stringify(snapshot, null, 2)}</pre>
+            </section>
+          )}
+          {editor ? (
+            <StructureEditor
+              key={road.revision}
+              roadmap={road}
+              onDone={() => setEditing(false)}
+            />
+          ) : (
+            (stepDetail ?? overview)
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 export function StructureEditor({
@@ -1103,14 +1248,16 @@ export function StructureEditor({
       >
         Add step
       </button>
-      <label>
-        Version note
-        <input value={note} onChange={(e) => setNote(e.target.value)} />
-      </label>
-      <ErrorMessage error={action.error} />
-      <button className="primary" disabled={action.isPending || stale}>
-        Save new version
-      </button>
+      <div className="editor-actions">
+        <label>
+          Version note
+          <input value={note} onChange={(e) => setNote(e.target.value)} />
+        </label>
+        <ErrorMessage error={action.error} />
+        <button className="primary" disabled={action.isPending || stale}>
+          Save new version
+        </button>
+      </div>
     </form>
   );
 }

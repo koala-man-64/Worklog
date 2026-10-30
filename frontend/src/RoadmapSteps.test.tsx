@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setDataContext } from "./api";
@@ -49,14 +49,16 @@ beforeEach(() => {
     ),
   );
 });
-const view = () =>
+const PARENT = "aaaaaaaa-0000-4000-8000-000000000001";
+const CHILD = "aaaaaaaa-0000-4000-8000-000000000002";
+const view = (step?: string) =>
   render(
     <QueryClientProvider
       client={
         new QueryClient({ defaultOptions: { queries: { retry: false } } })
       }
     >
-      <RoadmapDetail id={ROADMAP} />
+      <RoadmapDetail id={ROADMAP} step={step} />
     </QueryClientProvider>,
   );
 
@@ -100,4 +102,60 @@ it("applies prominent state classes to step containers, status dots, and status 
   const soloStep = screen.getByText("Solo").closest(".step");
   expect(soloStep).toHaveClass("step", "status-open");
   expect(soloStep?.querySelector(".status-dot.open")).not.toBeNull();
+});
+
+it("shows the selected step's details beside the outline", async () => {
+  view(CHILD);
+  const details = await screen.findByRole("region", { name: "Step details" });
+  expect(within(details).getByRole("heading", { name: "Child" })).toBeVisible();
+  expect(within(details).getByRole("link", { name: "Parent" })).toHaveAttribute(
+    "href",
+    `#roadmaps/${ROADMAP}/${PARENT}`,
+  );
+  const outline = screen.getByRole("region", { name: "Plan outline" });
+  expect(within(outline).getByRole("link", { name: "Child" })).toHaveAttribute(
+    "aria-current",
+    "true",
+  );
+  expect(
+    within(outline).getByRole("link", { name: "Solo" }),
+  ).not.toHaveAttribute("aria-current");
+});
+
+it("falls back to the roadmap overview for a step that is not in the plan", async () => {
+  view("bbbbbbbb-0000-4000-8000-000000000009");
+  const details = await screen.findByRole("region", {
+    name: "Roadmap details",
+  });
+  expect(within(details).getByText(/not in the current plan/)).toBeVisible();
+  expect(
+    within(details).getByRole("heading", { name: "Overview" }),
+  ).toBeVisible();
+});
+
+it("remembers collapsed steps when the roadmap is opened again", async () => {
+  const first = view();
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Collapse Parent" }),
+  );
+  first.unmount();
+  view();
+  expect(
+    await screen.findByRole("button", { name: "Expand Parent" }),
+  ).toBeVisible();
+  expect(screen.queryByText("Child")).toBeNull();
+});
+
+it("expands the collapsed parents of a step opened by link", async () => {
+  const first = view();
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Collapse Parent" }),
+  );
+  first.unmount();
+  view(CHILD);
+  const outline = await screen.findByRole("region", { name: "Plan outline" });
+  expect(within(outline).getByRole("link", { name: "Child" })).toBeVisible();
+  expect(
+    screen.getByRole("button", { name: "Collapse Parent" }),
+  ).toHaveAttribute("aria-expanded", "true");
 });

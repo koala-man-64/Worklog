@@ -1,6 +1,12 @@
 /* Hallmark · checked: 2026-10-30 · genre: modern-minimal (inferred) · shape: app screen
  * floor: 0 FAIL · fixed: 11 (19, 30a, 34, 39a, 39b, 40, 48, 54, 63, 67, 75) · structural: 4 printed (header, add-forms, title echo, date formats)
- * built: the project · redesign: polish · v2.0.0 */
+ * built: the project · redesign: polish for the system and spacing (#23), kept; the roadmap screens recomposed in full · v2.0.0
+ * screen: plan outline beside a detail pane, both bounded to the window from 900px wide; narrower or shorter windows stack, the outline capped at 60dvh with its own scroll
+ * signature: the plan outline, every step a row of title and status with its detail beside it
+ * finish-review: subagent · 8 findings · 5 resolved, 3 kept as found (status coding kept per the prominence change and waiver 3; shared Notes and Files sections and the list summary sit outside this recomposition) · gap: the selected-row miss in the step shots came from the capture resizing after load, verified in view at a fixed 1440x900 */
+/* Hallmark · dropped fields with no name, the per-step note and file controls in the plan tree · each step's description, notes, files and history now open in the detail pane when that step is selected, so the tree keeps one row per step */
+/* Hallmark · answered F19 · the fourth weight is the 700 status pill from the status prominence change, outside this recomposition */
+/* Hallmark · pre-emit critique: P4 H5 E4 S4 R4 V3 · weakest: V, the outline and detail split is the familiar master-detail shape; kept because fluency in the category beats novelty on a working screen */
 /* Hallmark · waive 3 · step stripe beside the status dot and pill · the plan tree's status stripe was made prominent on purpose in the status pill change */
 /* Hallmark · waive 49b · the wrapping links are work item and roadmap titles the person typed · a long item title wraps rather than hiding part of its name */
 /* Hallmark · waive 72 · the crowding is the sidebar roadmap titles cut by text-overflow ellipsis · roadmap names truncate inside the sidebar by design */
@@ -853,10 +859,104 @@ section:not(.draft) > h3 {
   color: var(--muted);
   font-size: 12px;
 }
+.roadmap-head {
+  margin-bottom: 16px;
+}
+.roadmap-head .back {
+  margin-bottom: 8px;
+}
+.roadmap-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+.roadmap-title h1 {
+  flex: 1 1 320px;
+  font-size: 34px;
+  margin: 0;
+}
+.roadmap-title .toolbar {
+  margin: 0;
+  gap: 8px;
+}
+.roadmap-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  margin-top: 12px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.roadmap-progress progress {
+  flex: 1 1 200px;
+}
+.roadmap-progress span {
+  white-space: nowrap;
+}
+.split {
+  display: grid;
+  gap: 24px;
+}
+.panel {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+.panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.panel-head h2 {
+  font-size: 24px;
+  margin: 0;
+}
+.panel-head .toolbar {
+  margin: 0;
+  gap: 4px;
+}
+.panel-body {
+  min-width: 0;
+  padding: 0 8px 8px;
+}
+.roadmaps-split .panel-body {
+  padding: 0 16px;
+}
+.panel-body > .roadmap-row:first-child {
+  border-top: 0;
+}
+.pane {
+  min-width: 0;
+}
+.outline,
+.outline ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.outline ul {
+  padding-left: 8px;
+}
 .step {
-  padding: 10px 0 0 12px;
+  padding-left: 4px;
   border-top: 1px solid var(--line);
   border-left: 3px solid var(--status-open-border);
+}
+.outline > .step:first-child {
+  border-top: 0;
 }
 .step.status-doing {
   border-left-color: var(--status-doing-border);
@@ -867,53 +967,133 @@ section:not(.draft) > h3 {
 .step.status-blocked {
   border-left-color: var(--status-blocked-border);
 }
-.step details {
-  margin-top: 6px;
-  padding: 8px 0;
+.step-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-height: 44px;
+  padding: 4px 4px 4px 0;
+  border-radius: 4px;
 }
-.step > .section-heading {
-  margin-bottom: 4px;
+.step-row.selected {
+  background: var(--teal-wash);
+}
+/* A narrow row drops its status pill below the title rather than squeezing the title. */
+.step-text {
+  flex: 1 1 9rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.step-link {
+  color: var(--ink);
+  line-height: 1.4;
+  text-decoration: none;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+.outline > .step > .step-row .step-link {
+  font-weight: 600;
+}
+.step-link:hover {
+  color: var(--teal);
+  text-decoration: underline;
+}
+.step-link[aria-current] {
+  color: var(--teal);
+  font-weight: 600;
+}
+.step-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 12px;
+  font-variant-numeric: tabular-nums;
+}
+/* In a narrow outline every row puts its pill under the title, so rows read alike at every depth. */
+@container (max-width: 400px) {
+  .step-text {
+    flex-basis: calc(100% - 64px);
+  }
+}
+.step-row select.status-select {
+  flex-shrink: 0;
+  margin-left: auto;
+  height: 32px;
+  min-width: 88px;
+  padding: 4px 12px;
+}
+.tree-toggle,
+.tree-spacer {
+  flex-shrink: 0;
+  width: 32px;
 }
 .tree-toggle {
   border: 0;
   background: none;
   padding: 0;
-  margin-right: 4px;
-  width: 32px;
   min-height: 32px;
   display: inline-grid;
   place-items: center;
   color: var(--muted);
-  vertical-align: middle;
 }
-.step .markdown {
-  font-size: 12px;
-  max-width: 600px;
-  color: var(--muted);
-  margin-top: 8px;
+.detail > h2,
+.step-title h2 {
+  font-size: 24px;
+  margin-bottom: 12px;
 }
-.step .markdown p {
-  margin-bottom: 5px;
-}
-.step > .quiet {
-  font-size: 12px;
-}
-.step select:not(.status-select) {
-  font-size: 12px;
-  flex-shrink: 0;
-}
-.step select.status-select {
-  flex-shrink: 0;
-}
-.step .section-heading {
+.step-title {
   align-items: flex-start;
 }
-.step-work-items {
-  margin: 8px 0 12px;
+.step-title h2 {
+  margin: 0;
+}
+.detail > .markdown {
+  max-width: 70ch;
+  margin-bottom: 24px;
+}
+.detail .markdown h1,
+.detail .markdown h2 {
+  font-size: 20px;
+}
+.detail > .back {
+  margin-bottom: 16px;
+}
+.editor-actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 12px 0 4px;
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+}
+.structure-editor .editor-actions label {
+  flex: 1 1 240px;
+  margin: 0;
+}
+.editor-actions label > input {
+  margin-bottom: 0;
+}
+.editor-actions .error {
+  width: 100%;
+  margin: 0;
+}
+/* Step pickers list every step title; a fixed basis keeps them from crushing the title or input beside them. */
+.roadmap-work-item .item-title,
+.detail .quick-add input {
+  flex: 1 1 12rem;
+}
+.detail .quick-add select {
+  flex: 0 1 16rem;
+  min-width: 0;
 }
 .roadmap-work-item select:not(.status-select) {
   font-size: 12px;
-  flex-shrink: 1;
+  flex: 0 1 16rem;
 }
 .person-badges {
   display: inline-flex;
@@ -1255,8 +1435,7 @@ code {
   .ordinal {
     width: 25px;
   }
-  .step {
-    margin-left: 0 !important;
+  .outline ul {
     padding-left: 8px;
   }
   .roadmap-row {
@@ -1273,6 +1452,78 @@ code {
   }
   .quick-add button {
     font-size: 12px;
+  }
+}
+/* Stacked on a narrow or short window, the outline keeps its own scroll so the detail stays a few screens down. */
+@media not all and (min-width: 900px) and (min-height: 560px) {
+  .roadmap-split .panel-body {
+    max-height: 60dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+/* Roadmap screens fit the window and scroll inside their panes; narrow or short windows stack and scroll the page. */
+@media (min-width: 900px) and (min-height: 560px) {
+  .workspace:has(.bounded-screen) {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+  }
+  .workspace:has(.bounded-screen) > .topbar {
+    flex-shrink: 0;
+  }
+  .workspace:has(.bounded-screen) > main {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    max-width: 1440px;
+    display: flex;
+    flex-direction: column;
+    padding: 24px clamp(16px, 3vw, 48px);
+    overflow-y: auto;
+  }
+  .bounded-screen {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .bounded-screen > header {
+    flex-shrink: 0;
+    margin-bottom: 16px;
+  }
+  .bounded-screen > .error {
+    flex-shrink: 0;
+    margin: 0 0 12px;
+  }
+  .split {
+    flex: 1;
+    min-height: 280px;
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .roadmap-split {
+    grid-template-columns: minmax(300px, 6fr) minmax(0, 7fr);
+  }
+  .roadmaps-split {
+    grid-template-columns: minmax(0, 3fr) minmax(300px, 2fr);
+  }
+  .panel {
+    align-self: start;
+    min-height: 0;
+    max-height: 100%;
+  }
+  .panel-body,
+  .pane {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+  .panel-body {
+    flex: 1;
+  }
+  .pane {
+    padding-right: 8px;
   }
 }
 @media (prefers-reduced-motion: no-preference) {
