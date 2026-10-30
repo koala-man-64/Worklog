@@ -19,6 +19,7 @@ import {
   StatusSelect,
 } from "./components";
 import type { Detail, Item, List, Person, Roadmap } from "./types";
+import { Icon } from "./icons";
 export function CreateItem({ day }: { day?: string }) {
   const [title, setTitle] = useState("");
   const [mode, setMode] = useState("plan");
@@ -86,9 +87,10 @@ function WorkList() {
   return (
     <>
       <header>
-        <p className="eyebrow">Your working inventory</p>
         <h1>Work</h1>
-        <p className="lede">Capture it once. Keep the next move clear.</p>
+        <p className="lede">
+          Capture work once and keep each item’s next action current.
+        </p>
       </header>
       <CreateItem />
       <div className="toolbar">
@@ -156,7 +158,7 @@ function WorkList() {
       {list.isPending ? (
         <p>Loading work…</p>
       ) : !list.data?.items.length ? (
-        <Empty>A little room to think. Add your first work item above.</Empty>
+        <Empty>No work items yet. Add your first one above.</Empty>
       ) : (
         <div className="work-list">
           {list.data.items.map((item) => (
@@ -187,14 +189,14 @@ function WorkList() {
                   onClick={() => move(item.id, -1)}
                   disabled={archived || !item.isBacklog || action.isPending}
                 >
-                  ↑
+                  <Icon name="up" />
                 </button>
                 <button
                   aria-label={"Move " + item.title + " down"}
                   onClick={() => move(item.id, 1)}
                   disabled={archived || !item.isBacklog || action.isPending}
                 >
-                  ↓
+                  <Icon name="down" />
                 </button>
               </div>
               <button
@@ -221,7 +223,7 @@ function WorkList() {
             Previous work
           </button>
           <span>
-            {offset + 1}–{Math.min(offset + 100, list.data?.total ?? 0)} of{" "}
+            {offset + 1} to {Math.min(offset + 100, list.data?.total ?? 0)} of{" "}
             {list.data?.total}
           </span>
           <button
@@ -267,10 +269,10 @@ export function ItemDetail({ id }: { id: string }) {
   return (
     <>
       <a className="back" href="#work">
-        ← All work
+        <Icon name="back" />
+        All work
       </a>
       <header>
-        <p className="eyebrow">Work item</p>
         <h1>{item.title}</h1>
         <div className="toolbar">
           <StatusSelect
@@ -300,7 +302,7 @@ export function ItemDetail({ id }: { id: string }) {
       />
       <DraftField
         draftKey={"item-description-" + id}
-        label="Description · Markdown"
+        label="Description (Markdown)"
         initial={item.description}
         revision={item.revision}
         save={(description, revision) =>
@@ -502,10 +504,13 @@ export function ItemDetail({ id }: { id: string }) {
           <h3>Daily record</h3>
           {item.dailyEntries.map((entry) => (
             <div className="line" key={entry.id}>
-              <a href={"#today/" + entry.date}>{entry.date}</a>
+              <a className="line-date" href={"#today/" + entry.date}>
+                {entry.date}
+              </a>
               <small>
-                {entry.planned ? "Planned · " : ""}
-                {entry.worked ? "Worked" : ""}
+                {[entry.planned && "Planned", entry.worked && "Worked"]
+                  .filter(Boolean)
+                  .join(", ")}
               </small>
               <span>{entry.outcome || "No outcome recorded"}</span>
             </div>

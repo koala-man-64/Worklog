@@ -4,6 +4,7 @@ import { request, getDataContext } from "./api";
 import { useAction, useData } from "./hooks";
 import { Empty, ErrorMessage, Files, Markdown } from "./components";
 import type { Day, List, Proposal } from "./types";
+import { Icon } from "./icons";
 export function Review({ selectedId }: { selectedId?: string }) {
   const [status, setStatus] = useState("submitted");
   const proposals = useData<List<Proposal>>(
@@ -13,7 +14,6 @@ export function Review({ selectedId }: { selectedId?: string }) {
   return (
     <>
       <header>
-        <p className="eyebrow">Human judgment, recorded</p>
         <h1>Review</h1>
         <p className="lede">
           Inspect agent suggestions before they change your work.
@@ -64,7 +64,7 @@ export function Review({ selectedId }: { selectedId?: string }) {
                 {p.title}
               </a>
               <p>
-                {p.actorLabel} · {p.operations.length} proposed changes
+                {p.actorLabel}, {p.operations.length} proposed changes
               </p>
             </div>
             <span className="badge">{p.status}</span>
@@ -89,11 +89,12 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
   return (
     <section>
       <button className="quiet" onClick={onBack}>
-        ← Proposal list
+        <Icon name="back" />
+        Proposal list
       </button>
       <h2>{p.title}</h2>
       <p className="muted">
-        Proposed by {p.actorLabel} · {p.status} · revision {p.revision}
+        Proposed by {p.actorLabel}, {p.status}, revision {p.revision}
       </p>
       <Markdown text={p.rationale} />
       <h3>Proposed changes</h3>
@@ -234,7 +235,7 @@ export function OperationDiff({
       <ErrorMessage error={current.error} />
       {lookup && path === null && (
         <p className="warning">
-          Malformed target: this operation's ID or date is not valid, so its
+          Malformed target: this operation’s ID or date is not valid, so its
           current value was not loaded.
         </p>
       )}

@@ -19,6 +19,7 @@ import {
   StatusSelect,
 } from "./components";
 import type { Item, List, Person, Roadmap, Step } from "./types";
+import { Icon } from "./icons";
 type Preview = {
   id: string;
   title: string;
@@ -43,9 +44,10 @@ export function Roadmaps({ selected }: { selected?: string }) {
   return (
     <>
       <header>
-        <p className="eyebrow">See the shape of the work</p>
         <h1>Roadmaps</h1>
-        <p className="lede">A living plan, with a history you can trust.</p>
+        <p className="lede">
+          Plans broken into steps, with every saved version kept.
+        </p>
       </header>
       <form
         className="quick-add"
@@ -416,7 +418,7 @@ export function RoadmapDetail({ id }: { id: string }) {
                       setCollapsed(next);
                     }}
                   >
-                    {closed ? "▸" : "▾"}
+                    <Icon name={closed ? "expand" : "collapse"} size={14} />
                   </button>
                 )}
                 <span className={"status-dot " + s.status} aria-hidden="true" />
@@ -424,7 +426,7 @@ export function RoadmapDetail({ id }: { id: string }) {
                 {closed && (
                   <small className="muted">
                     {" "}
-                    · {kids} sub-step{kids === 1 ? "" : "s"} hidden
+                    ({kids} sub-step{kids === 1 ? "" : "s"} hidden)
                   </small>
                 )}
                 {s.description && <Markdown text={s.description} />}
@@ -488,10 +490,10 @@ export function RoadmapDetail({ id }: { id: string }) {
   return (
     <>
       <a className="back" href="#roadmaps">
-        ← All roadmaps
+        <Icon name="back" />
+        All roadmaps
       </a>
       <header>
-        <p className="eyebrow">Roadmap / revision {road.revision}</p>
         <h1>{road.title}</h1>
         <Markdown text={road.overview} />
         <div className="toolbar">
@@ -515,6 +517,7 @@ export function RoadmapDetail({ id }: { id: string }) {
           <span>
             {completed} / {leaves.length} steps complete
           </span>
+          <span className="muted">Revision {road.revision}</span>
         </div>
         <progress
           max={leaves.length || 1}
@@ -700,7 +703,7 @@ export function RoadmapDetail({ id }: { id: string }) {
             .filter((s) => s.retired)
             .map((s) => (
               <p key={s.id}>
-                {s.title} · {s.status}
+                {s.title} ({s.status})
               </p>
             ))}
         </details>
@@ -999,7 +1002,7 @@ export function StructureEditor({
         />
       </label>
       <label>
-        Overview · Markdown
+        Overview (Markdown)
         <textarea
           value={overview}
           onChange={(e) => {
@@ -1052,7 +1055,7 @@ export function StructureEditor({
               disabled={i === 0}
               onClick={() => move(i, -1)}
             >
-              ↑
+              <Icon name="up" />
             </button>
             <button
               type="button"
@@ -1060,7 +1063,7 @@ export function StructureEditor({
               disabled={i === steps.length - 1}
               onClick={() => move(i, 1)}
             >
-              ↓
+              <Icon name="down" />
             </button>
             <button
               type="button"

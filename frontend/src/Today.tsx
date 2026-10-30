@@ -11,6 +11,7 @@ import {
 } from "./components";
 import { CreateItem } from "./Work";
 import type { Day, Item, List } from "./types";
+import { Icon } from "./icons";
 export function Today({
   today,
   initialDate,
@@ -45,7 +46,6 @@ export function Today({
     <>
       <header className="day-header">
         <div>
-          <p className="eyebrow">One day at a time</p>
           <h1>
             {date === today
               ? "Today"
@@ -53,7 +53,7 @@ export function Today({
                   weekday: "long",
                 })}
           </h1>
-          <p className="lede">A plan, a little progress, an honest record.</p>
+          <p className="lede">Plan the day and record what you worked on.</p>
         </div>
         <label className="date-label">
           Working day
@@ -130,10 +130,10 @@ export function Today({
             <p>
               {data.nextItemId ? (
                 <a href={"#work/" + data.nextItemId}>
-                  Continue your next open item →
+                  Continue your next open item
                 </a>
               ) : (
-                "Make room for the next useful thing."
+                "Nothing open to continue."
               )}
             </p>
           </div>
@@ -142,7 +142,7 @@ export function Today({
           </h2>
           {!data.entries.length && (
             <Empty>
-              No work planned yet. Start with the one thing that matters.
+              No work planned yet. Add work above or bring in existing work.
             </Empty>
           )}
           {data.entries.map((entry, index) => (
@@ -222,7 +222,7 @@ export function Today({
                     }}
                     onDragEnd={() => setDragged(null)}
                   >
-                    ⠿
+                    <Icon name="grip" />
                   </span>
                   <span
                     className={"status-dot " + entry.item.status}
@@ -233,7 +233,7 @@ export function Today({
                   </a>
                   {entry.item.archived && (
                     <span className="badge">
-                      Archived · recover in work details
+                      Archived, recover in work details
                     </span>
                   )}
                 </div>
@@ -291,7 +291,7 @@ export function Today({
                   disabled={index === 0 || entry.item.archived}
                   onClick={() => move(index, -1)}
                 >
-                  ↑
+                  <Icon name="up" />
                 </button>
                 <button
                   aria-label={"Move " + entry.item.title + " down"}
@@ -300,7 +300,7 @@ export function Today({
                   }
                   onClick={() => move(index, 1)}
                 >
-                  ↓
+                  <Icon name="down" />
                 </button>
               </div>
               {entry.item.archived ? (
@@ -363,7 +363,7 @@ export function Today({
           <DraftField
             key={date}
             draftKey={"reflection-" + date}
-            label="End-of-day reflection · Markdown"
+            label="End-of-day reflection (Markdown)"
             initial={data.reflection}
             revision={data.revision}
             save={(text, revision) =>

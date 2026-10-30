@@ -88,7 +88,7 @@ export function useDraft(
     !hasDraft
       ? "Saved"
       : base < 0
-        ? "Conflict — draft base unavailable. Compare saved value."
+        ? "Conflict: draft base unavailable. Compare saved value."
         : "Unsaved draft",
   );
   const latest = useRef({ save, revision });
@@ -106,7 +106,7 @@ export function useDraft(
   const flush = () => {
     if (!dirty.current || enqueued.current === value) return;
     if (revisionRef.current < 0) {
-      setState("Conflict — draft base unavailable. Compare saved value.");
+      setState("Conflict: draft base unavailable. Compare saved value.");
       return;
     }
     const text = value;
@@ -152,10 +152,10 @@ export function useDraft(
         });
         setState(
           error.status === 409
-            ? "Conflict — draft kept. Reload to compare."
+            ? "Conflict: draft kept. Reload to compare."
             : error.status >= 400 && error.status < 500
               ? `Not saved: ${error.message} Draft kept.`
-              : "Save failed — draft kept. Retry.",
+              : "Save failed: draft kept. Retry.",
         );
       })
       .finally(() => {

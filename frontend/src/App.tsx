@@ -11,7 +11,16 @@ import { RoadmapNav } from "./RoadmapNav";
 import { People } from "./People";
 import { Review } from "./Review";
 import { Settings } from "./Settings";
+import { Icon, type IconName } from "./icons";
 import type { List } from "./types";
+const destinations: [IconName, string][] = [
+  ["today", "Today"],
+  ["work", "Work"],
+  ["roadmaps", "Roadmaps"],
+  ["people", "People"],
+  ["review", "Review"],
+  ["settings", "Settings"],
+];
 type Result = {
   id: string;
   type: string;
@@ -43,14 +52,14 @@ export default function App() {
     return () => window.removeEventListener("hashchange", change);
   }, []);
   const [page, id] = route.split("/");
-  const link = (key: string, icon: string, label: string) => (
+  const link = (key: IconName, label: string) => (
     <a
       href={"#" + key}
       aria-current={
         page !== key ? undefined : key === "roadmaps" && id ? "true" : "page"
       }
     >
-      <span aria-hidden="true">{icon}</span>
+      <Icon name={key} size={18} />
       {label}
     </a>
   );
@@ -79,18 +88,11 @@ export default function App() {
           </span>
         </a>
         <nav aria-label="Main navigation">
-          {[
-            ["today", "◉", "Today"],
-            ["work", "☷", "Work"],
-            ["roadmaps", "◇", "Roadmaps"],
-            ["people", "◎", "People"],
-            ["review", "✓", "Review"],
-            ["settings", "⚙", "Settings"],
-          ].map(([key, icon, label]) => (
+          {destinations.map(([key, label]) => (
             <Fragment key={key}>
               {key === "roadmaps" ? (
                 <div className="nav-row">
-                  {link(key, icon, label)}
+                  {link(key, label)}
                   <button
                     type="button"
                     className="nav-toggle"
@@ -107,11 +109,14 @@ export default function App() {
                       setRoadmapsOpen(!roadmapsOpen);
                     }}
                   >
-                    <span aria-hidden="true">{roadmapsOpen ? "▾" : "▸"}</span>
+                    <Icon
+                      name={roadmapsOpen ? "collapse" : "expand"}
+                      size={14}
+                    />
                   </button>
                 </div>
               ) : (
-                link(key, icon, label)
+                link(key, label)
               )}
               {key === "roadmaps" && session.data && (
                 <RoadmapNav
@@ -122,24 +127,16 @@ export default function App() {
             </Fragment>
           ))}
         </nav>
-        <div className="sidebar-note">
-          <span className="live-dot" /> On this machine
-          <br />
-          <small>
-            Private by default.
-            <br />
-            Progress, at your pace.
-          </small>
-        </div>
+        <div className="sidebar-note">On this machine. Private by default.</div>
       </aside>
       <div className="workspace">
         <div className="topbar">
           <span>
-            {session.data?.today ?? "Worklog"}{" "}
+            {page === "today" && id ? id : (session.data?.today ?? "Worklog")}{" "}
             <span className="muted">/ {page}</span>
           </span>
           <label className="search">
-            <span aria-hidden="true">⌕</span>
+            <Icon name="search" size={18} />
             <input
               aria-label="Search all work"
               placeholder="Search your work…"
@@ -182,7 +179,6 @@ export default function App() {
             </>
           )}
         </main>
-        <footer>Small steps. A durable record.</footer>
       </div>
     </div>
   );
@@ -204,7 +200,6 @@ function Search({ query }: { query: string }) {
   return (
     <>
       <header>
-        <p className="eyebrow">Across your worklog</p>
         <h1>Search</h1>
       </header>
       <label>
@@ -253,7 +248,7 @@ function Search({ query }: { query: string }) {
             Previous results
           </button>
           <span>
-            {offset + 1}–{Math.min(offset + 50, results.data?.total ?? 0)}
+            {offset + 1} to {Math.min(offset + 50, results.data?.total ?? 0)}
           </span>
           <button
             disabled={offset + 50 >= (results.data?.total ?? 0)}

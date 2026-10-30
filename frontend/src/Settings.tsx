@@ -24,9 +24,10 @@ export function Settings() {
   return (
     <>
       <header>
-        <p className="eyebrow">Local by design</p>
         <h1>Settings</h1>
-        <p className="lede">Your files. Your history. Your machine.</p>
+        <p className="lede">
+          Preferences, backups and agent access for this machine.
+        </p>
       </header>
       <ErrorMessage error={action.error} />
       {localStore
@@ -100,7 +101,7 @@ export function Settings() {
             </select>
           </label>
           <small>
-            Worklog {data.version} · local date {data.today}
+            Worklog {data.version}, local date {data.today}
           </small>
         </section>
         <section>
@@ -134,9 +135,8 @@ export function Settings() {
           {data.backups.map((b) => (
             <div className="line" key={b.name}>
               <code>{b.name}</code>
-              <small>
-                {formatBytes(b.size)} · {new Date(b.createdAt).toLocaleString()}
-              </small>
+              <small>{formatBytes(b.size)}</small>
+              <small>{new Date(b.createdAt).toLocaleString()}</small>
             </div>
           ))}
           <p className="muted">
@@ -195,19 +195,15 @@ export function Settings() {
               <button onClick={() => navigator.clipboard.writeText(token)}>
                 Copy token
               </button>
-              <button onClick={() => setToken("")}>
-                I have saved it — dismiss
-              </button>
+              <button onClick={() => setToken("")}>I have saved it</button>
             </div>
           </div>
         )}
         {data.credentials.map((c) => (
           <div className="line" key={c.id}>
             <strong>{c.label}</strong>
-            <small>
-              {new Date(c.createdAt).toLocaleString()} ·{" "}
-              {c.revoked ? "revoked" : "active"}
-            </small>
+            <small>{new Date(c.createdAt).toLocaleString()}</small>
+            <small>{c.revoked ? "Revoked" : "Active"}</small>
             {!c.revoked && (
               <button
                 onClick={() =>

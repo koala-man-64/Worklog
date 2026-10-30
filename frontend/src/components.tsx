@@ -92,7 +92,7 @@ export function StatusSelect({
     >
       {["open", "doing", "blocked", "done"].map((s) => (
         <option key={s} value={s}>
-          {s}
+          {s[0].toUpperCase() + s.slice(1)}
         </option>
       ))}
     </select>
@@ -317,7 +317,7 @@ export function formatBytes(value: number) {
 export function History({ items }: { items: unknown[] }) {
   return (
     <details>
-      <summary>Activity history · {items?.length ?? 0}</summary>
+      <summary>Activity history ({items?.length ?? 0})</summary>
       <pre>{JSON.stringify(items, null, 2)}</pre>
     </details>
   );
@@ -355,8 +355,8 @@ export function RecoverRecords({
   return (
     <details>
       <summary>
-        Archived supporting records ·{" "}
-        {groupsWithRecords.reduce((n, g) => n + g.records.length, 0)}
+        Archived supporting records (
+        {groupsWithRecords.reduce((n, g) => n + g.records.length, 0)})
       </summary>
       {groupsWithRecords.map((g) => (
         <section key={g.path}>
