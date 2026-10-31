@@ -1,9 +1,15 @@
-import { Fragment, useEffect, useState } from "react";
+import {
+  Fragment,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { localStore } from "./storage";
 import { useQuery } from "@tanstack/react-query";
 import { bootstrap } from "./api";
-import { useData } from "./hooks";
-import { ErrorMessage } from "./components";
+import { useData, useStoredWidth } from "./hooks";
+import { ErrorMessage, ResizeHandle } from "./components";
 import { Today } from "./Today";
 import { Work } from "./Work";
 import { Roadmaps } from "./Roadmaps";
@@ -21,6 +27,9 @@ const destinations: [IconName, string][] = [
   ["review", "Review"],
   ["settings", "Settings"],
 ];
+// The narrowest sidebar still fits the brand; the widest leaves the workspace room.
+const SIDEBAR_MIN = 190;
+const SIDEBAR_MAX = 420;
 type Result = {
   id: string;
   type: string;
@@ -36,6 +45,8 @@ export default function App() {
   const [roadmapsOpen, setRoadmapsOpen] = useState(
     () => localStore.read("nav-roadmaps").value !== "closed",
   );
+  const sidebar = useStoredWidth("sidebar-width", SIDEBAR_MIN, SIDEBAR_MAX);
+  const sidebarRef = useRef<HTMLElement>(null);
   const session = useQuery({
     queryKey: ["session"],
     queryFn: bootstrap,
@@ -68,7 +79,14 @@ export default function App() {
       localStore.read("theme").value ?? "system";
   }, []);
   return (
-    <div className="app">
+    <div
+      className="app"
+      style={
+        sidebar.width === null
+          ? undefined
+          : ({ "--sidebar-width": sidebar.width + "px" } as CSSProperties)
+      }
+    >
       <a
         className="skip-link"
         href="#main"
@@ -80,7 +98,7 @@ export default function App() {
       >
         Skip to content
       </a>
-      <aside className="sidebar">
+      <aside className="sidebar" ref={sidebarRef}>
         <a className="brand" href="#today">
           <span className="brand-mark">w.</span>
           <span>
@@ -128,6 +146,14 @@ export default function App() {
           ))}
         </nav>
         <div className="sidebar-note">On this machine. Private by default.</div>
+        <ResizeHandle
+          label="Resize sidebar"
+          panel={sidebarRef}
+          min={SIDEBAR_MIN}
+          max={() => SIDEBAR_MAX}
+          onResize={sidebar.resize}
+          onReset={sidebar.reset}
+        />
       </aside>
       <div className="workspace">
         <div className="topbar">

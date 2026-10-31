@@ -38,6 +38,24 @@ export function useCommand<TBody, TResult>(
       }),
   });
 }
+/** A panel width the person dragged to, remembered in this browser; null keeps the layout's own width. */
+export function useStoredWidth(key: string, min: number, max: number) {
+  const [width, setWidth] = useState(() => {
+    const stored = Number(localStore.read(key).value);
+    return stored >= min && stored <= max ? stored : null;
+  });
+  return {
+    width,
+    resize: (next: number, done: boolean) => {
+      setWidth(next);
+      if (done) localStore.write(key, String(next));
+    },
+    reset: () => {
+      setWidth(null);
+      localStore.remove(key);
+    },
+  };
+}
 // A per-record serialized queue keeps revisions ordered; drafts survive failures and reloads.
 const queues = new Map<string, Promise<unknown>>();
 // Advance a draft only through revisions this tab actually acknowledged from its
