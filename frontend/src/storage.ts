@@ -41,4 +41,17 @@ function store(kind: "localStorage" | "sessionStorage") {
   };
 }
 export const localStore = store("localStorage");
+/** Ids remembered as a JSON array, such as the collapsed nodes of a tree. Bad data reads as empty. */
+export function readIdSet(key: string) {
+  try {
+    const ids: unknown = JSON.parse(localStore.read(key).value ?? "[]");
+    return new Set(
+      Array.isArray(ids)
+        ? ids.filter((i): i is string => typeof i === "string")
+        : [],
+    );
+  } catch {
+    return new Set<string>();
+  }
+}
 export const sessionStore = store("sessionStorage");

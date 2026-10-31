@@ -421,6 +421,16 @@ small {
 .sidebar nav .nav-toggle:hover {
   background: var(--teal-wash);
 }
+/* Parent roadmaps in the sidebar tree get a smaller toggle at the row's end. */
+.sidebar nav .subnav .nav-row > a {
+  padding-right: 28px;
+}
+.sidebar nav .subnav .nav-toggle {
+  inset: 0 2px 0 auto;
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
+}
 .sidebar-note {
   margin-top: auto;
   color: var(--muted);
@@ -877,6 +887,22 @@ section:not(.draft) > h3 {
   font-size: 12px;
   color: var(--muted);
   margin: 7px 0 0;
+}
+.roadmap-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+/* The chevron centers on the title line, as in the plan outline. */
+.roadmap-summary > .tree-toggle,
+.roadmap-summary > .tree-spacer {
+  margin: -4px 0 0 -8px;
+}
+.roadmap-summary small {
+  display: block;
+  margin-top: 7px;
 }
 .import-box {
   background: var(--teal-wash);

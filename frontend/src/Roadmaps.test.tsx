@@ -398,3 +398,26 @@ it("keeps an archived parent selectable instead of showing the top level", async
     within(parent).getByRole("option", { name: "Old program (archived)" }),
   ).toBeInTheDocument();
 });
+it("collapses a parent roadmap's sub-roadmaps in the list and remembers it", async () => {
+  mockNested();
+  const { unmount } = render(withClient(<Roadmaps />));
+  await screen.findByRole("link", { name: "Storage" });
+  await userEvent.click(
+    screen.getByRole("button", { name: "Collapse Platform" }),
+  );
+  expect(screen.queryByRole("link", { name: "Plan" })).toBeNull();
+  expect(screen.queryByRole("link", { name: "Storage" })).toBeNull();
+  expect(screen.getByText("(1 sub-roadmap hidden)")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Deep" })).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "Expand Platform" }),
+  ).toHaveAttribute("aria-expanded", "false");
+  unmount();
+  render(withClient(<Roadmaps />));
+  await screen.findByRole("link", { name: "Other" });
+  expect(screen.queryByRole("link", { name: "Plan" })).toBeNull();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Expand Platform" }),
+  );
+  expect(screen.getByRole("link", { name: "Storage" })).toBeInTheDocument();
+});

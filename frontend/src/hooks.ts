@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { request, contextStorageKey, getDataContext, ApiError } from "./api";
-import { localStore } from "./storage";
+import { localStore, readIdSet } from "./storage";
 export function useData<T>(path: string) {
   return useQuery({
     queryKey: [getDataContext(), path],
@@ -37,6 +37,24 @@ export function useCommand<TBody, TResult>(
         predicate: (q) => q.queryKey[0] !== "session",
       }),
   });
+}
+/**
+ * Tree nodes the person collapsed, remembered in this browser. `reveal` opens
+ * nodes for this view only, so a reload restores what the person chose.
+ */
+export function useCollapsed(key: string) {
+  const [collapsed, setCollapsed] = useState(() => readIdSet(key));
+  return {
+    collapsed,
+    toggle: (id: string) => {
+      const next = new Set(collapsed);
+      if (!next.delete(id)) next.add(id);
+      setCollapsed(next);
+      localStore.write(key, JSON.stringify([...next]));
+    },
+    reveal: (ids: string[]) =>
+      setCollapsed(new Set([...collapsed].filter((c) => !ids.includes(c)))),
+  };
 }
 /** A panel width the person dragged to, remembered in this browser; null keeps the layout's own width. */
 export function useStoredWidth(key: string, min: number, max: number) {
