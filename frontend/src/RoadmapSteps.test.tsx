@@ -38,13 +38,15 @@ const road: Roadmap = {
   attachments: [],
   history: [],
 };
+let served = road;
 beforeEach(() => {
   vi.restoreAllMocks();
   setDataContext("roadmap-steps-" + crypto.randomUUID());
+  served = road;
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input) =>
     Response.json(
       String(input).endsWith("/roadmaps/" + ROADMAP)
-        ? road
+        ? served
         : { items: [], total: 0 },
     ),
   );
@@ -86,11 +88,49 @@ it("collapses and expands every parent at once", async () => {
   await screen.findByText("Child");
   const expand = screen.getByRole("button", { name: "Expand all" });
   expect(expand).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Collapse done" })).toBeDisabled();
   await userEvent.click(screen.getByRole("button", { name: "Collapse all" }));
   expect(screen.queryByText("Child")).toBeNull();
   expect(screen.getByRole("button", { name: "Collapse all" })).toBeDisabled();
   await userEvent.click(expand);
   expect(screen.getByText("Child")).toBeVisible();
+});
+
+it("collapses the sections whose steps are all done, keeping the rest as they are", async () => {
+  const SHIPPED = "aaaaaaaa-0000-4000-8000-000000000004";
+  served = {
+    ...road,
+    steps: [
+      ...road.steps,
+      { ...step(SHIPPED, "Shipped", null), status: "done" },
+      {
+        ...step("aaaaaaaa-0000-4000-8000-000000000005", "Released", SHIPPED),
+        status: "done",
+      },
+    ],
+  };
+  const first = view();
+  expect(await screen.findByText("Released")).toBeVisible();
+  const collapseDone = screen.getByRole("button", { name: "Collapse done" });
+  await userEvent.click(collapseDone);
+  expect(screen.queryByText("Released")).toBeNull();
+  expect(screen.getByText("Child")).toBeVisible();
+  expect(collapseDone).toBeDisabled();
+
+  await userEvent.click(screen.getByRole("button", { name: "Expand Shipped" }));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Collapse Parent" }),
+  );
+  await userEvent.click(collapseDone);
+  expect(screen.queryByText("Released")).toBeNull();
+  expect(screen.queryByText("Child")).toBeNull();
+
+  first.unmount();
+  view();
+  expect(
+    await screen.findByRole("button", { name: "Expand Shipped" }),
+  ).toBeVisible();
+  expect(screen.getByRole("button", { name: "Expand Parent" })).toBeVisible();
 });
 
 it("applies prominent state classes to step containers, status dots, and status selects", async () => {

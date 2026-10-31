@@ -365,8 +365,13 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
   const leaves = active.filter(
     (s) => !active.some((child) => child.parentId === s.id),
   );
-  const parents = active
-    .filter((s) => active.some((child) => child.parentId === s.id))
+  const parentSteps = active.filter((s) =>
+    active.some((child) => child.parentId === s.id),
+  );
+  const parents = parentSteps.map((s) => s.id);
+  // A parent's progress is derived: it is done only once all of its leaves are.
+  const doneParents = parentSteps
+    .filter((s) => s.status === "done")
     .map((s) => s.id);
   const completed = leaves.filter((s) => s.status === "done").length;
   const roadWorkItems = road.workItems ?? [];
@@ -888,6 +893,15 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
             <h2>Plan & progress</h2>
             {parents.length > 0 && (
               <span className="toolbar">
+                <button
+                  className="quiet"
+                  disabled={doneParents.every((p) => collapsed.has(p))}
+                  onClick={() =>
+                    setCollapsed(new Set([...collapsed, ...doneParents]))
+                  }
+                >
+                  Collapse done
+                </button>
                 <button
                   className="quiet"
                   disabled={parents.every((p) => collapsed.has(p))}
