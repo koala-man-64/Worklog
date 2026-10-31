@@ -1,9 +1,15 @@
-import { Fragment, useEffect, useRef, useState } from "react";
+import {
+  Fragment,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { localStore } from "./storage";
 import { roadmapChildren } from "./RoadmapNav";
 import { request, download, contextStorageKey } from "./api";
 import { commands } from "./commands";
-import { useAction, useCommand, useData } from "./hooks";
+import { useAction, useCommand, useData, useStoredWidth } from "./hooks";
 import {
   AgentChatsSection,
   Empty,
@@ -17,10 +23,16 @@ import {
   PeopleLinks,
   PersonBadges,
   RecoverRecords,
+  ResizeHandle,
   StatusSelect,
 } from "./components";
 import type { Item, List, Person, Roadmap, Step } from "./types";
 import { Icon } from "./icons";
+// Matches the outline column's clamp in styles.css: the outline never narrower
+// than 300px, and the detail pane keeps 300px beside the 24px handle.
+const OUTLINE_MIN = 300;
+const DETAIL_MIN = 300;
+const HANDLE_WIDTH = 24;
 type Preview = {
   id: string;
   title: string;
@@ -341,6 +353,9 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
   const [subTitle, setSubTitle] = useState("");
   const roads = useData<List<Roadmap>>("/roadmaps?archived=false");
   const outlineRef = useRef<HTMLDivElement>(null);
+  const splitRef = useRef<HTMLDivElement>(null);
+  const outlinePanelRef = useRef<HTMLDivElement>(null);
+  const outlineWidth = useStoredWidth("outline-width", OUTLINE_MIN, 2000);
   const detailRef = useRef<HTMLDivElement>(null);
   const snapshotRef = useRef<HTMLElement>(null);
   const workList = useData<List<Item>>(
@@ -1001,8 +1016,23 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
       <ErrorMessage
         error={action.error || createItem.error || workList.error}
       />
-      <div className="split roadmap-split">
-        <div className="panel" role="region" aria-label="Plan outline">
+      <div
+        className="split roadmap-split"
+        ref={splitRef}
+        style={
+          outlineWidth.width === null
+            ? undefined
+            : ({
+                "--outline-width": outlineWidth.width + "px",
+              } as CSSProperties)
+        }
+      >
+        <div
+          className="panel"
+          role="region"
+          aria-label="Plan outline"
+          ref={outlinePanelRef}
+        >
           <div className="panel-head">
             <h2>Plan & progress</h2>
             {parents.length > 0 && (
@@ -1041,6 +1071,18 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
             )}
           </div>
         </div>
+        <ResizeHandle
+          label="Resize plan outline"
+          panel={outlinePanelRef}
+          min={OUTLINE_MIN}
+          max={() =>
+            (splitRef.current?.getBoundingClientRect().width ?? 0) -
+            HANDLE_WIDTH -
+            DETAIL_MIN
+          }
+          onResize={outlineWidth.resize}
+          onReset={outlineWidth.reset}
+        />
         <div
           className="pane detail"
           role="region"

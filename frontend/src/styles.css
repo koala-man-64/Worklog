@@ -300,14 +300,16 @@ small,
 small {
   font-size: 12px;
 }
+/* --sidebar-width is the width the person dragged to; without one the sidebar keeps its default. */
 .app {
+  --sidebar-w: var(--sidebar-width, 230px);
   display: flex;
   min-height: 100vh;
 }
 .sidebar {
   position: fixed;
   inset: 0 auto 0 0;
-  width: 230px;
+  width: var(--sidebar-w);
   background: var(--sidebar);
   border-right: 1px solid var(--line);
   display: flex;
@@ -427,9 +429,44 @@ small {
   line-height: 1.7;
 }
 .workspace {
-  margin-left: 230px;
+  margin-left: var(--sidebar-w);
   min-width: 0;
-  width: calc(100% - 230px);
+  width: calc(100% - var(--sidebar-w));
+}
+.resize-handle {
+  position: relative;
+  cursor: col-resize;
+  touch-action: none;
+}
+.resize-handle::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 50%;
+  width: 2px;
+  margin-left: -1px;
+}
+.resize-handle:hover::after,
+.resize-handle:focus-visible::after,
+.resize-handle.dragging::after {
+  background: var(--teal);
+}
+/* Focus thickens the line rather than ringing a sliver of the gap. */
+.resize-handle:focus-visible {
+  outline: none;
+}
+.resize-handle:focus-visible::after {
+  width: 4px;
+  margin-left: -2px;
+}
+.sidebar > .resize-handle {
+  position: absolute;
+  inset: 0 -5px 0 auto;
+  width: 10px;
+}
+.resizing,
+.resizing * {
+  cursor: col-resize;
+  user-select: none;
 }
 .topbar {
   display: flex;
@@ -747,6 +784,14 @@ select.status-select option {
 @media (forced-colors: active) {
   select.status-select {
     border: 2px solid ButtonText;
+  }
+  .resize-handle::after {
+    forced-color-adjust: none;
+  }
+  .resize-handle:hover::after,
+  .resize-handle:focus-visible::after,
+  .resize-handle.dragging::after {
+    background: Highlight;
   }
   select.status-select.doing,
   select.status-select.blocked {
@@ -1313,13 +1358,11 @@ code {
   margin-top: 8px;
 }
 @media (max-width: 1050px) {
-  .sidebar {
-    width: 190px;
-    padding-inline: 17px;
+  .app {
+    --sidebar-w: var(--sidebar-width, 190px);
   }
-  .workspace {
-    margin-left: 190px;
-    width: calc(100% - 190px);
+  .sidebar {
+    padding-inline: 17px;
   }
   .brand {
     font-size: 20px;
@@ -1385,7 +1428,8 @@ code {
   .sidebar nav .subnav {
     display: none;
   }
-  .sidebar nav .nav-toggle {
+  .sidebar nav .nav-toggle,
+  .sidebar > .resize-handle {
     display: none;
   }
   .nav-row > a {
@@ -1485,6 +1529,9 @@ code {
 }
 /* Stacked on a narrow or short window, the outline keeps its own scroll so the detail stays a few screens down. */
 @media not all and (min-width: 900px) and (min-height: 560px) {
+  .roadmap-split > .resize-handle {
+    display: none;
+  }
   .roadmap-split .panel-body {
     max-height: 60dvh;
     overflow-y: auto;
@@ -1530,8 +1577,16 @@ code {
     min-height: 280px;
     grid-template-rows: minmax(0, 1fr);
   }
+  /* The outline takes 6/13 of the row until dragged to --outline-width; either way it keeps 300px and leaves the detail 300px (OUTLINE_MIN and DETAIL_MIN in Roadmaps.tsx). The 24px handle column is the gap. */
   .roadmap-split {
-    grid-template-columns: minmax(300px, 6fr) minmax(0, 7fr);
+    grid-template-columns:
+      clamp(
+        300px,
+        var(--outline-width, calc((100% - 24px) * 6 / 13)),
+        calc(100% - 324px)
+      )
+      24px minmax(0, 1fr);
+    column-gap: 0;
   }
   .roadmaps-split {
     grid-template-columns: minmax(0, 3fr) minmax(300px, 2fr);

@@ -1,4 +1,9 @@
-import { expect, test, type BrowserContext } from "@playwright/test";
+import {
+  expect,
+  test,
+  type BrowserContext,
+  type Locator,
+} from "@playwright/test";
 
 // Every browser scenario runs with non-local HTTP traffic denied. This verifies
 // the installed app without disabling the user's network connection.
@@ -474,4 +479,77 @@ test("a structure draft survives a progress change made while editing", async ({
     "Leaf two",
   ]);
   expect(active[1].status).toBe("doing");
+});
+test("the sidebar and plan outline resize by drag and keep their widths", async ({
+  page,
+  baseURL,
+}) => {
+  const origin = new URL(baseURL!).origin;
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Today", exact: true }),
+  ).toBeVisible();
+  const boot = await page.request.post("/api/v1/session/bootstrap", {
+    headers: { Origin: origin, "X-Worklog-Bootstrap": "1" },
+    data: {},
+  });
+  const { csrfToken } = await boot.json();
+  const created = await page.request.post("/api/v1/roadmaps", {
+    headers: {
+      Origin: origin,
+      "X-CSRF-Token": csrfToken,
+      "Idempotency-Key": crypto.randomUUID(),
+    },
+    data: { title: "Resizable " + Date.now(), steps: [{ title: "Only step" }] },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { id } = await created.json();
+  await page.goto("/#roadmaps/" + id);
+  const outline = page.getByRole("region", { name: "Plan outline" });
+  const sidebar = page.getByRole("complementary");
+  const outlineHandle = page.getByRole("separator", {
+    name: "Resize plan outline",
+  });
+  const sidebarHandle = page.getByRole("separator", { name: "Resize sidebar" });
+  const width = async (target: Locator) => (await target.boundingBox())!.width;
+  const drag = async (handle: Locator, dx: number) => {
+    const box = (await handle.boundingBox())!;
+    const y = box.y + box.height / 2;
+    await page.mouse.move(box.x + box.width / 2, y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + dx, y, { steps: 4 });
+    await page.mouse.up();
+  };
+  await expect(outline).toBeVisible();
+  const initial = await width(outline);
+  await drag(outlineHandle, 120);
+  expect(Math.abs((await width(outline)) - (initial + 120))).toBeLessThan(1);
+  await drag(sidebarHandle, 60);
+  expect(await width(sidebar)).toBe(290);
+  await expect(sidebarHandle).toHaveAttribute("aria-valuenow", "290");
+  // The outline stops where the detail pane would drop below 300px.
+  await drag(outlineHandle, 2000);
+  const detail = page.getByRole("region", { name: "Roadmap details" });
+  expect(Math.round(await width(detail))).toBe(300);
+  await drag(outlineHandle, -2000);
+  expect(await width(outline)).toBe(300);
+  await page.reload();
+  await expect(outline).toBeVisible();
+  expect(await width(sidebar)).toBe(290);
+  expect(await width(outline)).toBe(300);
+  await sidebarHandle.dblclick();
+  expect(await width(sidebar)).toBe(230);
+  await outlineHandle.dblclick();
+  expect(Math.abs((await width(outline)) - initial)).toBeLessThan(1);
+  // Stacked layouts have nothing to drag and still fit the window.
+  await drag(sidebarHandle, 120);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(sidebarHandle).toBeHidden();
+  await expect(outlineHandle).toBeHidden();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBeTruthy();
 });
