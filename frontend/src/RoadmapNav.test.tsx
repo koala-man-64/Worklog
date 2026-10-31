@@ -1,7 +1,8 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { setDataContext } from "./api";
+import { contextStorageKey, setDataContext } from "./api";
 import { RoadmapNav } from "./RoadmapNav";
 
 const A = "22222222-2222-4222-8222-222222222221";
@@ -91,4 +92,43 @@ it("hides the list but keeps it addressable when closed", async () => {
   const list = await screen.findByRole("list", { hidden: true });
   expect(list).toHaveAttribute("id", "roadmap-subnav");
   expect(list).not.toBeVisible();
+});
+
+it("collapses a parent's sub-roadmaps and remembers it", async () => {
+  mockRoadmaps([
+    { id: A, title: "Platform" },
+    { id: B, title: "Storage", parentId: A },
+  ]);
+  const { unmount } = render(view());
+  await screen.findByRole("link", { name: "Storage" });
+  await userEvent.click(
+    screen.getByRole("button", { name: "Collapse Platform" }),
+  );
+  expect(screen.queryByRole("link", { name: "Storage" })).toBeNull();
+  expect(
+    screen.getByRole("button", { name: "Expand Platform" }),
+  ).toHaveAttribute("aria-expanded", "false");
+  unmount();
+  render(view());
+  await screen.findByRole("link", { name: "Platform" });
+  expect(screen.queryByRole("link", { name: "Storage" })).toBeNull();
+});
+
+it("shows the selected roadmap inside a collapsed parent without forgetting the choice", async () => {
+  const C = "22222222-2222-4222-8222-222222222223";
+  const key = contextStorageKey("roadmaps-collapsed", "nav");
+  localStorage.setItem(key, JSON.stringify([A, B]));
+  mockRoadmaps([
+    { id: A, title: "Platform" },
+    { id: B, title: "Storage", parentId: A },
+    { id: C, title: "Disks", parentId: B },
+  ]);
+  const { unmount } = render(view(C));
+  const disks = await screen.findByRole("link", { name: "Disks" });
+  expect(disks).toHaveAttribute("aria-current", "page");
+  expect(JSON.parse(localStorage.getItem(key)!)).toEqual([A, B]);
+  unmount();
+  render(view());
+  await screen.findByRole("link", { name: "Platform" });
+  expect(screen.queryByRole("link", { name: "Storage" })).toBeNull();
 });

@@ -138,6 +138,7 @@ export default function App() {
               )}
               {key === "roadmaps" && session.data && (
                 <RoadmapNav
+                  key={session.data.dataId}
                   open={roadmapsOpen}
                   selected={page === "roadmaps" ? id : undefined}
                 />

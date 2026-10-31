@@ -5,11 +5,17 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { localStore } from "./storage";
+import { localStore, readIdSet } from "./storage";
 import { roadmapChildren } from "./RoadmapNav";
 import { request, download, contextStorageKey } from "./api";
 import { commands } from "./commands";
-import { useAction, useCommand, useData, useStoredWidth } from "./hooks";
+import {
+  useAction,
+  useCollapsed,
+  useCommand,
+  useData,
+  useStoredWidth,
+} from "./hooks";
 import {
   AgentChatsSection,
   Empty,
@@ -59,34 +65,65 @@ export function Roadmaps({
   );
   const action = useAction();
   const [title, setTitle] = useState("");
+  const { collapsed, toggle } = useCollapsed(
+    contextStorageKey("roadmaps-collapsed", "list"),
+  );
   if (selected) return <RoadmapDetail id={selected} step={step} />;
   const shown = (archive ? old : roads).data?.items ?? [];
   const tree = roadmapChildren(shown);
+  // Rows keep one toggle column only when some roadmap has sub-roadmaps.
+  const nested = tree.size > 1;
   const rows = (parent: string | null): React.ReactNode =>
-    tree.get(parent)?.map((r) => (
-      <li key={r.id}>
-        <article className="roadmap-row">
-          <div>
-            <a className="item-title" href={"#roadmaps/" + r.id}>
-              {r.title}
-            </a>
-            <PersonBadges people={r.people} />
-            <p>{r.overview?.slice(0, 160)}</p>
-          </div>
-          <button
-            onClick={() =>
-              action.mutate({
-                path: `/roadmaps/${r.id}/${archive ? "recover" : "archive"}`,
-                body: { revision: r.revision },
-              })
-            }
-          >
-            {archive ? "Recover" : "Archive"}
-          </button>
-        </article>
-        {tree.has(r.id) && <ul className="roadmap-tree">{rows(r.id)}</ul>}
-      </li>
-    ));
+    tree.get(parent)?.map((r) => {
+      const kids = tree.get(r.id)?.length ?? 0;
+      const closed = kids > 0 && collapsed.has(r.id);
+      return (
+        <li key={r.id}>
+          <article className="roadmap-row">
+            <div className="roadmap-summary">
+              {kids > 0 ? (
+                <button
+                  type="button"
+                  className="tree-toggle"
+                  aria-expanded={!closed}
+                  aria-label={(closed ? "Expand " : "Collapse ") + r.title}
+                  onClick={() => toggle(r.id)}
+                >
+                  <Icon name={closed ? "expand" : "collapse"} size={14} />
+                </button>
+              ) : (
+                nested && <span className="tree-spacer" />
+              )}
+              <div>
+                <a className="item-title" href={"#roadmaps/" + r.id}>
+                  {r.title}
+                </a>
+                <PersonBadges people={r.people} />
+                <p>{r.overview?.slice(0, 160)}</p>
+                {closed && (
+                  <small>
+                    ({kids} sub-roadmap{kids === 1 ? "" : "s"} hidden)
+                  </small>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={() =>
+                action.mutate({
+                  path: `/roadmaps/${r.id}/${archive ? "recover" : "archive"}`,
+                  body: { revision: r.revision },
+                })
+              }
+            >
+              {archive ? "Recover" : "Archive"}
+            </button>
+          </article>
+          {kids > 0 && !closed && (
+            <ul className="roadmap-tree">{rows(r.id)}</ul>
+          )}
+        </li>
+      );
+    });
   return (
     <div className="bounded-screen">
       <header>
@@ -321,18 +358,6 @@ function ImportRoadmap() {
     </section>
   );
 }
-function readCollapsed(key: string) {
-  try {
-    const ids: unknown = JSON.parse(localStore.read(key).value ?? "[]");
-    return new Set(
-      Array.isArray(ids)
-        ? ids.filter((i): i is string => typeof i === "string")
-        : [],
-    );
-  } catch {
-    return new Set<string>();
-  }
-}
 export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
   const query = useData<Roadmap>("/roadmaps/" + id);
   const action = useAction();
@@ -342,7 +367,7 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
   // Collapsed steps persist per roadmap so a large plan reopens as it was left.
   const collapsedKey = contextStorageKey("roadmap-collapsed", id);
   const [collapsed, setCollapsedState] = useState<Set<string>>(() =>
-    readCollapsed(collapsedKey),
+    readIdSet(collapsedKey),
   );
   const [revealed, setRevealed] = useState<string | undefined>();
   const [newItemTitle, setNewItemTitle] = useState("");
