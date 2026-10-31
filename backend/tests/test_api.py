@@ -385,6 +385,43 @@ def test_roadmap_work_items_create_attach_step_move_and_unlink(client):
     assert unlinked["roadmapId"] is None and unlinked["stepId"] is None
 
 
+def test_nested_roadmaps_over_http_and_agent_proposals(client):
+    parent = write(client, "POST", "/roadmaps", {"title": "Platform"}).json()
+    child = write(client, "POST", "/roadmaps", {"title": "Storage", "parentId": parent["id"]})
+    assert child.status_code == 200, child.text
+    child = child.json()
+    detail = client.get(f"/api/v1/roadmaps/{child['id']}").json()
+    assert detail["parentId"] == parent["id"]
+    assert detail["ancestors"] == [{"id": parent["id"], "title": "Platform", "archived": False}]
+    assert client.get(f"/api/v1/roadmaps/{parent['id']}").json()["children"] == [{"id": child["id"], "title": "Storage", "archived": False}]
+    assert [r["parentId"] for r in client.get("/api/v1/roadmaps").json()["items"]] == [None, parent["id"]]
+
+    # Placement only changes through move; a revision carrying parentId is rejected.
+    sneaky = write(client, "POST", f"/roadmaps/{child['id']}/revisions", {"revision": child["revision"], "title": "Storage", "parentId": None})
+    assert sneaky.status_code == 422
+    assert write(client, "POST", f"/roadmaps/{child['id']}/move", {"revision": child["revision"]}).status_code == 422
+    cycle = write(client, "POST", f"/roadmaps/{parent['id']}/move", {"revision": parent["revision"], "parentId": child["id"]})
+    assert cycle.status_code == 422
+    top = write(client, "POST", f"/roadmaps/{child['id']}/move", {"revision": child["revision"], "parentId": None})
+    assert top.status_code == 200, top.text
+    assert top.json()["parentId"] is None
+
+    cred = write(client, "POST", "/credentials", {"label": "Planner agent"}).json()
+    headers = {"Authorization": "Bearer " + cred["token"]}
+    operations = [{"action": "roadmap.move", "payload": {"id": child["id"], "revision": top.json()["revision"], "parentId": parent["id"]}},
+                  {"action": "roadmap.create", "payload": {"title": "Backups", "parentId": parent["id"]}}]
+    proposal = write(client, "POST", "/proposals", {"title": "Group storage work", "rationale": "Same platform", "operations": operations}, headers=headers)
+    assert proposal.status_code == 200, proposal.text
+    submitted = write(client, "POST", f"/proposals/{proposal.json()['id']}/submit", {"revision": proposal.json()["revision"]}, headers=headers).json()
+    approved = write(client, "POST", f"/proposals/{submitted['id']}/approve", {"revision": submitted["revision"]})
+    assert approved.status_code == 200, approved.text
+    children = client.get(f"/api/v1/roadmaps/{parent['id']}").json()["children"]
+    assert [c["title"] for c in children] == ["Storage", "Backups"]
+    bad = write(client, "POST", "/proposals", {"title": "Bad", "rationale": "Missing parent", "operations": [
+        {"action": "roadmap.move", "payload": {"id": child["id"], "revision": 1}}]}, headers=headers)
+    assert bad.status_code == 422
+
+
 def test_people_directory_and_roadmap_work_item_links(client):
     alice = write(client, "POST", "/people", {"name": "Alice Rivera", "role": "Staff Engineer", "notes": "Platform architecture lead"}).json()
     bob = write(client, "POST", "/people", {"name": "Bob Chen", "role": "Product Manager"}).json()

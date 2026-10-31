@@ -107,6 +107,15 @@ class Database:
                     except Exception:
                         conn.rollback()
                         raise
+                roadmap_columns = {r["name"] for r in conn.execute("PRAGMA table_info(roadmaps)")}
+                if "parent_id" not in roadmap_columns:
+                    try:
+                        conn.execute("BEGIN IMMEDIATE")
+                        conn.execute("ALTER TABLE roadmaps ADD COLUMN parent_id TEXT REFERENCES roadmaps(id)")
+                        conn.commit()
+                    except Exception:
+                        conn.rollback()
+                        raise
                 if conn.execute("PRAGMA foreign_key_check").fetchone():
                     raise AppError(503, "database_invalid", "Database has invalid references")
                 return

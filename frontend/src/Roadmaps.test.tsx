@@ -1,9 +1,9 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { contextStorageKey, setDataContext } from "./api";
-import { RoadmapDetail, StructureEditor } from "./Roadmaps";
+import { RoadmapDetail, Roadmaps, StructureEditor } from "./Roadmaps";
 import type { Item, Roadmap, Step } from "./types";
 
 const ROADMAP = "22222222-2222-4222-8222-222222222222";
@@ -178,7 +178,10 @@ it("adds, attaches, reassigns, and unlinks work items on a roadmap", async () =>
         JSON.stringify({ items: [existingItem, linkedItem], total: 2 }),
         { status: 200 },
       );
-    if (method === "GET" && url.includes("/people"))
+    if (
+      method === "GET" &&
+      (url.includes("/people") || url.includes("/roadmaps?"))
+    )
       return new Response(JSON.stringify({ items: [], total: 0 }), {
         status: 200,
       });
@@ -261,4 +264,137 @@ it("adds, attaches, reassigns, and unlinks work items on a roadmap", async () =>
       },
     }),
   );
+});
+const TOP = "33333333-3333-4333-8333-333333333331";
+const CHILD = "33333333-3333-4333-8333-333333333332";
+const OTHER = "33333333-3333-4333-8333-333333333333";
+const DEEP = "33333333-3333-4333-8333-333333333334";
+const nestedList = [
+  { id: TOP, title: "Platform", parentId: null, revision: 1 },
+  { id: ROADMAP, title: "Plan", parentId: TOP, revision: 4 },
+  { id: CHILD, title: "Storage", parentId: ROADMAP, revision: 1 },
+  { id: OTHER, title: "Other", parentId: null, revision: 1 },
+  { id: DEEP, title: "Deep", parentId: OTHER, revision: 1 },
+];
+function mockNested(roadData?: Roadmap) {
+  const calls: { url: string; method: string; body: unknown }[] = [];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const url = String(input);
+    const method = init?.method ?? "GET";
+    const json = (data: unknown) =>
+      new Response(JSON.stringify(data), { status: 200 });
+    if (method === "GET" && roadData && url.includes(`/roadmaps/${ROADMAP}`))
+      return json(roadData);
+    if (method === "GET" && url.includes("/roadmaps?archived=false"))
+      return json({ items: nestedList, total: nestedList.length });
+    if (method === "GET") return json({ items: [], total: 0 });
+    calls.push({
+      url,
+      method,
+      body: init?.body ? JSON.parse(String(init.body)) : null,
+    });
+    return json({ id: "new", revision: 1 });
+  });
+  return calls;
+}
+function withClient(node: React.ReactNode) {
+  return (
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      {node}
+    </QueryClientProvider>
+  );
+}
+it("lists sub-roadmaps nested under their parent roadmap", async () => {
+  mockNested();
+  render(withClient(<Roadmaps />));
+  const storage = await screen.findByRole("link", { name: "Storage" });
+  const plan = screen.getByRole("link", { name: "Plan" });
+  const platformItem = screen
+    .getByRole("link", { name: "Platform" })
+    .closest("li")!;
+  expect(platformItem).toContainElement(plan);
+  expect(plan.closest("li")).toContainElement(storage);
+  expect(platformItem).not.toContainElement(
+    screen.getByRole("link", { name: "Other" }),
+  );
+});
+it("shows where a roadmap sits, adds sub-roadmaps, and moves it", async () => {
+  const calls = mockNested({
+    ...roadmap(4, []),
+    parentId: TOP,
+    ancestors: [{ id: TOP, title: "Platform", archived: false }],
+    children: [
+      { id: CHILD, title: "Storage", archived: false },
+      { id: DEEP, title: "Retired idea", archived: true },
+    ],
+  });
+  render(withClient(<RoadmapDetail id={ROADMAP} />));
+  const crumbs = await screen.findByRole("navigation", {
+    name: "Roadmap location",
+  });
+  expect(
+    within(crumbs).getByRole("link", { name: "Platform" }),
+  ).toHaveAttribute("href", "#roadmaps/" + TOP);
+  expect(screen.getByRole("link", { name: "Storage" })).toHaveAttribute(
+    "href",
+    "#roadmaps/" + CHILD,
+  );
+  expect(screen.getByText("Archived")).toBeInTheDocument();
+
+  // Neither the roadmap itself nor anything below it can become its parent.
+  const parent = screen.getByRole("combobox", { name: "Nested under" });
+  await waitFor(() =>
+    expect(
+      within(parent)
+        .getAllByRole("option")
+        .map((o) => o.textContent),
+    ).toEqual(["Top level", "Platform", "Other", "  Deep"]),
+  );
+  expect(parent).toHaveValue(TOP);
+  await userEvent.selectOptions(parent, OTHER);
+  await waitFor(() =>
+    expect(calls.at(-1)).toEqual({
+      url: `/api/v1/roadmaps/${ROADMAP}/move`,
+      method: "POST",
+      body: { revision: 4, parentId: OTHER },
+    }),
+  );
+
+  await userEvent.type(
+    screen.getByRole("textbox", { name: "New sub-roadmap title" }),
+    "Backups",
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Add sub-roadmap" }),
+  );
+  await waitFor(() =>
+    expect(calls.at(-1)).toEqual({
+      url: "/api/v1/roadmaps",
+      method: "POST",
+      body: { title: "Backups", overview: "", steps: [], parentId: ROADMAP },
+    }),
+  );
+});
+it("keeps an archived parent selectable instead of showing the top level", async () => {
+  mockNested({
+    ...roadmap(4, []),
+    parentId: "33333333-3333-4333-8333-999999999999",
+    ancestors: [
+      {
+        id: "33333333-3333-4333-8333-999999999999",
+        title: "Old program",
+        archived: true,
+      },
+    ],
+  });
+  render(withClient(<RoadmapDetail id={ROADMAP} />));
+  const parent = await screen.findByRole("combobox", { name: "Nested under" });
+  expect(parent).toHaveValue("33333333-3333-4333-8333-999999999999");
+  expect(
+    within(parent).getByRole("option", { name: "Old program (archived)" }),
+  ).toBeInTheDocument();
 });

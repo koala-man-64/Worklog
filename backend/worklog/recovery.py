@@ -69,7 +69,13 @@ def _compatible_schemas() -> tuple[dict[tuple[str, str], str], ...]:
     current_without_roadmap[("table", "work_items")] = current[("table", "work_items")].replace(
         ", roadmap_id TEXT REFERENCES roadmaps(id)", ""
     )
-    return (current, without_lcg, without_people, legacy_roadmap, current_without_roadmap)
+    # Every earlier shape predates roadmap nesting, so none has roadmaps.parent_id.
+    earlier = [
+        {**schema, ("table", "roadmaps"): schema[("table", "roadmaps")].replace(
+            ", parent_id TEXT REFERENCES roadmaps(id)", "")}
+        for schema in (current, without_lcg, without_people, legacy_roadmap, current_without_roadmap)
+    ]
+    return (current, *earlier)
 
 
 class InstanceLock:
@@ -405,6 +411,9 @@ def restore_database(db_path: Path | str, candidate_path: Path | str,
                     from worklog.db import LINKS_CHATS_GITHUB_SCHEMA
 
                     conn.executescript(LINKS_CHATS_GITHUB_SCHEMA)
+                roadmap_columns = {r[1] for r in conn.execute("PRAGMA table_info(roadmaps)")}
+                if "parent_id" not in roadmap_columns:
+                    conn.execute("ALTER TABLE roadmaps ADD COLUMN parent_id TEXT REFERENCES roadmaps(id)")
                 conn.execute("UPDATE credentials SET revoked=1")
                 conn.execute("UPDATE settings SET value=? WHERE key='dataId'", (json.dumps(new_data_id),))
                 conn.commit()

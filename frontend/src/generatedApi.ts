@@ -557,6 +557,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/roadmaps/{identity}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Roadmap Move */
+        post: operations["roadmap_move_api_v1_roadmaps__identity__move_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/steps/{identity}/progress": {
         parameters: {
             query?: never;
@@ -1214,7 +1231,7 @@ export interface components {
              * Action
              * @enum {string}
              */
-            action: "item.create" | "item.update" | "item.archive" | "item.recover" | "entry.upsert" | "note.create" | "note.update" | "task.create" | "task.update" | "roadmap.create" | "roadmap.revise" | "progress.set" | "person.create" | "person.update" | "person.archive" | "person.recover" | "person.link" | "person.unlink" | "link.create" | "link.update" | "link.archive" | "link.recover" | "chat.create" | "chat.update" | "chat.archive" | "chat.recover" | "github.create" | "github.update" | "github.archive" | "github.recover";
+            action: "item.create" | "item.update" | "item.archive" | "item.recover" | "entry.upsert" | "note.create" | "note.update" | "task.create" | "task.update" | "roadmap.create" | "roadmap.revise" | "roadmap.move" | "progress.set" | "person.create" | "person.update" | "person.archive" | "person.recover" | "person.link" | "person.unlink" | "link.create" | "link.update" | "link.archive" | "link.recover" | "chat.create" | "chat.update" | "chat.archive" | "chat.recover" | "github.create" | "github.update" | "github.archive" | "github.recover";
             /** Payload */
             payload: {
                 [key: string]: unknown;
@@ -1362,6 +1379,15 @@ export interface components {
             steps?: {
                 [key: string]: unknown;
             }[];
+            /** Parentid */
+            parentId?: string | null;
+        };
+        /** RoadmapMove */
+        RoadmapMove: {
+            /** Revision */
+            revision: number;
+            /** Parentid */
+            parentId: string | null;
         };
         /** RoadmapRevision */
         RoadmapRevision: {
@@ -2826,6 +2852,43 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["Restore"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    roadmap_move_api_v1_roadmaps__identity__move_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoadmapMove"];
             };
         };
         responses: {
