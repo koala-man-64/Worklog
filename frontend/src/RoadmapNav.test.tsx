@@ -7,7 +7,9 @@ import { RoadmapNav } from "./RoadmapNav";
 const A = "22222222-2222-4222-8222-222222222221";
 const B = "22222222-2222-4222-8222-222222222222";
 
-function mockRoadmaps(items: { id: string; title: string }[]) {
+function mockRoadmaps(
+  items: { id: string; title: string; parentId?: string | null }[],
+) {
   vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
     Response.json({ items, total: items.length }),
   );
@@ -40,6 +42,31 @@ it("links each roadmap and marks only the selected one as current", async () => 
   const untitled = screen.getByRole("link", { name: "Untitled" });
   expect(untitled).toHaveAttribute("href", "#roadmaps/" + B);
   expect(untitled).toHaveAttribute("aria-current", "page");
+});
+
+it("nests sub-roadmaps under their parents and lifts orphans to the top", async () => {
+  const C = "22222222-2222-4222-8222-222222222223";
+  mockRoadmaps([
+    { id: A, title: "Platform", parentId: null },
+    { id: B, title: "Storage", parentId: A },
+    {
+      id: C,
+      title: "Orphan",
+      parentId: "22222222-2222-4222-8222-999999999999",
+    },
+  ]);
+  render(view(B));
+  const storage = await screen.findByRole("link", { name: "Storage" });
+  expect(storage).toHaveAttribute("aria-current", "page");
+  const top = screen.getByRole("list", { name: "Roadmaps" });
+  expect(
+    [...top.children].map((li) => li.querySelector("a")?.textContent),
+  ).toEqual(["Platform", "Orphan"]);
+  const nested = storage.closest("ul");
+  expect(nested).not.toBe(top);
+  expect(nested?.parentElement?.querySelector("a")).toHaveTextContent(
+    "Platform",
+  );
 });
 
 it("renders nothing when there are no roadmaps", async () => {

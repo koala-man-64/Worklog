@@ -148,9 +148,14 @@ export type Step = RecordBase & {
   notes?: Note[];
   attachments?: Attachment[];
 };
+export type RoadmapRef = { id: string; title: string; archived: boolean };
 export type Roadmap = RecordBase & {
   title: string;
   overview: string;
+  parentId?: string | null;
+  // Detail only: the path from the top level down, and direct sub-roadmaps.
+  ancestors?: RoadmapRef[];
+  children?: RoadmapRef[];
   steps: Step[];
   versions: { number: number; createdAt: string; note: string }[];
   notes: Note[];

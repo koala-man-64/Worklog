@@ -1944,6 +1944,57 @@
         }
       }
     },
+    "/api/v1/roadmaps/{identity}/move": {
+      "post": {
+        "summary": "Roadmap Move",
+        "operationId": "roadmap_move_api_v1_roadmaps__identity__move_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoadmapMove"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Roadmap Move Api V1 Roadmaps  Identity  Move Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/steps/{identity}/progress": {
       "patch": {
         "summary": "Progress",
@@ -3940,6 +3991,7 @@
               "task.update",
               "roadmap.create",
               "roadmap.revise",
+              "roadmap.move",
               "progress.set",
               "person.create",
               "person.update",
@@ -4355,6 +4407,17 @@
             },
             "type": "array",
             "title": "Steps"
+          },
+          "parentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parentid"
           }
         },
         "additionalProperties": false,
@@ -4363,6 +4426,33 @@
           "title"
         ],
         "title": "RoadmapCreate"
+      },
+      "RoadmapMove": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "parentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parentid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision",
+          "parentId"
+        ],
+        "title": "RoadmapMove"
       },
       "RoadmapRevision": {
         "properties": {

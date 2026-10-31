@@ -354,7 +354,8 @@ class WorkService:
             return self._support_apply(c, actor, action, p)
         if action.startswith(("roadmap.", "progress.")):
             result = self.plans.apply(c, actor, action, p)
-            if not action.startswith("progress."):
+            # Moving changes no indexed text or archive state.
+            if action not in {"progress.set", "roadmap.move"}:
                 self.refresh_plans(c, result["id"])
             return result
         if action.startswith("person."):

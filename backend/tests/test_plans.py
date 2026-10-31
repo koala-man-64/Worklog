@@ -1,5 +1,5 @@
 import pytest
-from worklog.common import AppError, uid
+from worklog.common import AppError, read_events, uid
 from worklog.db import Database
 from worklog.plans import PlanService
 
@@ -47,6 +47,66 @@ def test_tree_validation_is_atomic(plans):
         with pytest.raises(AppError):
             apply(plans, "roadmap.create", {"title": "Invalid", "steps": steps})
     assert plans.list()["total"] == 0
+
+
+def test_roadmaps_nest_move_and_reject_cycles_without_touching_versions(plans):
+    top = apply(plans, "roadmap.create", {"title": "Top", "steps": [{"title": "Step"}]})
+    middle = apply(plans, "roadmap.create", {"title": "Middle", "parentId": top["id"]})
+    leaf = apply(plans, "roadmap.create", {"title": "Leaf", "parentId": middle["id"]})
+    assert (top["parentId"], middle["parentId"], leaf["parentId"]) == (None, top["id"], middle["id"])
+    assert [r["parentId"] for r in plans.list()["items"]] == [None, top["id"], middle["id"]]
+    assert [a["title"] for a in plans.detail(leaf["id"])["ancestors"]] == ["Top", "Middle"]
+    assert [c["id"] for c in plans.detail(top["id"])["children"]] == [middle["id"]]
+
+    for target in (top["id"], middle["id"], leaf["id"]):
+        with pytest.raises(AppError, match="itself or its sub-roadmaps") as error:
+            apply(plans, "roadmap.move", {"id": top["id"], "revision": top["revision"], "parentId": target})
+        assert error.value.status == 422
+    with pytest.raises(AppError, match="does not exist"):
+        apply(plans, "roadmap.move", {"id": leaf["id"], "revision": 1, "parentId": uid()})
+    with pytest.raises(AppError, match="does not exist"):
+        apply(plans, "roadmap.create", {"title": "Orphan", "parentId": uid()})
+    with pytest.raises(AppError) as error:
+        apply(plans, "roadmap.move", {"id": leaf["id"], "revision": 0, "parentId": None})
+    assert error.value.status == 409
+
+    moved = apply(plans, "roadmap.move", {"id": leaf["id"], "revision": 1, "parentId": top["id"]})
+    assert moved["parentId"] == top["id"] and moved["revision"] == 2
+    assert len(moved["versions"]) == 1
+    assert [c["id"] for c in plans.detail(top["id"])["children"]] == [middle["id"], leaf["id"]]
+    assert {e["kind"] for e in read_history(plans, leaf["id"])} >= {"roadmap.move"}
+
+    # Revising or restoring the plan content keeps the roadmap where it is.
+    revised = apply(plans, "roadmap.revise", {"id": leaf["id"], "revision": 2, "title": "Leaf v2", "steps": []})
+    restored = apply(plans, "roadmap.restore", {"id": leaf["id"], "revision": revised["revision"], "number": 1})
+    assert revised["parentId"] == restored["parentId"] == top["id"]
+    assert restored["title"] == "Leaf"
+
+    unnested = apply(plans, "roadmap.move", {"id": leaf["id"], "revision": restored["revision"], "parentId": None})
+    assert unnested["parentId"] is None and plans.detail(leaf["id"])["ancestors"] == []
+
+
+def test_archived_roadmaps_keep_children_but_accept_no_new_placement(plans):
+    parent = apply(plans, "roadmap.create", {"title": "Parent"})
+    child = apply(plans, "roadmap.create", {"title": "Child", "parentId": parent["id"]})
+    other = apply(plans, "roadmap.create", {"title": "Other"})
+    archived = apply(plans, "roadmap.archive", {"id": parent["id"], "revision": parent["revision"]})
+    assert plans.detail(child["id"])["ancestors"] == [{"id": parent["id"], "title": "Parent", "archived": True}]
+    assert [c["id"] for c in plans.detail(parent["id"])["children"]] == [child["id"]]
+    for action, payload in (("roadmap.create", {"title": "New", "parentId": parent["id"]}),
+                            ("roadmap.move", {"id": other["id"], "revision": other["revision"], "parentId": parent["id"]})):
+        with pytest.raises(AppError, match="Recover the parent") as error:
+            apply(plans, action, payload)
+        assert error.value.status == 409
+    with pytest.raises(AppError, match="recovered before editing"):
+        apply(plans, "roadmap.move", {"id": parent["id"], "revision": archived["revision"], "parentId": None})
+    recovered = apply(plans, "roadmap.recover", {"id": parent["id"], "revision": archived["revision"]})
+    assert apply(plans, "roadmap.move", {"id": other["id"], "revision": other["revision"], "parentId": recovered["id"]})["parentId"] == parent["id"]
+
+
+def read_history(plans, identifier):
+    with plans.db.read() as conn:
+        return read_events(conn, identifier)
 
 
 def test_cross_roadmap_step_identity_cannot_be_stolen(plans):

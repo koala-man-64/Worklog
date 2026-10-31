@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { localStore } from "./storage";
+import { roadmapChildren } from "./RoadmapNav";
 import { request, download, contextStorageKey } from "./api";
 import { commands } from "./commands";
 import { useAction, useCommand, useData } from "./hooks";
@@ -47,6 +48,33 @@ export function Roadmaps({
   const action = useAction();
   const [title, setTitle] = useState("");
   if (selected) return <RoadmapDetail id={selected} step={step} />;
+  const shown = (archive ? old : roads).data?.items ?? [];
+  const tree = roadmapChildren(shown);
+  const rows = (parent: string | null): React.ReactNode =>
+    tree.get(parent)?.map((r) => (
+      <li key={r.id}>
+        <article className="roadmap-row">
+          <div>
+            <a className="item-title" href={"#roadmaps/" + r.id}>
+              {r.title}
+            </a>
+            <PersonBadges people={r.people} />
+            <p>{r.overview?.slice(0, 160)}</p>
+          </div>
+          <button
+            onClick={() =>
+              action.mutate({
+                path: `/roadmaps/${r.id}/${archive ? "recover" : "archive"}`,
+                body: { revision: r.revision },
+              })
+            }
+          >
+            {archive ? "Recover" : "Archive"}
+          </button>
+        </article>
+        {tree.has(r.id) && <ul className="roadmap-tree">{rows(r.id)}</ul>}
+      </li>
+    ));
   return (
     <div className="bounded-screen">
       <header>
@@ -81,30 +109,10 @@ export function Roadmaps({
             </select>
           </div>
           <div className="panel-body">
-            {!(archive ? old : roads).data?.items.length ? (
+            {!shown.length ? (
               <Empty>Your bigger picture starts here.</Empty>
             ) : (
-              (archive ? old : roads).data?.items.map((r) => (
-                <article className="roadmap-row" key={r.id}>
-                  <div>
-                    <a className="item-title" href={"#roadmaps/" + r.id}>
-                      {r.title}
-                    </a>
-                    <PersonBadges people={r.people} />
-                    <p>{r.overview?.slice(0, 160)}</p>
-                  </div>
-                  <button
-                    onClick={() =>
-                      action.mutate({
-                        path: `/roadmaps/${r.id}/${archive ? "recover" : "archive"}`,
-                        body: { revision: r.revision },
-                      })
-                    }
-                  >
-                    {archive ? "Recover" : "Archive"}
-                  </button>
-                </article>
-              ))
+              <ul className="roadmap-tree">{rows(null)}</ul>
             )}
           </div>
         </div>
@@ -330,6 +338,8 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
   const [workQuery, setWorkQuery] = useState("");
   const [pickItemId, setPickItemId] = useState("");
   const [pickStepId, setPickStepId] = useState("");
+  const [subTitle, setSubTitle] = useState("");
+  const roads = useData<List<Roadmap>>("/roadmaps?archived=false");
   const outlineRef = useRef<HTMLDivElement>(null);
   const detailRef = useRef<HTMLDivElement>(null);
   const snapshotRef = useRef<HTMLElement>(null);
@@ -391,6 +401,22 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
       );
   }
   const parentStep = selected && active.find((s) => s.id === selected.parentId);
+  const children = road.children ?? [];
+  // Any active roadmap outside this one's own subtree can become its parent.
+  const tree = roadmapChildren(roads.data?.items ?? []);
+  const placements = (
+    parent: string | null,
+    depth: number,
+  ): { r: Roadmap; depth: number }[] =>
+    (tree.get(parent) ?? []).flatMap((r) =>
+      r.id === id ? [] : [{ r, depth }, ...placements(r.id, depth + 1)],
+    );
+  const parentOptions = placements(null, 0);
+  // The current parent stays selectable while the list loads or once it is archived.
+  const unlistedParent =
+    road.parentId && !parentOptions.some(({ r }) => r.id === road.parentId)
+      ? road.ancestors?.at(-1)
+      : undefined;
   const selectedItems = selected
     ? roadWorkItems.filter((w) => w.stepId === selected.id)
     : [];
@@ -558,6 +584,83 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
         people={road.people}
         disabled={road.archived}
       />
+      <section>
+        <h3>
+          Sub-roadmaps <span className="count">{children.length}</span>
+        </h3>
+        {children.map((c) => (
+          <div className="line" key={c.id}>
+            <a className="item-title" href={"#roadmaps/" + c.id}>
+              {c.title}
+            </a>
+            {c.archived && <small className="muted">Archived</small>}
+          </div>
+        ))}
+        <form
+          className="quick-add"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!subTitle.trim() || road.archived) return;
+            await action
+              .mutateAsync({
+                path: "/roadmaps",
+                body: {
+                  title: subTitle,
+                  overview: "",
+                  steps: [],
+                  parentId: id,
+                },
+              })
+              .then(() => setSubTitle(""))
+              .catch(() => undefined);
+          }}
+        >
+          <input
+            aria-label="New sub-roadmap title"
+            placeholder="Name a sub-roadmap…"
+            value={subTitle}
+            onChange={(e) => setSubTitle(e.target.value)}
+            maxLength={1000}
+            disabled={road.archived}
+          />
+          <button
+            type="submit"
+            disabled={road.archived || action.isPending || !subTitle.trim()}
+          >
+            Add sub-roadmap
+          </button>
+        </form>
+        <label className="line">
+          Nested under
+          <select
+            aria-label="Nested under"
+            value={road.parentId ?? ""}
+            disabled={road.archived || action.isPending}
+            onChange={(e) =>
+              action.mutate({
+                path: `/roadmaps/${id}/move`,
+                body: {
+                  revision: road.revision,
+                  parentId: e.target.value || null,
+                },
+              })
+            }
+          >
+            <option value="">Top level</option>
+            {unlistedParent && (
+              <option value={unlistedParent.id}>
+                {unlistedParent.title +
+                  (unlistedParent.archived ? " (archived)" : "")}
+              </option>
+            )}
+            {parentOptions.map(({ r, depth }) => (
+              <option key={r.id} value={r.id}>
+                {"  ".repeat(depth) + (r.title || "Untitled")}
+              </option>
+            ))}
+          </select>
+        </label>
+      </section>
       <section>
         <h3>
           Work items <span className="count">{roadWorkItems.length}</span>
@@ -846,10 +949,21 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
   return (
     <div className="bounded-screen">
       <header className="roadmap-head">
-        <a className="back" href="#roadmaps">
-          <Icon name="back" />
-          All roadmaps
-        </a>
+        <nav className="crumbs" aria-label="Roadmap location">
+          <a className="back" href="#roadmaps">
+            <Icon name="back" />
+            All roadmaps
+          </a>
+          {road.ancestors?.map((a) => (
+            <Fragment key={a.id}>
+              <span aria-hidden="true">/</span>
+              <a href={"#roadmaps/" + a.id}>
+                {a.title}
+                {a.archived && " (archived)"}
+              </a>
+            </Fragment>
+          ))}
+        </nav>
         <div className="roadmap-title">
           <h1>{road.title}</h1>
           <div className="toolbar">

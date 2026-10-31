@@ -92,7 +92,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False) -> 
             "entry.upsert": m.EntryUpdate, "note.create": m.NoteCreate, "note.update": m.NoteUpdate,
             "task.create": m.TaskCreate, "task.update": m.TaskUpdate,
             "roadmap.create": m.RoadmapCreate, "roadmap.revise": m.RoadmapRevision,
-            "progress.set": m.Progress,
+            "roadmap.move": m.RoadmapMove, "progress.set": m.Progress,
             "person.create": m.PersonCreate, "person.update": m.PersonUpdate,
             "person.archive": m.Expected, "person.recover": m.Expected,
             "person.link": m.PersonLinkCreate, "person.unlink": m.PersonLinkRemove,
@@ -496,6 +496,10 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False) -> 
     @app.post("/api/v1/roadmaps/{identity}/restore")
     def roadmap_restore(identity: str, request: Request, body: m.Restore) -> dict:
         return apply(request, "roadmap.restore", {"id": identity, **body.model_dump()})
+
+    @app.post("/api/v1/roadmaps/{identity}/move")
+    def roadmap_move(identity: str, request: Request, body: m.RoadmapMove) -> dict:
+        return apply(request, "roadmap.move", {"id": identity, **body.model_dump()})
 
     # Explicit routes precede the generic support command in routing order below.
     @app.patch("/api/v1/steps/{identity}/progress")

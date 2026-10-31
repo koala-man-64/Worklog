@@ -365,7 +365,7 @@ def test_legacy_v1_database_without_roadmap_id_migrates_and_restores(tmp_path):
     legacy_path = tmp_path / "legacy.sqlite3"
     legacy_schema = (PLAN_SCHEMA + PROPOSAL_SCHEMA + SCHEMA).replace(
         ", roadmap_id TEXT REFERENCES roadmaps(id)", ""
-    )
+    ).replace(", parent_id TEXT REFERENCES roadmaps(id)", "")
     from worklog.db import LINKS_CHATS_GITHUB_SCHEMA, PEOPLE_SCHEMA
     legacy_schema = legacy_schema.replace(PEOPLE_SCHEMA, "").replace(LINKS_CHATS_GITHUB_SCHEMA, "")
     with closing(sqlite3.connect(legacy_path)) as conn:
@@ -381,6 +381,34 @@ def test_legacy_v1_database_without_roadmap_id_migrates_and_restores(tmp_path):
     recovery.restore_database(target, legacy_path, tmp_path / "backups")
     with closing(sqlite3.connect(target)) as conn:
         assert conn.execute("SELECT roadmap_id FROM work_items WHERE id='w1'").fetchone() == ("r1",)
+        assert conn.execute("SELECT parent_id FROM roadmaps WHERE id='r1'").fetchone() == (None,)
+        assert recovery._schema_signature(conn) == recovery._expected_schema()
     Database(legacy_path).initialize()
     with closing(sqlite3.connect(legacy_path)) as conn:
         assert conn.execute("SELECT roadmap_id FROM work_items WHERE id='w1'").fetchone() == ("r1",)
+        assert recovery._schema_signature(conn) == recovery._expected_schema()
+
+
+def test_database_from_before_roadmap_nesting_migrates_to_the_current_schema(tmp_path):
+    from worklog.db import SCHEMA
+    from worklog.plans import SCHEMA as PLAN_SCHEMA
+    from worklog.proposals import SCHEMA as PROPOSAL_SCHEMA
+
+    flat_path = tmp_path / "flat.sqlite3"
+    with closing(sqlite3.connect(flat_path)) as conn:
+        conn.executescript((PLAN_SCHEMA + PROPOSAL_SCHEMA + SCHEMA).replace(", parent_id TEXT REFERENCES roadmaps(id)", ""))
+        for key, value in {"timezone": "America/Chicago", "dataId": "11111111-1111-4111-8111-111111111111", "backlogRevision": 1}.items():
+            conn.execute("INSERT INTO settings VALUES(?,?)", (key, json.dumps(value)))
+        conn.execute("INSERT INTO roadmaps VALUES('r1','Road','',1,0,'2026-01-01','2026-01-01')")
+        conn.execute("PRAGMA user_version=1")
+        conn.commit()
+    recovery.validate_database(flat_path)
+    target = make_database(tmp_path / "active.sqlite3")
+    recovery.restore_database(target, flat_path, tmp_path / "backups")
+    with closing(sqlite3.connect(target)) as conn:
+        assert conn.execute("SELECT parent_id FROM roadmaps WHERE id='r1'").fetchone() == (None,)
+        assert recovery._schema_signature(conn) == recovery._expected_schema()
+    Database(flat_path).initialize()
+    with closing(sqlite3.connect(flat_path)) as conn:
+        assert conn.execute("SELECT parent_id FROM roadmaps WHERE id='r1'").fetchone() == (None,)
+        assert recovery._schema_signature(conn) == recovery._expected_schema()

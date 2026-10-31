@@ -14,12 +14,14 @@ from markdownify import markdownify
 
 from .common import AppError, event, now, read_events, require_revision, uid
 
+# roadmaps.parent_id sits exactly where ALTER TABLE ADD COLUMN places it, so created and
+# migrated databases share one definition for offline restore validation.
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS roadmaps (
  id TEXT PRIMARY KEY, title TEXT NOT NULL, overview TEXT NOT NULL,
  revision INTEGER NOT NULL, archived INTEGER NOT NULL DEFAULT 0,
  created_at TEXT NOT NULL, updated_at TEXT NOT NULL
-);
+, parent_id TEXT REFERENCES roadmaps(id));
 CREATE TABLE IF NOT EXISTS steps (
  id TEXT PRIMARY KEY, roadmap_id TEXT NOT NULL REFERENCES roadmaps(id),
  title TEXT NOT NULL, description TEXT NOT NULL, parent_id TEXT,
@@ -66,8 +68,29 @@ def _row(conn, identifier):
 
 def _roadmap(row):
     return {"id": row["id"], "title": row["title"], "overview": row["overview"],
-            "revision": row["revision"], "archived": bool(row["archived"]),
+            "parentId": row["parent_id"], "revision": row["revision"],
+            "archived": bool(row["archived"]),
             "createdAt": row["created_at"], "updatedAt": row["updated_at"]}
+
+
+def _parent(conn, identifier, parent):
+    """Validate a new parent: an active roadmap that is neither this one nor below it."""
+    if parent is None:
+        return None
+    if not isinstance(parent, str):
+        raise AppError(422, "validation", "parentId must be a roadmap id or null")
+    row = conn.execute("SELECT archived FROM roadmaps WHERE id=?", (parent,)).fetchone()
+    if row is None:
+        raise AppError(422, "validation", "Parent roadmap does not exist")
+    if row["archived"]:
+        raise AppError(409, "conflict", "Recover the parent roadmap before nesting under it")
+    ancestor, seen = parent, set()
+    while ancestor is not None and ancestor not in seen:
+        if ancestor == identifier:
+            raise AppError(422, "validation", "A roadmap cannot be nested under itself or its sub-roadmaps")
+        seen.add(ancestor)
+        ancestor = conn.execute("SELECT parent_id FROM roadmaps WHERE id=?", (ancestor,)).fetchone()[0]
+    return parent
 
 
 def _step(row):
@@ -136,7 +159,24 @@ class PlanService:
 
     def detail(self, identifier):
         with self.db.read() as conn:
-            return self._detail(conn, identifier)
+            result = self._detail(conn, identifier)
+            result.update(self.family(conn, identifier))
+            return result
+
+    @staticmethod
+    def family(conn, identifier):
+        """Ancestors from the top level down, and direct sub-roadmaps in list order."""
+        ancestors: list[dict] = []
+        seen = {identifier}
+        parent = _row(conn, identifier)["parent_id"]
+        while parent is not None and parent not in seen:
+            seen.add(parent)
+            row = _row(conn, parent)
+            ancestors.insert(0, {"id": row["id"], "title": row["title"], "archived": bool(row["archived"])})
+            parent = row["parent_id"]
+        children = [{"id": r["id"], "title": r["title"], "archived": bool(r["archived"])} for r in conn.execute(
+            "SELECT id,title,archived FROM roadmaps WHERE parent_id=? ORDER BY created_at,id", (identifier,))]
+        return {"ancestors": ancestors, "children": children}
 
     def version(self, identifier, number):
         with self.db.read() as conn:
@@ -238,8 +278,10 @@ class PlanService:
             title = _title(payload.get("title"))
             overview = _text(payload.get("overview"), "overview", "")
             steps = self._validate_steps(conn, identifier, payload.get("steps", []))
+            parent = _parent(conn, identifier, payload.get("parentId"))
             stamp = now()
-            conn.execute("INSERT INTO roadmaps VALUES(?,?,?,?,?,?,?)", (identifier, title, overview, 1, 0, stamp, stamp))
+            conn.execute("INSERT INTO roadmaps(id,title,overview,revision,archived,created_at,updated_at,parent_id) VALUES(?,?,?,?,?,?,?,?)",
+                         (identifier, title, overview, 1, 0, stamp, stamp, parent))
             before = None
         else:
             row = _row(conn, identifier)
@@ -253,6 +295,14 @@ class PlanService:
                 return result
             if row["archived"]:
                 raise AppError(409, "conflict", "Archived roadmaps must be recovered before editing")
+            if action == "roadmap.move":
+                # Placement is not plan content: no version is recorded and restores keep it.
+                parent = _parent(conn, identifier, payload.get("parentId"))
+                conn.execute("UPDATE roadmaps SET parent_id=?,revision=revision+1,updated_at=? WHERE id=?",
+                             (parent, now(), identifier))
+                result = self._detail(conn, identifier)
+                event(conn, actor, action, identifier, before, result)
+                return result
             if action == "roadmap.restore":
                 version = conn.execute("SELECT snapshot FROM roadmap_versions WHERE roadmap_id=? AND number=?",
                                        (identifier, payload.get("number"))).fetchone()

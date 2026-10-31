@@ -160,15 +160,23 @@ class PersonLinkRemove(Command):
     targetId: str
 
 
-class RoadmapCreate(Command):
+class RoadmapContent(Command):
     title: str
     overview: str = ""
     steps: list[dict[str, Any]] = Field(default_factory=list)
 
 
-class RoadmapRevision(RoadmapCreate):
+class RoadmapCreate(RoadmapContent):
+    parentId: str | None = None
+
+
+class RoadmapRevision(RoadmapContent):
     revision: Revision
     note: str = ""
+
+
+class RoadmapMove(Expected):
+    parentId: str | None
 
 
 class Restore(Expected):
@@ -190,7 +198,7 @@ class ImportCommit(Command):
 class Operation(Command):
     action: Literal["item.create", "item.update", "item.archive", "item.recover", "entry.upsert",
                     "note.create", "note.update", "task.create", "task.update",
-                    "roadmap.create", "roadmap.revise", "progress.set",
+                    "roadmap.create", "roadmap.revise", "roadmap.move", "progress.set",
                     "person.create", "person.update", "person.archive", "person.recover",
                     "person.link", "person.unlink",
                     "link.create", "link.update", "link.archive", "link.recover",
