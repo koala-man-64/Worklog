@@ -662,6 +662,13 @@ def test_roadmap_questions_are_answered_and_decisions_are_recorded(client):
     assert write(client, "POST", "/decisions", {"roadmapId": roadmap["id"], "title": ""}).status_code == 422
     revised = write(client, "PATCH", f"/decisions/{first['id']}", {"revision": first["revision"], "rationale": "One file, no server, easy backups."}).json()
     assert (revised["title"], revised["decidedDate"], revised["rationale"]) == ("Use SQLite", "2026-09-01", "One file, no server, easy backups.")
+    # A blank date never quietly redates a decision, and neither record can move to another roadmap.
+    blank = write(client, "PATCH", f"/decisions/{first['id']}", {"revision": revised["revision"], "decidedDate": " "})
+    assert blank.status_code == 422 and blank.json()["error"]["fields"] == {"decidedDate": "required"}
+    assert client.get(f"/api/v1/decisions/{first['id']}").json()["decidedDate"] == "2026-09-01"
+    other = write(client, "POST", "/roadmaps", {"title": "Other roadmap"}).json()
+    for path, record in ((f"/decisions/{first['id']}", revised), (f"/questions/{question['id']}", reopened)):
+        assert write(client, "PATCH", path, {"revision": record["revision"], "roadmapId": other["id"]}).status_code == 422
 
     detail = client.get(f"/api/v1/roadmaps/{roadmap['id']}").json()
     assert [q["id"] for q in detail["questions"]] == [question["id"]]
@@ -672,12 +679,25 @@ def test_roadmap_questions_are_answered_and_decisions_are_recorded(client):
         hit = client.get(f"/api/v1/search?q={term}").json()["items"]
         assert hit and hit[0]["id"] == record["id"] and (hit[0]["routeType"], hit[0]["routeId"]) == ("roadmaps", roadmap["id"])
 
-    # Archive and recover through the shared supporting-record commands; archived ones leave search.
+    # Archiving the roadmap hides both from active search without touching their own archive flags.
+    archived_road = write(client, "POST", f"/roadmaps/{roadmap['id']}/archive", {"revision": detail["revision"]}).json()
+    for term in ("Frankfurt", "backups"):
+        assert client.get(f"/api/v1/search?q={term}").json()["total"] == 0
+        assert client.get(f"/api/v1/search?q={term}&archived=true").json()["total"] == 1
+    write(client, "POST", f"/roadmaps/{roadmap['id']}/recover", {"revision": archived_road["revision"]})
+
+    # Archive and recover through the shared supporting-record commands; archived ones leave search and recovered ones return.
     archived = write(client, "POST", f"/decisions/{first['id']}/archive", {"revision": revised["revision"]}).json()
     assert archived["archived"] is True
     assert client.get("/api/v1/search?q=backups").json()["total"] == 0
     assert write(client, "POST", f"/decisions/{first['id']}/recover", {"revision": archived["revision"]}).json()["archived"] is False
-    assert write(client, "POST", f"/questions/{question['id']}/archive", {"revision": reopened["revision"]}).json()["archived"] is True
+    assert client.get("/api/v1/search?q=backups").json()["total"] == 1
+    parked = write(client, "POST", f"/questions/{question['id']}/archive", {"revision": reopened["revision"]}).json()
+    assert parked["archived"] is True and client.get("/api/v1/search?q=Frankfurt").json()["total"] == 0
+    recovered = write(client, "POST", f"/questions/{question['id']}/recover", {"revision": parked["revision"]}).json()
+    assert recovered["archived"] is False and client.get("/api/v1/search?q=Frankfurt").json()["total"] == 1
+    with zipfile.ZipFile(io.BytesIO(client.get("/api/v1/export").content)) as archive:
+        assert {"records/roadmap_questions.json", "records/roadmap_decisions.json"} <= set(archive.namelist())
 
     # Agents cannot write them directly, but can propose them for approval.
     cred = write(client, "POST", "/credentials", {"label": "Planning agent"}).json()
@@ -696,3 +716,11 @@ def test_roadmap_questions_are_answered_and_decisions_are_recorded(client):
     detail = client.get(f"/api/v1/roadmaps/{roadmap['id']}").json()
     assert any(q["title"] == "Do we shard by tenant?" and q["status"] == "open" for q in detail["questions"])
     assert any(d["title"] == "Defer sharding" and d["decidedDate"] == "2026-10-30" for d in detail["decisions"])
+
+    # The answer rule holds at approval too: an unanswered "answered" proposal applies nothing.
+    unanswered = write(client, "POST", "/proposals", {"title": "Close it", "rationale": "Settled", "operations": [
+        {"action": "question.update", "payload": {"id": question["id"], "revision": recovered["revision"], "status": "answered", "answer": " "}}]}, headers=headers).json()
+    unanswered = write(client, "POST", f"/proposals/{unanswered['id']}/submit", {"revision": unanswered["revision"]}, headers=headers).json()
+    assert write(client, "POST", f"/proposals/{unanswered['id']}/approve", {"revision": unanswered["revision"]}).status_code == 422
+    unchanged = client.get(f"/api/v1/questions/{question['id']}").json()
+    assert (unchanged["status"], unchanged["revision"]) == ("open", recovered["revision"])

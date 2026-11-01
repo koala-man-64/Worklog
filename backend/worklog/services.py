@@ -801,7 +801,13 @@ class WorkService:
             val["title"] = text(val["title"], "title", required=True, limit=1000)
             val["rationale"] = text(val["rationale"], "rationale", limit=100_000)
             raw_date = str(val.get("decidedDate") or "").strip()
-            val["decidedDate"] = valid_date(raw_date) if raw_date else default_date
+            if raw_date:
+                val["decidedDate"] = valid_date(raw_date)
+            elif before is None:
+                val["decidedDate"] = default_date
+            else:
+                # A blank date must not quietly redate a decision recorded earlier.
+                raise AppError(422, "validation", "Give the date the decision was made", {"decidedDate": "required"})
             c.execute(
                 "INSERT INTO roadmap_decisions VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,rationale=excluded.rationale,decided_date=excluded.decided_date,revision=excluded.revision,updated_at=excluded.updated_at",
                 (val["id"], val["roadmapId"], val["title"], val["rationale"], val["decidedDate"], 0, val["revision"] + 1, val["createdAt"], now()),
