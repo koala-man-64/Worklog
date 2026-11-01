@@ -438,3 +438,19 @@ def test_database_from_before_agent_assignments_keeps_its_chats_and_migrates(tmp
             assert conn.execute("SELECT title,provider,model,repos FROM agent_chats WHERE id='c1'").fetchone() == ("Earlier chat", "", "", "[]")
             assert conn.execute("SELECT count(*) FROM chat_steps").fetchone() == (0,)
             assert recovery._schema_signature(conn) == recovery._expected_schema()
+
+
+def test_a_failed_chat_steps_migration_leaves_no_partial_table(tmp_path):
+    path = tmp_path / "previous.sqlite3"
+    with closing(sqlite3.connect(path)) as conn:
+        conn.executescript(before_agent_assignments())
+        for key, value in {"timezone": "America/Chicago", "dataId": "11111111-1111-4111-8111-111111111111", "backlogRevision": 1}.items():
+            conn.execute("INSERT INTO settings VALUES(?,?)", (key, json.dumps(value)))
+        # The index name is taken, so the migration's second statement fails after its first.
+        conn.execute("CREATE TABLE chat_steps_step(x)")
+        conn.execute("PRAGMA user_version=1")
+        conn.commit()
+    with pytest.raises(sqlite3.Error):
+        Database(path).initialize()
+    with closing(sqlite3.connect(path)) as conn:
+        assert conn.execute("SELECT count(*) FROM sqlite_master WHERE name='chat_steps'").fetchone() == (0,)

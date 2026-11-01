@@ -129,8 +129,10 @@ class Database:
                         raise
                 if "chat_steps" not in actual:
                     try:
+                        # executescript would commit first; the table and its index land together or not at all.
                         conn.execute("BEGIN IMMEDIATE")
-                        conn.executescript(CHAT_STEPS_SCHEMA)
+                        for statement in filter(str.strip, CHAT_STEPS_SCHEMA.split(";")):
+                            conn.execute(statement)
                         conn.commit()
                     except Exception:
                         conn.rollback()
