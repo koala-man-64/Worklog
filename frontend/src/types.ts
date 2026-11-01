@@ -109,6 +109,58 @@ export type AgentChat = RecordBase & {
   // Roadmap chats only: the steps the chat is working on.
   stepIds: string[];
 };
+/** One agent in a chat's transcript: the chat itself, or a subagent it started. */
+export type ChatThread = {
+  key: string;
+  name: string;
+  title: string;
+  task: string;
+  parent: string | null;
+  model: string;
+  state: "working" | "idle";
+  lastActivityAt: string | null;
+};
+export type TranscriptSummary = {
+  found: boolean;
+  source: "claude" | "codex" | null;
+  lastActivityAt: string | null;
+  state: "working" | "idle";
+  threads: ChatThread[];
+  // Set when the transcript exists but could not be read.
+  error?: string;
+};
+/** An agent chat with the record it belongs to, the steps it works on, and its transcript. */
+export type ChatOverview = AgentChat & {
+  owner: {
+    type: "item" | "roadmap";
+    id: string;
+    title: string;
+    archived: boolean;
+  };
+  steps: { id: string; title: string; status: Status; retired: boolean }[];
+  transcript: TranscriptSummary;
+};
+export type ChatMessage = {
+  id: string;
+  thread: string;
+  at: string | null;
+  kind: "user" | "assistant" | "agent" | "tools";
+  author: string;
+  authorThread?: string | null;
+  recipient?: string;
+  text?: string;
+  truncated?: boolean;
+  // Tool runs only.
+  count?: number;
+  until?: string | null;
+  tools?: { name: string; summary: string }[];
+};
+export type Transcript = TranscriptSummary & {
+  chat: AgentChat;
+  messages: ChatMessage[];
+  total: number;
+  more: boolean;
+};
 export type GithubRef = RecordBase & {
   ownerType: string;
   ownerId: string;

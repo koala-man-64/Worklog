@@ -35,7 +35,17 @@ function resolveLink(url: string): URL | null {
 function isSameOrigin(url: string): boolean {
   return resolveLink(url)?.origin === window.location.origin;
 }
-export function Markdown({ text }: { text: string }) {
+/**
+ * `untrusted` is for text written elsewhere, such as an agent transcript: its links
+ * may lead off this site but never to a page or download of Worklog itself.
+ */
+export function Markdown({
+  text,
+  untrusted = false,
+}: {
+  text: string;
+  untrusted?: boolean;
+}) {
   return (
     <div className="markdown">
       <ReactMarkdown
@@ -61,7 +71,9 @@ export function Markdown({ text }: { text: string }) {
             );
           },
         }}
-        urlTransform={(url) => (resolveLink(url) ? url : "")}
+        urlTransform={(url) =>
+          resolveLink(url) && !(untrusted && isSameOrigin(url)) ? url : ""
+        }
       >
         {text || "Nothing written yet."}
       </ReactMarkdown>
@@ -937,7 +949,7 @@ function ChatForm({
     </form>
   );
 }
-/** Who a chat is: its title, provider and model, chat ID, repositories, and the steps it works on. */
+/** Who a chat is: its title, provider and model, chat ID, repositories, and the steps it works on, with a link to its messages. */
 function ChatSummary({
   chat,
   steps = [],
@@ -954,6 +966,9 @@ function ChatSummary({
       <div className="chat-row">
         <strong>{chat.title}</strong>
         {agent && <span className="person-badge">{agent}</span>}
+        <a href={"#chats/" + chat.id} aria-label={"Messages of " + chat.title}>
+          Messages
+        </a>
       </div>
       <div className="chat-row">
         <code>{chat.chatId}</code>
@@ -1249,9 +1264,7 @@ export function GithubRefsSection({
             <button
               type="button"
               className="quiet"
-              aria-label={
-                "Archive GitHub " + (g.title || g.reference || g.url)
-              }
+              aria-label={"Archive GitHub " + (g.title || g.reference || g.url)}
               onClick={() =>
                 action.mutate({
                   path: `/github/${g.id}/archive`,

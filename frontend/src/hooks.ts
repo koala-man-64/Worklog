@@ -1,11 +1,19 @@
 import { useEffect, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { request, contextStorageKey, getDataContext, ApiError } from "./api";
 import { localStore, readIdSet } from "./storage";
-export function useData<T>(path: string) {
+/** `refreshMs` keeps a view of something that changes elsewhere current while it is open. */
+export function useData<T>(path: string, refreshMs?: number) {
   return useQuery({
     queryKey: [getDataContext(), path],
     queryFn: () => request<T>(path),
+    refetchInterval: refreshMs,
+    placeholderData: refreshMs ? keepPreviousData : undefined,
   });
 }
 export function useAction() {

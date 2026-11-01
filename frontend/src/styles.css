@@ -1243,6 +1243,190 @@ section:not(.draft) > h3 {
   border-radius: 3px;
   background: var(--sidebar);
 }
+/* Chats: who is working on what beside the conversation; each row is a chat, its agents and its steps. */
+.chat-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.chat-list > li {
+  display: grid;
+  gap: 4px;
+  padding: 10px 8px;
+  border-top: 1px solid var(--line);
+  border-radius: 4px;
+}
+.chat-list > li:first-child {
+  border-top: 0;
+}
+.chat-list > li.selected {
+  background: var(--teal-wash);
+}
+.chat-link {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  color: var(--ink);
+  text-decoration: none;
+}
+.chat-link > .status-dot {
+  margin-top: 6px;
+}
+.chat-link-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.chat-link strong {
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.chat-link:hover strong {
+  color: var(--teal);
+  text-decoration: underline;
+}
+.chat-link[aria-current] strong {
+  color: var(--teal);
+}
+.chat-link small,
+.chat-meta small,
+.chat-agents small,
+.thread-filter small {
+  color: var(--muted);
+}
+.chat-meta,
+.chat-agents {
+  padding-left: 20px;
+  font-size: 12px;
+}
+.chat-agents {
+  list-style: none;
+  margin: 2px 0 0;
+  display: grid;
+  gap: 2px;
+}
+.chat-agents li {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  overflow-wrap: anywhere;
+}
+.status-dot.missing {
+  background: transparent;
+  border-style: dashed;
+}
+.chat-history-head {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+.chat-history-head h2 {
+  margin: 0;
+}
+.thread-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.thread-filter button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 3px 10px;
+  font-size: 12px;
+}
+.thread-filter button[aria-pressed="true"] {
+  border-color: var(--teal);
+  background: var(--teal-wash);
+  color: var(--teal);
+  font-weight: 600;
+}
+.chat-messages {
+  display: grid;
+  gap: 12px;
+}
+.chat-messages > button {
+  justify-self: center;
+}
+.chat-messages[aria-busy] .messages {
+  opacity: 0.6;
+}
+.messages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.message {
+  min-width: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--paper);
+}
+/* Your own messages sit in from the left, the way a conversation reads. */
+.message.user {
+  margin-left: clamp(0px, 8%, 64px);
+  border-color: transparent;
+  background: var(--teal-wash);
+}
+.message.agent {
+  border-left: 3px solid var(--status-doing-border);
+}
+.message.tools {
+  padding: 2px 14px;
+  border-style: dashed;
+  background: transparent;
+  font-size: 12px;
+}
+.message.tools details {
+  border-top: 0;
+  margin: 0;
+  padding: 4px 0;
+}
+.message.tools summary {
+  color: var(--ink);
+}
+.message.tools ul {
+  margin: 4px 0 6px;
+  padding-left: 18px;
+  overflow-wrap: anywhere;
+}
+.message-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 6px;
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+.message-head time {
+  margin-left: auto;
+}
+.message time {
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.message.tools time {
+  margin-left: 8px;
+}
+.message .markdown > :first-child {
+  margin-top: 0;
+}
+.message .markdown h1,
+.message .markdown h2 {
+  font-size: 18px;
+}
+.message .markdown pre {
+  max-height: 320px;
+}
 /* The global input rule outranks .inline's minimum; six chat fields wrap rather than crush. */
 .chat-form input:not([type="checkbox"]) {
   min-width: 9rem;
@@ -1590,7 +1774,8 @@ code {
   .roadmap-split > .resize-handle {
     display: none;
   }
-  .roadmap-split .panel-body {
+  .roadmap-split .panel-body,
+  .chats-split .panel-body {
     max-height: 60dvh;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -1648,6 +1833,15 @@ code {
   }
   .roadmaps-split {
     grid-template-columns: minmax(0, 3fr) minmax(300px, 2fr);
+  }
+  .chats-split {
+    grid-template-columns: minmax(280px, 2fr) minmax(0, 3fr);
+  }
+  /* The chat's name and agent filter stay in view while its messages scroll in the pane. */
+  .chat-history-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
   }
   .panel {
     align-self: start;
