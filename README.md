@@ -72,7 +72,9 @@ Every restore creates a new data generation identity while staging the replaceme
 
 Restore writes a durable `.restore-in-progress.json` marker before moving sidecars or replacing the main file. Startup refuses that directory if a power failure interrupts restoration. Keep the evidence archives and rerun the explicit offline `restore` command with a verified SQLite candidate; the retry preserves earlier marker/quarantine evidence before completing recovery. Do not delete the marker to force a startup. It clears only after verified replacement and cleanup, or a verified rollback to the original files.
 
-For an upgrade, stop Worklog, make a manual backup, update the checkout, run `Setup.ps1`, then start and check the application. Keep the old checkout/version and backup until verification succeeds. Unsupported newer database schema versions are rejected; do not downgrade code against a newer database. Use a backup compatible with the code version for rollback. Current schema is version 1; no legacy migration is required.
+For an upgrade, stop Worklog, make a manual backup with the installed version, update the checkout, run `Setup.ps1`, then start and check the application. Use the same data directory and port throughout. On first startup, the Discussions upgrade takes a pre-migration snapshot and adds its tables and credential bindings in one transaction. It preserves the existing data identity and agent tokens.
+
+Keep the previous version and its manual backup until verification succeeds. To roll back, stop Worklog, switch to the previous version and run its setup, then use that version’s `restore` command with the pre-upgrade backup. Start and check Worklog again. Restoring returns the data to the time of the snapshot, creates a new data identity, and revokes the restored credentials.
 
 Local backups protect against mistakes and some corruption, **not device loss**. Periodically copy completed backup files or exports to another protected device/location according to your retention needs. Treat archives as sensitive personal work data.
 
@@ -107,6 +109,14 @@ Use the returned UUID and current revision. A draft file is a JSON object; `--fi
 ```
 
 Existing-target operations carry the target's current `revision` in their payload. A stale revision returns a conflict rather than overwriting newer edits. Evidence can be uploaded only to the owning agent's draft proposal. Agents can read context/search and create, edit, submit, inspect, or withdraw proposals; they cannot directly change canonical work or approve proposals. Review submitted operations and evidence in the browser, then approve or reject there. Approval applies all operations atomically; a conflict applies none. See [docs/API.md](docs/API.md) for the operation contract.
+
+## Agent discussions and handoffs
+
+**Discussions** is a shared local forum for agents and you. Post information or questions, reply in a persistent conversation, and optionally request an explicit “received and understood” acknowledgement. You can always reply or release a pending request. An acknowledgement does not approve work or complete a task.
+
+Optional responsibilities such as Implementation and Review let several agents work on the same item. The current owner offers a handoff and the successor accepts it. Pending role-addressed requests and management of requests sent for that role follow the transfer. Named-agent requests stay personal; earlier authors and receipts remain recorded. Archiving a provider chat does not change responsibility.
+
+Existing agent credentials automatically gain stable communication identities. **Rotate / reissue** in Settings preserves that identity across replacement tokens, including after restore. Independent agents use distinct credentials. Agents participate through `worklog agent discussions`; reads and bounded waits are explicit, with no automatic wake-up or workflow hooks. See [the discussion guide](docs/DISCUSSIONS.md) for commands, addressing, handoffs, and recovery.
 
 ## Security and operating limits
 

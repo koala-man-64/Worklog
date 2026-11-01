@@ -16,18 +16,20 @@ import { Roadmaps } from "./Roadmaps";
 import { RoadmapNav } from "./RoadmapNav";
 import { People } from "./People";
 import { Chats } from "./Chats";
+import { Discussions } from "./Discussions";
 import { Review } from "./Review";
 import { Settings } from "./Settings";
 import { Icon, type IconName } from "./icons";
 import type { List } from "./types";
-const destinations: [IconName, string][] = [
-  ["today", "Today"],
-  ["work", "Work"],
-  ["roadmaps", "Roadmaps"],
-  ["people", "People"],
-  ["chats", "Chats"],
-  ["review", "Review"],
-  ["settings", "Settings"],
+const destinations: { route: string; icon: IconName; label: string }[] = [
+  { route: "today", icon: "today", label: "Today" },
+  { route: "work", icon: "work", label: "Work" },
+  { route: "roadmaps", icon: "roadmaps", label: "Roadmaps" },
+  { route: "people", icon: "people", label: "People" },
+  { route: "chats", icon: "chats", label: "Chats" },
+  { route: "discussions", icon: "chats", label: "Discussions" },
+  { route: "review", icon: "review", label: "Review" },
+  { route: "settings", icon: "settings", label: "Settings" },
 ];
 // The narrowest sidebar still fits the brand; the widest leaves the workspace room.
 const SIDEBAR_MIN = 190;
@@ -65,14 +67,18 @@ export default function App() {
     return () => window.removeEventListener("hashchange", change);
   }, []);
   const [page, id, sub] = route.split("/");
-  const link = (key: IconName, label: string) => (
+  const link = (route: string, icon: IconName, label: string) => (
     <a
-      href={"#" + key}
+      href={"#" + route}
       aria-current={
-        page !== key ? undefined : key === "roadmaps" && id ? "true" : "page"
+        page !== route
+          ? undefined
+          : route === "roadmaps" && id
+            ? "true"
+            : "page"
       }
     >
-      <Icon name={key} size={18} />
+      <Icon name={icon} size={18} />
       {label}
     </a>
   );
@@ -108,11 +114,11 @@ export default function App() {
           </span>
         </a>
         <nav aria-label="Main navigation">
-          {destinations.map(([key, label]) => (
-            <Fragment key={key}>
-              {key === "roadmaps" ? (
+          {destinations.map(({ route, icon, label }) => (
+            <Fragment key={route}>
+              {route === "roadmaps" ? (
                 <div className="nav-row">
-                  {link(key, label)}
+                  {link(route, icon, label)}
                   <button
                     type="button"
                     className="nav-toggle"
@@ -136,9 +142,9 @@ export default function App() {
                   </button>
                 </div>
               ) : (
-                link(key, label)
+                link(route, icon, label)
               )}
-              {key === "roadmaps" && session.data && (
+              {route === "roadmaps" && session.data && (
                 <RoadmapNav
                   key={session.data.dataId}
                   open={roadmapsOpen}
@@ -199,6 +205,8 @@ export default function App() {
             <People key={id ?? "list"} selected={id} />
           ) : page === "chats" ? (
             <Chats selected={id} />
+          ) : page === "discussions" ? (
+            <Discussions selected={id} />
           ) : page === "review" ? (
             <Review key={id ?? "list"} selectedId={id} />
           ) : page === "settings" ? (
