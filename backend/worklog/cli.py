@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import argparse
 import ctypes
+import io
 import json
 import mimetypes
 import os
+import random
 import socket
 import sqlite3
 import subprocess
@@ -16,11 +18,12 @@ import threading
 import time
 import uuid
 from contextlib import closing
+from http.client import HTTPConnection, HTTPException, HTTPResponse
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlsplit
-from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
+from urllib.request import HTTPHandler, HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
 from worklog import __version__
 from worklog.recovery import (
@@ -34,6 +37,7 @@ from worklog.recovery import (
 
 HOST = "127.0.0.1"
 DEFAULT_PORT = 8877
+WAIT_RESPONSE_LIMIT = 8_000_000
 
 
 def resolve_port(value: int | None = None) -> int:
@@ -58,9 +62,88 @@ class _NoRedirect(HTTPRedirectHandler):
         return None
 
 
-def _open(request: Any, *, timeout: float) -> Any:
+class _DeadlineReader(io.RawIOBase):
+    """Enforce total elapsed time even when each individual receive makes progress."""
+
+    def __init__(self, sock: socket.socket, deadline: float) -> None:
+        self.sock = sock
+        # Keep the socket alive after HTTPConnection closes a nonpersistent connection.
+        self.stream = sock.makefile("rb", buffering=0)
+        self.deadline = deadline
+
+    def readable(self) -> bool:
+        return True
+
+    def readinto(self, buffer: Any) -> int | None:
+        remaining = self.deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError("Worklog response deadline exceeded")
+        self.sock.settimeout(remaining)
+        return self.stream.readinto(buffer)
+
+    def close(self) -> None:
+        try:
+            self.stream.close()
+        finally:
+            super().close()
+
+
+class _DeadlineHTTPHandler(HTTPHandler):
+    def __init__(self, deadline: float) -> None:
+        super().__init__()
+        self.deadline = deadline
+
+    def http_open(self, request: Any) -> Any:
+        deadline = self.deadline
+
+        class ResponseSocket:
+            def __init__(self, sock: socket.socket) -> None:
+                self.sock = sock
+
+            def makefile(self, mode: str) -> io.BufferedReader:
+                return io.BufferedReader(_DeadlineReader(self.sock, deadline))
+
+        class Connection(HTTPConnection):
+            def connect(self) -> None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise TimeoutError("Worklog request deadline exceeded")
+                self.timeout = remaining
+                super().connect()
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise TimeoutError("Worklog request deadline exceeded")
+                assert self.sock is not None
+                self.sock.settimeout(remaining)
+
+            @staticmethod
+            def response_class(sock: Any, **kwargs: Any) -> HTTPResponse:  # type: ignore[override]
+                return HTTPResponse(cast(Any, ResponseSocket(sock)), **kwargs)
+
+        return self.do_open(Connection, request)
+
+
+def _open(request: Any, *, timeout: float, deadline: float | None = None) -> Any:
     # Local credentials must never reach an environment proxy or a redirect target.
-    return build_opener(ProxyHandler({}), _NoRedirect()).open(request, timeout=timeout)
+    handlers: list[Any] = [ProxyHandler({}), _NoRedirect()]
+    if deadline is not None:
+        handlers.append(_DeadlineHTTPHandler(deadline))
+    return build_opener(*handlers).open(request, timeout=timeout)
+
+
+def _response_json(response: Any, deadline: float | None) -> Any:
+    if deadline is None:
+        return json.load(response)
+    # Wait reads one message, not an unbounded context/export response.
+    # A valid message alone may contain one million UTF-8 bytes. Leave room
+    # for JSON escaping, targets and receipts while retaining a hard limit.
+    maximum = WAIT_RESPONSE_LIMIT
+    data = response.read(maximum + 1)
+    if len(data) > maximum:
+        raise ValueError(f"Worklog wait response exceeds {maximum:,} bytes")
+    if time.monotonic() > deadline:
+        raise TimeoutError("Worklog response deadline exceeded")
+    return json.loads(data)
 
 
 def data_directory(value: str | None = None) -> Path:
@@ -275,6 +358,41 @@ def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
                 state_path.unlink(missing_ok=True)
 
 
+class AgentRequestError(RuntimeError):
+    """A safe transport error with enough classification for bounded waits."""
+
+    def __init__(self, message: str, status: int | None = None) -> None:
+        super().__init__(message)
+        self.status = status
+
+
+def _discussion_route_allowed(method: str, route: str) -> bool:
+    """Keep the client independently unable to invoke human-only commands."""
+    if route in {"/discussions", "/discussions/roles"}:
+        return method in {"GET", "POST"}
+    if route in {"/discussions/participants", "/discussions/changes", "/discussions/resume"}:
+        return method == "GET"
+    parts = route.split("/")
+    def valid_id(value: str) -> bool:
+        try:
+            return str(uuid.UUID(value)) == value.lower()
+        except ValueError:
+            return False
+    if len(parts) == 3 and parts[1] == "discussions" and valid_id(parts[2]):
+        return method == "GET"
+    if len(parts) == 4 and parts[1] == "discussions":
+        if valid_id(parts[2]) and parts[3] == "messages":
+            return method == "POST"
+        if parts[2] == "messages" and valid_id(parts[3]):
+            return method == "GET"
+    if len(parts) == 5 and parts[1] == "discussions" and valid_id(parts[3]):
+        if parts[2] == "messages" and parts[4] in {"acknowledge", "cancel"}:
+            return method == "POST"
+        if parts[2] == "roles" and parts[4] in {"claim", "release", "offer", "accept", "decline", "withdraw"}:
+            return method == "POST"
+    return False
+
+
 class AgentClient:
     def __init__(self, base_url: str | None = None) -> None:
         base_url = base_url or local_url(resolve_port())
@@ -288,7 +406,9 @@ class AgentClient:
             raise ValueError("Set WORKLOG_AGENT_TOKEN to an agent credential issued in Worklog settings")
 
     def request(self, method: str, path: str, payload: Any = None,
-                *, raw: bytes | None = None, content_type: str | None = None) -> Any:
+                *, raw: bytes | None = None, content_type: str | None = None,
+                request_id: str | None = None, timeout: float = 30,
+                deadline: float | None = None) -> Any:
         # Explicit route allowlist makes canonical writes and approval unreachable from this client.
         route = path.split("?", 1)[0]
         segments = route.strip("/").split("/")
@@ -311,6 +431,7 @@ class AgentClient:
             query = parse_qs(urlsplit(path).query)
             ids = query.get("ownerId", [])
             allowed = query.get("ownerType") == ["proposal"] and len(ids) == 1 and valid_id(ids[0])
+        allowed = allowed or _discussion_route_allowed(method, route)
         if not allowed:
             raise ValueError("Agent command is outside proposal/read scope")
         headers = {"Authorization": "Bearer " + self.token, "Accept": "application/json"}
@@ -321,21 +442,34 @@ class AgentClient:
             data = json.dumps(payload).encode("utf-8")
             headers["Content-Type"] = "application/json"
         if method == "POST":
-            headers["Idempotency-Key"] = str(uuid.uuid4())
+            request_id = request_id or str(uuid.uuid4())
+            if not 8 <= len(request_id) <= 200 or not request_id.isascii() or any(ord(c) < 33 or ord(c) > 126 for c in request_id):
+                raise ValueError("Request ID must contain 8–200 printable ASCII characters without spaces")
+            headers["Idempotency-Key"] = request_id
+        discussion_write = method == "POST" and route.startswith("/discussions")
+        retry_hint = (f"; result uncertain; retry the same command and payload with --request-id {request_id}"
+                      if discussion_write else "")
         request = Request(self.base + "/api/v1" + path, data=data, headers=headers, method=method)
         try:
-            with _open(request, timeout=30) as response:
-                return json.load(response)
+            options = {"deadline": deadline} if deadline is not None else {}
+            with _open(request, timeout=timeout, **options) as response:
+                return _response_json(response, deadline)
         except HTTPError as exc:
             try:
-                error = json.loads(exc.read()).get("error", {})
+                with exc:
+                    error = _response_json(exc, deadline).get("error", {})
                 message = str(error.get("message", "Request rejected"))
-            except (ValueError, AttributeError):
+            except (ValueError, AttributeError, OSError, HTTPException):
                 message = "Request rejected"
             # Do not reflect arbitrary server content containing a credential.
-            raise RuntimeError(f"HTTP {exc.code}: " + message.replace(self.token, "[redacted]")) from None
-        except URLError:
-            raise RuntimeError("Cannot reach Worklog; run worklog check") from None
+            detail = f"HTTP {exc.code}: " + message
+            if exc.code >= 500:
+                detail += retry_hint
+            raise AgentRequestError(detail.replace(self.token, "[redacted]"), exc.code) from None
+        except (URLError, TimeoutError, OSError, HTTPException):
+            raise AgentRequestError(("Cannot reach Worklog; run worklog check" + retry_hint).replace(self.token, "[redacted]")) from None
+        except (ValueError, UnicodeError):
+            raise AgentRequestError(("Invalid response from Worklog" + retry_hint).replace(self.token, "[redacted]")) from None
 
 
 def _payload(path: str) -> dict[str, Any]:
@@ -347,6 +481,8 @@ def _payload(path: str) -> dict[str, Any]:
 
 def agent_command(args: argparse.Namespace, port: int) -> Any:
     client = AgentClient(args.url or local_url(port))
+    if args.agent_action == "discussions":
+        return discussion_command(client, args)
     if args.agent_action == "context":
         return client.request("GET", "/context" + ("?" + urlencode({"date": args.date}) if args.date else ""))
     if args.agent_action == "search":
@@ -374,6 +510,186 @@ def agent_command(args: argparse.Namespace, port: int) -> Any:
     return client.request("POST", route + "/" + action, {"revision": args.revision})
 
 
+def _discussion_context(args: argparse.Namespace) -> dict:
+    context = getattr(args, "context", None)
+    if context:
+        kind, separator, identity = context.partition(":")
+        if not separator or kind not in {"item", "roadmap", "step"} or not identity:
+            raise ValueError("Context must be item:ID, roadmap:ID or step:ID")
+        return {"contextType": kind, "contextId": identity}
+    return {}
+
+
+def _discussion_query(args: argparse.Namespace, *names: str) -> str:
+    values = {name: getattr(args, name) for name in names if getattr(args, name, None) is not None}
+    values.update(_discussion_context(args))
+    return "?" + urlencode(values) if values else ""
+
+
+def _wait_for_discussion(client: AgentClient, identity: str, timeout: float) -> dict:
+    """Observe one request, never consume the independent discovery feed."""
+    deadline = time.monotonic() + timeout
+    route = "/discussions/messages/" + identity
+    delay_index = 0
+    failures = 0
+    last = None
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return {"outcome": "pending", "timedOut": True, "message": last}
+        try:
+            last = client.request("GET", route, timeout=min(30, remaining), deadline=deadline)
+            failures = 0
+        except AgentRequestError as exc:
+            if exc.status in {401, 403}:
+                return {"outcome": "authentication_failed" if exc.status == 401 else "forbidden", "error": str(exc)}
+            if exc.status is not None and exc.status < 500:
+                raise
+            failures += 1
+            if failures >= 3 or time.monotonic() >= deadline:
+                return {"outcome": "unavailable", "error": str(exc)}
+        else:
+            request = last.get("request")
+            if not request:
+                raise ValueError("This message has no acknowledgement request")
+            state = request["state"]
+            if state != "pending":
+                return {"outcome": state, "timedOut": False, "message": last}
+            if time.monotonic() >= deadline:
+                return {"outcome": "pending", "timedOut": True, "message": last}
+        delay = (2, 5, 10)[min(delay_index, 2)] * random.uniform(0.9, 1.1)
+        delay_index += 1
+        remaining = deadline - time.monotonic()
+        if remaining > 0:
+            time.sleep(min(delay, remaining))
+
+
+def discussion_command(client: AgentClient, args: argparse.Namespace) -> Any:
+    action = args.discussion_action
+    base = "/discussions"
+    if action == "participants":
+        return client.request("GET", base + "/participants")
+    if action == "list":
+        return client.request("GET", base + _discussion_query(args, "view", "q", "repo", "limit", "offset"))
+    if action in {"changes", "resume"}:
+        fields = ("cursor", "limit") if action == "changes" else ("limit", "offset")
+        return client.request("GET", base + "/" + action + _discussion_query(args, *fields))
+    if action == "read":
+        route = base + ("/messages/" if args.message else "/") + args.id
+        return client.request("GET", route + ("" if args.message else _discussion_query(args, "limit", "offset")))
+    if action == "wait":
+        return _wait_for_discussion(client, args.id, args.timeout)
+    if action == "roles":
+        verb = args.role_action
+        if verb == "list":
+            return client.request("GET", base + "/roles" + _discussion_query(args, "limit", "offset"))
+        if verb == "create":
+            payload = {"label": args.label, **_discussion_context(args)}
+            route = base + "/roles"
+        else:
+            payload = {"revision": args.revision}
+            if verb == "offer":
+                payload["successorId"] = args.to
+            if getattr(args, "note", None) is not None:
+                payload["note"] = args.note
+            route = base + "/roles/" + args.id + "/" + verb
+    elif action in {"ack", "cancel"}:
+        payload = {"targetIds": args.target} if action == "ack" and args.target else {}
+        route = base + "/messages/" + args.id + ("/acknowledge" if action == "ack" else "/cancel")
+    else:
+        payload = _payload(args.file) if args.file else {"text": args.text}
+        if args.as_role:
+            payload["onBehalfOfRoleId"] = args.as_role
+        if args.chat:
+            payload["chatId"] = args.chat
+        if action == "post":
+            if args.title:
+                payload["title"] = args.title
+            if args.context:
+                context = _discussion_context(args)
+                payload["contexts"] = [{"type": context["contextType"], "id": context["contextId"]}]
+            if args.repo:
+                payload["repos"] = args.repo
+        route = base if action == "post" else base + "/" + args.id + "/messages"
+    return client.request("POST", route, payload, request_id=args.request_id)
+
+
+def _wait_timeout(value: str) -> float:
+    result = float(value)
+    if not 0 < result <= 60:
+        raise argparse.ArgumentTypeError("Wait timeout must be greater than 0 and at most 60 seconds")
+    return result
+
+
+def _discussion_parser(actions: Any) -> None:
+    discussions = actions.add_parser("discussions", help="Read and contribute to the shared discussion forum")
+    commands = discussions.add_subparsers(dest="discussion_action", required=True)
+    def context(command: Any, required: bool = False) -> None:
+        command.add_argument("--context", required=required, metavar="TYPE:ID")
+    def pages(command: Any) -> None:
+        command.add_argument("--limit", type=int, default=50)
+        command.add_argument("--offset", type=int, default=0)
+    def write(command: Any) -> None:
+        command.add_argument("--request-id", help="Reuse this key and the same payload when retrying a write")
+    commands.add_parser("participants")
+    listing = commands.add_parser("list")
+    listing.add_argument("--view", choices=("all", "awaiting", "archived"), default="all")
+    listing.add_argument("--q")
+    listing.add_argument("--repo")
+    context(listing)
+    pages(listing)
+    read = commands.add_parser("read")
+    read.add_argument("id")
+    read.add_argument("--message", action="store_true", help="Read a message ID instead of a discussion ID")
+    pages(read)
+    changes = commands.add_parser("changes")
+    changes.add_argument("--cursor")
+    changes.add_argument("--limit", type=int, default=50)
+    context(changes)
+    resume = commands.add_parser("resume")
+    context(resume, required=True)
+    pages(resume)
+    for verb in ("post", "reply"):
+        command = commands.add_parser(verb)
+        if verb == "reply":
+            command.add_argument("id")
+        source = command.add_mutually_exclusive_group(required=True)
+        source.add_argument("--file", help="JSON object, or - for stdin; supports acknowledgement requests")
+        source.add_argument("--text")
+        command.add_argument("--as-role")
+        command.add_argument("--chat")
+        if verb == "post":
+            command.add_argument("--title")
+            command.add_argument("--repo", action="append")
+            context(command)
+        write(command)
+    for verb in ("ack", "cancel"):
+        command = commands.add_parser(verb)
+        command.add_argument("id")
+        if verb == "ack":
+            command.add_argument("--target", action="append", help="Explicit acknowledgement target slot ID; repeat for multiple slots")
+        write(command)
+    waiting = commands.add_parser("wait")
+    waiting.add_argument("id")
+    waiting.add_argument("--timeout", type=_wait_timeout, default=30)
+    roles = commands.add_parser("roles").add_subparsers(dest="role_action", required=True)
+    role_list = roles.add_parser("list")
+    context(role_list)
+    pages(role_list)
+    create = roles.add_parser("create")
+    create.add_argument("--label", required=True)
+    context(create, required=True)
+    write(create)
+    for verb in ("claim", "release", "offer", "accept", "decline", "withdraw"):
+        command = roles.add_parser(verb)
+        command.add_argument("id")
+        command.add_argument("--revision", type=int, required=True)
+        if verb == "offer":
+            command.add_argument("--to", required=True, help="Successor's stable communication identity")
+            command.add_argument("--note")
+        write(command)
+
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="worklog", description=__doc__)
     root.add_argument("--data-dir", help="Override persistent data directory")
@@ -391,6 +707,7 @@ def parser() -> argparse.ArgumentParser:
     agent.add_argument("--url", help="Agent base URL (default: the selected local port)")
     agent.add_argument("--port", type=int, default=argparse.SUPPRESS)
     actions = agent.add_subparsers(dest="agent_action", required=True)
+    _discussion_parser(actions)
     context = actions.add_parser("context")
     context.add_argument("--date")
     search = actions.add_parser("search")

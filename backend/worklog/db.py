@@ -71,6 +71,7 @@ class Database:
         return conn
 
     def initialize(self) -> None:
+        from .discussions import migrate as migrate_discussions
         from .plans import SCHEMA as PLAN_SCHEMA
         from .proposals import SCHEMA as PROPOSAL_SCHEMA
 
@@ -91,69 +92,50 @@ class Database:
                 actual = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
                 if not required <= actual:
                     raise AppError(503, "database_invalid", "Database schema is incomplete")
-                columns = {r["name"] for r in conn.execute("PRAGMA table_info(work_items)")}
-                if "roadmap_id" not in columns:
-                    try:
-                        conn.execute("BEGIN IMMEDIATE")
+                if "communication_agents" not in actual:
+                    # Preserve the original shape, including older supported upgrades.
+                    # Failure to preserve a snapshot prevents any migration below.
+                    from .recovery import backup_database
+
+                    backup_database(self.path, self.path.parent / "backups", "pre-migration")
+                try:
+                    # All supported legacy steps and the new feature are one upgrade.
+                    # executescript commits implicitly, so execute each DDL statement.
+                    conn.execute("BEGIN IMMEDIATE")
+                    columns = {r["name"] for r in conn.execute("PRAGMA table_info(work_items)")}
+                    if "roadmap_id" not in columns:
                         conn.execute("ALTER TABLE work_items ADD COLUMN roadmap_id TEXT REFERENCES roadmaps(id)")
                         conn.execute("UPDATE work_items SET roadmap_id=(SELECT roadmap_id FROM steps WHERE steps.id=work_items.step_id) WHERE step_id IS NOT NULL AND roadmap_id IS NULL")
-                        conn.commit()
-                    except Exception:
-                        conn.rollback()
-                        raise
-                if not {"people", "person_links"} <= actual:
-                    try:
-                        conn.execute("BEGIN IMMEDIATE")
-                        conn.executescript(PEOPLE_SCHEMA)
-                        conn.commit()
-                    except Exception:
-                        conn.rollback()
-                        raise
-                if not {"web_links", "agent_chats", "github_refs"} <= actual:
-                    try:
-                        conn.execute("BEGIN IMMEDIATE")
-                        conn.executescript(LINKS_CHATS_GITHUB_SCHEMA)
-                        conn.commit()
-                    except Exception:
-                        conn.rollback()
-                        raise
-                chat_columns = {r["name"] for r in conn.execute("PRAGMA table_info(agent_chats)")}
-                if "provider" not in chat_columns:
-                    try:
-                        conn.execute("BEGIN IMMEDIATE")
+                    if not {"people", "person_links"} <= actual:
+                        for statement in filter(str.strip, PEOPLE_SCHEMA.split(";")):
+                            conn.execute(statement)
+                    if not {"web_links", "agent_chats", "github_refs"} <= actual:
+                        for statement in filter(str.strip, LINKS_CHATS_GITHUB_SCHEMA.split(";")):
+                            conn.execute(statement)
+                    chat_columns = {r["name"] for r in conn.execute("PRAGMA table_info(agent_chats)")}
+                    if "provider" not in chat_columns:
                         for column in AGENT_CHAT_COLUMNS.split(", ")[1:]:
                             conn.execute("ALTER TABLE agent_chats ADD COLUMN " + column)
-                        conn.commit()
-                    except Exception:
-                        conn.rollback()
-                        raise
-                if "chat_steps" not in actual:
-                    try:
-                        # executescript would commit first; the table and its index land together or not at all.
-                        conn.execute("BEGIN IMMEDIATE")
+                    if "chat_steps" not in actual:
                         for statement in filter(str.strip, CHAT_STEPS_SCHEMA.split(";")):
                             conn.execute(statement)
-                        conn.commit()
-                    except Exception:
-                        conn.rollback()
-                        raise
-                roadmap_columns = {r["name"] for r in conn.execute("PRAGMA table_info(roadmaps)")}
-                if "parent_id" not in roadmap_columns:
-                    try:
-                        conn.execute("BEGIN IMMEDIATE")
+                    roadmap_columns = {r["name"] for r in conn.execute("PRAGMA table_info(roadmaps)")}
+                    if "parent_id" not in roadmap_columns:
                         conn.execute("ALTER TABLE roadmaps ADD COLUMN parent_id TEXT REFERENCES roadmaps(id)")
-                        conn.commit()
-                    except Exception:
-                        conn.rollback()
-                        raise
-                if conn.execute("PRAGMA foreign_key_check").fetchone():
-                    raise AppError(503, "database_invalid", "Database has invalid references")
+                    migrate_discussions(conn)
+                    if conn.execute("PRAGMA foreign_key_check").fetchone():
+                        raise AppError(503, "database_invalid", "Database has invalid references")
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
+                    raise
                 return
             try:
                 conn.execute("PRAGMA journal_mode=DELETE")
                 conn.executescript("BEGIN IMMEDIATE;\n" + PLAN_SCHEMA + PROPOSAL_SCHEMA + SCHEMA)
                 for key, value in {"timezone": "America/Chicago", "dataId": uid(), "backlogRevision": 1}.items():
                     conn.execute("INSERT INTO settings VALUES(?,?)", (key, json.dumps(value)))
+                migrate_discussions(conn)
                 conn.execute("PRAGMA user_version=1")
                 conn.commit()
             except Exception:

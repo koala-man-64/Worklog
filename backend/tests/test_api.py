@@ -40,6 +40,22 @@ def item(c, **kwargs):
     return r.json()
 
 
+def test_shared_search_routes_discussion_history_and_respects_archive(client):
+    created = write(client, "POST", "/discussions", {"text": "Searchable handoff information"})
+    assert created.status_code == 200, created.text
+    discussion = created.json()["discussion"]
+    reply = write(client, "POST", f"/discussions/{discussion['id']}/messages", {"text": "Searchable successor reply"})
+    assert reply.status_code == 200
+    matches = client.get("/api/v1/search?q=Searchable").json()["items"]
+    assert matches
+    assert all(m["routeType"] == "discussions" and m["routeId"] == discussion["id"] for m in matches)
+    current = client.get(f"/api/v1/discussions/{discussion['id']}").json()["discussion"]
+    archived = write(client, "POST", f"/discussions/{discussion['id']}/archive", {"revision": current["revision"], "archived": True})
+    assert archived.status_code == 200
+    assert client.get("/api/v1/search?q=Searchable").json()["items"] == []
+    assert client.get("/api/v1/search?q=Searchable&archived=true").json()["items"]
+
+
 def test_read_day_never_writes_and_multiday_activity_survives_rescheduling(client):
     db = client.app.state.db
     with db.read() as conn:

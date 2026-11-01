@@ -911,13 +911,14 @@ class WorkService:
                 WHEN gr.owner_type='roadmap' THEN gr.owner_id
                 ELSE st.roadmap_id END
             LEFT JOIN people p ON p.id=CASE WHEN s.type='person' THEN s.entity_id END
+            LEFT JOIN discussions ds ON s.type IN ('discussion','discussion_message') AND ds.id=s.owner_id
             WHERE search_index MATCH ? AND
              (CAST(s.archived AS INTEGER)=1 OR coalesce(w.archived,0)=1
-              OR coalesce(st.retired,0)=1 OR coalesce(rm.archived,0)=1 OR coalesce(p.archived,0)=1)=?"""
+              OR coalesce(st.retired,0)=1 OR coalesce(rm.archived,0)=1 OR coalesce(p.archived,0)=1 OR coalesce(ds.archived,0)=1)=?"""
         with self.db.read() as c:
             rows = c.execute("""SELECT s.entity_id,s.type,s.title,s.body,s.owner_id,
-                             CASE WHEN w.id IS NOT NULL THEN 'work' WHEN p.id IS NOT NULL THEN 'people' ELSE 'roadmaps' END AS route_type,
-                             coalesce(w.id,p.id,rm.id) AS route_id """ + source + " ORDER BY rank LIMIT ? OFFSET ?", (match, int(archived), limit, offset)).fetchall()
+                             CASE WHEN ds.id IS NOT NULL THEN 'discussions' WHEN w.id IS NOT NULL THEN 'work' WHEN p.id IS NOT NULL THEN 'people' ELSE 'roadmaps' END AS route_type,
+                             coalesce(ds.id,w.id,p.id,rm.id) AS route_id """ + source + " ORDER BY rank LIMIT ? OFFSET ?", (match, int(archived), limit, offset)).fetchall()
             total = c.execute("SELECT count(*) " + source, (match, int(archived))).fetchone()[0]
             return {"items": [{"id": r[0], "type": r[1], "title": r[2], "snippet": r[3][:220], "ownerId": r[4],
                                "routeType": r["route_type"], "routeId": r["route_id"]} for r in rows], "total": total}

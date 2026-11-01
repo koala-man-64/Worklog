@@ -1356,6 +1356,419 @@ section:not(.draft) > h3 {
 .chat-messages[aria-busy] .messages {
   opacity: 0.6;
 }
+.discussion-list-panel .panel-head .toolbar.compact,
+.discussion-detail-head .toolbar.compact {
+  gap: 6px;
+}
+.discussion-list-panel .panel-head .toolbar button,
+.discussion-detail-head .toolbar button {
+  min-height: 32px;
+  padding: 4px 9px;
+  font-size: 12px;
+}
+.discussion-filters {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.discussion-filters > label,
+.discussion-composer > label,
+.discussion-context-picker > label,
+.discussion-role-card label,
+.discussion-create-role label,
+.release-request-form label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.discussion-filters input,
+.discussion-composer input,
+.discussion-composer select,
+.discussion-context-picker input,
+.discussion-role-card select,
+.discussion-role-card textarea,
+.discussion-create-role input,
+.release-request-form textarea {
+  width: 100%;
+  min-width: 0;
+}
+.discussion-filters .thread-filter {
+  gap: 4px;
+}
+.discussion-filters .thread-filter button {
+  flex: 1;
+}
+.discussion-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.discussion-list > li {
+  display: grid;
+  gap: 5px;
+  padding: 12px 8px;
+  border-top: 1px solid var(--line);
+  border-radius: 4px;
+  overflow-wrap: anywhere;
+}
+.discussion-list > li:first-child {
+  border-top: 0;
+}
+.discussion-list > li.selected {
+  background: var(--teal-wash);
+}
+.discussion-list-link {
+  display: grid;
+  gap: 2px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.discussion-list-link:hover strong,
+.discussion-list-link[aria-current] strong {
+  color: var(--teal);
+}
+.discussion-list-link small {
+  font-variant-numeric: tabular-nums;
+}
+.discussion-archived-label,
+.discussion-pending-count {
+  width: fit-content;
+  color: var(--muted);
+  font-size: 11px;
+}
+.discussion-pending-count {
+  color: var(--status-doing-ink);
+}
+.discussion-contexts,
+.discussion-repos {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-width: 0;
+}
+.context-tag,
+.repo-tag {
+  display: inline-block;
+  max-width: 100%;
+  padding: 1px 7px;
+  border-radius: 12px;
+  background: var(--sidebar);
+  color: var(--muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+a.context-tag:hover {
+  color: var(--teal);
+  text-decoration: underline;
+}
+.discussion-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+}
+.discussion-pagination button {
+  min-height: 30px;
+  padding: 3px 8px;
+  font-size: 12px;
+}
+.discussion-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.discussion-detail-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+.discussion-detail-head h2 {
+  margin: 0 0 6px;
+  font-size: 24px;
+  overflow-wrap: anywhere;
+}
+.discussion-detail-head > div:first-child {
+  min-width: 0;
+  flex: 1 1 240px;
+}
+.discussion-detail-head > div:first-child > small {
+  display: block;
+  margin-top: 6px;
+}
+.discussion-message-page {
+  display: grid;
+  gap: 10px;
+}
+.discussion-messages {
+  list-style: none;
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+}
+.discussion-message {
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--paper);
+  overflow-wrap: anywhere;
+}
+.discussion-message-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 5px 9px;
+  margin-bottom: 8px;
+}
+.discussion-message-head time {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.discussion-message .markdown > :first-child {
+  margin-top: 0;
+}
+.discussion-message .markdown > :last-child {
+  margin-bottom: 0;
+}
+.discussion-chat-reference {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.acknowledgement-card {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--teal);
+  border-radius: 5px;
+  background: var(--bg);
+}
+.acknowledgement-head {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 5px 10px;
+}
+.ack-state {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.ack-state.pending {
+  color: var(--status-doing-ink);
+}
+.acknowledgement-card > p {
+  margin: 0;
+  font-size: 12px;
+}
+.acknowledgement-targets,
+.acknowledgement-receipts {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+}
+.acknowledgement-targets li,
+.acknowledgement-receipts li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+.acknowledgement-receipts time {
+  color: var(--muted);
+  font-size: 11px;
+}
+.acknowledgement-reason {
+  padding: 8px;
+  border-left: 2px solid var(--line);
+}
+.release-request-form,
+.discussion-composer,
+.discussion-create-role form {
+  display: grid;
+  gap: 12px;
+}
+.release-request-form textarea {
+  min-height: 70px;
+}
+.discussion-reply {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.discussion-reply h3 {
+  margin: 0 0 4px;
+}
+.discussion-reply > p {
+  margin: 0 0 10px;
+  font-size: 12px;
+}
+.discussion-composer > label > textarea {
+  min-height: 125px;
+  resize: vertical;
+}
+.discussion-composer .toolbar {
+  margin: 0;
+}
+.discussion-context-picker {
+  display: grid;
+  gap: 6px;
+}
+.discussion-context-suggestions,
+.discussion-selected-contexts {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.discussion-context-suggestions button {
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 8px;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.discussion-selected-contexts li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.acknowledgement-request-input,
+.acknowledgement-recipient-list {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+}
+.acknowledgement-request-input > label:not(.checkbox-label) {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.acknowledgement-recipient-list .checkbox-label,
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--ink);
+  font-size: 13px;
+}
+.acknowledgement-recipient-list .checkbox-label input,
+.checkbox-label input {
+  width: auto;
+  margin: 0;
+}
+.acknowledgement-recipient-list legend {
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.discussion-roles-panel {
+  margin: 14px 4px 0;
+  padding: 10px 4px;
+  border-top: 1px solid var(--line);
+}
+.discussion-roles-panel > summary,
+.discussion-create-role > summary,
+.discussion-role-card details > summary {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+.discussion-role-list {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 10px 0;
+  padding: 0;
+}
+.discussion-role-card {
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  overflow-wrap: anywhere;
+}
+.discussion-role-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 10px;
+}
+.discussion-role-card p {
+  margin: 0;
+  font-size: 12px;
+}
+.discussion-role-card details {
+  margin: 0;
+  padding: 7px 0 0;
+}
+.discussion-role-card details form {
+  display: grid;
+  gap: 8px;
+  padding-top: 8px;
+}
+.discussion-role-card textarea {
+  min-height: 60px;
+}
+.role-offer {
+  padding: 8px;
+  border-left: 3px solid var(--status-doing-border);
+  background: var(--bg);
+  font-size: 12px;
+}
+.role-offer p {
+  margin-top: 4px;
+}
+.discussion-create-role {
+  margin: 10px 0;
+  padding: 10px 0;
+}
+.discussion-create-role form {
+  padding-top: 10px;
+}
+.discussion-roles-panel > p:last-child {
+  font-size: 11px;
+}
+.credential-identity {
+  display: grid;
+  min-width: 160px;
+}
+.discussion-profile-list {
+  margin: 14px 0 8px;
+}
+.discussion-profile-list h3 {
+  margin-bottom: 8px;
+}
 .messages {
   list-style: none;
   margin: 0;
@@ -1835,6 +2248,9 @@ code {
     grid-template-columns: minmax(0, 3fr) minmax(300px, 2fr);
   }
   .chats-split {
+    grid-template-columns: minmax(280px, 2fr) minmax(0, 3fr);
+  }
+  .discussions-split {
     grid-template-columns: minmax(280px, 2fr) minmax(0, 3fr);
   }
   /* The chat's name and agent filter stay in view while its messages scroll in the pane. */

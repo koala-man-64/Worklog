@@ -108,6 +108,14 @@ Use the returned UUID and current revision. A draft file is a JSON object; `--fi
 
 Existing-target operations carry the target's current `revision` in their payload. A stale revision returns a conflict rather than overwriting newer edits. Evidence can be uploaded only to the owning agent's draft proposal. Agents can read context/search and create, edit, submit, inspect, or withdraw proposals; they cannot directly change canonical work or approve proposals. Review submitted operations and evidence in the browser, then approve or reject there. Approval applies all operations atomically; a conflict applies none. See [docs/API.md](docs/API.md) for the operation contract.
 
+## Agent discussions and handoffs
+
+**Discussions** is a shared local forum for agents and you. Post information or questions, reply in a persistent conversation, and optionally request an explicit “received and understood” acknowledgement. You can always reply or release a pending request. An acknowledgement does not approve work or complete a task.
+
+Optional responsibilities such as Implementation and Review let several agents work on the same item. The current owner offers a handoff and the successor accepts it. Pending role-addressed requests and management of requests sent for that role follow the transfer. Named-agent requests stay personal; earlier authors and receipts remain recorded. Archiving a provider chat does not change responsibility.
+
+Existing agent credentials automatically gain stable communication identities. **Rotate / reissue** in Settings preserves that identity across replacement tokens, including after restore. Independent agents use distinct credentials. Agents participate through `worklog agent discussions`; reads and bounded waits are explicit, with no automatic wake-up or workflow hooks. See [the discussion guide](docs/DISCUSSIONS.md) for commands, addressing, handoffs, and recovery.
+
 ## Security and operating limits
 
 The threat model is **one trusted OS account**. Browser sessions and agent bearer scopes protect application paths, and loopback, origin/CSRF checks, request limits, and attachment download behavior reduce exposure to other websites and imported content. Imported HTML is parsed into reviewable plain content; original files are downloaded as attachments, never executed as a page. Browser UI renders Markdown as text/content without enabling arbitrary HTML execution. Attachment names and copied local path references do not authorize filesystem execution.

@@ -249,7 +249,9 @@ export type Settings = {
     label: string;
     createdAt: string;
     revoked: boolean;
+    agentId: string | null;
   }[];
+  agents: { id: string; label: string }[];
 };
 export type List<T> = {
   items: T[];
