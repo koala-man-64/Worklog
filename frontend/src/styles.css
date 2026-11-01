@@ -870,6 +870,12 @@ section:not(.draft) > h3 {
   border-radius: 5px;
   background: var(--paper);
 }
+/* A note body grows with its text up to most of the window; browsers without field-sizing keep the taller minimum. */
+.note textarea {
+  min-height: 240px;
+  max-height: 75vh;
+  field-sizing: content;
+}
 .back {
   display: inline-block;
   font-size: 12px;
