@@ -37,16 +37,26 @@ CREATE INDEX person_links_target ON person_links(target_type,target_id);
 CREATE INDEX person_links_person ON person_links(person_id);
 """
 
+# Columns that tell who is working: they sit exactly where ALTER TABLE ADD COLUMN places
+# them, so created and migrated databases share one definition for restore validation.
+AGENT_CHAT_COLUMNS = ", provider TEXT NOT NULL DEFAULT '', model TEXT NOT NULL DEFAULT '', repos TEXT NOT NULL DEFAULT '[]'"
+
 LINKS_CHATS_GITHUB_SCHEMA = """
 CREATE TABLE web_links(id TEXT PRIMARY KEY,owner_type TEXT NOT NULL CHECK(owner_type IN('item','roadmap')),owner_id TEXT NOT NULL,url TEXT NOT NULL,title TEXT NOT NULL DEFAULT '',description TEXT NOT NULL DEFAULT '',archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
 CREATE INDEX web_links_owner ON web_links(owner_type,owner_id,archived);
-CREATE TABLE agent_chats(id TEXT PRIMARY KEY,owner_type TEXT NOT NULL CHECK(owner_type IN('item','roadmap')),owner_id TEXT NOT NULL,chat_id TEXT NOT NULL,title TEXT NOT NULL,created_date TEXT NOT NULL,archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+CREATE TABLE agent_chats(id TEXT PRIMARY KEY,owner_type TEXT NOT NULL CHECK(owner_type IN('item','roadmap')),owner_id TEXT NOT NULL,chat_id TEXT NOT NULL,title TEXT NOT NULL,created_date TEXT NOT NULL,archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL""" + AGENT_CHAT_COLUMNS + """);
 CREATE INDEX agent_chats_owner ON agent_chats(owner_type,owner_id,archived);
 CREATE TABLE github_refs(id TEXT PRIMARY KEY,owner_type TEXT NOT NULL CHECK(owner_type IN('item','roadmap')),owner_id TEXT NOT NULL,kind TEXT NOT NULL CHECK(kind IN('commit','pr')),url TEXT NOT NULL,reference TEXT NOT NULL DEFAULT '',title TEXT NOT NULL DEFAULT '',description TEXT NOT NULL DEFAULT '',chat_id TEXT REFERENCES agent_chats(id),archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
 CREATE INDEX github_refs_owner ON github_refs(owner_type,owner_id,archived);
 """
 
-SCHEMA = SCHEMA + PEOPLE_SCHEMA + LINKS_CHATS_GITHUB_SCHEMA
+# A roadmap's agent chats name the steps they work on.
+CHAT_STEPS_SCHEMA = """
+CREATE TABLE chat_steps(chat_id TEXT NOT NULL REFERENCES agent_chats(id),step_id TEXT NOT NULL REFERENCES steps(id),created_at TEXT NOT NULL,PRIMARY KEY(chat_id,step_id));
+CREATE INDEX chat_steps_step ON chat_steps(step_id);
+"""
+
+SCHEMA = SCHEMA + PEOPLE_SCHEMA + LINKS_CHATS_GITHUB_SCHEMA + CHAT_STEPS_SCHEMA
 
 
 class Database:
@@ -103,6 +113,24 @@ class Database:
                     try:
                         conn.execute("BEGIN IMMEDIATE")
                         conn.executescript(LINKS_CHATS_GITHUB_SCHEMA)
+                        conn.commit()
+                    except Exception:
+                        conn.rollback()
+                        raise
+                chat_columns = {r["name"] for r in conn.execute("PRAGMA table_info(agent_chats)")}
+                if "provider" not in chat_columns:
+                    try:
+                        conn.execute("BEGIN IMMEDIATE")
+                        for column in AGENT_CHAT_COLUMNS.split(", ")[1:]:
+                            conn.execute("ALTER TABLE agent_chats ADD COLUMN " + column)
+                        conn.commit()
+                    except Exception:
+                        conn.rollback()
+                        raise
+                if "chat_steps" not in actual:
+                    try:
+                        conn.execute("BEGIN IMMEDIATE")
+                        conn.executescript(CHAT_STEPS_SCHEMA)
                         conn.commit()
                     except Exception:
                         conn.rollback()

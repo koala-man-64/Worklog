@@ -42,7 +42,13 @@ def _expected_schema() -> dict[tuple[str, str], str]:
 
 
 def _compatible_schemas() -> tuple[dict[tuple[str, str], str], ...]:
-    current = _expected_schema()
+    from worklog.db import AGENT_CHAT_COLUMNS
+
+    latest = _expected_schema()
+    # `current` is the last shape before agent chats gained provider, model, repos and step
+    # assignments; every earlier shape below derives from it.
+    current ={k: v for k, v in latest.items() if k[1] not in {"chat_steps", "chat_steps_step"}}
+    current[("table", "agent_chats")] = latest[("table", "agent_chats")].replace(AGENT_CHAT_COLUMNS, "")
     lcg_names = {
         "web_links",
         "web_links_owner",
@@ -75,7 +81,7 @@ def _compatible_schemas() -> tuple[dict[tuple[str, str], str], ...]:
             ", parent_id TEXT REFERENCES roadmaps(id)", "")}
         for schema in (current, without_lcg, without_people, legacy_roadmap, current_without_roadmap)
     ]
-    return (current, *earlier)
+    return (latest, current, *earlier)
 
 
 class InstanceLock:
@@ -414,6 +420,14 @@ def restore_database(db_path: Path | str, candidate_path: Path | str,
                 roadmap_columns = {r[1] for r in conn.execute("PRAGMA table_info(roadmaps)")}
                 if "parent_id" not in roadmap_columns:
                     conn.execute("ALTER TABLE roadmaps ADD COLUMN parent_id TEXT REFERENCES roadmaps(id)")
+                from worklog.db import AGENT_CHAT_COLUMNS, CHAT_STEPS_SCHEMA
+
+                chat_columns = {r[1] for r in conn.execute("PRAGMA table_info(agent_chats)")}
+                if "provider" not in chat_columns:
+                    for column in AGENT_CHAT_COLUMNS.split(", ")[1:]:
+                        conn.execute("ALTER TABLE agent_chats ADD COLUMN " + column)
+                if "chat_steps" not in tables:
+                    conn.executescript(CHAT_STEPS_SCHEMA)
                 conn.execute("UPDATE credentials SET revoked=1")
                 conn.execute("UPDATE settings SET value=? WHERE key='dataId'", (json.dumps(new_data_id),))
                 conn.commit()

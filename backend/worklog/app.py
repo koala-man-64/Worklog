@@ -361,7 +361,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False) -> 
             row = c.execute(f"SELECT * FROM {table} WHERE id=?", (identity,)).fetchone()
             if row is None:
                 raise AppError(404, "not_found", "Supporting record not found")
-            return support_record(row)
+            return work.chats(c, [row])[0] if resource == "chats" else support_record(row)
 
     @app.post("/api/v1/notes")
     def create_note(request: Request, body: m.NoteCreate) -> dict:

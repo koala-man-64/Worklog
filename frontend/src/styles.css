@@ -1221,6 +1221,32 @@ section:not(.draft) > h3 {
 .person-badge:hover {
   text-decoration: underline;
 }
+/* An agent chat reads as who (title, provider and model), where (chat ID, repos), and what (steps). */
+.chat-summary {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+.chat-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  overflow-wrap: anywhere;
+}
+.chat-row .person-badge:hover {
+  text-decoration: none;
+}
+.chat-row code.repo {
+  padding: 0 6px;
+  border-radius: 3px;
+  background: var(--sidebar);
+}
+/* The global input rule outranks .inline's minimum; six chat fields wrap rather than crush. */
+.chat-form input:not([type="checkbox"]) {
+  min-width: 9rem;
+}
 progress {
   width: 100%;
   height: 5px;

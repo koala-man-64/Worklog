@@ -1,10 +1,10 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setDataContext } from "./api";
 import { RoadmapDetail } from "./Roadmaps";
-import type { Roadmap, Step } from "./types";
+import type { AgentChat, Roadmap, Step } from "./types";
 
 const ROADMAP = "22222222-2222-4222-8222-222222222222";
 function step(id: string, title: string, parentId: string | null): Step {
@@ -198,4 +198,194 @@ it("expands the collapsed parents of a step opened by link", async () => {
   expect(
     screen.getByRole("button", { name: "Collapse Parent" }),
   ).toHaveAttribute("aria-expanded", "true");
+});
+
+function chat(id: string, title: string, stepIds: string[]): AgentChat {
+  return {
+    id,
+    revision: 3,
+    ownerType: "roadmap",
+    ownerId: ROADMAP,
+    chatId: "conv-" + id.slice(-1),
+    title,
+    createdDate: "2026-10-31",
+    provider: "",
+    model: "",
+    repos: [],
+    stepIds,
+  };
+}
+const API_CHAT = {
+  ...chat("cccccccc-0000-4000-8000-000000000001", "Build the API", [PARENT]),
+  provider: "Anthropic",
+  model: "claude-opus-5-5",
+  repos: ["acme/api", "acme/web"],
+};
+const DOCS_CHAT = {
+  ...chat("cccccccc-0000-4000-8000-000000000002", "Write the docs", []),
+  provider: "OpenAI",
+  model: "gpt-5.5",
+};
+function recordWrites() {
+  const writes: { url: string; method: string; body: unknown }[] = [];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const method = init?.method ?? "GET";
+    if (method !== "GET")
+      writes.push({
+        url: String(input),
+        method,
+        body: JSON.parse(String(init?.body)),
+      });
+    return Response.json(
+      String(input).endsWith("/roadmaps/" + ROADMAP)
+        ? served
+        : { items: [], total: 0 },
+    );
+  });
+  return writes;
+}
+
+it("shows who is working on which step in the outline and the roadmap's chats", async () => {
+  served = { ...road, chats: [API_CHAT, DOCS_CHAT] };
+  view();
+  const outline = await screen.findByRole("region", { name: "Plan outline" });
+  const parentRow = within(outline)
+    .getByRole("link", { name: "Parent" })
+    .closest(".step-row") as HTMLElement;
+  expect(within(parentRow).getByText("1 agent chat")).toBeVisible();
+  expect(
+    within(outline).queryByText(/agent chats?$/, { selector: "small" }),
+  ).toBe(within(parentRow).getByText("1 agent chat"));
+
+  const details = screen.getByRole("region", { name: "Roadmap details" });
+  const apiChat = within(details)
+    .getByText("Build the API")
+    .closest(".chat-line") as HTMLElement;
+  expect(
+    within(apiChat).getByText("Anthropic · claude-opus-5-5"),
+  ).toBeVisible();
+  expect(within(apiChat).getByText("acme/web")).toBeVisible();
+  expect(within(apiChat).getByRole("link", { name: "Parent" })).toHaveAttribute(
+    "href",
+    `#roadmaps/${ROADMAP}/${PARENT}`,
+  );
+});
+
+it("assigns, unassigns, and adds agent chats from a step", async () => {
+  served = { ...road, chats: [API_CHAT, DOCS_CHAT] };
+  const writes = recordWrites();
+  const child = view(CHILD);
+  let details = await screen.findByRole("region", { name: "Step details" });
+  expect(
+    within(details).getByText("No agent chat is working on this step."),
+  ).toBeVisible();
+  expect(
+    within(details).getByText(/is working on the parent/),
+  ).toHaveTextContent(
+    "Build the API (Anthropic · claude-opus-5-5) is working on the parent step Parent.",
+  );
+  await userEvent.selectOptions(
+    within(details).getByRole("combobox", { name: "Agent chat to assign" }),
+    DOCS_CHAT.id,
+  );
+  await userEvent.click(
+    within(details).getByRole("button", { name: "Assign chat" }),
+  );
+  await waitFor(() =>
+    expect(writes.at(-1)).toEqual({
+      url: "/api/v1/chats/" + DOCS_CHAT.id,
+      method: "PATCH",
+      body: { revision: 3, stepIds: [CHILD] },
+    }),
+  );
+  child.unmount();
+
+  view(PARENT);
+  details = await screen.findByRole("region", { name: "Step details" });
+  await userEvent.click(
+    within(details).getByRole("button", { name: "Unassign Build the API" }),
+  );
+  await waitFor(() =>
+    expect(writes.at(-1)).toEqual({
+      url: "/api/v1/chats/" + API_CHAT.id,
+      method: "PATCH",
+      body: { revision: 3, stepIds: [] },
+    }),
+  );
+  await userEvent.type(
+    within(details).getByRole("textbox", { name: "Agent chat title" }),
+    "Review the API",
+  );
+  await userEvent.type(
+    within(details).getByRole("textbox", { name: "Agent chat ID" }),
+    "a950ec9c",
+  );
+  await userEvent.type(
+    within(details).getByRole("combobox", { name: "Agent chat model" }),
+    "claude-opus-5-5",
+  );
+  await userEvent.type(
+    within(details).getByRole("textbox", { name: "Agent chat repositories" }),
+    "acme/api",
+  );
+  await userEvent.click(
+    within(details).getByRole("button", { name: "Add chat to step" }),
+  );
+  await waitFor(() =>
+    expect(writes.at(-1)).toEqual({
+      url: "/api/v1/chats",
+      method: "POST",
+      body: {
+        ownerType: "roadmap",
+        ownerId: ROADMAP,
+        title: "Review the API",
+        chatId: "a950ec9c",
+        provider: "",
+        model: "claude-opus-5-5",
+        repos: ["acme/api"],
+        stepIds: [PARENT],
+      },
+    }),
+  );
+});
+
+it("edits a chat's provider, model, and repositories in place", async () => {
+  served = { ...road, chats: [API_CHAT] };
+  const writes = recordWrites();
+  view();
+  const details = await screen.findByRole("region", {
+    name: "Roadmap details",
+  });
+  await userEvent.click(
+    await within(details).findByRole("button", {
+      name: "Edit chat Build the API",
+    }),
+  );
+  const model = within(details).getByRole("combobox", {
+    name: "Edited chat model",
+  });
+  expect(model).toHaveValue("claude-opus-5-5");
+  await userEvent.clear(model);
+  await userEvent.type(model, "claude-sonnet-5-5");
+  await userEvent.clear(
+    within(details).getByRole("textbox", { name: "Edited chat repositories" }),
+  );
+  await userEvent.click(
+    within(details).getByRole("button", { name: "Save chat" }),
+  );
+  await waitFor(() =>
+    expect(writes.at(-1)).toEqual({
+      url: "/api/v1/chats/" + API_CHAT.id,
+      method: "PATCH",
+      body: {
+        revision: 3,
+        title: "Build the API",
+        chatId: API_CHAT.chatId,
+        provider: "Anthropic",
+        model: "claude-sonnet-5-5",
+        repos: [],
+        createdDate: "2026-10-31",
+      },
+    }),
+  );
 });

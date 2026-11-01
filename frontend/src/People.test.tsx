@@ -302,6 +302,10 @@ it("adds and renders web links, agent chats, and GitHub commits/PRs", async () =
     chatId: "conv-12345",
     title: "Debug SLO metrics",
     createdDate: "2026-10-29",
+    provider: "Anthropic",
+    model: "claude-opus-5-5",
+    repos: ["acme/worklog"],
+    stepIds: [],
   };
 
   render(
@@ -364,6 +368,18 @@ it("adds and renders web links, agent chats, and GitHub commits/PRs", async () =
     "conv-999",
   );
   await userEvent.type(
+    screen.getByRole("combobox", { name: "Agent chat provider" }),
+    "OpenAI",
+  );
+  await userEvent.type(
+    screen.getByRole("combobox", { name: "Agent chat model" }),
+    "gpt-5.5",
+  );
+  await userEvent.type(
+    screen.getByRole("textbox", { name: "Agent chat repositories" }),
+    "acme/api, acme/web,, acme/api",
+  );
+  await userEvent.type(
     screen.getByLabelText("Agent chat date created"),
     "2026-10-29",
   );
@@ -378,6 +394,9 @@ it("adds and renders web links, agent chats, and GitHub commits/PRs", async () =
         ownerId: ITEM_ID,
         title: "Implement retry logic",
         chatId: "conv-999",
+        provider: "OpenAI",
+        model: "gpt-5.5",
+        repos: ["acme/api", "acme/web"],
         createdDate: "2026-10-29",
       },
     }),
