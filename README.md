@@ -72,7 +72,9 @@ Every restore creates a new data generation identity while staging the replaceme
 
 Restore writes a durable `.restore-in-progress.json` marker before moving sidecars or replacing the main file. Startup refuses that directory if a power failure interrupts restoration. Keep the evidence archives and rerun the explicit offline `restore` command with a verified SQLite candidate; the retry preserves earlier marker/quarantine evidence before completing recovery. Do not delete the marker to force a startup. It clears only after verified replacement and cleanup, or a verified rollback to the original files.
 
-For an upgrade, stop Worklog, make a manual backup, update the checkout, run `Setup.ps1`, then start and check the application. Keep the old checkout/version and backup until verification succeeds. Unsupported newer database schema versions are rejected; do not downgrade code against a newer database. Use a backup compatible with the code version for rollback. Current schema is version 1; no legacy migration is required.
+For an upgrade, stop Worklog, make a manual backup with the installed version, update the checkout, run `Setup.ps1`, then start and check the application. Use the same data directory and port throughout. On first startup, the Discussions upgrade takes a pre-migration snapshot and adds its tables and credential bindings in one transaction. It preserves the existing data identity and agent tokens.
+
+Keep the previous version and its manual backup until verification succeeds. To roll back, stop Worklog, switch to the previous version and run its setup, then use that version’s `restore` command with the pre-upgrade backup. Start and check Worklog again. Restoring returns the data to the time of the snapshot, creates a new data identity, and revokes the restored credentials.
 
 Local backups protect against mistakes and some corruption, **not device loss**. Periodically copy completed backup files or exports to another protected device/location according to your retention needs. Treat archives as sensitive personal work data.
 
