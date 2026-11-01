@@ -310,3 +310,32 @@ it("keeps links in transcripts from opening Worklog's own pages", async () => {
   expect(docsLink.closest("a")).toHaveAttribute("target", "_blank");
   expect(screen.getByText("backup").closest("a")).not.toHaveAttribute("href");
 });
+
+it("pages back no further than the server returns, then says what is not shown", async () => {
+  const urls = serve((url) =>
+    url.includes("/transcript")
+      ? transcript({ more: true, total: 5000 })
+      : { items: [release] },
+  );
+  await screen.findByRole("list", { name: "Messages" });
+  for (let limit = 400; limit <= 2000; limit += 200) {
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Show earlier messages" }),
+    );
+    await waitFor(() =>
+      expect(urls).toContain(`/api/v1/chats/release/transcript?limit=${limit}`),
+    );
+  }
+  expect(
+    await screen.findByText(
+      "4996 earlier messages are in the transcript but not shown here.",
+    ),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Show earlier messages" }),
+  ).not.toBeInTheDocument();
+  const limits = urls
+    .filter((u) => u.includes("/transcript"))
+    .map((u) => Number(new URL(u, "http://local").searchParams.get("limit")));
+  expect(Math.max(...limits)).toBe(2000);
+});

@@ -8,6 +8,7 @@ parsed once and afterwards only for the lines added since, so a live chat stays 
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import threading
@@ -37,6 +38,7 @@ INDEX_SECONDS = 10  # how long a listing of the transcript folders, or a missing
 # Wrappers the tools put around their own context; they are not messages anyone sent.
 SKIPPED_TEXT = re.compile(r"\s*(<(system-reminder|local-command-[a-z]+|task-notification|environment_context|"
                           r"user_instructions|turn_aborted|external_[a-z_]+)[\s>]|# AGENTS\.md instructions)")
+logger = logging.getLogger("worklog")
 COMMAND = re.compile(r"<command-name>(.*?)</command-name>", re.S)
 COMMAND_ARGS = re.compile(r"<command-args>(.*?)</command-args>", re.S)
 
@@ -364,7 +366,7 @@ class TranscriptReader:
             return
         try:
             (self._claude if thread.format == "claude" else self._codex)(thread, state, record)
-        except (KeyError, TypeError, AttributeError, ValueError):
+        except (KeyError, TypeError, AttributeError, ValueError, RecursionError):
             pass  # a record shaped in a way this reader does not know is left out, not fatal
 
     def parsed(self, thread: Thread) -> Parsed:
@@ -550,7 +552,7 @@ class TranscriptReader:
             if raw.startswith("{"):
                 try:
                     args = json.loads(raw)
-                except ValueError:
+                except (ValueError, RecursionError):
                     args = None
                 if isinstance(args, dict):
                     summary = next((one_line(args[k]) for k in ("cmd", "command", "path", "query", "message", "task") if string(args.get(k))), summary)
@@ -579,7 +581,8 @@ class TranscriptReader:
         try:
             source, threads = self.threads(chat_id)
             return self._overall(source, self._views(threads, {t.key: self.latest(t) for t in threads}))
-        except OSError:
+        except Exception as exc:  # another tool's file format must not take down every chat's row
+            logger.warning("Agent chat transcript could not be summarized (%s)", type(exc).__name__)
             return {**self._overall(None, []), "error": "This chat's transcript could not be read."}
 
     def messages(self, chat_id: str, *, limit: int, thread: str | None = None, labels: dict[str, str] | None = None) -> dict:
@@ -605,7 +608,7 @@ class TranscriptReader:
             items = [m for m in items if m["thread"] == thread or m.get("sender") in sent]
         order = {t.key: i for i, t in enumerate(threads)}
         items.sort(key=lambda m: (m["at"] or "", order[m["thread"]], m["line"]))
-        # Messages older than each transcript's last MESSAGE_LIMIT still count, though they are not kept.
+        # Messages older than each transcript's last MESSAGE_LIMIT still count, but only kept ones page in.
         total = len(items) + sum(states[t.key].dropped for t in threads if thread in (None, t.key))
         page = []
         for m in items[-limit:]:
@@ -620,4 +623,4 @@ class TranscriptReader:
                 view["author"] = names[m["thread"]]
                 view["authorThread"] = m["thread"]
             page.append(view)
-        return {**self._overall(source, views), "messages": page, "total": total, "more": total > limit}
+        return {**self._overall(source, views), "messages": page, "total": total, "more": len(items) > limit}

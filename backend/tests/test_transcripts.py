@@ -317,6 +317,9 @@ def test_each_transcript_keeps_its_latest_messages_and_counts_the_rest(roots, mo
     # Eleven messages were written, and the subagent's two are kept in full.
     assert body["total"] == 11 and body["more"]
     assert [m["text"] for m in reader.messages(CLAUDE, limit=3, thread=CLAUDE)["messages"]] == ["Looks good, ship it", "/review PR 12", "Done."]
+    # Only kept messages can be paged to; the rest are counted, not offered.
+    kept = reader.messages(CLAUDE, limit=5)
+    assert len(kept["messages"]) == 5 and kept["total"] == 11 and not kept["more"]
 
 
 def test_one_unreadable_transcript_does_not_fail_the_list(client, monkeypatch):
@@ -344,3 +347,14 @@ def test_agents_are_refused_transcripts_with_a_trailing_slash_too(client):
     for path in ("/api/v1/chats/", f"/api/v1/chats/{record['id']}/transcript/"):
         response = client.get(path, headers=agent, follow_redirects=False)
         assert response.status_code == 403 and response.json()["error"]["code"] == "agent_scope", path
+
+
+def test_a_tool_call_too_nested_to_decode_is_still_listed(client, roots):
+    work = write(client, "POST", "/work-items", {"title": "Release"}).json()
+    record = chat(client, "item", work["id"], CODEX, "Release review")
+    root = next((roots.codex[0] / "sessions").rglob(f"*{CODEX}.jsonl"))
+    nested = '{"a":' + "[" * 200_000
+    lines(root, [{"type": "response_item", "timestamp": at(8), "payload": {"type": "function_call", "name": "shell", "arguments": nested}}])
+    assert client.get("/api/v1/chats").status_code == 200
+    last = client.get(f"/api/v1/chats/{record['id']}/transcript").json()["messages"][-1]
+    assert last["kind"] == "tools" and last["tools"][0]["name"] == "shell"

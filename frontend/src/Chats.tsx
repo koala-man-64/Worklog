@@ -13,6 +13,8 @@ import type {
 const LIST_REFRESH_MS = 15_000;
 const TRANSCRIPT_REFRESH_MS = 5_000;
 const PAGE = 200;
+// The server's MESSAGE_LIMIT: the most messages one request returns.
+const MOST = 2_000;
 const SOURCES = { claude: "Claude Code session", codex: "Codex thread" };
 
 const relative = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
@@ -286,8 +288,9 @@ function ChatHistory({ chat }: { chat: ChatOverview }) {
         <Messages
           key={thread ?? "everyone"}
           messages={data.messages}
-          more={data.more}
-          earlier={() => setLimit(limit + PAGE)}
+          more={data.more && limit < MOST}
+          hidden={data.total - data.messages.length}
+          earlier={() => setLimit(Math.min(limit + PAGE, MOST))}
           loading={transcript.isPlaceholderData}
         />
       ) : null}
@@ -330,11 +333,14 @@ function ThreadButton({
 function Messages({
   messages,
   more,
+  hidden,
   earlier,
   loading,
 }: {
   messages: ChatMessage[];
   more: boolean;
+  // Earlier messages in the transcript that are not shown.
+  hidden: number;
   earlier: () => void;
   loading: boolean;
 }) {
@@ -365,7 +371,7 @@ function Messages({
   }, [last]);
   return (
     <div className="chat-messages" aria-busy={loading || undefined}>
-      {more && (
+      {more ? (
         <button
           type="button"
           className="quiet"
@@ -374,6 +380,14 @@ function Messages({
         >
           {loading ? "Loading earlier messages…" : "Show earlier messages"}
         </button>
+      ) : (
+        hidden > 0 && (
+          <small className="muted">
+            {hidden === 1
+              ? "1 earlier message is in the transcript but not shown here."
+              : `${hidden} earlier messages are in the transcript but not shown here.`}
+          </small>
+        )
       )}
       <ol className="messages" aria-label="Messages">
         {messages.map((m) => (
