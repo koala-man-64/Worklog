@@ -937,7 +937,7 @@ function ChatForm({
     </form>
   );
 }
-/** Who a chat is: its title, provider and model, chat ID, repositories, and the steps it works on. */
+/** Who a chat is: its title, provider and model, chat ID, repositories, and the steps it works on, with a link to its messages. */
 function ChatSummary({
   chat,
   steps = [],
@@ -954,6 +954,9 @@ function ChatSummary({
       <div className="chat-row">
         <strong>{chat.title}</strong>
         {agent && <span className="person-badge">{agent}</span>}
+        <a href={"#chats/" + chat.id} aria-label={"Messages of " + chat.title}>
+          Messages
+        </a>
       </div>
       <div className="chat-row">
         <code>{chat.chatId}</code>
@@ -1249,9 +1252,7 @@ export function GithubRefsSection({
             <button
               type="button"
               className="quiet"
-              aria-label={
-                "Archive GitHub " + (g.title || g.reference || g.url)
-              }
+              aria-label={"Archive GitHub " + (g.title || g.reference || g.url)}
               onClick={() =>
                 action.mutate({
                   path: `/github/${g.id}/archive`,

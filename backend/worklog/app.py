@@ -41,6 +41,7 @@ from .plans import PlanService
 from .proposals import ProposalService
 from .recovery import automatic_backup, backup_database, export_database, list_backups
 from .services import WorkService, support_record
+from .transcripts import TranscriptReader, TranscriptRoots
 
 logger = logging.getLogger("worklog")
 
@@ -74,12 +75,15 @@ async def bounded_body(request: Request, maximum: int) -> bytes:
     return b"".join(chunks)
 
 
-def create_app(data_dir: str | Path | None = None, *, testing: bool = False) -> FastAPI:
+def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
+               transcript_roots: TranscriptRoots | None = None) -> FastAPI:
     directory = Path(data_dir) if data_dir else default_data_directory()
     db = Database(directory / "worklog.sqlite3")
     db.initialize()
     plans = PlanService(db)
     work = WorkService(db, plans)
+    # Tests read only the transcripts they write; they never see this machine's own.
+    transcripts = TranscriptReader(transcript_roots or (TranscriptRoots() if testing else TranscriptRoots.from_environment()))
 
     def dispatch(conn: sqlite3.Connection, actor: dict, action: str, payload: dict) -> dict:
         # The proposal boundary shares these exact validators and domain mutations.
@@ -117,6 +121,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False) -> 
     app = FastAPI(title="Worklog Local API", version=__version__, docs_url=None, redoc_url=None,
                   openapi_url="/api/v1/openapi.json")
     app.state.db, app.state.work, app.state.plans, app.state.proposals = db, work, plans, proposals
+    app.state.transcripts = transcripts
     app.state.sessions = {}
     app.state.instance_id = os.environ.get("WORKLOG_INSTANCE_ID", uid())
     app.state.backup_error = None
@@ -182,7 +187,9 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False) -> 
                         raise AppError(401, "authentication", "Credential is invalid or revoked")
                     actor = {"id": credential["id"], "label": credential["label"], "kind": "agent"}
                     suffix = path.removeprefix("/api/v1")
-                    forbidden = suffix.startswith(("/settings", "/credentials", "/backups", "/export", "/openapi"))
+                    # Transcripts hold whole conversations, tool output included; only the person reads them.
+                    forbidden = (suffix.startswith(("/settings", "/credentials", "/backups", "/export", "/openapi")) or
+                                 suffix == "/chats" or (suffix.startswith("/chats/") and suffix.endswith("/transcript")))
                     agent_write = ((suffix == "/proposals" and method == "POST") or
                                    (suffix.startswith("/proposals/") and (method == "PATCH" or (method == "POST" and suffix.rsplit("/", 1)[-1] in {"submit", "withdraw"}))) or
                                    (suffix == "/attachments" and method == "POST" and request.query_params.get("ownerType") == "proposal"))
@@ -390,6 +397,22 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False) -> 
     @app.patch("/api/v1/links/{identity}")
     def update_link(identity: str, request: Request, body: m.LinkUpdate) -> dict:
         return apply(request, "link.update", {**body.model_dump(exclude_unset=True), "id": identity})
+
+    @app.get("/api/v1/chats")
+    def chat_list(archived: bool = False) -> dict:
+        with db.read() as c:
+            chats = work.chat_overview(c, archived)
+        return {"items": [{**chat, "transcript": transcripts.summary(chat["chatId"])} for chat in chats]}
+
+    @app.get("/api/v1/chats/{identity}/transcript")
+    def chat_transcript(identity: str, limit: int = Query(200, ge=1, le=5000), thread: str | None = None) -> dict:
+        with db.read() as c:
+            row = c.execute("SELECT * FROM agent_chats WHERE id=?", (identity,)).fetchone()
+            if row is None:
+                raise AppError(404, "not_found", "Agent chat not found")
+            chat = work.chats(c, [row])[0]
+            labels = {r["chat_id"].strip().lower(): r["title"] for r in c.execute("SELECT chat_id,title FROM agent_chats WHERE archived=0")}
+        return {"chat": chat, **transcripts.messages(chat["chatId"], limit=limit, thread=thread, labels=labels)}
 
     @app.post("/api/v1/chats")
     def create_chat(request: Request, body: m.ChatCreate) -> dict:

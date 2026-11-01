@@ -15,6 +15,7 @@ import { Work } from "./Work";
 import { Roadmaps } from "./Roadmaps";
 import { RoadmapNav } from "./RoadmapNav";
 import { People } from "./People";
+import { Chats } from "./Chats";
 import { Review } from "./Review";
 import { Settings } from "./Settings";
 import { Icon, type IconName } from "./icons";
@@ -24,6 +25,7 @@ const destinations: [IconName, string][] = [
   ["work", "Work"],
   ["roadmaps", "Roadmaps"],
   ["people", "People"],
+  ["chats", "Chats"],
   ["review", "Review"],
   ["settings", "Settings"],
 ];
@@ -195,6 +197,8 @@ export default function App() {
             <Roadmaps key={id ?? "list"} selected={id} step={sub} />
           ) : page === "people" ? (
             <People key={id ?? "list"} selected={id} />
+          ) : page === "chats" ? (
+            <Chats selected={id} />
           ) : page === "review" ? (
             <Review key={id ?? "list"} selectedId={id} />
           ) : page === "settings" ? (

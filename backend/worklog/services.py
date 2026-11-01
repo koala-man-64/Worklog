@@ -199,6 +199,25 @@ class WorkService:
         steps = self.chat_steps(c, [r["id"] for r in rows])
         return [{**support_record(r), "stepIds": steps[r["id"]]} for r in rows]
 
+    def chat_overview(self, c: sqlite3.Connection, archived: bool = False) -> builtins.list[dict]:
+        """Every agent chat with the record it belongs to and the steps it works on."""
+        chats = self.chats(c, c.execute("SELECT * FROM agent_chats WHERE archived=? ORDER BY created_date DESC,created_at DESC,id", (int(archived),)).fetchall())
+        owners: dict[tuple[str, str], dict] = {}
+        for owner_type, table in (("roadmap", "roadmaps"), ("item", "work_items")):
+            ids = list({ch["ownerId"] for ch in chats if ch["ownerType"] == owner_type})
+            if ids:
+                for r in c.execute(f"SELECT id,title,archived FROM {table} WHERE id IN ({','.join('?' for _ in ids)})", ids):
+                    owners[(owner_type, r["id"])] = {"type": owner_type, "id": r["id"], "title": r["title"], "archived": bool(r["archived"])}
+        steps: dict[str, builtins.list[dict]] = {ch["id"]: [] for ch in chats}
+        if chats:
+            for r in c.execute(
+                f"SELECT cs.chat_id,s.id,s.title,s.status,s.retired FROM chat_steps cs JOIN steps s ON s.id=cs.step_id WHERE cs.chat_id IN ({','.join('?' for _ in chats)}) ORDER BY cs.created_at,s.position,s.id",
+                [ch["id"] for ch in chats],
+            ):
+                steps[r["chat_id"]].append({"id": r["id"], "title": r["title"], "status": r["status"], "retired": bool(r["retired"])})
+        return [{**ch, "owner": owners.get((ch["ownerType"], ch["ownerId"]), {"type": ch["ownerType"], "id": ch["ownerId"], "title": "", "archived": False}),
+                 "steps": steps[ch["id"]]} for ch in chats]
+
     def roadmap_items(self, c: sqlite3.Connection, roadmap_id: str) -> builtins.list[dict]:
         rows = c.execute(
             "SELECT * FROM work_items WHERE archived=0 AND (roadmap_id=? OR step_id IN (SELECT id FROM steps WHERE roadmap_id=?)) ORDER BY backlog_order,id",
