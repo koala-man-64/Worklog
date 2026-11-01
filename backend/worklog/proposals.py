@@ -51,6 +51,14 @@ FIELDS = {
     "github.update": ({"id", "revision"}, {"id", "revision", "kind", "url", "reference", "title", "description", "chatId"}),
     "github.archive": ({"id", "revision"}, {"id", "revision"}),
     "github.recover": ({"id", "revision"}, {"id", "revision"}),
+    "question.create": ({"roadmapId", "title"}, {"roadmapId", "title", "details"}),
+    "question.update": ({"id", "revision"}, {"id", "revision", "title", "details", "answer", "status"}),
+    "question.archive": ({"id", "revision"}, {"id", "revision"}),
+    "question.recover": ({"id", "revision"}, {"id", "revision"}),
+    "decision.create": ({"roadmapId", "title"}, {"roadmapId", "title", "rationale", "decidedDate"}),
+    "decision.update": ({"id", "revision"}, {"id", "revision", "title", "rationale", "decidedDate"}),
+    "decision.archive": ({"id", "revision"}, {"id", "revision"}),
+    "decision.recover": ({"id", "revision"}, {"id", "revision"}),
 }
 
 

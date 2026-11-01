@@ -45,10 +45,13 @@ def _compatible_schemas() -> tuple[dict[tuple[str, str], str], ...]:
     from worklog.db import AGENT_CHAT_COLUMNS
 
     latest = _expected_schema()
+    # The last shape before roadmaps kept questions and decisions.
+    before_questions = {k: v for k, v in latest.items() if k[1] not in {
+        "roadmap_questions", "roadmap_questions_roadmap", "roadmap_decisions", "roadmap_decisions_roadmap"}}
     # `current` is the last shape before agent chats gained provider, model, repos and step
     # assignments; every earlier shape below derives from it.
-    current ={k: v for k, v in latest.items() if k[1] not in {"chat_steps", "chat_steps_step"}}
-    current[("table", "agent_chats")] = latest[("table", "agent_chats")].replace(AGENT_CHAT_COLUMNS, "")
+    current = {k: v for k, v in before_questions.items() if k[1] not in {"chat_steps", "chat_steps_step"}}
+    current[("table", "agent_chats")] = before_questions[("table", "agent_chats")].replace(AGENT_CHAT_COLUMNS, "")
     lcg_names = {
         "web_links",
         "web_links_owner",
@@ -81,7 +84,7 @@ def _compatible_schemas() -> tuple[dict[tuple[str, str], str], ...]:
             ", parent_id TEXT REFERENCES roadmaps(id)", "")}
         for schema in (current, without_lcg, without_people, legacy_roadmap, current_without_roadmap)
     ]
-    return (latest, current, *earlier)
+    return (latest, before_questions, current, *earlier)
 
 
 class InstanceLock:
@@ -428,6 +431,10 @@ def restore_database(db_path: Path | str, candidate_path: Path | str,
                         conn.execute("ALTER TABLE agent_chats ADD COLUMN " + column)
                 if "chat_steps" not in tables:
                     conn.executescript(CHAT_STEPS_SCHEMA)
+                if not {"roadmap_questions", "roadmap_decisions"} <= tables:
+                    from worklog.db import QUESTIONS_DECISIONS_SCHEMA
+
+                    conn.executescript(QUESTIONS_DECISIONS_SCHEMA)
                 conn.execute("UPDATE credentials SET revoked=1")
                 conn.execute("UPDATE settings SET value=? WHERE key='dataId'", (json.dumps(new_data_id),))
                 conn.commit()

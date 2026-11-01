@@ -109,6 +109,21 @@ export type AgentChat = RecordBase & {
   // Roadmap chats only: the steps the chat is working on.
   stepIds: string[];
 };
+/** A question raised on a roadmap; answering it keeps the answer even if it is reopened. */
+export type RoadmapQuestion = RecordBase & {
+  roadmapId: string;
+  title: string;
+  details: string;
+  answer: string;
+  status: "open" | "answered";
+};
+/** A decision made on a roadmap, with why it was made. */
+export type RoadmapDecision = RecordBase & {
+  roadmapId: string;
+  title: string;
+  rationale: string;
+  decidedDate: string;
+};
 /** One agent in a chat's transcript: the chat itself, or a subagent it started. */
 export type ChatThread = {
   key: string;
@@ -220,6 +235,8 @@ export type Roadmap = RecordBase & {
   links?: WebLink[];
   chats?: AgentChat[];
   github?: GithubRef[];
+  questions?: RoadmapQuestion[];
+  decisions?: RoadmapDecision[];
   history: unknown[];
   imports?: { id: string; name: string; sha256: string; createdAt: string }[];
   workItems?: Item[];

@@ -190,7 +190,11 @@ function currentPath(
               ? "chats"
               : action.startsWith("github.")
                 ? "github"
-                : "work-items";
+                : action.startsWith("question.")
+                  ? "questions"
+                  : action.startsWith("decision.")
+                    ? "decisions"
+                    : "work-items";
   return "/" + collection + "/" + id;
 }
 export function OperationDiff({

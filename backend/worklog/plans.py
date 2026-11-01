@@ -154,7 +154,7 @@ class PlanService:
         result["versions"] = [{"number": r["number"], "createdAt": r["created_at"],
                                "note": r["note"]} for r in conn.execute(
             "SELECT * FROM roadmap_versions WHERE roadmap_id=? ORDER BY number", (identifier,))]
-        result.update(notes=[], attachments=[], links=[], chats=[], github=[], history=[])
+        result.update(notes=[], attachments=[], links=[], chats=[], github=[], questions=[], decisions=[], history=[])
         return result
 
     def detail(self, identifier):

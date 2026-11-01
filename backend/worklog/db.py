@@ -56,7 +56,15 @@ CREATE TABLE chat_steps(chat_id TEXT NOT NULL REFERENCES agent_chats(id),step_id
 CREATE INDEX chat_steps_step ON chat_steps(step_id);
 """
 
-SCHEMA = SCHEMA + PEOPLE_SCHEMA + LINKS_CHATS_GITHUB_SCHEMA + CHAT_STEPS_SCHEMA
+# A roadmap's questions with their answers, and the decisions made along the way.
+QUESTIONS_DECISIONS_SCHEMA = """
+CREATE TABLE roadmap_questions(id TEXT PRIMARY KEY,roadmap_id TEXT NOT NULL REFERENCES roadmaps(id),title TEXT NOT NULL,details TEXT NOT NULL DEFAULT '',answer TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT 'open' CHECK(status IN('open','answered')),archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+CREATE INDEX roadmap_questions_roadmap ON roadmap_questions(roadmap_id,archived);
+CREATE TABLE roadmap_decisions(id TEXT PRIMARY KEY,roadmap_id TEXT NOT NULL REFERENCES roadmaps(id),title TEXT NOT NULL,rationale TEXT NOT NULL DEFAULT '',decided_date TEXT NOT NULL,archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+CREATE INDEX roadmap_decisions_roadmap ON roadmap_decisions(roadmap_id,archived);
+"""
+
+SCHEMA = SCHEMA + PEOPLE_SCHEMA + LINKS_CHATS_GITHUB_SCHEMA + CHAT_STEPS_SCHEMA + QUESTIONS_DECISIONS_SCHEMA
 
 
 class Database:
@@ -132,6 +140,16 @@ class Database:
                         # executescript would commit first; the table and its index land together or not at all.
                         conn.execute("BEGIN IMMEDIATE")
                         for statement in filter(str.strip, CHAT_STEPS_SCHEMA.split(";")):
+                            conn.execute(statement)
+                        conn.commit()
+                    except Exception:
+                        conn.rollback()
+                        raise
+                if not {"roadmap_questions", "roadmap_decisions"} <= actual:
+                    try:
+                        # Both tables and their indexes land together or not at all.
+                        conn.execute("BEGIN IMMEDIATE")
+                        for statement in filter(str.strip, QUESTIONS_DECISIONS_SCHEMA.split(";")):
                             conn.execute(statement)
                         conn.commit()
                     except Exception:

@@ -106,6 +106,10 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             "chat.archive": m.Expected, "chat.recover": m.Expected,
             "github.create": m.GithubRefCreate, "github.update": m.GithubRefUpdate,
             "github.archive": m.Expected, "github.recover": m.Expected,
+            "question.create": m.QuestionCreate, "question.update": m.QuestionUpdate,
+            "question.archive": m.Expected, "question.recover": m.Expected,
+            "decision.create": m.DecisionCreate, "decision.update": m.DecisionUpdate,
+            "decision.archive": m.Expected, "decision.recover": m.Expected,
         }
         model = contracts.get(action)
         if model:
@@ -356,6 +360,8 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     @app.get("/api/v1/links/{identity}")
     @app.get("/api/v1/chats/{identity}")
     @app.get("/api/v1/github/{identity}")
+    @app.get("/api/v1/questions/{identity}")
+    @app.get("/api/v1/decisions/{identity}")
     def supporting_detail(identity: str, request: Request) -> dict:
         resource = request.url.path.split("/")[-2]
         table = {
@@ -365,6 +371,8 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             "links": "web_links",
             "chats": "agent_chats",
             "github": "github_refs",
+            "questions": "roadmap_questions",
+            "decisions": "roadmap_decisions",
         }[resource]
         with db.read() as c:
             row = c.execute(f"SELECT * FROM {table} WHERE id=?", (identity,)).fetchone()
@@ -432,6 +440,22 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def update_github_ref(identity: str, request: Request, body: m.GithubRefUpdate) -> dict:
         return apply(request, "github.update", {**body.model_dump(exclude_unset=True), "id": identity})
 
+    @app.post("/api/v1/questions")
+    def create_question(request: Request, body: m.QuestionCreate) -> dict:
+        return apply(request, "question.create", body.model_dump(), create=True)
+
+    @app.patch("/api/v1/questions/{identity}")
+    def update_question(identity: str, request: Request, body: m.QuestionUpdate) -> dict:
+        return apply(request, "question.update", {**body.model_dump(exclude_unset=True), "id": identity})
+
+    @app.post("/api/v1/decisions")
+    def create_decision(request: Request, body: m.DecisionCreate) -> dict:
+        return apply(request, "decision.create", body.model_dump(), create=True)
+
+    @app.patch("/api/v1/decisions/{identity}")
+    def update_decision(identity: str, request: Request, body: m.DecisionUpdate) -> dict:
+        return apply(request, "decision.update", {**body.model_dump(exclude_unset=True), "id": identity})
+
     @app.post("/api/v1/{resource}/{identity}/{verb}")
     def support_archive(resource: str, identity: str, verb: str, request: Request, body: m.Expected) -> dict:
         kind = {
@@ -442,6 +466,8 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             "links": "link",
             "chats": "chat",
             "github": "github",
+            "questions": "question",
+            "decisions": "decision",
         }.get(resource)
         if not kind or verb not in {"archive", "recover"}:
             raise AppError(404, "not_found", "Unknown supporting-record command")

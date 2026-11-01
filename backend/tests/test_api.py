@@ -629,3 +629,70 @@ def test_roadmap_steps_are_assigned_to_agent_chats_with_provider_model_and_repos
     assert write(client, "POST", f"/proposals/{submitted['id']}/approve", {"revision": submitted["revision"]}).status_code == 200
     claimed = next(c for c in client.get(f"/api/v1/roadmaps/{roadmap['id']}").json()["chats"] if c["chatId"] == "codex-7")
     assert claimed["stepIds"] == [docs] and claimed["model"] == "gpt-5.5"
+
+
+def test_roadmap_questions_are_answered_and_decisions_are_recorded(client):
+    roadmap = write(client, "POST", "/roadmaps", {"title": "Storage roadmap", "steps": [{"title": "Pick a store"}]}).json()
+
+    # A question starts open; answering it needs an answer, and reopening keeps that answer.
+    asked = write(client, "POST", "/questions", {"roadmapId": roadmap["id"], "title": " Which region hosts replicas? ", "details": "Latency budget is **40 ms**."})
+    assert asked.status_code == 200, asked.text
+    question = asked.json()
+    assert (question["roadmapId"], question["title"], question["status"], question["answer"]) == (roadmap["id"], "Which region hosts replicas?", "open", "")
+    assert write(client, "POST", "/questions", {"roadmapId": roadmap["id"], "title": "  "}).status_code == 422
+    assert write(client, "POST", "/questions", {"roadmapId": str(uuid.uuid4()), "title": "Orphan"}).status_code == 404
+    assert write(client, "POST", "/questions", {"roadmapId": roadmap["id"], "title": "Born answered", "status": "answered"}).status_code == 422
+    unanswered = write(client, "PATCH", f"/questions/{question['id']}", {"revision": question["revision"], "status": "answered"})
+    assert unanswered.status_code == 422 and unanswered.json()["error"]["fields"] == {"answer": "required"}
+    answered = write(client, "PATCH", f"/questions/{question['id']}", {"revision": question["revision"], "status": "answered", "answer": "Frankfurt, beside the primary"}).json()
+    assert (answered["status"], answered["answer"], answered["details"]) == ("answered", "Frankfurt, beside the primary", "Latency budget is **40 ms**.")
+    assert write(client, "PATCH", f"/questions/{question['id']}", {"revision": question["revision"], "title": "Stale"}).status_code == 409
+    reopened = write(client, "PATCH", f"/questions/{question['id']}", {"revision": answered["revision"], "status": "open"}).json()
+    assert (reopened["status"], reopened["answer"]) == ("open", "Frankfurt, beside the primary")
+    assert client.get(f"/api/v1/questions/{question['id']}").json()["revision"] == reopened["revision"]
+    kinds = [e["kind"] for e in client.get(f"/api/v1/history?entityId={question['id']}").json()["items"]]
+    assert kinds.count("question.update") == 2 and "question.create" in kinds
+
+    # Decisions default to today in the configured timezone and list newest first.
+    today = datetime.now(ZoneInfo("America/Chicago")).date().isoformat()
+    first = write(client, "POST", "/decisions", {"roadmapId": roadmap["id"], "title": "Use SQLite", "rationale": "One file, no server.", "decidedDate": "2026-09-01"}).json()
+    second = write(client, "POST", "/decisions", {"roadmapId": roadmap["id"], "title": "Keep the rollback journal"}).json()
+    assert (first["decidedDate"], second["decidedDate"], second["rationale"]) == ("2026-09-01", today, "")
+    assert write(client, "POST", "/decisions", {"roadmapId": roadmap["id"], "title": "Bad date", "decidedDate": "2026-02-30"}).status_code == 422
+    assert write(client, "POST", "/decisions", {"roadmapId": roadmap["id"], "title": ""}).status_code == 422
+    revised = write(client, "PATCH", f"/decisions/{first['id']}", {"revision": first["revision"], "rationale": "One file, no server, easy backups."}).json()
+    assert (revised["title"], revised["decidedDate"], revised["rationale"]) == ("Use SQLite", "2026-09-01", "One file, no server, easy backups.")
+
+    detail = client.get(f"/api/v1/roadmaps/{roadmap['id']}").json()
+    assert [q["id"] for q in detail["questions"]] == [question["id"]]
+    assert [d["id"] for d in detail["decisions"]] == [second["id"], first["id"]]
+
+    # Search finds questions by their answers and decisions by their rationale, routed to the roadmap.
+    for term, record in (("Frankfurt", question), ("backups", first)):
+        hit = client.get(f"/api/v1/search?q={term}").json()["items"]
+        assert hit and hit[0]["id"] == record["id"] and (hit[0]["routeType"], hit[0]["routeId"]) == ("roadmaps", roadmap["id"])
+
+    # Archive and recover through the shared supporting-record commands; archived ones leave search.
+    archived = write(client, "POST", f"/decisions/{first['id']}/archive", {"revision": revised["revision"]}).json()
+    assert archived["archived"] is True
+    assert client.get("/api/v1/search?q=backups").json()["total"] == 0
+    assert write(client, "POST", f"/decisions/{first['id']}/recover", {"revision": archived["revision"]}).json()["archived"] is False
+    assert write(client, "POST", f"/questions/{question['id']}/archive", {"revision": reopened["revision"]}).json()["archived"] is True
+
+    # Agents cannot write them directly, but can propose them for approval.
+    cred = write(client, "POST", "/credentials", {"label": "Planning agent"}).json()
+    headers = {"Authorization": "Bearer " + cred["token"]}
+    assert write(client, "POST", "/questions", {"roadmapId": roadmap["id"], "title": "Direct"}, headers=headers).status_code == 403
+    operations = [
+        {"action": "question.create", "payload": {"roadmapId": roadmap["id"], "title": "Do we shard by tenant?"}},
+        {"action": "decision.create", "payload": {"roadmapId": roadmap["id"], "title": "Defer sharding", "rationale": "Below 10 GB.", "decidedDate": "2026-10-30"}},
+    ]
+    proposal = write(client, "POST", "/proposals", {"title": "Planning notes", "rationale": "From the design review", "operations": operations}, headers=headers)
+    assert proposal.status_code == 200, proposal.text
+    bad = write(client, "POST", "/proposals", {"title": "Bad", "rationale": "x", "operations": [{"action": "question.create", "payload": {"roadmapId": roadmap["id"], "title": "x", "status": "answered"}}]}, headers=headers)
+    assert bad.status_code == 422
+    submitted = write(client, "POST", f"/proposals/{proposal.json()['id']}/submit", {"revision": proposal.json()["revision"]}, headers=headers).json()
+    assert write(client, "POST", f"/proposals/{submitted['id']}/approve", {"revision": submitted["revision"]}).status_code == 200
+    detail = client.get(f"/api/v1/roadmaps/{roadmap['id']}").json()
+    assert any(q["title"] == "Do we shard by tenant?" and q["status"] == "open" for q in detail["questions"])
+    assert any(d["title"] == "Defer sharding" and d["decidedDate"] == "2026-10-30" for d in detail["decisions"])
