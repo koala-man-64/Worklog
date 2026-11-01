@@ -126,6 +126,8 @@ export type TranscriptSummary = {
   lastActivityAt: string | null;
   state: "working" | "idle";
   threads: ChatThread[];
+  // Set when the transcript exists but could not be read.
+  error?: string;
 };
 /** An agent chat with the record it belongs to, the steps it works on, and its transcript. */
 export type ChatOverview = AgentChat & {

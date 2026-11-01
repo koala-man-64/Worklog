@@ -35,7 +35,17 @@ function resolveLink(url: string): URL | null {
 function isSameOrigin(url: string): boolean {
   return resolveLink(url)?.origin === window.location.origin;
 }
-export function Markdown({ text }: { text: string }) {
+/**
+ * `untrusted` is for text written elsewhere, such as an agent transcript: its links
+ * may lead off this site but never to a page or download of Worklog itself.
+ */
+export function Markdown({
+  text,
+  untrusted = false,
+}: {
+  text: string;
+  untrusted?: boolean;
+}) {
   return (
     <div className="markdown">
       <ReactMarkdown
@@ -61,7 +71,9 @@ export function Markdown({ text }: { text: string }) {
             );
           },
         }}
-        urlTransform={(url) => (resolveLink(url) ? url : "")}
+        urlTransform={(url) =>
+          resolveLink(url) && !(untrusted && isSameOrigin(url)) ? url : ""
+        }
       >
         {text || "Nothing written yet."}
       </ReactMarkdown>

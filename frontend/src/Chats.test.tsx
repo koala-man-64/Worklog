@@ -284,3 +284,29 @@ it("describes times relative to now", () => {
   expect(ago("2026-10-31T12:00:00Z", now)).toBe("yesterday");
   expect(ago(null, now)).toBe("");
 });
+
+it("keeps links in transcripts from opening Worklog's own pages", async () => {
+  serve((url) =>
+    url.includes("/transcript")
+      ? transcript({
+          messages: [
+            {
+              id: "root:1",
+              thread: "root",
+              at: minutesAgo(1),
+              kind: "assistant",
+              author: "Codex",
+              text: "Get the [backup](/api/v1/export) or read [the docs](https://example.com/docs)",
+            },
+          ],
+        })
+      : { items: [release] },
+  );
+  const docsLink = await screen.findByText("the docs");
+  expect(docsLink.closest("a")).toHaveAttribute(
+    "href",
+    "https://example.com/docs",
+  );
+  expect(docsLink.closest("a")).toHaveAttribute("target", "_blank");
+  expect(screen.getByText("backup").closest("a")).not.toHaveAttribute("href");
+});

@@ -12,9 +12,9 @@ import os
 import re
 import threading
 import time
-from collections import OrderedDict
+from collections import OrderedDict, deque
 from collections.abc import Iterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -23,12 +23,16 @@ UUID = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
 CHAT_ID = re.compile(rf"(local_)?({UUID})")
 CODEX_FILE = re.compile(rf"rollout-.+-({UUID})\.jsonl")
 TEXT_LIMIT = 20_000  # characters kept of one message
+NAME_LIMIT = 200  # characters kept of a title, task or agent name
 TOOL_LIMIT = 50  # tool calls listed in one run; the count keeps going
+MESSAGE_LIMIT = 2_000  # latest messages kept of one transcript, and the most one request returns
 WORKING_SECONDS = 15 * 60  # an open turn this recent counts as working
 TAIL_BYTES = 512 * 1024  # how far back a summary looks for the latest turn
 META_BYTES = 5_000_000  # largest metadata file read
-CACHE_FILES = 64
-INDEX_SECONDS = 10  # how long a listing of the transcript folders is reused
+LINE_BYTES = 32 * 1024 * 1024  # a longer line, such as a huge inline tool result, is skipped
+CACHE_BYTES = 256 * 1024 * 1024  # message text kept in memory across transcripts, roughly
+CACHE_FILES = 512  # tail summaries and metadata files remembered
+INDEX_SECONDS = 10  # how long a listing of the transcript folders, or a missing record, is reused
 
 # Wrappers the tools put around their own context; they are not messages anyone sent.
 SKIPPED_TEXT = re.compile(r"\s*(<(system-reminder|local-command-[a-z]+|task-notification|environment_context|"
@@ -80,7 +84,10 @@ class Parsed:
     head: bytes = b""
     offset: int = 0
     lines: int = 0
-    messages: list[dict] = field(default_factory=list)
+    messages: deque[dict] = field(default_factory=lambda: deque(maxlen=MESSAGE_LIMIT))
+    # Older messages let go to stay within MESSAGE_LIMIT, and the bytes of text kept.
+    dropped: int = 0
+    size: int = 0
     title: str = ""
     model: str = ""
     open: bool = False
@@ -127,14 +134,45 @@ def read_json(path: Path) -> Any:
 
 
 def records(handle: Any) -> Iterator[tuple[int, Any]]:
-    """Complete JSON lines from the handle's position, with the bytes each one used."""
-    for raw in handle:
-        if not raw.endswith(b"\n"):
-            return  # still being written; read it on the next pass
-        try:
-            yield len(raw), json.loads(raw)
-        except ValueError:
-            yield len(raw), None
+    """Complete JSON lines from the handle's position, with the bytes each one used.
+
+    A line still being written is left for the next pass. A line over LINE_BYTES, or one
+    that is not JSON (even nested too deep to decode), yields None and is passed over."""
+    while True:
+        raw = handle.readline(LINE_BYTES)
+        if raw.endswith(b"\n"):
+            try:
+                yield len(raw), json.loads(raw)
+            except (ValueError, RecursionError):
+                yield len(raw), None
+            continue
+        if len(raw) < LINE_BYTES:
+            return
+        used = len(raw)
+        while not raw.endswith(b"\n"):
+            raw = handle.readline(LINE_BYTES)
+            if not raw:
+                return
+            used += len(raw)
+        yield used, None
+
+
+def skip_line(handle: Any) -> None:
+    """Move past the rest of a line that began before the handle's position."""
+    while (chunk := handle.readline(LINE_BYTES)) and not chunk.endswith(b"\n"):
+        pass
+
+
+def modified(path: Path) -> float:
+    try:
+        return path.stat().st_mtime
+    except OSError:
+        return 0.0
+
+
+def weight(message: dict) -> int:
+    """Roughly the bytes a message holds, for the cache's budget."""
+    return 200 + len(message.get("text", "")) + sum(100 + len(t["summary"]) for t in message.get("tools", ()))
 
 
 def codex_id(path: Path) -> str | None:
@@ -145,13 +183,39 @@ def codex_id(path: Path) -> str | None:
 class TranscriptReader:
     def __init__(self, roots: TranscriptRoots):
         self.roots = roots
+        # Guards the dictionaries below only. Reading a file holds that file's own lock, so
+        # one large first read never holds up requests for other chats.
         self.lock = threading.Lock()
+        self.file_locks: dict[Path, threading.Lock] = {}
         self.cache: OrderedDict[Path, Parsed] = OrderedDict()
         self.tails: OrderedDict[Path, tuple[tuple[int, int], Parsed]] = OrderedDict()
+        self.json: OrderedDict[Path, tuple[tuple[int, int], Any]] = OrderedDict()
         self.codex_meta: dict[Path, dict] = {}
         self.codex_names: dict[Path, tuple[tuple[int, int], dict[str, str]]] = {}
-        self.labels: dict[str, str] = {}
+        self.desktop: dict[str, tuple[Path | None, float]] = {}
         self.index: tuple[float, dict[str, list[Path]], dict[str, tuple[Path, Path]]] | None = None
+
+    def _file_lock(self, path: Path) -> threading.Lock:
+        with self.lock:
+            return self.file_locks.setdefault(path, threading.Lock())
+
+    def _json(self, path: Path) -> Any:
+        """A small JSON file, read again only after it changes."""
+        try:
+            stat = path.stat()
+        except OSError:
+            return None
+        key = (stat.st_size, stat.st_mtime_ns)
+        with self.lock:
+            cached = self.json.get(path)
+        if cached and cached[0] == key:
+            return cached[1]
+        value = read_json(path)
+        with self.lock:
+            self.json[path] = (key, value)
+            while len(self.json) > CACHE_FILES:
+                self.json.popitem(last=False)
+        return value
 
     # Finding the files ----------------------------------------------------------------
 
@@ -185,12 +249,12 @@ class TranscriptReader:
             cli = string(record.get("cliSessionId")).lower() if record else ""
             if not re.fullmatch(UUID, cli):
                 return None, []
-            ident, title = cli, string(record.get("title")) if record else ""
+            ident, title = cli, one_line(record.get("title"), NAME_LIMIT) if record else ""
         claude, codex = self._index()
         found = [p for p in claude.get(ident, []) if p.exists()]
         if found:
             # A session resumed from another folder leaves a copy; the latest one is current.
-            return "claude", self._claude_threads(ident, max(found, key=lambda p: p.stat().st_mtime), title)
+            return "claude", self._claude_threads(ident, max(found, key=modified), title)
         if ident in codex and codex[ident][0].exists():
             return "codex", self._codex_threads(ident, *codex[ident])
         return None, []
@@ -199,31 +263,31 @@ class TranscriptReader:
         """A desktop session's title, for messages that name the session they came from."""
         if not re.fullmatch(rf"local_{UUID}", ident.lower()):
             return ""
-        with self.lock:
-            if ident in self.labels:
-                return self.labels[ident]
         record = self._desktop_record(ident.lower())
-        title = string(record.get("title")) if record else ""
-        with self.lock:
-            self.labels[ident] = title
-        return title
+        return one_line(record.get("title"), NAME_LIMIT) if record else ""
 
     def _desktop_record(self, ident: str) -> dict | None:
-        for base in self.roots.claude_desktop:
-            for pattern in (f"claude-code-sessions/*/*/{ident}.json", f"*/claude-code-sessions/*/*/{ident}.json"):
-                for path in base.glob(pattern):
-                    record = read_json(path)
-                    if isinstance(record, dict):
-                        return record
-        return None
+        with self.lock:
+            known = self.desktop.get(ident)
+        # A found record stays found while it exists; a missing one is looked for again later.
+        if known and (known[0].exists() if known[0] else time.monotonic() - known[1] < INDEX_SECONDS):
+            path = known[0]
+        else:
+            path = next((p for base in self.roots.claude_desktop
+                         for pattern in (f"claude-code-sessions/*/*/{ident}.json", f"*/claude-code-sessions/*/*/{ident}.json")
+                         for p in base.glob(pattern)), None)
+            with self.lock:
+                self.desktop[ident] = (path, time.monotonic())
+        record = self._json(path) if path else None
+        return record if isinstance(record, dict) else None
 
     def _claude_threads(self, ident: str, path: Path, title: str) -> list[Thread]:
         threads = [Thread(ident, path, "claude", "Claude", title)]
         for sub in sorted((path.parent / ident / "subagents").glob("agent-*.jsonl")):
-            meta = read_json(sub.with_name(sub.stem + ".meta.json"))
+            meta = self._json(sub.with_name(sub.stem + ".meta.json"))
             meta = meta if isinstance(meta, dict) else {}
-            threads.append(Thread(sub.stem.removeprefix("agent-"), sub, "claude", string(meta.get("agentType")) or "Subagent",
-                                  task=string(meta.get("description")), parent=ident))
+            threads.append(Thread(sub.stem.removeprefix("agent-"), sub, "claude", one_line(meta.get("agentType"), NAME_LIMIT) or "Subagent",
+                                  task=one_line(meta.get("description"), NAME_LIMIT), parent=ident))
         return threads
 
     @staticmethod
@@ -236,15 +300,18 @@ class TranscriptReader:
             if path in self.codex_meta:
                 return self.codex_meta[path]
         meta: dict = {}
+        written = False
         try:
             with path.open("rb") as handle:
                 for _, record in records(handle):
+                    written = True
                     if isinstance(record, dict) and record.get("type") == "session_meta" and isinstance(record.get("payload"), dict):
                         meta = {k: record["payload"].get(k) for k in ("session_id", "agent_nickname", "agent_path", "parent_thread_id")}
                     break
         except OSError:
             return {}
-        if meta:
+        # A file whose first line is not written yet is asked again; any other is settled.
+        if written:
             with self.lock:
                 self.codex_meta[path] = meta
         return meta
@@ -265,7 +332,7 @@ class TranscriptReader:
                 with index.open("rb") as handle:
                     for _, record in records(handle):
                         if isinstance(record, dict) and isinstance(record.get("id"), str) and isinstance(record.get("thread_name"), str):
-                            names[record["id"]] = record["thread_name"]
+                            names[record["id"]] = one_line(record["thread_name"], NAME_LIMIT)
             except OSError:
                 return ""
             cached = (key, names)
@@ -277,8 +344,8 @@ class TranscriptReader:
         def thread(file: Path, meta: dict) -> Thread:
             key = codex_id(file) or ""
             address = string(meta.get("agent_path"))
-            return Thread(key, file, "codex", string(meta.get("agent_nickname")) or "Codex", self._codex_title(home, key),
-                          address.rsplit("/", 1)[-1], None if key == ident else string(meta.get("parent_thread_id")) or None,
+            return Thread(key, file, "codex", one_line(meta.get("agent_nickname"), NAME_LIMIT) or "Codex", self._codex_title(home, key),
+                          one_line(address.rsplit("/", 1)[-1], NAME_LIMIT), None if key == ident else string(meta.get("parent_thread_id")) or None,
                           address or ("/root" if key == ident else ""))
 
         meta = self._codex_session(path)
@@ -301,11 +368,13 @@ class TranscriptReader:
             pass  # a record shaped in a way this reader does not know is left out, not fatal
 
     def parsed(self, thread: Thread) -> Parsed:
-        with self.lock:
-            state = self.cache.get(thread.path)
+        """The transcript through its last complete line, as a copy later reads cannot change."""
+        with self._file_lock(thread.path):
+            with self.lock:
+                state = self.cache.get(thread.path)
             try:
-                size = thread.path.stat().st_size
                 with thread.path.open("rb") as handle:
+                    size = os.fstat(handle.fileno()).st_size
                     head = handle.read(64)
                     # A shorter or rewritten file starts over; an appended one picks up where it stopped.
                     if state is None or size < state.offset or not head.startswith(state.head):
@@ -317,12 +386,18 @@ class TranscriptReader:
                             state.lines += 1
                             self._apply(thread, state, record)
             except OSError:
-                return state or Parsed()
-            self.cache[thread.path] = state
-            self.cache.move_to_end(thread.path)
-            while len(self.cache) > CACHE_FILES:
-                self.cache.popitem(last=False)
-            return state
+                if state is None:
+                    return Parsed()
+            with self.lock:
+                self.cache[thread.path] = state
+                self.cache.move_to_end(thread.path)
+                while len(self.cache) > 1 and sum(p.size for p in self.cache.values()) > CACHE_BYTES:
+                    self.cache.popitem(last=False)
+            # Only the newest message changes as lines are added: a tool run grows, a reply joins up.
+            messages = deque(state.messages, maxlen=MESSAGE_LIMIT)
+            if messages:
+                messages[-1] = {**messages[-1], **({"tools": list(messages[-1]["tools"])} if "tools" in messages[-1] else {})}
+            return replace(state, messages=messages)
 
     def latest(self, thread: Thread) -> Parsed:
         """The newest turn and title without reading the whole transcript."""
@@ -344,7 +419,7 @@ class TranscriptReader:
             with thread.path.open("rb") as handle:
                 if stat.st_size > TAIL_BYTES:
                     handle.seek(stat.st_size - TAIL_BYTES)
-                    handle.readline()  # the rest of a line that began earlier
+                    skip_line(handle)
                 for _, record in records(handle):
                     self._apply(thread, probe, record)
         except OSError:
@@ -352,33 +427,40 @@ class TranscriptReader:
         probe.messages.clear()
         with self.lock:
             self.tails[thread.path] = (key, probe)
-            while len(self.tails) > CACHE_FILES * 8:
+            while len(self.tails) > CACHE_FILES:
                 self.tails.popitem(last=False)
         return probe
 
     @staticmethod
-    def _add(state: Parsed, thread: Thread, at: str | None, kind: str, text: str, **extra: Any) -> None:
+    def _push(state: Parsed, message: dict) -> None:
+        if len(state.messages) == MESSAGE_LIMIT:
+            state.dropped += 1
+            state.size -= weight(state.messages[0])
+        state.messages.append(message)
+        state.size += weight(message)
+
+    def _add(self, state: Parsed, thread: Thread, at: str | None, kind: str, text: str, **extra: Any) -> None:
         body, cut = clip(text)
         if body:
-            state.messages.append({"id": f"{thread.key}:{state.lines}", "line": state.lines, "thread": thread.key, "at": at,
-                                   "kind": kind, "text": body, "truncated": cut, **extra})
+            self._push(state, {"id": f"{thread.key}:{state.lines}", "line": state.lines, "thread": thread.key, "at": at,
+                               "kind": kind, "text": body, "truncated": cut, **extra})
 
-    @staticmethod
-    def _tool(state: Parsed, thread: Thread, at: str | None, name: str, summary: str) -> None:
+    def _tool(self, state: Parsed, thread: Thread, at: str | None, name: str, summary: str) -> None:
         # A run of tool calls between messages reads as one line of activity.
         last = state.messages[-1] if state.messages else None
         if last is None or last["kind"] != "tools":
             last = {"id": f"{thread.key}:{state.lines}", "line": state.lines, "thread": thread.key, "at": at, "kind": "tools", "count": 0, "tools": []}
-            state.messages.append(last)
+            self._push(state, last)
         last["count"] += 1
         last["until"] = at
         if len(last["tools"]) < TOOL_LIMIT:
             last["tools"].append({"name": name, "summary": summary})
+            state.size += 100 + len(summary)
 
     def _claude(self, thread: Thread, state: Parsed, r: dict) -> None:
         kind, at = r.get("type"), timestamp(r.get("timestamp"))
         if kind == "custom-title" and string(r.get("customTitle")):
-            state.title = r["customTitle"]
+            state.title = one_line(r["customTitle"], NAME_LIMIT)
         if kind not in {"user", "assistant"} or not isinstance(r.get("message"), dict):
             return
         # Older transcripts kept subagent turns inline; their own files hold them now.
@@ -398,7 +480,9 @@ class TranscriptReader:
                     last = state.messages[-1] if state.messages else None
                     # One reply arrives as several records that share its message ID.
                     if last and last["kind"] == "assistant" and message_id and state.message_id == message_id:
+                        state.size -= len(last["text"])
                         last["text"], last["truncated"] = clip(last["text"] + "\n\n" + b["text"])
+                        state.size += len(last["text"])
                     else:
                         self._add(state, thread, at, "assistant", b["text"])
                     state.message_id = message_id
@@ -477,15 +561,11 @@ class TranscriptReader:
     def _views(self, threads: list[Thread], states: dict[str, Parsed]) -> list[dict]:
         views = []
         for t in threads:
-            state = states[t.key]
-            try:
-                modified = t.path.stat().st_mtime
-            except OSError:
-                modified = 0.0
-            working = state.open and time.time() - modified < WORKING_SECONDS
+            state, changed = states[t.key], modified(t.path)
+            working = state.open and time.time() - changed < WORKING_SECONDS
             views.append({"key": t.key, "name": t.name, "title": state.title or t.title, "task": t.task, "parent": t.parent,
-                          "model": state.model, "state": "working" if working else "idle",
-                          "lastActivityAt": state.last_at or (timestamp(datetime.fromtimestamp(modified, UTC).isoformat()) if modified else None)})
+                          "model": one_line(state.model, NAME_LIMIT), "state": "working" if working else "idle",
+                          "lastActivityAt": state.last_at or (timestamp(datetime.fromtimestamp(changed, UTC).isoformat()) if changed else None)})
         return views
 
     @staticmethod
@@ -495,8 +575,12 @@ class TranscriptReader:
                 "state": "working" if any(v["state"] == "working" for v in views) else "idle", "threads": views}
 
     def summary(self, chat_id: str) -> dict:
-        source, threads = self.threads(chat_id)
-        return self._overall(source, self._views(threads, {t.key: self.latest(t) for t in threads}))
+        """A chat's agents and their latest activity. One unreadable transcript never fails a list of chats."""
+        try:
+            source, threads = self.threads(chat_id)
+            return self._overall(source, self._views(threads, {t.key: self.latest(t) for t in threads}))
+        except OSError:
+            return {**self._overall(None, []), "error": "This chat's transcript could not be read."}
 
     def messages(self, chat_id: str, *, limit: int, thread: str | None = None, labels: dict[str, str] | None = None) -> dict:
         """The latest messages of a chat and every agent it started, oldest first.
@@ -521,6 +605,8 @@ class TranscriptReader:
             items = [m for m in items if m["thread"] == thread or m.get("sender") in sent]
         order = {t.key: i for i, t in enumerate(threads)}
         items.sort(key=lambda m: (m["at"] or "", order[m["thread"]], m["line"]))
+        # Messages older than each transcript's last MESSAGE_LIMIT still count, though they are not kept.
+        total = len(items) + sum(states[t.key].dropped for t in threads if thread in (None, t.key))
         page = []
         for m in items[-limit:]:
             view = {k: v for k, v in m.items() if k not in {"line", "sender", "to", "inbound"}}
@@ -534,4 +620,4 @@ class TranscriptReader:
                 view["author"] = names[m["thread"]]
                 view["authorThread"] = m["thread"]
             page.append(view)
-        return {**self._overall(source, views), "messages": page, "total": len(items), "more": len(items) > limit}
+        return {**self._overall(source, views), "messages": page, "total": total, "more": total > limit}

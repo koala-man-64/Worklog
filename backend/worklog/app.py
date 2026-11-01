@@ -41,7 +41,7 @@ from .plans import PlanService
 from .proposals import ProposalService
 from .recovery import automatic_backup, backup_database, export_database, list_backups
 from .services import WorkService, support_record
-from .transcripts import TranscriptReader, TranscriptRoots
+from .transcripts import MESSAGE_LIMIT, TranscriptReader, TranscriptRoots
 
 logger = logging.getLogger("worklog")
 
@@ -188,8 +188,10 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                     actor = {"id": credential["id"], "label": credential["label"], "kind": "agent"}
                     suffix = path.removeprefix("/api/v1")
                     # Transcripts hold whole conversations, tool output included; only the person reads them.
+                    # A trailing slash would only redirect, but it is refused here rather than there.
+                    chats = suffix.rstrip("/")
                     forbidden = (suffix.startswith(("/settings", "/credentials", "/backups", "/export", "/openapi")) or
-                                 suffix == "/chats" or (suffix.startswith("/chats/") and suffix.endswith("/transcript")))
+                                 chats == "/chats" or (chats.startswith("/chats/") and chats.endswith("/transcript")))
                     agent_write = ((suffix == "/proposals" and method == "POST") or
                                    (suffix.startswith("/proposals/") and (method == "PATCH" or (method == "POST" and suffix.rsplit("/", 1)[-1] in {"submit", "withdraw"}))) or
                                    (suffix == "/attachments" and method == "POST" and request.query_params.get("ownerType") == "proposal"))
@@ -405,7 +407,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         return {"items": [{**chat, "transcript": transcripts.summary(chat["chatId"])} for chat in chats]}
 
     @app.get("/api/v1/chats/{identity}/transcript")
-    def chat_transcript(identity: str, limit: int = Query(200, ge=1, le=5000), thread: str | None = None) -> dict:
+    def chat_transcript(identity: str, limit: int = Query(200, ge=1, le=MESSAGE_LIMIT), thread: str | None = None) -> dict:
         with db.read() as c:
             row = c.execute("SELECT * FROM agent_chats WHERE id=?", (identity,)).fetchone()
             if row is None:

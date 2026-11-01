@@ -180,7 +180,7 @@ function ChatListItem({
           <small>
             {transcript.found
               ? activity(transcript)
-              : "No transcript on this machine"}
+              : (transcript.error ?? "No transcript on this machine")}
           </small>
         </span>
       </a>
@@ -444,7 +444,7 @@ function Message({ message: m }: { message: ChatMessage }) {
         )}
         {time}
       </div>
-      <Markdown text={m.text ?? ""} />
+      <Markdown text={m.text ?? ""} untrusted />
       {m.truncated && (
         <small className="muted">
           Shortened here; the full message is in the transcript.

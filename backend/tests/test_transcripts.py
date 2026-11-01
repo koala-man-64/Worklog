@@ -7,6 +7,7 @@ import uuid
 
 import pytest
 from fastapi.testclient import TestClient
+from worklog import transcripts
 from worklog.app import create_app
 from worklog.transcripts import TranscriptReader, TranscriptRoots
 
@@ -279,3 +280,67 @@ def test_testing_apps_never_read_this_machines_transcripts(tmp_path):
     app = create_app(tmp_path, testing=True)
     with TestClient(app, base_url=ORIGIN):
         assert app.state.transcripts.roots == TranscriptRoots()
+
+
+def test_a_line_that_cannot_be_parsed_is_skipped_not_fatal(client, roots):
+    work = write(client, "POST", "/work-items", {"title": "API"}).json()
+    record = chat(client, "item", work["id"], CLAUDE, "API builder")
+    path = roots.claude_projects[0] / "C--repo" / f"{CLAUDE}.jsonl"
+    with path.open("a", encoding="utf-8") as f:
+        f.write("[" * 200_000 + "\n")
+    lines(path, [human(30, "After the bad line")])
+    assert client.get("/api/v1/chats").status_code == 200
+    body = client.get(f"/api/v1/chats/{record['id']}/transcript").json()
+    assert body["messages"][-1]["text"] == "After the bad line"
+
+
+def test_an_oversized_line_is_passed_over_once_it_is_complete(roots, monkeypatch):
+    monkeypatch.setattr(transcripts, "LINE_BYTES", 1000)
+    reader = TranscriptReader(roots)
+    path = roots.claude_projects[0] / "C--repo" / f"{CLAUDE}.jsonl"
+    huge = json.dumps(human(30, "x" * 5000))
+    with path.open("a", encoding="utf-8") as f:
+        f.write(huge[:3000])
+    assert reader.messages(CLAUDE, limit=50)["messages"][-1]["text"] == "Done."
+    with path.open("a", encoding="utf-8") as f:
+        f.write(huge[3000:] + "\n")
+    lines(path, [human(31, "After the long line")])
+    texts = [m.get("text", "") for m in reader.messages(CLAUDE, limit=50)["messages"]]
+    assert texts[-1] == "After the long line" and not any(t.startswith("xxx") for t in texts)
+
+
+def test_each_transcript_keeps_its_latest_messages_and_counts_the_rest(roots, monkeypatch):
+    monkeypatch.setattr(transcripts, "MESSAGE_LIMIT", 3)
+    reader = TranscriptReader(roots)
+    body = reader.messages(CLAUDE, limit=2)
+    assert [m["text"] for m in body["messages"]] == ["/review PR 12", "Done."]
+    # Eleven messages were written, and the subagent's two are kept in full.
+    assert body["total"] == 11 and body["more"]
+    assert [m["text"] for m in reader.messages(CLAUDE, limit=3, thread=CLAUDE)["messages"]] == ["Looks good, ship it", "/review PR 12", "Done."]
+
+
+def test_one_unreadable_transcript_does_not_fail_the_list(client, monkeypatch):
+    work = write(client, "POST", "/work-items", {"title": "API"}).json()
+    chat(client, "item", work["id"], CLAUDE, "API builder")
+    codex = chat(client, "item", work["id"], CODEX, "Release review")
+    reader = client.app.state.transcripts
+    original = reader.threads
+
+    def threads(chat_id):
+        if chat_id == CLAUDE:
+            raise PermissionError("denied")
+        return original(chat_id)
+
+    monkeypatch.setattr(reader, "threads", threads)
+    items = {c["chatId"]: c["transcript"] for c in client.get("/api/v1/chats").json()["items"]}
+    assert items[CLAUDE]["error"] and not items[CLAUDE]["found"]
+    assert items[codex["chatId"]]["found"] and "error" not in items[codex["chatId"]]
+
+
+def test_agents_are_refused_transcripts_with_a_trailing_slash_too(client):
+    work = write(client, "POST", "/work-items", {"title": "API"}).json()
+    record = chat(client, "item", work["id"], CLAUDE, "API builder")
+    agent = {"Authorization": "Bearer " + write(client, "POST", "/credentials", {"label": "Agent"}).json()["token"]}
+    for path in ("/api/v1/chats/", f"/api/v1/chats/{record['id']}/transcript/"):
+        response = client.get(path, headers=agent, follow_redirects=False)
+        assert response.status_code == 403 and response.json()["error"]["code"] == "agent_scope", path
