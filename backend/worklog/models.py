@@ -107,12 +107,20 @@ class ChatCreate(Command):
     chatId: str
     title: str
     createdDate: str | None = None
+    provider: str = ""
+    model: str = ""
+    repos: list[str] = Field(default_factory=list)
+    stepIds: list[str] = Field(default_factory=list)
 
 
 class ChatUpdate(Expected):
     chatId: str | None = None
     title: str | None = None
     createdDate: str | None = None
+    provider: str | None = None
+    model: str | None = None
+    repos: list[str] | None = None
+    stepIds: list[str] | None = None
 
 
 class GithubRefCreate(Command):

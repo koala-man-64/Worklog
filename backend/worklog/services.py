@@ -47,8 +47,18 @@ def support_record(r: Any) -> dict:
     keys = {"owner_type": "ownerType", "owner_id": "ownerId", "item_id": "itemId",
             "chat_id": "chatId", "created_date": "createdDate", "chat_title": "chatTitle",
             "created_at": "createdAt", "updated_at": "updatedAt"}
-    return {keys.get(k, k): bool(v) if k in {"archived", "done"} else v
-            for k, v in dict(r).items() if k != "content"}
+    record = {keys.get(k, k): bool(v) if k in {"archived", "done"} else v
+              for k, v in dict(r).items() if k != "content"}
+    if "repos" in record:
+        record["repos"] = json.loads(r["repos"])
+    return record
+
+
+def repositories(value: Any) -> list[str]:
+    if not isinstance(value, list) or len(value) > 20:
+        raise AppError(422, "validation", "repos must be a list of at most 20 repositories")
+    names = [text(name, "repository", required=True, limit=500) for name in value]
+    return list(dict.fromkeys(names))
 
 
 def valid_http_url(raw: Any, field: str = "url") -> str:
@@ -175,6 +185,20 @@ class WorkService:
             return {"items": [{**item_record(r), "isBacklog": bool(r["is_backlog"]), "people": people_map.get(r["id"], [])} for r in rows], "total": total,
                     "collectionRevision": setting(c, "backlogRevision", 1)}
 
+    @staticmethod
+    def chat_steps(c: sqlite3.Connection, chat_ids: builtins.list[str]) -> dict[str, builtins.list[str]]:
+        if not chat_ids:
+            return {}
+        placeholders = ",".join("?" for _ in chat_ids)
+        grouped: dict[str, builtins.list[str]] = {cid: [] for cid in chat_ids}
+        for r in c.execute(f"SELECT chat_id,step_id FROM chat_steps WHERE chat_id IN ({placeholders}) ORDER BY created_at,step_id", chat_ids):
+            grouped[r["chat_id"]].append(r["step_id"])
+        return grouped
+
+    def chats(self, c: sqlite3.Connection, rows: builtins.list[Any]) -> builtins.list[dict]:
+        steps = self.chat_steps(c, [r["id"] for r in rows])
+        return [{**support_record(r), "stepIds": steps[r["id"]]} for r in rows]
+
     def roadmap_items(self, c: sqlite3.Connection, roadmap_id: str) -> builtins.list[dict]:
         rows = c.execute(
             "SELECT * FROM work_items WHERE archived=0 AND (roadmap_id=? OR step_id IN (SELECT id FROM steps WHERE roadmap_id=?)) ORDER BY backlog_order,id",
@@ -283,7 +307,7 @@ class WorkService:
                   "attachments": [support_record(r) for r in c.execute("SELECT id,owner_type,owner_id,name,mime,size,sha256,archived,revision,created_at FROM attachments WHERE owner_type=? AND owner_id=? ORDER BY created_at", (owner_type, owner_id))]}
         if owner_type in {"item", "roadmap"}:
             result["links"] = [support_record(r) for r in c.execute("SELECT * FROM web_links WHERE owner_type=? AND owner_id=? ORDER BY created_at,id", (owner_type, owner_id))]
-            result["chats"] = [support_record(r) for r in c.execute("SELECT * FROM agent_chats WHERE owner_type=? AND owner_id=? ORDER BY created_date DESC,created_at DESC,id", (owner_type, owner_id))]
+            result["chats"] = self.chats(c, c.execute("SELECT * FROM agent_chats WHERE owner_type=? AND owner_id=? ORDER BY created_date DESC,created_at DESC,id", (owner_type, owner_id)).fetchall())
             result["github"] = [
                 support_record(r)
                 for r in c.execute(
@@ -635,6 +659,8 @@ class WorkService:
         if not creating:
             require_revision(row, p.get("revision"))
         before = support_record(row) if row else None
+        if kind == "chat" and before is not None:
+            before["stepIds"] = self.chat_steps(c, [before["id"]])[before["id"]]
         val: dict[str, Any]
         if verb in {"archive", "recover"}:
             assert row is not None
@@ -670,21 +696,29 @@ class WorkService:
             p = {**p, "id": val["id"]}
         elif kind == "chat" and verb in {"create", "update"}:
             default_date = today(setting(c, "timezone", "America/Chicago"))
-            val = before.copy() if before else {"id": uid(), "ownerType": p.get("ownerType"), "ownerId": p.get("ownerId"), "chatId": "", "title": "", "createdDate": default_date, "createdAt": now(), "revision": 0}
+            val = before.copy() if before else {"id": uid(), "ownerType": p.get("ownerType"), "ownerId": p.get("ownerId"), "chatId": "", "title": "", "createdDate": default_date,
+                                                "provider": "", "model": "", "repos": [], "stepIds": [], "createdAt": now(), "revision": 0}
             if val["ownerType"] not in {"item", "roadmap"}:
                 raise AppError(422, "validation", "Agent chats must belong to a work item or roadmap")
             self.owner(c, val["ownerType"], val["ownerId"])
-            for k in ("chatId", "title", "createdDate"):
+            for k in ("chatId", "title", "createdDate", "provider", "model", "repos", "stepIds"):
                 if k in p and p[k] is not None:
                     val[k] = p[k]
             val["chatId"] = text(val["chatId"], "chatId", required=True, limit=500)
             val["title"] = text(val["title"], "title", required=True, limit=1000)
             raw_date = str(val.get("createdDate") or "").strip()
             val["createdDate"] = valid_date(raw_date) if raw_date else default_date
+            val["provider"] = text(val["provider"], "provider", limit=200).strip()
+            val["model"] = text(val["model"], "model", limit=200).strip()
+            val["repos"] = repositories(val["repos"])
+            previous = before["stepIds"] if before else []
+            assigned = self._chat_step_ids(c, val, previous)
             c.execute(
-                "INSERT INTO agent_chats VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET chat_id=excluded.chat_id,title=excluded.title,created_date=excluded.created_date,revision=excluded.revision,updated_at=excluded.updated_at",
-                (val["id"], val["ownerType"], val["ownerId"], val["chatId"], val["title"], val["createdDate"], 0, val["revision"] + 1, val["createdAt"], now()),
+                "INSERT INTO agent_chats(id,owner_type,owner_id,chat_id,title,created_date,archived,revision,created_at,updated_at,provider,model,repos) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET chat_id=excluded.chat_id,title=excluded.title,created_date=excluded.created_date,provider=excluded.provider,model=excluded.model,repos=excluded.repos,revision=excluded.revision,updated_at=excluded.updated_at",
+                (val["id"], val["ownerType"], val["ownerId"], val["chatId"], val["title"], val["createdDate"], 0, val["revision"] + 1, val["createdAt"], now(),
+                 val["provider"], val["model"], json.dumps(val["repos"])),
             )
+            self._assign_steps(c, actor, val, previous, assigned)
             p = {**p, "id": val["id"]}
         elif kind == "github" and verb in {"create", "update"}:
             val = before.copy() if before else {"id": uid(), "ownerType": p.get("ownerType"), "ownerId": p.get("ownerId"), "kind": "pr", "url": "", "reference": "", "title": "", "description": "", "chatId": None, "createdAt": now(), "revision": 0}
@@ -742,6 +776,8 @@ class WorkService:
                     (p["id"],),
                 ).fetchone()
             )
+        elif kind == "chat":
+            after = self.chats(c, [c.execute("SELECT * FROM agent_chats WHERE id=?", (p["id"],)).fetchone()])[0]
         else:
             after = support_record(c.execute(f"SELECT * FROM {table} WHERE id=?", (p["id"],)).fetchone())
         if kind in {"note", "attachment"} and after.get("ownerType") != "proposal":
@@ -749,13 +785,45 @@ class WorkService:
         elif kind == "link":
             self.index(c, after["id"], "link", after.get("title") or after["url"], (after["url"] + "\n" + after.get("description", "")).strip(), after["ownerId"], after["archived"])
         elif kind == "chat":
-            self.index(c, after["id"], "chat", after["title"], f"{after['chatId']} {after['createdDate']}", after["ownerId"], after["archived"])
+            self.index(c, after["id"], "chat", after["title"], " ".join([after["chatId"], after["createdDate"], after["provider"], after["model"], *after["repos"]]).strip(), after["ownerId"], after["archived"])
         elif kind == "github":
             self.index(c, after["id"], "github", after.get("title") or after.get("reference") or after["url"], f"{after['kind']} {after.get('reference', '')} {after['url']}\n{after.get('description', '')}".strip(), after["ownerId"], after["archived"])
         elif kind == "attachment":
             c.execute("DELETE FROM search_index WHERE entity_id=?", (after["id"],))
         event(c, actor, action, p["id"], before, after)
         return after
+
+    @staticmethod
+    def _chat_step_ids(c: sqlite3.Connection, chat: dict, kept: builtins.list[str]) -> builtins.list[str]:
+        """Validate a chat's complete step assignment; a retired step may stay but not be added."""
+        step_ids = chat["stepIds"]
+        if not isinstance(step_ids, list) or len(step_ids) > 500 or not all(isinstance(s, str) for s in step_ids):
+            raise AppError(422, "validation", "stepIds must be a list of at most 500 step ids")
+        step_ids = list(dict.fromkeys(step_ids))
+        if step_ids and chat["ownerType"] != "roadmap":
+            raise AppError(422, "validation", "Only a roadmap's agent chats can be assigned to steps")
+        for step_id in step_ids:
+            row = c.execute("SELECT roadmap_id,retired FROM steps WHERE id=?", (step_id,)).fetchone()
+            if row is None or row["roadmap_id"] != chat["ownerId"]:
+                raise AppError(422, "validation", "Assigned steps must belong to the chat's roadmap")
+            if row["retired"] and step_id not in kept:
+                raise AppError(409, "conflict", "Retired steps cannot take on agent chats")
+        return step_ids
+
+    @staticmethod
+    def _assign_steps(c: sqlite3.Connection, actor: dict, chat: dict,
+                      previous: builtins.list[str], assigned: builtins.list[str]) -> None:
+        # Each step's own history records which chats took it on or let it go.
+        summary = {k: chat[k] for k in ("id", "chatId", "title", "provider", "model")}
+        for step_id in previous:
+            if step_id not in assigned:
+                c.execute("DELETE FROM chat_steps WHERE chat_id=? AND step_id=?", (chat["id"], step_id))
+                event(c, actor, "chat.unassign", step_id, summary, None)
+        stamp = now()
+        for step_id in assigned:
+            if step_id not in previous:
+                c.execute("INSERT INTO chat_steps VALUES(?,?,?)", (chat["id"], step_id, stamp))
+                event(c, actor, "chat.assign", step_id, None, summary)
 
     def upload(self, c: sqlite3.Connection, actor: dict, owner_type: str, owner_id: str,
                name: str, mime: str, content: bytes) -> dict:

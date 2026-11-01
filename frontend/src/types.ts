@@ -103,6 +103,11 @@ export type AgentChat = RecordBase & {
   chatId: string;
   title: string;
   createdDate: string;
+  provider: string;
+  model: string;
+  repos: string[];
+  // Roadmap chats only: the steps the chat is working on.
+  stepIds: string[];
 };
 export type GithubRef = RecordBase & {
   ownerType: string;

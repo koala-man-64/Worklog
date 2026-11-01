@@ -31,6 +31,7 @@ import {
   RecoverRecords,
   ResizeHandle,
   StatusSelect,
+  StepAgentChats,
 } from "./components";
 import type { Item, List, Person, Roadmap, Step } from "./types";
 import { Icon } from "./icons";
@@ -425,6 +426,12 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
     .map((s) => s.id);
   const completed = leaves.filter((s) => s.status === "done").length;
   const roadWorkItems = road.workItems ?? [];
+  const roadChats = road.chats ?? [];
+  // How many active chats work on each step, for the outline.
+  const stepChats = new Map<string, number>();
+  for (const chat of roadChats.filter((c) => !c.archived))
+    for (const stepId of chat.stepIds)
+      stepChats.set(stepId, (stepChats.get(stepId) ?? 0) + 1);
   const selected = step ? active.find((s) => s.id === step) : undefined;
   // A step opened by link shows in the outline: expand its collapsed ancestors once.
   if (step !== revealed) {
@@ -542,6 +549,7 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
         const kids = active.filter((c) => c.parentId === s.id).length;
         const closed = kids > 0 && collapsed.has(s.id);
         const items = roadWorkItems.filter((w) => w.stepId === s.id).length;
+        const agents = stepChats.get(s.id) ?? 0;
         const current = s.id === selected?.id;
         return (
           <li key={s.id} className={"step status-" + s.status}>
@@ -573,7 +581,7 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
                 >
                   {s.title}
                 </a>
-                {(closed || items > 0) && (
+                {(closed || items > 0 || agents > 0) && (
                   <span className="step-meta">
                     {closed && (
                       <small>
@@ -583,6 +591,11 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
                     {items > 0 && (
                       <small>
                         {items} work item{items === 1 ? "" : "s"}
+                      </small>
+                    )}
+                    {agents > 0 && (
+                      <small>
+                        {agents} agent chat{agents === 1 ? "" : "s"}
                       </small>
                     )}
                   </span>
@@ -841,7 +854,8 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
       <AgentChatsSection
         ownerType="roadmap"
         ownerId={id}
-        chats={road.chats}
+        chats={roadChats}
+        steps={active}
         disabled={road.archived}
       />
       <GithubRefsSection
@@ -963,6 +977,13 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
           </p>
         )}
       </section>
+      <StepAgentChats
+        roadmapId={id}
+        step={selected}
+        steps={active}
+        chats={roadChats}
+        disabled={road.archived}
+      />
       <Notes
         ownerType="step"
         ownerId={selected.id}

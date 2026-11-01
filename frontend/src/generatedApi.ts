@@ -1006,6 +1006,20 @@ export interface components {
             title: string;
             /** Createddate */
             createdDate?: string | null;
+            /**
+             * Provider
+             * @default
+             */
+            provider: string;
+            /**
+             * Model
+             * @default
+             */
+            model: string;
+            /** Repos */
+            repos?: string[];
+            /** Stepids */
+            stepIds?: string[];
         };
         /** ChatUpdate */
         ChatUpdate: {
@@ -1017,6 +1031,14 @@ export interface components {
             title?: string | null;
             /** Createddate */
             createdDate?: string | null;
+            /** Provider */
+            provider?: string | null;
+            /** Model */
+            model?: string | null;
+            /** Repos */
+            repos?: string[] | null;
+            /** Stepids */
+            stepIds?: string[] | null;
         };
         /** CredentialCreate */
         CredentialCreate: {

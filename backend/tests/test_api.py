@@ -561,3 +561,71 @@ def test_links_agent_chats_and_github_commits_and_prs_on_items_and_roadmaps(clie
     assert patched_link["description"] == "Updated RFC summary"
     assert write(client, "POST", f"/github/{pr_ref['id']}/archive", {"revision": pr_ref["revision"]}).json()["archived"] is True
     assert write(client, "POST", f"/github/{pr_ref['id']}/recover", {"revision": 2}).json()["archived"] is False
+
+
+def test_roadmap_steps_are_assigned_to_agent_chats_with_provider_model_and_repos(client):
+    roadmap = write(client, "POST", "/roadmaps", {"title": "Platform", "steps": [{"title": "API"}, {"title": "Web"}, {"title": "Docs"}]}).json()
+    api, web, docs = (s["id"] for s in roadmap["steps"])
+    other = write(client, "POST", "/roadmaps", {"title": "Other", "steps": [{"title": "Elsewhere"}]}).json()
+    work_item = item(client, title="Loose work")
+
+    chat = write(client, "POST", "/chats", {
+        "ownerType": "roadmap", "ownerId": roadmap["id"], "chatId": "a950ec9c", "title": "Build the API",
+        "provider": " Anthropic ", "model": "claude-opus-5-5", "repos": ["acme/api", " acme/api", "acme/web"], "stepIds": [api, api],
+    })
+    assert chat.status_code == 200, chat.text
+    chat = chat.json()
+    assert (chat["provider"], chat["model"], chat["repos"], chat["stepIds"]) == ("Anthropic", "claude-opus-5-5", ["acme/api", "acme/web"], [api])
+    assert client.get(f"/api/v1/chats/{chat['id']}").json()["stepIds"] == [api]
+    detail = client.get(f"/api/v1/roadmaps/{roadmap['id']}").json()
+    assert detail["chats"][0]["stepIds"] == [api] and detail["chats"][0]["repos"] == ["acme/api", "acme/web"]
+
+    # Assignment is the chat's complete step list; other edits leave it alone.
+    moved = write(client, "PATCH", f"/chats/{chat['id']}", {"revision": chat["revision"], "stepIds": [web, api]}).json()
+    assert sorted(moved["stepIds"]) == sorted([api, web])
+    renamed = write(client, "PATCH", f"/chats/{chat['id']}", {"revision": moved["revision"], "model": "claude-sonnet-5-5"}).json()
+    assert sorted(renamed["stepIds"]) == sorted([api, web]) and renamed["provider"] == "Anthropic"
+    dropped = write(client, "PATCH", f"/chats/{chat['id']}", {"revision": renamed["revision"], "stepIds": [web]}).json()
+    assert dropped["stepIds"] == [web]
+    api_history = [e["kind"] for e in client.get(f"/api/v1/steps/{api}/history").json()["items"]]
+    assert "chat.assign" in api_history and "chat.unassign" in api_history
+    assigned = next(e for e in client.get(f"/api/v1/steps/{web}/history").json()["items"] if e["kind"] == "chat.assign")
+    assert assigned["after"]["title"] == "Build the API" and assigned["after"]["chatId"] == "a950ec9c"
+
+    # Steps must be in the chat's own roadmap, and only roadmap chats take steps.
+    foreign = write(client, "PATCH", f"/chats/{chat['id']}", {"revision": dropped["revision"], "stepIds": [other["steps"][0]["id"]]})
+    assert foreign.status_code == 422
+    missing = write(client, "PATCH", f"/chats/{chat['id']}", {"revision": dropped["revision"], "stepIds": [str(uuid.uuid4())]})
+    assert missing.status_code == 422
+    item_chat = write(client, "POST", "/chats", {"ownerType": "item", "ownerId": work_item["id"], "chatId": "c-2", "title": "Item chat", "stepIds": [api]})
+    assert item_chat.status_code == 422
+    for repos in (["acme/api", ""], "acme/api", [f"r{i}" for i in range(21)]):
+        bad = write(client, "PATCH", f"/chats/{chat['id']}", {"revision": dropped["revision"], "repos": repos})
+        assert bad.status_code == 422, repos
+
+    # A retired step keeps its chats, but takes on no new ones.
+    revised = write(client, "POST", f"/roadmaps/{roadmap['id']}/revisions", {
+        "revision": roadmap["revision"], "title": "Platform",
+        "steps": [{"id": api, "title": "API"}, {"id": docs, "title": "Docs"}],
+    })
+    assert revised.status_code == 200, revised.text
+    kept = write(client, "PATCH", f"/chats/{chat['id']}", {"revision": dropped["revision"], "title": "Build the web app"})
+    assert kept.status_code == 200 and kept.json()["stepIds"] == [web]
+    late = write(client, "POST", "/chats", {"ownerType": "roadmap", "ownerId": roadmap["id"], "chatId": "c-3", "title": "Late", "stepIds": [web]})
+    assert late.status_code == 409
+
+    hit = client.get("/api/v1/search?q=sonnet").json()["items"]
+    assert hit and hit[0]["id"] == chat["id"] and hit[0]["routeId"] == roadmap["id"]
+
+    # Agents propose their own assignment; it lands only on approval.
+    cred = write(client, "POST", "/credentials", {"label": "Coding agent"}).json()
+    headers = {"Authorization": "Bearer " + cred["token"]}
+    operations = [{"action": "chat.create", "payload": {
+        "ownerType": "roadmap", "ownerId": roadmap["id"], "chatId": "codex-7", "title": "Write the docs",
+        "provider": "OpenAI", "model": "gpt-5.5", "repos": ["acme/docs"], "stepIds": [docs]}}]
+    proposal = write(client, "POST", "/proposals", {"title": "Claim docs", "rationale": "Starting on it", "operations": operations}, headers=headers)
+    assert proposal.status_code == 200, proposal.text
+    submitted = write(client, "POST", f"/proposals/{proposal.json()['id']}/submit", {"revision": proposal.json()["revision"]}, headers=headers).json()
+    assert write(client, "POST", f"/proposals/{submitted['id']}/approve", {"revision": submitted["revision"]}).status_code == 200
+    claimed = next(c for c in client.get(f"/api/v1/roadmaps/{roadmap['id']}").json()["chats"] if c["chatId"] == "codex-7")
+    assert claimed["stepIds"] == [docs] and claimed["model"] == "gpt-5.5"

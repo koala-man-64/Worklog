@@ -3291,6 +3291,30 @@
               }
             ],
             "title": "Createddate"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "default": ""
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "default": ""
+          },
+          "repos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Repos"
+          },
+          "stepIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stepids"
           }
         },
         "additionalProperties": false,
@@ -3342,6 +3366,56 @@
               }
             ],
             "title": "Createddate"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "repos": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repos"
+          },
+          "stepIds": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stepids"
           }
         },
         "additionalProperties": false,
