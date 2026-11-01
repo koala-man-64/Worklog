@@ -49,7 +49,11 @@ def _compatible_schemas() -> tuple[dict[tuple[str, str], str], ...]:
     from worklog.db import AGENT_CHAT_COLUMNS
 
     latest = _expected_schema()
-    before_discussions = _expected_schema(discussions=False)
+    question_names = {"roadmap_questions", "roadmap_questions_roadmap", "roadmap_decisions", "roadmap_decisions_roadmap"}
+    # The last shape before roadmaps kept questions and decisions; discussions came first.
+    before_questions = {k: v for k, v in latest.items() if k[1] not in question_names}
+    # The last shape before discussions, which also predates questions and decisions.
+    before_discussions = {k: v for k, v in _expected_schema(discussions=False).items() if k[1] not in question_names}
     # `current` is the last shape before agent chats gained provider, model, repos and step
     # assignments; every earlier shape below derives from it.
     current = {k: v for k, v in before_discussions.items() if k[1] not in {"chat_steps", "chat_steps_step"}}
@@ -86,7 +90,7 @@ def _compatible_schemas() -> tuple[dict[tuple[str, str], str], ...]:
             ", parent_id TEXT REFERENCES roadmaps(id)", "")}
         for schema in (current, without_lcg, without_people, legacy_roadmap, current_without_roadmap)
     ]
-    return (latest, before_discussions, current, *earlier)
+    return (latest, before_questions, before_discussions, current, *earlier)
 
 
 class InstanceLock:
@@ -433,6 +437,10 @@ def restore_database(db_path: Path | str, candidate_path: Path | str,
                         conn.execute("ALTER TABLE agent_chats ADD COLUMN " + column)
                 if "chat_steps" not in tables:
                     conn.executescript(CHAT_STEPS_SCHEMA)
+                if not {"roadmap_questions", "roadmap_decisions"} <= tables:
+                    from worklog.db import QUESTIONS_DECISIONS_SCHEMA
+
+                    conn.executescript(QUESTIONS_DECISIONS_SCHEMA)
                 from worklog.discussions import migrate as migrate_discussions
 
                 conn.row_factory = sqlite3.Row

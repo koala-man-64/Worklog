@@ -143,6 +143,32 @@ class GithubRefUpdate(Expected):
     chatId: str | None = None
 
 
+class QuestionCreate(Command):
+    roadmapId: str
+    title: str
+    details: str = ""
+
+
+class QuestionUpdate(Expected):
+    title: str | None = None
+    details: str | None = None
+    answer: str | None = None
+    status: Literal["open", "answered"] | None = None
+
+
+class DecisionCreate(Command):
+    roadmapId: str
+    title: str
+    rationale: str = ""
+    decidedDate: str | None = None
+
+
+class DecisionUpdate(Expected):
+    title: str | None = None
+    rationale: str | None = None
+    decidedDate: str | None = None
+
+
 class PersonCreate(Command):
     name: str
     role: str = ""
@@ -211,7 +237,9 @@ class Operation(Command):
                     "person.link", "person.unlink",
                     "link.create", "link.update", "link.archive", "link.recover",
                     "chat.create", "chat.update", "chat.archive", "chat.recover",
-                    "github.create", "github.update", "github.archive", "github.recover"]
+                    "github.create", "github.update", "github.archive", "github.recover",
+                    "question.create", "question.update", "question.archive", "question.recover",
+                    "decision.create", "decision.update", "decision.archive", "decision.recover"]
     payload: dict[str, Any]
 
 

@@ -20,7 +20,10 @@ test.beforeEach(async ({ context, baseURL }) => {
   });
 });
 test.afterEach(async ({ context }) => {
-  expect(externalRequests.get(context), "No external runtime resources").toEqual([]);
+  expect(
+    externalRequests.get(context),
+    "No external runtime resources",
+  ).toEqual([]);
 });
 test("daily capture, outcome persistence and keyboard planning controls", async ({
   page,
@@ -58,13 +61,23 @@ test("daily capture, outcome persistence and keyboard planning controls", async 
   ).toBeVisible();
 });
 
-test("offline settings, backup, export, and theme controls", async ({ page }) => {
+test("offline settings, backup, export, and theme controls", async ({
+  page,
+}) => {
   await page.goto("/#settings");
-  await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Create backup", exact: true }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Backup created." })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Settings", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Create backup", exact: true })
+    .click();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Backup created." }),
+  ).toBeVisible();
   const downloaded = page.waitForEvent("download");
-  await page.getByRole("link", { name: "Export everything (.zip)", exact: true }).click();
+  await page
+    .getByRole("link", { name: "Export everything (.zip)", exact: true })
+    .click();
   expect((await downloaded).suggestedFilename()).toBe("worklog-export.zip");
   await page.getByLabel("Appearance").selectOption("dark");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
@@ -552,4 +565,73 @@ test("the sidebar and plan outline resize by drag and keep their widths", async 
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBeTruthy();
+});
+test("a roadmap's questions are answered and its decisions recorded", async ({
+  page,
+  baseURL,
+}) => {
+  const origin = new URL(baseURL!).origin;
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Today", exact: true }),
+  ).toBeVisible();
+  const boot = await page.request.post("/api/v1/session/bootstrap", {
+    headers: { Origin: origin, "X-Worklog-Bootstrap": "1" },
+    data: {},
+  });
+  const { csrfToken } = await boot.json();
+  const created = await page.request.post("/api/v1/roadmaps", {
+    headers: {
+      Origin: origin,
+      "X-CSRF-Token": csrfToken,
+      "Idempotency-Key": crypto.randomUUID(),
+    },
+    data: { title: "Decisions " + Date.now(), steps: [{ title: "Only step" }] },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { id } = await created.json();
+  await page.goto("/#roadmaps/" + id);
+  const detail = page.getByRole("region", { name: "Roadmap details" });
+  await detail
+    .getByRole("textbox", { name: "New question" })
+    .fill("Which region hosts replicas?");
+  await detail.getByRole("button", { name: "Add question" }).click();
+  await detail
+    .getByRole("button", {
+      name: "Answer question Which region hosts replicas?",
+    })
+    .click();
+  await detail.getByRole("textbox", { name: "Answer" }).fill("Frankfurt");
+  await detail.getByRole("button", { name: "Save answer" }).click();
+  await expect(detail.getByText("No open questions.")).toBeVisible();
+  await detail.getByText("Answered (1)").click();
+  await expect(detail.getByText("Frankfurt")).toBeVisible();
+
+  await detail
+    .getByRole("textbox", { name: "New decision", exact: true })
+    .fill("Use SQLite");
+  await detail
+    .getByRole("textbox", { name: "New decision rationale" })
+    .fill("One file, no server.");
+  await detail.getByLabel("Date decided").fill("2026-10-30");
+  await detail.getByRole("button", { name: "Record decision" }).click();
+  await expect(detail.getByText("Decided 2026-10-30")).toBeVisible();
+
+  await page.reload();
+  await expect(detail.getByText("One file, no server.")).toBeVisible();
+  const saved = await (await page.request.get(`/api/v1/roadmaps/${id}`)).json();
+  expect(saved.questions).toMatchObject([
+    {
+      title: "Which region hosts replicas?",
+      status: "answered",
+      answer: "Frankfurt",
+    },
+  ]);
+  expect(saved.decisions).toMatchObject([
+    {
+      title: "Use SQLite",
+      rationale: "One file, no server.",
+      decidedDate: "2026-10-30",
+    },
+  ]);
 });

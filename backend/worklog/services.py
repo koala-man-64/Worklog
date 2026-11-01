@@ -46,6 +46,7 @@ def entry_record(r: Any) -> dict:
 def support_record(r: Any) -> dict:
     keys = {"owner_type": "ownerType", "owner_id": "ownerId", "item_id": "itemId",
             "chat_id": "chatId", "created_date": "createdDate", "chat_title": "chatTitle",
+            "roadmap_id": "roadmapId", "decided_date": "decidedDate",
             "created_at": "createdAt", "updated_at": "updatedAt"}
     record = {keys.get(k, k): bool(v) if k in {"archived", "done"} else v
               for k, v in dict(r).items() if k != "content"}
@@ -338,6 +339,9 @@ class WorkService:
                     (owner_type, owner_id),
                 )
             ]
+        if owner_type == "roadmap":
+            result["questions"] = [support_record(r) for r in c.execute("SELECT * FROM roadmap_questions WHERE roadmap_id=? ORDER BY created_at,id", (owner_id,))]
+            result["decisions"] = [support_record(r) for r in c.execute("SELECT * FROM roadmap_decisions WHERE roadmap_id=? ORDER BY decided_date DESC,created_at DESC,id", (owner_id,))]
         if owner_type == "item":
             result["tasks"] = [support_record(r) for r in c.execute("SELECT * FROM tasks WHERE item_id=? ORDER BY created_at", (owner_id,))]
             result["references"] = [support_record(r) for r in c.execute("SELECT * FROM file_references WHERE item_id=? ORDER BY created_at", (owner_id,))]
@@ -393,7 +397,7 @@ class WorkService:
             return self._item_apply(c, actor, action, p)
         if action == "entry.upsert":
             return self._entry_apply(c, actor, p)
-        if action.startswith(("note.", "task.", "reference.", "attachment.", "link.", "chat.", "github.")):
+        if action.startswith(("note.", "task.", "reference.", "attachment.", "link.", "chat.", "github.", "question.", "decision.")):
             return self._support_apply(c, actor, action, p)
         if action.startswith(("roadmap.", "progress.")):
             result = self.plans.apply(c, actor, action, p)
@@ -672,6 +676,8 @@ class WorkService:
             "link": "web_links",
             "chat": "agent_chats",
             "github": "github_refs",
+            "question": "roadmap_questions",
+            "decision": "roadmap_decisions",
         }[kind]
         creating = verb == "create"
         row = None if creating else c.execute(f"SELECT * FROM {table} WHERE id=?", (p.get("id", ""),)).fetchone()
@@ -766,6 +772,47 @@ class WorkService:
                 (val["id"], val["ownerType"], val["ownerId"], val["kind"], val["url"], val["reference"], val["title"], val["description"], val["chatId"], 0, val["revision"] + 1, val["createdAt"], now()),
             )
             p = {**p, "id": val["id"]}
+        elif kind == "question" and verb in {"create", "update"}:
+            val = before.copy() if before else {"id": uid(), "roadmapId": p.get("roadmapId"), "title": "", "details": "", "answer": "", "status": "open", "createdAt": now(), "revision": 0}
+            self.owner(c, "roadmap", val["roadmapId"])
+            for k in ("title", "details", "answer", "status"):
+                if k in p and p[k] is not None:
+                    val[k] = p[k]
+            val["title"] = text(val["title"], "title", required=True, limit=1000)
+            val["details"] = text(val["details"], "details", limit=100_000)
+            val["answer"] = text(val["answer"], "answer", limit=100_000)
+            if val["status"] not in {"open", "answered"}:
+                raise AppError(422, "validation", "Question status must be open or answered", {"status": "invalid"})
+            # Reopening keeps the earlier answer; only an answered question needs one.
+            if val["status"] == "answered" and not val["answer"].strip():
+                raise AppError(422, "validation", "Write an answer before marking the question answered", {"answer": "required"})
+            c.execute(
+                "INSERT INTO roadmap_questions VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,details=excluded.details,answer=excluded.answer,status=excluded.status,revision=excluded.revision,updated_at=excluded.updated_at",
+                (val["id"], val["roadmapId"], val["title"], val["details"], val["answer"], val["status"], 0, val["revision"] + 1, val["createdAt"], now()),
+            )
+            p = {**p, "id": val["id"]}
+        elif kind == "decision" and verb in {"create", "update"}:
+            default_date = today(setting(c, "timezone", "America/Chicago"))
+            val = before.copy() if before else {"id": uid(), "roadmapId": p.get("roadmapId"), "title": "", "rationale": "", "decidedDate": default_date, "createdAt": now(), "revision": 0}
+            self.owner(c, "roadmap", val["roadmapId"])
+            for k in ("title", "rationale", "decidedDate"):
+                if k in p and p[k] is not None:
+                    val[k] = p[k]
+            val["title"] = text(val["title"], "title", required=True, limit=1000)
+            val["rationale"] = text(val["rationale"], "rationale", limit=100_000)
+            raw_date = str(val.get("decidedDate") or "").strip()
+            if raw_date:
+                val["decidedDate"] = valid_date(raw_date)
+            elif before is None:
+                val["decidedDate"] = default_date
+            else:
+                # A blank date must not quietly redate a decision recorded earlier.
+                raise AppError(422, "validation", "Give the date the decision was made", {"decidedDate": "required"})
+            c.execute(
+                "INSERT INTO roadmap_decisions VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,rationale=excluded.rationale,decided_date=excluded.decided_date,revision=excluded.revision,updated_at=excluded.updated_at",
+                (val["id"], val["roadmapId"], val["title"], val["rationale"], val["decidedDate"], 0, val["revision"] + 1, val["createdAt"], now()),
+            )
+            p = {**p, "id": val["id"]}
         elif kind == "task" and verb in {"create", "update"}:
             val = before.copy() if before else {"id": uid(), "itemId": p.get("itemId"), "text": "", "done": False, "createdAt": now(), "revision": 0}
             self.item(c, val["itemId"])
@@ -807,6 +854,10 @@ class WorkService:
             self.index(c, after["id"], "chat", after["title"], " ".join([after["chatId"], after["createdDate"], after["provider"], after["model"], *after["repos"]]).strip(), after["ownerId"], after["archived"])
         elif kind == "github":
             self.index(c, after["id"], "github", after.get("title") or after.get("reference") or after["url"], f"{after['kind']} {after.get('reference', '')} {after['url']}\n{after.get('description', '')}".strip(), after["ownerId"], after["archived"])
+        elif kind == "question":
+            self.index(c, after["id"], "question", after["title"], (after["details"] + "\n" + after["answer"]).strip(), after["roadmapId"], after["archived"])
+        elif kind == "decision":
+            self.index(c, after["id"], "decision", after["title"], after["rationale"], after["roadmapId"], after["archived"])
         elif kind == "attachment":
             c.execute("DELETE FROM search_index WHERE entity_id=?", (after["id"],))
         event(c, actor, action, p["id"], before, after)
@@ -899,6 +950,8 @@ class WorkService:
             LEFT JOIN web_links wl ON s.type='link' AND wl.id=s.entity_id
             LEFT JOIN agent_chats ac ON s.type='chat' AND ac.id=s.entity_id
             LEFT JOIN github_refs gr ON s.type='github' AND gr.id=s.entity_id
+            LEFT JOIN roadmap_questions rq ON s.type='question' AND rq.id=s.entity_id
+            LEFT JOIN roadmap_decisions rd ON s.type='decision' AND rd.id=s.entity_id
             LEFT JOIN work_items w ON w.id=CASE WHEN s.type='item' THEN s.entity_id
                 WHEN n.owner_type='item' THEN n.owner_id WHEN a.owner_type='item' THEN a.owner_id
                 WHEN wl.owner_type='item' THEN wl.owner_id WHEN ac.owner_type='item' THEN ac.owner_id
@@ -909,6 +962,7 @@ class WorkService:
                 WHEN n.owner_type='roadmap' THEN n.owner_id WHEN a.owner_type='roadmap' THEN a.owner_id
                 WHEN wl.owner_type='roadmap' THEN wl.owner_id WHEN ac.owner_type='roadmap' THEN ac.owner_id
                 WHEN gr.owner_type='roadmap' THEN gr.owner_id
+                WHEN rq.id IS NOT NULL THEN rq.roadmap_id WHEN rd.id IS NOT NULL THEN rd.roadmap_id
                 ELSE st.roadmap_id END
             LEFT JOIN people p ON p.id=CASE WHEN s.type='person' THEN s.entity_id END
             LEFT JOIN discussions ds ON s.type IN ('discussion','discussion_message') AND ds.id=s.owner_id

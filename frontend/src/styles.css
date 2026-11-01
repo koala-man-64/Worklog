@@ -1844,6 +1844,51 @@ a.context-tag:hover {
 .chat-form input:not([type="checkbox"]) {
   min-width: 9rem;
 }
+/* Roadmap questions and decisions: the question or decision on one line, its details, answer or rationale beneath. */
+.roadmap-record {
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+}
+.roadmap-record-head {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.roadmap-record-head > strong {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.roadmap-record-head button,
+.roadmap-record-head small {
+  font-size: 12px;
+}
+.roadmap-record .markdown {
+  margin-top: 6px;
+}
+.roadmap-answer {
+  margin-top: 8px;
+  padding-left: 12px;
+  border-left: 3px solid var(--teal);
+}
+.roadmap-answer small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.roadmap-record-form {
+  display: grid;
+  gap: 10px;
+}
+.roadmap-record-form input[type="date"] {
+  flex: 0 1 11rem;
+}
+.roadmap-record-form .toolbar {
+  margin: 0;
+}
+.answered-questions {
+  margin-top: 15px;
+}
 progress {
   width: 100%;
   height: 5px;

@@ -56,7 +56,15 @@ CREATE TABLE chat_steps(chat_id TEXT NOT NULL REFERENCES agent_chats(id),step_id
 CREATE INDEX chat_steps_step ON chat_steps(step_id);
 """
 
-SCHEMA = SCHEMA + PEOPLE_SCHEMA + LINKS_CHATS_GITHUB_SCHEMA + CHAT_STEPS_SCHEMA
+# A roadmap's questions with their answers, and the decisions made along the way.
+QUESTIONS_DECISIONS_SCHEMA = """
+CREATE TABLE roadmap_questions(id TEXT PRIMARY KEY,roadmap_id TEXT NOT NULL REFERENCES roadmaps(id),title TEXT NOT NULL,details TEXT NOT NULL DEFAULT '',answer TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT 'open' CHECK(status IN('open','answered')),archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+CREATE INDEX roadmap_questions_roadmap ON roadmap_questions(roadmap_id,archived);
+CREATE TABLE roadmap_decisions(id TEXT PRIMARY KEY,roadmap_id TEXT NOT NULL REFERENCES roadmaps(id),title TEXT NOT NULL,rationale TEXT NOT NULL DEFAULT '',decided_date TEXT NOT NULL,archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+CREATE INDEX roadmap_decisions_roadmap ON roadmap_decisions(roadmap_id,archived);
+"""
+
+SCHEMA = SCHEMA + PEOPLE_SCHEMA + LINKS_CHATS_GITHUB_SCHEMA + CHAT_STEPS_SCHEMA + QUESTIONS_DECISIONS_SCHEMA
 
 
 class Database:
@@ -92,7 +100,7 @@ class Database:
                 actual = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
                 if not required <= actual:
                     raise AppError(503, "database_invalid", "Database schema is incomplete")
-                if "communication_agents" not in actual:
+                if "communication_agents" not in actual or not {"roadmap_questions", "roadmap_decisions"} <= actual:
                     # Preserve the original shape, including older supported upgrades.
                     # Failure to preserve a snapshot prevents any migration below.
                     from .recovery import backup_database
@@ -118,6 +126,9 @@ class Database:
                             conn.execute("ALTER TABLE agent_chats ADD COLUMN " + column)
                     if "chat_steps" not in actual:
                         for statement in filter(str.strip, CHAT_STEPS_SCHEMA.split(";")):
+                            conn.execute(statement)
+                    if not {"roadmap_questions", "roadmap_decisions"} <= actual:
+                        for statement in filter(str.strip, QUESTIONS_DECISIONS_SCHEMA.split(";")):
                             conn.execute(statement)
                     roadmap_columns = {r["name"] for r in conn.execute("PRAGMA table_info(roadmaps)")}
                     if "parent_id" not in roadmap_columns:

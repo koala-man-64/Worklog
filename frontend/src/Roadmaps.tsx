@@ -33,6 +33,7 @@ import {
   StatusSelect,
   StepAgentChats,
 } from "./components";
+import { DecisionsSection, QuestionsSection } from "./QuestionsDecisions";
 import type { Item, List, Person, Roadmap, Step } from "./types";
 import { Icon } from "./icons";
 // Matches the outline column's clamp in styles.css: the outline never narrower
@@ -637,6 +638,16 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
         people={road.people}
         disabled={road.archived}
       />
+      <QuestionsSection
+        roadmapId={id}
+        questions={road.questions}
+        disabled={road.archived}
+      />
+      <DecisionsSection
+        roadmapId={id}
+        decisions={road.decisions}
+        disabled={road.archived}
+      />
       <section>
         <h3>
           Sub-roadmaps <span className="count">{children.length}</span>
@@ -931,6 +942,16 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
             label: "GitHub",
             path: "github",
             records: road.github ?? [],
+          },
+          {
+            label: "Questions",
+            path: "questions",
+            records: road.questions ?? [],
+          },
+          {
+            label: "Decisions",
+            path: "decisions",
+            records: road.decisions ?? [],
           },
         ]}
       />
