@@ -1,5 +1,23 @@
 # Worklog implementation contract
 
+The discussion API extends the original contract below. See [Discussions and responsibilities](DISCUSSIONS.md) for operating semantics and CLI examples. Generated request contracts are in `openapi.json`.
+
+## Discussions
+
+All discussion writes require `Idempotency-Key`. Authentication selects the actual author; clients cannot supply one. Discussion retry receipts use stable communication identity while existing proposal identity is unchanged.
+
+- `GET /discussions/participants` returns identities and the caller. `GET /discussions` supports `view=all|awaiting|archived`, `q`, repository and context filters, `limit` and `offset`. `POST /discussions` creates a conversation and first message.
+- `GET /discussions/{id}` pages immutable messages. `POST /discussions/{id}/messages` replies. Bodies support optional `chatId`, `onBehalfOfRoleId`, and `acknowledgement` with `mode=all|any|any_agent|anyone` and named `targets` where applicable.
+- `GET /discussions/messages/{id}` returns a message and its request state, target slots, receipts, allowed target IDs and cancellation/release capabilities. `POST .../acknowledge` accepts explicit `targetIds` (optional only for open audiences); `.../cancel` checks current management authority. Human-only `.../release` requires `reason`.
+- Human-only `POST /discussions/{id}/archive` takes `revision` and `archived`. Archived conversations remain replyable; pending requests remain discoverable.
+- `GET /discussions/roles` pages context roles. `POST /discussions/roles` creates `{contextType,contextId,label}`. `POST /discussions/roles/{id}/{claim|release|accept|decline|withdraw}` takes `revision`; `offer` adds `successorId` and optional `note`. Human-only `reassign` adds `ownerId` (nullable) and required `reason`.
+- `GET /discussions/resume` returns a consistent context snapshot and cursor; `GET /discussions/changes` incrementally reads ordered changes. Cursors bind dataset, context scope and sequence; invalidated cursors return `409 cursor_reset`. Resume/changes have bounded pagination.
+- `POST /credentials/{id}/rotate` accepts an optional `label`, revokes replaced credentials and returns a one-time token bound to the same communication identity. Replaying the same mutation redacts that token. Settings includes retained identities and each credential's `agentId`.
+
+Context types are `item`, `roadmap`, and `step`. Acknowledgement target kinds are `agent`, `human`, and `role`; the human ID is `local-user`. Requests are `pending`, `satisfied`, `released_by_human`, or `cancelled`. Role ownership changes atomically with assignment generation. Receipts retain actual actor and generation; reading/replying/handoff is never receipt.
+
+## Original workbench contract
+
 Owner: root; task WORKLOG-BUILD. Local-only, new repository. Root owns database primitives, work/day/context services and API integration. Plans agent owns plans.py, proposals.py and corresponding tests. Frontend agent owns frontend/. Operations agent owns cli.py, recovery.py, scripts/, README.md and corresponding tests. Shared files require parent coordination. No commits by children.
 
 All API routes start /api/v1. camelCase JSON. UUID ids, integer revision; timestamps UTC ISO strings. Date strings YYYY-MM-DD in configured America/Chicago timezone. States are open, doing, blocked, done. Every mutation sends a JSON object (raw uploads excepted), includes revision for existing records, and an Idempotency-Key header for creates/approval. Error: {error:{code,message,fields?}}. Conflict 409. Envelope lists {items:[...],total:n}; objects returned directly. Session bootstrap POST /session/bootstrap body {} and X-Worklog-Bootstrap: 1 returns {csrfToken,today,timezone}; fetch credentials same-origin, X-CSRF-Token on cookie writes. Agent Bearer credentials cannot mutate canonical endpoints. Health GET /health unauthenticated: {app:'worklog',version,instanceId,dataId,ready:true}. Health outside api prefix.

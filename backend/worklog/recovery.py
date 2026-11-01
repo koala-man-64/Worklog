@@ -31,13 +31,17 @@ def _schema_signature(conn: sqlite3.Connection) -> dict[tuple[str, str], str]:
         "SELECT type,name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type,name")}
 
 
-def _expected_schema() -> dict[tuple[str, str], str]:
+def _expected_schema(*, discussions: bool = True) -> dict[tuple[str, str], str]:
     from worklog.db import SCHEMA
     from worklog.plans import SCHEMA as PLAN_SCHEMA
     from worklog.proposals import SCHEMA as PROPOSAL_SCHEMA
 
     with closing(sqlite3.connect(":memory:")) as conn:
         conn.executescript(PLAN_SCHEMA + PROPOSAL_SCHEMA + SCHEMA)
+        if discussions:
+            from worklog.discussions import SCHEMA as DISCUSSION_SCHEMA
+
+            conn.executescript(DISCUSSION_SCHEMA)
         return _schema_signature(conn)
 
 
@@ -45,13 +49,15 @@ def _compatible_schemas() -> tuple[dict[tuple[str, str], str], ...]:
     from worklog.db import AGENT_CHAT_COLUMNS
 
     latest = _expected_schema()
-    # The last shape before roadmaps kept questions and decisions.
-    before_questions = {k: v for k, v in latest.items() if k[1] not in {
-        "roadmap_questions", "roadmap_questions_roadmap", "roadmap_decisions", "roadmap_decisions_roadmap"}}
+    question_names = {"roadmap_questions", "roadmap_questions_roadmap", "roadmap_decisions", "roadmap_decisions_roadmap"}
+    # The last shape before roadmaps kept questions and decisions; discussions came first.
+    before_questions = {k: v for k, v in latest.items() if k[1] not in question_names}
+    # The last shape before discussions, which also predates questions and decisions.
+    before_discussions = {k: v for k, v in _expected_schema(discussions=False).items() if k[1] not in question_names}
     # `current` is the last shape before agent chats gained provider, model, repos and step
     # assignments; every earlier shape below derives from it.
-    current = {k: v for k, v in before_questions.items() if k[1] not in {"chat_steps", "chat_steps_step"}}
-    current[("table", "agent_chats")] = before_questions[("table", "agent_chats")].replace(AGENT_CHAT_COLUMNS, "")
+    current = {k: v for k, v in before_discussions.items() if k[1] not in {"chat_steps", "chat_steps_step"}}
+    current[("table", "agent_chats")] = before_discussions[("table", "agent_chats")].replace(AGENT_CHAT_COLUMNS, "")
     lcg_names = {
         "web_links",
         "web_links_owner",
@@ -84,7 +90,7 @@ def _compatible_schemas() -> tuple[dict[tuple[str, str], str], ...]:
             ", parent_id TEXT REFERENCES roadmaps(id)", "")}
         for schema in (current, without_lcg, without_people, legacy_roadmap, current_without_roadmap)
     ]
-    return (latest, before_questions, current, *earlier)
+    return (latest, before_questions, before_discussions, current, *earlier)
 
 
 class InstanceLock:
@@ -435,6 +441,10 @@ def restore_database(db_path: Path | str, candidate_path: Path | str,
                     from worklog.db import QUESTIONS_DECISIONS_SCHEMA
 
                     conn.executescript(QUESTIONS_DECISIONS_SCHEMA)
+                from worklog.discussions import migrate as migrate_discussions
+
+                conn.row_factory = sqlite3.Row
+                migrate_discussions(conn)
                 conn.execute("UPDATE credentials SET revoked=1")
                 conn.execute("UPDATE settings SET value=? WHERE key='dataId'", (json.dumps(new_data_id),))
                 conn.commit()

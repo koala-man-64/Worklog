@@ -37,6 +37,8 @@ from .common import (
     uid,
 )
 from .db import Database
+from .discussion_api import agent_route_allowed, install_discussion_routes
+from .discussions import bind_credential, communication_actor
 from .plans import PlanService
 from .proposals import ProposalService
 from .recovery import automatic_backup, backup_database, export_database, list_backups
@@ -199,8 +201,12 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                     agent_write = ((suffix == "/proposals" and method == "POST") or
                                    (suffix.startswith("/proposals/") and (method == "PATCH" or (method == "POST" and suffix.rsplit("/", 1)[-1] in {"submit", "withdraw"}))) or
                                    (suffix == "/attachments" and method == "POST" and request.query_params.get("ownerType") == "proposal"))
-                    if forbidden or (method != "GET" and not agent_write):
-                        raise AppError(403, "agent_scope", "Agents may read context and submit proposals only")
+                    in_discussions = suffix == "/discussions" or suffix.startswith("/discussions/")
+                    if in_discussions:
+                        if not agent_route_allowed(method, suffix):
+                            raise AppError(403, "agent_scope", "This discussion operation is outside agent scope")
+                    elif forbidden or (method != "GET" and not agent_write):
+                        raise AppError(403, "agent_scope", "Agents may read context, participate in discussions, and submit proposals")
                 else:
                     session_id = request.cookies.get("worklog_session", "")
                     session = app.state.sessions.get(session_id)
@@ -231,7 +237,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         return response
 
     def mutate(request: Request, payload: Any, fn: Callable, *, required_key: bool = False,
-               redact: tuple[str, ...] = ()) -> dict:
+               redact: tuple[str, ...] = (), communication: bool = False) -> dict:
         auto_backup()
         key = request.headers.get("idempotency-key")
         if required_key and not key:
@@ -241,8 +247,11 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         digest = hashlib.sha256((request.method + str(request.url.path) + "?" + str(request.url.query) + json.dumps(payload, sort_keys=True)).encode()).hexdigest()
         actor = request.state.actor
         with db.transaction() as c:
+            if communication:
+                actor = communication_actor(c, actor)
+            receipt_actor = "discussion:" + actor["id"] if communication else actor["id"]
             if key:
-                receipt = c.execute("SELECT * FROM receipts WHERE actor_id=? AND key=?", (actor["id"], key)).fetchone()
+                receipt = c.execute("SELECT * FROM receipts WHERE actor_id=? AND key=?", (receipt_actor, key)).fetchone()
                 if receipt:
                     if receipt["request_hash"] != digest:
                         raise AppError(409, "idempotency_conflict", "This key was already used for a different request")
@@ -250,8 +259,11 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             result = fn(c, actor)
             if key:
                 stored = {**result, **dict.fromkeys(redact)}
-                c.execute("INSERT INTO receipts VALUES(?,?,?,?)", (actor["id"], key, digest, json.dumps(stored)))
+                c.execute("INSERT INTO receipts VALUES(?,?,?,?)", (receipt_actor, key, digest, json.dumps(stored)))
             return result
+
+    def discussion_mutate(request: Request, payload: Any, fn: Callable, *, required_key: bool = True) -> dict:
+        return mutate(request, payload, fn, required_key=True, communication=True)
 
     def apply(request: Request, action: str, payload: dict, *, create: bool = False) -> dict:
         return mutate(request, payload, lambda c, a: work.apply(c, a, action, payload), required_key=create)
@@ -632,10 +644,12 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def settings() -> dict:
         with db.read() as c:
             tz = setting(c, "timezone", "America/Chicago")
-            creds = [{"id": r["id"], "label": r["label"], "createdAt": r["created_at"], "revoked": bool(r["revoked"])} for r in c.execute("SELECT id,label,created_at,revoked FROM credentials")]
+            creds = [{"id": r["id"], "label": r["label"], "createdAt": r["created_at"], "revoked": bool(r["revoked"]), "agentId": r["agent_id"]}
+                     for r in c.execute("SELECT c.id,c.label,c.created_at,c.revoked,b.agent_id FROM credentials c LEFT JOIN communication_credentials b ON b.credential_id=c.id")]
+            agents = [{"id": r["id"], "label": r["label"]} for r in c.execute("SELECT id,label FROM communication_agents ORDER BY label,id")]
         backups = list_backups(directory / "backups")
         size = db.path.stat().st_size
-        return {"timezone": tz, "today": today(tz), "version": __version__, "credentials": creds,
+        return {"timezone": tz, "today": today(tz), "version": __version__, "credentials": creds, "agents": agents,
                 "backups": backups, "storage": {"databaseBytes": size, "backupBytes": sum(b.get("size", 0) for b in backups),
                                                  "warning": app.state.backup_error or ("Primary data exceeds 2 GB; review retained files and backup capacity" if size > 2_000_000_000 else None)}}
 
@@ -656,9 +670,30 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         def issue(c: sqlite3.Connection, actor: dict) -> dict:
             label, token, identity = text(body.label, "label", required=True, limit=200), secrets.token_urlsafe(32), uid()
             c.execute("INSERT INTO credentials VALUES(?,?,?,?,0)", (identity, label, hashlib.sha256(token.encode()).hexdigest(), now()))
+            agent = bind_credential(c, identity, label)
             event(c, actor, "credential.issue", identity, None, {"label": label})
-            return {"id": identity, "label": label, "token": token}
+            return {"id": identity, "agentId": agent["id"], "label": label, "token": token}
         return mutate(request, body.model_dump(), issue, required_key=True, redact=("token",))
+
+    @app.post("/api/v1/credentials/{identity}/rotate")
+    def credential_rotate(identity: str, request: Request, body: m.CredentialRotate) -> dict:
+        def rotate(c: sqlite3.Connection, actor: dict) -> dict:
+            previous = c.execute("SELECT * FROM credentials WHERE id=?", (identity,)).fetchone()
+            if previous is None:
+                raise AppError(404, "not_found", "Credential does not exist")
+            binding = c.execute("SELECT agent_id FROM communication_credentials WHERE credential_id=?", (identity,)).fetchone()
+            if binding is None:
+                raise AppError(409, "identity_missing", "Credential has no communication identity")
+            label = text(body.label if body.label is not None else previous["label"], "label", required=True, limit=200)
+            token, replacement = secrets.token_urlsafe(32), uid()
+            # Also handles reissue after an offline restore. A stale older token cannot
+            # leave another live credential for the same identity behind.
+            c.execute("UPDATE credentials SET revoked=1 WHERE id IN (SELECT credential_id FROM communication_credentials WHERE agent_id=?)", (binding["agent_id"],))
+            c.execute("INSERT INTO credentials VALUES(?,?,?,?,0)", (replacement, label, hashlib.sha256(token.encode()).hexdigest(), now()))
+            agent = bind_credential(c, replacement, label, agent_id=binding["agent_id"])
+            event(c, actor, "credential.rotate", replacement, {"credentialId": identity}, {"agentId": agent["id"], "label": label})
+            return {"id": replacement, "agentId": agent["id"], "label": label, "token": token}
+        return mutate(request, body.model_dump(), rotate, required_key=True, redact=("token",))
 
     @app.post("/api/v1/credentials/{identity}/revoke")
     def credential_revoke(identity: str, request: Request) -> dict:
@@ -725,6 +760,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         p = body.model_dump()
         return mutate(request, p, lambda c, a: proposals.transition(identity, verb, p, a, conn=c), required_key=verb == "approve")
 
+    install_discussion_routes(app, db, discussion_mutate)
     app.router.routes.append(generic)
     dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
     if (dist / "assets").is_dir():

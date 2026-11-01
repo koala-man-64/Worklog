@@ -260,5 +260,9 @@ class CredentialCreate(Command):
     label: str
 
 
+class CredentialRotate(Command):
+    label: str | None = None
+
+
 class SettingsUpdate(Command):
     timezone: str

@@ -148,8 +148,9 @@ export function Settings() {
       <section>
         <h2>Agent credentials</h2>
         <p>
-          Agents can propose changes. Only your review can apply them. A new
-          token is shown once; store it before dismissing.
+          Agents can propose changes, and discussion messages keep a stable
+          agent identity across token rotation. A new token is shown once; store
+          it before dismissing.
         </p>
         <form
           className="inline"
@@ -161,7 +162,15 @@ export function Settings() {
                 const issued = (result as { token: string | null }).token;
                 if (typeof issued === "string") {
                   setToken(issued);
-                  setCredentialMessage("");
+                  const agentId = (result as { agentId?: string }).agentId;
+                  const agent = data.agents.find(
+                    (entry) => entry.id === agentId,
+                  );
+                  setCredentialMessage(
+                    agent
+                      ? `New credential for ${agent.label}.`
+                      : "New credential created.",
+                  );
                 } else
                   setCredentialMessage(
                     "This credential was already issued and its token cannot be shown again. Revoke it and create a new credential if you did not save the token.",
@@ -199,13 +208,63 @@ export function Settings() {
             </div>
           </div>
         )}
+        {data.agents.length > 0 && (
+          <div className="discussion-profile-list" aria-label="Agent profiles">
+            <h3>Stable discussion profiles</h3>
+            {data.agents.map((agent) => (
+              <div className="line" key={agent.id}>
+                <strong>{agent.label}</strong>
+                <small>Profile {agent.id}</small>
+              </div>
+            ))}
+          </div>
+        )}
         {data.credentials.map((c) => (
           <div className="line" key={c.id}>
-            <strong>{c.label}</strong>
+            <span className="credential-identity">
+              <strong>{c.label}</strong>
+              <small>
+                Discussion profile:{" "}
+                {data.agents.find((agent) => agent.id === c.agentId)?.label ??
+                  "Unavailable"}
+              </small>
+            </span>
             <small>{new Date(c.createdAt).toLocaleString()}</small>
             <small>{c.revoked ? "Revoked" : "Active"}</small>
+            <button
+              type="button"
+              disabled={action.isPending || !!token}
+              onClick={async () => {
+                await action
+                  .mutateAsync({
+                    path: `/credentials/${c.id}/rotate`,
+                    body: {},
+                  })
+                  .then((result) => {
+                    const issued = (result as { token?: unknown }).token;
+                    const profile = data.agents.find(
+                      (agent) => agent.id === c.agentId,
+                    );
+                    if (typeof issued === "string") {
+                      setToken(issued);
+                      setCredentialMessage(
+                        `Rotated ${c.label}; its discussion identity remains ${profile?.label ?? "the same profile"}. The old token was revoked.`,
+                      );
+                    } else {
+                      setCredentialMessage(
+                        "The credential was rotated, but its one-time token could not be recovered. Check the credential list for the replacement before rotating again.",
+                      );
+                    }
+                  })
+                  .catch(() => undefined);
+              }}
+            >
+              {c.revoked ? "Replace token" : "Rotate token"}
+            </button>
             {!c.revoked && (
               <button
+                type="button"
+                disabled={action.isPending || !!token}
                 onClick={() =>
                   action.mutate({ path: `/credentials/${c.id}/revoke` })
                 }

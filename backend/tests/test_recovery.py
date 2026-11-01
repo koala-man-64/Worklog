@@ -468,10 +468,14 @@ def test_a_failed_chat_steps_migration_leaves_no_partial_table(tmp_path):
         assert conn.execute("SELECT count(*) FROM sqlite_master WHERE name='chat_steps'").fetchone() == (0,)
 
 
-def test_database_from_before_questions_and_decisions_keeps_its_roadmaps_and_migrates(tmp_path):
+@pytest.mark.parametrize("discussions", [False, True], ids=["before-discussions", "with-discussions"])
+def test_database_from_before_questions_and_decisions_keeps_its_roadmaps_and_migrates(tmp_path, discussions):
+    from worklog.discussions import SCHEMA as DISCUSSION_SCHEMA
+
     previous_path = tmp_path / "previous.sqlite3"
     with closing(sqlite3.connect(previous_path)) as conn:
-        conn.executescript(before_questions_and_decisions())
+        # Discussions shipped first, so a database may have them without questions and decisions.
+        conn.executescript(before_questions_and_decisions() + (DISCUSSION_SCHEMA if discussions else ""))
         for key, value in {"timezone": "America/Chicago", "dataId": "11111111-1111-4111-8111-111111111111", "backlogRevision": 1}.items():
             conn.execute("INSERT INTO settings VALUES(?,?)", (key, json.dumps(value)))
         conn.execute("INSERT INTO roadmaps(id,title,overview,revision,created_at,updated_at) VALUES('r1','Road','',1,'2026-01-01','2026-01-01')")
@@ -482,6 +486,11 @@ def test_database_from_before_questions_and_decisions_keeps_its_roadmaps_and_mig
     target = make_database(tmp_path / "active.sqlite3")
     recovery.restore_database(target, previous_path, tmp_path / "backups")
     Database(previous_path).initialize()
+    # Starting on it snapshots the earlier shape before migrating in place.
+    snapshots = list((tmp_path / "backups").glob("worklog-pre-migration-*.sqlite3"))
+    assert len(snapshots) == 1
+    with closing(sqlite3.connect(snapshots[0])) as conn:
+        assert conn.execute("SELECT count(*) FROM sqlite_master WHERE name='roadmap_questions'").fetchone() == (0,)
     for migrated in (target, previous_path):
         with closing(sqlite3.connect(migrated)) as conn:
             assert conn.execute("SELECT title FROM roadmaps WHERE id='r1'").fetchone() == ("Road",)

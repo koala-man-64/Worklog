@@ -760,186 +760,6 @@
         }
       }
     },
-    "/api/v1/decisions/{identity}": {
-      "get": {
-        "summary": "Supporting Detail",
-        "operationId": "supporting_detail_api_v1_decisions__identity__get",
-        "parameters": [
-          {
-            "name": "identity",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Identity"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Supporting Detail Api V1 Decisions  Identity  Get"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "patch": {
-        "summary": "Update Decision",
-        "operationId": "update_decision_api_v1_decisions__identity__patch",
-        "parameters": [
-          {
-            "name": "identity",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Identity"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DecisionUpdate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Update Decision Api V1 Decisions  Identity  Patch"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/questions/{identity}": {
-      "get": {
-        "summary": "Supporting Detail",
-        "operationId": "supporting_detail_api_v1_questions__identity__get",
-        "parameters": [
-          {
-            "name": "identity",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Identity"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Supporting Detail Api V1 Questions  Identity  Get"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "patch": {
-        "summary": "Update Question",
-        "operationId": "update_question_api_v1_questions__identity__patch",
-        "parameters": [
-          {
-            "name": "identity",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Identity"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/QuestionUpdate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Update Question Api V1 Questions  Identity  Patch"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/github/{identity}": {
       "get": {
         "summary": "Supporting Detail",
@@ -1763,86 +1583,6 @@
                   "additionalProperties": true,
                   "type": "object",
                   "title": "Response Create Github Ref Api V1 Github Post"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/questions": {
-      "post": {
-        "summary": "Create Question",
-        "operationId": "create_question_api_v1_questions_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/QuestionCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Create Question Api V1 Questions Post"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/decisions": {
-      "post": {
-        "summary": "Create Decision",
-        "operationId": "create_decision_api_v1_decisions_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DecisionCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Create Decision Api V1 Decisions Post"
                 }
               }
             }
@@ -3023,6 +2763,57 @@
         }
       }
     },
+    "/api/v1/credentials/{identity}/rotate": {
+      "post": {
+        "summary": "Credential Rotate",
+        "operationId": "credential_rotate_api_v1_credentials__identity__rotate_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CredentialRotate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Credential Rotate Api V1 Credentials  Identity  Rotate Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/credentials/{identity}/revoke": {
       "post": {
         "summary": "Credential Revoke",
@@ -3540,6 +3331,1233 @@
         }
       }
     },
+    "/api/v1/discussions/participants": {
+      "get": {
+        "summary": "Participants",
+        "operationId": "participants_api_v1_discussions_participants_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Participants Api V1 Discussions Participants Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discussions/roles": {
+      "get": {
+        "summary": "Roles",
+        "operationId": "roles_api_v1_discussions_roles_get",
+        "parameters": [
+          {
+            "name": "contextType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "item",
+                    "roadmap",
+                    "step"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Contexttype"
+            }
+          },
+          {
+            "name": "contextId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Contextid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Roles Api V1 Discussions Roles Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Role",
+        "operationId": "create_role_api_v1_discussions_roles_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Create Role Api V1 Discussions Roles Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discussions/roles/{identity}/claim": {
+      "post": {
+        "summary": "Claim Role",
+        "operationId": "claim_role_api_v1_discussions_roles__identity__claim_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleRevision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Claim Role Api V1 Discussions Roles  Identity  Claim Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discussions/roles/{identity}/release": {
+      "post": {
+        "summary": "Release Role",
+        "operationId": "release_role_api_v1_discussions_roles__identity__release_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleRevision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Release Role Api V1 Discussions Roles  Identity  Release Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discussions/roles/{identity}/offer": {
+      "post": {
+        "summary": "Offer Role",
+        "operationId": "offer_role_api_v1_discussions_roles__identity__offer_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleOffer"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Offer Role Api V1 Discussions Roles  Identity  Offer Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discussions/roles/{identity}/accept": {
+      "post": {
+        "summary": "Accept Role",
+        "operationId": "accept_role_api_v1_discussions_roles__identity__accept_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleRevision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Accept Role Api V1 Discussions Roles  Identity  Accept Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discussions/roles/{identity}/decline": {
+      "post": {
+        "summary": "Decline Role",
+        "operationId": "decline_role_api_v1_discussions_roles__identity__decline_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleRevision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Decline Role Api V1 Discussions Roles  Identity  Decline Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discussions/roles/{identity}/withdraw": {
+      "post": {
+        "summary": "Withdraw Role",
+        "operationId": "withdraw_role_api_v1_discussions_roles__identity__withdraw_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleRevision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Withdraw Role Api V1 Discussions Roles  Identity  Withdraw Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discussions/roles/{identity}/reassign": {
+      "post": {
+        "summary": "Reassign Role",
+        "operationId": "reassign_role_api_v1_discussions_roles__identity__reassign_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleReassign"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Reassign Role Api V1 Discussions Roles  Identity  Reassign Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discussions/changes": {
+      "get": {
+        "summary": "Changes",
+        "operationId": "changes_api_v1_discussions_changes_get",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "contextType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "item",
+                    "roadmap",
+                    "step"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Contexttype"
+            }
+          },
+          {
+            "name": "contextId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Contextid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Changes Api V1 Discussions Changes Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discussions/resume": {
+      "get": {
+        "summary": "Resume",
+        "operationId": "resume_api_v1_discussions_resume_get",
+        "parameters": [
+          {
+            "name": "contextType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "item",
+                    "roadmap",
+                    "step"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Contexttype"
+            }
+          },
+          {
+            "name": "contextId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Contextid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Resume Api V1 Discussions Resume Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discussions/messages/{identity}": {
+      "get": {
+        "summary": "Message",
+        "operationId": "message_api_v1_discussions_messages__identity__get",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Message Api V1 Discussions Messages  Identity  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discussions/messages/{identity}/acknowledge": {
+      "post": {
+        "summary": "Acknowledge",
+        "operationId": "acknowledge_api_v1_discussions_messages__identity__acknowledge_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Acknowledge"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Acknowledge Api V1 Discussions Messages  Identity  Acknowledge Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discussions/messages/{identity}/cancel": {
+      "post": {
+        "summary": "Cancel Request",
+        "operationId": "cancel_request_api_v1_discussions_messages__identity__cancel_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Empty"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Cancel Request Api V1 Discussions Messages  Identity  Cancel Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discussions/messages/{identity}/release": {
+      "post": {
+        "summary": "Release Request",
+        "operationId": "release_request_api_v1_discussions_messages__identity__release_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReleaseRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Release Request Api V1 Discussions Messages  Identity  Release Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discussions": {
+      "get": {
+        "summary": "List Discussions",
+        "operationId": "list_discussions_api_v1_discussions_get",
+        "parameters": [
+          {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "all",
+                "awaiting",
+                "archived"
+              ],
+              "type": "string",
+              "default": "all",
+              "title": "View"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Q"
+            }
+          },
+          {
+            "name": "contextType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "item",
+                    "roadmap",
+                    "step"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Contexttype"
+            }
+          },
+          {
+            "name": "contextId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Contextid"
+            }
+          },
+          {
+            "name": "repo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Repo"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response List Discussions Api V1 Discussions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Discussion",
+        "operationId": "create_discussion_api_v1_discussions_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiscussionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Create Discussion Api V1 Discussions Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discussions/{identity}": {
+      "get": {
+        "summary": "Read Discussion",
+        "operationId": "read_discussion_api_v1_discussions__identity__get",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Read Discussion Api V1 Discussions  Identity  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discussions/{identity}/messages": {
+      "post": {
+        "summary": "Post Message",
+        "operationId": "post_message_api_v1_discussions__identity__messages_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Post Message Api V1 Discussions  Identity  Messages Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discussions/{identity}/archive": {
+      "post": {
+        "summary": "Archive Discussion",
+        "operationId": "archive_discussion_api_v1_discussions__identity__archive_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Archive"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Archive Discussion Api V1 Discussions  Identity  Archive Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/{resource}/{identity}/{verb}": {
       "post": {
         "summary": "Support Archive",
@@ -3628,6 +4646,75 @@
   },
   "components": {
     "schemas": {
+      "Acknowledge": {
+        "properties": {
+          "targetIds": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 100,
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Targetids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Acknowledge"
+      },
+      "Acknowledgement": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "all",
+              "any",
+              "any_agent",
+              "anyone"
+            ],
+            "title": "Mode",
+            "default": "all"
+          },
+          "targets": {
+            "items": {
+              "$ref": "#/components/schemas/Target"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Targets"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Acknowledgement"
+      },
+      "Archive": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision",
+          "archived"
+        ],
+        "title": "Archive"
+      },
       "ChatCreate": {
         "properties": {
           "ownerType": {
@@ -3794,6 +4881,32 @@
         ],
         "title": "ChatUpdate"
       },
+      "Context": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap",
+              "step"
+            ],
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "id"
+        ],
+        "title": "Context"
+      },
       "CredentialCreate": {
         "properties": {
           "label": {
@@ -3808,22 +4921,9 @@
         ],
         "title": "CredentialCreate"
       },
-      "DecisionCreate": {
+      "CredentialRotate": {
         "properties": {
-          "roadmapId": {
-            "type": "string",
-            "title": "Roadmapid"
-          },
-          "title": {
-            "type": "string",
-            "title": "Title"
-          },
-          "rationale": {
-            "type": "string",
-            "title": "Rationale",
-            "default": ""
-          },
-          "decidedDate": {
+          "label": {
             "anyOf": [
               {
                 "type": "string"
@@ -3832,28 +4932,61 @@
                 "type": "null"
               }
             ],
-            "title": "Decideddate"
+            "title": "Label"
           }
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "roadmapId",
-          "title"
-        ],
-        "title": "DecisionCreate"
+        "title": "CredentialRotate"
       },
-      "DecisionUpdate": {
+      "DiscussionCreate": {
         "properties": {
-          "revision": {
-            "type": "integer",
-            "minimum": 0.0,
-            "title": "Revision"
+          "text": {
+            "type": "string",
+            "maxLength": 1000000,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "chatId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chatid"
+          },
+          "onBehalfOfRoleId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Onbehalfofroleid"
+          },
+          "acknowledgement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Acknowledgement"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "title": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 1000
               },
               {
                 "type": "null"
@@ -3861,35 +4994,35 @@
             ],
             "title": "Title"
           },
-          "rationale": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rationale"
+          "contexts": {
+            "items": {
+              "$ref": "#/components/schemas/Context"
+            },
+            "type": "array",
+            "maxItems": 30,
+            "title": "Contexts"
           },
-          "decidedDate": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Decideddate"
+          "repos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Repos"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "revision"
+          "text"
         ],
-        "title": "DecisionUpdate"
+        "title": "DiscussionCreate"
+      },
+      "Empty": {
+        "properties": {},
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Empty"
       },
       "EntryUpdate": {
         "properties": {
@@ -4406,6 +5539,57 @@
         ],
         "title": "LinkUpdate"
       },
+      "MessageCreate": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 1000000,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "chatId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chatid"
+          },
+          "onBehalfOfRoleId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Onbehalfofroleid"
+          },
+          "acknowledgement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Acknowledgement"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "MessageCreate"
+      },
       "Move": {
         "properties": {
           "revision": {
@@ -4536,15 +5720,7 @@
               "github.create",
               "github.update",
               "github.archive",
-              "github.recover",
-              "question.create",
-              "question.update",
-              "question.archive",
-              "question.recover",
-              "decision.create",
-              "decision.update",
-              "decision.archive",
-              "decision.recover"
+              "github.recover"
             ],
             "title": "Action"
           },
@@ -4809,93 +5985,6 @@
         ],
         "title": "ProposalUpdate"
       },
-      "QuestionCreate": {
-        "properties": {
-          "roadmapId": {
-            "type": "string",
-            "title": "Roadmapid"
-          },
-          "title": {
-            "type": "string",
-            "title": "Title"
-          },
-          "details": {
-            "type": "string",
-            "title": "Details",
-            "default": ""
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "roadmapId",
-          "title"
-        ],
-        "title": "QuestionCreate"
-      },
-      "QuestionUpdate": {
-        "properties": {
-          "revision": {
-            "type": "integer",
-            "minimum": 0.0,
-            "title": "Revision"
-          },
-          "title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Title"
-          },
-          "details": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Details"
-          },
-          "answer": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Answer"
-          },
-          "status": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "open",
-                  "answered"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Status"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "revision"
-        ],
-        "title": "QuestionUpdate"
-      },
       "ReferenceCreate": {
         "properties": {
           "itemId": {
@@ -4934,6 +6023,22 @@
           "text"
         ],
         "title": "Reflection"
+      },
+      "ReleaseRequest": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "ReleaseRequest"
       },
       "Reorder": {
         "properties": {
@@ -5113,6 +6218,117 @@
         ],
         "title": "RoadmapRevision"
       },
+      "RoleCreate": {
+        "properties": {
+          "contextType": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap",
+              "step"
+            ],
+            "title": "Contexttype"
+          },
+          "contextId": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Contextid"
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Label"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "contextType",
+          "contextId",
+          "label"
+        ],
+        "title": "RoleCreate"
+      },
+      "RoleOffer": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "successorId": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Successorid"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Note",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision",
+          "successorId"
+        ],
+        "title": "RoleOffer"
+      },
+      "RoleReassign": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "ownerId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ownerid"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision",
+          "reason"
+        ],
+        "title": "RoleReassign"
+      },
+      "RoleRevision": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision"
+        ],
+        "title": "RoleRevision"
+      },
       "SettingsUpdate": {
         "properties": {
           "timezone": {
@@ -5126,6 +6342,32 @@
           "timezone"
         ],
         "title": "SettingsUpdate"
+      },
+      "Target": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "agent",
+              "human",
+              "role"
+            ],
+            "title": "Kind"
+          },
+          "id": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "id"
+        ],
+        "title": "Target"
       },
       "TaskCreate": {
         "properties": {

@@ -72,6 +72,19 @@ Browser checks require a running instance using disposable test data, never a pe
 
 Detailed local-only install and lifecycle receipts are retained under `.local/clean-setup-result*.log`, `.local/clean-setup-result.json`, and `.local/ops-smoke/smoke-result.json`. Generated build outputs, test data, logs, credentials, and dependency folders are excluded from Git.
 
+## Agent discussions verification — 2026-11-01
+
+The local discussion extension adds immutable shared messages, explicit acknowledgements, stable communication identities, responsibility roles and accepted handoffs. Named recipients stay personal; outstanding role targets and management of role-owned requests follow committed ownership. Provider chat archival does not change responsibility. The browser remains a human actor, including when displaying agent handoff offers.
+
+Validation on the implementation branch:
+
+- 225 backend tests passed, including all seven historical database shapes, migration failure rollback, credential rotation/reissue, restore and export of accepted handoffs and receipts, concurrent claims and acknowledgement/transfer ordering, scoped discovery, and absolute HTTP wait deadlines with real trickled responses.
+- 93 frontend tests passed, including role recipients without owners, context-disambiguated role labels, draft preservation while submitting, and credential rotation.
+- All 15 browser scenarios were verified against disposable local data: the 12 existing workbench scenarios and three discussion scenarios. The latter cover receipt versus reply, agent handoff, human reassignment, human release, replies after archival, search, reload-safe drafts and narrow layouts. Test synchronization/locator failures were corrected and the affected scenarios rerun.
+- Python/frontend lint, Python/TypeScript checks, dependency consistency, OpenAPI/generated-type equality and production build passed. Independent backend/CLI/recovery and UI reviews were performed; their concrete findings were fixed and checked.
+
+Verification used disposable databases only. These results establish local source and browser behavior; they do not establish a merge, hosted deployment, or upgrade of an existing personal Worklog database. Agents check discussions explicitly; there is no automatic wake-up or mandatory workflow integration.
+
 ## Operating limits
 
 Normal use is internet-free after setup. Source installation requires package access and the documented Python/Node prerequisites. Automated backups are local copies; retain a verified copy elsewhere for device-loss recovery. Archives retain content and consume space; permanent purging is intentionally outside this release. A nonfatal Starlette TestClient deprecation warning is present in the pinned test stack; it does not affect the running application.
