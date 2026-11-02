@@ -1312,6 +1312,63 @@ section:not(.draft) > h3 {
   align-items: center;
   overflow-wrap: anywhere;
 }
+/* Gathered by record, each roadmap or work item sums up the activity of every chat within it. */
+.chat-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.chat-filters .thread-filter,
+.chat-filters .toolbar {
+  gap: 4px;
+  margin: 0;
+}
+.chat-filters .toolbar button {
+  min-height: 30px;
+  padding: 3px 8px;
+  font-size: 12px;
+}
+.chat-group-head {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.chat-group-head > .status-dot {
+  margin-top: 6px;
+}
+.chat-group-head > .chat-link-text {
+  flex: 1;
+}
+.chat-group-head a,
+.chat-group-head strong {
+  color: var(--ink);
+  font-weight: 600;
+  line-height: 1.4;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.chat-group-head a:hover {
+  color: var(--teal);
+  text-decoration: underline;
+}
+.chat-group-head small {
+  color: var(--muted);
+}
+.chat-group-head > .tree-toggle {
+  margin: -4px -6px 0 0;
+}
+.chat-group > .chat-list {
+  margin: 4px 0 0 4px;
+  padding-left: 8px;
+  border-left: 1px solid var(--line);
+}
+.chat-group > .chat-list > li {
+  padding-right: 0;
+}
 .status-dot.missing {
   background: transparent;
   border-style: dashed;

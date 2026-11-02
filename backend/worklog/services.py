@@ -201,14 +201,34 @@ class WorkService:
         return [{**support_record(r), "stepIds": steps[r["id"]]} for r in rows]
 
     def chat_overview(self, c: sqlite3.Connection, archived: bool = False) -> builtins.list[dict]:
-        """Every agent chat with the record it belongs to and the steps it works on."""
+        """Every agent chat with the record it belongs to, the roadmaps that record sits within, and the steps it works on."""
         chats = self.chats(c, c.execute("SELECT * FROM agent_chats WHERE archived=? ORDER BY created_date DESC,created_at DESC,id", (int(archived),)).fetchall())
         owners: dict[tuple[str, str], dict] = {}
-        for owner_type, table in (("roadmap", "roadmaps"), ("item", "work_items")):
-            ids = list({ch["ownerId"] for ch in chats if ch["ownerType"] == owner_type})
-            if ids:
-                for r in c.execute(f"SELECT id,title,archived FROM {table} WHERE id IN ({','.join('?' for _ in ids)})", ids):
-                    owners[(owner_type, r["id"])] = {"type": owner_type, "id": r["id"], "title": r["title"], "archived": bool(r["archived"])}
+        # The roadmap each owner sits directly in: a roadmap is its own, a work item takes its step's roadmap first.
+        within: dict[tuple[str, str], str | None] = {}
+        roadmaps = {r["id"]: r for r in c.execute("SELECT id,title,archived,parent_id FROM roadmaps")} if chats else {}
+        for ch in chats:
+            r = roadmaps.get(ch["ownerId"]) if ch["ownerType"] == "roadmap" else None
+            if r is not None:
+                owners[("roadmap", r["id"])] = {"type": "roadmap", "id": r["id"], "title": r["title"], "archived": bool(r["archived"])}
+                within[("roadmap", r["id"])] = r["id"]
+        ids = list({ch["ownerId"] for ch in chats if ch["ownerType"] == "item"})
+        if ids:
+            for r in c.execute(
+                f"SELECT id,title,archived,COALESCE((SELECT roadmap_id FROM steps WHERE steps.id=work_items.step_id),roadmap_id) AS roadmap FROM work_items WHERE id IN ({','.join('?' for _ in ids)})",
+                ids,
+            ):
+                owners[("item", r["id"])] = {"type": "item", "id": r["id"], "title": r["title"], "archived": bool(r["archived"])}
+                within[("item", r["id"])] = r["roadmap"]
+
+        def path(roadmap_id: str | None) -> builtins.list[dict]:
+            """The roadmaps from the top level down to this one; a broken parent chain stops where it breaks."""
+            chain: builtins.list[dict] = []
+            while roadmap_id is not None and roadmap_id in roadmaps and all(r["id"] != roadmap_id for r in chain):
+                row = roadmaps[roadmap_id]
+                chain.append({"id": row["id"], "title": row["title"], "archived": bool(row["archived"])})
+                roadmap_id = row["parent_id"]
+            return chain[::-1]
         steps: dict[str, builtins.list[dict]] = {ch["id"]: [] for ch in chats}
         if chats:
             for r in c.execute(
@@ -217,7 +237,7 @@ class WorkService:
             ):
                 steps[r["chat_id"]].append({"id": r["id"], "title": r["title"], "status": r["status"], "retired": bool(r["retired"])})
         return [{**ch, "owner": owners.get((ch["ownerType"], ch["ownerId"]), {"type": ch["ownerType"], "id": ch["ownerId"], "title": "", "archived": False}),
-                 "steps": steps[ch["id"]]} for ch in chats]
+                 "roadmaps": path(within.get((ch["ownerType"], ch["ownerId"]))), "steps": steps[ch["id"]]} for ch in chats]
 
     def roadmap_items(self, c: sqlite3.Connection, roadmap_id: str) -> builtins.list[dict]:
         rows = c.execute(

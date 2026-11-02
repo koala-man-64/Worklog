@@ -150,6 +150,35 @@ def test_the_chat_list_shows_who_works_on_what_across_roadmaps_and_items(client)
     assert [c["id"] for c in client.get("/api/v1/chats?archived=true").json()["items"]] == [untracked["id"]]
 
 
+def test_each_chat_names_the_roadmaps_its_record_sits_within(client):
+    platform = write(client, "POST", "/roadmaps", {"title": "Platform"}).json()
+    api = write(client, "POST", "/roadmaps", {"title": "API", "parentId": platform["id"], "steps": [{"title": "Auth"}]}).json()
+    on_step = write(client, "POST", "/work-items", {"title": "Token refresh", "stepId": api["steps"][0]["id"]}).json()
+    on_roadmap = write(client, "POST", "/work-items", {"title": "Rate limits", "roadmapId": api["id"]}).json()
+    loose = write(client, "POST", "/work-items", {"title": "Laptop setup"}).json()
+    chats = {
+        "top": chat(client, "roadmap", platform["id"], CLAUDE, "Platform lead"),
+        "nested": chat(client, "roadmap", api["id"], "c-1", "API lead"),
+        "step": chat(client, "item", on_step["id"], "c-2", "Refresh tokens"),
+        "item": chat(client, "item", on_roadmap["id"], "c-3", "Limit requests"),
+        "loose": chat(client, "item", loose["id"], "c-4", "Install tools"),
+    }
+    items = {c["id"]: c for c in client.get("/api/v1/chats").json()["items"]}
+    top, nested = {"id": platform["id"], "title": "Platform", "archived": False}, {"id": api["id"], "title": "API", "archived": False}
+    assert {name: items[c["id"]]["roadmaps"] for name, c in chats.items()} == {
+        "top": [top], "nested": [top, nested], "step": [top, nested], "item": [top, nested], "loose": []}
+
+    # An archived roadmap still holds its chats; a parent chain that loops stops before repeating.
+    write(client, "POST", f"/roadmaps/{platform['id']}/archive", {"revision": platform["revision"]})
+    archived = {c["id"]: c["roadmaps"] for c in client.get("/api/v1/chats").json()["items"]}
+    assert [r["archived"] for r in archived[chats["item"]["id"]]] == [True, False]
+    with client.app.state.db.transaction() as conn:
+        conn.execute("UPDATE roadmaps SET parent_id=? WHERE id=?", (api["id"], platform["id"]))
+    looped = {c["id"]: c["roadmaps"] for c in client.get("/api/v1/chats").json()["items"]}
+    assert [r["title"] for r in looped[chats["top"]["id"]]] == ["API", "Platform"]
+    assert [r["title"] for r in looped[chats["nested"]["id"]]] == ["Platform", "API"]
+
+
 def test_a_claude_transcript_shows_prompts_replies_tools_and_messages_between_agents(client):
     work = write(client, "POST", "/work-items", {"title": "API"}).json()
     record = chat(client, "item", work["id"], CLAUDE, "API builder")

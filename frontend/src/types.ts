@@ -152,6 +152,8 @@ export type ChatOverview = AgentChat & {
     title: string;
     archived: boolean;
   };
+  // The roadmaps the owner sits within, top level first; a roadmap's own chat ends with that roadmap.
+  roadmaps: { id: string; title: string; archived: boolean }[];
   steps: { id: string; title: string; status: Status; retired: boolean }[];
   transcript: TranscriptSummary;
 };
