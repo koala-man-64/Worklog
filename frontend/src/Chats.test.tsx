@@ -491,6 +491,19 @@ it("gathers chats under their roadmaps and work items with activity at each leve
   expect(
     within(loose).getByRole("link", { name: "Docs refresh" }),
   ).toHaveAttribute("href", "#work/" + ITEM_ID);
+  // Each group leads with its kind's icon, in the working colour while a chat within works.
+  const tokens = screen.getByRole("list", { name: "Chats in Token refresh" });
+  expect(
+    [platform, api, tokens, loose].map((list) => [
+      header(list).className,
+      header(list).querySelector(".chat-kind")?.className,
+    ]),
+  ).toEqual([
+    ["chat-group-head roadmap", "chat-kind doing"],
+    ["chat-group-head roadmap", "chat-kind"],
+    ["chat-group-head item", "chat-kind"],
+    ["chat-group-head loose", "chat-kind"],
+  ]);
   // Under its group a chat does not name its record again.
   expect(screen.getAllByRole("link", { name: "Platform" })).toHaveLength(1);
 
