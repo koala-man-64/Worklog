@@ -2462,8 +2462,9 @@ code {
   flex-basis: 100%;
   margin: 0;
 }
+/* Room for a readable title; the reasons wrap below it rather than squeezing it. */
 .agent-tie {
-  flex: 1;
+  flex: 1 1 14rem;
   min-width: 0;
   overflow-wrap: anywhere;
 }

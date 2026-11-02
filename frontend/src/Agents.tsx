@@ -103,11 +103,13 @@ function WorkingOn({ work }: { work: RegistryWork[] }) {
     <ul className="agent-work" aria-label="Reported work">
       {work.map((w) => (
         <li key={w.participationId}>
-          <strong>{w.runName}</strong>
           {w.item ? (
-            <a href={"#work/" + w.item.id}>{w.item.title}</a>
+            <>
+              <span className="muted">Working on</span>
+              <a href={"#work/" + w.item.id}>{w.item.title}</a>
+            </>
           ) : (
-            <span>Repository activity</span>
+            <span className="muted">Working in</span>
           )}
           {w.roadmap && (
             <a className="person-badge" href={"#roadmaps/" + w.roadmap.id}>
@@ -125,7 +127,7 @@ function WorkingOn({ work }: { work: RegistryWork[] }) {
             </a>
           ))}
           <small>
-            {w.stale ? "Stale report · " : ""}Last reported{" "}
+            {w.runName} run · {w.stale ? "Stale report · " : ""}Last reported{" "}
             {timestamp(w.lastSeenAt)}
           </small>
           {w.description && <p className="preserve-lines">{w.description}</p>}
@@ -146,7 +148,7 @@ function Roles({ roles }: { roles: RegistryRole[] }) {
     <ul className="agent-work" aria-label="Responsibilities">
       {roles.map((role) => (
         <li key={role.id}>
-          <strong>{role.label}</strong>
+          <span className="muted">{role.label} for</span>
           <a href={roleHref(role)}>{role.contextTitle}</a>
           {role.roadmap && role.contextType !== "roadmap" && (
             <a className="person-badge" href={"#roadmaps/" + role.roadmap.id}>
