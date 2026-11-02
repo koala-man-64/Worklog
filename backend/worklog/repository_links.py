@@ -1,12 +1,13 @@
-"""Canonical repository associations for work items and tracked chats."""
+"""Catalog repository associations for work items, tracked chats and tickets."""
 
 import sqlite3
 from typing import Literal
 
 from .common import AppError, now
 
-Owner = Literal["item", "chat"]
-_TABLES = {"item": ("item_repositories", "item_id"), "chat": ("chat_repositories", "chat_id")}
+Owner = Literal["item", "chat", "ticket"]
+_TABLES = {"item": ("item_repositories", "item_id"), "chat": ("chat_repositories", "chat_id"),
+           "ticket": ("ticket_repositories", "ticket_id")}
 
 
 def linked_repositories(conn: sqlite3.Connection, owner: Owner,

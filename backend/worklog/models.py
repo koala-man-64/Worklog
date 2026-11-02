@@ -181,6 +181,42 @@ class DecisionUpdate(Expected):
     decidedDate: str | None = None
 
 
+TicketKind = Literal["bug", "incident", "task"]
+TicketPriority = Literal["low", "normal", "high", "urgent"]
+
+
+class TicketCreate(Command):
+    repositoryIds: list[str] = Field(default_factory=list, max_length=100)
+    title: str
+    description: str = ""
+    kind: TicketKind = "bug"
+    priority: TicketPriority = "normal"
+    status: State = "open"
+    resolution: str = ""
+    labels: list[str] = Field(default_factory=list, max_length=20)
+    itemId: str | None = None
+    # The person ("local-user") or an agent identity; advisory only.
+    assigneeId: str | None = None
+
+
+class TicketUpdate(Expected):
+    repositoryIds: list[str] | None = Field(default=None, max_length=100)
+    title: str | None = None
+    description: str | None = None
+    kind: TicketKind | None = None
+    priority: TicketPriority | None = None
+    status: State | None = None
+    resolution: str | None = None
+    labels: list[str] | None = Field(default=None, max_length=20)
+    # Null unlinks the work item or clears the assignee; omitted keeps them.
+    itemId: str | None = None
+    assigneeId: str | None = None
+
+
+class TicketCommentCreate(Command):
+    text: str = Field(min_length=1, max_length=100_000)
+
+
 class PersonCreate(Command):
     name: str
     role: str = ""
