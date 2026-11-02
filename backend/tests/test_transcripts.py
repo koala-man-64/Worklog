@@ -17,6 +17,7 @@ DESKTOP = "local_3bad7a04-7345-4b8d-a4db-9f450b876f45"
 REVIEWER = "local_b95c2fb7-0000-4000-8000-000000000001"
 CODEX = "01a194b7-153b-7f41-83ed-80f5e52479d1"
 CHILD = "01a194b8-58f4-7991-98c5-4cfacd3ea5ea"
+ARCHIVED = "01a19999-0000-7000-8000-000000000000"
 
 
 def at(minute: int) -> str:
@@ -97,8 +98,8 @@ def roots(tmp_path):
         item(4, {"type": "agent_message", "author": "/root", "recipient": "/root/pipeline_check", "content": [envelope("NEW_TASK", "/root/pipeline_check", "/root"), sealed]}),
         item(5, {"type": "custom_tool_call", "name": "exec", "input": "git status\nls"}),
     ])
-    lines(codex / "archived_sessions" / "rollout-2026-11-01T09-00-00-01a19999-0000-7000-8000-000000000000.jsonl", [
-        {"type": "session_meta", "timestamp": at(30), "payload": {"id": "01a19999-0000-7000-8000-000000000000", "session_id": "01a19999-0000-7000-8000-000000000000"}},
+    lines(codex / "archived_sessions" / f"rollout-2026-11-01T09-00-00-{ARCHIVED}.jsonl", [
+        {"type": "session_meta", "timestamp": at(30), "payload": {"id": ARCHIVED, "session_id": ARCHIVED}},
     ])
     (codex / "session_index.jsonl").write_text(json.dumps({"id": CODEX, "thread_name": "Draft name"}) + "\n" + json.dumps({"id": CODEX, "thread_name": "Release review"}) + "\n", encoding="utf-8")
     return TranscriptRoots((claude,), (tmp_path / "desktop" / "Claude-Data",), (codex,))
@@ -229,6 +230,27 @@ def test_desktop_session_ids_read_the_claude_code_session_they_run(client):
     assert body["source"] == "claude" and body["messages"][0]["text"] == "Please build the API"
     # The transcript's own title wins over the desktop record's.
     assert body["threads"][0]["title"] == "Build the API"
+
+
+def test_a_chat_its_tool_archived_no_longer_works_on_its_roadmap(client, roots):
+    roadmap = write(client, "POST", "/roadmaps", {"title": "Platform"}).json()
+    for chat_id, title in ((DESKTOP, "API session"), (CODEX, "Release review"), (ARCHIVED, "Old review"), ("c-1", "Elsewhere")):
+        chat(client, "roadmap", roadmap["id"], chat_id, title)
+    # An agent's open run in a thread Codex archived does not keep it there.
+    token = write(client, "POST", "/credentials", {"label": "Reviewer"}).json()["token"]
+    write(client, "POST", "/agent-runs", {"clientRunKey": "r-1", "displayName": "Review", "externalChatId": ARCHIVED},
+          headers={"Authorization": "Bearer " + token})
+
+    def listed():
+        return {w["label"] for w in client.get(f"/api/v1/roadmaps/{roadmap['id']}/agents").json()["items"]}
+    assert listed() == {"API session", "Release review", "Elsewhere"}
+    # Archiving a session in the desktop app rewrites its record.
+    record = roots.claude_desktop[0] / "claude_x" / "claude-code-sessions" / "acct" / "org" / f"{DESKTOP}.json"
+    record.write_text(json.dumps({**json.loads(record.read_text(encoding="utf-8")), "isArchived": True}), encoding="utf-8")
+    assert listed() == {"Release review", "Elsewhere"}
+    # A chat no tool on this machine keeps is never known to be archived.
+    reader = client.app.state.transcripts
+    assert [reader.archived(i) for i in (DESKTOP, CLAUDE, CODEX, ARCHIVED.upper(), CHILD, "c-1")] == [True, False, False, True, True, False]
 
 
 def test_a_codex_thread_and_the_agents_it_started_read_as_one_conversation(client):

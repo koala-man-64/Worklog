@@ -6,9 +6,10 @@ from fastapi import FastAPI, Query
 
 from .db import Database
 from .registry import AgentRegistry
+from .transcripts import TranscriptReader
 
 
-def install_registry_routes(app: FastAPI, db: Database) -> None:
+def install_registry_routes(app: FastAPI, db: Database, transcripts: TranscriptReader) -> None:
     registry = AgentRegistry()
 
     def read(fn: Callable) -> dict:
@@ -30,4 +31,4 @@ def install_registry_routes(app: FastAPI, db: Database) -> None:
 
     @app.get("/api/v1/roadmaps/{identity}/agents")
     def roadmap_agents(identity: str) -> dict:
-        return read(lambda c: registry.roadmap(c, identity))
+        return read(lambda c: registry.roadmap(c, identity, transcripts.archived))

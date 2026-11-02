@@ -270,6 +270,18 @@ class TranscriptReader:
         record = self._desktop_record(ident.lower())
         return one_line(record.get("title"), NAME_LIMIT) if record else ""
 
+    def archived(self, chat_id: str) -> bool:
+        """Whether the tool that keeps the chat archived it: the desktop app marks the session's
+        record, and Codex moves the thread to archived_sessions. A chat found nowhere is not."""
+        match = CHAT_ID.fullmatch(chat_id.strip().lower())
+        if not match:
+            return False
+        if match.group(1):
+            record = self._desktop_record(match.group(0))
+            return record is not None and record.get("isArchived") is True
+        found = self._index()[1].get(match.group(2))
+        return found is not None and found[0].parent.name == "archived_sessions"
+
     def _desktop_record(self, ident: str) -> dict | None:
         with self.lock:
             known = self.desktop.get(ident)
