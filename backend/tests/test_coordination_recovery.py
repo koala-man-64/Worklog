@@ -295,8 +295,9 @@ def test_v6_upgrade_keys_repositories_by_remote_and_flags_records_that_share_one
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION == 6
         assert recovery._schema_signature(conn) == recovery._expected_schema()
         keys = {row["id"]: (row["remote_identity"], row["duplicate_of"]) for row in conn.execute("SELECT * FROM repositories")}
-        # Records keep everything they had; the upgrade only appends their key and any flag.
-        assert [tuple(row)[:-2] for row in conn.execute("SELECT * FROM repositories ORDER BY 1")] == before["repositories"]
+        # Records keep everything they had; the upgrade only appends their key, any flag and an empty merge pointer.
+        assert [tuple(row)[:-3] for row in conn.execute("SELECT * FROM repositories ORDER BY 1")] == before["repositories"]
+        assert conn.execute("SELECT count(*) FROM repositories WHERE merged_into IS NOT NULL").fetchone()[0] == 0
     assert keys == {"archived": ("github.com/team/shared", "ssh"), "ssh": ("github.com/team/shared", None),
                     "lowercase": ("github.com/team/shared", "ssh"), "other": ("github.com/team/other", None),
                     "unaddressed": ("", None), "gone": ("dev.azure.com/org/p/_git/r", None),

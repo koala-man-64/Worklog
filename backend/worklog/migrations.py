@@ -32,7 +32,10 @@ CREATE INDEX coordination_update_repositories_repository ON coordination_update_
 
 # v6 keys repositories by remote rather than by address text. COORDINATION_SCHEMA keeps the
 # v2-v5 shape and every database, new ones included, reaches v6 through add_remote_identity.
-REPOSITORY_IDENTITY_COLUMNS = ", remote_identity TEXT NOT NULL DEFAULT '', duplicate_of TEXT REFERENCES repositories(id)"
+# duplicate_of flags a record that shares its remote with the canonical one; merged_into marks
+# a record a person merged into another, whose remote then answers with that other record.
+REPOSITORY_IDENTITY_COLUMNS = (", remote_identity TEXT NOT NULL DEFAULT '', duplicate_of TEXT REFERENCES repositories(id)"
+                               ", merged_into TEXT REFERENCES repositories(id)")
 
 
 def add_remote_identity(conn: sqlite3.Connection) -> None:
@@ -54,7 +57,7 @@ def add_remote_identity(conn: sqlite3.Connection) -> None:
         conn.execute("UPDATE repositories SET remote_identity=?,duplicate_of=? WHERE id=?",
                      (key, None if holder == record else holder, record))
     conn.execute("CREATE UNIQUE INDEX repositories_remote_identity ON repositories(remote_identity) "
-                 "WHERE remote_identity<>'' AND duplicate_of IS NULL")
+                 "WHERE remote_identity<>'' AND duplicate_of IS NULL AND merged_into IS NULL")
 
 
 def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
