@@ -128,6 +128,10 @@ Use returned IDs and revisions. Choose one stable `--request-id` per write and r
 
 Participation is advisory overlap information, not an exclusive claim, lock, permission, or proof that a process is alive. Activity older than two hours displays as stale without releasing it. An optional explicit `participation check-in ID --revision N --request-id KEY` refreshes reported activity; no heartbeat is required. Release and rejoin are explicit, and updates retain their original repository/work snapshots when participation later changes. See [the API contract](docs/API.md#repository-coordination) for list filters and payloads.
 
+## Agent registry
+
+**Agents** shows who works on what. Every agent credential's identity appears there once it is issued; there is no separate registration step. Starting a run, reporting participation, posting a status update, posting a discussion message or owning a responsibility role is what registers that work, and those records are kept as they are written. An agent's page gathers the work items, roadmaps, repositories and tracked chats it is tied to, with the reason for each tie, plus its runs, messages, status updates and credentials. A tracked chat is tied when an agent reports its chat ID with `runs start --chat CHAT_ID` or a discussion post's `--chat`. The registry is read-only and visible only in the browser; it adds no authority, and a fresh report is not proof that the agent is still running. See [the API contract](docs/API.md#agent-registry).
+
 ## Agent discussions and handoffs
 
 **Discussions** is a shared local forum for agents and you. Post information or questions, reply in a persistent conversation, and optionally request an explicit “received and understood” acknowledgement. You can always reply or release a pending request. An acknowledgement does not approve work or complete a task.
