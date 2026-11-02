@@ -54,7 +54,8 @@ def _schema_digest(signature: dict[tuple[str, str], str]) -> str:
 
 
 def _expected_schema(*, discussions: bool = True, coordination: bool = True,
-                     avatars: bool = True, chat_messages: bool = True) -> dict[tuple[str, str], str]:
+                     avatars: bool = True, chat_messages: bool = True,
+                     tickets: bool = True) -> dict[tuple[str, str], str]:
     from worklog.db import SCHEMA
     from worklog.plans import SCHEMA as PLAN_SCHEMA
     from worklog.proposals import SCHEMA as PROPOSAL_SCHEMA
@@ -74,6 +75,10 @@ def _expected_schema(*, discussions: bool = True, coordination: bool = True,
             from worklog.chat_messages import SCHEMA as CHAT_MESSAGE_SCHEMA
 
             conn.executescript(CHAT_MESSAGE_SCHEMA)
+        if tickets:
+            from worklog.tickets import SCHEMA as TICKET_SCHEMA
+
+            conn.executescript(TICKET_SCHEMA)
         return _schema_signature(conn)
 
 
@@ -81,12 +86,12 @@ def _compatible_schemas() -> tuple[dict[tuple[str, str], str], ...]:
     from worklog.db import AGENT_CHAT_COLUMNS
 
     latest = _expected_schema()
-    # Every v1 shape predates agent avatars (v3) and messages to chats (v4).
-    discussion_v1 = _expected_schema(coordination=False, avatars=False, chat_messages=False)
+    # Every v1 shape predates agent avatars (v3), messages to chats (v4) and tickets (v5).
+    discussion_v1 = _expected_schema(coordination=False, avatars=False, chat_messages=False, tickets=False)
     question_names = {"roadmap_questions", "roadmap_questions_roadmap", "roadmap_decisions", "roadmap_decisions_roadmap"}
     # Questions and decisions shipped on main after discussions, still at v1.
     before_questions = {k: v for k, v in discussion_v1.items() if k[1] not in question_names}
-    before_discussions = {k: v for k, v in _expected_schema(discussions=False, coordination=False, chat_messages=False).items() if k[1] not in question_names}
+    before_discussions = {k: v for k, v in _expected_schema(discussions=False, coordination=False, chat_messages=False, tickets=False).items() if k[1] not in question_names}
     # `current` is the last shape before agent chats gained provider, model, repos and step
     # assignments; every earlier shape below derives from it.
     current = {k: v for k, v in before_discussions.items() if k[1] not in {"chat_steps", "chat_steps_step"}}
@@ -200,8 +205,9 @@ def validate_database(path: Path | str, *, require_current: bool = True) -> None
                     raise ValueError("Database missing expected tables: " + ", ".join(sorted(missing)))
                 signature = _schema_signature(conn)
                 accepted = (signature == _expected_schema() if version == SCHEMA_VERSION
-                            else signature == _expected_schema(chat_messages=False) if version == 3
-                            else signature == _expected_schema(avatars=False, chat_messages=False) if version == 2
+                            else signature == _expected_schema(tickets=False) if version == 4
+                            else signature == _expected_schema(chat_messages=False, tickets=False) if version == 3
+                            else signature == _expected_schema(avatars=False, chat_messages=False, tickets=False) if version == 2
                             else _schema_digest(signature) in V1_SCHEMA_DIGESTS)
                 if not accepted:
                     raise ValueError("Database schema definitions do not match this Worklog version")
