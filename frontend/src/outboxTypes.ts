@@ -14,6 +14,7 @@ export type DeliveryReason =
   | "human_closed"
   | "credential_revoked"
   | "credential_rotated"
+  | "credential_retired"
   | "chat_archived"
   | "chat_changed"
   | "restore"

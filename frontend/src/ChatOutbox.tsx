@@ -14,6 +14,7 @@ const REASONS: Record<DeliveryReason, string> = {
   human_closed: "you ended the run",
   credential_revoked: "its credential was revoked",
   credential_rotated: "its credential was replaced",
+  credential_retired: "its agent retired",
   chat_archived: "the chat was archived",
   chat_changed: "the chat's ID changed",
   restore: "Worklog was restored from a backup",
