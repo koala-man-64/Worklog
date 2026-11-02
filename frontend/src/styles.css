@@ -2615,7 +2615,8 @@ code {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.35rem;
-  margin-inline-end: 0.35rem;
+  margin-inline: 8px 0.35rem;
+  vertical-align: middle;
 }
 .ticket-badges .badge button {
   min-height: 0;
@@ -2635,6 +2636,11 @@ code {
 }
 .ticket-row .item-title {
   overflow-wrap: anywhere;
+}
+/* The status line is short and says when the ticket last moved, so it wraps rather than cut. */
+.ticket-row small {
+  max-width: none;
+  white-space: normal;
 }
 .ticket-person {
   display: inline-flex;
