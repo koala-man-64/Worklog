@@ -70,9 +70,10 @@ def setting(conn: sqlite3.Connection, key: str, default: Any = None) -> Any:
 
 
 def event(conn: sqlite3.Connection, actor: dict, kind: str, entity_id: str,
-          before: Any, after: Any) -> dict:
+          before: Any, after: Any, *, at: str | None = None) -> dict:
+    # `at` lets a record that carries this event's time state it before the event is written.
     result = {"id": uid(), "entityId": entity_id, "kind": kind, "actorId": actor["id"],
-              "actorLabel": actor["label"], "actorKind": actor["kind"], "createdAt": now(),
+              "actorLabel": actor["label"], "actorKind": actor["kind"], "createdAt": at or now(),
               "localDate": today(setting(conn, "timezone", "America/Chicago")),
               "before": before, "after": after}
     conn.execute("""INSERT INTO events VALUES(?,?,?,?,?,?,?,?,?,?)""",

@@ -190,6 +190,81 @@ it("shows an automatic approval in a proposal's detail", async () => {
   ).toBeInTheDocument();
   expect(screen.queryByText(/^Approval is off/)).toBeNull();
 });
+const STARTED = "2026-11-02T14:00:00.000001+00:00";
+const SUBMITTED = "2026-11-02T15:00:00.123456+00:00";
+const CHANGED = "2026-11-02T16:30:00.5+00:00";
+const local = (iso: string) => new Date(iso).toLocaleString();
+function dated(
+  title: string,
+  status: string,
+  submittedAt: string | null,
+  updatedAt: string,
+) {
+  return {
+    id: title,
+    title,
+    rationale: "",
+    status,
+    autoApproved: false,
+    revision: 2,
+    actorLabel: "Engineer",
+    operations: [],
+    attachments: [],
+    createdAt: STARTED,
+    submittedAt,
+    updatedAt,
+  };
+}
+it("dates each listed proposal by its submission and any later update", async () => {
+  requestMock.mockImplementation(async (path: string) => {
+    if (path === "/settings") return { requireProposalApproval: true };
+    return {
+      items: [
+        dated("Waiting", "submitted", SUBMITTED, SUBMITTED),
+        // Submitted before its record took the submit event's time, so its
+        // update came a moment before the submission.
+        dated(
+          "Waiting longer",
+          "submitted",
+          SUBMITTED,
+          "2026-11-02T15:00:00.1Z",
+        ),
+        dated("Decided", "rejected", SUBMITTED, CHANGED),
+        dated("New draft", "draft", null, STARTED),
+        dated("Edited draft", "draft", null, CHANGED),
+      ],
+      total: 5,
+    };
+  });
+  renderWithClient(<Review />);
+  const dates = async (title: string) =>
+    (await screen.findByRole("link", { name: title }))
+      .closest("article")
+      ?.querySelectorAll("p")[1]?.textContent;
+  expect(await dates("Waiting")).toBe(`Submitted ${local(SUBMITTED)}`);
+  expect(await dates("Waiting longer")).toBe(`Submitted ${local(SUBMITTED)}`);
+  expect(await dates("Decided")).toBe(
+    `Submitted ${local(SUBMITTED)} · updated ${local(CHANGED)}`,
+  );
+  expect(await dates("New draft")).toBe(`Drafted ${local(STARTED)}`);
+  expect(await dates("Edited draft")).toBe(
+    `Drafted ${local(STARTED)} · updated ${local(CHANGED)}`,
+  );
+});
+it("dates a proposal's detail", async () => {
+  requestMock.mockImplementation(async (path: string) => {
+    if (path === `/proposals/${ID}`)
+      return { ...dated("Decided", "approved", SUBMITTED, CHANGED), id: ID };
+    if (path === "/settings") return { requireProposalApproval: true };
+    return { items: [], total: 0 };
+  });
+  renderWithClient(<Review selectedId={ID} />);
+  const time = await screen.findByText(local(CHANGED));
+  expect(time).toHaveAttribute("datetime", CHANGED);
+  expect(time.closest("p")).toHaveTextContent(
+    `Submitted ${local(SUBMITTED)} · updated ${local(CHANGED)}`,
+  );
+});
 it("still reports a failed lookup that is not a missing target", async () => {
   requestMock.mockRejectedValue(new ApiError(500, "Server error", "internal"));
   renderWithClient(

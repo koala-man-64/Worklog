@@ -68,9 +68,11 @@ FIELDS = {
 # Approves under the person's standing choice in Settings rather than a decision on one
 # proposal: the person's authority, recorded apart from the approvals they give in Review.
 AUTOMATIC = {"id": "automatic-approval", "label": "Automatic approval", "kind": "human"}
-# The approval event is the one record of how a proposal was approved.
+# The approval event is the one record of how a proposal was approved, and the submit
+# event of when it was submitted.
 SELECT = ("SELECT p.*,EXISTS(SELECT 1 FROM events e WHERE e.entity_id=p.id AND e.kind='proposal.approve'"
-          " AND e.actor_id=?) AS auto_approved FROM proposals p")
+          " AND e.actor_id=?) AS auto_approved,(SELECT MIN(e.created_at) FROM events e"
+          " WHERE e.entity_id=p.id AND e.kind='proposal.submit') AS submitted_at FROM proposals p")
 
 
 def approval_required(conn):
@@ -113,7 +115,7 @@ def _record(row):
             "revision": row["revision"], "actorId": row["actor_id"],
             "actorLabel": row["actor_label"], "operations": json.loads(row["operations"]),
             "supersedesId": row["supersedes_id"], "createdAt": row["created_at"],
-            "updatedAt": row["updated_at"], "attachments": []}
+            "updatedAt": row["updated_at"], "submittedAt": row["submitted_at"], "attachments": []}
 
 
 def _row(conn, identifier):
@@ -251,12 +253,16 @@ class ProposalService:
 
     def _advance(self, connection, identifier, verb, actor, before):
         state = {"submit": "submitted", "withdraw": "withdrawn", "approve": "approved", "reject": "rejected"}[verb]
+        stamp = now()
         connection.execute("UPDATE proposals SET status=?,revision=revision+1,updated_at=? WHERE id=?",
-                           (state, now(), identifier))
+                           (state, stamp, identifier))
         result = _record(_row(connection, identifier))
-        # The event written next is what marks an automatic approval, so its record says so first.
+        # The event written next is what marks an automatic approval and dates a submission,
+        # so its record says so first, with the event's own time.
         result["autoApproved"] = result["autoApproved"] or actor is AUTOMATIC
-        event(connection, actor, f"proposal.{verb}", identifier, before, result)
+        if verb == "submit":
+            result["submittedAt"] = stamp
+        event(connection, actor, f"proposal.{verb}", identifier, before, result, at=stamp)
         return result
 
     def check_upload(self, conn, identifier, actor):

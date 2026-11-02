@@ -63,6 +63,24 @@ def test_human_only_approval_attribution_and_no_implicit_writes(proposals):
         proposals.transition(proposal["id"], "approve", {"revision": result["revision"]}, HUMAN)
 
 
+def test_records_date_the_submission_and_the_latest_update(proposals):
+    proposal = draft(proposals)
+    assert proposal["submittedAt"] is None and proposal["updatedAt"] == proposal["createdAt"]
+    edited = proposals.update(proposal["id"], {"revision": 1, "title": "Edited"}, AGENT)
+    assert edited["submittedAt"] is None
+    submitted = submit(proposals, edited)
+    rejected = proposals.transition(proposal["id"], "reject", {"revision": submitted["revision"]}, HUMAN)
+    with proposals.db.read() as conn:
+        events = {r["kind"]: r for r in conn.execute("SELECT kind,created_at,after_json FROM events")}
+    # A transition's record carries its event's time, so the record and its history agree.
+    submitted_at = events["proposal.submit"]["created_at"]
+    assert submitted["submittedAt"] == submitted["updatedAt"] == submitted_at
+    assert json.loads(events["proposal.submit"]["after_json"]) == submitted
+    assert rejected["submittedAt"] == submitted_at
+    assert rejected["updatedAt"] == events["proposal.reject"]["created_at"]
+    assert proposals.detail(proposal["id"], OTHER) == rejected == proposals.list(OTHER)["items"][0]
+
+
 def test_stale_second_operation_rolls_back_everything(proposals):
     operations = [
         {"action": "item.update", "payload": {"id": "target", "revision": 1, "title": "First"}},
@@ -106,7 +124,8 @@ def test_with_approval_off_submitting_applies_and_records_an_automatic_approval(
             ("proposal.create", "agent", "agent"), ("proposal.submit", "agent", "agent"),
             ("item.update", "agent", "agent"), ("proposal.approve", "automatic-approval", "human")]
         approval = conn.execute("SELECT after_json FROM events WHERE kind='proposal.approve'").fetchone()[0]
-    assert json.loads(approval) == result
+        submitted_at = conn.execute("SELECT created_at FROM events WHERE kind='proposal.submit'").fetchone()[0]
+    assert json.loads(approval) == result and result["submittedAt"] == submitted_at
 
 
 def test_with_approval_off_a_failed_apply_leaves_the_draft_unsubmitted(proposals):
