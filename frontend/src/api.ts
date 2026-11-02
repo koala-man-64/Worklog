@@ -120,7 +120,7 @@ let renewal: Promise<void> | null = null;
 /**
  * Starts a new session for this page: the server keeps sessions in memory, so a restart forgets
  * them. Callers at the same time share one renewal. It refuses when the server now holds other
- * data, such as after a restore, so this page never reads one dataset under another's context.
+ * data, such as after a restore, so a renewal never gives this page a session on that data.
  */
 export function renewSession() {
   renewal ??= (async () => {

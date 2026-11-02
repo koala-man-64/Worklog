@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { getDataContext, renewSession, request } from "./api";
+import { ApiError, getDataContext, renewSession, request } from "./api";
 import { commands } from "./commands";
 import { ErrorMessage } from "./components";
 import { useCommand, useData } from "./hooks";
@@ -13,6 +13,9 @@ import type {
   QuotaPlanModelOption,
   QuotaRecentText,
 } from "./quotaTypes";
+
+const PAUSED_NOTE =
+  "Live updates paused while Worklog reconnects; these figures may be out of date.";
 
 function fmtCompact(value: number | null | undefined): string {
   if (value === null || value === undefined || Number.isNaN(value)) return "—";
@@ -142,9 +145,10 @@ export function Quota() {
   // Subscribe to live SSE capacity revisions when EventSource is available. The browser reconnects
   // a dropped stream by itself but gives up on an error response, such as the 401 from a server that
   // restarted and forgot this page's session: renew the session and open a new stream, backing off
-  // while that fails. A server without quota collectors ends each stream after one snapshot and the
-  // browser reopens it within seconds, so updates count as paused only once the stream stays down.
-  const [live, setLive] = useState(true);
+  // while that fails, and stop when the server now holds other data. A server without quota
+  // collectors ends each stream after one snapshot and the browser reopens it within seconds, so
+  // updates count as paused only once the stream stays down.
+  const [paused, setPaused] = useState<string | null>(null);
   useEffect(() => {
     if (typeof EventSource === "undefined") return;
     let closed = false;
@@ -158,7 +162,7 @@ export function Quota() {
         delay = 1000;
         clearTimeout(pause);
         pause = undefined;
-        setLive(true);
+        setPaused(null);
       };
       source.onmessage = () => {
         if (!closed) {
@@ -167,7 +171,7 @@ export function Quota() {
       };
       source.onerror = () => {
         if (closed) return;
-        pause ??= setTimeout(() => setLive(false), 10_000);
+        pause ??= setTimeout(() => setPaused(PAUSED_NOTE), 10_000);
         if (source.readyState === EventSource.CLOSED) reconnect();
       };
     };
@@ -177,8 +181,12 @@ export function Quota() {
           () => {
             if (!closed) connect();
           },
-          () => {
-            if (!closed) reconnect();
+          (error: unknown) => {
+            if (closed) return;
+            if (error instanceof ApiError && error.code === "data_context") {
+              clearTimeout(pause);
+              setPaused(error.message);
+            } else reconnect();
           },
         );
       }, delay);
@@ -312,10 +320,9 @@ export function Quota() {
         </div>
       </header>
 
-      {!live && (
+      {paused && (
         <div className="quota-banner" role="status">
-          Live updates paused while Worklog reconnects; these figures may be out
-          of date.
+          {paused}
         </div>
       )}
 

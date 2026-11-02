@@ -145,13 +145,16 @@ it("starts no session when the server now holds other data, as after a restore",
   } satisfies Partial<ApiError>);
   expect(urls(fetch)).toEqual(["/api/v1/work-items", "/health"]);
 });
-it("resends once, then reports the refusal", async () => {
+it("resends once, then reports the refusal and forgets the write's key", async () => {
   const fetch = restarted(() => refusal("session", 401), { always: true });
-  await expect(request("/work-items")).rejects.toMatchObject({
+  await expect(
+    request("/work-items", "POST", { title: "Refused" }),
+  ).rejects.toMatchObject({
     status: 401,
     code: "session",
   } satisfies Partial<ApiError>);
   expect(fetch).toHaveBeenCalledTimes(4);
+  expect(sessionStorage.length).toBe(0);
 });
 it("does not renew for other refusals", async () => {
   const fetch = restarted(() => refusal("agent_scope", 403));

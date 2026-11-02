@@ -93,7 +93,7 @@ Records are archived rather than deleted, and you recover them from the same pla
 - **Drafts.** An unsaved draft survives a reload in the same browser. If browser storage is blocked, a warning asks you to keep the tab open until it saves.
 - **Conflicts.** If the record changed elsewhere first, in another tab or through an agent proposal you approved, your save is refused instead of overwriting it. "Conflict: draft kept" shows the saved value, and you choose "Use saved value" or "Replace saved value with my draft".
 - **Retries.** A save that failed on the network keeps its request key, so retrying never applies it twice.
-- **Data folders.** Drafts belong to one data folder. After a restore or a switch to another folder, old drafts stay in the browser but are never applied, and Settings says so.
+- **Data folders.** Drafts belong to one data folder. After a restore or a switch to another folder, old drafts stay in the browser but are never applied, and Settings says so. Reload every open Worklog tab then: once one tab has reloaded, another can show the new data until it next saves, when it asks for the reload itself.
 
 ### Today
 
