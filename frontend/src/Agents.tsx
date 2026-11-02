@@ -334,9 +334,16 @@ function AgentView({ id }: { id: string }) {
           <div className="line" key={credential.id}>
             <strong>{credential.label}</strong>
             <small>
-              {credential.registeredBy
-                ? `Registered by ${credential.registeredBy.label}`
-                : "Issued"}{" "}
+              {credential.registeredBy ? (
+                <>
+                  Registered by{" "}
+                  <a href={"#agents/" + credential.registeredBy.id}>
+                    {credential.registeredBy.label}
+                  </a>
+                </>
+              ) : (
+                "Issued"
+              )}{" "}
               {timestamp(credential.createdAt)} ·{" "}
               {credential.revoked ? "Revoked" : "Active"}
             </small>

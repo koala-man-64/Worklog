@@ -150,7 +150,7 @@ def test_registration_needs_an_active_agent_credential_and_a_valid_request(clien
     assert agent_http.post("/api/v1/agent-registrations", json={"label": "Browser", "token": token},
                            headers={**bearer(sponsor["token"]), "Origin": "http://evil.example"}).status_code == 403
     for invalid in ({"token": "short"}, {"token": "a" * 42 + "!"}, {"token": "a" * 43 + "\n"}, {"token": "a" * 201}, {"label": "   "},
-                    {"avatar": "not-an-avatar"}, {"extra": True}):
+                    {"token": "a" * 43}, {"token": "abcdefghi" * 5}, {"label": " you "}, {"avatar": "not-an-avatar"}, {"extra": True}):
         response = agent_http.post("/api/v1/agent-registrations", json={"label": "Invalid", "token": token, **invalid},
                                    headers=bearer(sponsor["token"]))
         assert response.status_code == 422, (invalid, response.text)
@@ -161,6 +161,8 @@ def test_registration_needs_an_active_agent_credential_and_a_valid_request(clien
     assert credential_count(client) == count
     chosen = next(name for name in AVATARS if name != taken)
     assert register(agent_http, sponsor["token"], avatar=chosen)[0].json()["avatar"] == chosen
+    # Any well-formed random token passes, hexadecimal included.
+    assert register(agent_http, sponsor["token"], token=secrets.token_hex(32))[0].status_code == 200
     assert write(client, "POST", f"/credentials/{sponsor['id']}/revoke", {}).status_code == 200
     assert register(agent_http, sponsor["token"])[0].status_code == 401
 
@@ -197,7 +199,7 @@ def test_registered_agent_retires_itself_but_settings_credentials_cannot(client,
     assert write(client, "POST", "/agent-registrations/retire", {}).status_code == 403
     retired = agent_http.post("/api/v1/agent-registrations/retire", json={}, headers=bearer(token))
     assert retired.status_code == 200, retired.text
-    assert retired.json() == {"id": agent["id"], "agentId": agent["agentId"], "retired": True}
+    assert retired.json() == {"id": agent["id"], "agentId": agent["agentId"], "retired": True, "registeredRevoked": 0}
     assert agent_http.get("/api/v1/context", headers=bearer(token)).status_code == 401
     assert agent_http.post("/api/v1/agent-registrations/retire", headers=bearer(token)).status_code == 401
 
@@ -210,3 +212,52 @@ def test_registered_agent_retires_itself_but_settings_credentials_cannot(client,
     assert {item["name"]: item["available"] for item in catalog}[agent["avatar"]] is True
     history = client.get("/api/v1/history", params={"entityId": agent["id"]}).json()["items"]
     assert [e["kind"] for e in history] == ["credential.retire", "credential.register"]
+
+
+def test_revoking_a_credential_revokes_what_it_registered_but_rotation_keeps_it(client, agent_http):
+    sponsor = issue(client)
+    other = issue(client, "Independent agent")
+    child, child_token = register(agent_http, sponsor["token"], "Parser fix")
+    grandchild, grandchild_token = register(agent_http, child_token, "Parser subagent")
+    sibling, sibling_token = register(agent_http, sponsor["token"], "Docs")
+    unrelated, unrelated_token = register(agent_http, other["token"], "Unrelated")
+    run = write(agent_http, "POST", "/agent-runs", {"clientRunKey": "chat-a", "displayName": "Subagent"}, headers=bearer(grandchild_token)).json()
+    counts = {c["id"]: c["registeredActive"] for c in client.get("/api/v1/settings").json()["credentials"]}
+    assert (counts[sponsor["id"]], counts[child.json()["id"]], counts[other["id"]], counts[unrelated.json()["id"]]) == (3, 1, 1, 0)
+
+    # Rotation keeps the identity, so what it registered keeps working.
+    rotated = write(client, "POST", f"/credentials/{sponsor['id']}/rotate", {}).json()
+    assert agent_http.get("/api/v1/context", headers=bearer(child_token)).status_code == 200
+
+    revoked = write(client, "POST", f"/credentials/{rotated['id']}/revoke", {})
+    assert revoked.json() == {"ok": True, "registeredRevoked": 3}
+    for token in (rotated["token"], child_token, grandchild_token, sibling_token):
+        assert agent_http.get("/api/v1/context", headers=bearer(token)).status_code == 401
+    assert agent_http.get("/api/v1/context", headers=bearer(unrelated_token)).status_code == 200
+    assert agent_http.get("/api/v1/context", headers=bearer(other["token"])).status_code == 200
+    assert client.get(f"/api/v1/agent-runs/{run['id']}").json()["endReason"] == "credential_revoked"
+    history = client.get("/api/v1/history", params={"entityId": grandchild.json()["id"]}).json()["items"]
+    assert history[0]["kind"] == "credential.revoke" and history[0]["after"]["via"] == rotated["id"]
+
+
+def test_retiring_also_retires_what_the_agent_registered(client, agent_http):
+    sponsor = issue(client)
+    child, child_token = register(agent_http, sponsor["token"], "Parser fix")
+    _, grandchild_token = register(agent_http, child_token, "Parser subagent")
+    _, sibling_token = register(agent_http, sponsor["token"], "Docs")
+    retired = agent_http.post("/api/v1/agent-registrations/retire", headers=bearer(child_token))
+    assert retired.json()["registeredRevoked"] == 1
+    assert agent_http.get("/api/v1/context", headers=bearer(grandchild_token)).status_code == 401
+    assert agent_http.get("/api/v1/context", headers=bearer(sibling_token)).status_code == 200
+    assert agent_http.get("/api/v1/context", headers=bearer(sponsor["token"])).status_code == 200
+
+
+def test_daily_registration_limit_bounds_register_and_retire_loops(client, agent_http, monkeypatch):
+    monkeypatch.setattr(registration, "DAILY_LIMIT", 3)
+    sponsor = issue(client)
+    for _ in range(3):
+        response, token = register(agent_http, sponsor["token"])
+        assert response.status_code == 200, response.text
+        assert agent_http.post("/api/v1/agent-registrations/retire", headers=bearer(token)).status_code == 200
+    refused, _ = register(agent_http, sponsor["token"])
+    assert refused.status_code == 429 and "today" in refused.json()["error"]["message"]

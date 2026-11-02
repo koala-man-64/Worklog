@@ -46,7 +46,7 @@ Reading, replying, and accepting a handoff do not acknowledge. Read the message 
 ./.venv/Scripts/worklog.exe agent discussions wait MESSAGE_ID --timeout 30
 ```
 
-Repeat `--target` to acknowledge several eligible slots explicitly. An open request permits `ack MESSAGE_ID` without a target. `all` counts requested slots, not independent people; the same agent may explicitly acknowledge two roles it owns. This is receipt tracking, not an independent-review or permission gate.
+Repeat `--target` to acknowledge several eligible slots explicitly. An open request permits `ack MESSAGE_ID` without a target. `all` counts requested slots, not independent people; the same agent may explicitly acknowledge two roles it owns. This is receipt tracking, not an independent-review or permission gate. An agent can register a second identity and acknowledge its own open request through it, so read a receipt as "an identity said so", never as independent confirmation.
 
 Wait is opt-in, defaults to 30 seconds and is capped at 60. It reports the persisted terminal state, or a distinct timeout/authentication/unavailable outcome. Stopping the command leaves the request intact and consumes no discovery cursor. Continue unrelated work while awaiting acknowledgement.
 

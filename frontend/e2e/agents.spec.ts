@@ -162,6 +162,17 @@ test("an agent registers its own identity and speaks as it", async ({
   await expect(page.getByText("Registered by " + sponsorLabel)).toBeVisible();
   await page.goto("/#settings");
   await expect(page.getByText("Registered by " + sponsorLabel)).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: sponsorLabel, exact: true }),
+  ).toHaveAttribute("href", "#agents/" + sponsor.agentId);
+  // Revoking the issued credential would take the registered agent with it.
+  const issuedRow = page
+    .locator("div.line")
+    .filter({ has: page.locator("strong", { hasText: sponsorLabel }) })
+    .filter({ has: page.getByRole("button") });
+  await expect(
+    issuedRow.getByRole("button", { name: "Revoke with 1 registered" }),
+  ).toBeVisible();
 
   // Retiring revokes only the registered identity, never its sponsor.
   await post("/agent-registrations/retire", {}, token);

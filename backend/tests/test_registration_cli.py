@@ -128,7 +128,7 @@ def test_register_keeps_tokens_per_port(home, transport):
     assert (home / "8878" / "tester.json").exists() and not (home / "8877").exists()
 
 
-@pytest.mark.parametrize("name", ["../escape", "con", "Lpt1", "-leading", "a" * 65, "", "with space", "dot.name"])
+@pytest.mark.parametrize("name", ["../escape", "con", "Lpt1", "com0", "-leading", "a" * 65, "", "with space", "dot.name"])
 def test_agent_names_cannot_escape_or_collide_with_device_names(home, transport, name, capsys):
     sent, replies = transport
     assert cli.main(["agent", "register", "--name=" + name, "--label", "Bad"]) == 1
@@ -166,6 +166,10 @@ def test_retire_revokes_and_forgets_only_registered_agents(home, transport, caps
     assert not (home / "8877" / "revoked.json").exists()
     store(home, "offline", "u" * 43)
     replies.append(rejected(503, "database_busy"))
+    assert cli.main(["agent", "--as", "offline", "retire"]) == 1
+    assert (home / "8877" / "offline.json").exists()
+    # A 401 that is not Worklog's own credential answer, say from another listener, keeps it too.
+    replies.append(HTTPError("http://127.0.0.1:8877", 401, "Unauthorized", {}, io.BytesIO(b"denied")))
     assert cli.main(["agent", "--as", "offline", "retire"]) == 1
     assert (home / "8877" / "offline.json").exists()
 

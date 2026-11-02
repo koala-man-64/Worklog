@@ -268,7 +268,19 @@ export function Settings() {
                   "Unavailable"}
               </small>
               {c.registeredBy && (
-                <small>Registered by {c.registeredBy.label}</small>
+                <small>
+                  Registered by{" "}
+                  <a href={"#agents/" + c.registeredBy.id}>
+                    {c.registeredBy.label}
+                  </a>
+                </small>
+              )}
+              {!c.revoked && c.registeredActive > 0 && (
+                <small>
+                  Registered {c.registeredActive} active agent
+                  {c.registeredActive === 1 ? "" : "s"}; revoking this
+                  credential revokes them too
+                </small>
               )}
             </span>
             <small>{new Date(c.createdAt).toLocaleString()}</small>
@@ -311,7 +323,9 @@ export function Settings() {
                   action.mutate({ path: `/credentials/${c.id}/revoke` })
                 }
               >
-                Revoke
+                {c.registeredActive > 0
+                  ? `Revoke with ${c.registeredActive} registered`
+                  : "Revoke"}
               </button>
             )}
           </div>

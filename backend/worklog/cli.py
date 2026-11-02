@@ -45,7 +45,7 @@ AGENT_TOKENS = "agent-tokens"
 AGENT_NAME = re.compile(r"[a-z0-9][a-z0-9_-]{0,63}")
 AGENT_TOKEN = re.compile(r"[A-Za-z0-9_-]{43,200}")
 # Windows device names cannot name a file, even with an extension.
-RESERVED_NAMES = frozenset({"con", "prn", "aux", "nul", *(f"{d}{n}" for d in ("com", "lpt") for n in range(1, 10))})
+RESERVED_NAMES = frozenset({"con", "prn", "aux", "nul", *(f"{d}{n}" for d in ("com", "lpt") for n in range(10))})
 
 
 def resolve_port(value: int | None = None) -> int:
@@ -556,6 +556,8 @@ def _store_new_token(path: Path, name: str, token: str) -> None:
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
             json.dump({"name": name, "token": token}, stream)
+            stream.flush()
+            os.fsync(stream.fileno())
         try:
             if os.name == "nt":
                 os.rename(temporary, path)
@@ -593,9 +595,9 @@ def retire_command(client: AgentClient, args: argparse.Namespace) -> dict:
     try:
         result = client.request("POST", "/agent-registrations/retire", {})
     except AgentRequestError as exc:
-        if exc.status != 401:
+        # Forget the token only when Worklog itself refuses it: revoked, already retired, or never registered.
+        if exc.status != 401 or exc.code != "authentication":
             raise
-        # The token no longer authenticates: revoked, already retired, or never registered.
         result = {"retired": True, "alreadyRevoked": True}
     (_token_store(args, client.base) / (name + ".json")).unlink(missing_ok=True)
     return {"name": name, **result}

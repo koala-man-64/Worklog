@@ -278,8 +278,10 @@ it("shows an agent's ties with their reasons, runs, messages and updates", async
   expect(feed).toHaveTextContent("Starting on the plan…");
   expect(within(feed).getByText("Blocker")).toBeInTheDocument();
   expect(feed).toHaveTextContent("Waiting on review");
-  expect(screen.getByText(/^Registered by Shared agents/)).toHaveTextContent(
-    "· Active",
+  const registrar = screen.getByRole("link", { name: "Shared agents" });
+  expect(registrar).toHaveAttribute("href", "#agents/agent-0");
+  expect(registrar.parentElement).toHaveTextContent(
+    /^Registered by Shared agents .* · Active$/,
   );
   expect(screen.getByText(/^Issued/)).toHaveTextContent("· Revoked");
   expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute(

@@ -22,6 +22,7 @@ const settings: SettingsData = {
       createdAt: "2026-10-01T10:00:00Z",
       revoked: false,
       registeredBy: null,
+      registeredActive: 0,
     },
   ],
   agents: [
@@ -188,11 +189,11 @@ it("issues a credential with the suggested avatar or one the person picks", asyn
   );
 });
 
-it("names the agent that registered a credential", async () => {
+it("names the agent that registered a credential and what revoking takes with it", async () => {
   const registered: SettingsData = {
     ...settings,
     credentials: [
-      ...settings.credentials,
+      { ...settings.credentials[0], registeredActive: 1 },
       {
         id: "credential-registered",
         label: "Parser fix",
@@ -200,6 +201,7 @@ it("names the agent that registered a credential", async () => {
         createdAt: "2026-11-01T10:00:00Z",
         revoked: false,
         registeredBy: { id: "profile-alpha", label: "Agent Alpha profile" },
+        registeredActive: 0,
       },
     ],
     agents: [
@@ -207,8 +209,10 @@ it("names the agent that registered a credential", async () => {
       { id: "profile-parser", label: "Parser fix", avatar: "amber-dots-ears" },
     ],
   };
-  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+  const calls: string[] = [];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const path = new URL(String(input), "http://worklog.test").pathname;
+    if (init?.method === "POST") calls.push(path);
     return new Response(
       JSON.stringify(
         path.endsWith("/discussions/avatars") ? catalog : registered,
@@ -216,6 +220,7 @@ it("names the agent that registered a credential", async () => {
       { status: 200, headers: { "Content-Type": "application/json" } },
     );
   });
+  const user = userEvent.setup();
   render(
     <QueryClientProvider
       client={
@@ -225,9 +230,23 @@ it("names the agent that registered a credential", async () => {
       <Settings />
     </QueryClientProvider>,
   );
-  expect(
-    await screen.findByText("Registered by Agent Alpha profile"),
-  ).toBeInTheDocument();
+  const registrar = await screen.findByRole("link", {
+    name: "Agent Alpha profile",
+  });
+  expect(registrar).toHaveAttribute("href", "#agents/profile-alpha");
+  expect(registrar.parentElement).toHaveTextContent(
+    "Registered by Agent Alpha profile",
+  );
   // Only the registered credential names a registering agent.
   expect(screen.getAllByText(/^Registered by/)).toHaveLength(1);
+  expect(
+    screen.getByText(/revoking this credential revokes them too/),
+  ).toHaveTextContent("Registered 1 active agent;");
+  expect(screen.getAllByRole("button", { name: "Revoke" })).toHaveLength(1);
+  await user.click(
+    screen.getByRole("button", { name: "Revoke with 1 registered" }),
+  );
+  await waitFor(() =>
+    expect(calls).toEqual(["/api/v1/credentials/credential-old/revoke"]),
+  );
 });
