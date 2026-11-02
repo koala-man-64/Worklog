@@ -2315,6 +2315,18 @@ code {
 .file-upload input {
   margin-top: 8px;
 }
+/* A work item adds a file as a copy kept in Worklog or as a path that stays on this machine. */
+.file-add {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.file-add p {
+  margin: 0;
+}
+.file-add input[type="file"] {
+  justify-self: start;
+}
 @media (max-width: 1050px) {
   .app {
     --sidebar-w: var(--sidebar-width, 190px);

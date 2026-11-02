@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiError, setDataContext } from "./api";
@@ -182,6 +182,90 @@ it("files a ticket for the work item from its page", async () => {
       expect.anything(),
     ),
   );
+});
+it("attaches a copy by default and saves only the path for a local file", async () => {
+  const network = vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(async () => new Response("{}", { status: 200 }));
+  const writes = () =>
+    network.mock.calls.filter(([, init]) => init?.method === "POST");
+  render(view(newClient()));
+  expect(screen.getByRole("button", { name: "Attach a copy" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await userEvent.upload(
+    screen.getByLabelText("Attach a file"),
+    new File(["Local evidence"], "evidence.txt", { type: "text/plain" }),
+  );
+  await waitFor(() => expect(writes()).toHaveLength(1));
+  expect(writes()[0][0]).toBe(
+    `/api/v1/attachments?ownerType=item&ownerId=${ID}&name=evidence.txt`,
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Reference a local file" }),
+  );
+  expect(screen.queryByLabelText("Attach a file")).not.toBeInTheDocument();
+  await userEvent.type(
+    screen.getByRole("textbox", { name: "Local path" }),
+    "C:\\Projects\\spec.docx",
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Add path" }));
+  await waitFor(() => expect(writes()).toHaveLength(2));
+  const [url, init] = writes()[1];
+  expect(url).toBe("/api/v1/references");
+  expect(JSON.parse(String(init?.body))).toEqual({
+    itemId: ID,
+    path: "C:\\Projects\\spec.docx",
+  });
+  await waitFor(() =>
+    expect(screen.getByRole("textbox", { name: "Local path" })).toHaveValue(""),
+  );
+});
+it("lists attached copies and local paths together, oldest first", async () => {
+  state.item = item({
+    attachments: [
+      {
+        id: "a1",
+        revision: 2,
+        archived: true,
+        name: "old.txt",
+        mime: "text/plain",
+        size: 3,
+        sha256: "",
+        createdAt: "2026-11-01T08:00:00+00:00",
+      },
+      {
+        id: "a2",
+        revision: 1,
+        name: "evidence.txt",
+        mime: "text/plain",
+        size: 14,
+        sha256: "",
+        createdAt: "2026-11-02T10:00:00+00:00",
+      },
+    ],
+    references: [
+      {
+        id: "r1",
+        revision: 1,
+        itemId: ID,
+        path: "C:\\Projects\\spec.docx",
+        createdAt: "2026-11-02T09:00:00+00:00",
+      },
+    ],
+  });
+  const user = userEvent.setup();
+  render(view(newClient()));
+  const files = screen
+    .getByRole("group", { name: "How to add a file" })
+    .closest("section")!;
+  expect(files).toHaveTextContent(
+    /spec\.docx\s*Local path.*evidence\.txt\s*Attached copy · 14 B/,
+  );
+  expect(files).not.toHaveTextContent("old.txt");
+  await user.click(within(files).getByRole("button", { name: "Copy path" }));
+  expect(await navigator.clipboard.readText()).toBe("C:\\Projects\\spec.docx");
 });
 it("files no tickets for archived work", () => {
   state.item = item({ archived: true });
