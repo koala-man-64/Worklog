@@ -1,6 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useData } from "./hooks";
+import { contextStorageKey } from "./api";
+import { useCollapsed, useData } from "./hooks";
 import { Empty, ErrorMessage, Markdown } from "./components";
+import { Icon } from "./icons";
+import { localStore } from "./storage";
 import type {
   ChatMessage,
   ChatOverview,
@@ -86,16 +89,206 @@ function activity(summary: { state: string; lastActivityAt: string | null }) {
     : "Idle" + (when ? ", last active " + when : "");
 }
 
+/** How finely the list shows activity: each chat, or chats gathered under their records. */
+type Level = "chat" | "item" | "roadmap";
+const LEVELS: [Level, string][] = [
+  ["chat", "Chat"],
+  ["item", "Work item"],
+  ["roadmap", "Roadmap"],
+];
+/** The chats in a group and everything within it. */
+type Tally = {
+  total: number;
+  working: number;
+  found: number;
+  lastActivityAt: string | null;
+};
+/** A roadmap or work item with the chats tracked on it and, for a roadmap, the records within it. */
+export type ChatGroup = {
+  key: string;
+  kind: "roadmap" | "item" | "loose";
+  id: string;
+  title: string;
+  archived: boolean;
+  // Work item level: the roadmaps a group's record sits within.
+  within: string[];
+  groups: ChatGroup[];
+  chats: ChatOverview[];
+  tally: Tally;
+};
+const KINDS = { roadmap: "Roadmap", item: "Work item", loose: "" };
+// Sub-roadmaps come before work items, and work items off every roadmap come last.
+const RANK = { roadmap: 0, item: 1, loose: 2 };
+
+/**
+ * Gathers chats under the records they are tracked on. At the work item level each
+ * record is one group; at the roadmap level work items and sub-roadmaps sit inside
+ * their roadmaps, and work items on no roadmap share one group at the end.
+ */
+export function groupChats(
+  chats: ChatOverview[],
+  level: "item" | "roadmap",
+): ChatGroup[] {
+  const top: ChatGroup[] = [];
+  const known = new Map<string, ChatGroup>();
+  const group = (
+    siblings: ChatGroup[],
+    kind: ChatGroup["kind"],
+    record: { id: string; title: string; archived: boolean },
+    within: string[] = [],
+  ) => {
+    const key = `${level}:${kind}:${record.id}`;
+    let found = known.get(key);
+    if (!found) {
+      found = {
+        key,
+        kind,
+        ...record,
+        within,
+        groups: [],
+        chats: [],
+        tally: { total: 0, working: 0, found: 0, lastActivityAt: null },
+      };
+      known.set(key, found);
+      siblings.push(found);
+    }
+    return found;
+  };
+  for (const chat of chats) {
+    const owner = {
+      id: chat.owner.id,
+      title: chat.owner.title || "Untitled",
+      archived: chat.owner.archived,
+    };
+    const roadmaps =
+      chat.ownerType === "roadmap" && !chat.roadmaps.length
+        ? [owner]
+        : chat.roadmaps.map((r) => ({ ...r, title: r.title || "Untitled" }));
+    if (level === "item") {
+      const kind = chat.ownerType === "roadmap" ? "roadmap" : "item";
+      const above = kind === "roadmap" ? roadmaps.slice(0, -1) : roadmaps;
+      group(
+        top,
+        kind,
+        owner,
+        above.map((r) => r.title),
+      ).chats.push(chat);
+      continue;
+    }
+    let siblings = top;
+    let parent: ChatGroup | undefined;
+    for (const r of roadmaps) {
+      parent = group(siblings, "roadmap", r);
+      siblings = parent.groups;
+    }
+    if (chat.ownerType === "roadmap" && parent) parent.chats.push(chat);
+    else {
+      if (!parent) {
+        parent = group(top, "loose", {
+          id: "",
+          title: "Not on a roadmap",
+          archived: false,
+        });
+        siblings = parent.groups;
+      }
+      group(siblings, "item", owner).chats.push(chat);
+    }
+  }
+  return finish(top, level === "roadmap");
+}
+function finish(groups: ChatGroup[], ranked: boolean): ChatGroup[] {
+  for (const g of groups) {
+    g.chats.sort(byActivity);
+    finish(g.groups, ranked);
+    g.tally = [
+      ...g.chats.map((c) => ({
+        total: 1,
+        working: c.transcript.state === "working" ? 1 : 0,
+        found: c.transcript.found ? 1 : 0,
+        lastActivityAt: c.transcript.lastActivityAt,
+      })),
+      ...g.groups.map((child) => child.tally),
+    ].reduce((sum, t) => ({
+      total: sum.total + t.total,
+      working: sum.working + t.working,
+      found: sum.found + t.found,
+      lastActivityAt:
+        (t.lastActivityAt ?? "") > (sum.lastActivityAt ?? "")
+          ? t.lastActivityAt
+          : sum.lastActivityAt,
+    }));
+  }
+  /** Groups with working chats first, then the most recently active. */
+  return groups.sort(
+    (a, b) =>
+      (ranked ? RANK[a.kind] - RANK[b.kind] : 0) ||
+      Number(b.tally.working > 0) - Number(a.tally.working > 0) ||
+      (b.tally.lastActivityAt ?? "").localeCompare(
+        a.tally.lastActivityAt ?? "",
+      ) ||
+      a.title.localeCompare(b.title),
+  );
+}
+function everyKey(groups: ChatGroup[]): string[] {
+  return groups.flatMap((g) => [g.key, ...everyKey(g.groups)]);
+}
+/** The groups that hold a chat, outermost first. */
+function holding(groups: ChatGroup[], chatId: string): string[] {
+  for (const g of groups) {
+    if (g.chats.some((c) => c.id === chatId)) return [g.key];
+    const below = holding(g.groups, chatId);
+    if (below.length) return [g.key, ...below];
+  }
+  return [];
+}
+export function tallyText(t: Tally) {
+  const when = ago(t.lastActivityAt);
+  if (t.working)
+    return (
+      (t.total === 1 ? "1 chat" : `${t.working} of ${t.total} chats`) +
+      " working" +
+      (when ? ", active " + when : "")
+    );
+  return (
+    (t.total === 1 ? "1 chat" : `${t.total} chats`) +
+    (when
+      ? ", last active " + when
+      : t.found
+        ? ""
+        : t.total === 1
+          ? ", no transcript on this machine"
+          : ", no transcripts on this machine")
+  );
+}
+
 export function Chats({ selected }: { selected?: string }) {
   const [archived, setArchived] = useState(false);
+  const levelKey = contextStorageKey("chats-level", "list");
+  const [level, setLevel] = useState<Level>(() => {
+    const stored = localStore.read(levelKey).value;
+    return LEVELS.find(([l]) => l === stored)?.[0] ?? "chat";
+  });
+  const { collapsed, toggle, reveal, setClosed } = useCollapsed(
+    contextStorageKey("chats-collapsed", "list"),
+  );
+  const [revealed, setRevealed] = useState<string>();
   const list = useData<List<ChatOverview>>(
     `/chats?archived=${archived}`,
     LIST_REFRESH_MS,
   );
   const chats = [...(list.data?.items ?? [])].sort(byActivity);
+  const groups = level === "chat" ? [] : groupChats(chats, level);
+  const keys = everyKey(groups);
   // With nothing chosen, the most recently active chat opens.
   const current =
     chats.find((c) => c.id === selected) ?? (selected ? undefined : chats[0]);
+  // A chat opened from elsewhere shows in the list: expand the groups that hold it once.
+  const shown = selected && `${level}:${selected}`;
+  if (list.data && shown !== revealed) {
+    setRevealed(shown);
+    const holders = selected ? holding(groups, selected) : [];
+    if (holders.some((k) => collapsed.has(k))) reveal(holders);
+  }
   return (
     <div className="bounded-screen">
       <header>
@@ -123,6 +316,47 @@ export function Chats({ selected }: { selected?: string }) {
               Show archive
             </label>
           </div>
+          <div className="chat-filters">
+            <div
+              className="thread-filter"
+              role="group"
+              aria-label="Show activity by"
+            >
+              {LEVELS.map(([value, label]) => (
+                <button
+                  type="button"
+                  key={value}
+                  aria-pressed={level === value}
+                  onClick={() => {
+                    setLevel(value);
+                    localStore.write(levelKey, value);
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {keys.length > 0 && (
+              <div className="toolbar compact">
+                <button
+                  type="button"
+                  className="quiet"
+                  disabled={!keys.some((k) => collapsed.has(k))}
+                  onClick={() => setClosed(keys, false)}
+                >
+                  Expand all
+                </button>
+                <button
+                  type="button"
+                  className="quiet"
+                  disabled={keys.every((k) => collapsed.has(k))}
+                  onClick={() => setClosed(keys, true)}
+                >
+                  Collapse all
+                </button>
+              </div>
+            )}
+          </div>
           <div className="panel-body">
             {list.isPending ? (
               <p>Loading chats…</p>
@@ -132,13 +366,25 @@ export function Chats({ selected }: { selected?: string }) {
                   ? "No archived chats."
                   : "Track an agent chat on a roadmap or work item with its Claude Code or Codex chat ID to follow it here."}
               </Empty>
-            ) : (
+            ) : level === "chat" ? (
               <ul className="chat-list">
                 {chats.map((c) => (
                   <ChatListItem
                     key={c.id}
                     chat={c}
                     current={c.id === current?.id}
+                  />
+                ))}
+              </ul>
+            ) : (
+              <ul className="chat-list">
+                {groups.map((g) => (
+                  <GroupItem
+                    key={g.key}
+                    group={g}
+                    collapsed={collapsed}
+                    toggle={toggle}
+                    current={current?.id}
                   />
                 ))}
               </ul>
@@ -157,12 +403,95 @@ export function Chats({ selected }: { selected?: string }) {
   );
 }
 
+function GroupItem({
+  group,
+  collapsed,
+  toggle,
+  current,
+}: {
+  group: ChatGroup;
+  collapsed: Set<string>;
+  toggle: (key: string) => void;
+  current?: string;
+}) {
+  const { tally } = group;
+  const closed = collapsed.has(group.key);
+  const kind = KINDS[group.kind];
+  const href =
+    group.kind === "roadmap"
+      ? "#roadmaps/" + group.id
+      : group.kind === "item"
+        ? "#work/" + group.id
+        : undefined;
+  return (
+    <li className="chat-group">
+      <div className="chat-group-head">
+        <StateDot
+          state={tally.working ? "working" : tally.found ? "idle" : "missing"}
+        />
+        <span className="chat-link-text">
+          {href ? (
+            <a href={href}>{group.title}</a>
+          ) : (
+            <strong>{group.title}</strong>
+          )}
+          <small>
+            {[
+              kind &&
+                (group.archived ? "Archived " + kind.toLowerCase() : kind) +
+                  (group.within.length
+                    ? " in " + group.within.join(" › ")
+                    : ""),
+              tallyText(tally),
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </small>
+        </span>
+        <button
+          type="button"
+          className="tree-toggle"
+          aria-expanded={!closed}
+          aria-label={(closed ? "Expand " : "Collapse ") + group.title}
+          onClick={() => toggle(group.key)}
+        >
+          <Icon name={closed ? "expand" : "collapse"} size={14} />
+        </button>
+      </div>
+      {!closed && (
+        <ul className="chat-list" aria-label={"Chats in " + group.title}>
+          {group.groups.map((g) => (
+            <GroupItem
+              key={g.key}
+              group={g}
+              collapsed={collapsed}
+              toggle={toggle}
+              current={current}
+            />
+          ))}
+          {group.chats.map((c) => (
+            <ChatListItem
+              key={c.id}
+              chat={c}
+              current={c.id === current}
+              grouped
+            />
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+}
+
 function ChatListItem({
   chat,
   current,
+  grouped = false,
 }: {
   chat: ChatOverview;
   current: boolean;
+  // Under its record's group the chat need not name that record again.
+  grouped?: boolean;
 }) {
   const { transcript, owner } = chat;
   const agents = transcript.threads.filter((t) => t.parent);
@@ -186,13 +515,17 @@ function ChatListItem({
           </small>
         </span>
       </a>
-      <div className="chat-row chat-meta">
-        {agent && <span className="person-badge">{agent}</span>}
-        <small>
-          {owner.type === "roadmap" ? "Roadmap" : "Work item"}{" "}
-          <a href={ownerHref}>{owner.title || "Untitled"}</a>
-        </small>
-      </div>
+      {(agent || !grouped) && (
+        <div className="chat-row chat-meta">
+          {agent && <span className="person-badge">{agent}</span>}
+          {!grouped && (
+            <small>
+              {owner.type === "roadmap" ? "Roadmap" : "Work item"}{" "}
+              <a href={ownerHref}>{owner.title || "Untitled"}</a>
+            </small>
+          )}
+        </div>
+      )}
       {chat.steps.length > 0 && (
         <div className="chat-row chat-meta">
           <small>Working on</small>

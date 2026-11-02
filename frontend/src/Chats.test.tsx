@@ -1,13 +1,22 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setDataContext } from "./api";
-import { Chats, ago } from "./Chats";
+import { Chats, ago, tallyText } from "./Chats";
 import type { ChatOverview, ChatThread, Transcript } from "./types";
 
 const ROADMAP_ID = "22222222-2222-4222-8222-222222222222";
+const API_ID = "33333333-3333-4333-8333-333333333333";
 const ITEM_ID = "11111111-1111-4111-8111-111111111111";
+const TOKEN_ID = "44444444-4444-4444-8444-444444444444";
+const PLATFORM = { id: ROADMAP_ID, title: "Platform", archived: false };
 const minutesAgo = (n: number) =>
   new Date(Date.now() - n * 60_000).toISOString();
 
@@ -52,6 +61,7 @@ function overview(
       title: "Platform",
       archived: false,
     },
+    roadmaps: [PLATFORM],
     steps: [],
     transcript: {
       found: true,
@@ -79,6 +89,26 @@ const docs = overview("docs", "Write the docs", {
   provider: "Anthropic",
   model: "claude-opus-5-5",
   owner: { type: "item", id: ITEM_ID, title: "Docs refresh", archived: false },
+  roadmaps: [],
+});
+// A work item on the API roadmap, which sits within Platform.
+const token = overview("token", "Refresh tokens", {
+  ownerType: "item",
+  ownerId: TOKEN_ID,
+  owner: {
+    type: "item",
+    id: TOKEN_ID,
+    title: "Token refresh",
+    archived: false,
+  },
+  roadmaps: [PLATFORM, { id: API_ID, title: "API", archived: false }],
+  transcript: {
+    found: true,
+    source: "claude",
+    lastActivityAt: minutesAgo(30),
+    state: "idle",
+    threads: [],
+  },
 });
 const lost = overview("lost", "Old chat", {
   transcript: {
@@ -149,6 +179,7 @@ function serve(
     url.includes("/transcript")
       ? transcript()
       : { items: [docs, lost, release] },
+  selected?: string,
 ) {
   const urls: string[] = [];
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
@@ -162,7 +193,7 @@ function serve(
         new QueryClient({ defaultOptions: { queries: { retry: false } } })
       }
     >
-      <Chats />
+      <Chats selected={selected} />
     </QueryClientProvider>,
   );
   return urls;
@@ -338,4 +369,139 @@ it("pages back no further than the server returns, then says what is not shown",
     .filter((u) => u.includes("/transcript"))
     .map((u) => Number(new URL(u, "http://local").searchParams.get("limit")));
   expect(Math.max(...limits)).toBe(2000);
+});
+
+const everyone = (url: string) =>
+  url.includes("/transcript")
+    ? transcript()
+    : { items: [docs, lost, release, token] };
+const header = (list: HTMLElement) =>
+  list.parentElement!.querySelector(".chat-group-head")!;
+
+it("gathers chats under their roadmaps and work items with activity at each level", async () => {
+  serve(everyone);
+  await userEvent.click(await screen.findByRole("button", { name: "Roadmap" }));
+  const platform = await screen.findByRole("list", {
+    name: "Chats in Platform",
+  });
+  expect(header(platform)).toHaveTextContent(
+    "Roadmap · 1 of 3 chats working, active 2 minutes ago",
+  );
+  // A sub-roadmap and its work items come before the roadmap's own chats.
+  const inPlatform = [...platform.children].map(
+    (li) => li.querySelector("a")?.textContent,
+  );
+  expect(inPlatform[0]).toBe("API");
+  expect(
+    inPlatform.slice(1).map((t) => t?.split(/Working|Idle|No /)[0]),
+  ).toEqual(["Release review", "Old chat"]);
+  const api = screen.getByRole("list", { name: "Chats in API" });
+  expect(header(api)).toHaveTextContent(
+    "Roadmap · 1 chat, last active 30 minutes ago",
+  );
+  expect(
+    within(
+      screen.getByRole("list", { name: "Chats in Token refresh" }),
+    ).getByRole("link", { name: /Refresh tokens/ }),
+  ).toHaveAttribute("href", "#chats/token");
+  const loose = screen.getByRole("list", { name: "Chats in Not on a roadmap" });
+  expect(header(loose)).toHaveTextContent(
+    /^Not on a roadmap1 chat, last active/,
+  );
+  expect(
+    within(loose).getByRole("link", { name: "Docs refresh" }),
+  ).toHaveAttribute("href", "#work/" + ITEM_ID);
+  // Under its group a chat does not name its record again.
+  expect(screen.getAllByRole("link", { name: "Platform" })).toHaveLength(1);
+
+  // Collapsed, a group keeps its summary and hides what is inside it.
+  await userEvent.click(
+    screen.getByRole("button", { name: "Collapse Platform" }),
+  );
+  expect(screen.queryByRole("list", { name: "Chats in Platform" })).toBeNull();
+  expect(
+    screen.getByRole("button", { name: "Expand Platform" }),
+  ).toHaveAttribute("aria-expanded", "false");
+  expect(screen.getByText(/1 of 3 chats working/)).toBeInTheDocument();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Expand Platform" }),
+  );
+  expect(screen.getByRole("button", { name: "Expand all" })).toBeDisabled();
+  await userEvent.click(screen.getByRole("button", { name: "Collapse all" }));
+  expect(screen.queryByRole("list", { name: /^Chats in/ })).toBeNull();
+  expect(screen.getByRole("button", { name: "Collapse all" })).toBeDisabled();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Expand Platform" }),
+  );
+  // Opening a roadmap shows what is within it, still summed up.
+  expect(
+    screen.getByRole("button", { name: "Expand API" }),
+  ).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Expand all" }));
+  expect(screen.getAllByRole("list", { name: /^Chats in/ })).toHaveLength(5);
+});
+
+it("shows activity by work item, keeping the chosen level", async () => {
+  serve(everyone);
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Work item" }),
+  );
+  const heads = [
+    ...screen
+      .getByRole("region", { name: "Who is working on what" })
+      .querySelectorAll(".chat-group-head"),
+  ].map((h) => h.textContent);
+  expect(heads[0]).toBe(
+    "PlatformRoadmap · 1 of 2 chats working, active 2 minutes ago",
+  );
+  expect(heads[1]).toBe(
+    "Token refreshWork item in Platform › API · 1 chat, last active 30 minutes ago",
+  );
+  expect(heads[2]).toMatch(/^Docs refreshWork item · 1 chat, last active/);
+  expect(heads).toHaveLength(3);
+
+  cleanup();
+  serve(everyone);
+  expect(
+    await screen.findByRole("button", { name: "Work item" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  expect(
+    await screen.findByRole("list", { name: "Chats in Token refresh" }),
+  ).toBeInTheDocument();
+});
+
+it("opens the groups that hold a chat opened from elsewhere", async () => {
+  serve(everyone);
+  await userEvent.click(await screen.findByRole("button", { name: "Roadmap" }));
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Collapse all" }),
+  );
+  cleanup();
+  serve(everyone, "token");
+  const item = await screen.findByRole("list", {
+    name: "Chats in Token refresh",
+  });
+  expect(
+    within(item).getByRole("link", { name: /Refresh tokens/ }),
+  ).toHaveAttribute("aria-current", "true");
+  // Groups that do not hold it stay as they were.
+  expect(
+    screen.queryByRole("list", { name: "Chats in Not on a roadmap" }),
+  ).toBeNull();
+});
+
+it("sums up a group's chats in words", () => {
+  const now = new Date().toISOString();
+  const tally = (
+    total: number,
+    working: number,
+    found: number,
+    at: string | null,
+  ) => tallyText({ total, working, found, lastActivityAt: at });
+  expect(tally(1, 1, 1, now)).toBe("1 chat working, active just now");
+  expect(tally(4, 2, 4, now)).toBe("2 of 4 chats working, active just now");
+  expect(tally(3, 0, 3, now)).toBe("3 chats, last active just now");
+  expect(tally(2, 0, 2, null)).toBe("2 chats");
+  expect(tally(1, 0, 0, null)).toBe("1 chat, no transcript on this machine");
+  expect(tally(3, 0, 0, null)).toBe("3 chats, no transcripts on this machine");
 });

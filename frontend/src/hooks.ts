@@ -62,6 +62,16 @@ export function useCollapsed(key: string) {
     },
     reveal: (ids: string[]) =>
       setCollapsed(new Set([...collapsed].filter((c) => !ids.includes(c)))),
+    /** Collapses or expands all of these nodes at once. */
+    setClosed: (ids: string[], closed: boolean) => {
+      const next = new Set(collapsed);
+      for (const id of ids) {
+        if (closed) next.add(id);
+        else next.delete(id);
+      }
+      setCollapsed(next);
+      localStore.write(key, JSON.stringify([...next]));
+    },
   };
 }
 /** A panel width the person dragged to, remembered in this browser; null keeps the layout's own width. */
