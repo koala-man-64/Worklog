@@ -572,6 +572,94 @@ test("the sidebar and plan outline resize by drag and keep their widths", async 
     ),
   ).toBeTruthy();
 });
+test("every page spends the whole window beside the sidebar", async ({
+  page,
+  baseURL,
+}) => {
+  const origin = new URL(baseURL!).origin;
+  await page.setViewportSize({ width: 2200, height: 900 });
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Today", exact: true }),
+  ).toBeVisible();
+  const pages = {
+    today: "Today",
+    work: "Work",
+    tickets: "Tickets",
+    roadmaps: "Roadmaps",
+    repositories: "Repositories",
+    people: "People",
+    agents: "Agents",
+    quota: "Quota Burndown",
+    chats: "Chats",
+    discussions: "Discussions",
+    review: "Review",
+    settings: "Settings",
+  };
+  for (const [route, heading] of Object.entries(pages)) {
+    await page.goto("/#" + route);
+    await expect(
+      page.getByRole("heading", { level: 1, name: heading, exact: true }),
+    ).toBeVisible();
+    // main fills the workspace, and the top bar's ends line up with the page's.
+    const edges = await page.evaluate(() => {
+      const box = (selector: string) =>
+        document.querySelector(selector)!.getBoundingClientRect();
+      const main = document.querySelector("main")!;
+      const style = getComputedStyle(main);
+      return {
+        main: box("main").width,
+        workspace: box(".workspace").width,
+        barStart: box(".topbar > span").left,
+        pageStart:
+          main.getBoundingClientRect().left + parseFloat(style.paddingLeft),
+        barEnd: box(".search").right,
+        pageEnd:
+          main.getBoundingClientRect().right - parseFloat(style.paddingRight),
+      };
+    });
+    expect(edges.main, route).toBe(edges.workspace);
+    expect(edges.barStart, route).toBeCloseTo(edges.pageStart, 0);
+    expect(edges.barEnd, route).toBeCloseTo(edges.pageEnd, 0);
+  }
+  // A roadmap's overview runs the width of its pane.
+  const boot = await page.request.post("/api/v1/session/bootstrap", {
+    headers: { Origin: origin, "X-Worklog-Bootstrap": "1" },
+    data: {},
+  });
+  const { csrfToken } = await boot.json();
+  const created = await page.request.post("/api/v1/roadmaps", {
+    headers: {
+      Origin: origin,
+      "X-CSRF-Token": csrfToken,
+      "Idempotency-Key": crypto.randomUUID(),
+    },
+    data: {
+      title: "Full width " + Date.now(),
+      overview: "Ship the plan across the whole pane. ".repeat(40),
+      steps: [{ title: "Only step" }],
+    },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { id } = await created.json();
+  await page.goto("/#roadmaps/" + id);
+  const overview = page
+    .getByRole("region", { name: "Roadmap details" })
+    .locator(":scope > .markdown");
+  await expect(overview).toBeVisible();
+  const fit = await overview.evaluate((markdown) => {
+    const pane = markdown.parentElement!;
+    const style = getComputedStyle(pane);
+    return {
+      text: markdown.getBoundingClientRect().width,
+      pane:
+        pane.clientWidth -
+        parseFloat(style.paddingLeft) -
+        parseFloat(style.paddingRight),
+    };
+  });
+  expect(fit.text).toBeCloseTo(fit.pane, 0);
+});
 test("a roadmap's questions are answered and its decisions recorded", async ({
   page,
   baseURL,
