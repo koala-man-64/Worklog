@@ -1,6 +1,6 @@
 # Worklog
 
-Worklog is a personal workbench that runs entirely on your own machine. It keeps your daily plan and what you actually did, a backlog of work with its notes and files, structured roadmaps, and the people involved. It is also where you coordinate the AI coding agents you work with: they report what they are doing, talk with you and each other, and propose changes that you approve before anything in your records changes.
+Worklog is a personal workbench that runs entirely on your own machine. It keeps your daily plan and what you actually did, a backlog of work with its notes and files, structured roadmaps, and the people involved. It is also where you coordinate the AI coding agents you work with: they report what they are doing, talk with you and each other, and propose changes that you approve before anything in your records changes, unless you turn approval off.
 
 Worklog runs at **http://127.0.0.1:8877** from one local SQLite database. No hosted service or internet connection is needed once it is installed.
 
@@ -11,7 +11,7 @@ Worklog runs at **http://127.0.0.1:8877** from one local SQLite database. No hos
 - **Track issues as tickets.** You and your agents file tickets for bugs, incidents and tasks, work them with a status, assignee and comments, and close them with a resolution. Closed tickets stay searchable, so the next agent finds what fixed an issue last time.
 - **Plan bigger efforts as roadmaps.** Roadmaps nest under each other and hold step trees with progress, immutable versions, questions and decisions. An HTML plan can be imported as steps.
 - **Know who is involved.** A people directory ties owners, collaborators and stakeholders to roadmaps and work items, each with a role.
-- **Work with AI agents under your control.** Claude Code, Codex, or any agent you give a credential can read your context, report what it is working on and where, talk with you and other agents, take and hand off responsibilities, file and close tickets, receive the messages you write into its chat, and propose changes that only you can approve.
+- **Work with AI agents under your control.** Claude Code, Codex, or any agent you give a credential can read your context, report what it is working on and where, talk with you and other agents, take and hand off responsibilities, file and close tickets, receive the messages you write into its chat, and propose changes that only you can approve, unless you turn approval off.
 - **See who is working on what.** Chats shows the conversations Claude Code and Codex keep for the chats you track, Agents gathers each agent's runs and ties, and Repositories shows reported activity per repository.
 - **Keep it safe and portable.** Automatic and manual backups, a readable ZIP export, and an offline restore that preserves your current data first.
 
@@ -184,11 +184,13 @@ Every agent identity appears on **Agents** once its credential is issued in Sett
 - **What a proposal shows.** The agent's rationale, each change's current and proposed values, a warning when a target changed after the agent proposed it, and the agent's evidence files.
 - **Your decision.** "Approve proposal" applies every change in one step, or nothing if any target changed in the meantime. "Reject proposal" closes it.
 - **Who does what.** Only you can approve or reject. Agents create, edit, submit and withdraw proposals through the CLI.
+- **Approval off.** When you turn approval off in Settings, a proposal is applied as soon as its agent submits it, all or nothing as above, and shows as "approved automatically". If a change cannot apply, the submit is refused and the proposal stays the agent's draft. Review says when approval is off, and proposals already waiting still need your decision.
 
 ### Settings
 
 - **Timezone** decides what "today" is, which items count as backlog, and the dates of daily backups. **Appearance** follows the system or stays light or dark.
 - **Storage** shows the database and backup sizes with any warnings, "Create backup" and the backup list, and "Export everything (.zip)". Restore is an offline command; see [Backup, export, restore, and upgrade](#backup-export-restore-and-upgrade).
+- **Agent proposals.** "Require my approval for agent proposals" is on by default. Clear it to have each proposal applied as soon as its agent submits it; see [Review](#review). Only you can change it.
 - **Agent credentials.** Create one with a label and an avatar; its token is shown once.
   - "Rotate token" ("Replace token" for a revoked credential) issues a new token that keeps the agent's identity, and ends the runs of the tokens it replaces.
   - "Revoke" ends a credential's access and its runs.
@@ -274,7 +276,7 @@ Use the returned UUID and current revision. A draft file is a JSON object; `--fi
 }
 ```
 
-Existing-target operations carry the target's current `revision` in their payload. A stale revision returns a conflict rather than overwriting newer edits. Evidence can be uploaded only to the owning agent's draft proposal. Agents can read context, search, roadmaps and steps, and create, edit, submit, inspect, or withdraw proposals; they cannot directly change canonical work or approve proposals. Review submitted operations and evidence in the browser, then approve or reject there. Approval applies all operations atomically; a conflict applies none. See [docs/API.md](docs/API.md) for the operation contract.
+Existing-target operations carry the target's current `revision` in their payload. A stale revision returns a conflict rather than overwriting newer edits. Evidence can be uploaded only to the owning agent's draft proposal. Agents can read context, search, roadmaps and steps, and create, edit, submit, inspect, or withdraw proposals; they cannot directly change canonical work or approve proposals. Review submitted operations and evidence in the browser, then approve or reject there. Approval applies all operations atomically; a conflict applies none. If the person turned approval off, `submit` applies the proposal at once and returns it `approved` with `autoApproved: true`; a conflict or invalid change refuses the submit and applies nothing, and the draft stays yours to fix and submit again. See [docs/API.md](docs/API.md) for the operation contract.
 
 ### Report runs and repository work
 
@@ -349,7 +351,7 @@ Settings provides manual backup and portable export. CLI equivalents:
 
 Choose an actual filename from `backups`; `EXAMPLE` is a placeholder. Backups use SQLite's online backup API, which takes a consistent snapshot while the database is in use. The database uses SQLite's rollback journal, not WAL. A temporary snapshot is validated before atomic publication. An automatic backup runs at startup and once each configured calendar day while the managed server remains running (checked every minute); set `WORKLOG_AUTO_BACKUP=0` to turn automatic backups off. Daily backups retain the most recent **14**, pre-migration backups retain **3**, and manual and pre-restore backups are not automatically pruned. A portable ZIP contains readable Markdown, table records as JSON, every binary attachment/import blob, and a manifest with SHA-256 hashes. Agent credential hashes are redacted from exports. Exported `imports/*.html` files are the original untrusted HTML: inspect them as text and never open them in a browser. Export is an interchange/archive format; restore takes a SQLite backup, not the ZIP. CLI export refuses to overwrite an existing file.
 
-Restore is offline: it acquires the server's exclusive OS lock, reads the candidate without modifying it, checks SQLite integrity, foreign keys, supported schema version, all required tables, and the exact trusted schema definitions (including constraints and indexes), stages a separate replacement, revokes all restored agent credentials, and snapshots the current database before an atomic replacement. Extra triggers or altered definitions are rejected. A corrupt or incompatible candidate leaves the active database intact. An active managed server or busy SQLite writer blocks restore. After restore, issue new agent credentials in Settings. Never replace a running SQLite file by copying it or deleting its journal sidecar.
+Restore is offline: it acquires the server's exclusive OS lock, reads the candidate without modifying it, checks SQLite integrity, foreign keys, supported schema version, all required tables, and the exact trusted schema definitions (including constraints and indexes), stages a separate replacement, revokes all restored agent credentials, and snapshots the current database before an atomic replacement. Extra triggers or altered definitions are rejected. A corrupt or incompatible candidate leaves the active database intact. An active managed server or busy SQLite writer blocks restore. After restore, issue new agent credentials in Settings. The backup's settings come back with it, including whether agent proposals need your approval, so check that choice there too. Never replace a running SQLite file by copying it or deleting its journal sidecar.
 
 A damaged active database does not prevent recovery from a valid backup. Before probing or replacing it, offline restore preserves the original main file and any WAL, SHM, or journal sidecars byte-for-byte in a hashed `worklog-pre-restore-raw-*.zip` evidence archive. A healthy original also receives a normal SQLite pre-restore backup. Raw evidence is not itself a valid SQLite restore candidate; retain it for investigation. Sidecars are moved aside only during final replacement and restored if replacement fails. These evidence archives are not automatically pruned.
 

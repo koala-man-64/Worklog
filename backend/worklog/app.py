@@ -44,7 +44,7 @@ from .db import Database
 from .discussion_api import agent_route_allowed, install_discussion_routes
 from .discussions import bind_credential, communication_actor
 from .plans import PlanService
-from .proposals import ProposalService
+from .proposals import ProposalService, approval_required
 from .recovery import automatic_backup, backup_database, export_database, list_backups
 from .registration import (
     active_registrations,
@@ -688,6 +688,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def settings() -> dict:
         with db.read() as c:
             tz = setting(c, "timezone", "America/Chicago")
+            require_approval = approval_required(c)
             rows = c.execute("SELECT c.id,c.label,c.created_at,c.revoked,b.agent_id FROM credentials c LEFT JOIN communication_credentials b ON b.credential_id=c.id").fetchall()
             sponsors = registered_by(c, [r["id"] for r in rows])
             registered = active_registrations(c, [r["agent_id"] for r in rows if r["agent_id"]])
@@ -696,20 +697,29 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             agents = [{"id": r["id"], "label": r["label"], "avatar": r["avatar"]} for r in c.execute("SELECT id,label,avatar FROM communication_agents ORDER BY label,id")]
         backups = list_backups(directory / "backups")
         size = db.path.stat().st_size
-        return {"timezone": tz, "today": today(tz), "version": __version__, "credentials": creds, "agents": agents,
+        return {"timezone": tz, "today": today(tz), "version": __version__, "requireProposalApproval": require_approval,
+                "credentials": creds, "agents": agents,
                 "backups": backups, "storage": {"databaseBytes": size, "backupBytes": sum(b.get("size", 0) for b in backups),
                                                  "warning": app.state.backup_error or ("Primary data exceeds 2 GB; review retained files and backup capacity" if size > 2_000_000_000 else None)}}
 
     @app.patch("/api/v1/settings")
     def settings_update(request: Request, body: m.SettingsUpdate) -> dict:
-        try:
-            ZoneInfo(body.timezone)
-        except (ZoneInfoNotFoundError, ValueError):
-            raise AppError(422, "timezone", "Choose a valid IANA timezone") from None
+        if body.timezone is not None:
+            try:
+                ZoneInfo(body.timezone)
+            except (ZoneInfoNotFoundError, ValueError):
+                raise AppError(422, "timezone", "Choose a valid IANA timezone") from None
         with db.transaction() as c:
-            before = setting(c, "timezone")
-            c.execute("UPDATE settings SET value=? WHERE key='timezone'", (json.dumps(body.timezone),))
-            event(c, request.state.actor, "settings.timezone", "settings", before, body.timezone)
+            if body.timezone is not None:
+                before = setting(c, "timezone")
+                c.execute("UPDATE settings SET value=? WHERE key='timezone'", (json.dumps(body.timezone),))
+                event(c, request.state.actor, "settings.timezone", "settings", before, body.timezone)
+            if body.requireProposalApproval is not None:
+                # Agents never reach this route, so only the person can let their proposals skip review.
+                was = approval_required(c)
+                c.execute("INSERT INTO settings VALUES('requireProposalApproval',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                          (json.dumps(body.requireProposalApproval),))
+                event(c, request.state.actor, "settings.requireProposalApproval", "settings", was, body.requireProposalApproval)
         return settings()
 
     @app.post("/api/v1/credentials")
@@ -810,7 +820,14 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         if verb not in {"submit", "withdraw", "approve", "reject"}:
             raise AppError(404, "not_found", "Unknown proposal command")
         p = body.model_dump()
-        return mutate(request, p, lambda c, a: proposals.transition(identity, verb, p, a, conn=c), required_key=verb == "approve")
+
+        def transition(c: sqlite3.Connection, actor: dict) -> dict:
+            if actor["kind"] == "agent":
+                # Middleware authentication precedes the write lock, and with approval off a submit
+                # applies the proposal, so a revoke that wins that race must stop it here.
+                communication_actor(c, actor)
+            return proposals.transition(identity, verb, p, actor, conn=c)
+        return mutate(request, p, transition, required_key=verb == "approve")
 
     install_coordination_routes(app, db, mutate)
     install_chat_message_routes(app, db, mutate)

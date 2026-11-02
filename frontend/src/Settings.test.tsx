@@ -12,6 +12,7 @@ const settings: SettingsData = {
   timezone: "America/Chicago",
   today: "2026-11-01",
   version: "test",
+  requireProposalApproval: true,
   storage: { databaseBytes: 0, backupBytes: 0, warning: null },
   backups: [],
   credentials: [
@@ -187,6 +188,58 @@ it("issues a credential with the suggested avatar or one the person picks", asyn
   await waitFor(() =>
     expect(posted).toEqual([{ label: "Reviewer", avatar: "pink-dots-ears" }]),
   );
+});
+
+it("turns proposal approval off and back on", async () => {
+  let current = settings;
+  const patches: unknown[] = [];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const path = new URL(String(input), "http://worklog.test").pathname;
+    if (init?.method === "PATCH") {
+      const body = JSON.parse(String(init.body));
+      patches.push(body);
+      current = { ...current, ...body };
+    }
+    return new Response(
+      JSON.stringify(path.endsWith("/discussions/avatars") ? catalog : current),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+  });
+  const user = userEvent.setup();
+  render(
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: {
+            queries: { retry: false },
+            mutations: { retry: false },
+          },
+        })
+      }
+    >
+      <Settings />
+    </QueryClientProvider>,
+  );
+  const approval = await screen.findByRole("checkbox", {
+    name: "Require my approval for agent proposals",
+  });
+  expect(approval).toBeChecked();
+  expect(screen.getByText(/waits in Review until you approve/)).toBeVisible();
+
+  await user.click(approval);
+  await waitFor(() => expect(approval).not.toBeChecked());
+  expect(patches).toEqual([{ requireProposalApproval: false }]);
+  expect(
+    screen.getByText(/applied as soon as its agent submits it/),
+  ).toBeVisible();
+
+  await waitFor(() => expect(approval).toBeEnabled());
+  await user.click(approval);
+  await waitFor(() => expect(approval).toBeChecked());
+  expect(patches).toEqual([
+    { requireProposalApproval: false },
+    { requireProposalApproval: true },
+  ]);
 });
 
 it("names the agent that registered a credential and what revoking takes with it", async () => {

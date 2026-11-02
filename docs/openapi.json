@@ -9188,15 +9188,30 @@
       "SettingsUpdate": {
         "properties": {
           "timezone": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Timezone"
+          },
+          "requireProposalApproval": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requireproposalapproval"
           }
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "timezone"
-        ],
         "title": "SettingsUpdate"
       },
       "Target": {

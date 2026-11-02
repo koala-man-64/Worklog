@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from worklog.common import AppError, event, require_revision
 from worklog.db import Database
@@ -39,6 +41,11 @@ def submit(proposals, proposal):
     return proposals.transition(proposal["id"], "submit", {"revision": proposal["revision"]}, AGENT)
 
 
+def store_approval_setting(proposals, value):
+    with proposals.db.transaction() as conn:
+        conn.execute("INSERT INTO settings VALUES('requireProposalApproval',?)", (value,))
+
+
 def test_human_only_approval_attribution_and_no_implicit_writes(proposals):
     proposal = draft(proposals)
     with proposals.db.read() as conn:
@@ -47,7 +54,7 @@ def test_human_only_approval_attribution_and_no_implicit_writes(proposals):
     with pytest.raises(AppError, match="Only a human"):
         proposals.transition(proposal["id"], "approve", {"revision": 2}, AGENT)
     result = proposals.transition(proposal["id"], "approve", {"revision": submitted["revision"]}, HUMAN)
-    assert result["status"] == "approved"
+    assert result["status"] == "approved" and result["autoApproved"] is False
     with proposals.db.read() as conn:
         assert conn.execute("SELECT title FROM test_targets").fetchone()[0] == "After"
         assert conn.execute("SELECT actor_kind FROM events WHERE kind='item.update'").fetchone()[0] == "agent"
@@ -84,6 +91,46 @@ def test_injected_failure_rolls_back_and_optional_connection(proposals):
             proposals.create({"title": "Rollback"}, AGENT, conn=conn)
             raise RuntimeError()
     assert proposals.list(HUMAN)["total"] == 1
+
+
+def test_with_approval_off_submitting_applies_and_records_an_automatic_approval(proposals):
+    store_approval_setting(proposals, "false")
+    result = submit(proposals, draft(proposals))
+    assert result["status"] == "approved" and result["autoApproved"] is True
+    assert proposals.detail(result["id"], OTHER) == result
+    assert proposals.list(OTHER, "approved")["items"] == [result]
+    with proposals.db.read() as conn:
+        assert conn.execute("SELECT title FROM test_targets").fetchone()[0] == "After"
+        # The change keeps its proposer; the approval names the person's setting, not the person.
+        assert [tuple(r) for r in conn.execute("SELECT kind,actor_id,actor_kind FROM events ORDER BY rowid")] == [
+            ("proposal.create", "agent", "agent"), ("proposal.submit", "agent", "agent"),
+            ("item.update", "agent", "agent"), ("proposal.approve", "automatic-approval", "human")]
+        approval = conn.execute("SELECT after_json FROM events WHERE kind='proposal.approve'").fetchone()[0]
+    assert json.loads(approval) == result
+
+
+def test_with_approval_off_a_failed_apply_leaves_the_draft_unsubmitted(proposals):
+    proposal = draft(proposals, [
+        {"action": "item.update", "payload": {"id": "target", "revision": 1, "title": "First"}},
+        {"action": "item.update", "payload": {"id": "target", "revision": 1, "title": "Stale"}},
+    ])
+    store_approval_setting(proposals, "false")
+    with pytest.raises(AppError) as error:
+        submit(proposals, proposal)
+    assert error.value.status == 409 and error.value.message.startswith("Not submitted: with approval off")
+    assert proposals.detail(proposal["id"], AGENT) == proposal
+    with proposals.db.read() as conn:
+        assert conn.execute("SELECT title,revision FROM test_targets").fetchone()[:] == ("Before", 1)
+        assert [r[0] for r in conn.execute("SELECT kind FROM events ORDER BY rowid")] == ["proposal.create"]
+    fixed = proposals.update(proposal["id"], {"revision": proposal["revision"], "operations": [
+        {"action": "item.update", "payload": {"id": "target", "revision": 1, "title": "After"}}]}, AGENT)
+    assert submit(proposals, fixed)["status"] == "approved"
+
+
+@pytest.mark.parametrize("stored", ["true", "0", "null", '"false"'])
+def test_only_an_explicit_false_turns_approval_off(proposals, stored):
+    store_approval_setting(proposals, stored)
+    assert submit(proposals, draft(proposals))["status"] == "submitted"
 
 
 def test_owned_draft_visibility_editing_and_uploads(proposals):

@@ -316,4 +316,6 @@ class CredentialRotate(Command):
 
 
 class SettingsUpdate(Command):
-    timezone: str
+    timezone: str | None = None
+    # False applies an agent's proposal as soon as it is submitted.
+    requireProposalApproval: StrictBool | None = None

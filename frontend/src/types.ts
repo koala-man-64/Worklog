@@ -254,6 +254,8 @@ export type Proposal = RecordBase & {
   title: string;
   rationale: string;
   status: string;
+  // Applied when its agent submitted it, because approval was off.
+  autoApproved: boolean;
   actorLabel: string;
   operations: Operation[];
   attachments: Attachment[];
@@ -262,6 +264,8 @@ export type Settings = {
   timezone: string;
   today: string;
   version: string;
+  // False applies an agent's proposal as soon as it is submitted.
+  requireProposalApproval: boolean;
   storage: {
     databaseBytes: number;
     backupBytes: number;

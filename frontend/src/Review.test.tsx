@@ -1,5 +1,6 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { OperationDiff, Review } from "./Review";
@@ -10,6 +11,7 @@ vi.mock("./api", async (importOriginal) => ({
 }));
 const requestMock = vi.mocked(request);
 const ID = "0f8fad5b-d9cb-469f-a165-70867728950e";
+const OTHER_ID = "5a6b7c8d-9e0f-4a1b-8c2d-3e4f5a6b7c8d";
 const CREATED_NOTE = /^An earlier change in this proposal creates this target/;
 function renderWithClient(ui: ReactNode) {
   render(
@@ -121,6 +123,72 @@ it("treats a missing step as new only when an earlier operation creates it", asy
   );
   expect(screen.getAllByText(CREATED_NOTE)).toHaveLength(1);
   expect(screen.getByText("open")).toBeInTheDocument();
+});
+it("says when approval is off and marks automatic approvals", async () => {
+  const proposal = (id: string, autoApproved: boolean) => ({
+    id,
+    title: autoApproved ? "Applied on submit" : "Approved in review",
+    rationale: "",
+    status: "approved",
+    autoApproved,
+    revision: 3,
+    actorLabel: "Parser agent",
+    operations: [],
+    attachments: [],
+  });
+  requestMock.mockImplementation(async (path: string) => {
+    if (path === "/settings") return { requireProposalApproval: false };
+    if (path === "/proposals?status=submitted") return { items: [], total: 0 };
+    if (path === "/proposals?status=approved")
+      return {
+        items: [proposal(ID, true), proposal(OTHER_ID, false)],
+        total: 2,
+      };
+    throw new ApiError(404, "Not found", "not_found");
+  });
+  renderWithClient(<Review />);
+  expect(await screen.findByText(/^Approval is off/)).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute(
+    "href",
+    "#settings",
+  );
+  await userEvent.selectOptions(
+    screen.getByRole("combobox", { name: "Proposal status" }),
+    "approved",
+  );
+  // A proposal the person approved keeps the plain status.
+  const badges = await screen.findAllByText(/^approved/, {
+    selector: ".badge",
+  });
+  expect(badges.map((badge) => badge.textContent)).toEqual([
+    "approved automatically",
+    "approved",
+  ]);
+});
+it("shows an automatic approval in a proposal's detail", async () => {
+  requestMock.mockImplementation(async (path: string) => {
+    if (path === `/proposals/${ID}`)
+      return {
+        id: ID,
+        title: "Applied on submit",
+        rationale: "",
+        status: "approved",
+        autoApproved: true,
+        revision: 3,
+        actorLabel: "Parser agent",
+        operations: [],
+        attachments: [],
+      };
+    if (path === "/settings") return { requireProposalApproval: true };
+    return { items: [], total: 0 };
+  });
+  renderWithClient(<Review selectedId={ID} />);
+  expect(
+    await screen.findByText(
+      "Proposed by Parser agent, approved automatically, revision 3",
+    ),
+  ).toBeInTheDocument();
+  expect(screen.queryByText(/^Approval is off/)).toBeNull();
 });
 it("still reports a failed lookup that is not a missing target", async () => {
   requestMock.mockRejectedValue(new ApiError(500, "Server error", "internal"));
