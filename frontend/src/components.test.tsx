@@ -3,7 +3,7 @@ import { expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { DraftField, Markdown, ResizeHandle } from "./components";
+import { DraftField, Files, Markdown, ResizeHandle } from "./components";
 import { setDataContext } from "./api";
 import { useStoredWidth } from "./hooks";
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -17,6 +17,17 @@ function wrapper({ children }: { children: React.ReactNode }) {
     </QueryClientProvider>
   );
 }
+it("offers only an attached copy where local paths are not kept", () => {
+  // Paths belong to work items alone; roadmaps, steps and proposals keep copies.
+  render(<Files ownerType="roadmap" ownerId="r1" files={[]} />, { wrapper });
+  expect(screen.getByLabelText("Attach a file")).toBeInTheDocument();
+  expect(
+    screen.queryByRole("group", { name: "How to add a file" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("textbox", { name: "Local path" }),
+  ).not.toBeInTheDocument();
+});
 it("renders GFM without executing imported HTML or unsafe links", () => {
   render(
     <Markdown
