@@ -815,7 +815,14 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         if verb not in {"submit", "withdraw", "approve", "reject"}:
             raise AppError(404, "not_found", "Unknown proposal command")
         p = body.model_dump()
-        return mutate(request, p, lambda c, a: proposals.transition(identity, verb, p, a, conn=c), required_key=verb == "approve")
+
+        def transition(c: sqlite3.Connection, actor: dict) -> dict:
+            if actor["kind"] == "agent":
+                # Middleware authentication precedes the write lock, and with approval off a submit
+                # applies the proposal, so a revoke that wins that race must stop it here.
+                communication_actor(c, actor)
+            return proposals.transition(identity, verb, p, actor, conn=c)
+        return mutate(request, p, transition, required_key=verb == "approve")
 
     install_coordination_routes(app, db, mutate)
     install_chat_message_routes(app, db, mutate)

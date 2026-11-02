@@ -233,6 +233,30 @@ def test_only_the_person_turns_approval_off_and_submitting_then_applies(client):
     assert reviewed.json()["status"] == "submitted" and reviewed.json()["autoApproved"] is False
 
 
+def test_a_credential_revoked_while_its_submit_waits_applies_nothing(client, monkeypatch):
+    import worklog.app as app_module
+    w = item(client)
+    cred = write(client, "POST", "/credentials", {"label": "Review agent"}).json()
+    agent = {"Authorization": "Bearer " + cred["token"]}
+    assert write(client, "PATCH", "/settings", {"requireProposalApproval": False}).status_code == 200
+    draft = write(client, "POST", "/proposals", {"title": "Late change", "rationale": "", "operations": [
+        {"action": "item.update", "payload": {"id": w["id"], "revision": 1, "title": "Late change"}}]}, headers=agent).json()
+    read_body = app_module.bounded_body
+
+    async def revoke_after_authentication(request, maximum):
+        # The person's revoke commits after the middleware accepted the token.
+        with client.app.state.db.transaction() as conn:
+            conn.execute("UPDATE credentials SET revoked=1 WHERE id=?", (cred["id"],))
+        return await read_body(request, maximum)
+
+    monkeypatch.setattr(app_module, "bounded_body", revoke_after_authentication)
+    late = write(client, "POST", f"/proposals/{draft['id']}/submit", {"revision": draft["revision"]}, headers=agent)
+    monkeypatch.undo()
+    assert late.status_code == 401, late.text
+    assert client.get(f"/api/v1/work-items/{w['id']}").json()["title"] == w["title"]
+    assert client.get(f"/api/v1/proposals/{draft['id']}").json()["status"] == "draft"
+
+
 def test_injected_failure_rolls_back_item_and_event(client, monkeypatch):
     import worklog.services as services
     w = item(client)
