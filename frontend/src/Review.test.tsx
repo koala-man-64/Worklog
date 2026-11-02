@@ -300,7 +300,12 @@ it("says what approving a repository registration would do", async () => {
         ? {
             url: path,
             remoteIdentity: "",
-            repository: { ...registered, name: "Retired", archived: true },
+            repository: {
+              ...registered,
+              name: "Retired",
+              url: "https://github.com/a/retired",
+              archived: true,
+            },
           }
         : { url: path, remoteIdentity: "github.com/a/new", repository: null },
   );
@@ -329,6 +334,9 @@ it("says what approving a repository registration would do", async () => {
   expect(await screen.findByText(/^Registered as/)).toHaveTextContent(
     "Registered as Retired, which is archived: recover it, or approval fails.",
   );
+  // The record a registration would link to is the current value it is compared with.
+  expect(screen.getByText("https://github.com/a/service")).toBeVisible();
+  expect(screen.getAllByText("New record")).toHaveLength(2);
   // Each change carries the number a failed approval names it by.
   expect(
     screen.getByRole("heading", { name: "Change 3: repository.create" }),
