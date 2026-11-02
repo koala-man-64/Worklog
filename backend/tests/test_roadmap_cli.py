@@ -46,9 +46,11 @@ def test_show_reads_one_record_by_id(transport, arguments, route):
     ("POST", "/roadmaps"), ("POST", f"/roadmaps/{ID}/revisions"), ("POST", f"/roadmaps/{ID}/restore"),
     ("POST", f"/roadmaps/{ID}/move"), ("POST", f"/roadmaps/{ID}/archive"), ("PATCH", f"/roadmaps/{ID}"),
     ("PATCH", f"/steps/{ID}/progress"), ("PATCH", f"/steps/{ID}"),
+    # A roadmap's view of the agent registry is the person's alone.
+    ("GET", f"/roadmaps/{ID}/agents"),
     ("GET", "/roadmaps/%2e%2e"), ("GET", "/steps/not-a-step"),
 ])
-def test_plan_changes_stay_proposals(transport, method, path):
+def test_only_reading_one_roadmap_or_step_is_reachable(transport, method, path):
     with pytest.raises(ValueError, match="outside"):
         cli.AgentClient().request(method, path, {})
     assert not transport
