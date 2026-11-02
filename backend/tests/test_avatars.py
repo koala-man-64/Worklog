@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from worklog import avatars, discussions, recovery
+from worklog import avatars, discussions, migrations, recovery
 from worklog.app import create_app
 from worklog.db import SCHEMA, Database
 from worklog.discussion_api import agent_route_allowed
@@ -159,7 +159,7 @@ def test_v2_upgrade_snapshots_then_gives_every_agent_a_distinct_avatar_and_resto
     v2_database(path)
     Database(path).initialize()
     with Database(path).read() as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
         assert recovery._schema_signature(conn) == recovery._expected_schema()
         assigned = dict(conn.execute("SELECT id,avatar FROM communication_agents").fetchall())
         assert tuple(conn.execute("SELECT token_hash,revoked FROM credentials WHERE id='live'").fetchone()) == ("hash-live", 0)
@@ -169,7 +169,7 @@ def test_v2_upgrade_snapshots_then_gives_every_agent_a_distinct_avatar_and_resto
     assert len(snapshots) == 1
     with closing(sqlite3.connect(snapshots[0])) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
-        assert recovery._schema_signature(conn) == recovery._expected_schema(avatars=False)
+        assert recovery._schema_signature(conn) == recovery._expected_schema(avatars=False, chat_messages=False)
     Database(path).initialize()
     assert len(list((path.parent / "backups").glob("worklog-pre-migration-*.sqlite3"))) == 1
     restored = tmp_path / "restored" / "worklog.sqlite3"
@@ -192,7 +192,7 @@ def test_failed_avatar_backfill_rolls_back_the_column_and_version(tmp_path, monk
         Database(path).initialize()
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
-        assert recovery._schema_signature(conn) == recovery._expected_schema(avatars=False)
+        assert recovery._schema_signature(conn) == recovery._expected_schema(avatars=False, chat_messages=False)
     recovery.validate_database(path)
 
 

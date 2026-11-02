@@ -72,7 +72,7 @@ Every restore creates a new data generation identity while staging the replaceme
 
 Restore writes a durable `.restore-in-progress.json` marker before moving sidecars or replacing the main file. Startup refuses that directory if a power failure interrupts restoration. Keep the evidence archives and rerun the explicit offline `restore` command with a verified SQLite candidate; the retry preserves earlier marker/quarantine evidence before completing recovery. Do not delete the marker to force a startup. It clears only after verified replacement and cleanup, or a verified rollback to the original files.
 
-For an upgrade, stop Worklog, make a manual backup with the installed version, update the checkout, run `Setup.ps1`, then start and check the application. Use the same data directory and port throughout. The first startup snapshots a supported version 1 or 2 database and upgrades it to version 3 in one transaction. Existing work, roadmap questions and decisions, discussions, data identity, and agent credentials are preserved, and every existing agent identity receives a generated avatar. Existing chat repository labels remain labels; link them to catalog repositories explicitly.
+For an upgrade, stop Worklog, make a manual backup with the installed version, update the checkout, run `Setup.ps1`, then start and check the application. Use the same data directory and port throughout. The first startup snapshots a supported version 1, 2 or 3 database and upgrades it to version 4 in one transaction. Existing work, roadmap questions and decisions, discussions, data identity, and agent credentials are preserved, every existing agent identity receives a generated avatar, and chats start with no messages from you. Existing chat repository labels remain labels; link them to catalog repositories explicitly.
 
 Keep the previous version and its manual backup until verification succeeds. To roll back, stop Worklog, switch to the previous version and run its setup, then use that version’s `restore` command with the pre-upgrade backup. Start and check Worklog again. Restoring returns the data to the time of the snapshot, creates a new data identity, and revokes the restored credentials.
 
@@ -146,6 +146,19 @@ Participation is advisory overlap information, not an exclusive claim, lock, per
 ## Agent registry
 
 **Agents** shows who works on what. Every agent identity appears there once its credential is issued in Settings or an agent [registers it](#agent-self-registration). Starting a run, reporting participation, posting a status update, posting a discussion message or owning a responsibility role is what registers that work, and those records are kept as they are written. An agent's page gathers the work items, roadmaps, repositories and tracked chats it is tied to, with the reason for each tie, plus its runs, messages, status updates and credentials. A tracked chat is tied when an agent reports its chat ID with `runs start --chat CHAT_ID` or a discussion post's `--chat`. The registry is read-only and visible only in the browser; it adds no authority, and a fresh report is not proof that the agent is still running. See [the API contract](docs/API.md#agent-registry).
+
+## Messages to a chat's agents
+
+Write to the agents working in a chat from its history on the **Chats** page. A message goes to every agent tied to the chat when you send it: an open run that reported the chat's ID with `runs start --chat CHAT_ID`, on a credential that is still live. The page names those agents before you send, and Send stays disabled when there are none. An agent receives its messages, each once, with:
+
+```powershell
+./.venv/Scripts/worklog.exe agent inbox
+./.venv/Scripts/worklog.exe agent inbox --chat CHAT_ID
+```
+
+`--chat` takes only the messages for runs that reported that chat ID. Receiving marks a message delivered, and the chat shows each recipient as waiting for pickup, delivered, or not delivered with the reason. Each check uses a fresh request ID; only after an uncertain result, rerun with the `--request-id` the error names to receive the same messages again. Nothing wakes an agent: it gets your message the next time it runs the command.
+
+Delivery never brings anything back. An archived chat takes no messages, and Worklog never recovers a chat, reopens a run, restores a revoked credential or resumes a provider session to deliver one. A waiting message ends when its run ends, its credential is revoked or replaced, its chat is archived or given another chat ID, or Worklog is restored from a backup; recovering the chat later does not revive it. A message nobody picks up within two hours is not handed out. Agents cannot read a chat's messages or their history, only receive their own. See [the API contract](docs/API.md#messages-to-a-chats-agents).
 
 ## Agent discussions and handoffs
 

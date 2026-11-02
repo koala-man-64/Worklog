@@ -467,7 +467,8 @@ class AgentClient:
             query = parse_qs(urlsplit(path).query)
             ids = query.get("ownerId", [])
             allowed = query.get("ownerType") == ["proposal"] and len(ids) == 1 and valid_id(ids[0])
-        allowed = allowed or _discussion_route_allowed(method, route) or _coordination_route_allowed(method, route)
+        allowed = (allowed or _discussion_route_allowed(method, route) or _coordination_route_allowed(method, route)
+                   or (method == "POST" and route == "/inbox/receive"))
         if not allowed:
             raise ValueError("Agent command is outside proposal/read scope")
         headers = {"Authorization": "Bearer " + self.token, "Accept": "application/json"}
@@ -483,7 +484,7 @@ class AgentClient:
             if not 8 <= len(request_id) <= 200 or not request_id.isascii() or any(ord(c) < 33 or ord(c) > 126 for c in request_id):
                 raise ValueError("Request ID must contain 8–200 printable ASCII characters without spaces")
             headers["Idempotency-Key"] = request_id
-        discussion_write = method == "POST" and route.startswith("/discussions")
+        discussion_write = method == "POST" and route.startswith(("/discussions", "/inbox"))
         retry_hint = (f"; result uncertain; retry the same command and payload with --request-id {request_id}"
                       if discussion_write or coordination_write else "")
         request = Request(self.base + "/api/v1" + path, data=data, headers=headers, method=method)
@@ -625,6 +626,9 @@ def agent_command(args: argparse.Namespace, port: int, redact: list[str]) -> Any
         return discussion_command(client, args)
     if args.agent_action in {"repositories", "runs", "participation", "updates"}:
         return coordination_command(client, args)
+    if args.agent_action == "inbox":
+        return client.request("POST", "/inbox/receive", {"chatId": args.chat} if args.chat else {},
+                              request_id=args.request_id)
     if args.agent_action == "context":
         return client.request("GET", "/context" + _coordination_query(args, "date", "repositoryId", "itemId"))
     if args.agent_action == "search":
@@ -990,6 +994,9 @@ def parser() -> argparse.ArgumentParser:
     actions.add_parser("retire", help="Revoke the credential of the agent given with --as and forget its token")
     _discussion_parser(actions)
     _coordination_parser(actions)
+    inbox = actions.add_parser("inbox", help="Receive the messages the person wrote into your chats; each arrives once")
+    inbox.add_argument("--chat", help="Only messages for your open runs that reported this chat ID")
+    inbox.add_argument("--request-id", help="Reuse after an uncertain result to receive the same messages again")
     context = actions.add_parser("context")
     context.add_argument("--date")
     context.add_argument("--repo", dest="repositoryId", help="Canonical repository ID")

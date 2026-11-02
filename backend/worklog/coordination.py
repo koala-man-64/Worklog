@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
+from .chat_messages import expire_pending
 from .common import AppError, event, now, require_revision, text, uid
 from .discussions import communication_actor
 
@@ -84,6 +85,7 @@ def _close_run(c: sqlite3.Connection, actor: dict, row: Any, reason: str) -> Non
               (stamp, reason, stamp, row["id"]))
     for participation in c.execute("SELECT * FROM participations WHERE run_id=? AND released_at IS NULL", (row["id"],)).fetchall():
         _release(c, actor, participation, reason)
+    expire_pending(c, reason, run_id=row["id"], stamp=stamp)
     event(c, actor, "run.end", row["id"], dict(row), {"reason": reason})
 
 

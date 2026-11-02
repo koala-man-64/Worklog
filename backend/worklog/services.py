@@ -742,6 +742,11 @@ class WorkService:
         if verb in {"archive", "recover"}:
             assert row is not None
             c.execute(f"UPDATE {table} SET archived=?,revision=revision+1 WHERE id=?", (int(verb == "archive"), row["id"]))
+            if kind == "chat" and verb == "archive":
+                from .chat_messages import expire_pending
+
+                # Recovering the chat later never revives these deliveries.
+                expire_pending(c, "chat_archived", chat_id=row["id"])
         elif kind == "note" and verb in {"create", "update"}:
             val = before.copy() if before else {"id": uid(), "ownerType": p.get("ownerType"), "ownerId": p.get("ownerId"), "title": "", "text": "", "createdAt": now(), "revision": 0}
             self.owner(c, val["ownerType"], val["ownerId"])
@@ -796,6 +801,11 @@ class WorkService:
                  val["provider"], val["model"], json.dumps(val["repos"])),
             )
             self._assign_steps(c, actor, val, previous, assigned)
+            if before is not None and before["chatId"] != val["chatId"]:
+                from .chat_messages import expire_pending
+
+                # Runs that reported the old ID are no longer tied to this chat.
+                expire_pending(c, "chat_changed", chat_id=val["id"])
             p = {**p, "id": val["id"]}
         elif kind == "github" and verb in {"create", "update"}:
             val = before.copy() if before else {"id": uid(), "ownerType": p.get("ownerType"), "ownerId": p.get("ownerId"), "kind": "pr", "url": "", "reference": "", "title": "", "description": "", "chatId": None, "createdAt": now(), "revision": 0}
