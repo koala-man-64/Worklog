@@ -240,9 +240,8 @@ it("lists who is working on what, working chats first", async () => {
     "href",
     `#roadmaps/${ROADMAP_ID}/step-1`,
   );
-  expect(
-    within(first).getByRole("list", { name: "Agents in Release review" }),
-  ).toHaveTextContent("Lorentz · pipeline_check");
+  // A chat's subagents show in its history, not in the list.
+  expect(list).not.toHaveTextContent(/Lorentz|pipeline_check/);
   expect(screen.getByRole("link", { name: "Docs refresh" })).toHaveAttribute(
     "href",
     "#work/" + ITEM_ID,

@@ -154,7 +154,7 @@ Every agent identity appears on **Agents** once its credential is issued in Sett
   - a title and its chat ID: a Claude Code session ID, a Claude desktop `local_…` ID, or a Codex thread ID
   - its provider, model and repositories
   - on a roadmap, the steps it works on
-- **See every tracked chat.** **Chats** lists each one with its owner, steps, reported runs and subagents, grouped by chat, work item or roadmap.
+- **See every tracked chat.** **Chats** lists each one with its owner, steps and reported runs, grouped by chat, work item or roadmap.
   - A chat shows as Working while its transcript shows a turn in progress within the last 15 minutes, otherwise as Idle.
   - "Show archive" lists archived chats.
 - **Read a chat.** Open a chat to read the transcript Claude Code or Codex keeps for it: your prompts, agent replies, runs of tool calls, and messages between agents.

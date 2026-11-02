@@ -498,7 +498,6 @@ function ChatListItem({
   grouped?: boolean;
 }) {
   const { transcript, owner } = chat;
-  const agents = transcript.threads.filter((t) => t.parent);
   const agent = agentName(chat);
   const ownerHref =
     owner.type === "roadmap" ? "#roadmaps/" + owner.id : "#work/" + owner.id;
@@ -543,24 +542,6 @@ function ChatListItem({
             </a>
           ))}
         </div>
-      )}
-      {agents.length > 0 && (
-        <ul className="chat-agents" aria-label={"Agents in " + chat.title}>
-          {agents.map((t) => (
-            <li key={t.key}>
-              <StateDot state={t.state} />
-              <span>
-                {t.name}
-                {t.task && (
-                  <>
-                    {" · "}
-                    <small>{t.task}</small>
-                  </>
-                )}
-              </span>
-            </li>
-          ))}
-        </ul>
       )}
     </li>
   );
