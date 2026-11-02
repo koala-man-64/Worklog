@@ -45,6 +45,16 @@ export class ApiError extends Error {
     super(message);
   }
 }
+async function failure(result: Response) {
+  const data = await result
+    .json()
+    .catch(() => ({ error: { message: result.statusText } }));
+  return new ApiError(
+    result.status,
+    data.error?.message || "Request failed",
+    data.error?.code || "request_failed",
+  );
+}
 export async function request<T>(
   path: string,
   method = "GET",
@@ -52,53 +62,91 @@ export async function request<T>(
 ): Promise<T> {
   const expectedContext = getDataContext();
   const requestCsrf = csrf;
-  const headers: Record<string, string> = {};
   const pending =
     method !== "GET" && path !== "/session/bootstrap"
       ? await pendingRequest(path, method, body)
       : null;
-  if (method !== "GET") {
-    headers["X-CSRF-Token"] = requestCsrf;
-    if (pending) headers["Idempotency-Key"] = pending.key;
+  const send = (token: string) => {
+    const headers: Record<string, string> = {};
+    if (method !== "GET") {
+      headers["X-CSRF-Token"] = token;
+      if (pending) headers["Idempotency-Key"] = pending.key;
+    }
+    if (path === "/session/bootstrap") headers["X-Worklog-Bootstrap"] = "1";
+    if (body !== undefined)
+      headers["Content-Type"] =
+        body instanceof File
+          ? body.type || "application/octet-stream"
+          : "application/json";
+    if (path !== "/session/bootstrap" && getDataContext() !== expectedContext)
+      throw new ApiError(
+        409,
+        "The data folder changed before this request. Your local draft is retained.",
+        "data_context",
+      );
+    return fetch("/api/v1" + path, {
+      method,
+      credentials: "same-origin",
+      headers,
+      body:
+        body === undefined
+          ? undefined
+          : body instanceof File
+            ? body
+            : JSON.stringify(body),
+    });
+  };
+  let result = await send(requestCsrf);
+  // A restarted server has forgotten this page's session, and a session another tab renewed has a
+  // token this page lacks. Renew once and resend; a write keeps its idempotency key.
+  if (
+    path !== "/session/bootstrap" &&
+    (result.status === 401 || result.status === 403) &&
+    ["session", "csrf"].includes((await failure(result.clone())).code)
+  ) {
+    await renewSession();
+    result = await send(csrf);
   }
-  if (path === "/session/bootstrap") headers["X-Worklog-Bootstrap"] = "1";
-  if (body !== undefined)
-    headers["Content-Type"] =
-      body instanceof File
-        ? body.type || "application/octet-stream"
-        : "application/json";
-  if (path !== "/session/bootstrap" && getDataContext() !== expectedContext)
-    throw new ApiError(
-      409,
-      "The data folder changed before this request. Your local draft is retained.",
-      "data_context",
-    );
-  const result = await fetch("/api/v1" + path, {
-    method,
-    credentials: "same-origin",
-    headers,
-    body:
-      body === undefined
-        ? undefined
-        : body instanceof File
-          ? body
-          : JSON.stringify(body),
-  });
   if (!result.ok) {
     if (pending && result.status >= 400 && result.status < 500)
       sessionStore.remove(pending.storageKey);
-    const data = await result
-      .json()
-      .catch(() => ({ error: { message: result.statusText } }));
-    throw new ApiError(
-      result.status,
-      data.error?.message || "Request failed",
-      data.error?.code || "request_failed",
-    );
+    throw await failure(result);
   }
   const data = result.status === 204 ? (undefined as T) : await result.json();
   if (pending) sessionStore.remove(pending.storageKey);
   return data;
+}
+let renewal: Promise<void> | null = null;
+/**
+ * Starts a new session for this page: the server keeps sessions in memory, so a restart forgets
+ * them. Callers at the same time share one renewal. It refuses when the server now holds other
+ * data, such as after a restore, so a renewal never gives this page a session on that data.
+ */
+export function renewSession() {
+  renewal ??= (async () => {
+    const expected = getDataContext();
+    const health = await fetch("/health", { credentials: "same-origin" });
+    if (!health.ok) throw await failure(health);
+    if ((await health.json()).dataId === expected) {
+      const data = await request<{ csrfToken: string; dataId: string }>(
+        "/session/bootstrap",
+        "POST",
+        {},
+      );
+      if (data.dataId === expected) {
+        csrf = data.csrfToken;
+        return;
+      }
+    }
+    throw new ApiError(
+      409,
+      "The data folder changed while this page was open. Reload Worklog to continue; your local drafts are retained.",
+      "data_context",
+    );
+  })().finally(() => {
+    renewal = null;
+  });
+  return renewal;
 }
 export async function bootstrap() {
   const data = await request<{

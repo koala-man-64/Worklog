@@ -729,3 +729,35 @@ test("a roadmap's questions are answered and its decisions recorded", async ({
     },
   ]);
 });
+test("an open page carries on after the server forgets its session", async ({
+  context,
+  page,
+  baseURL,
+}) => {
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Today", exact: true }),
+  ).toBeVisible();
+  const add = async (title: string) => {
+    await page.getByRole("textbox", { name: "New work item" }).fill(title);
+    await page.getByRole("button", { name: "Add work", exact: true }).click();
+    await expect(
+      page.getByRole("link", { name: title, exact: true }),
+    ).toBeVisible();
+    const found = await page.request.get(
+      "/api/v1/work-items?q=" + encodeURIComponent(title),
+    );
+    expect((await found.json()).total).toBe(1);
+  };
+  // A restart drops every session the server held, which to it is the same as a missing cookie.
+  await context.clearCookies();
+  await add("After a restart " + Date.now());
+  // Another tab that renewed after the restart leaves this page holding the old session's token.
+  await context.clearCookies();
+  const renewed = await page.request.post("/api/v1/session/bootstrap", {
+    headers: { Origin: new URL(baseURL!).origin, "X-Worklog-Bootstrap": "1" },
+    data: {},
+  });
+  expect(renewed.ok()).toBeTruthy();
+  await add("After another tab renewed " + Date.now());
+});

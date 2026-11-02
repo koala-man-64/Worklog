@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { getDataContext, request } from "./api";
+import { ApiError, getDataContext, renewSession, request } from "./api";
 import { commands } from "./commands";
 import { ErrorMessage } from "./components";
 import { useCommand, useData } from "./hooks";
@@ -13,6 +13,9 @@ import type {
   QuotaPlanModelOption,
   QuotaRecentText,
 } from "./quotaTypes";
+
+const PAUSED_NOTE =
+  "Live updates paused while Worklog reconnects; these figures may be out of date.";
 
 function fmtCompact(value: number | null | undefined): string {
   if (value === null || value === undefined || Number.isNaN(value)) return "—";
@@ -139,18 +142,61 @@ export function Quota() {
     }
   }, [dashboard.data?.default_target_local, targetInput]);
 
-  // Subscribe to live SSE capacity revisions when EventSource is available
+  // Subscribe to live SSE capacity revisions when EventSource is available. The browser reconnects
+  // a dropped stream by itself but gives up on an error response, such as the 401 from a server that
+  // restarted and forgot this page's session: renew the session and open a new stream, backing off
+  // while that fails, and stop when the server now holds other data. A server without quota
+  // collectors ends each stream after one snapshot and the browser reopens it within seconds, so
+  // updates count as paused only once the stream stays down.
+  const [paused, setPaused] = useState<string | null>(null);
   useEffect(() => {
     if (typeof EventSource === "undefined") return;
     let closed = false;
-    const source = new EventSource("/api/v1/quota/capacity/events");
-    source.onmessage = () => {
-      if (!closed) {
-        client.invalidateQueries({ queryKey: [getDataContext(), "/quota/dashboard"] });
-      }
+    let source: EventSource;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let pause: ReturnType<typeof setTimeout> | undefined;
+    let delay = 1000;
+    const connect = () => {
+      source = new EventSource("/api/v1/quota/capacity/events");
+      source.onopen = () => {
+        delay = 1000;
+        clearTimeout(pause);
+        pause = undefined;
+        setPaused(null);
+      };
+      source.onmessage = () => {
+        if (!closed) {
+          client.invalidateQueries({ queryKey: [getDataContext(), "/quota/dashboard"] });
+        }
+      };
+      source.onerror = () => {
+        if (closed) return;
+        pause ??= setTimeout(() => setPaused(PAUSED_NOTE), 10_000);
+        if (source.readyState === EventSource.CLOSED) reconnect();
+      };
     };
+    const reconnect = () => {
+      timer = setTimeout(() => {
+        renewSession().then(
+          () => {
+            if (!closed) connect();
+          },
+          (error: unknown) => {
+            if (closed) return;
+            if (error instanceof ApiError && error.code === "data_context") {
+              clearTimeout(pause);
+              setPaused(error.message);
+            } else reconnect();
+          },
+        );
+      }, delay);
+      delay = Math.min(delay * 2, 30_000);
+    };
+    connect();
     return () => {
       closed = true;
+      clearTimeout(timer);
+      clearTimeout(pause);
       source.close();
     };
   }, [client]);
@@ -273,6 +319,12 @@ export function Quota() {
           </button>
         </div>
       </header>
+
+      {paused && (
+        <div className="quota-banner" role="status">
+          {paused}
+        </div>
+      )}
 
       {data.warnings.length > 0 && (
         <div className="quota-banner" role="status">

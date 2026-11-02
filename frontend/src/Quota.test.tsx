@@ -1,8 +1,8 @@
-import { beforeEach, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { setDataContext } from "./api";
+import { getDataContext, renewSession, setDataContext } from "./api";
 import { Quota } from "./Quota";
 import type { QuotaDashboard } from "./quotaTypes";
 
@@ -230,6 +230,145 @@ function serve(reads: Record<string, () => unknown>) {
 beforeEach(() => {
   vi.restoreAllMocks();
   setDataContext("quota-test-" + crypto.randomUUID());
+});
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
+
+/** An EventSource the test drives: `drop` is the browser's error event, `open` a connection. */
+class FakeSource {
+  static CONNECTING = 0;
+  static OPEN = 1;
+  static CLOSED = 2;
+  static made: FakeSource[] = [];
+  readyState = FakeSource.CONNECTING;
+  onopen: (() => void) | null = null;
+  onmessage: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  constructor(readonly url: string) {
+    FakeSource.made.push(this);
+  }
+  close() {
+    this.readyState = FakeSource.CLOSED;
+  }
+  open() {
+    this.readyState = FakeSource.OPEN;
+    this.onopen?.();
+  }
+  drop(state: number) {
+    this.readyState = state;
+    this.onerror?.();
+  }
+}
+
+/** Shows the Quota page over an open fake stream; `/health` reports this page's data unless told otherwise. */
+async function streamPage(
+  health: () => unknown = () => ({ dataId: getDataContext() }),
+) {
+  FakeSource.made = [];
+  vi.stubGlobal("EventSource", FakeSource);
+  const urls: string[] = [];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const url = String(input);
+    urls.push(url);
+    if (url === "/health") return json(await health());
+    if (url === "/api/v1/session/bootstrap")
+      return json({ csrfToken: "renewed", dataId: getDataContext() });
+    if (url.startsWith("/api/v1/quota/dashboard"))
+      return json(dashboardFixture());
+    return json({ items: [], total: 0 });
+  });
+  const view = show(<Quota />);
+  expect(
+    await screen.findByRole("heading", { name: "Quota Burndown" }),
+  ).toBeInTheDocument();
+  const [first] = FakeSource.made;
+  act(() => first.open());
+  return { ...view, first, urls };
+}
+
+it("says live updates are paused once the stream stays down, and opens a new one when a restarted server refuses the old", async () => {
+  const { first, urls } = await streamPage();
+  const dashboardReads = () =>
+    urls.filter((url) => url.startsWith("/api/v1/quota/dashboard")).length;
+  const paused = /Live updates paused/;
+  vi.useFakeTimers();
+
+  // A stream the server ended and the browser reopened within seconds is no pause.
+  act(() => first.drop(FakeSource.CONNECTING));
+  await act(() => vi.advanceTimersByTimeAsync(3000));
+  act(() => first.open());
+  await act(() => vi.advanceTimersByTimeAsync(10_000));
+  expect(screen.queryByText(paused)).not.toBeInTheDocument();
+
+  // The server stops: the browser retries by itself, and once the stream stays down the page
+  // says its figures may be stale.
+  act(() => first.drop(FakeSource.CONNECTING));
+  await act(() => vi.advanceTimersByTimeAsync(10_000));
+  expect(screen.getByText(paused)).toBeInTheDocument();
+  expect(FakeSource.made).toHaveLength(1);
+
+  // It is back but refuses this page's session, so the browser gives up: renew and reopen.
+  act(() => first.drop(FakeSource.CLOSED));
+  await act(() => vi.advanceTimersByTimeAsync(1000));
+  vi.useRealTimers();
+  await waitFor(() => expect(FakeSource.made).toHaveLength(2));
+  expect(urls).toEqual(
+    expect.arrayContaining(["/health", "/api/v1/session/bootstrap"]),
+  );
+  expect(screen.getByText(paused)).toBeInTheDocument();
+
+  const reads = dashboardReads();
+  act(() => {
+    FakeSource.made[1].open();
+    FakeSource.made[1].onmessage?.();
+  });
+  expect(screen.queryByText(paused)).not.toBeInTheDocument();
+  await waitFor(() => expect(dashboardReads()).toBeGreaterThan(reads));
+});
+
+it("stops reconnecting and asks for a reload when the server now holds other data", async () => {
+  const { first, urls } = await streamPage(() => ({ dataId: "restored" }));
+  vi.useFakeTimers();
+  act(() => first.drop(FakeSource.CLOSED));
+  await act(() => vi.advanceTimersByTimeAsync(60_000));
+  vi.useRealTimers();
+  expect(
+    await screen.findByText(/The data folder changed while this page was open/),
+  ).toBeInTheDocument();
+  expect(urls.filter((url) => url === "/health")).toHaveLength(1);
+  expect(urls).not.toContain("/api/v1/session/bootstrap");
+  expect(FakeSource.made).toHaveLength(1);
+});
+
+it("stops reconnecting once the page closes, before or during a renewal", async () => {
+  // Closed while the reconnect waits: nothing more is sent.
+  let page = await streamPage();
+  vi.useFakeTimers();
+  act(() => page.first.drop(FakeSource.CLOSED));
+  page.unmount();
+  await vi.advanceTimersByTimeAsync(60_000);
+  vi.useRealTimers();
+  expect(page.urls).not.toContain("/health");
+
+  // Closed while the renewal is under way: no new stream opens.
+  let answer = () => {};
+  page = await streamPage(
+    () =>
+      new Promise((resolve) => {
+        answer = () => resolve({ dataId: getDataContext() });
+      }),
+  );
+  vi.useFakeTimers();
+  act(() => page.first.drop(FakeSource.CLOSED));
+  await act(() => vi.advanceTimersByTimeAsync(1000));
+  vi.useRealTimers();
+  await waitFor(() => expect(page.urls).toContain("/health"));
+  page.unmount();
+  answer();
+  await renewSession();
+  expect(FakeSource.made).toHaveLength(1);
 });
 
 it("renders burndown cards, links sessions to tracked Worklog chats, loads request text, and saves policy/plans", async () => {
