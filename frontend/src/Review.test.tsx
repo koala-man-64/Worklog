@@ -277,3 +277,73 @@ it("still reports a failed lookup that is not a missing target", async () => {
   expect(await screen.findByText("Server error")).toBeInTheDocument();
   expect(screen.queryByText(CREATED_NOTE)).toBeNull();
 });
+it("says what approving a repository registration would do", async () => {
+  const registered = {
+    id: ID,
+    name: "Service",
+    url: "https://github.com/a/service",
+    remoteIdentity: "github.com/a/service",
+    duplicateOf: null,
+    mergedInto: null,
+    description: "",
+    revision: 1,
+    archived: false,
+  };
+  requestMock.mockImplementation(async (path: string) =>
+    path.includes("service")
+      ? {
+          url: path,
+          remoteIdentity: "github.com/a/service",
+          repository: registered,
+        }
+      : path.includes("retired")
+        ? {
+            url: path,
+            remoteIdentity: "",
+            repository: {
+              ...registered,
+              name: "Retired",
+              url: "https://github.com/a/retired",
+              archived: true,
+            },
+          }
+        : { url: path, remoteIdentity: "github.com/a/new", repository: null },
+  );
+  renderWithClient(
+    <>
+      <OperationDiff
+        number={1}
+        action="repository.create"
+        payload={{ name: "Service", url: "git@github.com:a/service.git" }}
+      />
+      <OperationDiff
+        number={2}
+        action="repository.create"
+        payload={{ name: "Retired", url: "https://github.com/a/retired" }}
+      />
+      <OperationDiff
+        number={3}
+        action="repository.create"
+        payload={{ name: "New", url: "https://github.com/a/new" }}
+      />
+    </>,
+  );
+  expect(await screen.findByText(/^Already registered as/)).toHaveTextContent(
+    "Already registered as Service: approval links to it and adds nothing.",
+  );
+  expect(await screen.findByText(/^Registered as/)).toHaveTextContent(
+    "Registered as Retired, which is archived: recover it, or approval fails.",
+  );
+  // The record a registration would link to is the current value it is compared with.
+  expect(screen.getByText("https://github.com/a/service")).toBeVisible();
+  expect(screen.getAllByText("New record")).toHaveLength(2);
+  // Each change carries the number a failed approval names it by.
+  expect(
+    screen.getByRole("heading", { name: "Change 3: repository.create" }),
+  ).toBeVisible();
+  expect(requestMock).toHaveBeenCalledWith(
+    "/repositories/resolve?url=" +
+      encodeURIComponent("git@github.com:a/service.git"),
+  );
+  expect(screen.getAllByText(/registered as/i)).toHaveLength(2);
+});

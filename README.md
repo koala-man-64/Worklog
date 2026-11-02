@@ -147,6 +147,7 @@ Add a person with a name and a title or team. Tie them to roadmaps and work item
 
 - **Register repositories.** Register the repositories you work in by name and optional remote URL: http(s), `ssh://git@host/path` or `git@host:path`. Find them by text. Edit the name, URL and description on the repository page, and archive or recover them.
 - **One record per remote.** Every address of a remote names the same repository: HTTPS and SSH forms, with or without `.git` or a trailing `/`, in any letter case, and Azure DevOps' `dev.azure.com`, `{org}.visualstudio.com` and `ssh.dev.azure.com` forms. Adding a remote that is already registered links to its record and says so; an archived one must be recovered instead. An HTTPS address never keeps a user name. Records that already shared a remote before version 6 stay, marked "Same remote as" the record that answers for it.
+- **Merge records.** "Merge into another repository" on a repository's page folds it into another record: its work and chat links, tickets, reported activity and updates move there, and it is archived as "Merged into" that record, which then also answers for its remote. A duplicate's page opens with its record already chosen. Merging asks for confirmation, only you can do it, and it cannot be undone; merged records are read-only.
 - **Link work and chats.** Work items link to repositories on the item page or when you capture them. Tracked chats link to registered repositories in their chat settings.
 - **See activity.** A repository's page lists its linked work and what agents report there: who is participating, on which branch, checkout or worktree, and their updates, blockers and handoffs.
 - **Reports are advisory.** They reserve nothing, and they show "Stale report" after two hours without news.
@@ -184,8 +185,8 @@ Every agent identity appears on **Agents** once its credential is issued in Sett
 ### Review
 
 - **What arrives here.** Agent proposals, filtered by status, with "submitted" as the default.
-- **What a proposal shows.** The agent's rationale, each change's current and proposed values, a warning when a target changed after the agent proposed it, and the agent's evidence files.
-- **Your decision.** "Approve proposal" applies every change in one step, or nothing if any target changed in the meantime. "Reject proposal" closes it.
+- **What a proposal shows.** The agent's rationale, each numbered change's current and proposed values, a warning when a target changed after the agent proposed it, and the agent's evidence files. A repository the proposal registers says whether it is already registered (approval links to it and adds nothing) or registered but archived (recover it first, or approval fails).
+- **Your decision.** "Approve proposal" applies every change in one step, or nothing if any target changed in the meantime; the error then names the change that failed, such as "Change 2 of 3, repository.update". "Reject proposal" closes it.
 - **Who does what.** Only you can approve or reject. Agents create, edit, submit and withdraw proposals through the CLI.
 - **Approval off.** When you turn approval off in Settings, a proposal is applied as soon as its agent submits it, all or nothing as above, and shows as "approved automatically". If a change cannot apply, the submit is refused and the proposal stays the agent's draft. Review says when approval is off, and proposals already waiting still need your decision.
 
@@ -297,7 +298,7 @@ Repositories are canonical catalog records. Work items and tracked chats can lin
 
 Use returned IDs and revisions. Choose one stable `--request-id` per write and reuse it with exactly the same payload after an uncertain result. A run's `--client-run-key` identifies that run within the issuing credential. Use a new key for a new run. Add `--chat CHAT_ID` to `runs start` to tie the run to a tracked chat. Optional `--item ITEM_ID` links participation to work. Use `participation start --file context.json` for reported checkout/worktree paths and branches, and `participation update ID --revision N --file context.json --request-id KEY` to replace contexts or change the work link.
 
-Participation is advisory overlap information, not an exclusive claim, lock, permission, or proof that a process is alive. Activity older than two hours displays as stale without releasing it. An optional explicit `participation check-in ID --revision N --request-id KEY` refreshes reported activity; no heartbeat is required. Release and rejoin are explicit, and updates retain their original repository/work snapshots when participation later changes. See [the API contract](docs/API.md#repository-coordination) for list filters and payloads.
+Participation is advisory overlap information, not an exclusive claim, lock, permission, or proof that a process is alive. Activity older than two hours displays as stale without releasing it. An optional explicit `participation check-in ID --revision N --request-id KEY` refreshes reported activity; no heartbeat is required. Release and rejoin are explicit, and updates retain their original repository/work snapshots when participation later changes. When the person merges a repository into another, your reports and updates move to the survivor without changing their revisions; a merged repository then refuses new reports with `409 repository_merged`, naming the survivor in `fields.repositoryId`. See [the API contract](docs/API.md#repository-coordination) for list filters and payloads.
 
 ### Tickets
 

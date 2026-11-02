@@ -4,6 +4,7 @@ import { ApiError, request, getDataContext } from "./api";
 import { useAction, useData } from "./hooks";
 import { Empty, ErrorMessage, Files, Markdown } from "./components";
 import type { Day, List, Operation, Proposal, Settings } from "./types";
+import type { Repository, RepositoryResolution } from "./repositoryTypes";
 import { Icon } from "./icons";
 export function Review({ selectedId }: { selectedId?: string }) {
   const [status, setStatus] = useState("submitted");
@@ -111,6 +112,7 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
       {p.operations.map((op, index) => (
         <OperationDiff
           key={index}
+          number={index + 1}
           action={op.action}
           payload={op.payload}
           proposedEarlier={(target) => (declared.get(target) ?? index) < index}
@@ -257,10 +259,13 @@ function currentPath(
   return "/" + collection + "/" + id;
 }
 export function OperationDiff({
+  number,
   action,
   payload,
   proposedEarlier,
 }: {
+  // The change's place in the proposal, as a failed approval names it.
+  number?: number;
   action: string;
   payload: Record<string, unknown>;
   // True when an earlier operation in the same proposal creates the target.
@@ -294,7 +299,23 @@ export function OperationDiff({
       return request<Record<string, unknown>>(path);
     },
   });
-  const before = current.data;
+  // A repository this proposal registers may already be registered: approval
+  // then links to that record, which is the current value to compare with.
+  const address =
+    action === "repository.create" && typeof payload.url === "string"
+      ? payload.url.trim()
+      : "";
+  const registration = useQuery({
+    queryKey: [getDataContext(), "proposal-registration", address],
+    enabled: address !== "",
+    queryFn: () =>
+      request<RepositoryResolution>(
+        "/repositories/resolve?url=" + encodeURIComponent(address),
+      ),
+  });
+  const holder = registration.data?.repository ?? null;
+  const before =
+    current.data ?? (holder as unknown as Record<string, unknown> | null);
   // Not found is expected only for a target that this proposal creates first;
   // any other missing target stays an error, since approval would fail on it.
   const created =
@@ -303,7 +324,12 @@ export function OperationDiff({
     !!proposedEarlier?.(target);
   return (
     <article className="operation">
-      <h4>{action}</h4>
+      <h4>
+        {number ? `Change ${number}: ` : ""}
+        <span>{action}</span>
+      </h4>
+      {holder && <Registered holder={holder} />}
+      <ErrorMessage error={registration.error} />
       {created ? (
         <p className="muted">
           An earlier change in this proposal creates this target, so it has no
@@ -335,7 +361,7 @@ export function OperationDiff({
             <pre>
               {before && key in before
                 ? display(before[key])
-                : current.isFetching
+                : current.isFetching || registration.isFetching
                   ? "Loading…"
                   : action.endsWith(".create") || created
                     ? "New record"
@@ -349,6 +375,19 @@ export function OperationDiff({
         </div>
       ))}
     </article>
+  );
+}
+// Registering a remote that is already registered links to its record, so say which.
+function Registered({ holder }: { holder: Repository }) {
+  const link = <a href={"#repositories/" + holder.id}>{holder.name}</a>;
+  return holder.archived ? (
+    <p className="warning">
+      Registered as {link}, which is archived: recover it, or approval fails.
+    </p>
+  ) : (
+    <p className="muted">
+      Already registered as {link}: approval links to it and adds nothing.
+    </p>
   );
 }
 function display(value: unknown) {

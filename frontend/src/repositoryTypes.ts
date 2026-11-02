@@ -7,10 +7,18 @@ export type Repository = RecordBase & {
   remoteIdentity: string;
   /** Set when another record already holds this remote. */
   duplicateOf: string | null;
+  /** Set when a person merged this record into another, which now answers for it. */
+  mergedInto: string | null;
   description: string;
 };
 /** Registering a remote that is already registered returns its record. */
 export type RepositoryRegistration = Repository & { created: boolean };
+/** What registering an address would do: link to `repository`, or add one when it is null. */
+export type RepositoryResolution = {
+  url: string;
+  remoteIdentity: string;
+  repository: Repository | null;
+};
 type CoordinationRecord = Pick<
   RecordBase,
   "id" | "revision" | "createdAt" | "updatedAt"

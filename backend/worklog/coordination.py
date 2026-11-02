@@ -24,7 +24,7 @@ def _get(c: sqlite3.Connection, table: str, identity: str) -> sqlite3.Row:
 
 def repository_record(row: Any) -> dict:
     return {"id": row["id"], "name": row["name"], "url": row["url"],
-            "remoteIdentity": row["remote_identity"], "duplicateOf": row["duplicate_of"],
+            "remoteIdentity": row["remote_identity"], "duplicateOf": row["duplicate_of"], "mergedInto": row["merged_into"],
             "description": row["description"], "archived": bool(row["archived"]),
             "revision": row["revision"], "createdAt": row["created_at"], "updatedAt": row["updated_at"]}
 
@@ -123,10 +123,22 @@ def _close_run(c: sqlite3.Connection, actor: dict, row: Any, reason: str) -> Non
 
 
 def repository_holder(c: sqlite3.Connection, identity: str, exclude: str = "") -> Any:
-    """The record that answers for a remote: an active one before an archived one,
-    and the canonical record before a duplicate flagged for merging."""
-    return c.execute("SELECT * FROM repositories WHERE remote_identity=? AND id<>? ORDER BY archived,"
-                     "duplicate_of IS NOT NULL,created_at,id LIMIT 1", (identity, exclude)).fetchone() if identity else None
+    """The record that answers for a remote: an active one before an archived one, and the
+    canonical record before a duplicate flagged for merging. A merged record's remote
+    answers with the record it was merged into."""
+    if not identity:
+        return None
+    row = c.execute("SELECT * FROM repositories WHERE remote_identity=? AND id<>? ORDER BY merged_into IS NOT NULL,"
+                    "archived,duplicate_of IS NOT NULL,created_at,id LIMIT 1", (identity, exclude)).fetchone()
+    if row is not None and row["merged_into"]:
+        row = _get(c, "repositories", row["merged_into"])
+    return None if row is None or row["id"] == exclude else row
+
+
+def _point(c: sqlite3.Connection, actor: dict, row: Any, column: str, target: str | None) -> None:
+    # Column names are internal constants: duplicate_of or merged_into.
+    c.execute(f"UPDATE repositories SET {column}=?,revision=revision+1,updated_at=? WHERE id=?", (target, now(), row["id"]))
+    event(c, actor, "repository.update", row["id"], repository_record(row), repository_record(_get(c, "repositories", row["id"])))
 
 
 def _hand_over(c: sqlite3.Connection, actor: dict, identity: str, old_key: str) -> None:
@@ -134,18 +146,79 @@ def _hand_over(c: sqlite3.Connection, actor: dict, identity: str, old_key: str) 
     heirs = c.execute("SELECT * FROM repositories WHERE duplicate_of=? AND remote_identity=? ORDER BY archived,created_at,id",
                       (identity, old_key)).fetchall()
     for position, heir in enumerate(heirs):
-        stamp = now()
-        c.execute("UPDATE repositories SET duplicate_of=?,revision=revision+1,updated_at=? WHERE id=?",
-                  (None if position == 0 else heirs[0]["id"], stamp, heir["id"]))
-        event(c, actor, "repository.update", heir["id"], repository_record(heir), repository_record(_get(c, "repositories", heir["id"])))
+        _point(c, actor, heir, "duplicate_of", None if position == 0 else heirs[0]["id"])
+
+
+def _refuse_merged(c: sqlite3.Connection, row: Any) -> None:
+    if row["merged_into"]:
+        name = _get(c, "repositories", row["merged_into"])["name"]
+        raise AppError(409, "repository_merged", f"{row['name']} was merged into {name}; use that repository instead",
+                       {"repositoryId": row["merged_into"]})
+
+
+def repository_resolution(c: sqlite3.Connection, url: str) -> dict:
+    """What registering this address would do: link to the record holding its remote, or add one."""
+    address = _repository_url(url)
+    key = repository_identity(address)
+    holder = repository_holder(c, key)
+    return {"url": address, "remoteIdentity": key, "repository": repository_record(holder) if holder else None}
+
+
+# Tables that link other records to a repository; each keys on its owner and the repository.
+_REPOSITORY_LINKS = {"items": "item_repositories", "chats": "chat_repositories", "tickets": "ticket_repositories",
+                     "updates": "coordination_update_repositories"}
+
+
+def repository_merge(c: sqlite3.Connection, actor: dict, identity: str, p: dict) -> dict:
+    """Fold a record into another that stands for the same repository: a person's decision.
+
+    Links, reported contexts and updates move to the survivor without changing the revisions
+    of the records that hold them; update snapshots keep the names they were posted with.
+    The merged record stays, archived and read-only, and its remote answers with the survivor.
+    """
+    if actor["kind"] != "human":
+        raise AppError(403, "forbidden", "Only a person may merge repositories")
+    source = _get(c, "repositories", identity)
+    survivor = _get(c, "repositories", text(p.get("intoId"), "intoId", required=True, limit=200))
+    require_revision(source, p.get("revision"))
+    require_revision(survivor, p.get("intoRevision"))
+    if source["id"] == survivor["id"]:
+        raise AppError(422, "validation", "Choose another repository to merge into")
+    _refuse_merged(c, source)
+    _refuse_merged(c, survivor)
+    if survivor["archived"]:
+        raise AppError(409, "archived", f"Recover {survivor['name']} before merging into it", {"repositoryId": survivor["id"]})
+    moved = {"contexts": c.execute("UPDATE participation_contexts SET repository_id=? WHERE repository_id=?",
+                                   (survivor["id"], source["id"])).rowcount}
+    for kind, table in _REPOSITORY_LINKS.items():
+        # Table names are internal constants. An owner already linked to the survivor keeps that link.
+        moved[kind] = c.execute(f"SELECT count(*) FROM {table} WHERE repository_id=?", (source["id"],)).fetchone()[0]
+        c.execute(f"UPDATE OR IGNORE {table} SET repository_id=? WHERE repository_id=?", (survivor["id"], source["id"]))
+        c.execute(f"DELETE FROM {table} WHERE repository_id=?", (source["id"],))
+    before = repository_record(source)
+    c.execute("UPDATE repositories SET archived=1,duplicate_of=NULL,merged_into=?,revision=revision+1,updated_at=? WHERE id=?",
+              (survivor["id"], now(), source["id"]))
+    # The survivor now answers for whatever pointed at the source: its duplicates and earlier merges.
+    if survivor["duplicate_of"] == source["id"]:
+        _point(c, actor, survivor, "duplicate_of", None)
+    for column in ("duplicate_of", "merged_into"):
+        for row in c.execute(f"SELECT * FROM repositories WHERE {column}=?", (source["id"],)).fetchall():
+            _point(c, actor, row, column, survivor["id"])
+    result = repository_record(_get(c, "repositories", source["id"]))
+    event(c, actor, "repository.merge", source["id"], before, {**result, "moved": moved})
+    kept = repository_record(_get(c, "repositories", survivor["id"]))
+    event(c, actor, "repository.merge", survivor["id"], kept, {**kept, "mergedFrom": source["id"], "moved": moved})
+    return result
 
 
 def repository_apply(c: sqlite3.Connection, actor: dict, action: str, p: dict) -> dict:
     if action not in {"repository.create", "repository.update", "repository.archive", "repository.recover"}:
         raise AppError(422, "validation", "Unknown repository command")
-    before = None if action == "repository.create" else repository_record(_get(c, "repositories", p["id"]))
+    current = None if action == "repository.create" else _get(c, "repositories", p["id"])
+    before = repository_record(current) if current else None
     if before:
         require_revision(before, p.get("revision"))
+        _refuse_merged(c, current)
     if action.endswith(("archive", "recover")):
         assert before is not None
         archived = action.endswith("archive")
@@ -309,6 +382,7 @@ class CoordinationService:
             value = {"repositoryId": repo_id, **{field: text(context.get(field, ""), field, limit=2000) for field in ("checkoutPath", "worktreePath", "branch")}}
             # Retain historical archived contexts only when the declaration is unchanged.
             if repository["archived"] and value not in (prior_contexts or []):
+                _refuse_merged(c, repository)
                 raise AppError(409, "archived", "Archived repositories cannot receive new contexts")
             result.append(value)
         if item_id is None and not result:

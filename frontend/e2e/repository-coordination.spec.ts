@@ -258,3 +258,81 @@ test("repositories connect work, named agent reports, chat badges and human run 
     page.getByRole("heading", { name: reviewerName, exact: true }),
   ).toBeVisible();
 });
+
+test("a person merges a moved repository's record and its old remote follows", async ({
+  page,
+  baseURL,
+}) => {
+  const origin = new URL(baseURL!).origin;
+  const suffix = crypto.randomUUID();
+  const oldName = "Old home " + suffix;
+  const newName = "New home " + suffix;
+  await page.goto("/");
+  // Bootstrap after the page has its session, so both share one CSRF token.
+  await expect(
+    page.getByRole("heading", { name: "Today", exact: true }),
+  ).toBeVisible();
+  const boot = await page.request.post("/api/v1/session/bootstrap", {
+    headers: { Origin: origin, "X-Worklog-Bootstrap": "1" },
+    data: {},
+  });
+  const { csrfToken } = await boot.json();
+  async function write(path: string, data: unknown) {
+    const response = await page.request.post("/api/v1" + path, {
+      headers: {
+        "Idempotency-Key": crypto.randomUUID(),
+        Origin: origin,
+        "X-CSRF-Token": csrfToken,
+      },
+      data,
+    });
+    expect(response.ok(), `${path}: ${await response.text()}`).toBeTruthy();
+    return response.json();
+  }
+  const old = await write("/repositories", {
+    name: oldName,
+    url: `https://github.com/old-owner/${suffix}`,
+  });
+  const moved = await write("/repositories", {
+    name: newName,
+    url: `https://github.com/new-owner/${suffix}`,
+  });
+  const work = await write("/work-items", {
+    title: "Work on the old home " + suffix,
+    repositoryIds: [old.id],
+  });
+
+  await page.goto("/#repositories/" + old.id);
+  await page.getByText("Merge into another repository").click();
+  await page
+    .getByRole("textbox", { name: "Find a repository to merge into" })
+    .fill(newName);
+  await page
+    .getByRole("combobox", { name: "Merge into" })
+    .selectOption(moved.id);
+  await page
+    .getByRole("button", { name: `Merge into ${newName}…`, exact: true })
+    .click();
+  await expect(
+    page.getByText(`Merge ${oldName} into ${newName}?`),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Confirm merge" }).click();
+
+  // The survivor now holds the work, and the merged record names it.
+  await expect(page).toHaveURL(new RegExp(`#repositories/${moved.id}$`));
+  await expect(page.getByRole("heading", { name: newName })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: work.title, exact: true }),
+  ).toBeVisible();
+  await page.goto("/#repositories/" + old.id);
+  await expect(page.getByText(/now answers for its remote/)).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Recover repository" }),
+  ).toHaveCount(0);
+  // Registering the old remote again links to the survivor.
+  const again = await write("/repositories", {
+    name: oldName,
+    url: `git@github.com:old-owner/${suffix}.git`,
+  });
+  expect([again.id, again.created]).toEqual([moved.id, false]);
+});

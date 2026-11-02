@@ -245,11 +245,14 @@ class ProposalService:
         # Dispatch uses this same transaction. Any stale revision, validation
         # error, or injected failure rolls back all operations and approval.
         # GitHub references may link to a chat created or updated elsewhere in the same proposal.
-        ordered = [op for op in operations if not op["action"].startswith("github.")] + [
-            op for op in operations if op["action"].startswith("github.")
-        ]
-        for operation in ordered:
-            self.dispatch(connection, proposer, operation["action"], operation["payload"])
+        ordered = sorted(enumerate(operations, 1), key=lambda pair: pair[1]["action"].startswith("github."))
+        for number, operation in ordered:
+            try:
+                self.dispatch(connection, proposer, operation["action"], operation["payload"])
+            except AppError as exc:
+                # Name the change as Review numbers it, so the person knows which one to fix.
+                raise AppError(exc.status, exc.code, f"Change {number} of {len(operations)}, {operation['action']}: {exc.message}",
+                               {"operation": number, "action": operation["action"], "fields": exc.fields}) from exc
 
     def _advance(self, connection, identifier, verb, actor, before):
         state = {"submit": "submitted", "withdraw": "withdrawn", "approve": "approved", "reject": "rejected"}[verb]
