@@ -35,6 +35,8 @@ import {
   StepAgentChats,
 } from "./components";
 import { DecisionsSection, QuestionsSection } from "./QuestionsDecisions";
+import { AgentChips, workersOn } from "./RoadmapAgents";
+import type { RoadmapWorker } from "./agentTypes";
 import type { Item, List, Person, Roadmap, Step } from "./types";
 import { Icon } from "./icons";
 // Matches the outline column's clamp in styles.css: the outline never narrower
@@ -42,6 +44,8 @@ import { Icon } from "./icons";
 const OUTLINE_MIN = 300;
 const DETAIL_MIN = 300;
 const HANDLE_WIDTH = 24;
+// Agents report as they work, so who works where refreshes as on the Agents page.
+const AGENTS_REFRESH = 30_000;
 type Preview = {
   id: string;
   title: string;
@@ -389,6 +393,10 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
   const workList = useData<List<Item>>(
     `/work-items?view=all&archived=false&limit=100&q=${encodeURIComponent(workQuery)}`,
   );
+  const stepAgents = useData<{ items: RoadmapWorker[] }>(
+    `/roadmaps/${id}/agents`,
+    AGENTS_REFRESH,
+  );
   const road = query.data;
   const loaded = road !== undefined;
   // Panes scroll on their own; when stacked on a narrow window, the page scrolls to the detail.
@@ -429,11 +437,20 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
   const completed = leaves.filter((s) => s.status === "done").length;
   const roadWorkItems = road.workItems ?? [];
   const roadChats = road.chats ?? [];
-  // How many active chats work on each step, for the outline.
-  const stepChats = new Map<string, number>();
-  for (const chat of roadChats.filter((c) => !c.archived))
-    for (const stepId of chat.stepIds)
-      stepChats.set(stepId, (stepChats.get(stepId) ?? 0) + 1);
+  const workers = stepAgents.data?.items ?? [];
+  const titles = new Map(active.map((s) => [s.id, s.title]));
+  const stepTitle = (stepId: string) =>
+    titles.get(stepId) ?? "a step no longer in the plan";
+  const kidsOf = new Map<string, string[]>();
+  for (const s of active)
+    if (s.parentId)
+      kidsOf.set(s.parentId, [...(kidsOf.get(s.parentId) ?? []), s.id]);
+  // A collapsed step shows who works on the sub-steps it hides.
+  const subtree = (root: string) => {
+    const ids = new Set([root]);
+    for (const id of ids) for (const kid of kidsOf.get(id) ?? []) ids.add(kid);
+    return ids;
+  };
   const selected = step ? active.find((s) => s.id === step) : undefined;
   // A step opened by link shows in the outline: expand its collapsed ancestors once.
   if (step !== revealed) {
@@ -551,7 +568,9 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
         const kids = active.filter((c) => c.parentId === s.id).length;
         const closed = kids > 0 && collapsed.has(s.id);
         const items = roadWorkItems.filter((w) => w.stepId === s.id).length;
-        const agents = stepChats.get(s.id) ?? 0;
+        const placed = workers.length
+          ? workersOn(workers, closed ? subtree(s.id) : new Set([s.id]))
+          : [];
         const current = s.id === selected?.id;
         return (
           <li key={s.id} className={"step status-" + s.status}>
@@ -583,7 +602,7 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
                 >
                   {s.title}
                 </a>
-                {(closed || items > 0 || agents > 0) && (
+                {(closed || items > 0 || placed.length > 0) && (
                   <span className="step-meta">
                     {closed && (
                       <small>
@@ -595,11 +614,11 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
                         {items} work item{items === 1 ? "" : "s"}
                       </small>
                     )}
-                    {agents > 0 && (
-                      <small>
-                        {agents} agent chat{agents === 1 ? "" : "s"}
-                      </small>
-                    )}
+                    <AgentChips
+                      placed={placed}
+                      stepTitle={stepTitle}
+                      here={s.id}
+                    />
                   </span>
                 )}
               </span>
@@ -1132,6 +1151,17 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
             )}
           </div>
           <div className="panel-body" ref={outlineRef}>
+            <ErrorMessage error={stepAgents.error} />
+            {workers.length > 0 && (
+              <p className="agents-here">
+                <small className="muted">Agents working here</small>
+                <AgentChips
+                  placed={workersOn(workers)}
+                  stepTitle={stepTitle}
+                  limit={8}
+                />
+              </p>
+            )}
             {!active.length ? (
               <Empty>Add the first step in the structure editor.</Empty>
             ) : (

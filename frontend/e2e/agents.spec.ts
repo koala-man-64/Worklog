@@ -41,7 +41,7 @@ test("the agents tab shows who works on what, and why", async ({
   const repository = await write("/repositories", {
     name: "Registry repo " + suffix,
   });
-  const { token } = await write("/credentials", { label });
+  const { token, agentId } = await write("/credentials", { label });
   const run = await write(
     "/agent-runs",
     { clientRunKey: suffix, displayName: "Registry run", provider: "claude" },
@@ -100,11 +100,25 @@ test("the agents tab shows who works on what, and why", async ({
       .getByRole("link", { name: "Registry plan " + suffix }),
   ).toBeVisible();
 
+  // The roadmap's plan shows the agent beside the step its work sits on.
+  await page.goto("/#roadmaps/" + roadmap.id);
+  const step = page
+    .getByRole("region", { name: "Plan outline" })
+    .locator(".step-row")
+    .filter({
+      has: page.getByRole("link", { name: "Registry step", exact: true }),
+    });
+  await expect(
+    step.getByRole("link", { name: label, exact: true }),
+  ).toHaveAttribute("href", "#agents/" + agentId);
+
   // The registry joins tracked chats, so it stays the person's view.
-  const denied = await page.request.get("/api/v1/agents", {
-    headers: { Authorization: "Bearer " + token },
-  });
-  expect(denied.status()).toBe(403);
+  for (const path of ["/agents", `/roadmaps/${roadmap.id}/agents`]) {
+    const denied = await page.request.get("/api/v1" + path, {
+      headers: { Authorization: "Bearer " + token },
+    });
+    expect(denied.status(), path).toBe(403);
+  }
 });
 
 test("an agent registers its own identity and speaks as it", async ({

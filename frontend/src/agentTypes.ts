@@ -63,6 +63,28 @@ export type AgentDetail = AgentSummary & {
   repositories: Ties<{ id: string; name: string; archived: boolean }>;
   chats: Ties<TrackedChat>;
 };
+/** What ties a worker to a roadmap step; a null stepId is the roadmap itself. */
+export type RoadmapTie = {
+  stepId: string | null;
+  via: "participation" | "role" | "chat";
+  item: { id: string; title: string } | null;
+  chat: { id: string; title: string } | null;
+  role: { id: string; label: string } | null;
+  lastAt: string | null;
+  stale: boolean;
+};
+/** A registered agent, or a tracked chat that no agent's run reported. */
+export type RoadmapWorker = {
+  kind: "agent" | "chat";
+  id: string;
+  label: string;
+  avatar: string | null;
+  provider: string;
+  model: string;
+  ties: RoadmapTie[];
+  lastAt: string | null;
+  stale: boolean;
+};
 export type AgentActivity =
   | {
       kind: "message";

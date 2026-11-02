@@ -27,3 +27,7 @@ def install_registry_routes(app: FastAPI, db: Database) -> None:
     @app.get("/api/v1/agents/{identity}/activity")
     def activity(identity: str, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
         return read(lambda c: registry.activity(c, identity, limit, offset))
+
+    @app.get("/api/v1/roadmaps/{identity}/agents")
+    def roadmap_agents(identity: str) -> dict:
+        return read(lambda c: registry.roadmap(c, identity))
