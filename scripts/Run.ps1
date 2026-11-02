@@ -22,6 +22,10 @@ $commonArgs = @{}
 if ($DataDir) { $commonArgs["DataDir"] = $DataDir }
 if ($Port) { $commonArgs["Port"] = $Port }
 
+# Run Setup's shared-dependency check before stopping anything, so a refusal leaves Worklog running.
+& $setupScript -CheckOnly
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
 $stoppedBeforeSetup = $false
 if ((Test-Path -LiteralPath $pythonPath) -and (Test-Path -LiteralPath $worklogExe)) {
     & $worklogScript -Command stop @commonArgs
