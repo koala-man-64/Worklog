@@ -38,8 +38,10 @@ INDEX_SECONDS = 10  # how long a listing of the transcript folders, or a missing
 # Wrappers the tools put around their own context; they are not messages anyone sent.
 SKIPPED_TEXT = re.compile(r"\s*(<(system-reminder|local-command-[a-z]+|task-notification|environment_context|"
                           r"user_instructions|turn_aborted|external_[a-z_]+)[\s>]|# AGENTS\.md instructions)")
+# Codex heads each message between agents with its type and both addresses, which the record already holds.
+ENVELOPE = re.compile(r"\s*Message Type: *(\w+) *\n(?:.*\n){0,8}?Payload: *(?:\n|$)")
 logger = logging.getLogger("worklog")
-COMMAND = re.compile(r"<command-name>(.*?)</command-name>", re.S)
+COMMAND =re.compile(r"<command-name>(.*?)</command-name>", re.S)
 COMMAND_ARGS = re.compile(r"<command-args>(.*?)</command-args>", re.S)
 
 
@@ -443,7 +445,7 @@ class TranscriptReader:
 
     def _add(self, state: Parsed, thread: Thread, at: str | None, kind: str, text: str, **extra: Any) -> None:
         body, cut = clip(text)
-        if body:
+        if body or extra.get("encrypted"):
             self._push(state, {"id": f"{thread.key}:{state.lines}", "line": state.lines, "thread": thread.key, "at": at,
                                "kind": kind, "text": body, "truncated": cut, **extra})
 
@@ -541,7 +543,12 @@ class TranscriptReader:
         if item == "message" and p.get("role") in {"user", "assistant"}:
             self._add(state, thread, at, p["role"], text)
         elif item == "agent_message":
-            self._add(state, thread, at, "agent", text, sender=string(p.get("author")), to=string(p.get("recipient")) or thread.address)
+            envelope = ENVELOPE.match(text)
+            body = text[envelope.end():] if envelope else text
+            # Codex keeps most of these only as encrypted content, which nothing on this machine can read.
+            encrypted = not body.strip() and any(b.get("type") == "encrypted_content" for b in content)
+            self._add(state, thread, at, "agent", body, sender=string(p.get("author")), to=string(p.get("recipient")) or thread.address,
+                      **({"messageType": envelope.group(1)} if envelope else {}), **({"encrypted": True} if encrypted else {}))
         elif item.endswith("_call"):
             name = string(p.get("name")) or item.removesuffix("_call")
             # Messages between agents show once, where they were received.

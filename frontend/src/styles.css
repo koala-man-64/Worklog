@@ -1932,6 +1932,10 @@ a.context-tag:hover {
 .message .markdown > :first-child {
   margin-top: 0;
 }
+.message-encrypted {
+  margin: 0;
+  font-style: italic;
+}
 .message .markdown h1,
 .message .markdown h2 {
   font-size: 18px;

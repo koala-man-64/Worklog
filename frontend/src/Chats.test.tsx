@@ -307,6 +307,60 @@ it("says when no transcript on this machine has the chat ID", async () => {
   ).toBeInTheDocument();
 });
 
+it("says when Codex kept a message between agents only encrypted", async () => {
+  const agent = {
+    thread: "lorentz",
+    kind: "agent" as const,
+    author: "Codex",
+    authorThread: "root",
+    recipient: "Lorentz",
+  };
+  serve((url) =>
+    url.includes("/transcript")
+      ? transcript({
+          messages: [
+            {
+              ...agent,
+              id: "lorentz:1",
+              at: minutesAgo(3),
+              text: "",
+              messageType: "NEW_TASK",
+              encrypted: true,
+            },
+            {
+              ...agent,
+              id: "lorentz:2",
+              at: minutesAgo(2),
+              text: "",
+              messageType: "MESSAGE",
+              encrypted: true,
+            },
+            {
+              ...agent,
+              id: "root:3",
+              thread: "root",
+              at: minutesAgo(1),
+              author: "Lorentz",
+              authorThread: "lorentz",
+              recipient: "Codex",
+              text: "Pipeline is **green**",
+              messageType: "FINAL_ANSWER",
+            },
+          ],
+        })
+      : { items: [release] },
+  );
+  const messages = await screen.findByRole("list", { name: "Messages" });
+  const [task, message, answer] = within(messages).getAllByRole("listitem");
+  expect(task).toHaveTextContent(/Codex\s*to\s*Lorentz\s*· new task/);
+  expect(task).toHaveTextContent("Encrypted by Codex");
+  expect(message).toHaveTextContent("Encrypted by Codex");
+  expect(message).not.toHaveTextContent(/·/);
+  expect(answer).toHaveTextContent("· final answer");
+  expect(within(answer).getByText("green").tagName).toBe("STRONG");
+  expect(answer).not.toHaveTextContent("Encrypted");
+});
+
 it("describes times relative to now", () => {
   const now = Date.parse("2026-11-01T12:00:00Z");
   expect(ago("2026-11-01T11:59:40Z", now)).toBe("just now");
