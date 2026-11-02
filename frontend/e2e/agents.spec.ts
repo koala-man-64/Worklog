@@ -42,11 +42,24 @@ test("the agents tab shows who works on what, and why", async ({
     name: "Registry repo " + suffix,
   });
   const { token, agentId } = await write("/credentials", { label });
+  const chatId = "registry-chat-" + suffix;
   const run = await write(
     "/agent-runs",
-    { clientRunKey: suffix, displayName: "Registry run", provider: "claude" },
+    {
+      clientRunKey: suffix,
+      displayName: "Registry run",
+      provider: "claude",
+      externalChatId: chatId,
+    },
     token,
   );
+  await write("/chats", {
+    ownerType: "roadmap",
+    ownerId: roadmap.id,
+    chatId,
+    title: "Registry chat " + suffix,
+    stepIds: [roadmap.steps[0].id],
+  });
   await write(
     "/participations",
     {
@@ -119,6 +132,21 @@ test("the agents tab shows who works on what, and why", async ({
     });
     expect(denied.status(), path).toBe(403);
   }
+
+  // Once the agent ends its run, it is finished there, though its chat stays tracked.
+  await write(`/agent-runs/${run.id}/end`, { revision: run.revision }, token);
+  const workers = page.waitForResponse((response) =>
+    response.url().endsWith(`/api/v1/roadmaps/${roadmap.id}/agents`),
+  );
+  await page.reload();
+  expect((await (await workers).json()).items).toEqual([]);
+  await expect(
+    step.getByRole("link", { name: "Registry step", exact: true }),
+  ).toBeVisible();
+  await expect(
+    step.getByRole("link", { name: label, exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByText("Agents working here")).toHaveCount(0);
 });
 
 test("an agent registers its own identity and speaks as it", async ({

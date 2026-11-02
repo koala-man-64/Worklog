@@ -196,6 +196,46 @@ def test_a_roadmap_shows_who_works_on_each_of_its_steps_now(client):
     assert ok(get(client, f"/roadmaps/{elsewhere['id']}/agents"))["items"][0]["label"] == "Other"
 
 
+def test_agents_that_finished_and_the_chats_they_reported_leave_the_roadmap(client):
+    roadmap = ok(write(client, "/roadmaps", {"title": "Platform", "steps": [{"title": "API"}]}))
+    api = roadmap["steps"][0]["id"]
+    build = ok(write(client, "/work-items", {"title": "Build the API", "roadmapId": roadmap["id"], "stepId": api}))
+    builder, finisher, retired, reviewer = (enroll(client, label) for label in ("Builder", "Finisher", "Retired", "Reviewer"))
+
+    def owns(agent, label):
+        role = ok(write(client, "/discussions/roles", {"contextType": "step", "contextId": api, "label": label}))
+        ok(write(client, f"/discussions/roles/{role['id']}/claim", {"revision": role["revision"]}, agent))
+
+    def end(agent, running):
+        ok(write(client, f"/agent-runs/{running['id']}/end", {"revision": running["revision"]}, agent))
+
+    # Builder is at work in one chat; its run in another ended.
+    end(builder, run(client, builder, externalChatId="chat-old"))
+    run(client, builder, externalChatId="chat-now")
+    # Finisher ended its only run, which releases its work; Retired's revoked credential ends its runs.
+    done = run(client, finisher, externalChatId="chat-done")
+    ok(write(client, "/participations", {"runId": done["id"], "itemId": build["id"]}, finisher))
+    end(finisher, done)
+    run(client, retired, externalChatId="chat-retired")
+    owns(retired, "Release")
+    ok(write(client, f"/credentials/{retired['id']}/revoke"))
+    # Reviewer owns a role but has no run open.
+    owns(reviewer, "Review")
+    titles = {"chat-old": "Old session", "chat-now": "Builder session", "chat-done": "Finished session",
+              "chat-retired": "Retired session", "chat-unreported": "Planning"}
+    for chat_id, title in titles.items():
+        ok(write(client, "/chats", {"ownerType": "roadmap", "ownerId": roadmap["id"], "chatId": chat_id, "title": title, "stepIds": [api]}))
+
+    def workers():
+        return {w["label"]: w for w in ok(get(client, f"/roadmaps/{roadmap['id']}/agents"))["items"]}
+    # A chat whose runs all ended is finished too; one no run reported still stands for itself.
+    assert set(workers()) == {"Builder", "Planning"}
+    assert placed(workers()["Builder"]) == {(api, "chat", None, "Builder session", None, False)}
+    # An owned role counts again once its owner is at work.
+    run(client, reviewer)
+    assert placed(workers()["Reviewer"]) == {(api, "role", None, None, "Review", False)}
+
+
 def test_activity_pages_this_agents_messages_and_updates_newest_first(client):
     repository = ok(write(client, "/repositories", {"name": "Worklog"}))
     builder, other = enroll(client, "Builder"), enroll(client, "Other")
