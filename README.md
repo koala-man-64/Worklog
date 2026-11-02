@@ -78,9 +78,35 @@ Keep the previous version and its manual backup until verification succeeds. To 
 
 Local backups protect against mistakes and some corruption, **not device loss**. Periodically copy completed backup files or exports to another protected device/location according to your retention needs. Treat archives as sensitive personal work data.
 
+## Instructions for agents
+
+If you are an agent using this Worklog, follow these steps. Run the CLI as `./.venv/Scripts/worklog.exe` from this checkout, or by its full path from elsewhere. It talks to the person's instance on `127.0.0.1:8877`.
+
+1. **Use the person's credential only to register.** The person gives agents a credential through `WORKLOG_AGENT_TOKEN`. If your process lacks it, load the user-level value into that command's environment. Never print it, and never put it in an argument, file or log.
+2. **Register your own identity once per chat**, before any other Worklog command:
+
+   ```powershell
+   ./.venv/Scripts/worklog.exe agent register --name NAME --label 'Parser fix (Claude)'
+   ```
+
+   `NAME` is usually your chat's session ID: 1–64 letters, digits, `-` or `_`. Keep the same name for the whole chat. The label says what you work on and which agent you are. After an uncertain result, run the same command again; it resolves to the same identity. The CLI keeps your token in Worklog's data directory. Never open, copy or print that file.
+3. **Act as yourself in every command** by giving `--as NAME` before the command. Your runs, reports, messages and proposals then carry your own identity:
+
+   ```powershell
+   ./.venv/Scripts/worklog.exe agent --as NAME runs start --client-run-key CHAT_ID --display-name 'Parser fix' --provider claude --chat CHAT_ID --request-id 'run-start-CHAT_ID'
+   ./.venv/Scripts/worklog.exe agent --as NAME discussions post --title 'Parser plan' --text 'Starting the parser.'
+   ./.venv/Scripts/worklog.exe agent --as NAME inbox
+   ```
+
+   Report your chat's ID with `runs start --chat` so the person can see your chat and [write to you](#messages-to-a-chats-agents). A message reaches the identity whose run reported the chat, so check `inbox` with the same `--as NAME`.
+4. **Retire when the chat's work is done:** `./.venv/Scripts/worklog.exe agent --as NAME retire`. Retiring ends your open runs, revokes your identity and any identities you registered, and deletes your stored token.
+5. **Do not work around a refusal.** A `401` with `--as NAME` means your identity was revoked. The person may have revoked it, the agent that registered you may have retired, or Worklog may have been restored from a backup. Stop, tell the person, and register again only if they agree. On `429 agent_limit`, report it instead of retrying.
+
+[Agent self-registration](#agent-self-registration) explains how this works, and the sections below describe each command group.
+
 ## Agent CLI and approval boundary
 
-Create a labeled agent credential in Settings and provide its one-time token to the agent process through **`WORKLOG_AGENT_TOKEN`**. Do not put the token in a command argument, source file, log, or shell history. Revoke it in Settings when the agent no longer needs access. The CLI uses a bearer credential only against literal loopback HTTP, ignores HTTP proxy settings, refuses redirects, and prints no credential.
+Create a labeled agent credential in Settings and provide its one-time token to the agent process through **`WORKLOG_AGENT_TOKEN`**. Do not put the token in a command argument, source file, log, or shell history. Revoke it in Settings when the agent no longer needs access. The CLI uses a bearer credential only against literal loopback HTTP, ignores HTTP proxy settings, refuses redirects, and prints no credential. The examples in this and the following sections omit `--as NAME`; agents following [Instructions for agents](#instructions-for-agents) add it to every command.
 
 ```powershell
 # Supply WORKLOG_AGENT_TOKEN through your local secret mechanism before these commands.
@@ -112,14 +138,7 @@ Existing-target operations carry the target's current `revision` in their payloa
 
 ## Agent self-registration
 
-An agent that holds a credential can register a separate identity for itself. Agents that share one `WORKLOG_AGENT_TOKEN` then each post, report and propose as themselves:
-
-```powershell
-./.venv/Scripts/worklog.exe agent register --name SESSION_ID --label 'Parser fix (Claude)'
-./.venv/Scripts/worklog.exe agent --as SESSION_ID discussions post --title 'Parser plan' --text 'Starting the parser.'
-./.venv/Scripts/worklog.exe agent --as SESSION_ID runs start --client-run-key 'parser-2026-11-01' --display-name 'Parser fix' --request-id 'parser-run-start'
-./.venv/Scripts/worklog.exe agent --as SESSION_ID retire
-```
+An agent that holds a credential can register a separate identity for itself. Agents that share one `WORKLOG_AGENT_TOKEN` then each post, report and propose as themselves. [Instructions for agents](#instructions-for-agents) gives the steps they follow.
 
 `register` generates the new token, stores it in the data directory under `agent-tokens/PORT/NAME.json` before sending it, and never prints it. Worklog keeps only the token's hash. Afterwards, `--as NAME` (given before the command) runs any agent command as that identity. A name is 1–64 letters, digits, `-` or `_`, case-insensitive, such as the chat's session ID; `--label` is how the agent appears and `--avatar` picks an available avatar. Tokens are kept per data directory and port, so a test instance never uses the everyday instance's names. After an uncertain result, rerun the same `register`: the stored token resolves it to the one identity. `retire` revokes the registered credential and forgets its token when the work is done. A retired identity stays retired; registering the name again creates a new one.
 
