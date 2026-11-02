@@ -208,3 +208,102 @@ def test_approved_item_completion_does_not_change_linked_step_progress(tmp_path)
     service.transition(proposal["id"], "approve", {"revision": proposal["revision"]}, HUMAN)
     assert work.detail(item["id"])["status"] == "done"
     assert plans.detail(plan["id"])["steps"][0]["status"] == "open"
+
+
+def test_github_ref_links_to_chat_by_external_chat_id_even_when_listed_before_chat_create(tmp_path):
+    db = Database(tmp_path / "integrated.db")
+    db.initialize()
+    plans = PlanService(db)
+    work = WorkService(db, plans)
+    service = ProposalService(db, work.apply)
+    work.proposals = service
+    with db.transaction() as conn:
+        roadmap = plans.apply(conn, HUMAN, "roadmap.create", {"title": "Roadmap", "steps": [{"title": "Cutover"}]})
+        step = roadmap["steps"][0]
+        item = work.apply(conn, HUMAN, "item.create", {"title": "Contracts cutover", "roadmapId": roadmap["id"], "stepId": step["id"]})
+        other_item = work.apply(conn, HUMAN, "item.create", {"title": "Unrelated item"})
+        unrelated_chat = work.apply(conn, HUMAN, "chat.create", {
+            "ownerType": "item",
+            "ownerId": other_item["id"],
+            "chatId": "unrelated-session",
+            "title": "Unrelated chat",
+        })
+    proposal = service.create({
+        "title": "Pre-publication evidence and chat provenance",
+        "rationale": "Record PR and chat together.",
+        "operations": [
+            {
+                "action": "github.create",
+                "payload": {
+                    "ownerType": "item",
+                    "ownerId": item["id"],
+                    "kind": "pr",
+                    "url": "https://github.com/acme/contracts/pull/4556",
+                    "title": "Replace versionMatrix with components",
+                    "chatId": "7232a0ef-fe1b-4d86-8dfb-e9cd9a8e0ea2",
+                },
+            },
+            {
+                "action": "chat.create",
+                "payload": {
+                    "ownerType": "item",
+                    "ownerId": item["id"],
+                    "chatId": "7232a0ef-fe1b-4d86-8dfb-e9cd9a8e0ea2",
+                    "title": "Publication & adoption coordination",
+                },
+            },
+        ],
+    }, AGENT)
+    proposal = service.transition(proposal["id"], "submit", {"revision": 1}, AGENT)
+    approved = service.transition(proposal["id"], "approve", {"revision": proposal["revision"]}, HUMAN)
+    assert approved["status"] == "approved"
+    detail = work.detail(item["id"])
+    assert len(detail["chats"]) == 1
+    assert len(detail["github"]) == 1
+    assert detail["github"][0]["chatId"] == detail["chats"][0]["id"]
+    assert detail["github"][0]["chatTitle"] == "Publication & adoption coordination"
+
+    # A chat tracked on the item's roadmap (or a roadmap ref linking to an item chat) also resolves.
+    with db.transaction() as conn:
+        road_chat = work.apply(conn, HUMAN, "chat.create", {
+            "ownerType": "roadmap",
+            "ownerId": roadmap["id"],
+            "chatId": "road-session-1",
+            "title": "Roadmap planning chat",
+            "stepIds": [step["id"]],
+        })
+        from_road = work.apply(conn, HUMAN, "github.create", {
+            "ownerType": "item",
+            "ownerId": item["id"],
+            "kind": "commit",
+            "url": "https://github.com/acme/contracts/commit/e52ae299c9dd6b6c050d4d6fe1afcda90d46e8a7",
+            "chatId": "road-session-1",
+        })
+        from_item = work.apply(conn, HUMAN, "github.create", {
+            "ownerType": "roadmap",
+            "ownerId": roadmap["id"],
+            "kind": "pr",
+            "url": "https://github.com/acme/contracts/pull/4557",
+            "chatId": "7232a0ef-fe1b-4d86-8dfb-e9cd9a8e0ea2",
+        })
+        assert from_road["chatId"] == road_chat["id"]
+        assert from_road["chatTitle"] == "Roadmap planning chat"
+        assert from_item["chatId"] == detail["chats"][0]["id"]
+        assert from_item["chatTitle"] == "Publication & adoption coordination"
+        with pytest.raises(AppError, match="Agent chat does not belong to this record"):
+            work.apply(conn, HUMAN, "github.create", {
+                "ownerType": "item",
+                "ownerId": item["id"],
+                "kind": "pr",
+                "url": "https://github.com/acme/contracts/pull/9999",
+                "chatId": unrelated_chat["id"],
+            })
+        with pytest.raises(AppError, match="Agent chat does not belong to this record"):
+            work.apply(conn, HUMAN, "github.create", {
+                "ownerType": "item",
+                "ownerId": item["id"],
+                "kind": "pr",
+                "url": "https://github.com/acme/contracts/pull/9999",
+                "chatId": "unrelated-session",
+            })
+
