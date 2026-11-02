@@ -45,6 +45,7 @@ from .discussions import bind_credential, communication_actor
 from .plans import PlanService
 from .proposals import ProposalService
 from .recovery import automatic_backup, backup_database, export_database, list_backups
+from .registry_api import install_registry_routes
 from .services import WorkService, support_record
 from .transcripts import MESSAGE_LIMIT, TranscriptReader, TranscriptRoots
 
@@ -199,10 +200,12 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                     actor = {"id": credential["id"], "label": credential["label"], "kind": "agent"}
                     suffix = path.removeprefix("/api/v1")
                     # Transcripts hold whole conversations, tool output included; only the person reads them.
+                    # The agent registry joins tracked chats into every agent's record, so it is theirs too.
                     # A trailing slash would only redirect, but it is refused here rather than there.
                     chats = suffix.rstrip("/")
                     forbidden = (suffix.startswith(("/settings", "/credentials", "/backups", "/export", "/openapi")) or
-                                 chats == "/chats" or (chats.startswith("/chats/") and chats.endswith("/transcript")))
+                                 chats == "/chats" or (chats.startswith("/chats/") and chats.endswith("/transcript")) or
+                                 chats == "/agents" or chats.startswith("/agents/"))
                     agent_write = ((suffix == "/proposals" and method == "POST") or
                                    (suffix.startswith("/proposals/") and (method == "PATCH" or (method == "POST" and suffix.rsplit("/", 1)[-1] in {"submit", "withdraw"}))) or
                                    (suffix == "/attachments" and method == "POST" and request.query_params.get("ownerType") == "proposal"))
@@ -783,6 +786,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
 
     install_coordination_routes(app, db, mutate)
     install_discussion_routes(app, db, discussion_mutate)
+    install_registry_routes(app, db)
     app.router.routes.append(generic)
     dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
     if (dist / "assets").is_dir():

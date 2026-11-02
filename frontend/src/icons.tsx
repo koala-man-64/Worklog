@@ -27,6 +27,14 @@ const shapes = {
       <path d="M3 20a6 6 0 0 1 12 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.4a6 6 0 0 1 3 5.6" />
     </>
   ),
+  agents: (
+    <>
+      <rect x="4.5" y="8" width="15" height="11.5" rx="2.5" />
+      <path d="M12 8V5" />
+      <circle cx="12" cy="3.75" r="1.25" />
+      <path d="M9.5 13.5h.01M14.5 13.5h.01" strokeWidth={3} />
+    </>
+  ),
   chats: (
     <>
       <path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8l-4 4v-4a2 2 0 0 1-2-2z" />

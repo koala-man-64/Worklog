@@ -16,6 +16,7 @@ import { Roadmaps } from "./Roadmaps";
 import { RoadmapNav } from "./RoadmapNav";
 import { Repositories } from "./Repositories";
 import { People } from "./People";
+import { Agents } from "./Agents";
 import { Chats } from "./Chats";
 import { Discussions } from "./Discussions";
 import { Review } from "./Review";
@@ -28,6 +29,7 @@ const destinations: { route: string; icon: IconName; label: string }[] = [
   { route: "roadmaps", icon: "roadmaps", label: "Roadmaps" },
   { route: "repositories", icon: "work", label: "Repositories" },
   { route: "people", icon: "people", label: "People" },
+  { route: "agents", icon: "agents", label: "Agents" },
   { route: "chats", icon: "chats", label: "Chats" },
   { route: "discussions", icon: "chats", label: "Discussions" },
   { route: "review", icon: "review", label: "Review" },
@@ -207,6 +209,8 @@ export default function App() {
             <Repositories key={id ?? "list"} selected={id} />
           ) : page === "people" ? (
             <People key={id ?? "list"} selected={id} />
+          ) : page === "agents" ? (
+            <Agents key={id ?? "list"} selected={id} />
           ) : page === "chats" ? (
             <Chats selected={id} />
           ) : page === "discussions" ? (
