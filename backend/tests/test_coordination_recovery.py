@@ -40,7 +40,7 @@ def test_v1_upgrade_preserves_actor_receipts_legacy_names_and_pre_upgrade_snapsh
     legacy_database(path)
     Database(path).initialize()
     with Database(path).read() as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
         assert recovery._schema_signature(conn) == recovery._expected_schema()
         assert tuple(conn.execute("SELECT id,token_hash,revoked FROM credentials").fetchone()) == ("credential", "unchanged-hash", 0)
         assert tuple(conn.execute("SELECT actor_id,status FROM proposals").fetchone()) == ("credential", "draft")
@@ -55,7 +55,7 @@ def test_v1_upgrade_preserves_actor_receipts_legacy_names_and_pre_upgrade_snapsh
         assert json.loads(archive.read("manifest.json"))["schemaVersion"] == 1
     with closing(sqlite3.connect(snapshots[0])) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 1
-        assert recovery._schema_signature(conn) == recovery._expected_schema(coordination=False, avatars=False)
+        assert recovery._schema_signature(conn) == recovery._expected_schema(coordination=False, avatars=False, chat_messages=False)
     Database(path).initialize()
     assert len(list((tmp_path / "backups").glob("worklog-pre-migration-*.sqlite3"))) == 1
 
@@ -75,7 +75,7 @@ def test_coordination_migration_failure_rolls_back_all_tables_and_version(tmp_pa
         Database(path).initialize()
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 1
-        assert recovery._schema_signature(conn) == recovery._expected_schema(coordination=False, avatars=False)
+        assert recovery._schema_signature(conn) == recovery._expected_schema(coordination=False, avatars=False, chat_messages=False)
         assert conn.execute("SELECT count(*) FROM communication_credentials").fetchone()[0] == 0
     assert len(list((tmp_path / "backups").glob("worklog-pre-migration-*.sqlite3"))) == 1
 
@@ -92,10 +92,10 @@ def test_pre_migration_backup_failure_prevents_upgrade(tmp_path, monkeypatch):
         Database(path).initialize()
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 1
-        assert recovery._schema_signature(conn) == recovery._expected_schema(coordination=False, avatars=False)
+        assert recovery._schema_signature(conn) == recovery._expected_schema(coordination=False, avatars=False, chat_messages=False)
 
 
-@pytest.mark.parametrize("current_shape,version", [(True, 1), (True, 2), (False, 2), (False, 3)])
+@pytest.mark.parametrize("current_shape,version", [(True, 1), (True, 2), (True, 3), (False, 2), (False, 3), (False, 4)])
 def test_schema_version_cannot_disguise_another_shape(tmp_path, current_shape, version):
     path = tmp_path / "worklog.sqlite3"
     if current_shape:
@@ -131,7 +131,7 @@ def test_restore_and_export_preserve_coordination_snapshots_but_end_live_presenc
     archive_data = recovery.export_database(path)
     with zipfile.ZipFile(io.BytesIO(archive_data)) as archive:
         manifest = json.loads(archive.read("manifest.json"))
-        assert manifest["schemaVersion"] == 3
+        assert manifest["schemaVersion"] == migrations.SCHEMA_VERSION
         updates = json.loads(archive.read("records/coordination_updates.json"))
         assert updates[0]["item_id"] is None
         assert json.loads(updates[0]["contexts_json"]) == snapshot_contexts
@@ -225,7 +225,7 @@ def test_populated_current_main_upgrades_without_losing_records(tmp_path, operat
     assert after == before
     recovery.validate_database(target)
     with Database(target).read() as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
         for table in ("repositories", "item_repositories", "chat_repositories", "agent_runs", "participations", "coordination_updates"):
             assert conn.execute(f"SELECT count(*) FROM {table}").fetchone()[0] == 0
 
