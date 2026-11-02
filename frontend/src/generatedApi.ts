@@ -2551,7 +2551,9 @@ export interface components {
         /** SettingsUpdate */
         SettingsUpdate: {
             /** Timezone */
-            timezone: string;
+            timezone?: string | null;
+            /** Requireproposalapproval */
+            requireProposalApproval?: boolean | null;
         };
         /** Target */
         Target: {

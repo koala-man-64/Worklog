@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from contextlib import nullcontext
 
-from .common import AppError, event, now, require_revision, uid
+from .common import AppError, event, now, require_revision, setting, uid
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS proposals (
@@ -65,6 +65,18 @@ FIELDS = {
     "decision.recover": ({"id", "revision"}, {"id", "revision"}),
 }
 
+# Approves under the person's standing choice in Settings rather than a decision on one
+# proposal: the person's authority, recorded apart from the approvals they give in Review.
+AUTOMATIC = {"id": "automatic-approval", "label": "Automatic approval", "kind": "human"}
+# The approval event is the one record of how a proposal was approved.
+SELECT = ("SELECT p.*,EXISTS(SELECT 1 FROM events e WHERE e.entity_id=p.id AND e.kind='proposal.approve'"
+          " AND e.actor_id=?) AS auto_approved FROM proposals p")
+
+
+def approval_required(conn):
+    # Only an explicit false turns review off; a missing or unexpected value keeps it.
+    return setting(conn, "requireProposalApproval", True) is not False
+
 
 def _string(value, name, max_bytes=1_000_000, required=False):
     if not isinstance(value, str) or len(value.encode("utf-8")) > max_bytes or (required and not value.strip()):
@@ -97,14 +109,15 @@ def _operations(value):
 
 def _record(row):
     return {"id": row["id"], "title": row["title"], "rationale": row["rationale"],
-            "status": row["status"], "revision": row["revision"], "actorId": row["actor_id"],
+            "status": row["status"], "autoApproved": bool(row["auto_approved"]),
+            "revision": row["revision"], "actorId": row["actor_id"],
             "actorLabel": row["actor_label"], "operations": json.loads(row["operations"]),
             "supersedesId": row["supersedes_id"], "createdAt": row["created_at"],
             "updatedAt": row["updated_at"], "attachments": []}
 
 
 def _row(conn, identifier):
-    row = conn.execute("SELECT * FROM proposals WHERE id=?", (identifier,)).fetchone()
+    row = conn.execute(SELECT + " WHERE p.id=?", (AUTOMATIC["id"], identifier)).fetchone()
     if row is None:
         raise AppError(404, "not_found", "Proposal not found")
     return row
@@ -137,7 +150,7 @@ class ProposalService:
         if status is not None and status not in {"draft", "submitted", "approved", "rejected", "withdrawn"}:
             raise AppError(422, "validation", "Invalid proposal status")
         with self.db.read() as conn:
-            rows = conn.execute("SELECT * FROM proposals ORDER BY created_at,id").fetchall()
+            rows = conn.execute(SELECT + " ORDER BY p.created_at,p.id", (AUTOMATIC["id"],)).fetchall()
             items = [_record(r) for r in rows if (not status or r["status"] == status)
                      and _can_see(conn, r, actor)]
             return {"items": items, "total": len(items)}
@@ -210,19 +223,37 @@ class ProposalService:
             if verb == "submit" and not before["operations"]:
                 raise AppError(422, "validation", "A submitted proposal needs at least one operation")
             if verb == "approve":
-                operations = before["operations"]
-                _operations(operations)
-                proposer = {"id": row["actor_id"], "label": row["actor_label"], "kind": row["actor_kind"]}
-                # Dispatch uses this same transaction. Any stale revision, validation
-                # error, or injected failure rolls back all operations and approval.
-                for operation in operations:
-                    self.dispatch(connection, proposer, operation["action"], operation["payload"])
-            state = {"submit": "submitted", "withdraw": "withdrawn", "approve": "approved", "reject": "rejected"}[verb]
-            connection.execute("UPDATE proposals SET status=?,revision=revision+1,updated_at=? WHERE id=?",
-                               (state, now(), identifier))
-            result = _record(_row(connection, identifier))
-            event(connection, actor, f"proposal.{verb}", identifier, before, result)
+                self._apply(connection, row)
+            result = self._advance(connection, identifier, verb, actor, before)
+            if verb == "submit" and not approval_required(connection):
+                # The person turned approval off, so submitting applies the proposal. A failure
+                # rolls the submission back with it and leaves the draft for its agent to fix.
+                try:
+                    self._apply(connection, row)
+                except AppError as exc:
+                    raise AppError(exc.status, exc.code, "Not submitted: with approval off, submitting "
+                                   f"applies the proposal, and that failed. {exc.message}", exc.fields) from exc
+                result = self._advance(connection, identifier, "approve", AUTOMATIC, result)
             return result
+
+    def _apply(self, connection, row):
+        operations = json.loads(row["operations"])
+        _operations(operations)
+        proposer = {"id": row["actor_id"], "label": row["actor_label"], "kind": row["actor_kind"]}
+        # Dispatch uses this same transaction. Any stale revision, validation
+        # error, or injected failure rolls back all operations and approval.
+        for operation in operations:
+            self.dispatch(connection, proposer, operation["action"], operation["payload"])
+
+    def _advance(self, connection, identifier, verb, actor, before):
+        state = {"submit": "submitted", "withdraw": "withdrawn", "approve": "approved", "reject": "rejected"}[verb]
+        connection.execute("UPDATE proposals SET status=?,revision=revision+1,updated_at=? WHERE id=?",
+                           (state, now(), identifier))
+        result = _record(_row(connection, identifier))
+        # The event written next is what marks an automatic approval, so its record says so first.
+        result["autoApproved"] = result["autoApproved"] or actor is AUTOMATIC
+        event(connection, actor, f"proposal.{verb}", identifier, before, result)
+        return result
 
     def check_upload(self, conn, identifier, actor):
         row = _row(conn, identifier)
