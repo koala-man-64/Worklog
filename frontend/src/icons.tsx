@@ -41,6 +41,13 @@ const shapes = {
       <path d="M9.5 13.5h.01M14.5 13.5h.01" strokeWidth={3} />
     </>
   ),
+  quota: (
+    <>
+      <path d="M4.5 18.5a9 9 0 1 1 15 0" />
+      <path d="M12 13l4-4" />
+      <circle cx="12" cy="13" r="1.5" />
+    </>
+  ),
   chats: (
     <>
       <path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8l-4 4v-4a2 2 0 0 1-2-2z" />

@@ -45,6 +45,9 @@ from .discussion_api import agent_route_allowed, install_discussion_routes
 from .discussions import bind_credential, communication_actor
 from .plans import PlanService
 from .proposals import ProposalService, approval_required
+from .quota.config import get_paths as get_quota_paths
+from .quota.service import CapacityService
+from .quota_api import install_quota_routes, quota_agent_route_allowed
 from .recovery import automatic_backup, backup_database, export_database, list_backups
 from .registration import (
     active_registrations,
@@ -100,6 +103,8 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     work = WorkService(db, plans)
     # Tests read only the transcripts they write; they never see this machine's own.
     transcripts = TranscriptReader(transcript_roots or (TranscriptRoots() if testing else TranscriptRoots.from_environment()))
+    quota_dir = (directory / "quota") if testing else (os.environ.get("WORKLOG_QUOTA_DIR") or None)
+    quota_service = CapacityService(get_quota_paths(quota_dir), collectors=not testing)
 
     def dispatch(conn: sqlite3.Connection, actor: dict, action: str, payload: dict) -> dict:
         # The proposal boundary shares these exact validators and domain mutations.
@@ -144,6 +149,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                   openapi_url="/api/v1/openapi.json")
     app.state.db, app.state.work, app.state.plans, app.state.proposals = db, work, plans, proposals
     app.state.transcripts = transcripts
+    app.state.quota = quota_service
     app.state.sessions = {}
     app.state.instance_id = os.environ.get("WORKLOG_INSTANCE_ID", uid())
     app.state.backup_error = None
@@ -223,9 +229,13 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                                    (suffix.startswith("/proposals/") and (method == "PATCH" or (method == "POST" and suffix.rsplit("/", 1)[-1] in {"submit", "withdraw"}))) or
                                    (suffix == "/attachments" and method == "POST" and request.query_params.get("ownerType") == "proposal"))
                     in_discussions = suffix == "/discussions" or suffix.startswith("/discussions/")
+                    in_quota = suffix == "/quota" or suffix.startswith("/quota/")
                     if in_discussions:
                         if not agent_route_allowed(method, suffix):
                             raise AppError(403, "agent_scope", "This discussion operation is outside agent scope")
+                    elif in_quota:
+                        if not quota_agent_route_allowed(method, suffix):
+                            raise AppError(403, "agent_scope", "This quota operation is outside agent scope")
                     elif forbidden or (method != "GET" and not agent_write and not coordination_agent_route_allowed(method, suffix)
                                        and not chat_message_agent_route_allowed(method, suffix)
                                        and not registration_route_allowed(method, suffix)
@@ -257,7 +267,8 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
-        response.headers["Cache-Control"] = "no-store" if request.url.path.startswith("/api/") else "no-cache"
+        is_api = request.url.path.startswith(("/api/", "/v1/")) or request.url.path in {"/latest.json", "/status.json", "/usage.json"}
+        response.headers["Cache-Control"] = "no-store" if is_api else "no-cache"
         return response
 
     def mutate(request: Request, payload: Any, fn: Callable, *, required_key: bool = False,
@@ -835,6 +846,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     install_discussion_routes(app, db, discussion_mutate)
     install_registration_routes(app, db, auto_backup)
     install_registry_routes(app, db, transcripts)
+    install_quota_routes(app, quota_service)
     app.router.routes.append(generic)
     dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
     if (dist / "assets").is_dir():
