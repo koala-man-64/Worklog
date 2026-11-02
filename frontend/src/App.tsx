@@ -18,6 +18,7 @@ import { Repositories } from "./Repositories";
 import { Tickets } from "./Tickets";
 import { People } from "./People";
 import { Agents } from "./Agents";
+import { Quota } from "./Quota";
 import { Chats } from "./Chats";
 import { Discussions } from "./Discussions";
 import { Review } from "./Review";
@@ -32,6 +33,7 @@ const destinations: { route: string; icon: IconName; label: string }[] = [
   { route: "repositories", icon: "work", label: "Repositories" },
   { route: "people", icon: "people", label: "People" },
   { route: "agents", icon: "agents", label: "Agents" },
+  { route: "quota", icon: "quota", label: "Quota" },
   { route: "chats", icon: "chats", label: "Chats" },
   { route: "discussions", icon: "chats", label: "Discussions" },
   { route: "review", icon: "review", label: "Review" },
@@ -215,6 +217,8 @@ export default function App() {
             <People key={id ?? "list"} selected={id} />
           ) : page === "agents" ? (
             <Agents key={id ?? "list"} selected={id} />
+          ) : page === "quota" ? (
+            <Quota />
           ) : page === "chats" ? (
             <Chats selected={id} />
           ) : page === "discussions" ? (

@@ -282,7 +282,6 @@ export function ItemDetail({ id }: { id: string }) {
   });
   const action = useAction();
   const [task, setTask] = useState("");
-  const [path, setPath] = useState("");
   const [date, setDate] = useState("");
   if (!item)
     return (
@@ -555,58 +554,12 @@ export function ItemDetail({ id }: { id: string }) {
           ))}
         </section>
       )}
-      <div className="two-column">
-        <Files ownerType="item" ownerId={id} files={item.attachments} />
-        <section>
-          <h3>Local paths</h3>
-          <p className="muted">
-            References stay on this machine. Copy a path to open it yourself.
-          </p>
-          {item.references
-            ?.filter((r) => !r.archived)
-            .map((r) => (
-              <div className="line" key={r.id}>
-                <code>{r.path}</code>
-                <button onClick={() => navigator.clipboard.writeText(r.path)}>
-                  Copy
-                </button>
-                <button
-                  className="quiet"
-                  onClick={() =>
-                    action.mutate({
-                      path: `/references/${r.id}/archive`,
-                      body: { revision: r.revision },
-                    })
-                  }
-                >
-                  Archive
-                </button>
-              </div>
-            ))}
-          <form
-            className="inline"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              await action
-                .mutateAsync({
-                  path: "/references",
-                  body: { itemId: id, path },
-                })
-                .then(() => setPath(""))
-                .catch(() => undefined);
-            }}
-          >
-            <input
-              aria-label="Local path"
-              value={path}
-              onChange={(e) => setPath(e.target.value)}
-              required
-              placeholder="C:\…"
-            />
-            <button>Add path</button>
-          </form>
-        </section>
-      </div>
+      <Files
+        ownerType="item"
+        ownerId={id}
+        files={item.attachments}
+        references={item.references ?? []}
+      />
       <RecoverRecords
         groups={[
           { label: "Notes", path: "notes", records: item.notes },

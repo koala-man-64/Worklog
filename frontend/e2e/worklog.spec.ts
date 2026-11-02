@@ -137,6 +137,9 @@ test("notes, checklist, paths, attachments and archive recovery persist", async 
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await expect(page.getByLabel("A small action")).toBeVisible();
   await page
+    .getByRole("button", { name: "Reference a local file", exact: true })
+    .click();
+  await page
     .getByRole("textbox", { name: "Local path", exact: true })
     .fill("C:\\Projects\\example.txt");
   await page.getByRole("button", { name: "Add path", exact: true }).click();
@@ -150,6 +153,9 @@ test("notes, checklist, paths, attachments and archive recovery persist", async 
   const note = page.locator(".note");
   await note.getByRole("button", { name: "Save now" }).last().click();
   await expect(note.getByRole("status").last()).toHaveText("Saved");
+  await page
+    .getByRole("button", { name: "Attach a copy", exact: true })
+    .click();
   await page.getByLabel("Attach a file").setInputFiles({
     name: "evidence.txt",
     mimeType: "text/plain",
