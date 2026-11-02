@@ -256,6 +256,8 @@ export type Proposal = RecordBase & {
   status: string;
   // Applied when its agent submitted it, because approval was off.
   autoApproved: boolean;
+  // When its agent submitted it; null until then.
+  submittedAt: string | null;
   actorLabel: string;
   operations: Operation[];
   attachments: Attachment[];
