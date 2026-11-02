@@ -742,6 +742,11 @@ class WorkService:
         if verb in {"archive", "recover"}:
             assert row is not None
             c.execute(f"UPDATE {table} SET archived=?,revision=revision+1 WHERE id=?", (int(verb == "archive"), row["id"]))
+            if kind == "chat" and verb == "archive":
+                from .chat_messages import expire_pending
+
+                # Recovering the chat later never revives these deliveries.
+                expire_pending(c, "chat_archived", chat_id=row["id"])
         elif kind == "note" and verb in {"create", "update"}:
             val = before.copy() if before else {"id": uid(), "ownerType": p.get("ownerType"), "ownerId": p.get("ownerId"), "title": "", "text": "", "createdAt": now(), "revision": 0}
             self.owner(c, val["ownerType"], val["ownerId"])

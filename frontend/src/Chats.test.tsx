@@ -11,6 +11,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setDataContext } from "./api";
 import { Chats, ago, tallyText } from "./Chats";
 import type { ChatOverview, ChatThread, Transcript } from "./types";
+import type { Outbox } from "./outboxTypes";
 
 const ROADMAP_ID = "22222222-2222-4222-8222-222222222222";
 const API_ID = "33333333-3333-4333-8333-333333333333";
@@ -174,6 +175,14 @@ function transcript(fields: Partial<Transcript> = {}): Transcript {
   };
 }
 
+const noMessages: Outbox = {
+  chat: { id: "release", chatId: "release-chat", archived: false },
+  recipients: [],
+  items: [],
+  total: 0,
+  limit: 20,
+  offset: 0,
+};
 function serve(
   respond: (url: string) => unknown = (url) =>
     url.includes("/transcript")
@@ -185,7 +194,11 @@ function serve(
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
     const url = String(input);
     urls.push(url);
-    return new Response(JSON.stringify(respond(url)), { status: 200 });
+    // An open chat also asks who a message to it would reach.
+    const body = /\/chats\/[^/]+\/messages/.test(url)
+      ? noMessages
+      : respond(url);
+    return new Response(JSON.stringify(body), { status: 200 });
   });
   render(
     <QueryClientProvider

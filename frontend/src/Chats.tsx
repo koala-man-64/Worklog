@@ -3,6 +3,7 @@ import { contextStorageKey } from "./api";
 import { useCollapsed, useData } from "./hooks";
 import { RepositoryBadges } from "./RepositoryControls";
 import { NamedRuns } from "./Coordination";
+import { ChatOutbox } from "./ChatOutbox";
 import { Empty, ErrorMessage, Markdown } from "./components";
 import { Icon } from "./icons";
 import { localStore } from "./storage";
@@ -634,6 +635,7 @@ function ChatHistory({ chat }: { chat: ChatOverview }) {
           loading={transcript.isPlaceholderData}
         />
       ) : null}
+      <ChatOutbox chat={chat} refreshMs={TRANSCRIPT_REFRESH_MS} time={clock} />
     </>
   );
 }

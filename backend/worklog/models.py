@@ -127,6 +127,14 @@ class ChatUpdate(Expected):
     stepIds: list[str] | None = None
 
 
+class ChatMessageCreate(Command):
+    text: str = Field(min_length=1, max_length=1_000_000)
+
+
+class InboxReceive(Command):
+    chatId: str | None = Field(default=None, min_length=1, max_length=500)
+
+
 class GithubRefCreate(Command):
     ownerType: Literal["item", "roadmap"]
     ownerId: str

@@ -1403,6 +1403,101 @@ section:not(.draft) > h3 {
   color: var(--teal);
   font-weight: 600;
 }
+.chat-outbox {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.chat-outbox h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.chat-outbox > button {
+  justify-self: center;
+}
+.chat-outbox-form {
+  display: grid;
+  gap: 10px;
+}
+.chat-outbox-form > label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.chat-outbox-form textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 90px;
+  resize: vertical;
+}
+.chat-outbox-form p,
+.chat-outbox-form .toolbar {
+  margin: 0;
+}
+.chat-outbox-form code {
+  overflow-wrap: anywhere;
+}
+.chat-recipients {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.chat-recipients ul,
+.chat-deliveries {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.chat-recipients li,
+.chat-deliveries li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 2px 10px 2px 3px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.chat-recipients small {
+  color: var(--muted);
+}
+.chat-deliveries li.delivered {
+  border-color: var(--teal);
+  background: var(--teal-wash);
+  color: var(--teal);
+}
+.chat-deliveries li.expired {
+  border-style: dashed;
+  color: var(--muted);
+}
+.chat-outbox-sent {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.chat-outbox-sent > li {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+}
+.chat-outbox-sent > li > small {
+  color: var(--muted);
+}
 .chat-messages {
   display: grid;
   gap: 12px;

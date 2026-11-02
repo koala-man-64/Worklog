@@ -1,0 +1,32 @@
+"""HTTP surface for messages to a chat's agents: the person writes, agents receive."""
+
+from collections.abc import Callable
+
+from fastapi import FastAPI, Query, Request
+
+from . import models as m
+from .chat_messages import ChatMessageService
+from .db import Database
+
+
+def chat_message_agent_route_allowed(method: str, path: str) -> bool:
+    """Agents only receive; the chat's messages and the composer stay with the person."""
+    return method == "POST" and path.removeprefix("/api/v1") == "/inbox/receive"
+
+
+def install_chat_message_routes(app: FastAPI, db: Database, mutate: Callable) -> None:
+    service = ChatMessageService()
+
+    @app.get("/api/v1/chats/{identity}/messages")
+    def chat_messages(identity: str, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
+        with db.read() as c:
+            c.execute("BEGIN")
+            return service.messages(c, identity, limit, offset)
+
+    @app.post("/api/v1/chats/{identity}/messages")
+    def chat_message_create(identity: str, request: Request, body: m.ChatMessageCreate) -> dict:
+        return mutate(request, body.model_dump(), lambda c, a: service.post(c, a, identity, body.model_dump()), required_key=True)
+
+    @app.post("/api/v1/inbox/receive")
+    def inbox_receive(request: Request, body: m.InboxReceive) -> dict:
+        return mutate(request, body.model_dump(), lambda c, a: service.receive(c, a, body.model_dump()), required_key=True)

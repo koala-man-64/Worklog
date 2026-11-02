@@ -25,6 +25,7 @@ from starlette.concurrency import run_in_threadpool
 from . import __version__
 from . import coordination_models as cm
 from . import models as m
+from .chat_message_api import chat_message_agent_route_allowed, install_chat_message_routes
 from .common import (
     FILE_LIMIT,
     HTML_LIMIT,
@@ -199,12 +200,13 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                         raise AppError(401, "authentication", "Credential is invalid or revoked")
                     actor = {"id": credential["id"], "label": credential["label"], "kind": "agent"}
                     suffix = path.removeprefix("/api/v1")
-                    # Transcripts hold whole conversations, tool output included; only the person reads them.
+                    # Transcripts hold whole conversations, tool output included; only the person reads them,
+                    # and a chat's messages are the person's prompts to it. Agents take theirs from the inbox.
                     # The agent registry joins tracked chats into every agent's record, so it is theirs too.
                     # A trailing slash would only redirect, but it is refused here rather than there.
                     chats = suffix.rstrip("/")
                     forbidden = (suffix.startswith(("/settings", "/credentials", "/backups", "/export", "/openapi")) or
-                                 chats == "/chats" or (chats.startswith("/chats/") and chats.endswith("/transcript")) or
+                                 chats == "/chats" or (chats.startswith("/chats/") and chats.endswith(("/transcript", "/messages"))) or
                                  chats == "/agents" or chats.startswith("/agents/"))
                     agent_write = ((suffix == "/proposals" and method == "POST") or
                                    (suffix.startswith("/proposals/") and (method == "PATCH" or (method == "POST" and suffix.rsplit("/", 1)[-1] in {"submit", "withdraw"}))) or
@@ -213,7 +215,8 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                     if in_discussions:
                         if not agent_route_allowed(method, suffix):
                             raise AppError(403, "agent_scope", "This discussion operation is outside agent scope")
-                    elif forbidden or (method != "GET" and not agent_write and not coordination_agent_route_allowed(method, suffix)):
+                    elif forbidden or (method != "GET" and not agent_write and not coordination_agent_route_allowed(method, suffix)
+                                       and not chat_message_agent_route_allowed(method, suffix)):
                         raise AppError(403, "agent_scope", "Agents may read context, participate in discussions, and submit proposals")
                 else:
                     session_id = request.cookies.get("worklog_session", "")
@@ -255,7 +258,8 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         digest = hashlib.sha256((request.method + str(request.url.path) + "?" + str(request.url.query) + json.dumps(payload, sort_keys=True)).encode()).hexdigest()
         actor = request.state.actor
         with db.transaction() as c:
-            if actor["kind"] == "agent" and coordination_agent_route_allowed(request.method, request.url.path):
+            if actor["kind"] == "agent" and (coordination_agent_route_allowed(request.method, request.url.path)
+                                             or chat_message_agent_route_allowed(request.method, request.url.path)):
                 # Middleware authentication precedes the write lock; revoke may win that race.
                 # Recheck before receipt replay as well as before a new mutation.
                 communication_actor(c, actor)
@@ -785,6 +789,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         return mutate(request, p, lambda c, a: proposals.transition(identity, verb, p, a, conn=c), required_key=verb == "approve")
 
     install_coordination_routes(app, db, mutate)
+    install_chat_message_routes(app, db, mutate)
     install_discussion_routes(app, db, discussion_mutate)
     install_registry_routes(app, db)
     app.router.routes.append(generic)
