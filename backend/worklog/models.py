@@ -319,3 +319,5 @@ class SettingsUpdate(Command):
     timezone: str | None = None
     # False applies an agent's proposal as soon as it is submitted.
     requireProposalApproval: StrictBool | None = None
+    # False keeps agents from registering repositories; they propose repository.create instead.
+    agentRepositoryRegistration: StrictBool | None = None

@@ -19,6 +19,13 @@ class RepositoryUpdate(Expected):
     description: str | None = None
 
 
+class RepositoryEnsure(Command):
+    """Register a remote, or find the record that already holds it."""
+    url: str
+    name: str | None = None
+    description: str = ""
+
+
 class RepositoryMerge(Expected):
     """Merge the addressed repository into `intoId`; both revisions must be current."""
     intoId: str
@@ -33,7 +40,9 @@ class RunCreate(Command):
 
 
 class ParticipationContext(Command):
-    repositoryId: str
+    # One of the two: a catalog ID, or a remote address that is registered or found on the way.
+    repositoryId: str | None = None
+    repositoryUrl: str | None = None
     checkoutPath: str = ""
     worktreePath: str = ""
     branch: str = ""

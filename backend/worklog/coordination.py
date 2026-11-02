@@ -10,7 +10,7 @@ from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
 from .chat_messages import expire_pending
-from .common import AppError, event, now, require_revision, text, uid
+from .common import AppError, event, now, require_revision, setting, text, uid
 from .discussions import communication_actor
 
 
@@ -23,10 +23,18 @@ def _get(c: sqlite3.Connection, table: str, identity: str) -> sqlite3.Row:
 
 
 def repository_record(row: Any) -> dict:
+    registrant = ({"kind": row["registered_by_kind"], "label": row["registered_by_label"], "agentId": row["registered_by_agent"]}
+                  if row["registered_by_kind"] else None)
     return {"id": row["id"], "name": row["name"], "url": row["url"],
             "remoteIdentity": row["remote_identity"], "duplicateOf": row["duplicate_of"], "mergedInto": row["merged_into"],
             "description": row["description"], "archived": bool(row["archived"]),
+            "registeredBy": registrant, "reviewed": bool(row["reviewed"]),
             "revision": row["revision"], "createdAt": row["created_at"], "updatedAt": row["updated_at"]}
+
+
+def agents_may_register(c: sqlite3.Connection) -> bool:
+    # Only an explicit false restores the approval gate; a missing or unexpected value keeps registration open.
+    return setting(c, "agentRepositoryRegistration", True) is not False
 
 
 def _repository_url(value: Any) -> str:
@@ -211,7 +219,66 @@ def repository_merge(c: sqlite3.Connection, actor: dict, identity: str, p: dict)
     return result
 
 
+def _registered(c: sqlite3.Connection, key: str) -> Any:
+    """The active record holding this remote; one held only by an archived record is the person's to recover."""
+    holder = repository_holder(c, key)
+    if holder and holder["archived"]:
+        raise AppError(409, "repository_archived", f"{holder['name']} is registered at that address but archived; "
+                       "recover it instead", {"repositoryId": holder["id"]})
+    return holder
+
+
+def _register(c: sqlite3.Connection, actor: dict, name: str, url: str, description: str, *, reviewed: bool) -> str:
+    # An agent is recorded by its identity, which outlives the credential that registered.
+    agent = c.execute("SELECT a.id,a.label FROM communication_agents a JOIN communication_credentials cc ON cc.agent_id=a.id"
+                      " WHERE cc.credential_id=?", (actor["id"],)).fetchone() if actor["kind"] == "agent" else None
+    identity, stamp = uid(), now()
+    c.execute("INSERT INTO repositories(id,name,url,remote_identity,description,archived,revision,created_at,updated_at,"
+              "registered_by_kind,registered_by_label,registered_by_agent,reviewed) VALUES(?,?,?,?,?,0,1,?,?,?,?,?,?)",
+              (identity, name, url, repository_identity(url), description, stamp, stamp, actor["kind"],
+               agent["label"] if agent else actor["label"], agent["id"] if agent else None, int(reviewed)))
+    return identity
+
+
+def repository_ensure(c: sqlite3.Connection, actor: dict, p: dict) -> dict:
+    """Register a remote, or return the record that already holds it: how agents register
+    the repositories they work in. Their registrations stay unreviewed until the person
+    confirms or edits them, and the person can turn agent registration off in Settings."""
+    url = _repository_url(p.get("url", ""))
+    if not url:
+        raise AppError(422, "validation", "url is required", {"url": "required"})
+    holder = _registered(c, repository_identity(url))
+    if holder:
+        return {**repository_record(holder), "created": False}
+    if actor["kind"] == "agent" and not agents_may_register(c):
+        raise AppError(403, "repository_registration_off", "That remote is not registered, and agents may not register "
+                       "repositories; propose repository.create instead", {"url": url})
+    # Unnamed, a repository takes its own name from the address: the last path segment.
+    name = text(p.get("name") or re.split(r"[/:]", url.rstrip("/"))[-1].removesuffix(".git") or url, "name", required=True, limit=200)
+    identity = _register(c, actor, name, url, text(p.get("description", ""), "description", limit=10000),
+                         reviewed=actor["kind"] != "agent")
+    result = repository_record(_get(c, "repositories", identity))
+    event(c, actor, "repository.create", identity, None, result)
+    return {**result, "created": True}
+
+
+def repository_confirm(c: sqlite3.Connection, actor: dict, identity: str, p: dict) -> dict:
+    """The person accepts a repository an agent registered for itself."""
+    if actor["kind"] != "human":
+        raise AppError(403, "forbidden", "Only a person may confirm a repository")
+    row = _get(c, "repositories", identity)
+    require_revision(row, p.get("revision"))
+    _refuse_merged(c, row)
+    if row["reviewed"]:
+        return repository_record(row)
+    c.execute("UPDATE repositories SET reviewed=1,revision=revision+1,updated_at=? WHERE id=?", (now(), identity))
+    result = repository_record(_get(c, "repositories", identity))
+    event(c, actor, "repository.confirm", identity, repository_record(row), result)
+    return result
+
+
 def repository_apply(c: sqlite3.Connection, actor: dict, action: str, p: dict) -> dict:
+    """The person's catalog commands, and approved proposals': what they register or edit counts as reviewed."""
     if action not in {"repository.create", "repository.update", "repository.archive", "repository.recover"}:
         raise AppError(422, "validation", "Unknown repository command")
     current = None if action == "repository.create" else _get(c, "repositories", p["id"])
@@ -242,26 +309,22 @@ def repository_apply(c: sqlite3.Connection, actor: dict, action: str, p: dict) -
         description = text(values["description"], "description", limit=10000)
         key = repository_identity(url)
         old_key = before["remoteIdentity"] if before else None
-        holder = repository_holder(c, key, before["id"] if before else "") if key != old_key else None
-        if holder and before:
-            raise AppError(409, "repository_duplicate", f"That repository is already registered as {holder['name']}"
-                           + (" (archived)" if holder["archived"] else ""), {"repositoryId": holder["id"]})
-        if holder and holder["archived"]:
-            raise AppError(409, "repository_archived", f"{holder['name']} is registered at that address but archived; "
-                           "recover it instead", {"repositoryId": holder["id"]})
-        if holder:
-            # Registering a repository again links to the record it already has.
-            return {**repository_record(holder), "created": False}
-        identity, stamp = (before["id"] if before else uid()), now()
-        if before:
-            duplicate_of = before["duplicateOf"] if key == old_key else None
-            c.execute("UPDATE repositories SET name=?,url=?,remote_identity=?,duplicate_of=?,description=?,revision=revision+1,updated_at=? WHERE id=?",
-                      (name, url, key, duplicate_of, description, stamp, identity))
+        if before is None:
+            holder = _registered(c, key)
+            if holder:
+                # Registering a repository again links to the record it already has.
+                return {**repository_record(holder), "created": False}
+            identity = _register(c, actor, name, url, description, reviewed=True)
+        else:
+            holder = repository_holder(c, key, before["id"]) if key != old_key else None
+            if holder:
+                raise AppError(409, "repository_duplicate", f"That repository is already registered as {holder['name']}"
+                               + (" (archived)" if holder["archived"] else ""), {"repositoryId": holder["id"]})
+            identity, duplicate_of = before["id"], before["duplicateOf"] if key == old_key else None
+            c.execute("UPDATE repositories SET name=?,url=?,remote_identity=?,duplicate_of=?,description=?,reviewed=1,"
+                      "revision=revision+1,updated_at=? WHERE id=?", (name, url, key, duplicate_of, description, now(), identity))
             if old_key and key != old_key and before["duplicateOf"] is None:
                 _hand_over(c, actor, identity, old_key)
-        else:
-            c.execute("INSERT INTO repositories(id,name,url,remote_identity,description,archived,revision,created_at,updated_at) VALUES(?,?,?,?,?,0,1,?,?)",
-                      (identity, name, url, key, description, stamp, stamp))
     result = repository_record(_get(c, "repositories", identity))
     event(c, actor, action, identity, before, result)
     return {**result, "created": True} if action == "repository.create" else result
@@ -368,7 +431,7 @@ class CoordinationService:
                 "run": self.run_record(_get(c, "agent_runs", row["run_id"]))}
 
     @staticmethod
-    def _validate_targets(c, item_id, contexts, prior_contexts=None) -> list[dict]:
+    def _validate_targets(c, actor, item_id, contexts, prior_contexts=None) -> list[dict]:
         if not isinstance(contexts, list) or len(contexts) > 40:
             raise AppError(422, "validation", "contexts must contain at most 40 repository contexts")
         if item_id is not None:
@@ -377,7 +440,13 @@ class CoordinationService:
                 raise AppError(409, "archived", "Archived work cannot receive new participation")
         result = []
         for context in contexts:
-            repo_id = text(context.get("repositoryId"), "repositoryId", required=True, limit=200)
+            if context.get("repositoryUrl") is not None:
+                if context.get("repositoryId") is not None:
+                    raise AppError(422, "validation", "Give each context a repositoryId or a repositoryUrl, not both")
+                # A remote reported by address is registered, or found, in this same transaction.
+                repo_id = repository_ensure(c, actor, {"url": context["repositoryUrl"]})["id"]
+            else:
+                repo_id = text(context.get("repositoryId"), "repositoryId", required=True, limit=200)
             repository = _get(c, "repositories", repo_id)
             value = {"repositoryId": repo_id, **{field: text(context.get(field, ""), field, limit=2000) for field in ("checkoutPath", "worktreePath", "branch")}}
             # Retain historical archived contexts only when the declaration is unchanged.
@@ -401,7 +470,7 @@ class CoordinationService:
     def create_participation(self, c, actor, p) -> dict:
         self._own_run(c, actor, p["runId"])
         item_id = text(p["itemId"], "itemId", required=True, limit=200) if p.get("itemId") is not None else None
-        contexts = self._validate_targets(c, item_id, p.get("contexts", []))
+        contexts = self._validate_targets(c, actor, item_id, p.get("contexts", []))
         identity, stamp = uid(), now()
         c.execute("INSERT INTO participations(id,run_id,item_id,description,revision,created_at,updated_at,last_seen_at) VALUES(?,?,?,?,1,?,?,?)", (identity, p["runId"], item_id, text(p.get("description", ""), "description", limit=2000), stamp, stamp, stamp))
         self._replace_contexts(c, identity, contexts)
@@ -423,7 +492,7 @@ class CoordinationService:
         item_id = p.get("itemId", row["item_id"])
         if item_id is not None:
             item_id = text(item_id, "itemId", required=True, limit=200)
-        contexts = self._validate_targets(c, item_id, p.get("contexts", prior), prior if verb != "rejoin" else None)
+        contexts = self._validate_targets(c, actor, item_id, p.get("contexts", prior), prior if verb != "rejoin" else None)
         stamp = now()
         description = text(p.get("description", row["description"]), "description", limit=2000)
         c.execute("UPDATE participations SET item_id=?,description=?,last_seen_at=?,updated_at=?,revision=revision+1,released_at=NULL,release_reason=NULL WHERE id=?", (item_id, description, stamp, stamp, identity))

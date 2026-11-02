@@ -10,6 +10,8 @@ from .coordination import (
     CoordinationService,
     _get,
     repository_apply,
+    repository_confirm,
+    repository_ensure,
     repository_merge,
     repository_record,
     repository_resolution,
@@ -21,7 +23,7 @@ from .models import Expected
 def coordination_agent_route_allowed(method: str, path: str) -> bool:
     suffix = path.removeprefix("/api/v1")
     if method == "POST":
-        return (suffix in {"/agent-runs", "/participations"}
+        return (suffix in {"/agent-runs", "/participations", "/repositories/ensure"}
                 or re.fullmatch(r"/agent-runs/[^/]+/end", suffix) is not None
                 or re.fullmatch(r"/participations/[^/]+/(?:release|rejoin|check-in|updates)", suffix) is not None)
     return method == "PATCH" and re.fullmatch(r"/participations/[^/]+", suffix) is not None
@@ -55,6 +57,10 @@ def install_coordination_routes(app: FastAPI, db: Database, mutate: Callable) ->
     def repository_create(request: Request, body: m.RepositoryCreate) -> dict:
         return write(request, body, lambda c, a: repository_apply(c, a, "repository.create", body.model_dump()))
 
+    @app.post("/api/v1/repositories/ensure")
+    def repository_ensure_route(request: Request, body: m.RepositoryEnsure) -> dict:
+        return write(request, body, lambda c, a: repository_ensure(c, a, body.model_dump()))
+
     @app.patch("/api/v1/repositories/{identity}")
     def repository_update(identity: str, request: Request, body: m.RepositoryUpdate) -> dict:
         return write(request, body, lambda c, a: repository_apply(c, a, "repository.update", {"id": identity, **body.model_dump(exclude_unset=True)}), required_key=False, exclude_unset=True)
@@ -63,6 +69,11 @@ def install_coordination_routes(app: FastAPI, db: Database, mutate: Callable) ->
     @app.post("/api/v1/repositories/{identity}/merge")
     def repository_merge_into(identity: str, request: Request, body: m.RepositoryMerge) -> dict:
         return write(request, body, lambda c, a: repository_merge(c, a, identity, body.model_dump()))
+
+    # The person confirms what an agent registered; registered before /repositories/{identity}/{verb}.
+    @app.post("/api/v1/repositories/{identity}/confirm")
+    def repository_confirm_route(identity: str, request: Request, body: Expected) -> dict:
+        return write(request, body, lambda c, a: repository_confirm(c, a, identity, body.model_dump()))
 
     @app.post("/api/v1/repositories/{identity}/{verb}")
     def repository_archive(identity: str, verb: str, request: Request, body: Expected) -> dict:

@@ -167,7 +167,7 @@ export function Settings() {
         </section>
       </div>
       <section>
-        <h2>Agent proposals</h2>
+        <h2>Agent permissions</h2>
         <label className="checkbox-label">
           <input
             type="checkbox"
@@ -187,6 +187,26 @@ export function Settings() {
           {data.requireProposalApproval
             ? "A submitted proposal waits in Review until you approve or reject it."
             : "A proposal is applied as soon as its agent submits it, and Review marks it approved automatically. Each change is still recorded in its record's history under the agent's name. Proposals already waiting in Review still need your decision."}
+        </p>
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={data.agentRepositoryRegistration}
+            disabled={action.isPending}
+            onChange={(e) =>
+              action.mutate({
+                path: "/settings",
+                method: "PATCH",
+                body: { agentRepositoryRegistration: e.target.checked },
+              })
+            }
+          />
+          Agents may register repositories
+        </label>
+        <p className="muted">
+          {data.agentRepositoryRegistration
+            ? "An agent registers a repository it works in that is not yet in the catalog. Repositories shows it as unreviewed until you confirm or edit it."
+            : "An agent can report work only in repositories already in the catalog, and proposes new ones for you to approve in Review."}
         </p>
       </section>
       <section>

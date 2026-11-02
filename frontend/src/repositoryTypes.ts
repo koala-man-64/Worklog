@@ -10,6 +10,14 @@ export type Repository = RecordBase & {
   /** Set when a person merged this record into another, which now answers for it. */
   mergedInto: string | null;
   description: string;
+  /** Who registered it; null when Worklog predates the record's history. */
+  registeredBy: {
+    kind: "human" | "agent";
+    label: string;
+    agentId: string | null;
+  } | null;
+  /** False until the person confirms or edits what an agent registered. */
+  reviewed: boolean;
 };
 /** Registering a remote that is already registered returns its record. */
 export type RepositoryRegistration = Repository & { created: boolean };

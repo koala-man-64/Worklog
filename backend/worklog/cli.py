@@ -425,6 +425,8 @@ def _coordination_route_allowed(method: str, route: str) -> bool:
     """Coordination writes are self-attributed; catalog edits remain reviewed."""
     if not route.startswith("/") or route.endswith("/"):
         return False
+    if route == "/repositories/ensure":
+        return method == "POST"
     if route in {"/repositories", "/agent-runs", "/participations", "/coordination-updates"}:
         return method == "GET" or (method == "POST" and route in {"/agent-runs", "/participations"})
     parts = route.strip("/").split("/")
@@ -515,7 +517,7 @@ class AgentClient:
         elif payload is not None:
             data = json.dumps(payload).encode("utf-8")
             headers["Content-Type"] = "application/json"
-        coordination_write = method in {"POST", "PATCH"} and route.startswith(("/agent-runs", "/participations", "/tickets"))
+        coordination_write = method in {"POST", "PATCH"} and route.startswith(("/repositories", "/agent-runs", "/participations", "/tickets"))
         if method == "POST" or coordination_write:
             request_id = request_id or str(uuid.uuid4())
             if not 8 <= len(request_id) <= 200 or not request_id.isascii() or any(ord(c) < 33 or ord(c) > 126 for c in request_id):
@@ -710,6 +712,33 @@ def _coordination_query(args: argparse.Namespace, *fields: str) -> str:
     return "?" + urlencode(values) if values else ""
 
 
+def _checkout_context(path: str) -> dict[str, str]:
+    """A local checkout as Git sees it: its origin remote, branch, and checkout or worktree path."""
+    def git(*arguments: str) -> list[str]:
+        try:
+            done = subprocess.run(["git", "-C", path, *arguments], capture_output=True, encoding="utf-8",
+                                  errors="replace", timeout=15, check=False)
+        except (OSError, subprocess.TimeoutExpired):
+            raise ValueError(f"Could not run git to read {path}") from None
+        lines = done.stdout.splitlines()
+        if done.returncode or not lines:
+            raise ValueError(f"{path} is not a Git checkout with an origin remote")
+        return lines
+
+    url = git("remote", "get-url", "origin")[0].strip()
+    top, git_dir, common, branch = git("rev-parse", "--path-format=absolute", "--show-toplevel", "--git-dir",
+                                       "--git-common-dir", "--abbrev-ref", "HEAD")[:4]
+    context = {"repositoryUrl": url, "branch": "" if branch == "HEAD" else branch}
+    if Path(git_dir) == Path(common):
+        context["checkoutPath"] = top
+    else:
+        # A linked worktree; its main checkout holds the shared Git directory, unless that is bare.
+        context["worktreePath"] = top
+        if Path(common).name == ".git":
+            context["checkoutPath"] = str(Path(common).parent)
+    return context
+
+
 def coordination_command(client: AgentClient, args: argparse.Namespace) -> Any:
     action = args.coordination_action
     group = args.agent_action
@@ -723,7 +752,13 @@ def coordination_command(client: AgentClient, args: argparse.Namespace) -> Any:
     payload = _payload(args.file) if getattr(args, "file", None) else {}
     route = base
     method = "POST"
-    if group == "runs" and action == "start":
+    if group == "repositories" and action == "ensure":
+        route = "/repositories/ensure"
+        payload["url"] = args.remote if args.remote is not None else _checkout_context(args.checkout)["repositoryUrl"]
+        for flag in ("name", "description"):
+            if getattr(args, flag) is not None:
+                payload[flag] = getattr(args, flag)
+    elif group == "runs" and action == "start":
         payload.update(clientRunKey=args.client_run_key, displayName=args.display_name)
         for flag, key in (("provider", "provider"), ("chat", "externalChatId")):
             if getattr(args, flag, None) is not None:
@@ -731,8 +766,9 @@ def coordination_command(client: AgentClient, args: argparse.Namespace) -> Any:
     elif group == "participation" and action == "start":
         if args.run:
             payload["runId"] = args.run
-        if args.repo:
-            payload["contexts"] = [{"repositoryId": repo} for repo in args.repo]
+        contexts = [{"repositoryId": repo} for repo in args.repo or []] + [_checkout_context(path) for path in args.checkout or []]
+        if contexts:
+            payload["contexts"] = contexts
         if args.item:
             payload["itemId"] = args.item
         if args.description is not None:
@@ -765,13 +801,21 @@ def _coordination_parser(actions: Any) -> None:
         command.add_argument("--request-id", required=True,
                              help="Stable operation key; reuse with the same payload after an uncertain result")
 
-    repositories = actions.add_parser("repositories", help="Read the canonical repository catalog").add_subparsers(
+    repositories = actions.add_parser("repositories", help="Read the repository catalog and register remotes").add_subparsers(
         dest="coordination_action", required=True)
     listing = repositories.add_parser("list")
     listing.add_argument("--archived", action="store_true", help="List archived catalog records")
     listing.add_argument("--q", help="Search catalog name, URL and description")
     pages(listing)
     repositories.add_parser("show").add_argument("id")
+    ensure = repositories.add_parser("ensure", help="Register a remote, or find the record that already holds it")
+    source = ensure.add_mutually_exclusive_group(required=True)
+    # Not --url: the agent command's own --url names the Worklog instance.
+    source.add_argument("--remote", help="Remote address: https://, ssh://git@host/path or git@host:path")
+    source.add_argument("--checkout", help="Local checkout whose origin remote to register")
+    ensure.add_argument("--name", help="Name for a new record; defaults to the address's last path segment")
+    ensure.add_argument("--description")
+    write(ensure)
     runs = actions.add_parser("runs", help="Record this agent's explicit work runs").add_subparsers(
         dest="coordination_action", required=True)
     listing = runs.add_parser("list")
@@ -797,9 +841,11 @@ def _coordination_parser(actions: Any) -> None:
     pages(listing)
     participation.add_parser("show").add_argument("id")
     start = participation.add_parser("start")
-    start.add_argument("--file", help="JSON {runId,itemId?,contexts:[{repositoryId,checkoutPath?,worktreePath?,branch?}]}")
+    start.add_argument("--file", help="JSON {runId,itemId?,contexts:[{repositoryId or repositoryUrl,checkoutPath?,worktreePath?,branch?}]}")
     start.add_argument("--run")
     start.add_argument("--repo", action="append", help="Catalog repository ID; repeat for multiple contexts")
+    start.add_argument("--checkout", action="append",
+                       help="Local checkout to report by its origin remote, branch and path, registering the remote if needed; repeatable")
     start.add_argument("--item", help="Optional work item ID")
     start.add_argument("--description", help="What this participation is doing")
     write(start)

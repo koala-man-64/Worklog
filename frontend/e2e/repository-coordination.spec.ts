@@ -336,3 +336,67 @@ test("a person merges a moved repository's record and its old remote follows", a
   });
   expect([again.id, again.created]).toEqual([moved.id, false]);
 });
+
+test("an agent registers the repository it reports in, and the person confirms it", async ({
+  page,
+  baseURL,
+}) => {
+  const origin = new URL(baseURL!).origin;
+  const suffix = crypto.randomUUID();
+  await page.goto("/");
+  // Bootstrap after the page has its session, so both share one CSRF token.
+  await expect(
+    page.getByRole("heading", { name: "Today", exact: true }),
+  ).toBeVisible();
+  const boot = await page.request.post("/api/v1/session/bootstrap", {
+    headers: { Origin: origin, "X-Worklog-Bootstrap": "1" },
+    data: {},
+  });
+  const { csrfToken } = await boot.json();
+  async function write(path: string, data: unknown, token?: string) {
+    const response = await page.request.post("/api/v1" + path, {
+      headers: {
+        "Idempotency-Key": crypto.randomUUID(),
+        ...(token
+          ? { Authorization: "Bearer " + token }
+          : { Origin: origin, "X-CSRF-Token": csrfToken }),
+      },
+      data,
+    });
+    expect(response.ok(), `${path}: ${await response.text()}`).toBeTruthy();
+    return response.json();
+  }
+  const label = "Registrar " + suffix;
+  const { token } = await write("/credentials", { label });
+  const run = await write(
+    "/agent-runs",
+    { clientRunKey: suffix, displayName: "Registration run" },
+    token,
+  );
+  // Reported by address, the remote is registered on the way, named after it.
+  await write(
+    "/participations",
+    {
+      runId: run.id,
+      contexts: [
+        {
+          repositoryUrl: `git@github.com:agents/${suffix}.git`,
+          branch: "claude/register",
+        },
+      ],
+    },
+    token,
+  );
+
+  await page.goto("/#repositories");
+  await page
+    .getByRole("textbox", { name: "Find repositories", exact: true })
+    .fill(suffix);
+  const row = page.locator("article").filter({
+    has: page.getByRole("link", { name: suffix, exact: true }),
+  });
+  await expect(row).toContainText(`Registered by ${label} · unreviewed`);
+  await row.getByRole("button", { name: "Confirm", exact: true }).click();
+  await expect(row).toContainText(`Registered by ${label}`);
+  await expect(row).not.toContainText("unreviewed");
+});

@@ -16,6 +16,8 @@ const repo: Repository = {
   duplicateOf: null,
   mergedInto: null,
   description: "Shared API",
+  registeredBy: null,
+  reviewed: true,
   revision: 1,
   archived: false,
 };
@@ -230,6 +232,48 @@ it("shows a merged record read-only, naming the record that answers for it", asy
   expect(screen.queryByRole("button", { name: /repository$/ })).toBeNull();
   expect(screen.queryByRole("textbox", { name: "Repository name" })).toBeNull();
   expect(screen.queryByText("Merge into another repository")).toBeNull();
+});
+
+it("shows who registered a repository and lets the person confirm an agent's registration", async () => {
+  const registered = {
+    ...repo,
+    id: "repo-3",
+    name: "Parser",
+    registeredBy: {
+      kind: "agent" as const,
+      label: "Parser agent",
+      agentId: "agent-7",
+    },
+    reviewed: false,
+    revision: 2,
+  };
+  const writes: { path: string; body: unknown }[] = [];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    if (init?.method === "POST") {
+      writes.push({ path: String(input), body: JSON.parse(String(init.body)) });
+      return json({ ...registered, reviewed: true, revision: 3 });
+    }
+    return json({ items: [repo, registered], total: 2 });
+  });
+  show(<Repositories />);
+  const row = (await screen.findByText("Parser")).closest("article")!;
+  expect(row).toHaveTextContent("Registered by Parser agent · unreviewed");
+  expect(
+    within(row).getByRole("link", { name: "Parser agent" }),
+  ).toHaveAttribute("href", "#agents/agent-7");
+  expect(within(row).getByRole("link", { name: "Edit" })).toHaveAttribute(
+    "href",
+    "#repositories/repo-3",
+  );
+  // The person's own registrations carry no review prompt.
+  const own = screen.getByText("Service").closest("article")!;
+  expect(within(own).queryByRole("button", { name: "Confirm" })).toBeNull();
+  await userEvent.click(within(row).getByRole("button", { name: "Confirm" }));
+  await waitFor(() =>
+    expect(writes).toEqual([
+      { path: "/api/v1/repositories/repo-3/confirm", body: { revision: 2 } },
+    ]),
+  );
 });
 
 it("keeps overlapping reports, marks staleness separately, and ends a run only after confirmation", async () => {
