@@ -39,6 +39,11 @@ from worklog.recovery import (
 
 HOST = "127.0.0.1"
 DEFAULT_PORT = 8877
+# stop waits STOP_WAIT_S for the server process to exit. Shutdown spends at most SHUTDOWN_GRACE_S
+# on requests still open and QUOTA_CLOSE_S on quota threads, which leaves room to spare.
+STOP_WAIT_S = 15
+SHUTDOWN_GRACE_S = 5
+QUOTA_CLOSE_S = 2
 WAIT_RESPONSE_LIMIT = 8_000_000
 # Tokens of agents registered from this OS account, under the data directory; see _token_store.
 AGENT_TOKENS = "agent-tokens"
@@ -312,7 +317,7 @@ def stop(directory: Path, port: int = DEFAULT_PORT) -> dict[str, Any]:
             raise RuntimeError("Instance/process/data identity could not be verified; nothing was stopped")
         marker = directory / ("stop-" + state["instanceId"] + ".json")
         _write_json(marker, {"instanceId": state["instanceId"], "dataId": state["dataId"]})
-        deadline = time.monotonic() + 15
+        deadline = time.monotonic() + STOP_WAIT_S
         while time.monotonic() < deadline:
             if _process_identity(int(state["pid"])) != state["process"]:
                 return {"running": False, "stopped": True}
@@ -320,10 +325,24 @@ def stop(directory: Path, port: int = DEFAULT_PORT) -> dict[str, Any]:
         raise RuntimeError("Graceful shutdown did not finish; no process was forcefully terminated")
 
 
-def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
-    """Private foreground entry point; start launches this in one hidden process."""
+def _server(app: Any, port: int, grace: int = SHUTDOWN_GRACE_S) -> Any:
+    """Uvicorn that ends the quota event streams when it starts to shut down, by any route.
+
+    A stream never finishes by itself, so Uvicorn would otherwise wait on it forever; `grace`
+    bounds the wait for any other request still open, so stop's wait can rely on an exit.
+    """
     import uvicorn
 
+    class Server(uvicorn.Server):
+        async def shutdown(self, sockets: Any = None) -> None:
+            app.state.quota.end_streams()
+            await super().shutdown(sockets)
+
+    return Server(uvicorn.Config(app, host=HOST, port=port, access_log=False, timeout_graceful_shutdown=grace))
+
+
+def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
+    """Private foreground entry point; start launches this in one hidden process."""
     from worklog.app import create_app
 
     os.environ["WORKLOG_DATA_DIR"] = str(directory)
@@ -340,7 +359,7 @@ def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
                  "dataId": data_id, "dataDir": str(directory.resolve()), "version": __version__}
         _write_json(directory / "server-state.json", state)
         marker = directory / ("stop-" + instance_id + ".json")
-        server = uvicorn.Server(uvicorn.Config(app, host=HOST, port=port, access_log=False))
+        server = _server(app, port)
         finished = threading.Event()
 
         def watch() -> None:
@@ -374,7 +393,9 @@ def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
             watcher.join(timeout=1)
             if quota_started:
                 try:
-                    app.state.quota.close()
+                    # The process exits next and the OS releases the writer lease, so a collector
+                    # in the middle of a scan need not finish first.
+                    app.state.quota.close(timeout=QUOTA_CLOSE_S)
                 except Exception:
                     pass
             marker.unlink(missing_ok=True)

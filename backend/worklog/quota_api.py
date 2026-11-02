@@ -31,7 +31,8 @@ def install_quota_routes(app: FastAPI, quota_service: CapacityService) -> None:
         try:
             snapshot = quota_service.state.read()
             sent_revision: int | None = None
-            while not quota_service.stop_event.is_set():
+            # A stream never ends by itself, so the server ends it before waiting on its connections.
+            while not quota_service.streams_closed.is_set():
                 if await request.is_disconnected():
                     break
                 if sent_revision != snapshot["revision"]:
@@ -42,7 +43,8 @@ def install_quota_routes(app: FastAPI, quota_service: CapacityService) -> None:
                     yield ": heartbeat\n\n"
                 if not quota_service.threads:
                     break
-                snapshot = await asyncio.to_thread(quota_service.state.wait, snapshot["revision"], 15.0)
+                snapshot = await asyncio.to_thread(quota_service.state.wait, snapshot["revision"], 15.0,
+                                                   quota_service.streams_closed)
         finally:
             with quota_service._consumer_lock:
                 quota_service._consumers -= 1

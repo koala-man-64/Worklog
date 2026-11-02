@@ -498,7 +498,9 @@ class CapacityState:
         with self.condition:
             return copy.deepcopy(self.snapshot)
 
-    def wait(self, revision: int, timeout: float = 15) -> dict:
+    def wait(self, revision: int, timeout: float = 15, stop: threading.Event | None = None) -> dict:
+        """Wait for a newer snapshot, or until `stop` is set and the condition notified."""
         with self.condition:
-            self.condition.wait_for(lambda: self.revision != revision, timeout=timeout)
+            self.condition.wait_for(lambda: self.revision != revision or (stop is not None and stop.is_set()),
+                                    timeout=timeout)
             return copy.deepcopy(self.snapshot)

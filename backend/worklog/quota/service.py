@@ -67,6 +67,8 @@ class CapacityService:
         self._page_wakeup = threading.Event()
         self.store = Store(paths)
         self.stop_event = threading.Event()
+        # Event streams never finish by themselves; this ends them so a server can shut down.
+        self.streams_closed = threading.Event()
         self.events = queue.Queue(maxsize=256)
         self.threads: list[threading.Thread] = []
         self.collectors = collectors
@@ -355,12 +357,19 @@ class CapacityService:
         self._page_wakeup.set()
         return result
 
-    def close(self):
-        self.stop_event.set()
-        self._page_wakeup.set()
+    def end_streams(self):
+        """End every event stream now, including one waiting for the next snapshot."""
+        self.streams_closed.set()
         with self.state.condition:
             self.state.condition.notify_all()
-        deadline = time.monotonic() + 20
+
+    def close(self, timeout: float = 20):
+        """Stop the service, waiting up to `timeout` seconds for its threads. A thread still
+        running then keeps the writer lease until it ends, or until the process exits."""
+        self.end_streams()
+        self.stop_event.set()
+        self._page_wakeup.set()
+        deadline = time.monotonic() + timeout
         for thread in self.threads:
             thread.join(timeout=max(0, deadline - time.monotonic()))
         if any(t.is_alive() for t in self.threads):
@@ -696,7 +705,7 @@ def make_server(service: CapacityService, host="127.0.0.1", port=DEFAULT_PORT):
                 self.connection.settimeout(5)
                 snapshot = service.state.read()
                 sent_revision = None
-                while not service.stop_event.is_set():
+                while not service.streams_closed.is_set():
                     if sent_revision != snapshot["revision"]:
                         data = json.dumps(snapshot, separators=(",", ":"))
                         self.wfile.write(f"id: {snapshot['instance_id']}:{snapshot['revision']}\ndata: {data}\n\n".encode())
@@ -704,7 +713,7 @@ def make_server(service: CapacityService, host="127.0.0.1", port=DEFAULT_PORT):
                     else:
                         self.wfile.write(b": heartbeat\n\n")
                     self.wfile.flush()
-                    snapshot = service.state.wait(snapshot["revision"], timeout=15)
+                    snapshot = service.state.wait(snapshot["revision"], timeout=15, stop=service.streams_closed)
             except (OSError, ConnectionError):
                 pass
             finally:
