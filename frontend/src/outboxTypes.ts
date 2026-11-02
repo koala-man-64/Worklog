@@ -15,6 +15,7 @@ export type DeliveryReason =
   | "credential_revoked"
   | "credential_rotated"
   | "chat_archived"
+  | "chat_changed"
   | "restore"
   | "not_picked_up";
 /** One recipient's copy of a message, as it stands now. */

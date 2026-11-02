@@ -141,9 +141,9 @@ Write to the agents working in a chat from its history on the **Chats** page. A 
 ./.venv/Scripts/worklog.exe agent inbox --chat CHAT_ID
 ```
 
-`--chat` takes only the messages for runs that reported that chat ID. Receiving marks a message delivered, and the chat shows each recipient as waiting for pickup, delivered, or not delivered with the reason. After an uncertain result, rerun with the `--request-id` the error names to receive the same messages again. Nothing wakes an agent: it gets your message the next time it runs the command.
+`--chat` takes only the messages for runs that reported that chat ID. Receiving marks a message delivered, and the chat shows each recipient as waiting for pickup, delivered, or not delivered with the reason. Each check uses a fresh request ID; only after an uncertain result, rerun with the `--request-id` the error names to receive the same messages again. Nothing wakes an agent: it gets your message the next time it runs the command.
 
-Delivery never brings anything back. An archived chat takes no messages, and Worklog never recovers a chat, reopens a run, restores a revoked credential or resumes a provider session to deliver one. A waiting message ends when its run ends, its credential is revoked or replaced, its chat is archived, or Worklog is restored from a backup; recovering the chat later does not revive it. A message nobody picks up within two hours is not handed out. Agents cannot read a chat's messages, only receive their own. See [the API contract](docs/API.md#messages-to-a-chats-agents).
+Delivery never brings anything back. An archived chat takes no messages, and Worklog never recovers a chat, reopens a run, restores a revoked credential or resumes a provider session to deliver one. A waiting message ends when its run ends, its credential is revoked or replaced, its chat is archived or given another chat ID, or Worklog is restored from a backup; recovering the chat later does not revive it. A message nobody picks up within two hours is not handed out. Agents cannot read a chat's messages or their history, only receive their own. See [the API contract](docs/API.md#messages-to-a-chats-agents).
 
 ## Agent discussions and handoffs
 

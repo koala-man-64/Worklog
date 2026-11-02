@@ -248,7 +248,8 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         return response
 
     def mutate(request: Request, payload: Any, fn: Callable, *, required_key: bool = False,
-               redact: tuple[str, ...] = (), communication: bool = False) -> dict:
+               redact: tuple[str, ...] = (), communication: bool = False,
+               receipt_if: Callable[[dict], bool] | None = None) -> dict:
         auto_backup()
         key = request.headers.get("idempotency-key")
         if required_key and not key:
@@ -273,7 +274,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                         raise AppError(409, "idempotency_conflict", "This key was already used for a different request")
                     return json.loads(receipt["response_json"])
             result = fn(c, actor)
-            if key:
+            if key and (receipt_if is None or receipt_if(result)):
                 stored = {**result, **dict.fromkeys(redact)}
                 c.execute("INSERT INTO receipts VALUES(?,?,?,?)", (receipt_actor, key, digest, json.dumps(stored)))
             return result
@@ -370,6 +371,9 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         return mutate(request, p, lambda c, a: work.reschedule(c, a, date, p))
 
     def authorize_history(conn: sqlite3.Connection, identity: str, actor: dict) -> None:
+        # A chat message's history holds its text and every recipient; agents receive only their own.
+        if actor["kind"] == "agent" and conn.execute("SELECT 1 FROM chat_messages WHERE id=?", (identity,)).fetchone():
+            raise AppError(403, "agent_scope", "A chat's messages stay with the person; agents receive theirs from the inbox")
         if conn.execute("SELECT 1 FROM proposals WHERE id=?", (identity,)).fetchone():
             proposals.detail(identity, actor)
         attachment = conn.execute("SELECT owner_type,owner_id FROM attachments WHERE id=?", (identity,)).fetchone()

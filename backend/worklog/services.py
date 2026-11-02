@@ -801,6 +801,11 @@ class WorkService:
                  val["provider"], val["model"], json.dumps(val["repos"])),
             )
             self._assign_steps(c, actor, val, previous, assigned)
+            if before is not None and before["chatId"] != val["chatId"]:
+                from .chat_messages import expire_pending
+
+                # Runs that reported the old ID are no longer tied to this chat.
+                expire_pending(c, "chat_changed", chat_id=val["id"])
             p = {**p, "id": val["id"]}
         elif kind == "github" and verb in {"create", "update"}:
             val = before.copy() if before else {"id": uid(), "ownerType": p.get("ownerType"), "ownerId": p.get("ownerId"), "kind": "pr", "url": "", "reference": "", "title": "", "description": "", "chatId": None, "createdAt": now(), "revision": 0}

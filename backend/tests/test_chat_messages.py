@@ -316,3 +316,59 @@ def test_restore_ends_pending_deliveries_and_export_keeps_messages(client, tmp_p
     with closing(sqlite3.connect(target)) as conn:
         rows = dict(conn.execute("SELECT message_id,status||':'||coalesce(expire_reason,'') FROM chat_message_deliveries"))
     assert rows == {delivered["id"]: "delivered:", waiting["id"]: "expired:restore"}
+
+
+def test_changing_a_chats_id_ends_its_waiting_deliveries_for_good(client):
+    chat = tracked_chat(client)
+    credential = agent(client)
+    run(client, credential, "session-1")
+    send(client, chat)
+    moved = ok(request(client, "PATCH", f"/chats/{chat['id']}", {"revision": chat["revision"], "chatId": "other-chat"}))
+    assert statuses(client, chat) == [("Implementer", "expired", "chat_changed")]
+    assert receive(client, credential)["items"] == []
+    # Changing it back ties the run again for new messages, never for the old one.
+    back = ok(request(client, "PATCH", f"/chats/{chat['id']}", {"revision": moved["revision"], "chatId": "session-1"}))
+    assert receive(client, credential)["items"] == []
+    send(client, chat, "After the move")
+    ok(request(client, "PATCH", f"/chats/{chat['id']}", {"revision": back["revision"], "title": "Renamed"}))
+    assert [m["text"] for m in receive(client, credential)["items"]] == ["After the move"]
+
+
+def test_a_run_no_longer_tied_to_the_chat_receives_nothing_even_without_an_expiry(client, tmp_path):
+    chat = tracked_chat(client)
+    credential = agent(client)
+    run(client, credential, "session-1")
+    send(client, chat)
+    with closing(sqlite3.connect(tmp_path / "worklog.sqlite3")) as conn:
+        conn.execute("UPDATE agent_chats SET chat_id='elsewhere' WHERE id=?", (chat["id"],))
+        conn.commit()
+    assert receive(client, credential)["items"] == []
+
+
+def test_agents_cannot_read_a_messages_history(client):
+    chat = tracked_chat(client)
+    credential = agent(client)
+    run(client, credential, "session-1")
+    message = send(client, chat)
+    receive(client, credential)
+    error(request(client, "GET", f"/history?entityId={message['id']}", agent=credential), 403, "agent_scope")
+    kinds = [e["kind"] for e in ok(request(client, "GET", f"/history?entityId={message['id']}"))["items"]]
+    assert sorted(kinds) == ["chat.message", "chat.message.deliver"]
+
+
+def test_an_empty_receive_leaves_no_receipt(client, tmp_path):
+    chat = tracked_chat(client)
+    credential = agent(client)
+    run(client, credential, "session-1")
+
+    def receipts():
+        with closing(sqlite3.connect(tmp_path / "worklog.sqlite3")) as conn:
+            return conn.execute("SELECT count(*) FROM receipts WHERE actor_id=?", (credential["id"],)).fetchone()[0]
+
+    before = receipts()
+    for _ in range(3):
+        assert receive(client, credential)["items"] == []
+    assert receipts() == before
+    send(client, chat)
+    assert receive(client, credential)["total"] == 1
+    assert receipts() == before + 1

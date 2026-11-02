@@ -18,6 +18,8 @@ from .discussions import communication_actor
 
 PICKUP_WINDOW = timedelta(hours=2)
 
+# A delivery still pending at expires_at stays 'pending' in the table: it reads as
+# expired (not_picked_up) and is never handed out, so no background job is needed.
 SCHEMA = """
 CREATE TABLE chat_messages(id TEXT PRIMARY KEY,chat_id TEXT NOT NULL REFERENCES agent_chats(id),text TEXT NOT NULL,author_id TEXT NOT NULL,author_label TEXT NOT NULL,created_at TEXT NOT NULL);
 CREATE INDEX chat_messages_chat ON chat_messages(chat_id,created_at,id);
@@ -128,7 +130,9 @@ class ChatMessageService:
             "SELECT d.message_id,d.run_id,m.text,m.author_id,m.author_label,m.created_at,ch.id AS tracked_id,ch.chat_id,ch.title "
             "FROM chat_message_deliveries d JOIN agent_runs ar ON ar.id=d.run_id JOIN chat_messages m ON m.id=d.message_id "
             "JOIN agent_chats ch ON ch.id=m.chat_id "
-            "WHERE ar.credential_id=? AND ar.ended_at IS NULL AND ch.archived=0 AND d.status='pending' AND d.expires_at>?" + clause +
+            # The run must still be tied to the chat, as well as open, when the message is handed out.
+            "WHERE ar.credential_id=? AND ar.ended_at IS NULL AND ar.external_chat_id=ch.chat_id AND ch.archived=0 "
+            "AND d.status='pending' AND d.expires_at>?" + clause +
             " ORDER BY m.created_at,m.id,d.run_id", args).fetchall()
         c.executemany("UPDATE chat_message_deliveries SET status='delivered',delivered_at=? WHERE message_id=? AND run_id=? AND status='pending'",
                       [(stamp, r["message_id"], r["run_id"]) for r in rows])

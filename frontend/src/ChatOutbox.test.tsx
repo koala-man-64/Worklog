@@ -218,6 +218,7 @@ it("says what became of each delivery", () => {
     ["credential_revoked", "its credential was revoked"],
     ["credential_rotated", "its credential was replaced"],
     ["chat_archived", "the chat was archived"],
+    ["chat_changed", "the chat's ID changed"],
     ["restore", "Worklog was restored from a backup"],
     ["not_picked_up", "not picked up within 2 hours"],
   ] as const)

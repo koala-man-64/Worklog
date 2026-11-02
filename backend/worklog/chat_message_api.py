@@ -29,4 +29,6 @@ def install_chat_message_routes(app: FastAPI, db: Database, mutate: Callable) ->
 
     @app.post("/api/v1/inbox/receive")
     def inbox_receive(request: Request, body: m.InboxReceive) -> dict:
-        return mutate(request, body.model_dump(), lambda c, a: service.receive(c, a, body.model_dump()), required_key=True)
+        # An empty receive changes nothing, so polling leaves no receipts behind.
+        return mutate(request, body.model_dump(), lambda c, a: service.receive(c, a, body.model_dump()),
+                      required_key=True, receipt_if=lambda result: result["total"] > 0)
