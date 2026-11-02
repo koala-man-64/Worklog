@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -253,16 +253,22 @@ class AgentRegistry:
                 "workItems": items.render(work), "roadmaps": roadmaps.render(roadmap_titles),
                 "repositories": repositories.render(repos), "chats": chats.render(chat_records)}
 
-    def roadmap(self, c: sqlite3.Connection, roadmap_id: str) -> dict:
+    def roadmap(self, c: sqlite3.Connection, roadmap_id: str, archived: Callable[[str], bool]) -> dict:
         """Who works on a roadmap now and on which of its steps, from current ties only.
 
         Open participation in its work items, roles owned in it and its tracked chats each tie
         a step: the one a chat was assigned to, or the work item's step. A tracked chat belongs
         to the agents whose runs reported its chat ID and otherwise stands for itself. Work with
         no step, or on a retired one, ties the roadmap itself, with a null stepId.
+
+        Finished work is left out. An agent counts only while it is at work, with an open run
+        and an active credential. A chat counts until the tool that keeps it archives it, which
+        `archived` asks by chat ID; once runs reported it, it counts only while one of them is
+        open under an agent at work.
         """
         if c.execute("SELECT 1 FROM roadmaps WHERE id=?", (roadmap_id,)).fetchone() is None:
             raise AppError(404, "not_found", "Roadmap not found")
+        working = {r[0] for r in c.execute(f"SELECT DISTINCT ar.agent_id FROM agent_runs ar JOIN communication_agents a ON a.id=ar.agent_id WHERE ar.ended_at IS NULL AND {ACTIVE}")}
         retired = {r["id"]: bool(r["retired"]) for r in c.execute("SELECT id,retired FROM steps WHERE roadmap_id=?", (roadmap_id,))}
         # A step's roadmap wins over the item's own, as on the Chats page.
         items = {r["id"]: r for r in c.execute("SELECT w.id,w.title,w.step_id FROM work_items w LEFT JOIN steps s ON s.id=w.step_id WHERE w.archived=0 AND COALESCE(s.roadmap_id,w.roadmap_id)=?", (roadmap_id,))}
@@ -279,6 +285,8 @@ class AgentRegistry:
         def tie(kind: str, identity: str, step_id: str | None, via: str, at: str | None, stale: bool = False, *,
                 item: dict | None = None, chat: dict | None = None, role: dict | None = None) -> None:
             """One tie per step, reason and record; a repeat keeps the latest time and is stale only if all are."""
+            if kind == "agent" and identity not in working:
+                return
             key = (step_id, via, *(target and target["id"] for target in (item, chat, role)))
             found = workers.setdefault((kind, identity), {})
             prior = found.get(key)
@@ -304,14 +312,20 @@ class AgentRegistry:
 
         chats = {r["id"]: r for r in c.execute("SELECT * FROM agent_chats WHERE archived=0 AND owner_type='roadmap' AND owner_id=?", (roadmap_id,))}
         chats.update((r["id"], r) for r in _rows(c, "SELECT * FROM agent_chats WHERE archived=0 AND owner_type='item' AND owner_id IN ({})", items))
+        chats = {key: r for key, r in chats.items() if not archived(r["chat_id"])}
         assigned: dict[str, list[tuple[str | None, str]]] = {}
         for r in _rows(c, "SELECT chat_id,step_id,created_at FROM chat_steps WHERE chat_id IN ({})", chats):
             if step(r["step_id"]):
                 assigned.setdefault(r["chat_id"], []).append((r["step_id"], r["created_at"]))
+        # Every chat a run reported is noted; only open runs of agents at work carry it.
         carriers: dict[str, set[str]] = {}
-        for r in _rows(c, "SELECT DISTINCT external_chat_id,agent_id FROM agent_runs WHERE external_chat_id IN ({})", [ch["chat_id"] for ch in chats.values()]):
-            carriers.setdefault(r["external_chat_id"], set()).add(r["agent_id"])
+        for r in _rows(c, "SELECT external_chat_id,agent_id,ended_at FROM agent_runs WHERE external_chat_id IN ({})", [ch["chat_id"] for ch in chats.values()]):
+            carried = carriers.setdefault(r["external_chat_id"], set())
+            if r["ended_at"] is None and r["agent_id"] in working:
+                carried.add(r["agent_id"])
         for chat in chats.values():
+            if chat["chat_id"] in carriers and not carriers[chat["chat_id"]]:
+                continue  # every run that reported it has finished
             owner = titled(chat["owner_id"]) if chat["owner_type"] == "item" else None
             # A roadmap's chat works on the steps assigned to it, or on the roadmap while it has none.
             places = assigned.get(chat["id"]) or [(step(items[chat["owner_id"]]["step_id"]) if owner else None, chat["created_at"])]
