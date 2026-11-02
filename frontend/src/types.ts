@@ -268,6 +268,8 @@ export type Settings = {
   version: string;
   // False applies an agent's proposal as soon as it is submitted.
   requireProposalApproval: boolean;
+  // False keeps agents from registering repositories; they propose them instead.
+  agentRepositoryRegistration: boolean;
   storage: {
     databaseBytes: number;
     backupBytes: number;

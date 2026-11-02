@@ -2,6 +2,7 @@
 
 import io
 import json
+import subprocess
 from urllib.error import URLError
 from urllib.parse import parse_qs, urlsplit
 
@@ -101,6 +102,7 @@ def test_new_writes_require_stable_key_before_transport(requests):
 @pytest.mark.parametrize("method,path", [
     ("POST", "/repositories"), ("PATCH", f"/repositories/{ID}"),
     ("POST", f"/repositories/{ID}/archive"), ("POST", f"/repositories/{ID}/recover"),
+    ("POST", f"/repositories/{ID}/confirm"), ("POST", f"/repositories/{ID}/merge"), ("GET", "/repositories/ensure"),
     ("DELETE", f"/participations/{ID}"), ("POST", f"/participations/{ID}/reassign"),
     ("POST", "/participations/%2e%2e/updates"), ("POST", f"/participations/{ID}/release/"),
 ])
@@ -118,3 +120,53 @@ def test_uncertain_patch_reports_retry_key_without_credentials(requests, monkeyp
     with pytest.raises(cli.AgentRequestError, match=KEY) as error:
         cli.AgentClient().request("PATCH", f"/participations/{ID}", {"revision": 1}, request_id=KEY)
     assert "private-agent-token" not in str(error.value)
+
+
+def fake_git(monkeypatch, path, rev_parse, origin="git@github.com:Team/Worklog.git", code=0):
+    calls = []
+
+    def run(command, **kwargs):
+        calls.append(command)
+        assert command[:3] == ["git", "-C", str(path)] and kwargs["timeout"] and "shell" not in kwargs
+        out = origin + "\n" if command[3] == "remote" else rev_parse
+        return subprocess.CompletedProcess(command, code, stdout="" if code else out, stderr="fatal: not a git repository")
+
+    monkeypatch.setattr(cli.subprocess, "run", run)
+    return calls
+
+
+def test_repositories_ensure_sends_an_address_or_a_checkouts_origin(requests, monkeypatch, tmp_path):
+    assert cli.main(["agent", "repositories", "ensure", "--remote", "https://github.com/team/worklog", "--name", "Worklog",
+                     "--request-id", KEY]) == 0
+    assert (requests[-1].method, urlsplit(requests[-1].full_url).path) == ("POST", "/api/v1/repositories/ensure")
+    assert json.loads(requests[-1].data) == {"url": "https://github.com/team/worklog", "name": "Worklog"}
+    assert requests[-1].get_header("Idempotency-key") == KEY
+    fake_git(monkeypatch, tmp_path, f"{tmp_path}\n{tmp_path}/.git\n{tmp_path}/.git\nmain\n")
+    assert cli.main(["agent", "repositories", "ensure", "--checkout", str(tmp_path), "--request-id", KEY]) == 0
+    assert json.loads(requests[-1].data) == {"url": "git@github.com:Team/Worklog.git"}
+
+
+def test_participation_reports_checkouts_by_remote_branch_and_paths(requests, monkeypatch, tmp_path):
+    # A linked worktree names its main checkout through the shared Git directory.
+    calls = fake_git(monkeypatch, tmp_path, "C:/work/task\nC:/repo/.git/worktrees/task\nC:/repo/.git\nclaude/task\n")
+    assert cli.main(["agent", "participation", "start", "--run", ID, "--repo", ID, "--checkout", str(tmp_path),
+                     "--request-id", KEY]) == 0
+    assert json.loads(requests[-1].data) == {"runId": ID, "contexts": [
+        {"repositoryId": ID},
+        {"repositoryUrl": "git@github.com:Team/Worklog.git", "branch": "claude/task", "worktreePath": "C:/work/task",
+         "checkoutPath": str(cli.Path("C:/repo"))}]}
+    assert calls[-1][3:] == ["rev-parse", "--path-format=absolute", "--show-toplevel", "--git-dir", "--git-common-dir",
+                             "--abbrev-ref", "HEAD"]
+    # A main checkout on a detached HEAD reports no branch.
+    fake_git(monkeypatch, tmp_path, "C:/repo\nC:/repo/.git\nC:/repo/.git\nHEAD\n")
+    assert cli.main(["agent", "participation", "start", "--run", ID, "--checkout", str(tmp_path), "--request-id", KEY]) == 0
+    assert json.loads(requests[-1].data)["contexts"] == [
+        {"repositoryUrl": "git@github.com:Team/Worklog.git", "branch": "", "checkoutPath": "C:/repo"}]
+
+
+def test_a_folder_without_an_origin_is_refused_before_any_request(requests, monkeypatch, tmp_path, capsys):
+    fake_git(monkeypatch, tmp_path, "", code=128)
+    count = len(requests)
+    assert cli.main(["agent", "participation", "start", "--run", ID, "--checkout", str(tmp_path), "--request-id", KEY]) == 1
+    assert "is not a Git checkout with an origin remote" in capsys.readouterr().err
+    assert len(requests) == count

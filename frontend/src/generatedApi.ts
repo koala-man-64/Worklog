@@ -1111,6 +1111,23 @@ export interface paths {
         patch: operations["repository_update_api_v1_repositories__identity__patch"];
         trace?: never;
     };
+    "/api/v1/repositories/ensure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Repository Ensure Route */
+        post: operations["repository_ensure_route_api_v1_repositories_ensure_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/repositories/{identity}/merge": {
         parameters: {
             query?: never;
@@ -1122,6 +1139,23 @@ export interface paths {
         put?: never;
         /** Repository Merge Into */
         post: operations["repository_merge_into_api_v1_repositories__identity__merge_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/repositories/{identity}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Repository Confirm Route */
+        post: operations["repository_confirm_route_api_v1_repositories__identity__confirm_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2483,7 +2517,9 @@ export interface components {
         /** ParticipationContext */
         ParticipationContext: {
             /** Repositoryid */
-            repositoryId: string;
+            repositoryId?: string | null;
+            /** Repositoryurl */
+            repositoryUrl?: string | null;
             /**
              * Checkoutpath
              * @default
@@ -2733,6 +2769,21 @@ export interface components {
             description: string;
         };
         /**
+         * RepositoryEnsure
+         * @description Register a remote, or find the record that already holds it.
+         */
+        RepositoryEnsure: {
+            /** Url */
+            url: string;
+            /** Name */
+            name?: string | null;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+        };
+        /**
          * RepositoryMerge
          * @description Merge the addressed repository into `intoId`; both revisions must be current.
          */
@@ -2878,6 +2929,8 @@ export interface components {
             timezone?: string | null;
             /** Requireproposalapproval */
             requireProposalApproval?: boolean | null;
+            /** Agentrepositoryregistration */
+            agentRepositoryRegistration?: boolean | null;
         };
         /** Target */
         Target: {
@@ -5855,6 +5908,41 @@ export interface operations {
             };
         };
     };
+    repository_ensure_route_api_v1_repositories_ensure_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepositoryEnsure"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     repository_merge_into_api_v1_repositories__identity__merge_post: {
         parameters: {
             query?: never;
@@ -5867,6 +5955,43 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["RepositoryMerge"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    repository_confirm_route_api_v1_repositories__identity__confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Expected"];
             };
         };
         responses: {

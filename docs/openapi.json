@@ -3907,6 +3907,46 @@
         }
       }
     },
+    "/api/v1/repositories/ensure": {
+      "post": {
+        "summary": "Repository Ensure Route",
+        "operationId": "repository_ensure_route_api_v1_repositories_ensure_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepositoryEnsure"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Repository Ensure Route Api V1 Repositories Ensure Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/repositories/{identity}/merge": {
       "post": {
         "summary": "Repository Merge Into",
@@ -3941,6 +3981,57 @@
                   "type": "object",
                   "additionalProperties": true,
                   "title": "Response Repository Merge Into Api V1 Repositories  Identity  Merge Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/repositories/{identity}/confirm": {
+      "post": {
+        "summary": "Repository Confirm Route",
+        "operationId": "repository_confirm_route_api_v1_repositories__identity__confirm_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Expected"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Repository Confirm Route Api V1 Repositories  Identity  Confirm Post"
                 }
               }
             }
@@ -8694,8 +8785,26 @@
       "ParticipationContext": {
         "properties": {
           "repositoryId": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Repositoryid"
+          },
+          "repositoryUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repositoryurl"
           },
           "checkoutPath": {
             "type": "string",
@@ -8715,9 +8824,6 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "repositoryId"
-        ],
         "title": "ParticipationContext"
       },
       "ParticipationCreate": {
@@ -9379,6 +9485,37 @@
         ],
         "title": "RepositoryCreate"
       },
+      "RepositoryEnsure": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "RepositoryEnsure",
+        "description": "Register a remote, or find the record that already holds it."
+      },
       "RepositoryMerge": {
         "properties": {
           "revision": {
@@ -9778,6 +9915,17 @@
               }
             ],
             "title": "Requireproposalapproval"
+          },
+          "agentRepositoryRegistration": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agentrepositoryregistration"
           }
         },
         "additionalProperties": false,

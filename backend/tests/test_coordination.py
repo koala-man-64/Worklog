@@ -524,3 +524,99 @@ def test_a_failed_approval_names_the_change_that_failed(client):
     assert error["message"] == "Change 2 of 2, repository.update: This record changed. Reload and review your draft."
     assert (error["fields"]["operation"], error["fields"]["action"]) == (2, "repository.update")
     assert ok(request(client, "GET", "/repositories"))["total"] == 1
+
+
+def ensure(c, credential, url, key=None, **extra):
+    return request(c, "POST", "/repositories/ensure", {"url": url, **extra}, credential, key)
+
+
+def report_at(c, credential, contexts, running=None):
+    running = running or run(c, credential)
+    return post(c, "/participations", {"runId": running["id"], "contexts": contexts}, credential)
+
+
+def test_two_agents_ensuring_one_remote_at_once_produce_one_record(client):
+    first, second = agent(client, "First"), agent(client, "Second")
+    barrier, results = threading.Barrier(2), {}
+
+    def register(credential, url):
+        # Separate clients, so the two requests overlap inside the application.
+        own = TestClient(client.app, base_url=ORIGIN)
+        barrier.wait()
+        results[credential["id"]] = ensure(own, credential, url)
+
+    threads = [threading.Thread(target=register, args=args) for args in
+               ((first, "https://github.com/team/shared"), (second, "git@github.com:Team/Shared.git"))]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    bodies = [ok(response) for response in results.values()]
+    assert sorted(body["created"] for body in bodies) == [False, True]
+    assert len({body["id"] for body in bodies}) == 1
+    assert ok(request(client, "GET", "/repositories"))["total"] == 1
+
+
+def test_agent_registrations_await_review_and_keep_their_provenance_after_revocation(client):
+    credential = agent(client, "Registrar")
+    created = ok(ensure(client, credential, "git@github.com:Team/Parser.git", "ensure-key-1"))
+    assert (created["created"], created["name"], created["reviewed"]) == (True, "Parser", False)
+    assert created["registeredBy"] == {"kind": "agent", "label": "Registrar", "agentId": credential["agentId"]}
+    # Retrying with the same key replays the answer; the same key for another address is refused.
+    assert ok(ensure(client, credential, "git@github.com:Team/Parser.git", "ensure-key-1")) == created
+    assert ensure(client, credential, "https://github.com/team/other", "ensure-key-1").status_code == 409
+    found = ok(ensure(client, credential, "https://github.com/team/parser"))
+    assert (found["id"], found["created"]) == (created["id"], False)
+    # Only the person reviews, edits, archives or merges what agents register.
+    for method, path, body in (("POST", f"/repositories/{created['id']}/confirm", {"revision": 1}),
+                               ("PATCH", f"/repositories/{created['id']}", {"revision": 1, "name": "Mine"}),
+                               ("POST", f"/repositories/{created['id']}/archive", {"revision": 1}),
+                               ("POST", "/repositories", {"name": "Direct"})):
+        assert request(client, method, path, body, credential).status_code == 403
+    edited = ok(ensure(client, credential, "https://github.com/team/lexer"))
+    renamed = ok(request(client, "PATCH", f"/repositories/{edited['id']}", {"revision": edited["revision"], "name": "Lexer"}))
+    assert renamed["reviewed"] is True
+    confirmed = post(client, f"/repositories/{created['id']}/confirm", {"revision": created["revision"]})
+    assert (confirmed["reviewed"], confirmed["revision"]) == (True, 2)
+    assert post(client, f"/repositories/{created['id']}/confirm", {"revision": 2}) == confirmed
+    post(client, f"/credentials/{credential['id']}/revoke")
+    kept = ok(request(client, "GET", f"/repositories/{created['id']}"))
+    assert kept["registeredBy"] == created["registeredBy"]
+    # What the person registers is reviewed from the start.
+    own = ok(ensure(client, None, "https://github.com/team/mine"))
+    assert (own["reviewed"], own["registeredBy"]["kind"], repo(client, "Plain")["registeredBy"]["kind"]) == (True, "human", "human")
+
+
+def test_participation_registers_or_finds_repositories_by_address(client):
+    first, second = agent(client, "First"), agent(client, "Second")
+    reported = report_at(client, first, [{"repositoryUrl": "git@github.com:Team/New.git", "branch": "first"}])
+    repository_id = reported["contexts"][0]["repositoryId"]
+    registered = ok(request(client, "GET", f"/repositories/{repository_id}"))
+    assert (registered["url"], registered["reviewed"], registered["registeredBy"]["label"]) == ("git@github.com:Team/New.git", False, "First")
+    joined = report_at(client, second, [{"repositoryUrl": "https://github.com/team/new", "worktreePath": "C:/second"}])
+    assert joined["contexts"][0]["repositoryId"] == repository_id
+    assert ok(request(client, "GET", "/repositories"))["total"] == 1
+    running = run(client, second)
+    both = {"runId": running["id"], "contexts": [{"repositoryId": repository_id, "repositoryUrl": "https://github.com/team/new"}]}
+    assert request(client, "POST", "/participations", both, second).status_code == 422
+    archived = repo(client, "Retired", url="https://github.com/team/retired")
+    post(client, f"/repositories/{archived['id']}/archive", {"revision": archived["revision"]})
+    response = request(client, "POST", "/participations", {"runId": running["id"], "contexts": [{"repositoryUrl": "https://github.com/team/retired"}]}, second)
+    assert (response.status_code, response.json()["error"]["code"]) == (409, "repository_archived")
+
+
+def test_settings_switch_turns_agent_registration_off_without_blocking_known_remotes(client):
+    known, credential = repo(client, url="https://github.com/team/known"), agent(client)
+    assert ok(request(client, "GET", "/settings"))["agentRepositoryRegistration"] is True
+    assert ok(request(client, "PATCH", "/settings", {"agentRepositoryRegistration": False}))["agentRepositoryRegistration"] is False
+    response = ensure(client, credential, "https://github.com/team/unknown")
+    assert (response.status_code, response.json()["error"]["code"]) == (403, "repository_registration_off")
+    running = run(client, credential)
+    unknown = {"runId": running["id"], "contexts": [{"repositoryUrl": "https://github.com/team/unknown"}]}
+    assert request(client, "POST", "/participations", unknown, credential).status_code == 403
+    assert ok(request(client, "GET", "/participations"))["total"] == 0
+    assert ok(ensure(client, credential, "git@github.com:team/known.git"))["id"] == known["id"]
+    assert report_at(client, credential, [{"repositoryUrl": "https://github.com/team/known"}], running)["contexts"][0]["repositoryId"] == known["id"]
+    # The person still registers; agents propose repository.create instead.
+    assert ok(ensure(client, None, "https://github.com/team/unknown"))["created"] is True
+    assert ok(request(client, "GET", "/repositories"))["total"] == 2

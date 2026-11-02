@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import sqlite3
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 # Older versions that startup and offline restore upgrade in one transaction.
-UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5})
+UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6})
 
 COORDINATION_SCHEMA = """
 CREATE TABLE repositories(id TEXT PRIMARY KEY,name TEXT NOT NULL,url TEXT NOT NULL DEFAULT '',description TEXT NOT NULL DEFAULT '',archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
@@ -60,6 +60,26 @@ def add_remote_identity(conn: sqlite3.Connection) -> None:
                  "WHERE remote_identity<>'' AND duplicate_of IS NULL AND merged_into IS NULL")
 
 
+# v7 records who registered each repository. A repository an agent registered for itself
+# stays unreviewed until the person confirms or edits it.
+REPOSITORY_PROVENANCE_COLUMNS = (", registered_by_kind TEXT NOT NULL DEFAULT '', registered_by_label TEXT NOT NULL DEFAULT ''"
+                                 ", registered_by_agent TEXT REFERENCES communication_agents(id)"
+                                 ", reviewed INTEGER NOT NULL DEFAULT 1 CHECK(reviewed IN(0,1))")
+
+
+def add_repository_provenance(conn: sqlite3.Connection) -> None:
+    """Take each repository's registrant from its creation event; existing ones count as reviewed."""
+    for column in REPOSITORY_PROVENANCE_COLUMNS.split(", ")[1:]:
+        conn.execute("ALTER TABLE repositories ADD COLUMN " + column)
+    created = "e.entity_id=repositories.id AND e.kind='repository.create' ORDER BY e.created_at,e.id LIMIT 1"
+    # An agent is named by its identity, as new registrations are, rather than by the credential it used.
+    identity = ("FROM events e JOIN communication_credentials cc ON cc.credential_id=e.actor_id JOIN communication_agents a"
+                f" ON a.id=cc.agent_id WHERE e.actor_kind='agent' AND {created}")
+    conn.execute(f"UPDATE repositories SET registered_by_kind=COALESCE((SELECT e.actor_kind FROM events e WHERE {created}),''),"
+                 f"registered_by_label=COALESCE((SELECT a.label {identity}),(SELECT e.actor_label FROM events e WHERE {created}),''),"
+                 f"registered_by_agent=(SELECT a.id {identity})")
+
+
 def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
     """Unlike executescript, preserve the caller's transaction and rollback boundary."""
     for statement in filter(str.strip, schema.split(";")):
@@ -67,7 +87,7 @@ def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
 
 
 def upgrade(conn: sqlite3.Connection) -> None:
-    """Upgrade an accepted v1 to v5 shape atomically inside the caller's transaction.
+    """Upgrade an accepted v1 to v6 shape atomically inside the caller's transaction.
 
     Credential IDs, proposal authors, receipts, and legacy chat repository labels
     are deliberately unchanged. No repository names are guessed or imported.
@@ -93,8 +113,10 @@ def upgrade(conn: sqlite3.Connection) -> None:
         execute_schema(conn, CHAT_MESSAGE_SCHEMA)
     if version < 5:
         execute_schema(conn, TICKET_SCHEMA)
-    # Every upgradable version predates remote identities (v6).
-    add_remote_identity(conn)
+    if version < 6:
+        add_remote_identity(conn)
+    # Every upgradable version predates repository provenance (v7).
+    add_repository_provenance(conn)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 

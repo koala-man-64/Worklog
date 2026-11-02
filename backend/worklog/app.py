@@ -38,7 +38,7 @@ from .common import (
     today,
     uid,
 )
-from .coordination import CoordinationService, close_credential_runs
+from .coordination import CoordinationService, agents_may_register, close_credential_runs
 from .coordination_api import coordination_agent_route_allowed, install_coordination_routes
 from .db import Database
 from .discussion_api import agent_route_allowed, install_discussion_routes
@@ -700,6 +700,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         with db.read() as c:
             tz = setting(c, "timezone", "America/Chicago")
             require_approval = approval_required(c)
+            register_repositories = agents_may_register(c)
             rows = c.execute("SELECT c.id,c.label,c.created_at,c.revoked,b.agent_id FROM credentials c LEFT JOIN communication_credentials b ON b.credential_id=c.id").fetchall()
             sponsors = registered_by(c, [r["id"] for r in rows])
             registered = active_registrations(c, [r["agent_id"] for r in rows if r["agent_id"]])
@@ -709,6 +710,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         backups = list_backups(directory / "backups")
         size = db.path.stat().st_size
         return {"timezone": tz, "today": today(tz), "version": __version__, "requireProposalApproval": require_approval,
+                "agentRepositoryRegistration": register_repositories,
                 "credentials": creds, "agents": agents,
                 "backups": backups, "storage": {"databaseBytes": size, "backupBytes": sum(b.get("size", 0) for b in backups),
                                                  "warning": app.state.backup_error or ("Primary data exceeds 2 GB; review retained files and backup capacity" if size > 2_000_000_000 else None)}}
@@ -731,6 +733,11 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                 c.execute("INSERT INTO settings VALUES('requireProposalApproval',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
                           (json.dumps(body.requireProposalApproval),))
                 event(c, request.state.actor, "settings.requireProposalApproval", "settings", was, body.requireProposalApproval)
+            if body.agentRepositoryRegistration is not None:
+                was = agents_may_register(c)
+                c.execute("INSERT INTO settings VALUES('agentRepositoryRegistration',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                          (json.dumps(body.agentRepositoryRegistration),))
+                event(c, request.state.actor, "settings.agentRepositoryRegistration", "settings", was, body.agentRepositoryRegistration)
         return settings()
 
     @app.post("/api/v1/credentials")

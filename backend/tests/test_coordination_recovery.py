@@ -98,7 +98,7 @@ def test_pre_migration_backup_failure_prevents_upgrade(tmp_path, monkeypatch):
         assert recovery._schema_signature(conn) == recovery._expected_schema(coordination=False, avatars=False, chat_messages=False, tickets=False)
 
 
-@pytest.mark.parametrize("current_shape,version", [(True, 1), (True, 2), (True, 3), (True, 4), (True, 5), (False, 2), (False, 3), (False, 4), (False, 5), (False, 6)])
+@pytest.mark.parametrize("current_shape,version", [(True, 1), (True, 2), (True, 3), (True, 4), (True, 5), (True, 6), (False, 2), (False, 3), (False, 4), (False, 5), (False, 6), (False, 7)])
 def test_schema_version_cannot_disguise_another_shape(tmp_path, current_shape, version):
     path = tmp_path / "worklog.sqlite3"
     if current_shape:
@@ -292,11 +292,13 @@ def test_v6_upgrade_keys_repositories_by_remote_and_flags_records_that_share_one
         recovery.restore_database(target, source, tmp_path / "backups")
     recovery.validate_database(target)
     with Database(target).read() as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION == 6
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
         assert recovery._schema_signature(conn) == recovery._expected_schema()
         keys = {row["id"]: (row["remote_identity"], row["duplicate_of"]) for row in conn.execute("SELECT * FROM repositories")}
-        # Records keep everything they had; the upgrade only appends their key, any flag and an empty merge pointer.
-        assert [tuple(row)[:-3] for row in conn.execute("SELECT * FROM repositories ORDER BY 1")] == before["repositories"]
+        # Records keep everything they had; the upgrades only append their key, any flag, an empty merge
+        # pointer and, with no creation events to read, an unknown registrant.
+        assert [tuple(row)[:-7] for row in conn.execute("SELECT * FROM repositories ORDER BY 1")] == before["repositories"]
+        assert {tuple(row) for row in conn.execute("SELECT registered_by_kind,registered_by_label,registered_by_agent,reviewed FROM repositories")} == {("", "", None, 1)}
         assert conn.execute("SELECT count(*) FROM repositories WHERE merged_into IS NOT NULL").fetchone()[0] == 0
     assert keys == {"archived": ("github.com/team/shared", "ssh"), "ssh": ("github.com/team/shared", None),
                     "lowercase": ("github.com/team/shared", "ssh"), "other": ("github.com/team/other", None),
@@ -307,3 +309,31 @@ def test_v6_upgrade_keys_repositories_by_remote_and_flags_records_that_share_one
         with closing(sqlite3.connect(snapshot)) as conn:
             assert conn.execute("PRAGMA user_version").fetchone()[0] == 5
             assert recovery._schema_signature(conn) == recovery._expected_schema(remote_identity=False)
+
+
+def test_v7_upgrade_takes_each_registrant_from_its_creation_event(tmp_path):
+    path = tmp_path / "worklog.sqlite3"
+    v5_database(path, [("human", "https://github.com/team/human", 0, 1), ("agent", "https://github.com/team/agent", 0, 2),
+                       ("unknown", "", 0, 3)])
+    with closing(sqlite3.connect(path)) as conn:
+        migrations.add_remote_identity(conn)
+        conn.execute("INSERT INTO credentials VALUES('credential','Proposer credential','hash',?,1)", (STAMP,))
+        conn.execute("INSERT INTO communication_agents(id,label,created_at,avatar) VALUES('agent-id','Proposer',?,'teal-dots-antenna')", (STAMP,))
+        conn.execute("INSERT INTO communication_credentials VALUES('credential','agent-id')")
+        for entity, actor, label, kind in (("human", "local-user", "You", "human"), ("agent", "credential", "Proposer credential", "agent")):
+            conn.execute("INSERT INTO events VALUES(?,?,'repository.create',?,?,?,?,'2026-01-01','null','{}')",
+                         (entity + "-event", entity, actor, label, kind, STAMP))
+        conn.execute("PRAGMA user_version=6")
+        conn.commit()
+    recovery.validate_database(path)
+    Database(path).initialize()
+    with Database(path).read() as conn:
+        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        rows = {row[0]: tuple(row)[1:] for row in conn.execute(
+            "SELECT id,registered_by_kind,registered_by_label,registered_by_agent,reviewed FROM repositories")}
+    # The revoked credential still names the agent identity that proposed the repository.
+    assert rows == {"human": ("human", "You", None, 1), "agent": ("agent", "Proposer", "agent-id", 1),
+                    "unknown": ("", "", None, 1)}
+    snapshot, = (tmp_path / "backups").glob("worklog-pre-migration-*.sqlite3")
+    with closing(sqlite3.connect(snapshot)) as conn:
+        assert recovery._schema_signature(conn) == recovery._expected_schema(provenance=False)

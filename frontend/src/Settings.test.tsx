@@ -13,6 +13,7 @@ const settings: SettingsData = {
   today: "2026-11-01",
   version: "test",
   requireProposalApproval: true,
+  agentRepositoryRegistration: true,
   storage: { databaseBytes: 0, backupBytes: 0, warning: null },
   backups: [],
   credentials: [
@@ -240,6 +241,49 @@ it("turns proposal approval off and back on", async () => {
     { requireProposalApproval: false },
     { requireProposalApproval: true },
   ]);
+});
+
+it("turns agent repository registration off", async () => {
+  let current = settings;
+  const patches: unknown[] = [];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const path = new URL(String(input), "http://worklog.test").pathname;
+    if (init?.method === "PATCH") {
+      const body = JSON.parse(String(init.body));
+      patches.push(body);
+      current = { ...current, ...body };
+    }
+    return new Response(
+      JSON.stringify(path.endsWith("/discussions/avatars") ? catalog : current),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+  });
+  const user = userEvent.setup();
+  render(
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: {
+            queries: { retry: false },
+            mutations: { retry: false },
+          },
+        })
+      }
+    >
+      <Settings />
+    </QueryClientProvider>,
+  );
+  const registration = await screen.findByRole("checkbox", {
+    name: "Agents may register repositories",
+  });
+  expect(registration).toBeChecked();
+  expect(screen.getByText(/shows it as unreviewed/)).toBeVisible();
+  await user.click(registration);
+  await waitFor(() => expect(registration).not.toBeChecked());
+  expect(patches).toEqual([{ agentRepositoryRegistration: false }]);
+  expect(
+    screen.getByText(/proposes new ones for you to approve/),
+  ).toBeVisible();
 });
 
 it("names the agent that registered a credential and what revoking takes with it", async () => {

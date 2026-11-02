@@ -126,6 +126,7 @@ function RepositoryList() {
               ) : (
                 repo.duplicateOf && <SameRemote id={repo.duplicateOf} />
               )}
+              <Registrant repo={repo} edit />
               <p>{repo.description}</p>
             </div>
             {!repo.mergedInto && (
@@ -159,6 +160,41 @@ function RepositoryList() {
         {showActivity && <Coordination />}
       </details>
     </>
+  );
+}
+// What an agent registered for itself waits for the person, who confirms it here or edits it.
+function Registrant({ repo, edit }: { repo: Repository; edit?: boolean }) {
+  const action = useAction();
+  const by = repo.registeredBy;
+  if (by?.kind !== "agent") return null;
+  const agent = by.agentId ? (
+    <a href={"#agents/" + by.agentId}>{by.label}</a>
+  ) : (
+    by.label
+  );
+  if (repo.reviewed || repo.mergedInto)
+    return <small>Registered by {agent}</small>;
+  return (
+    <div className="warning">
+      Registered by {agent} · unreviewed{" "}
+      <button
+        disabled={action.isPending}
+        onClick={() =>
+          action.mutate({
+            path: `/repositories/${repo.id}/confirm`,
+            body: { revision: repo.revision },
+          })
+        }
+      >
+        Confirm
+      </button>
+      {edit && (
+        <a className="button" href={"#repositories/" + repo.id}>
+          Edit
+        </a>
+      )}
+      <ErrorMessage error={action.error} />
+    </div>
   );
 }
 // Only an upgrade leaves two records on one remote.
@@ -326,6 +362,7 @@ function RepositoryDetail({ id }: { id: string }) {
             </p>
           )}
           {repo.duplicateOf && <SameRemote id={repo.duplicateOf} />}
+          <Registrant repo={repo} />
           <ErrorMessage error={action.error} />
           {(
             [
