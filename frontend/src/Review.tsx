@@ -176,6 +176,7 @@ function currentPath(
     return DATE.test(date) ? "/days/" + encodeURIComponent(date) : null;
   }
   if (action === "progress.set") return "/steps/" + id;
+  if (action.startsWith("repository.")) return "/repositories/" + id;
   const collection = action.startsWith("roadmap.")
     ? "roadmaps"
     : action.startsWith("person.")

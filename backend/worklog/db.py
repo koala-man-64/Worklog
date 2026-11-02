@@ -64,6 +64,7 @@ CREATE TABLE roadmap_decisions(id TEXT PRIMARY KEY,roadmap_id TEXT NOT NULL REFE
 CREATE INDEX roadmap_decisions_roadmap ON roadmap_decisions(roadmap_id,archived);
 """
 
+# Legacy v1 definitions include the questions and decisions shipped on main.
 SCHEMA = SCHEMA + PEOPLE_SCHEMA + LINKS_CHATS_GITHUB_SCHEMA + CHAT_STEPS_SCHEMA + QUESTIONS_DECISIONS_SCHEMA
 
 
@@ -79,7 +80,7 @@ class Database:
         return conn
 
     def initialize(self) -> None:
-        from .discussions import migrate as migrate_discussions
+        from .migrations import SCHEMA_VERSION, upgrade
         from .plans import SCHEMA as PLAN_SCHEMA
         from .proposals import SCHEMA as PROPOSAL_SCHEMA
 
@@ -92,7 +93,7 @@ class Database:
         with self.read() as conn:
             version = conn.execute("PRAGMA user_version").fetchone()[0]
             if existing:
-                if version != 1:
+                if version not in {1, SCHEMA_VERSION}:
                     raise AppError(503, "schema_version", "Unsupported database schema; no data was changed")
                 if conn.execute("PRAGMA quick_check").fetchone()[0] != "ok":
                     raise AppError(503, "database_invalid", "Database integrity check failed")
@@ -100,40 +101,21 @@ class Database:
                 actual = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
                 if not required <= actual:
                     raise AppError(503, "database_invalid", "Database schema is incomplete")
-                if "communication_agents" not in actual or not {"roadmap_questions", "roadmap_decisions"} <= actual:
+                from .recovery import validate_database
+
+                try:
+                    validate_database(self.path)
+                except ValueError as exc:
+                    raise AppError(503, "database_invalid", str(exc)) from exc
+                if version != SCHEMA_VERSION:
                     # Preserve the original shape, including older supported upgrades.
                     # Failure to preserve a snapshot prevents any migration below.
                     from .recovery import backup_database
 
                     backup_database(self.path, self.path.parent / "backups", "pre-migration")
                 try:
-                    # All supported legacy steps and the new feature are one upgrade.
-                    # executescript commits implicitly, so execute each DDL statement.
                     conn.execute("BEGIN IMMEDIATE")
-                    columns = {r["name"] for r in conn.execute("PRAGMA table_info(work_items)")}
-                    if "roadmap_id" not in columns:
-                        conn.execute("ALTER TABLE work_items ADD COLUMN roadmap_id TEXT REFERENCES roadmaps(id)")
-                        conn.execute("UPDATE work_items SET roadmap_id=(SELECT roadmap_id FROM steps WHERE steps.id=work_items.step_id) WHERE step_id IS NOT NULL AND roadmap_id IS NULL")
-                    if not {"people", "person_links"} <= actual:
-                        for statement in filter(str.strip, PEOPLE_SCHEMA.split(";")):
-                            conn.execute(statement)
-                    if not {"web_links", "agent_chats", "github_refs"} <= actual:
-                        for statement in filter(str.strip, LINKS_CHATS_GITHUB_SCHEMA.split(";")):
-                            conn.execute(statement)
-                    chat_columns = {r["name"] for r in conn.execute("PRAGMA table_info(agent_chats)")}
-                    if "provider" not in chat_columns:
-                        for column in AGENT_CHAT_COLUMNS.split(", ")[1:]:
-                            conn.execute("ALTER TABLE agent_chats ADD COLUMN " + column)
-                    if "chat_steps" not in actual:
-                        for statement in filter(str.strip, CHAT_STEPS_SCHEMA.split(";")):
-                            conn.execute(statement)
-                    if not {"roadmap_questions", "roadmap_decisions"} <= actual:
-                        for statement in filter(str.strip, QUESTIONS_DECISIONS_SCHEMA.split(";")):
-                            conn.execute(statement)
-                    roadmap_columns = {r["name"] for r in conn.execute("PRAGMA table_info(roadmaps)")}
-                    if "parent_id" not in roadmap_columns:
-                        conn.execute("ALTER TABLE roadmaps ADD COLUMN parent_id TEXT REFERENCES roadmaps(id)")
-                    migrate_discussions(conn)
+                    upgrade(conn)
                     if conn.execute("PRAGMA foreign_key_check").fetchone():
                         raise AppError(503, "database_invalid", "Database has invalid references")
                     conn.commit()
@@ -146,8 +128,8 @@ class Database:
                 conn.executescript("BEGIN IMMEDIATE;\n" + PLAN_SCHEMA + PROPOSAL_SCHEMA + SCHEMA)
                 for key, value in {"timezone": "America/Chicago", "dataId": uid(), "backlogRevision": 1}.items():
                     conn.execute("INSERT INTO settings VALUES(?,?)", (key, json.dumps(value)))
-                migrate_discussions(conn)
                 conn.execute("PRAGMA user_version=1")
+                upgrade(conn)
                 conn.commit()
             except Exception:
                 conn.rollback()

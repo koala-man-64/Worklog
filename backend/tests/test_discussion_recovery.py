@@ -14,6 +14,12 @@ from worklog.app import create_app
 from worklog.db import Database
 
 ORIGIN = "http://127.0.0.1:8877"
+LEGACY_SCHEMAS = recovery._compatible_schemas()[1:]
+
+
+def test_legacy_matrix_covers_every_sealed_v1_shape():
+    assert len(LEGACY_SCHEMAS) == 9
+    assert {recovery._schema_digest(schema) for schema in LEGACY_SCHEMAS} == recovery.V1_SCHEMA_DIGESTS
 
 
 def legacy_database(path, schema):
@@ -32,7 +38,7 @@ def legacy_database(path, schema):
     recovery.validate_database(path)
 
 
-@pytest.mark.parametrize("schema", recovery._compatible_schemas()[1:], ids=lambda _s: None)
+@pytest.mark.parametrize("schema", LEGACY_SCHEMAS, ids=lambda schema: recovery._schema_digest(schema)[:8])
 def test_every_supported_legacy_schema_upgrades_and_restores(tmp_path, schema):
     path = tmp_path / "live" / "worklog.sqlite3"
     path.parent.mkdir()
@@ -60,7 +66,7 @@ def test_every_supported_legacy_schema_upgrades_and_restores(tmp_path, schema):
         assert conn.execute("SELECT count(*) FROM communication_credentials").fetchone()[0] == 1
 
 
-@pytest.mark.parametrize("schema", recovery._compatible_schemas()[1:])
+@pytest.mark.parametrize("schema", LEGACY_SCHEMAS, ids=lambda schema: recovery._schema_digest(schema)[:8])
 def test_failed_discussion_migration_rolls_back_and_preserves_snapshot(tmp_path, monkeypatch, schema):
     path = tmp_path / "worklog.sqlite3"
     legacy_database(path, schema)

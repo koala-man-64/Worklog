@@ -109,13 +109,14 @@ test("human replies do not satisfy a request, while an agent receipt appears in 
     requestCard.getByText("Awaiting", { exact: true }),
   ).toBeVisible();
 
-  await page
-    .getByRole("textbox", { name: "Reply message" })
-    .fill("I saw your note and will review it.");
+  const replyText = "I saw your note and will review it.";
+  const replyBox = page.getByRole("textbox", { name: "Reply message" });
+  const postedReply = page.getByRole("list", { name: "Discussion messages" })
+    .getByText(replyText, { exact: true });
+  await replyBox.fill(replyText);
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
-  await expect(
-    page.getByText("I saw your note and will review it."),
-  ).toBeVisible();
+  await expect(postedReply).toBeVisible();
+  await expect(replyBox).toHaveValue("");
   await expect(
     requestCard.getByText("Awaiting", { exact: true }),
   ).toBeVisible();
@@ -160,9 +161,7 @@ test("human replies do not satisfy a request, while an agent receipt appears in 
     requestCard.getByText("Satisfied", { exact: true }),
   ).toBeVisible();
   await expect(requestCard.getByText(alphaLabel + " acknowledged")).toBeVisible();
-  await expect(
-    page.getByText("I saw your note and will review it."),
-  ).toBeVisible();
+  await expect(postedReply).toBeVisible();
 });
 
 test("agent handoff offers and accepted ownership are visible in the role panel", async ({

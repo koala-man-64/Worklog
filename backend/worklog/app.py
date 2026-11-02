@@ -23,6 +23,7 @@ from pydantic import ValidationError
 from starlette.concurrency import run_in_threadpool
 
 from . import __version__
+from . import coordination_models as cm
 from . import models as m
 from .common import (
     FILE_LIMIT,
@@ -36,6 +37,8 @@ from .common import (
     today,
     uid,
 )
+from .coordination import CoordinationService, close_credential_runs
+from .coordination_api import coordination_agent_route_allowed, install_coordination_routes
 from .db import Database
 from .discussion_api import agent_route_allowed, install_discussion_routes
 from .discussions import bind_credential, communication_actor
@@ -112,6 +115,8 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             "question.archive": m.Expected, "question.recover": m.Expected,
             "decision.create": m.DecisionCreate, "decision.update": m.DecisionUpdate,
             "decision.archive": m.Expected, "decision.recover": m.Expected,
+            "repository.create": cm.RepositoryCreate, "repository.update": cm.RepositoryUpdate,
+            "repository.archive": m.Expected, "repository.recover": m.Expected,
         }
         model = contracts.get(action)
         if model:
@@ -205,7 +210,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                     if in_discussions:
                         if not agent_route_allowed(method, suffix):
                             raise AppError(403, "agent_scope", "This discussion operation is outside agent scope")
-                    elif forbidden or (method != "GET" and not agent_write):
+                    elif forbidden or (method != "GET" and not agent_write and not coordination_agent_route_allowed(method, suffix)):
                         raise AppError(403, "agent_scope", "Agents may read context, participate in discussions, and submit proposals")
                 else:
                     session_id = request.cookies.get("worklog_session", "")
@@ -247,6 +252,10 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         digest = hashlib.sha256((request.method + str(request.url.path) + "?" + str(request.url.query) + json.dumps(payload, sort_keys=True)).encode()).hexdigest()
         actor = request.state.actor
         with db.transaction() as c:
+            if actor["kind"] == "agent" and coordination_agent_route_allowed(request.method, request.url.path):
+                # Middleware authentication precedes the write lock; revoke may win that race.
+                # Recheck before receipt replay as well as before a new mutation.
+                communication_actor(c, actor)
             if communication:
                 actor = communication_actor(c, actor)
             receipt_actor = "discussion:" + actor["id"] if communication else actor["id"]
@@ -298,9 +307,9 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
 
     @app.get("/api/v1/work-items")
     def items(view: str = "all", archived: bool = False, status: str | None = None,
-              roadmapId: str | None = None, personId: str | None = None, q: str = "",
+              roadmapId: str | None = None, personId: str | None = None, q: str = "", repositoryId: str | None = None,
               limit: int = Query(100, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
-        return work.list(view=view, archived=archived, state=status, roadmap_id=roadmapId, person_id=personId, limit=limit, offset=offset, q=q)
+        return work.list(view=view, archived=archived, state=status, roadmap_id=roadmapId, person_id=personId, limit=limit, offset=offset, q=q, repository_id=repositoryId)
 
     @app.post("/api/v1/work-items")
     def create_item(request: Request, body: m.ItemCreate) -> dict:
@@ -634,11 +643,20 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         return work.search(q, archived, limit, offset)
 
     @app.get("/api/v1/context")
-    def context(request: Request, date: str | None = None) -> dict:
+    def context(request: Request, date: str | None = None, itemId: str | None = None,
+                repositoryId: str | None = None, limit: int = Query(100, ge=1, le=200),
+                offset: int = Query(0, ge=0)) -> dict:
+        coordination = CoordinationService(db)
         with db.read() as c:
+            c.execute("BEGIN")
             current = today(setting(c, "timezone", "America/Chicago"))
-        return {"day": work.day(date or current), "workItems": work.list(),
-                "roadmaps": plans.list(), "people": work.people_list(), "proposals": proposals.list(request.state.actor)}
+            activity = {**coordination.context_summaries(c, item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset),
+                        "participations": coordination.participations(c, item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset),
+                        "updates": coordination.updates(c, item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset)}
+        items_result = work.list(item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset)
+        return {"day": work.day(date or current), "workItems": items_result,
+                "roadmaps": plans.list(), "people": work.people_list(), "proposals": proposals.list(request.state.actor),
+                **activity}
 
     @app.get("/api/v1/settings")
     def settings() -> dict:
@@ -688,6 +706,8 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             token, replacement = secrets.token_urlsafe(32), uid()
             # Also handles reissue after an offline restore. A stale older token cannot
             # leave another live credential for the same identity behind.
+            for linked in c.execute("SELECT credential_id FROM communication_credentials WHERE agent_id=?", (binding["agent_id"],)).fetchall():
+                close_credential_runs(c, actor, linked["credential_id"], "credential_rotated")
             c.execute("UPDATE credentials SET revoked=1 WHERE id IN (SELECT credential_id FROM communication_credentials WHERE agent_id=?)", (binding["agent_id"],))
             c.execute("INSERT INTO credentials VALUES(?,?,?,?,0)", (replacement, label, hashlib.sha256(token.encode()).hexdigest(), now()))
             agent = bind_credential(c, replacement, label, agent_id=binding["agent_id"])
@@ -700,6 +720,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         with db.transaction() as c:
             if not c.execute("UPDATE credentials SET revoked=1 WHERE id=?", (identity,)).rowcount:
                 raise AppError(404, "not_found", "Credential does not exist")
+            close_credential_runs(c, request.state.actor, identity)
             event(c, request.state.actor, "credential.revoke", identity, None, {"revoked": True})
         return {"ok": True}
 
@@ -760,6 +781,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         p = body.model_dump()
         return mutate(request, p, lambda c, a: proposals.transition(identity, verb, p, a, conn=c), required_key=verb == "approve")
 
+    install_coordination_routes(app, db, mutate)
     install_discussion_routes(app, db, discussion_mutate)
     app.router.routes.append(generic)
     dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"

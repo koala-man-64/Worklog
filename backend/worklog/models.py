@@ -17,6 +17,7 @@ class Expected(Command):
 
 
 class ItemCreate(Command):
+    repositoryIds: list[str] = Field(default_factory=list, max_length=100)
     title: str
     description: str = ""
     adoUrl: str | None = None
@@ -27,6 +28,7 @@ class ItemCreate(Command):
 
 
 class ItemUpdate(Expected):
+    repositoryIds: list[str] = Field(default_factory=list, max_length=100)
     title: str | None = None
     description: str | None = None
     status: State | None = None
@@ -102,6 +104,7 @@ class LinkUpdate(Expected):
 
 
 class ChatCreate(Command):
+    repositoryIds: list[str] = Field(default_factory=list, max_length=100)
     ownerType: Literal["item", "roadmap"]
     ownerId: str
     chatId: str
@@ -114,6 +117,7 @@ class ChatCreate(Command):
 
 
 class ChatUpdate(Expected):
+    repositoryIds: list[str] = Field(default_factory=list, max_length=100)
     chatId: str | None = None
     title: str | None = None
     createdDate: str | None = None
@@ -230,7 +234,8 @@ class ImportCommit(Command):
 
 
 class Operation(Command):
-    action: Literal["item.create", "item.update", "item.archive", "item.recover", "entry.upsert",
+    action: Literal["repository.create", "repository.update", "repository.archive", "repository.recover",
+                    "item.create", "item.update", "item.archive", "item.recover", "entry.upsert",
                     "note.create", "note.update", "task.create", "task.update",
                     "roadmap.create", "roadmap.revise", "roadmap.move", "progress.set",
                     "person.create", "person.update", "person.archive", "person.recover",

@@ -8,6 +8,7 @@ import {
 } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { RepositoryBadges, RepositoryPicker } from "./RepositoryControls";
 import { download } from "./api";
 import { commands } from "./commands";
 import { useAction, useData, useDraft } from "./hooks";
@@ -229,6 +230,8 @@ export function DraftField({
   save,
   multiline = true,
   placeholder,
+  maxLength,
+  disabled = false,
 }: {
   draftKey: string;
   label: string;
@@ -237,6 +240,8 @@ export function DraftField({
   save: (text: string, revision: number) => Promise<{ revision: number }>;
   multiline?: boolean;
   placeholder?: string;
+  maxLength?: number;
+  disabled?: boolean;
 }) {
   const draft = useDraft(draftKey, initial, revision, save);
   const [preview, setPreview] = useState(false);
@@ -256,6 +261,8 @@ export function DraftField({
       ) : multiline ? (
         <textarea
           id={draftKey}
+          maxLength={maxLength}
+          disabled={disabled}
           value={draft.value}
           placeholder={placeholder}
           onChange={(e) => draft.set(e.target.value)}
@@ -264,13 +271,15 @@ export function DraftField({
       ) : (
         <input
           id={draftKey}
+          maxLength={maxLength}
+          disabled={disabled}
           value={draft.value}
           placeholder={placeholder}
           onChange={(e) => draft.set(e.target.value)}
           onBlur={draft.flush}
         />
       )}
-      <button className="quiet" onClick={draft.flush}>
+      <button className="quiet" onClick={draft.flush} disabled={disabled}>
         Save now
       </button>
       {draft.storageWarning && (
@@ -795,6 +804,7 @@ export function LinksSection({
 // Common providers seed the suggestions; providers and models already used join them.
 const PROVIDERS = ["Anthropic", "OpenAI", "Google"];
 type ChatFields = {
+  repositoryIds?: string[];
   title: string;
   chatId: string;
   provider: string;
@@ -834,6 +844,9 @@ function ChatForm({
   onCancel?: () => void;
 }) {
   const id = useId();
+  const [repositoryIds, setRepositoryIds] = useState<string[]>(
+    initial?.repositoryIds ?? [],
+  );
   const blank = {
     title: "",
     chatId: "",
@@ -877,10 +890,16 @@ function ChatForm({
           provider: values.provider.trim(),
           model: values.model.trim(),
           repos: splitRepos(values.repos),
+          ...(repositoryIds.length || initial?.repositoryIds?.length
+            ? { repositoryIds }
+            : {}),
           ...(values.createdDate ? { createdDate: values.createdDate } : {}),
         })
           .then(() => {
-            if (!initial) setValues(blank);
+            if (!initial) {
+              setValues(blank);
+              setRepositoryIds([]);
+            }
           })
           .catch(() => undefined);
       }}
@@ -922,6 +941,12 @@ function ChatForm({
         autoCapitalize="off"
         spellCheck={false}
         {...field("repos")}
+      />
+      <RepositoryPicker
+        label={label + " registered repositories"}
+        value={repositoryIds}
+        onChange={setRepositoryIds}
+        disabled={disabled}
       />
       <input
         aria-label={label + " date created"}
@@ -972,9 +997,10 @@ function ChatSummary({
       </div>
       <div className="chat-row">
         <code>{chat.chatId}</code>
+        <RepositoryBadges ids={chat.repositoryIds} />
         {chat.repos.map((r) => (
           <code className="repo" key={r}>
-            {r}
+            <span>{r}</span> · Unregistered
           </code>
         ))}
         <small>Created {chat.createdDate}</small>
