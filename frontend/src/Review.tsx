@@ -4,7 +4,7 @@ import { ApiError, request, getDataContext } from "./api";
 import { useAction, useData } from "./hooks";
 import { Empty, ErrorMessage, Files, Markdown } from "./components";
 import type { Day, List, Operation, Proposal, Settings } from "./types";
-import type { RepositoryResolution } from "./repositoryTypes";
+import type { Repository, RepositoryResolution } from "./repositoryTypes";
 import { Icon } from "./icons";
 export function Review({ selectedId }: { selectedId?: string }) {
   const [status, setStatus] = useState("submitted");
@@ -299,7 +299,23 @@ export function OperationDiff({
       return request<Record<string, unknown>>(path);
     },
   });
-  const before = current.data;
+  // A repository this proposal registers may already be registered: approval
+  // then links to that record, which is the current value to compare with.
+  const address =
+    action === "repository.create" && typeof payload.url === "string"
+      ? payload.url.trim()
+      : "";
+  const registration = useQuery({
+    queryKey: [getDataContext(), "proposal-registration", address],
+    enabled: address !== "",
+    queryFn: () =>
+      request<RepositoryResolution>(
+        "/repositories/resolve?url=" + encodeURIComponent(address),
+      ),
+  });
+  const holder = registration.data?.repository ?? null;
+  const before =
+    current.data ?? (holder as unknown as Record<string, unknown> | null);
   // Not found is expected only for a target that this proposal creates first;
   // any other missing target stays an error, since approval would fail on it.
   const created =
@@ -312,9 +328,8 @@ export function OperationDiff({
         {number ? `Change ${number}: ` : ""}
         <span>{action}</span>
       </h4>
-      {action === "repository.create" &&
-        typeof payload.url === "string" &&
-        payload.url.trim() && <RegistrationCheck url={payload.url} />}
+      {holder && <Registered holder={holder} />}
+      <ErrorMessage error={registration.error} />
       {created ? (
         <p className="muted">
           An earlier change in this proposal creates this target, so it has no
@@ -346,7 +361,7 @@ export function OperationDiff({
             <pre>
               {before && key in before
                 ? display(before[key])
-                : current.isFetching
+                : current.isFetching || registration.isFetching
                   ? "Loading…"
                   : action.endsWith(".create") || created
                     ? "New record"
@@ -363,13 +378,7 @@ export function OperationDiff({
   );
 }
 // Registering a remote that is already registered links to its record, so say which.
-function RegistrationCheck({ url }: { url: string }) {
-  const query = useData<RepositoryResolution>(
-    "/repositories/resolve?url=" + encodeURIComponent(url),
-  );
-  const holder = query.data?.repository;
-  if (query.error) return <ErrorMessage error={query.error} />;
-  if (!holder) return null;
+function Registered({ holder }: { holder: Repository }) {
   const link = <a href={"#repositories/" + holder.id}>{holder.name}</a>;
   return holder.archived ? (
     <p className="warning">
