@@ -112,6 +112,34 @@ export function ChatOutbox({
     <section className="chat-outbox" aria-labelledby={`outbox-${chat.id}`}>
       <h3 id={`outbox-${chat.id}`}>Message this chat's agents</h3>
       <ErrorMessage error={outbox.error} />
+      {!!data?.items.length && (
+        <>
+          {data.total > data.items.length && limit < MOST && (
+            <button
+              type="button"
+              onClick={() => setLimit(Math.min(limit + PAGE, MOST))}
+            >
+              Show earlier messages you sent
+            </button>
+          )}
+          <ol className="chat-outbox-sent" aria-label="Messages you sent">
+            {[...data.items].reverse().map((message) => (
+              <li key={message.id}>
+                <small>You sent {time(message.createdAt)}</small>
+                <Markdown text={message.text} />
+                <ul className="chat-deliveries" aria-label="Deliveries">
+                  {message.deliveries.map((d) => (
+                    <li key={d.runId} className={d.status}>
+                      <Avatar name={d.avatar} size={18} />
+                      {d.agentLabel}: {deliveryState(d, time)}
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
       {data?.chat.archived ? (
         <p className="muted">
           This chat is archived. Archived chats don't receive messages, and
@@ -166,34 +194,6 @@ export function ChatOutbox({
             </button>
           </div>
         </form>
-      )}
-      {!!data?.items.length && (
-        <>
-          {data.total > data.items.length && limit < MOST && (
-            <button
-              type="button"
-              onClick={() => setLimit(Math.min(limit + PAGE, MOST))}
-            >
-              Show earlier messages you sent
-            </button>
-          )}
-          <ol className="chat-outbox-sent" aria-label="Messages you sent">
-            {[...data.items].reverse().map((message) => (
-              <li key={message.id}>
-                <small>You sent {time(message.createdAt)}</small>
-                <Markdown text={message.text} />
-                <ul className="chat-deliveries" aria-label="Deliveries">
-                  {message.deliveries.map((d) => (
-                    <li key={d.runId} className={d.status}>
-                      <Avatar name={d.avatar} size={18} />
-                      {d.agentLabel}: {deliveryState(d, time)}
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            ))}
-          </ol>
-        </>
       )}
     </section>
   );
