@@ -99,7 +99,8 @@ def bind_credential(conn: sqlite3.Connection, credential_id: str, label: str,
                     agent_id: str | None = None, avatar: str | None = None) -> dict:
     """Human credential issuance/rotation uses this; labels never grant identity.
 
-    A new identity gets the requested avatar or a drawn one; rotation keeps its avatar.
+    A new identity gets the requested avatar or a drawn one. Rotation keeps the avatar
+    unless another active agent took it while this one was revoked; then it draws anew.
     """
     existing = conn.execute("SELECT a.* FROM communication_agents a JOIN communication_credentials cc ON cc.agent_id=a.id WHERE cc.credential_id=?", (credential_id,)).fetchone()
     if existing is not None:
@@ -112,8 +113,13 @@ def bind_credential(conn: sqlite3.Connection, credential_id: str, label: str,
         agent_id = credential_id
         conn.execute("INSERT INTO communication_agents(id,label,created_at,avatar) VALUES(?,?,?,?)",
                      (agent_id, text(label, "label", required=True, limit=200), now(), pick_avatar(conn, avatar)))
-    elif not conn.execute("SELECT 1 FROM communication_agents WHERE id=?", (agent_id,)).fetchone():
-        raise AppError(404, "not_found", "Agent profile not found")
+    else:
+        profile = conn.execute("SELECT avatar FROM communication_agents WHERE id=?", (agent_id,)).fetchone()
+        if profile is None:
+            raise AppError(404, "not_found", "Agent profile not found")
+        taken = avatars_in_use(conn, exclude=agent_id)
+        if profile[0] is None or profile[0] in taken:
+            conn.execute("UPDATE communication_agents SET avatar=? WHERE id=?", (choose(taken), agent_id))
     conn.execute("INSERT INTO communication_credentials(credential_id,agent_id) VALUES(?,?)", (credential_id, agent_id))
     return dict(conn.execute("SELECT * FROM communication_agents WHERE id=?", (agent_id,)).fetchone())
 

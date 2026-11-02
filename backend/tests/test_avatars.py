@@ -128,6 +128,16 @@ def test_agents_choose_their_own_avatar_and_a_revoked_agent_frees_its_avatar(cli
     assert not agent_route_allowed("POST", "/api/v1/discussions/avatars")
 
 
+def test_reissuing_a_revoked_agent_redraws_an_avatar_someone_took_meanwhile(client):
+    returning = enroll(client, "Returning")
+    assert client.post(f"/api/v1/credentials/{returning['id']}/revoke").status_code == 200
+    successor = enroll(client, "Successor", returning["avatar"])
+    ok(write(client, f"/credentials/{returning['id']}/rotate", {}))
+    active = {p["id"]: p["avatar"] for p in ok(get(client, "/discussions/participants"))["items"] if p["kind"] == "agent" and p["active"]}
+    assert active[successor["agentId"]] == returning["avatar"]
+    assert avatars.is_avatar(active[returning["agentId"]]) and active[returning["agentId"]] != returning["avatar"]
+
+
 def v2_database(path):
     """The shape main shipped as v2: coordination, but no avatars."""
     with closing(sqlite3.connect(path)) as conn:
@@ -184,3 +194,12 @@ def test_failed_avatar_backfill_rolls_back_the_column_and_version(tmp_path, monk
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
         assert recovery._schema_signature(conn) == recovery._expected_schema(avatars=False)
     recovery.validate_database(path)
+
+
+def test_a_v2_shape_cannot_claim_version_3(tmp_path):
+    path = tmp_path / "worklog.sqlite3"
+    v2_database(path)
+    with closing(sqlite3.connect(path)) as conn:
+        conn.execute("PRAGMA user_version=3")
+    with pytest.raises(ValueError, match="schema definitions"):
+        recovery.validate_database(path)

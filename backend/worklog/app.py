@@ -714,7 +714,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             c.execute("UPDATE credentials SET revoked=1 WHERE id IN (SELECT credential_id FROM communication_credentials WHERE agent_id=?)", (binding["agent_id"],))
             c.execute("INSERT INTO credentials VALUES(?,?,?,?,0)", (replacement, label, hashlib.sha256(token.encode()).hexdigest(), now()))
             agent = bind_credential(c, replacement, label, agent_id=binding["agent_id"])
-            event(c, actor, "credential.rotate", replacement, {"credentialId": identity}, {"agentId": agent["id"], "label": label})
+            event(c, actor, "credential.rotate", replacement, {"credentialId": identity}, {"agentId": agent["id"], "label": label, "avatar": agent["avatar"]})
             return {"id": replacement, "agentId": agent["id"], "label": label, "token": token}
         return mutate(request, body.model_dump(), rotate, required_key=True, redact=("token",))
 

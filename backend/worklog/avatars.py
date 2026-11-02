@@ -2,6 +2,7 @@
 
 A name joins a colour, eyes and a top, such as ``teal-visor-antenna``. The browser
 draws each part; frontend/src/Avatar.tsx keeps the same lists in the same order.
+Names are stored on agent identities, so only append parts; never rename or remove one.
 """
 
 from __future__ import annotations
