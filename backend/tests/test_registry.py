@@ -132,6 +132,70 @@ def test_messages_roles_runs_and_tracked_chats_tie_through_their_contexts(client
     assert ties(ok(get(client, f"/agents/{other['agentId']}")), "workItems") == {work["id"]: (["message"], False)}
 
 
+def placed(worker):
+    """Each tie as (step, reason, item, chat, role, stale), by title."""
+    return {(t["stepId"], t["via"], (t["item"] or {}).get("title"), (t["chat"] or {}).get("title"),
+             (t["role"] or {}).get("label"), t["stale"]) for t in worker["ties"]}
+
+
+def test_a_roadmap_shows_who_works_on_each_of_its_steps_now(client):
+    delivery, api, web, old = (str(uuid.uuid4()) for _ in range(4))
+    steps = [{"id": delivery, "title": "Delivery"}, {"id": api, "title": "API", "parentId": delivery}, {"id": web, "title": "Web"}]
+    roadmap = ok(write(client, "/roadmaps", {"title": "Platform", "steps": [*steps, {"id": old, "title": "Old"}]}))
+    elsewhere = ok(write(client, "/roadmaps", {"title": "Elsewhere"}))
+    build, chores, legacy = (ok(write(client, "/work-items", {"title": title, "roadmapId": roadmap["id"], "stepId": step}))
+                             for title, step in (("Build the API", api), ("Chores", None), ("Legacy", old)))
+    unrelated = ok(write(client, "/work-items", {"title": "Unrelated", "roadmapId": elsewhere["id"]}))
+    builder, reviewer, sleepy, other = (enroll(client, label) for label in ("Builder", "Reviewer", "Sleepy", "Other"))
+
+    def report(agent, work, **extra):
+        return ok(write(client, "/participations", {"runId": run(client, agent, **extra)["id"], "itemId": work["id"]}, agent))
+    report(builder, build, externalChatId="chat-1")
+    report(builder, build)  # A second run on the same item is the same tie.
+    stale = report(builder, chores)
+    report(builder, legacy)
+    report(other, unrelated)
+    asleep = report(sleepy, build)
+    released = report(reviewer, chores)
+    ok(write(client, f"/participations/{released['id']}/release", {"revision": released["revision"]}, reviewer))
+    role = ok(write(client, "/discussions/roles", {"contextType": "step", "contextId": delivery, "label": "Review"}))
+    ok(write(client, f"/discussions/roles/{role['id']}/claim", {"revision": role["revision"]}, reviewer))
+
+    def track(chat_id, title, owner=roadmap, owner_type="roadmap", **extra):
+        return ok(write(client, "/chats", {"ownerType": owner_type, "ownerId": owner["id"], "chatId": chat_id, "title": title, **extra}))
+    track("chat-1", "Builder session", stepIds=[web])
+    track("chat-2", "Docs session", stepIds=[api], provider="OpenAI", model="gpt-5.5")
+    track("chat-3", "Planning")
+    track("chat-4", "Fix session", owner=build, owner_type="item")
+    gone = track("chat-5", "Finished", stepIds=[api])
+    ok(write(client, f"/chats/{gone['id']}/archive", {"revision": gone["revision"]}))
+    # Retiring a step moves its work to the roadmap itself.
+    current = ok(get(client, f"/roadmaps/{roadmap['id']}"))
+    ok(write(client, f"/roadmaps/{roadmap['id']}/revisions", {"revision": current["revision"], "title": "Platform", "steps": steps}))
+    hours_ago = (datetime.now(UTC) - timedelta(hours=3)).isoformat()
+    with client.app.state.db.transaction() as c:
+        c.executemany("UPDATE participations SET last_seen_at=? WHERE id=?", [(hours_ago, stale["id"]), (hours_ago, asleep["id"])])
+
+    workers = ok(get(client, f"/roadmaps/{roadmap['id']}/agents"))["items"]
+    by_label = {w["label"]: w for w in workers}
+    assert set(by_label) == {"Builder", "Reviewer", "Sleepy", "Docs session", "Planning", "Fix session"}
+    assert placed(by_label["Builder"]) == {(api, "participation", "Build the API", None, None, False),
+                                           (None, "participation", "Chores", None, None, True),
+                                           (None, "participation", "Legacy", None, None, False),
+                                           (web, "chat", None, "Builder session", None, False)}
+    assert placed(by_label["Reviewer"]) == {(delivery, "role", None, None, "Review", False)}
+    assert placed(by_label["Docs session"]) == {(api, "chat", None, "Docs session", None, False)}
+    assert placed(by_label["Planning"]) == {(None, "chat", None, "Planning", None, False)}
+    assert placed(by_label["Fix session"]) == {(api, "chat", "Build the API", "Fix session", None, False)}
+    builder_view, docs = by_label["Builder"], by_label["Docs session"]
+    assert (builder_view["kind"], builder_view["id"], builder_view["avatar"] is not None, builder_view["stale"]) == ("agent", builder["agentId"], True, False)
+    assert (docs["kind"], docs["avatar"], docs["provider"], docs["model"]) == ("chat", None, "OpenAI", "gpt-5.5")
+    # Agents whose only work went quiet come last.
+    assert ([w["label"] for w in workers][-1], workers[-1]["stale"]) == ("Sleepy", True)
+    assert not any(w["stale"] for w in workers[:-1])
+    assert ok(get(client, f"/roadmaps/{elsewhere['id']}/agents"))["items"][0]["label"] == "Other"
+
+
 def test_activity_pages_this_agents_messages_and_updates_newest_first(client):
     repository = ok(write(client, "/repositories", {"name": "Worklog"}))
     builder, other = enroll(client, "Builder"), enroll(client, "Other")
@@ -155,12 +219,16 @@ def test_activity_pages_this_agents_messages_and_updates_newest_first(client):
 
 def test_registry_is_for_the_person_only(client):
     builder = enroll(client, "Builder")
-    for path in ("/agents", "/agents/", f"/agents/{builder['agentId']}", f"/agents/{builder['agentId']}/activity"):
+    roadmap = ok(write(client, "/roadmaps", {"title": "Platform"}))
+    for path in ("/agents", "/agents/", f"/agents/{builder['agentId']}", f"/agents/{builder['agentId']}/activity",
+                 f"/roadmaps/{roadmap['id']}/agents", f"/roadmaps/{roadmap['id']}/agents/"):
         assert get(client, path, builder).status_code == 403, path
-    # Agents keep their own coordination reads.
+    # Agents keep their own coordination reads, and the roadmap itself.
     assert get(client, "/agent-runs", builder).status_code == 200
+    assert get(client, f"/roadmaps/{roadmap['id']}", builder).status_code == 200
     assert get(client, "/agents/missing").status_code == 404
     assert get(client, "/agents/missing/activity").status_code == 404
+    assert get(client, "/roadmaps/missing/agents").status_code == 404
 
 
 def test_rotation_keeps_one_identity_and_closing_runs_is_not_agent_activity(client):
