@@ -231,10 +231,7 @@ test("repositories connect work, named agent reports, chat badges and human run 
     .getByRole("group", { name: "Show activity by" })
     .getByRole("button", { name: "Work item", exact: true })
     .click();
-  const group = page.getByRole("list", {
-    name: "Chats in " + workName,
-    exact: true,
-  });
+  const group = page.getByRole("list", { name: "Chats in " + workName, exact: true });
   await expect(
     group.getByRole("link", { name: repoName, exact: true }),
   ).toBeVisible();
