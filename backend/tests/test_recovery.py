@@ -471,12 +471,13 @@ def test_unknown_legacy_schema_is_rejected_before_migration(tmp_path):
 
 @pytest.mark.parametrize("discussions", [False, True], ids=["before-discussions", "with-discussions"])
 def test_database_from_before_questions_and_decisions_keeps_its_roadmaps_and_migrates(tmp_path, discussions):
+    from worklog.discussions import AGENT_AVATAR_COLUMN
     from worklog.discussions import SCHEMA as DISCUSSION_SCHEMA
 
     previous_path = tmp_path / "previous.sqlite3"
     with closing(sqlite3.connect(previous_path)) as conn:
         # Discussions shipped first, so a database may have them without questions and decisions.
-        conn.executescript(before_questions_and_decisions() + (DISCUSSION_SCHEMA if discussions else ""))
+        conn.executescript(before_questions_and_decisions() + (DISCUSSION_SCHEMA.replace(AGENT_AVATAR_COLUMN, "") if discussions else ""))
         for key, value in {"timezone": "America/Chicago", "dataId": "11111111-1111-4111-8111-111111111111", "backlogRevision": 1}.items():
             conn.execute("INSERT INTO settings VALUES(?,?)", (key, json.dumps(value)))
         conn.execute("INSERT INTO roadmaps(id,title,overview,revision,created_at,updated_at) VALUES('r1','Road','',1,'2026-01-01','2026-01-01')")

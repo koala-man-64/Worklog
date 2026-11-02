@@ -263,6 +263,8 @@ class ProposalUpdate(Expected):
 
 class CredentialCreate(Command):
     label: str
+    # A name from GET /discussions/avatars; omitted draws the least-used one.
+    avatar: str | None = Field(default=None, min_length=1, max_length=100)
 
 
 class CredentialRotate(Command):

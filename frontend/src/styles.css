@@ -1826,6 +1826,48 @@ a.context-tag:hover {
 .discussion-profile-list h3 {
   margin-bottom: 8px;
 }
+/* Generated avatars tell agents apart beside their names; the person has one too. */
+.avatar {
+  flex: none;
+  display: block;
+}
+.avatar-human-bg {
+  fill: var(--teal-wash);
+}
+.avatar-human-figure {
+  fill: var(--teal);
+}
+.discussion-message-head .avatar {
+  align-self: center;
+}
+.avatar-picker {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 14px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.avatar-picker legend {
+  margin-bottom: 6px;
+  padding: 0;
+  font-weight: 500;
+}
+.avatar-picker label {
+  font-size: 12px;
+  color: var(--muted);
+}
+.inline .avatar-picker select {
+  flex: none;
+  margin-bottom: 0;
+}
+.avatar-picker .warning {
+  flex-basis: 100%;
+  margin: 0;
+}
 .messages {
   list-style: none;
   margin: 0;

@@ -4704,6 +4704,66 @@
         }
       }
     },
+    "/api/v1/discussions/avatars": {
+      "get": {
+        "summary": "Avatars",
+        "operationId": "avatars_api_v1_discussions_avatars_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Avatars Api V1 Discussions Avatars Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discussions/avatar": {
+      "post": {
+        "summary": "Choose Avatar",
+        "operationId": "choose_avatar_api_v1_discussions_avatar_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AvatarChoice"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Choose Avatar Api V1 Discussions Avatar Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/discussions/roles": {
       "get": {
         "summary": "Roles",
@@ -6228,6 +6288,22 @@
         ],
         "title": "Archive"
       },
+      "AvatarChoice": {
+        "properties": {
+          "avatar": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Avatar"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "avatar"
+        ],
+        "title": "AvatarChoice"
+      },
       "ChatCreate": {
         "properties": {
           "repositoryIds": {
@@ -6465,6 +6541,19 @@
           "label": {
             "type": "string",
             "title": "Label"
+          },
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
           }
         },
         "additionalProperties": false,

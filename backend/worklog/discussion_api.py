@@ -11,7 +11,7 @@ from .db import Database
 from .discussions import DiscussionService, communication_actor
 
 _READ_PATHS = {
-    "/discussions", "/discussions/participants", "/discussions/roles",
+    "/discussions", "/discussions/participants", "/discussions/avatars", "/discussions/roles",
     "/discussions/changes", "/discussions/resume",
 }
 
@@ -25,7 +25,7 @@ def agent_route_allowed(method: str, path: str) -> bool:
                 re.fullmatch(r"/discussions/messages/[^/]+", suffix) is not None)
     if method != "POST":
         return False
-    return (suffix in {"/discussions", "/discussions/roles"} or
+    return (suffix in {"/discussions", "/discussions/roles", "/discussions/avatar"} or
             re.fullmatch(r"/discussions/[^/]+/messages", suffix) is not None or
             re.fullmatch(r"/discussions/messages/[^/]+/(?:acknowledge|cancel)", suffix) is not None or
             re.fullmatch(r"/discussions/roles/[^/]+/(?:claim|release|offer|accept|decline|withdraw)", suffix) is not None)
@@ -47,6 +47,14 @@ def install_discussion_routes(app: FastAPI, db: Database, mutate: Callable) -> N
     @app.get("/api/v1/discussions/participants")
     def participants(request: Request) -> dict:
         return read(request, service.participants)
+
+    @app.get("/api/v1/discussions/avatars")
+    def avatars(request: Request) -> dict:
+        return read(request, service.avatars)
+
+    @app.post("/api/v1/discussions/avatar")
+    def choose_avatar(request: Request, body: m.AvatarChoice) -> dict:
+        return write(request, body, lambda c, a: service.choose_avatar(c, a, body.model_dump()))
 
     @app.get("/api/v1/discussions/roles")
     def roles(request: Request, contextType: m.ContextType | None = None,

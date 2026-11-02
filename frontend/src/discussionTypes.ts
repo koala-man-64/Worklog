@@ -27,6 +27,15 @@ export type DiscussionParticipant = {
   label: string;
   kind: "human" | "agent";
   active: boolean;
+  /** Generated avatar name; null for the person. */
+  avatar: string | null;
+};
+
+/** Every avatar, which ones active agents already show, and a fresh draw. */
+export type AvatarCatalog = {
+  items: { name: string; available: boolean }[];
+  suggested: string;
+  current: string | null;
 };
 
 export type DiscussionParticipants = {

@@ -39,6 +39,7 @@ def command(*args):
 
 @pytest.mark.parametrize("args,route,query", [
     (["participants"], "/discussions/participants", {}),
+    (["avatars"], "/discussions/avatars", {}),
     (["list", "--context", f"item:{DISCUSSION}", "--repo", "one & two", "--q", "a/b", "--view", "awaiting", "--limit", "3", "--offset", "4"],
      "/discussions", {"contextType": ["item"], "contextId": [DISCUSSION], "repo": ["one & two"], "q": ["a/b"], "view": ["awaiting"], "limit": ["3"], "offset": ["4"]}),
     (["read", DISCUSSION], f"/discussions/{DISCUSSION}", {"limit": ["50"], "offset": ["0"]}),
@@ -86,6 +87,7 @@ def test_reply_from_stdin_keeps_role_and_uses_message_route(transport, monkeypat
 
 @pytest.mark.parametrize("args,route,payload", [
     (["post", "--text", "Hello"], "/discussions", {"text": "Hello"}),
+    (["avatar", "teal-visor-antenna"], "/discussions/avatar", {"avatar": "teal-visor-antenna"}),
     (["reply", DISCUSSION, "--text", "Response"], f"/discussions/{DISCUSSION}/messages", {"text": "Response"}),
     (["ack", MESSAGE, "--target", SLOT, "--target", ROLE], f"/discussions/messages/{MESSAGE}/acknowledge", {"targetIds": [SLOT, ROLE]}),
     (["ack", MESSAGE], f"/discussions/messages/{MESSAGE}/acknowledge", {}),

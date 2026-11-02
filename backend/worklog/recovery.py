@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from .migrations import SCHEMA_VERSION
+from .migrations import SCHEMA_VERSION, UPGRADABLE_VERSIONS
 
 REQUIRED_TABLES = frozenset(
     {"work_items", "days", "daily_entries", "notes", "tasks", "attachments",
@@ -53,7 +53,8 @@ def _schema_digest(signature: dict[tuple[str, str], str]) -> str:
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
-def _expected_schema(*, discussions: bool = True, coordination: bool = True) -> dict[tuple[str, str], str]:
+def _expected_schema(*, discussions: bool = True, coordination: bool = True,
+                     avatars: bool = True) -> dict[tuple[str, str], str]:
     from worklog.db import SCHEMA
     from worklog.plans import SCHEMA as PLAN_SCHEMA
     from worklog.proposals import SCHEMA as PROPOSAL_SCHEMA
@@ -61,9 +62,10 @@ def _expected_schema(*, discussions: bool = True, coordination: bool = True) -> 
     with closing(sqlite3.connect(":memory:")) as conn:
         conn.executescript(PLAN_SCHEMA + PROPOSAL_SCHEMA + SCHEMA)
         if discussions:
+            from worklog.discussions import AGENT_AVATAR_COLUMN
             from worklog.discussions import SCHEMA as DISCUSSION_SCHEMA
 
-            conn.executescript(DISCUSSION_SCHEMA)
+            conn.executescript(DISCUSSION_SCHEMA if avatars else DISCUSSION_SCHEMA.replace(AGENT_AVATAR_COLUMN, ""))
         if coordination:
             from worklog.migrations import COORDINATION_SCHEMA
 
@@ -75,7 +77,8 @@ def _compatible_schemas() -> tuple[dict[tuple[str, str], str], ...]:
     from worklog.db import AGENT_CHAT_COLUMNS
 
     latest = _expected_schema()
-    discussion_v1 = _expected_schema(coordination=False)
+    # Every v1 shape predates agent avatars (v3).
+    discussion_v1 = _expected_schema(coordination=False, avatars=False)
     question_names = {"roadmap_questions", "roadmap_questions_roadmap", "roadmap_decisions", "roadmap_decisions_roadmap"}
     # Questions and decisions shipped on main after discussions, still at v1.
     before_questions = {k: v for k, v in discussion_v1.items() if k[1] not in question_names}
@@ -185,14 +188,15 @@ def validate_database(path: Path | str, *, require_current: bool = True) -> None
                 raise ValueError("Database foreign key check failed")
             if require_current:
                 version = conn.execute("PRAGMA user_version").fetchone()[0]
-                if version not in {1, SCHEMA_VERSION}:
-                    raise ValueError(f"Unsupported database schema version {version}; expected 1 or {SCHEMA_VERSION}")
+                if version not in UPGRADABLE_VERSIONS | {SCHEMA_VERSION}:
+                    raise ValueError(f"Unsupported database schema version {version}; expected 1 to {SCHEMA_VERSION}")
                 tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
                 missing = REQUIRED_TABLES - tables
                 if missing:
                     raise ValueError("Database missing expected tables: " + ", ".join(sorted(missing)))
                 signature = _schema_signature(conn)
                 accepted = (signature == _expected_schema() if version == SCHEMA_VERSION
+                            else signature == _expected_schema(avatars=False) if version == 2
                             else _schema_digest(signature) in V1_SCHEMA_DIGESTS)
                 if not accepted:
                     raise ValueError("Database schema definitions do not match this Worklog version")

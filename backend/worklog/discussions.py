@@ -14,11 +14,16 @@ import re
 import sqlite3
 from typing import Any
 
+from .avatars import AVATARS, choose, is_avatar
 from .common import AppError, event, now, require_revision, setting, text, uid
 from .services import repositories
 
+# Added in schema v3. It sits exactly where ALTER TABLE ADD COLUMN places it, so
+# created and migrated databases share one definition for restore validation.
+AGENT_AVATAR_COLUMN = ", avatar TEXT"
+
 SCHEMA = """
-CREATE TABLE communication_agents(id TEXT PRIMARY KEY,label TEXT NOT NULL,created_at TEXT NOT NULL);
+CREATE TABLE communication_agents(id TEXT PRIMARY KEY,label TEXT NOT NULL,created_at TEXT NOT NULL""" + AGENT_AVATAR_COLUMN + """);
 CREATE TABLE communication_credentials(credential_id TEXT PRIMARY KEY REFERENCES credentials(id),agent_id TEXT NOT NULL REFERENCES communication_agents(id));
 CREATE INDEX communication_credentials_agent ON communication_credentials(agent_id);
 CREATE TABLE discussions(id TEXT PRIMARY KEY,title TEXT NOT NULL,archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
@@ -62,9 +67,41 @@ def migrate(conn: sqlite3.Connection) -> None:
         bind_credential(conn, row[0], row[1])
 
 
+def avatars_in_use(conn: sqlite3.Connection, *, exclude: str | None = None) -> list[str]:
+    """Avatars agents with a live credential show; a revoked agent's returns to the pool."""
+    return [row[0] for row in conn.execute(
+        "SELECT a.avatar FROM communication_agents a WHERE a.avatar IS NOT NULL AND a.id IS NOT ? AND EXISTS(SELECT 1 FROM communication_credentials cc JOIN credentials cr ON cr.id=cc.credential_id WHERE cc.agent_id=a.id AND cr.revoked=0)",
+        (exclude,))]
+
+
+def pick_avatar(conn: sqlite3.Connection, requested: str | None, *, agent_id: str | None = None) -> str:
+    """A requested avatar must be free among active agents; otherwise one is drawn."""
+    taken = avatars_in_use(conn, exclude=agent_id)
+    if requested is None:
+        return choose(taken)
+    if not is_avatar(requested):
+        raise AppError(422, "validation", "Choose an avatar from the avatar list")
+    if requested in taken:
+        raise AppError(409, "avatar_in_use", "Another active agent shows that avatar; choose another")
+    return requested
+
+
+def assign_missing_avatars(conn: sqlite3.Connection) -> None:
+    """Upgrade backfill: active agents first, spread across every agent's history."""
+    taken = [row[0] for row in conn.execute("SELECT avatar FROM communication_agents WHERE avatar IS NOT NULL")]
+    for row in conn.execute("SELECT a.id FROM communication_agents a WHERE a.avatar IS NULL ORDER BY EXISTS(SELECT 1 FROM communication_credentials cc JOIN credentials cr ON cr.id=cc.credential_id WHERE cc.agent_id=a.id AND cr.revoked=0) DESC,a.created_at,a.id").fetchall():
+        avatar = choose(taken)
+        conn.execute("UPDATE communication_agents SET avatar=? WHERE id=?", (avatar, row[0]))
+        taken.append(avatar)
+
+
 def bind_credential(conn: sqlite3.Connection, credential_id: str, label: str,
-                    agent_id: str | None = None) -> dict:
-    """Human credential issuance/rotation uses this; labels never grant identity."""
+                    agent_id: str | None = None, avatar: str | None = None) -> dict:
+    """Human credential issuance/rotation uses this; labels never grant identity.
+
+    A new identity gets the requested avatar or a drawn one. Rotation keeps the avatar
+    unless another active agent took it while this one was revoked; then it draws anew.
+    """
     existing = conn.execute("SELECT a.* FROM communication_agents a JOIN communication_credentials cc ON cc.agent_id=a.id WHERE cc.credential_id=?", (credential_id,)).fetchone()
     if existing is not None:
         if agent_id is not None and existing["id"] != agent_id:
@@ -74,9 +111,15 @@ def bind_credential(conn: sqlite3.Connection, credential_id: str, label: str,
         raise AppError(404, "not_found", "Credential not found")
     if agent_id is None:
         agent_id = credential_id
-        conn.execute("INSERT INTO communication_agents(id,label,created_at) VALUES(?,?,?)", (agent_id, text(label, "label", required=True, limit=200), now()))
-    elif not conn.execute("SELECT 1 FROM communication_agents WHERE id=?", (agent_id,)).fetchone():
-        raise AppError(404, "not_found", "Agent profile not found")
+        conn.execute("INSERT INTO communication_agents(id,label,created_at,avatar) VALUES(?,?,?,?)",
+                     (agent_id, text(label, "label", required=True, limit=200), now(), pick_avatar(conn, avatar)))
+    else:
+        profile = conn.execute("SELECT avatar FROM communication_agents WHERE id=?", (agent_id,)).fetchone()
+        if profile is None:
+            raise AppError(404, "not_found", "Agent profile not found")
+        taken = avatars_in_use(conn, exclude=agent_id)
+        if profile[0] is None or profile[0] in taken:
+            conn.execute("UPDATE communication_agents SET avatar=? WHERE id=?", (choose(taken), agent_id))
     conn.execute("INSERT INTO communication_credentials(credential_id,agent_id) VALUES(?,?)", (credential_id, agent_id))
     return dict(conn.execute("SELECT * FROM communication_agents WHERE id=?", (agent_id,)).fetchone())
 
@@ -124,9 +167,26 @@ class DiscussionService:
         return row
 
     def participants(self, c: sqlite3.Connection, actor: dict) -> dict:
-        rows = c.execute("SELECT a.id,a.label,EXISTS(SELECT 1 FROM communication_credentials cc JOIN credentials cr ON cr.id=cc.credential_id WHERE cc.agent_id=a.id AND cr.revoked=0) AS active FROM communication_agents a ORDER BY a.label COLLATE NOCASE,a.id").fetchall()
-        return {"items": [{"id": "local-user", "label": "You", "kind": "human", "active": True},
-                          *[{"id": r["id"], "label": r["label"], "kind": "agent", "active": bool(r["active"])} for r in rows]], "self": actor}
+        rows = c.execute("SELECT a.id,a.label,a.avatar,EXISTS(SELECT 1 FROM communication_credentials cc JOIN credentials cr ON cr.id=cc.credential_id WHERE cc.agent_id=a.id AND cr.revoked=0) AS active FROM communication_agents a ORDER BY a.label COLLATE NOCASE,a.id").fetchall()
+        return {"items": [{"id": "local-user", "label": "You", "kind": "human", "active": True, "avatar": None},
+                          *[{"id": r["id"], "label": r["label"], "kind": "agent", "active": bool(r["active"]), "avatar": r["avatar"]} for r in rows]], "self": actor}
+
+    @staticmethod
+    def avatars(c: sqlite3.Connection, actor: dict) -> dict:
+        taken = avatars_in_use(c, exclude=actor["id"] if actor["kind"] == "agent" else None)
+        own = c.execute("SELECT avatar FROM communication_agents WHERE id=?", (actor["id"],)).fetchone()
+        return {"items": [{"name": name, "available": name not in taken} for name in AVATARS],
+                "suggested": choose(taken), "current": own["avatar"] if own else None}
+
+    def choose_avatar(self, c: sqlite3.Connection, actor: dict, p: dict) -> dict:
+        if actor["kind"] != "agent":
+            raise AppError(403, "agent_scope", "Agents choose their own avatar; issue a credential in Settings to choose one for a new agent")
+        before = self._agent(c, actor["id"])["avatar"]
+        avatar = pick_avatar(c, p["avatar"], agent_id=actor["id"])
+        c.execute("UPDATE communication_agents SET avatar=? WHERE id=?", (avatar, actor["id"]))
+        event(c, actor, "discussion.avatar", actor["id"], {"avatar": before}, {"avatar": avatar})
+        # communication_actor already refused a revoked credential.
+        return {**actor, "active": True, "avatar": avatar}
 
     def role(self, c: sqlite3.Connection, identity: str) -> dict:
         r = self._get(c, "discussion_roles", identity)
