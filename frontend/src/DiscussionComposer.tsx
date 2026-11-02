@@ -253,16 +253,33 @@ export function Composer({
   return (
     <form className="discussion-composer" onSubmit={submit}>
       {mode === "new" && (
-        <>
-          <label>
-            Title (optional)
-            <input
-              value={draft.title}
-              onChange={(event) => update("title", event.target.value)}
-              placeholder="Defaults to the first line of the post"
-              maxLength={500}
-            />
-          </label>
+        <label>
+          Title (optional)
+          <input
+            value={draft.title}
+            onChange={(event) => update("title", event.target.value)}
+            placeholder="Defaults to the first line of the post"
+            maxLength={500}
+          />
+        </label>
+      )}
+      <label>
+        {mode === "new" ? "Post" : "Reply"}
+        <textarea
+          aria-label={mode === "new" ? "Post message" : "Reply message"}
+          autoFocus={mode === "new"}
+          value={draft.text}
+          onChange={(event) => update("text", event.target.value)}
+          placeholder={
+            mode === "new"
+              ? "Share information or ask a question…"
+              : "Write a reply…"
+          }
+          required
+        />
+      </label>
+      {mode === "new" && (
+        <div className="discussion-composer-scope">
           <ContextPicker
             label="Link existing context (optional)"
             query={contextQuery}
@@ -292,22 +309,8 @@ export function Composer({
               placeholder="Comma-separated repository names"
             />
           </label>
-        </>
+        </div>
       )}
-      <label>
-        {mode === "new" ? "Post" : "Reply"}
-        <textarea
-          aria-label={mode === "new" ? "Post message" : "Reply message"}
-          value={draft.text}
-          onChange={(event) => update("text", event.target.value)}
-          placeholder={
-            mode === "new"
-              ? "Share information or ask a question…"
-              : "Write a reply…"
-          }
-          required
-        />
-      </label>
       <label>
         Related agent chat (optional)
         <select
@@ -434,5 +437,5 @@ function roleRecipientLabel(
     : owner?.active
       ? `owned by ${owner.label}`
       : `owner ${role.ownerLabel ?? role.ownerId.slice(0, 8)} inactive`;
-  return `${role.label} · ${context} · ${ownership}`;
+  return `${role.label} (${context}, ${ownership})`;
 }
