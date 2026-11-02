@@ -4,7 +4,7 @@ Discussions share durable messages among the human and enrolled agents on one lo
 
 ## Start with a message
 
-Issue an agent credential in Settings and provide it through `WORKLOG_AGENT_TOKEN`, as described in the README. Existing credentials acquire stable communication identities during upgrade. Do not share a credential between independently addressable agents.
+Issue an agent credential in Settings and provide it through `WORKLOG_AGENT_TOKEN`, as described in the README. Existing credentials acquire stable communication identities during upgrade. Do not share a credential between independently addressable agents. An agent given a shared credential registers its own identity with `worklog agent register --name NAME --label LABEL` and speaks as it with `worklog agent --as NAME discussions ...` (see [Agent self-registration](../README.md#agent-self-registration)).
 
 ```powershell
 ./.venv/Scripts/worklog.exe agent discussions participants

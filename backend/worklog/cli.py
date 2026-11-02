@@ -9,6 +9,8 @@ import json
 import mimetypes
 import os
 import random
+import re
+import secrets
 import socket
 import sqlite3
 import subprocess
@@ -38,6 +40,12 @@ from worklog.recovery import (
 HOST = "127.0.0.1"
 DEFAULT_PORT = 8877
 WAIT_RESPONSE_LIMIT = 8_000_000
+# Tokens of agents registered from this OS account, under the data directory; see _token_store.
+AGENT_TOKENS = "agent-tokens"
+AGENT_NAME = re.compile(r"[a-z0-9][a-z0-9_-]{0,63}")
+AGENT_TOKEN = re.compile(r"[A-Za-z0-9_-]{43,200}")
+# Windows device names cannot name a file, even with an extension.
+RESERVED_NAMES = frozenset({"con", "prn", "aux", "nul", *(f"{d}{n}" for d in ("com", "lpt") for n in range(1, 10))})
 
 
 def resolve_port(value: int | None = None) -> int:
@@ -361,9 +369,10 @@ def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
 class AgentRequestError(RuntimeError):
     """A safe transport error with enough classification for bounded waits."""
 
-    def __init__(self, message: str, status: int | None = None) -> None:
+    def __init__(self, message: str, status: int | None = None, code: str | None = None) -> None:
         super().__init__(message)
         self.status = status
+        self.code = code
 
 
 def _discussion_route_allowed(method: str, route: str) -> bool:
@@ -417,17 +426,20 @@ def _coordination_route_allowed(method: str, route: str) -> bool:
         or parts[0] == "participations" and parts[2] in {"release", "rejoin", "check-in", "updates"})
 
 
+def _agent_url(base_url: str) -> str:
+    parsed = urlsplit(base_url)
+    if (parsed.scheme != "http" or parsed.hostname != HOST or parsed.username
+            or parsed.password or parsed.path not in {"", "/"} or parsed.query or parsed.fragment):
+        raise ValueError("Agent URL must be plain HTTP on literal 127.0.0.1 without a path or credentials")
+    return base_url.rstrip("/")
+
+
 class AgentClient:
-    def __init__(self, base_url: str | None = None) -> None:
-        base_url = base_url or local_url(resolve_port())
-        parsed = urlsplit(base_url)
-        if (parsed.scheme != "http" or parsed.hostname != HOST or parsed.username
-                or parsed.password or parsed.path not in {"", "/"} or parsed.query or parsed.fragment):
-            raise ValueError("Agent URL must be plain HTTP on literal 127.0.0.1 without a path or credentials")
-        self.base = base_url.rstrip("/")
-        self.token = os.environ.get("WORKLOG_AGENT_TOKEN", "")
+    def __init__(self, base_url: str | None = None, token: str | None = None) -> None:
+        self.base = _agent_url(base_url or local_url(resolve_port()))
+        self.token = token or os.environ.get("WORKLOG_AGENT_TOKEN", "")
         if not self.token:
-            raise ValueError("Set WORKLOG_AGENT_TOKEN to an agent credential issued in Worklog settings")
+            raise ValueError("Set WORKLOG_AGENT_TOKEN to an agent credential issued in Worklog settings, or pass --as NAME for an agent you registered")
 
     def request(self, method: str, path: str, payload: Any = None,
                 *, raw: bytes | None = None, content_type: str | None = None,
@@ -447,7 +459,7 @@ class AgentClient:
             allowed = method in {"GET", "PATCH"} and valid_id(segments[1])
         if len(segments) == 3 and segments[0] == "proposals" and segments[2] in {"submit", "withdraw"}:
             allowed = method == "POST" and valid_id(segments[1])
-        if route == "/proposals" and method == "POST":
+        if route in {"/proposals", "/agent-registrations", "/agent-registrations/retire"} and method == "POST":
             allowed = True
         if route == "/attachments" and method == "POST":
             from urllib.parse import parse_qs
@@ -480,17 +492,19 @@ class AgentClient:
             with _open(request, timeout=timeout, **options) as response:
                 return _response_json(response, deadline)
         except HTTPError as exc:
+            code = None
             try:
                 with exc:
                     error = _response_json(exc, deadline).get("error", {})
                 message = str(error.get("message", "Request rejected"))
+                code = error.get("code") if isinstance(error.get("code"), str) else None
             except (ValueError, AttributeError, OSError, HTTPException):
                 message = "Request rejected"
             # Do not reflect arbitrary server content containing a credential.
             detail = f"HTTP {exc.code}: " + message
             if exc.code >= 500:
                 detail += retry_hint
-            raise AgentRequestError(detail.replace(self.token, "[redacted]"), exc.code) from None
+            raise AgentRequestError(detail.replace(self.token, "[redacted]"), exc.code, code) from None
         except (URLError, TimeoutError, OSError, HTTPException):
             raise AgentRequestError(("Cannot reach Worklog; run worklog check" + retry_hint).replace(self.token, "[redacted]")) from None
         except (ValueError, UnicodeError):
@@ -504,8 +518,107 @@ def _payload(path: str) -> dict[str, Any]:
     return value
 
 
-def agent_command(args: argparse.Namespace, port: int) -> Any:
-    client = AgentClient(args.url or local_url(port))
+def _token_store(args: argparse.Namespace, base: str) -> Path:
+    """Tokens of agents registered from this OS account, kept per instance (data directory and port)."""
+    return data_directory(args.data_dir) / AGENT_TOKENS / str(urlsplit(base).port or 80)
+
+
+def _agent_name(value: str) -> str:
+    name = value.lower()
+    if not AGENT_NAME.fullmatch(name) or name in RESERVED_NAMES:
+        raise ValueError("An agent name is 1-64 letters, digits, '-' or '_', starting with a letter or digit")
+    return name
+
+
+def _stored_token(path: Path) -> str | None:
+    try:
+        stored = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError):
+        stored = None
+    token = stored.get("token") if isinstance(stored, dict) else None
+    if not isinstance(token, str) or not AGENT_TOKEN.fullmatch(token):
+        raise ValueError(f"{path} does not hold an agent token; move it aside and register again")
+    return token
+
+
+def _store_new_token(path: Path, name: str, token: str) -> None:
+    """Store a token before it is first sent, so an uncertain registration can be retried.
+
+    As in _publish_new_file, the rename (Windows) or hard link (elsewhere) fails rather
+    than replace a token another process stored under the same name.
+    """
+    for directory in (path.parent.parent, path.parent):
+        directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+    descriptor, name_ = tempfile.mkstemp(dir=path.parent, prefix=".agent-token-", suffix=".tmp")
+    temporary = Path(name_)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            json.dump({"name": name, "token": token}, stream)
+        try:
+            if os.name == "nt":
+                os.rename(temporary, path)
+            else:
+                os.link(temporary, path)
+        except FileExistsError:
+            raise ValueError(f"Another command stored a token for {name} at the same time; run register again") from None
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def register_command(client: AgentClient, args: argparse.Namespace, redact: list[str]) -> dict:
+    """Register a new identity whose token is generated here and never printed."""
+    name = _agent_name(args.name)
+    path = _token_store(args, client.base) / (name + ".json")
+    token = _stored_token(path)
+    if token is None:
+        token = secrets.token_urlsafe(32)
+        _store_new_token(path, name, token)
+    redact.append(token)
+    payload = {"label": args.label, "token": token, **({"avatar": args.avatar} if args.avatar else {})}
+    try:
+        registration = client.request("POST", "/agent-registrations", payload)
+    except AgentRequestError as exc:
+        if exc.code == "token_revoked":
+            raise ValueError(f"The credential stored for {name} was revoked; run `worklog agent --as {name} retire` to forget it before registering {name} again") from None
+        if exc.status is None or exc.status >= 500:
+            raise AgentRequestError(f"{exc}; result uncertain; run the same register command again", exc.status) from None
+        raise
+    return {"name": name, **registration}
+
+
+def retire_command(client: AgentClient, args: argparse.Namespace) -> dict:
+    name = _agent_name(args.as_name)
+    try:
+        result = client.request("POST", "/agent-registrations/retire", {})
+    except AgentRequestError as exc:
+        if exc.status != 401:
+            raise
+        # The token no longer authenticates: revoked, already retired, or never registered.
+        result = {"retired": True, "alreadyRevoked": True}
+    (_token_store(args, client.base) / (name + ".json")).unlink(missing_ok=True)
+    return {"name": name, **result}
+
+
+def agent_command(args: argparse.Namespace, port: int, redact: list[str]) -> Any:
+    base = _agent_url(args.url or local_url(port))
+    if args.agent_action == "retire" and args.as_name is None:
+        # WORKLOG_AGENT_TOKEN may be shared by other agents; only the person revokes it.
+        raise ValueError("Retire an agent you registered with `worklog agent --as NAME retire`; revoke other credentials in Settings")
+    token = None
+    # An empty --as (say, from an unset variable) must fail, never fall back to WORKLOG_AGENT_TOKEN.
+    if args.as_name is not None:
+        name = _agent_name(args.as_name)
+        token = _stored_token(_token_store(args, base) / (name + ".json"))
+        if token is None:
+            raise ValueError(f"No agent named {name} was registered for {base}; run `worklog agent register --name {name} --label LABEL` first")
+        redact.append(token)
+    client = AgentClient(base, token)
+    if args.agent_action == "register":
+        return register_command(client, args, redact)
+    if args.agent_action == "retire":
+        return retire_command(client, args)
     if args.agent_action == "discussions":
         return discussion_command(client, args)
     if args.agent_action in {"repositories", "runs", "participation", "updates"}:
@@ -861,10 +974,18 @@ def parser() -> argparse.ArgumentParser:
             sub.add_argument("--port", type=int, default=argparse.SUPPRESS)
         if command in {"restore", "export"}:
             sub.add_argument("file")
-    agent = commands.add_parser("agent", help="Read context and propose reviewed changes")
+    agent = commands.add_parser("agent", help="Read context, register agents and propose reviewed changes")
     agent.add_argument("--url", help="Agent base URL (default: the selected local port)")
     agent.add_argument("--port", type=int, default=argparse.SUPPRESS)
+    agent.add_argument("--data-dir", default=argparse.SUPPRESS, help="Data directory, which keeps the tokens of registered agents")
+    agent.add_argument("--as", dest="as_name", metavar="NAME",
+                       help="Act as an agent registered here with `register` (default: WORKLOG_AGENT_TOKEN)")
     actions = agent.add_subparsers(dest="agent_action", required=True)
+    register = actions.add_parser("register", help="Register a new agent identity; its token is generated and kept here, never printed")
+    register.add_argument("--name", required=True, help="Local name for --as NAME afterwards, such as the chat's session ID")
+    register.add_argument("--label", required=True, help="How the new agent appears in Worklog")
+    register.add_argument("--avatar", help="An available name from `discussions avatars`")
+    actions.add_parser("retire", help="Revoke the credential of the agent given with --as and forget its token")
     _discussion_parser(actions)
     _coordination_parser(actions)
     context = actions.add_parser("context")
@@ -917,11 +1038,20 @@ def _publish_new_file(output: Path, produce: Any) -> None:
         temporary.unlink(missing_ok=True)
 
 
+def _redacted(value: str, tokens: list[str]) -> str:
+    for token in tokens:
+        if token:
+            value = value.replace(token, "[redacted]")
+    return value
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
+    # Every credential this command holds, including one generated or loaded on the way.
+    redact = [os.environ.get("WORKLOG_AGENT_TOKEN", "")]
     try:
         if args.command == "agent":
-            result = agent_command(args, resolve_port(args.port))
+            result = agent_command(args, resolve_port(args.port), redact)
         else:
             directory = data_directory(args.data_dir)
             database = directory / "worklog.sqlite3"
@@ -941,14 +1071,10 @@ def main(argv: list[str] | None = None) -> int:
                 output = Path(args.file).resolve()
                 _publish_new_file(output, lambda: export_database(database))
                 result = {"exported": str(output), "size": output.stat().st_size}
-        rendered = json.dumps(result, ensure_ascii=False, indent=2)
-        token = os.environ.get("WORKLOG_AGENT_TOKEN")
-        print(rendered.replace(token, "[redacted]") if token else rendered)
+        print(_redacted(json.dumps(result, ensure_ascii=False, indent=2), redact))
         return 0
     except (OSError, ValueError, RuntimeError, sqlite3.Error) as exc:
-        token = os.environ.get("WORKLOG_AGENT_TOKEN")
-        message = str(exc).replace(token, "[redacted]") if token else str(exc)
-        print("Worklog: " + message, file=sys.stderr)
+        print("Worklog: " + _redacted(str(exc), redact), file=sys.stderr)
         return 1
 
 

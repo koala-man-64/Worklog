@@ -21,6 +21,7 @@ const settings: SettingsData = {
       agentId: "profile-alpha",
       createdAt: "2026-10-01T10:00:00Z",
       revoked: false,
+      registeredBy: null,
     },
   ],
   agents: [
@@ -185,4 +186,48 @@ it("issues a credential with the suggested avatar or one the person picks", asyn
   await waitFor(() =>
     expect(posted).toEqual([{ label: "Reviewer", avatar: "pink-dots-ears" }]),
   );
+});
+
+it("names the agent that registered a credential", async () => {
+  const registered: SettingsData = {
+    ...settings,
+    credentials: [
+      ...settings.credentials,
+      {
+        id: "credential-registered",
+        label: "Parser fix",
+        agentId: "profile-parser",
+        createdAt: "2026-11-01T10:00:00Z",
+        revoked: false,
+        registeredBy: { id: "profile-alpha", label: "Agent Alpha profile" },
+      },
+    ],
+    agents: [
+      ...settings.agents,
+      { id: "profile-parser", label: "Parser fix", avatar: "amber-dots-ears" },
+    ],
+  };
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const path = new URL(String(input), "http://worklog.test").pathname;
+    return new Response(
+      JSON.stringify(
+        path.endsWith("/discussions/avatars") ? catalog : registered,
+      ),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+  });
+  render(
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      <Settings />
+    </QueryClientProvider>,
+  );
+  expect(
+    await screen.findByText("Registered by Agent Alpha profile"),
+  ).toBeInTheDocument();
+  // Only the registered credential names a registering agent.
+  expect(screen.getAllByText(/^Registered by/)).toHaveLength(1);
 });

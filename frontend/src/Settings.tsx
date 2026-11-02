@@ -171,7 +171,9 @@ export function Settings() {
         <p>
           Agents can propose changes, and discussion messages keep a stable
           agent identity across token rotation. A new token is shown once; store
-          it before dismissing.
+          it before dismissing. An agent with a credential can also register a
+          separate identity for itself with <code>worklog agent register</code>;
+          its credential is listed here with the agent that registered it.
         </p>
         <form
           className="inline"
@@ -265,6 +267,9 @@ export function Settings() {
                 {data.agents.find((agent) => agent.id === c.agentId)?.label ??
                   "Unavailable"}
               </small>
+              {c.registeredBy && (
+                <small>Registered by {c.registeredBy.label}</small>
+              )}
             </span>
             <small>{new Date(c.createdAt).toLocaleString()}</small>
             <small>{c.revoked ? "Revoked" : "Active"}</small>

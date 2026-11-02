@@ -45,6 +45,8 @@ from .discussions import bind_credential, communication_actor
 from .plans import PlanService
 from .proposals import ProposalService
 from .recovery import automatic_backup, backup_database, export_database, list_backups
+from .registration import agent_route_allowed as registration_route_allowed
+from .registration import install_registration_routes, registered_by
 from .registry_api import install_registry_routes
 from .services import WorkService, support_record
 from .transcripts import MESSAGE_LIMIT, TranscriptReader, TranscriptRoots
@@ -213,7 +215,8 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                     if in_discussions:
                         if not agent_route_allowed(method, suffix):
                             raise AppError(403, "agent_scope", "This discussion operation is outside agent scope")
-                    elif forbidden or (method != "GET" and not agent_write and not coordination_agent_route_allowed(method, suffix)):
+                    elif forbidden or (method != "GET" and not agent_write and not coordination_agent_route_allowed(method, suffix)
+                                       and not registration_route_allowed(method, suffix)):
                         raise AppError(403, "agent_scope", "Agents may read context, participate in discussions, and submit proposals")
                 else:
                     session_id = request.cookies.get("worklog_session", "")
@@ -665,8 +668,10 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def settings() -> dict:
         with db.read() as c:
             tz = setting(c, "timezone", "America/Chicago")
-            creds = [{"id": r["id"], "label": r["label"], "createdAt": r["created_at"], "revoked": bool(r["revoked"]), "agentId": r["agent_id"]}
-                     for r in c.execute("SELECT c.id,c.label,c.created_at,c.revoked,b.agent_id FROM credentials c LEFT JOIN communication_credentials b ON b.credential_id=c.id")]
+            rows = c.execute("SELECT c.id,c.label,c.created_at,c.revoked,b.agent_id FROM credentials c LEFT JOIN communication_credentials b ON b.credential_id=c.id").fetchall()
+            sponsors = registered_by(c, [r["id"] for r in rows])
+            creds = [{"id": r["id"], "label": r["label"], "createdAt": r["created_at"], "revoked": bool(r["revoked"]), "agentId": r["agent_id"],
+                      "registeredBy": sponsors.get(r["id"])} for r in rows]
             agents = [{"id": r["id"], "label": r["label"], "avatar": r["avatar"]} for r in c.execute("SELECT id,label,avatar FROM communication_agents ORDER BY label,id")]
         backups = list_backups(directory / "backups")
         size = db.path.stat().st_size
@@ -786,6 +791,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
 
     install_coordination_routes(app, db, mutate)
     install_discussion_routes(app, db, discussion_mutate)
+    install_registration_routes(app, db, auto_backup)
     install_registry_routes(app, db)
     app.router.routes.append(generic)
     dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"

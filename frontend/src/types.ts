@@ -274,6 +274,8 @@ export type Settings = {
     createdAt: string;
     revoked: boolean;
     agentId: string | null;
+    // The agent whose credential registered this one; null when issued in Settings.
+    registeredBy: { id: string; label: string } | null;
   }[];
   agents: { id: string; label: string; avatar: string | null }[];
 };

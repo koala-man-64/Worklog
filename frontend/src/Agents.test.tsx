@@ -85,6 +85,14 @@ const detail: AgentDetail = {
       label: "Builder",
       createdAt: "2026-11-01T08:00:00Z",
       revoked: false,
+      registeredBy: { id: "agent-0", label: "Shared agents" },
+    },
+    {
+      id: "cred-1",
+      label: "Builder",
+      createdAt: "2026-10-01T08:00:00Z",
+      revoked: true,
+      registeredBy: null,
     },
   ],
   runs: {
@@ -270,6 +278,10 @@ it("shows an agent's ties with their reasons, runs, messages and updates", async
   expect(feed).toHaveTextContent("Starting on the plan…");
   expect(within(feed).getByText("Blocker")).toBeInTheDocument();
   expect(feed).toHaveTextContent("Waiting on review");
+  expect(screen.getByText(/^Registered by Shared agents/)).toHaveTextContent(
+    "· Active",
+  );
+  expect(screen.getByText(/^Issued/)).toHaveTextContent("· Revoked");
   expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute(
     "href",
     "#settings",

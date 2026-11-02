@@ -106,3 +106,71 @@ test("the agents tab shows who works on what, and why", async ({
   });
   expect(denied.status()).toBe(403);
 });
+
+test("an agent registers its own identity and speaks as it", async ({
+  page,
+  baseURL,
+}) => {
+  const origin = new URL(baseURL!).origin;
+  const suffix = crypto.randomUUID();
+  const sponsorLabel = "Shared agents " + suffix;
+  const label = "Registered agent " + suffix;
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Today", exact: true }),
+  ).toBeVisible();
+  const boot = await page.request.post("/api/v1/session/bootstrap", {
+    headers: { Origin: origin, "X-Worklog-Bootstrap": "1" },
+    data: {},
+  });
+  const { csrfToken } = await boot.json();
+  async function post(path: string, data: unknown, token?: string) {
+    const response = await page.request.post("/api/v1" + path, {
+      headers: {
+        "Idempotency-Key": crypto.randomUUID(),
+        ...(token
+          ? { Authorization: "Bearer " + token }
+          : { Origin: origin, "X-CSRF-Token": csrfToken }),
+      },
+      data,
+    });
+    expect(response.ok(), `${path}: ${await response.text()}`).toBeTruthy();
+    return response.json();
+  }
+  const sponsor = await post("/credentials", { label: sponsorLabel });
+  // The agent generates its own token; Worklog keeps only its hash.
+  const token = Buffer.from(
+    crypto.getRandomValues(new Uint8Array(32)),
+  ).toString("base64url");
+  const agent = await post(
+    "/agent-registrations",
+    { label, token },
+    sponsor.token,
+  );
+  expect(agent.registeredBy.label).toBe(sponsorLabel);
+  const posted = await post(
+    "/discussions",
+    { title: "Self registered " + suffix, text: "Speaking for myself" },
+    token,
+  );
+  expect(posted.message.authorId).toBe(agent.agentId);
+
+  await page.goto("/#agents/" + agent.agentId);
+  await expect(
+    page.getByRole("heading", { name: label, exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Registered by " + sponsorLabel)).toBeVisible();
+  await page.goto("/#settings");
+  await expect(page.getByText("Registered by " + sponsorLabel)).toBeVisible();
+
+  // Retiring revokes only the registered identity, never its sponsor.
+  await post("/agent-registrations/retire", {}, token);
+  const retired = await page.request.get("/api/v1/context", {
+    headers: { Authorization: "Bearer " + token },
+  });
+  expect(retired.status()).toBe(401);
+  const shared = await page.request.get("/api/v1/context", {
+    headers: { Authorization: "Bearer " + sponsor.token },
+  });
+  expect(shared.ok()).toBeTruthy();
+});
