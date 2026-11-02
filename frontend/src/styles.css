@@ -1243,7 +1243,7 @@ section:not(.draft) > h3 {
   border-radius: 3px;
   background: var(--sidebar);
 }
-/* Chats: who is working on what beside the conversation; each row is a chat, its agents and its steps. */
+/* Chats: who is working on what beside the conversation; each row is a chat and its steps. */
 .chat-list {
   list-style: none;
   margin: 0;
@@ -1291,26 +1291,12 @@ section:not(.draft) > h3 {
 }
 .chat-link small,
 .chat-meta small,
-.chat-agents small,
 .thread-filter small {
   color: var(--muted);
 }
-.chat-meta,
-.chat-agents {
+.chat-meta {
   padding-left: 20px;
   font-size: 12px;
-}
-.chat-agents {
-  list-style: none;
-  margin: 2px 0 0;
-  display: grid;
-  gap: 2px;
-}
-.chat-agents li {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  overflow-wrap: anywhere;
 }
 /* Gathered by record, each roadmap or work item sums up the activity of every chat within it. */
 .chat-filters {
