@@ -209,12 +209,14 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                     suffix = path.removeprefix("/api/v1")
                     # Transcripts hold whole conversations, tool output included; only the person reads them,
                     # and a chat's messages are the person's prompts to it. Agents take theirs from the inbox.
-                    # The agent registry joins tracked chats into every agent's record, so it is theirs too.
+                    # The agent registry joins tracked chats into every agent's record, so it is theirs too,
+                    # as is a roadmap's view of it.
                     # A trailing slash would only redirect, but it is refused here rather than there.
                     chats = suffix.rstrip("/")
                     forbidden = (suffix.startswith(("/settings", "/credentials", "/backups", "/export", "/openapi")) or
                                  chats == "/chats" or (chats.startswith("/chats/") and chats.endswith(("/transcript", "/messages"))) or
-                                 chats == "/agents" or chats.startswith("/agents/"))
+                                 chats == "/agents" or chats.startswith("/agents/") or
+                                 (chats.startswith("/roadmaps/") and chats.endswith("/agents")))
                     agent_write = ((suffix == "/proposals" and method == "POST") or
                                    (suffix.startswith("/proposals/") and (method == "PATCH" or (method == "POST" and suffix.rsplit("/", 1)[-1] in {"submit", "withdraw"}))) or
                                    (suffix == "/attachments" and method == "POST" and request.query_params.get("ownerType") == "proposal"))

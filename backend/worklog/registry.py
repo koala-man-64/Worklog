@@ -253,6 +253,91 @@ class AgentRegistry:
                 "workItems": items.render(work), "roadmaps": roadmaps.render(roadmap_titles),
                 "repositories": repositories.render(repos), "chats": chats.render(chat_records)}
 
+    def roadmap(self, c: sqlite3.Connection, roadmap_id: str) -> dict:
+        """Who works on a roadmap now and on which of its steps, from current ties only.
+
+        Open participation in its work items, roles owned in it and its tracked chats each tie
+        a step: the one a chat was assigned to, or the work item's step. A tracked chat belongs
+        to the agents whose runs reported its chat ID and otherwise stands for itself. Work with
+        no step, or on a retired one, ties the roadmap itself, with a null stepId.
+        """
+        if c.execute("SELECT 1 FROM roadmaps WHERE id=?", (roadmap_id,)).fetchone() is None:
+            raise AppError(404, "not_found", "Roadmap not found")
+        retired = {r["id"]: bool(r["retired"]) for r in c.execute("SELECT id,retired FROM steps WHERE roadmap_id=?", (roadmap_id,))}
+        # A step's roadmap wins over the item's own, as on the Chats page.
+        items = {r["id"]: r for r in c.execute("SELECT w.id,w.title,w.step_id FROM work_items w LEFT JOIN steps s ON s.id=w.step_id WHERE w.archived=0 AND COALESCE(s.roadmap_id,w.roadmap_id)=?", (roadmap_id,))}
+
+        def step(step_id: str | None) -> str | None:
+            """The step if it is still in the plan; otherwise the work counts for the roadmap."""
+            return step_id if retired.get(step_id or "") is False else None
+
+        def titled(item_id: str) -> dict:
+            return {"id": item_id, "title": items[item_id]["title"]}
+
+        workers: dict[tuple[str, str], dict[tuple, dict[str, Any]]] = {}
+
+        def tie(kind: str, identity: str, step_id: str | None, via: str, at: str | None, stale: bool = False, *,
+                item: dict | None = None, chat: dict | None = None, role: dict | None = None) -> None:
+            """One tie per step, reason and record; a repeat keeps the latest time and is stale only if all are."""
+            key = (step_id, via, *(target and target["id"] for target in (item, chat, role)))
+            found = workers.setdefault((kind, identity), {})
+            prior = found.get(key)
+            if prior is None:
+                found[key] = {"stepId": step_id, "via": via, "item": item, "chat": chat, "role": role, "lastAt": at, "stale": stale}
+            else:
+                prior["lastAt"], prior["stale"] = _latest(prior["lastAt"], at), prior["stale"] and stale
+
+        for r in _rows(c, "SELECT p.item_id,p.last_seen_at,ar.agent_id FROM participations p JOIN agent_runs ar ON ar.id=p.run_id WHERE p.released_at IS NULL AND p.item_id IN ({})", items):
+            tie("agent", r["agent_id"], step(items[r["item_id"]]["step_id"]), "participation", r["last_seen_at"],
+                _stale(r["last_seen_at"]), item=titled(r["item_id"]))
+        for r in c.execute("SELECT id,label,context_type,context_id,owner_id,updated_at FROM discussion_roles WHERE owner_id IS NOT NULL"):
+            kind, context = r["context_type"], r["context_id"]
+            if kind == "roadmap" and context == roadmap_id:
+                role_step = None
+            elif kind == "step" and context in retired:
+                role_step = step(context)
+            elif kind == "item" and context in items:
+                role_step = step(items[context]["step_id"])
+            else:
+                continue
+            tie("agent", r["owner_id"], role_step, "role", r["updated_at"], role={"id": r["id"], "label": r["label"]})
+
+        chats = {r["id"]: r for r in c.execute("SELECT * FROM agent_chats WHERE archived=0 AND owner_type='roadmap' AND owner_id=?", (roadmap_id,))}
+        chats.update((r["id"], r) for r in _rows(c, "SELECT * FROM agent_chats WHERE archived=0 AND owner_type='item' AND owner_id IN ({})", items))
+        assigned: dict[str, list[tuple[str | None, str]]] = {}
+        for r in _rows(c, "SELECT chat_id,step_id,created_at FROM chat_steps WHERE chat_id IN ({})", chats):
+            if step(r["step_id"]):
+                assigned.setdefault(r["chat_id"], []).append((r["step_id"], r["created_at"]))
+        carriers: dict[str, set[str]] = {}
+        for r in _rows(c, "SELECT DISTINCT external_chat_id,agent_id FROM agent_runs WHERE external_chat_id IN ({})", [ch["chat_id"] for ch in chats.values()]):
+            carriers.setdefault(r["external_chat_id"], set()).add(r["agent_id"])
+        for chat in chats.values():
+            owner = titled(chat["owner_id"]) if chat["owner_type"] == "item" else None
+            # A roadmap's chat works on the steps assigned to it, or on the roadmap while it has none.
+            places = assigned.get(chat["id"]) or [(step(items[chat["owner_id"]]["step_id"]) if owner else None, chat["created_at"])]
+            record = {"id": chat["id"], "title": chat["title"]}
+            for kind, identity in [("agent", a) for a in sorted(carriers.get(chat["chat_id"], ()))] or [("chat", chat["id"])]:
+                for step_id, at in places:
+                    tie(kind, identity, step_id, "chat", at, item=owner, chat=record)
+
+        agents = {r["id"]: r for r in _rows(c, "SELECT id,label,avatar FROM communication_agents WHERE id IN ({})", [i for kind, i in workers if kind == "agent"])}
+        result = []
+        for (kind, identity), found in workers.items():
+            if kind == "chat":
+                row = chats[identity]
+                who = {"kind": "chat", "id": identity, "label": row["title"], "avatar": None, "provider": row["provider"], "model": row["model"]}
+            elif identity in agents:
+                row = agents[identity]
+                who = {"kind": "agent", "id": identity, "label": row["label"], "avatar": row["avatar"], "provider": "", "model": ""}
+            else:
+                continue
+            ties = sorted(found.values(), key=lambda t: t["lastAt"] or "", reverse=True)
+            result.append({**who, "ties": ties, "lastAt": ties[0]["lastAt"], "stale": all(t["stale"] for t in ties)})
+        # Fresh work first, then the most recent.
+        result.sort(key=lambda w: (w["lastAt"] or "", w["id"]), reverse=True)
+        result.sort(key=lambda w: w["stale"])
+        return {"items": result}
+
     def activity(self, c: sqlite3.Connection, identity: str, limit: int = 50, offset: int = 0) -> dict:
         """The agent's discussion messages and status updates, newest first."""
         self._agent(c, identity)
