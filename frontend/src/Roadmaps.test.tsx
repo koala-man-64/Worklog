@@ -132,6 +132,55 @@ it("records the base revision and step ids with a new draft", async () => {
   expect(stored.revision).toBe(4);
   expect(stored.baseStepIds).toEqual([A.id, B.id]);
 });
+it("offers a rebase, keeping the draft and note, when a save conflicts", async () => {
+  let current = roadmap(4, [A, B]);
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const url = String(input);
+    const json = (data: unknown, status = 200) =>
+      new Response(JSON.stringify(data), { status });
+    if ((init?.method ?? "GET") !== "GET")
+      return json(
+        {
+          error: {
+            code: "conflict",
+            message: "This record changed. Reload and review your draft.",
+          },
+        },
+        409,
+      );
+    if (url.includes(`/roadmaps/${ROADMAP}`)) return json(current);
+    return json({ items: [], total: 0 });
+  });
+  render(withClient(<RoadmapDetail id={ROADMAP} />));
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Edit structure" }),
+  );
+  await userEvent.type(stepTitle(1)!, "!");
+  await userEvent.type(
+    screen.getByRole("textbox", { name: "Version note" }),
+    "Rename alpha",
+  );
+  // The roadmap moves on elsewhere, e.g. progress set by an approved proposal.
+  current = roadmap(5, [A, B, C]);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Save new version" }),
+  );
+  expect(
+    await screen.findByText(
+      /based on revision 4, but the roadmap is now at revision 5/,
+    ),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "Rebase onto current" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "Save new version" }),
+  ).toBeDisabled();
+  expect(stepTitle(1)).toHaveValue("Alpha!");
+  expect(screen.getByRole("textbox", { name: "Version note" })).toHaveValue(
+    "Rename alpha",
+  );
+});
 it("reorders steps without mutating the cached roadmap", async () => {
   const road = roadmap(4, [step(A.id, "Alpha", 0), step(B.id, "Beta", 1)]);
   render(view(road));
