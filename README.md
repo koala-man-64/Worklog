@@ -8,9 +8,10 @@ Worklog runs at **http://127.0.0.1:8877** from one local SQLite database. No hos
 
 - **Plan and record your days.** Plan what you will work on, mark what you actually worked on with an outcome and next action, and close the day with a reflection.
 - **Keep one backlog.** Work items carry a status, a Markdown description, checklist tasks, notes, files, links, local paths, an Azure DevOps link, GitHub pull requests and commits, people and repositories, along with their daily record and full history.
+- **Track issues as tickets.** You and your agents file tickets for bugs, incidents and tasks, work them with a status, assignee and comments, and close them with a resolution. Closed tickets stay searchable, so the next agent finds what fixed an issue last time.
 - **Plan bigger efforts as roadmaps.** Roadmaps nest under each other and hold step trees with progress, immutable versions, questions and decisions. An HTML plan can be imported as steps.
 - **Know who is involved.** A people directory ties owners, collaborators and stakeholders to roadmaps and work items, each with a role.
-- **Work with AI agents under your control.** Claude Code, Codex, or any agent you give a credential can read your context, report what it is working on and where, talk with you and other agents, take and hand off responsibilities, receive the messages you write into its chat, and propose changes that only you can approve.
+- **Work with AI agents under your control.** Claude Code, Codex, or any agent you give a credential can read your context, report what it is working on and where, talk with you and other agents, take and hand off responsibilities, file and close tickets, receive the messages you write into its chat, and propose changes that only you can approve.
 - **See who is working on what.** Chats shows the conversations Claude Code and Codex keep for the chats you track, Agents gathers each agent's runs and ties, and Repositories shows reported activity per repository.
 - **Keep it safe and portable.** Automatic and manual backups, a readable ZIP export, and an offline restore that preserves your current data first.
 
@@ -18,7 +19,7 @@ Worklog runs at **http://127.0.0.1:8877** from one local SQLite database. No hos
 
 - **One local process.** `start` launches one hidden server (Python with FastAPI and Uvicorn) bound to 127.0.0.1. It serves the built React interface and the JSON API under `/api/v1` from the same address. Nothing listens beyond this machine, no Node process runs, and nothing is fetched from the internet at runtime.
 - **One database.** Every record, attachment and imported plan file lives in one SQLite file, `worklog.sqlite3`, in the data directory, so a backup holds everything at once. Schema upgrades run at startup, after a snapshot.
-- **You and your agents.** Your browser holds a local session and can change anything. Agents use credentials you issue in Settings, or identities they register for themselves from one, through the `worklog agent` command line. They read your context, report their own runs and activity, talk in Discussions, receive your chat messages, and propose changes for you to approve. They never write your work directly.
+- **You and your agents.** Your browser holds a local session and can change anything. Agents use credentials you issue in Settings, or identities they register for themselves from one, through the `worklog agent` command line. They read your context, report their own runs and activity, talk in Discussions, file and work tickets, receive your chat messages, and propose changes for you to approve. They never write your work directly: tickets, like discussions, are shared records agents write themselves, while work items, days, roadmaps and people change only through proposals you approve.
 - **No silent overwrites.** Every record has a revision. A save based on an older revision is refused as a conflict, and your draft is kept until you decide. Each change is recorded in the record's history with who made it, including changes applied from an agent's proposal.
 - **Agent transcripts stay where they are.** Chats reads the transcripts Claude Code and Codex keep on this machine and never writes them. Agents cannot read them through Worklog.
 - **Snapshots happen on their own.** A backup is taken at startup and once a day while Worklog runs, and before any upgrade or restore.
@@ -78,6 +79,7 @@ The search box at the top ("Search your work…") covers:
 - work items, notes, file names, links and agent chats
 - GitHub references, roadmaps and steps, questions and decisions
 - people and discussions
+- tickets and their comments
 
 Tick "Search archived records" to search the archive instead. Proposals are not searched; open them from Review. Settings holds the timezone that decides what "today" is, and the theme.
 
@@ -104,10 +106,18 @@ Records are archived rather than deleted, and you recover them from the same pla
   - Filter the list by text, repository, status and person.
   - Switch between "All work" and the "Unscheduled backlog": items not done and not planned for today or later.
   - "Show archive" shows archived items. The list pages at 100, and you reorder the backlog with the up and down buttons.
-- **A work item's page** has its title, Markdown description, status, Azure DevOps link, roadmap and step, and checklist tasks. It also holds notes, people with their roles, linked repositories, web links, tracked agent chats, and GitHub pull requests and commits.
+- **A work item's page** has its title, Markdown description, status, Azure DevOps link, roadmap and step, and checklist tasks. It also holds notes, people with their roles, linked repositories, web links, tracked agent chats, GitHub pull requests and commits, and its tickets.
   - Files can be up to 25 MB.
   - Local file paths are copied for you to open yourself; Worklog never opens them.
 - **Scheduling and history.** "Plan for day" puts the item on a day. The page also shows its daily record, what agents reported about it under "Agent coordination", its archived supporting records, and its activity history.
+
+### Tickets
+
+- **File a ticket.** Give it a title, a kind (Bug, Incident or Task) and a priority (Urgent, High, Normal or Low), and press "File ticket". Each ticket gets a key such as `T-12` that you and your agents can cite in commits, discussions and other tickets. On a work item's page, "File ticket" under "Tickets" links the new ticket to that work.
+- **Find tickets.** The list shows open, doing and blocked tickets, most urgent first. Filter by text, status, kind, priority, label, repository and assignee, sort by recent activity instead, or tick "Show archive". The text filter also searches comments and resolutions.
+- **A ticket's page** has its status, kind, priority and assignee, a Markdown description, a resolution, labels, linked repositories and an optional work item. Comments form its timeline: they can't be edited, so correct one with another. "Activity history" records every change and who made it.
+- **Close it with a resolution.** Marking a ticket Done needs a resolution saying what fixed it or why it was closed. Reopening keeps the resolution. A past incident can be filed already Done.
+- **Agents work tickets directly.** They file, change, comment on and close tickets under their own identity, without a proposal. Assignment is advisory, like reported participation. Only you archive or recover a ticket, and an archived ticket is read-only until you recover it.
 
 ### Roadmaps
 
@@ -209,8 +219,16 @@ If you are an agent using this Worklog, follow these steps. Run the CLI as `./.v
    ```
 
    Report your chat's ID with `runs start --chat` so the person can see your chat and [write to you](#messages-to-a-chats-agents). A message reaches the identity whose run reported the chat, so check `inbox` with the same `--as NAME`.
-4. **Retire when the chat's work is done:** `./.venv/Scripts/worklog.exe agent --as NAME retire`. Retiring ends your open runs, revokes your identity and any identities you registered, and deletes your stored token.
-5. **Do not work around a refusal.** A `401` with `--as NAME` means your identity was revoked. The person may have revoked it, the agent that registered you may have retired, or Worklog may have been restored from a backup. Stop, tell the person, and register again only if they agree. On `429 agent_limit`, report it instead of retrying.
+4. **Track issues as tickets.** Before you dig into a failure, search past tickets, closed ones included: one may already say what fixed it. File a ticket for an issue worth tracking, comment as you learn, and close it with a resolution once it is fixed:
+
+   ```powershell
+   ./.venv/Scripts/worklog.exe agent --as NAME tickets list --status all --q 'database is locked'
+   ./.venv/Scripts/worklog.exe agent --as NAME tickets create --title 'Backup holds the database lock' --kind bug --assign me --request-id 'ticket-backup-lock'
+   ./.venv/Scripts/worklog.exe agent --as NAME tickets close T-12 --revision 3 --resolution 'Snapshot with the online backup API (#51).'
+   ```
+
+5. **Retire when the chat's work is done:** `./.venv/Scripts/worklog.exe agent --as NAME retire`. Retiring ends your open runs, revokes your identity and any identities you registered, and deletes your stored token.
+6. **Do not work around a refusal.** A `401` with `--as NAME` means your identity was revoked. The person may have revoked it, the agent that registered you may have retired, or Worklog may have been restored from a backup. Stop, tell the person, and register again only if they agree. On `429 agent_limit`, report it instead of retrying.
 
 [Agent self-registration](#agent-self-registration) explains how this works, and the sections below describe each command group.
 
@@ -272,6 +290,25 @@ Use returned IDs and revisions. Choose one stable `--request-id` per write and r
 
 Participation is advisory overlap information, not an exclusive claim, lock, permission, or proof that a process is alive. Activity older than two hours displays as stale without releasing it. An optional explicit `participation check-in ID --revision N --request-id KEY` refreshes reported activity; no heartbeat is required. Release and rejoin are explicit, and updates retain their original repository/work snapshots when participation later changes. See [the API contract](docs/API.md#repository-coordination) for list filters and payloads.
 
+### Tickets
+
+Tickets are shared records that agents write directly, as they post in Discussions: no proposal is needed. Each change carries the agent's own identity and lands in the ticket's history.
+
+```powershell
+./.venv/Scripts/worklog.exe agent tickets list
+./.venv/Scripts/worklog.exe agent tickets list --status all --q 'locked database' --repo REPOSITORY_ID
+./.venv/Scripts/worklog.exe agent tickets list --assignee me
+./.venv/Scripts/worklog.exe agent tickets create --title 'Import drops the last row' --kind bug --priority high --label parser --repo REPOSITORY_ID --item ITEM_ID --assign me --request-id 'ticket-import-last-row'
+./.venv/Scripts/worklog.exe agent tickets show T-12
+./.venv/Scripts/worklog.exe agent tickets comment T-12 --text 'Reproduced with a file that has no trailing newline.' --request-id 'ticket-12-repro'
+./.venv/Scripts/worklog.exe agent tickets update T-12 --revision 2 --status doing
+./.venv/Scripts/worklog.exe agent tickets close T-12 --revision 3 --resolution 'Read the final row before EOF. Fixed in #51.'
+```
+
+- **Naming and finding.** A ticket is named by its key (`T-12`), its number or its ID. `list` shows open, doing and blocked tickets, most urgent first. `--status done` or `--status all` reaches history, and `--q` matches words in titles, descriptions, resolutions, labels and comments. `agent context` lists the open tickets for its `--repo` and `--item` filters, and `agent search` finds tickets and their comments along with everything else.
+- **Changing a ticket.** Changes are revision-checked, so use the revision from your last read. Comments leave the revision alone, so they never make an edit conflict, and they can't be edited afterwards. Done needs a resolution. `--label` and `--repo` replace the whole set; `--no-labels`, `--no-repos` and `--no-item` clear them. Use `--file ticket.json` (or `--file -`) for long Markdown.
+- **Assignment and limits.** `--assign me`, and `--assignee me` on `list`, resolve to your own identity. Assignment is advisory and reserves nothing. Archive and recover stay with the person. See [the API contract](docs/API.md#tickets).
+
 ### Messages to a chat's agents
 
 Write to the agents working in a chat from its history on the **Chats** page. A message goes to every agent tied to the chat when you send it: an open run that reported the chat's ID with `runs start --chat CHAT_ID`, on a credential that is still live. The page names those agents before you send, and Send stays disabled when there are none. An agent receives its messages, each once, with:
@@ -316,7 +353,7 @@ Every restore creates a new data generation identity while staging the replaceme
 
 Restore writes a durable `.restore-in-progress.json` marker before moving sidecars or replacing the main file. Startup refuses that directory if a power failure interrupts restoration. Keep the evidence archives and rerun the explicit offline `restore` command with a verified SQLite candidate; the retry preserves earlier marker/quarantine evidence before completing recovery. Do not delete the marker to force a startup. It clears only after verified replacement and cleanup, or a verified rollback to the original files.
 
-For an upgrade, stop Worklog, make a manual backup with the installed version, update the checkout, run `Setup.ps1`, then start and check the application. Use the same data directory and port throughout. The first startup snapshots a supported version 1, 2 or 3 database and upgrades it to version 4 in one transaction. Existing work, roadmap questions and decisions, discussions, data identity, and agent credentials are preserved, every existing agent identity receives a generated avatar, and chats start with no messages from you. Existing chat repository labels remain labels; link them to catalog repositories explicitly.
+For an upgrade, stop Worklog, make a manual backup with the installed version, update the checkout, run `Setup.ps1`, then start and check the application. Use the same data directory and port throughout. The first startup snapshots a supported version 1, 2, 3 or 4 database and upgrades it to version 5 in one transaction. Existing work, roadmap questions and decisions, discussions, data identity, and agent credentials are preserved, every existing agent identity receives a generated avatar, chats start with no messages from you, and the ticket list starts empty. Existing chat repository labels remain labels; link them to catalog repositories explicitly.
 
 Keep the previous version and its manual backup until verification succeeds. To roll back, stop Worklog, switch to the previous version and run its setup, then use that version’s `restore` command with the pre-upgrade backup. Start and check Worklog again. Restoring returns the data to the time of the snapshot, creates a new data identity, and revokes the restored credentials.
 
