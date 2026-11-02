@@ -22,6 +22,7 @@ const PAGE = 200;
 // The server's MESSAGE_LIMIT: the most messages one request returns.
 const MOST = 2_000;
 const SOURCES = { claude: "Claude Code session", codex: "Codex thread" };
+const TOOLS = { claude: "Claude", codex: "Codex" };
 
 const relative = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
 const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
@@ -57,6 +58,18 @@ function clock(iso: string | null) {
 }
 function agentName(chat: ChatOverview | Transcript["chat"]) {
   return [chat.provider, chat.model].filter(Boolean).join(" · ");
+}
+/** The tool that keeps the chat's transcript and how many agents it started; with no transcript, the provider and model it was tracked with. */
+export function toolText(chat: ChatOverview) {
+  const { source, threads } = chat.transcript;
+  if (!source) return agentName(chat);
+  const agents = threads.filter((t) => t.parent).length;
+  return [
+    TOOLS[source],
+    agents && (agents === 1 ? "1 agent" : `${agents} agents`),
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 /** Working chats first, then the most recently active. */
 function byActivity(a: ChatOverview, b: ChatOverview) {
@@ -498,7 +511,7 @@ function ChatListItem({
   grouped?: boolean;
 }) {
   const { transcript, owner } = chat;
-  const agent = agentName(chat);
+  const tool = toolText(chat);
   const ownerHref =
     owner.type === "roadmap" ? "#roadmaps/" + owner.id : "#work/" + owner.id;
   return (
@@ -518,9 +531,9 @@ function ChatListItem({
           </small>
         </span>
       </a>
-      {(agent || !grouped) && (
+      {(tool || !grouped) && (
         <div className="chat-row chat-meta">
-          {agent && <span className="person-badge">{agent}</span>}
+          {tool && <span className="person-badge">{tool}</span>}
           {!grouped && (
             <small>
               {owner.type === "roadmap" ? "Roadmap" : "Work item"}{" "}

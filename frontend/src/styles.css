@@ -2559,6 +2559,10 @@ code {
     padding-right: 8px;
   }
 }
+/* Chats spends the whole window on the list and the conversation, however wide. */
+.workspace:has(.chats-split) > main {
+  max-width: none;
+}
 @media (prefers-reduced-motion: no-preference) {
   main > header {
     animation: arrive 0.25s ease-out;
