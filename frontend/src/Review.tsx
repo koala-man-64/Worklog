@@ -73,6 +73,7 @@ export function Review({ selectedId }: { selectedId?: string }) {
               <p>
                 {p.actorLabel}, {p.operations.length} proposed changes
               </p>
+              <Dates proposal={p} />
             </div>
             <span className="badge">{statusLabel(p)}</span>
           </article>
@@ -104,6 +105,7 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
       <p className="muted">
         Proposed by {p.actorLabel}, {statusLabel(p)}, revision {p.revision}
       </p>
+      <Dates proposal={p} className="muted" />
       <Markdown text={p.rationale} />
       <h3>Proposed changes</h3>
       {p.operations.map((op, index) => (
@@ -176,6 +178,30 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
 // An automatic approval was the Settings choice, not the person's decision.
 function statusLabel(p: Proposal) {
   return p.autoApproved ? "approved automatically" : p.status;
+}
+function timestamp(value: string) {
+  return <time dateTime={value}>{new Date(value).toLocaleString()}</time>;
+}
+// Dated by its submission, or by its start until it is submitted; "updated"
+// shows only for a change after that: an edit, a withdrawal or a decision.
+function Dates({
+  proposal: p,
+  className,
+}: {
+  proposal: Proposal;
+  className?: string;
+}) {
+  const since = p.submittedAt ?? p.createdAt;
+  if (!since) return null;
+  return (
+    <p className={className}>
+      {p.submittedAt ? "Submitted " : "Drafted "}
+      {timestamp(since)}
+      {p.updatedAt && Date.parse(p.updatedAt) > Date.parse(since) && (
+        <> · updated {timestamp(p.updatedAt)}</>
+      )}
+    </p>
+  );
 }
 // Agents choose step IDs in roadmap.create and roadmap.revise, so a later
 // operation may target a step that exists only once the proposal is approved.
