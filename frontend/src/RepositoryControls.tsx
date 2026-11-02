@@ -25,7 +25,7 @@ export function RepositoryBadges({
     </span>
   );
 }
-function RepositoryName({ id }: { id: string }) {
+export function RepositoryName({ id }: { id: string }) {
   const query = useData<Repository>("/repositories/" + encodeURIComponent(id));
   return (
     <>

@@ -9,11 +9,14 @@ from contextlib import closing
 
 import pytest
 from worklog import avatars, migrations, recovery
+from worklog.chat_messages import SCHEMA as CHAT_MESSAGE_SCHEMA
 from worklog.db import SCHEMA, Database
 from worklog.discussions import AGENT_AVATAR_COLUMN, bind_credential
 from worklog.discussions import SCHEMA as DISCUSSION_SCHEMA
+from worklog.migrations import COORDINATION_SCHEMA
 from worklog.plans import SCHEMA as PLAN_SCHEMA
 from worklog.proposals import SCHEMA as PROPOSAL_SCHEMA
+from worklog.tickets import SCHEMA as TICKET_SCHEMA
 
 STAMP = "2026-01-01T00:00:00+00:00"
 
@@ -95,7 +98,7 @@ def test_pre_migration_backup_failure_prevents_upgrade(tmp_path, monkeypatch):
         assert recovery._schema_signature(conn) == recovery._expected_schema(coordination=False, avatars=False, chat_messages=False, tickets=False)
 
 
-@pytest.mark.parametrize("current_shape,version", [(True, 1), (True, 2), (True, 3), (True, 4), (False, 2), (False, 3), (False, 4), (False, 5)])
+@pytest.mark.parametrize("current_shape,version", [(True, 1), (True, 2), (True, 3), (True, 4), (True, 5), (False, 2), (False, 3), (False, 4), (False, 5), (False, 6)])
 def test_schema_version_cannot_disguise_another_shape(tmp_path, current_shape, version):
     path = tmp_path / "worklog.sqlite3"
     if current_shape:
@@ -254,3 +257,53 @@ def test_failed_restore_upgrade_preserves_candidate_and_active_database(tmp_path
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 1
     recovery.validate_database(candidate)
     recovery.validate_database(target)
+
+
+def v5_database(path, repositories):
+    """The shape main shipped as v5, where repositories were unique by address text only."""
+    with closing(sqlite3.connect(path)) as conn:
+        conn.executescript(PLAN_SCHEMA + PROPOSAL_SCHEMA + SCHEMA + DISCUSSION_SCHEMA + COORDINATION_SCHEMA + CHAT_MESSAGE_SCHEMA + TICKET_SCHEMA)
+        for key, value in {"dataId": "11111111-1111-4111-8111-111111111111", "timezone": "America/Chicago", "backlogRevision": 1}.items():
+            conn.execute("INSERT INTO settings VALUES(?,?)", (key, json.dumps(value)))
+        for identity, url, archived, day in repositories:
+            stamp = f"2026-01-0{day}T00:00:00+00:00"
+            conn.execute("INSERT INTO repositories(id,name,url,archived,revision,created_at,updated_at) VALUES(?,?,?,?,3,?,?)",
+                         (identity, identity.title(), url, archived, stamp, stamp))
+        conn.execute("PRAGMA user_version=5")
+        conn.commit()
+    recovery.validate_database(path)
+
+
+@pytest.mark.parametrize("operation", ["startup", "restore"])
+def test_v6_upgrade_keys_repositories_by_remote_and_flags_records_that_share_one(tmp_path, operation):
+    source = tmp_path / "source" / "worklog.sqlite3"
+    source.parent.mkdir()
+    v5_database(source, [
+        # The oldest record is archived, so the oldest active one answers for the remote.
+        ("archived", "https://github.com/Team/Shared", 1, 1), ("ssh", "git@github.com:team/shared.git", 0, 2),
+        ("lowercase", "https://github.com/team/shared.git", 0, 3), ("other", "https://github.com/team/other", 0, 4),
+        ("unaddressed", "", 0, 5), ("gone", "https://dev.azure.com/org/p/_git/r", 1, 6),
+        ("gone-too", "git@ssh.dev.azure.com:v3/org/p/r", 1, 7)])
+    before = records_by_table(source, ["repositories"])
+    target = source if operation == "startup" else tmp_path / "target" / "worklog.sqlite3"
+    if operation == "startup":
+        Database(target).initialize()
+    else:
+        recovery.restore_database(target, source, tmp_path / "backups")
+    recovery.validate_database(target)
+    with Database(target).read() as conn:
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION == 6
+        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        keys = {row["id"]: (row["remote_identity"], row["duplicate_of"]) for row in conn.execute("SELECT * FROM repositories")}
+        # Records keep everything they had; the upgrade only appends their key, any flag and an empty merge pointer.
+        assert [tuple(row)[:-3] for row in conn.execute("SELECT * FROM repositories ORDER BY 1")] == before["repositories"]
+        assert conn.execute("SELECT count(*) FROM repositories WHERE merged_into IS NOT NULL").fetchone()[0] == 0
+    assert keys == {"archived": ("github.com/team/shared", "ssh"), "ssh": ("github.com/team/shared", None),
+                    "lowercase": ("github.com/team/shared", "ssh"), "other": ("github.com/team/other", None),
+                    "unaddressed": ("", None), "gone": ("dev.azure.com/org/p/_git/r", None),
+                    "gone-too": ("dev.azure.com/org/p/_git/r", "gone")}
+    if operation == "startup":
+        snapshot, = (source.parent / "backups").glob("worklog-pre-migration-*.sqlite3")
+        with closing(sqlite3.connect(snapshot)) as conn:
+            assert conn.execute("PRAGMA user_version").fetchone()[0] == 5
+            assert recovery._schema_signature(conn) == recovery._expected_schema(remote_identity=False)

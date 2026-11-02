@@ -48,7 +48,7 @@ def test_v4_upgrade_adds_tickets_after_a_snapshot_and_restores(tmp_path):
     # v4 already holds messages to chats, so the upgrade must not create them again.
     Database(path).initialize()
     with Database(path).read() as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION == 5
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
         assert recovery._schema_signature(conn) == recovery._expected_schema()
         assert conn.execute("SELECT count(*) FROM tickets").fetchone()[0] == 0
     assert {t: rows(path, t) for t in before} == before
@@ -56,13 +56,13 @@ def test_v4_upgrade_adds_tickets_after_a_snapshot_and_restores(tmp_path):
     assert len(snapshots) == 1
     with closing(sqlite3.connect(snapshots[0])) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 4
-        assert recovery._schema_signature(conn) == recovery._expected_schema(tickets=False)
+        assert recovery._schema_signature(conn) == recovery._expected_schema(tickets=False, remote_identity=False)
     Database(path).initialize()
     assert len(list((path.parent / "backups").glob("worklog-pre-migration-*.sqlite3"))) == 1
     restored = tmp_path / "restored" / "worklog.sqlite3"
     recovery.restore_database(restored, snapshots[0], tmp_path / "restore-backups")
     with Database(restored).read() as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 5
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
         assert recovery._schema_signature(conn) == recovery._expected_schema()
         assert conn.execute("SELECT text FROM chat_messages").fetchone()[0] == "Hello"
 
@@ -82,7 +82,7 @@ def test_failed_ticket_schema_rolls_back_the_v4_upgrade(tmp_path, monkeypatch):
         Database(path).initialize()
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 4
-        assert recovery._schema_signature(conn) == recovery._expected_schema(tickets=False)
+        assert recovery._schema_signature(conn) == recovery._expected_schema(tickets=False, remote_identity=False)
     recovery.validate_database(path)
 
 
@@ -118,7 +118,7 @@ def test_export_and_restore_keep_tickets_with_their_comments_labels_and_links(tm
         assert json.loads(archive.read("records/ticket_labels.json")) == [{"ticket_id": "ticket", "label": "sqlite"}]
         assert json.loads(archive.read("records/ticket_repositories.json"))[0]["repository_id"] == "repo"
         assert "### Backup locked the database" in archive.read("worklog.md").decode("utf-8")
-        assert json.loads(archive.read("manifest.json"))["schemaVersion"] == 5
+        assert json.loads(archive.read("manifest.json"))["schemaVersion"] == migrations.SCHEMA_VERSION
     backup = recovery.backup_database(path, tmp_path / "manual")
     target = tmp_path / "restored" / "worklog.sqlite3"
     recovery.restore_database(target, tmp_path / "manual" / backup["name"], tmp_path / "restore-backups")

@@ -12,6 +12,8 @@ const repo: Repository = {
   id: "repo-1",
   name: "Service",
   url: "https://github.com/a/service",
+  remoteIdentity: "github.com/a/service",
+  duplicateOf: null,
   description: "Shared API",
   revision: 1,
   archived: false,
@@ -106,6 +108,52 @@ it("creates a repository by keyboard and archives its acknowledged revision", as
     url: repo.url,
     description: "",
   });
+});
+
+it("names the record that already holds a remote instead of adding another", async () => {
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    if (init?.method === "POST") return json({ ...repo, created: false });
+    if (String(input).endsWith("/repositories/repo-1")) return json(repo);
+    return json({
+      items: [
+        repo,
+        {
+          ...repo,
+          id: "repo-2",
+          name: "Service over SSH",
+          url: "git@github.com:a/service.git",
+          duplicateOf: repo.id,
+        },
+      ],
+      total: 2,
+    });
+  });
+  show(<Repositories />);
+  // A record an upgrade kept beside another for the same remote says so.
+  const flagged = (await screen.findByText("Service over SSH")).closest(
+    "article",
+  )!;
+  expect(
+    await within(flagged).findByRole("link", { name: "Service" }),
+  ).toHaveAttribute("href", "#repositories/repo-1");
+  expect(flagged).toHaveTextContent("two records for one repository");
+  await userEvent.type(
+    screen.getByRole("textbox", { name: "Repository name" }),
+    "Service again",
+  );
+  await userEvent.type(
+    screen.getByRole("textbox", { name: "Repository remote URL" }),
+    "https://github.com/A/Service.git",
+  );
+  await userEvent.keyboard("{Enter}");
+  const notice = await screen.findByRole("status");
+  expect(notice).toHaveTextContent(
+    "That remote is already registered as Service.",
+  );
+  expect(within(notice).getByRole("link", { name: "Service" })).toHaveAttribute(
+    "href",
+    "#repositories/repo-1",
+  );
 });
 
 it("keeps overlapping reports, marks staleness separately, and ends a run only after confirmation", async () => {

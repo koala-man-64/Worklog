@@ -1,5 +1,6 @@
 """Coordination exercises real auth and transactions without Git or filesystem activity."""
 
+import threading
 import uuid
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
@@ -7,8 +8,11 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from fastapi.testclient import TestClient
 from worklog.app import create_app
+from worklog.coordination import _repository_url, repository_identity
 
 ORIGIN = "http://127.0.0.1:8877"
+HUMAN = {"id": "local-user", "label": "You", "kind": "human"}
+STAMP = "2026-01-01T00:00:00+00:00"
 
 
 @pytest.fixture
@@ -56,8 +60,9 @@ def report(c, credential, repository, running=None, **extra):
 
 def test_catalog_search_normalization_reviewed_writes_and_bounds(client):
     first = repo(client, url="https://EXAMPLE.com/team/repo/", description="Repository planning")
-    assert first["url"] == "https://example.com/team/repo"
-    assert request(client, "POST", "/repositories", {"name": "Duplicate", "url": first["url"]}).status_code == 409
+    assert first["url"] == "https://example.com/team/repo" and first["created"]
+    again = repo(client, "Duplicate", url=first["url"])
+    assert (again["id"], again["name"], again["created"]) == (first["id"], "Worklog", False)
     credential = agent(client)
     assert request(client, "POST", "/repositories", {"name": "Not allowed"}, credential).status_code == 403
     assert ok(request(client, "GET", "/repositories?q=planning"))["total"] == 1
@@ -72,9 +77,131 @@ def test_catalog_search_normalization_reviewed_writes_and_bounds(client):
     ("ssh://git@SSH.dev.azure.com:22/v3/Org/Project/Repo", "ssh://git@ssh.dev.azure.com:22/v3/Org/Project/Repo"),
 ])
 def test_inert_ssh_repository_remotes_preserve_case_and_transport(client, remote, normalized):
-    assert repo(client, url=remote)["url"] == normalized
-    # Transport forms are distinct catalog metadata, not inferred repository identity.
-    assert repo(client, "HTTPS form", url="https://github.com/Team/Worklog.git")["url"] == "https://github.com/Team/Worklog.git"
+    first = repo(client, url=remote)
+    assert first["url"] == normalized
+    # The address keeps its transport and case; the remote it names is registered once.
+    https = "https://github.com/Team/Worklog.git" if "github" in remote.lower() else "https://dev.azure.com/Org/Project/_git/Repo"
+    again = repo(client, "HTTPS form", url=https)
+    assert (again["id"], again["url"], again["created"]) == (first["id"], normalized, False)
+
+
+@pytest.mark.parametrize(("addresses", "identity"), [
+    (["https://github.com/Team/Worklog", "https://GitHub.com/team/worklog.git", "http://github.com/Team/Worklog/",
+      "git@github.com:Team/Worklog.git", "git@github.com:Team/Worklog.git/", "ssh://git@github.com/Team/Worklog.git",
+      "ssh://git@github.com:22/team/worklog/", "https://token@github.com/Team/Worklog.git"], "github.com/team/worklog"),
+    (["https://dev.azure.com/Org/Project/_git/Repo", "https://org@dev.azure.com/Org/Project/_git/Repo",
+      "https://org.visualstudio.com/Project/_git/Repo", "https://Org.VisualStudio.com/DefaultCollection/Project/_git/Repo",
+      "git@ssh.dev.azure.com:v3/Org/Project/Repo", "ssh://git@ssh.dev.azure.com:22/v3/org/project/repo"],
+     "dev.azure.com/org/project/_git/repo"),
+    (["https://dev.azure.com/Org/_git/Project", "https://org.visualstudio.com/_git/Project",
+      "git@ssh.dev.azure.com:v3/Org/Project/Project"], "dev.azure.com/org/project/_git/project"),
+    (["https://dev.azure.com/org/My%20Project/_git/My%20Repo", "git@ssh.dev.azure.com:v3/org/My%20Project/My%20Repo"],
+     "dev.azure.com/org/my%20project/_git/my%20repo"),
+    (["https://gitlab.example.com:8443/Group/Sub/Repo.git", "git@gitlab.example.com:group/sub/repo",
+      "ssh://git@gitlab.example.com:2222/group/sub/repo.git"], "gitlab.example.com/group/sub/repo"),
+    ([""], ""),
+])
+def test_every_address_of_a_remote_shares_one_identity(addresses, identity):
+    assert {repository_identity(_repository_url(address)) for address in addresses} == {identity}
+
+
+@pytest.mark.parametrize(("first", "second"), [
+    ("https://github.com/team/worklog", "https://github.com/team/worklog-api"),
+    ("https://github.com/team/repo", "https://gitlab.com/team/repo"),
+    ("https://github.com/team/repo", "https://github.com/other/repo"),
+    ("https://dev.azure.com/org/one/_git/repo", "https://dev.azure.com/org/two/_git/repo"),
+    ("https://dev.azure.com/one/project/_git/repo", "https://two.visualstudio.com/project/_git/repo"),
+])
+def test_different_remotes_keep_different_identities(first, second):
+    assert repository_identity(_repository_url(first)) != repository_identity(_repository_url(second))
+
+
+def test_an_address_never_keeps_an_https_user_name(client):
+    # Azure DevOps clone URLs carry the organization as a user name; others carry tokens.
+    created = repo(client, url="https://org@dev.azure.com/org/project/_git/repo")
+    assert created["url"] == "https://dev.azure.com/org/project/_git/repo"
+    assert "org@" not in str(ok(request(client, "GET", f"/repositories/{created['id']}")))
+
+
+def test_an_archived_remote_is_recovered_rather_than_registered_again(client):
+    first = repo(client, url="https://github.com/team/old")
+    post(client, f"/repositories/{first['id']}/archive", {"revision": first["revision"]})
+    response = request(client, "POST", "/repositories", {"name": "Old again", "url": "git@github.com:team/old.git"})
+    assert response.status_code == 409
+    assert response.json()["error"] == {"code": "repository_archived", "fields": {"repositoryId": first["id"]},
+                                         "message": "Worklog is registered at that address but archived; recover it instead"}
+    assert ok(request(client, "GET", "/repositories?archived=true"))["total"] == 1
+
+
+def test_an_address_edit_cannot_take_another_records_remote(client):
+    first, second = repo(client, url="https://github.com/team/one"), repo(client, "Two", url="https://github.com/team/two")
+    response = request(client, "PATCH", f"/repositories/{second['id']}", {"revision": second["revision"], "url": "git@github.com:team/one.git"})
+    assert response.status_code == 409
+    assert response.json()["error"]["message"] == "That repository is already registered as Worklog"
+    # Another address of its own remote is an ordinary edit.
+    changed = ok(request(client, "PATCH", f"/repositories/{first['id']}", {"revision": first["revision"], "url": "git@github.com:team/one.git"}))
+    assert (changed["url"], changed["remoteIdentity"]) == ("git@github.com:team/one.git", first["remoteIdentity"])
+
+
+def test_concurrent_registrations_of_one_remote_produce_one_record(tmp_path):
+    app = create_app(tmp_path, testing=True)
+    barrier, results = threading.Barrier(2), []
+
+    def register(address):
+        barrier.wait()
+        with app.state.db.transaction() as c:
+            results.append(app.state.work.apply(c, HUMAN, "repository.create", {"name": "Shared", "url": address}))
+
+    threads = [threading.Thread(target=register, args=(address,)) for address in ("https://github.com/team/shared", "git@github.com:team/shared.git")]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert sorted(result["created"] for result in results) == [False, True]
+    assert len({result["id"] for result in results}) == 1
+    with app.state.db.read() as c:
+        assert c.execute("SELECT count(*) FROM repositories").fetchone()[0] == 1
+
+
+def test_a_proposal_mixing_registered_and_new_repositories_applies(client):
+    existing, credential = repo(client, "Registered", url="https://github.com/team/registered"), agent(client)
+    operations = [{"action": "repository.create", "payload": {"name": name, "url": url}} for name, url in (
+        ("Registered over SSH", "git@github.com:team/registered.git"), ("New", "https://github.com/team/new"),
+        ("New again", "https://github.com/Team/New.git"))]
+
+    def approve(ops):
+        draft = post(client, "/proposals", {"title": "Register repositories", "rationale": "", "operations": ops}, credential)
+        submitted = post(client, f"/proposals/{draft['id']}/submit", {"revision": draft["revision"]}, credential)
+        return request(client, "POST", f"/proposals/{draft['id']}/approve", {"revision": submitted["revision"]})
+
+    # A stale revision still rolls back every operation, the registrations included.
+    stale = {"action": "repository.update", "payload": {"id": existing["id"], "revision": existing["revision"] + 1, "name": "Stale"}}
+    assert approve([*operations, stale]).status_code == 409
+    assert ok(request(client, "GET", "/repositories"))["total"] == 1
+    assert ok(approve(operations))["status"] == "approved"
+    listed = ok(request(client, "GET", "/repositories"))["items"]
+    assert sorted((r["name"], r["url"]) for r in listed) == [("New", "https://github.com/team/new"), ("Registered", existing["url"])]
+
+
+def test_flagged_duplicates_answer_for_their_remote_and_take_over_when_it_moves(client):
+    first = repo(client, "First", url="https://github.com/team/shared")
+    # Only an upgrade leaves two records on one remote; a duplicate stays flagged until merged.
+    with client.app.state.db.transaction() as c:
+        c.execute("INSERT INTO repositories(id,name,url,remote_identity,duplicate_of,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+                  ("duplicate", "Second", "git@github.com:team/shared.git", first["remoteIdentity"], first["id"], STAMP, STAMP))
+    assert ok(request(client, "GET", "/repositories/duplicate"))["duplicateOf"] == first["id"]
+    assert repo(client, url="https://github.com/team/shared.git")["id"] == first["id"]
+    archived = post(client, f"/repositories/{first['id']}/archive", {"revision": first["revision"]})
+    # An active record answers before an archived one.
+    assert repo(client, url="https://github.com/team/shared.git")["id"] == "duplicate"
+    recovered = post(client, f"/repositories/{first['id']}/recover", {"revision": archived["revision"]})
+    moved = ok(request(client, "PATCH", f"/repositories/{first['id']}", {"revision": recovered["revision"], "url": "https://github.com/team/moved"}))
+    assert moved["duplicateOf"] is None
+    heir = ok(request(client, "GET", "/repositories/duplicate"))
+    assert (heir["duplicateOf"], heir["revision"]) == (None, 2)
+    assert repo(client, url="https://github.com/team/shared")["id"] == "duplicate"
+    with client.app.state.db.read() as c:
+        assert c.execute("SELECT actor_id FROM events WHERE entity_id='duplicate' AND kind='repository.update'").fetchone()[0] == HUMAN["id"]
 
 
 @pytest.mark.parametrize("remote", [

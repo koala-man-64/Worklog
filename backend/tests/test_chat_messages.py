@@ -254,7 +254,7 @@ def test_v3_upgrade_adds_messages_after_a_snapshot_and_restores(tmp_path):
     assert len(snapshots) == 1
     with closing(sqlite3.connect(snapshots[0])) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
-        assert recovery._schema_signature(conn) == recovery._expected_schema(chat_messages=False, tickets=False)
+        assert recovery._schema_signature(conn) == recovery._expected_schema(chat_messages=False, tickets=False, remote_identity=False)
     restored = tmp_path / "restored" / "worklog.sqlite3"
     recovery.restore_database(restored, snapshots[0], tmp_path / "restore-backups")
     with Database(restored).read() as conn:
@@ -282,7 +282,7 @@ def test_failed_message_schema_rolls_back_the_v3_upgrade(tmp_path, monkeypatch):
         Database(path).initialize()
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
-        assert recovery._schema_signature(conn) == recovery._expected_schema(chat_messages=False, tickets=False)
+        assert recovery._schema_signature(conn) == recovery._expected_schema(chat_messages=False, tickets=False, remote_identity=False)
     recovery.validate_database(path)
 
 

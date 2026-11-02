@@ -3,8 +3,14 @@ import type { RecordBase } from "./types";
 export type Repository = RecordBase & {
   name: string;
   url: string;
+  /** Host and path of the remote, shared by all of its addresses. */
+  remoteIdentity: string;
+  /** Set when another record already holds this remote. */
+  duplicateOf: string | null;
   description: string;
 };
+/** Registering a remote that is already registered returns its record. */
+export type RepositoryRegistration = Repository & { created: boolean };
 type CoordinationRecord = Pick<
   RecordBase,
   "id" | "revision" | "createdAt" | "updatedAt"
