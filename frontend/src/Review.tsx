@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { request, getDataContext } from "./api";
+import { ApiError, request, getDataContext } from "./api";
 import { useAction, useData } from "./hooks";
 import { Empty, ErrorMessage, Files, Markdown } from "./components";
-import type { Day, List, Proposal } from "./types";
+import type { Day, List, Operation, Proposal } from "./types";
 import { Icon } from "./icons";
 export function Review({ selectedId }: { selectedId?: string }) {
   const [status, setStatus] = useState("submitted");
@@ -86,6 +86,7 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
         <p>Loading proposal…</p>
       </>
     );
+  const declared = proposedSteps(p.operations);
   return (
     <section>
       <button className="quiet" onClick={onBack}>
@@ -99,7 +100,12 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
       <Markdown text={p.rationale} />
       <h3>Proposed changes</h3>
       {p.operations.map((op, index) => (
-        <OperationDiff key={index} action={op.action} payload={op.payload} />
+        <OperationDiff
+          key={index}
+          action={op.action}
+          payload={op.payload}
+          proposedEarlier={(target) => (declared.get(target) ?? index) < index}
+        />
       ))}
       <Files
         ownerType="proposal"
@@ -160,6 +166,21 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
     </section>
   );
 }
+// Agents choose step IDs in roadmap.create and roadmap.revise, so a later
+// operation may target a step that exists only once the proposal is approved.
+// Maps each listed step ID to the first operation that lists it.
+function proposedSteps(operations: Operation[]) {
+  const first = new Map<string, number>();
+  operations.forEach(({ action, payload }, index) => {
+    if (action !== "roadmap.create" && action !== "roadmap.revise") return;
+    if (!Array.isArray(payload.steps)) return;
+    for (const step of payload.steps as unknown[]) {
+      const id = (step as { id?: unknown } | null)?.id;
+      if (typeof id === "string" && !first.has(id)) first.set(id, index);
+    }
+  });
+  return first;
+}
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 // Proposal payloads are agent-controlled, so only well-formed IDs and dates may
@@ -201,9 +222,12 @@ function currentPath(
 export function OperationDiff({
   action,
   payload,
+  proposedEarlier,
 }: {
   action: string;
   payload: Record<string, unknown>;
+  // True when an earlier operation in the same proposal creates the target.
+  proposedEarlier?: (target: string) => boolean;
 }) {
   const target = String(
     payload.id ?? payload.itemId ?? payload.roadmapId ?? payload.stepId ?? "",
@@ -234,10 +258,23 @@ export function OperationDiff({
     },
   });
   const before = current.data;
+  // Not found is expected only for a target that this proposal creates first;
+  // any other missing target stays an error, since approval would fail on it.
+  const created =
+    current.error instanceof ApiError &&
+    current.error.status === 404 &&
+    !!proposedEarlier?.(target);
   return (
     <article className="operation">
       <h4>{action}</h4>
-      <ErrorMessage error={current.error} />
+      {created ? (
+        <p className="muted">
+          An earlier change in this proposal creates this target, so it has no
+          current value until approval.
+        </p>
+      ) : (
+        <ErrorMessage error={current.error} />
+      )}
       {lookup && path === null && (
         <p className="warning">
           Malformed target: this operation’s ID or date is not valid, so its
@@ -263,7 +300,7 @@ export function OperationDiff({
                 ? display(before[key])
                 : current.isFetching
                   ? "Loading…"
-                  : action.endsWith(".create")
+                  : action.endsWith(".create") || created
                     ? "New record"
                     : "No current value"}
             </pre>
