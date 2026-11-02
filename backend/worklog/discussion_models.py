@@ -56,6 +56,10 @@ class Empty(Command):
     pass
 
 
+class AvatarChoice(Command):
+    avatar: str = Field(min_length=1, max_length=100)
+
+
 class ReleaseRequest(Command):
     reason: str = Field(min_length=1, max_length=2000)
 

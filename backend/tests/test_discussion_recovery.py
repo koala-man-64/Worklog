@@ -9,7 +9,7 @@ from contextlib import closing
 
 import pytest
 from fastapi.testclient import TestClient
-from worklog import discussions, recovery
+from worklog import avatars, discussions, recovery
 from worklog.app import create_app
 from worklog.db import Database
 
@@ -51,7 +51,8 @@ def test_every_supported_legacy_schema_upgrades_and_restores(tmp_path, schema):
         credential = conn.execute("SELECT token_hash,revoked FROM credentials WHERE id='old-agent'").fetchone()
         assert tuple(credential) == ("unchanged-token-hash", 0)
         agent_id = conn.execute("SELECT agent_id FROM communication_credentials WHERE credential_id='old-agent'").fetchone()[0]
-        assert conn.execute("SELECT label FROM communication_agents WHERE id=?", (agent_id,)).fetchone()[0] == "Existing agent"
+        label, avatar = conn.execute("SELECT label,avatar FROM communication_agents WHERE id=?", (agent_id,)).fetchone()
+        assert label == "Existing agent" and avatars.is_avatar(avatar)
     snapshots = list((path.parent / "backups").glob("worklog-pre-migration-*.sqlite3"))
     assert len(snapshots) == 1
     with closing(sqlite3.connect(snapshots[0])) as conn:

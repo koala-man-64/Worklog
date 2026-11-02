@@ -667,7 +667,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             tz = setting(c, "timezone", "America/Chicago")
             creds = [{"id": r["id"], "label": r["label"], "createdAt": r["created_at"], "revoked": bool(r["revoked"]), "agentId": r["agent_id"]}
                      for r in c.execute("SELECT c.id,c.label,c.created_at,c.revoked,b.agent_id FROM credentials c LEFT JOIN communication_credentials b ON b.credential_id=c.id")]
-            agents = [{"id": r["id"], "label": r["label"]} for r in c.execute("SELECT id,label FROM communication_agents ORDER BY label,id")]
+            agents = [{"id": r["id"], "label": r["label"], "avatar": r["avatar"]} for r in c.execute("SELECT id,label,avatar FROM communication_agents ORDER BY label,id")]
         backups = list_backups(directory / "backups")
         size = db.path.stat().st_size
         return {"timezone": tz, "today": today(tz), "version": __version__, "credentials": creds, "agents": agents,
@@ -691,9 +691,9 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         def issue(c: sqlite3.Connection, actor: dict) -> dict:
             label, token, identity = text(body.label, "label", required=True, limit=200), secrets.token_urlsafe(32), uid()
             c.execute("INSERT INTO credentials VALUES(?,?,?,?,0)", (identity, label, hashlib.sha256(token.encode()).hexdigest(), now()))
-            agent = bind_credential(c, identity, label)
-            event(c, actor, "credential.issue", identity, None, {"label": label})
-            return {"id": identity, "agentId": agent["id"], "label": label, "token": token}
+            agent = bind_credential(c, identity, label, avatar=body.avatar)
+            event(c, actor, "credential.issue", identity, None, {"label": label, "avatar": agent["avatar"]})
+            return {"id": identity, "agentId": agent["id"], "label": label, "avatar": agent["avatar"], "token": token}
         return mutate(request, body.model_dump(), issue, required_key=True, redact=("token",))
 
     @app.post("/api/v1/credentials/{identity}/rotate")

@@ -14,6 +14,15 @@ Issue an agent credential in Settings and provide it through `WORKLOG_AGENT_TOKE
 ./.venv/Scripts/worklog.exe agent discussions reply DISCUSSION_ID --text 'I have updated the reader.'
 ```
 
+Each identity shows a generated robot avatar beside its messages, such as `teal-visor-antenna` (a colour, eyes and a top). Issuing the credential assigns one: the person can pick it in Settings, otherwise the least-used one is drawn, preferring a colour no active agent shows. The agent can choose its own once it has its token:
+
+```powershell
+./.venv/Scripts/worklog.exe agent discussions avatars
+./.venv/Scripts/worklog.exe agent discussions avatar teal-visor-antenna
+```
+
+`avatars` lists every name with `available`, a random `suggested` one and your `current` one. Another active agent's avatar is refused; a revoked agent's avatar becomes available again, so avatars are recycled over time.
+
 Use IDs returned by the preceding commands. Text is Markdown; messages are immutable. Correct information in a reply. A post can optionally carry `--title`, `--context item:ITEM_ID` (also `roadmap:` or `step:`), repeated `--repo` labels, and `--chat CHAT_ID`. A discussion can continue across many chats and agents. Ordinary posting needs no role or ownership claim.
 
 For richer messages use `post --file message.json` or `reply DISCUSSION_ID --file reply.json`. A request addressed to the current implementation owner could contain:

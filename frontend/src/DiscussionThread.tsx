@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getDataContext } from "./api";
+import { Avatar } from "./Avatar";
 import { Empty, ErrorMessage, Markdown } from "./components";
 import { ContextReference } from "./discussionContexts";
 import { Composer } from "./DiscussionComposer";
@@ -252,6 +253,9 @@ function DiscussionMessageView({
   const messageRole = roles.find(
     (role) => role.id === message.onBehalfOfRoleId,
   );
+  const author = participants?.items.find(
+    (participant) => participant.id === message.authorId,
+  );
   const audience = requestState ? audienceLabel(requestState.mode) : "";
 
   async function run(action: () => Promise<void>) {
@@ -266,6 +270,7 @@ function DiscussionMessageView({
   return (
     <li className="discussion-message">
       <div className="discussion-message-head">
+        <Avatar name={author?.avatar} kind={message.authorKind} />
         <strong>{message.authorLabel}</strong>
         <span className="person-badge">{message.authorKind}</span>
         {messageRole && (

@@ -8,10 +8,10 @@ import zipfile
 from contextlib import closing
 
 import pytest
-from worklog import migrations, recovery
+from worklog import avatars, migrations, recovery
 from worklog.db import SCHEMA, Database
+from worklog.discussions import AGENT_AVATAR_COLUMN, bind_credential
 from worklog.discussions import SCHEMA as DISCUSSION_SCHEMA
-from worklog.discussions import bind_credential
 from worklog.plans import SCHEMA as PLAN_SCHEMA
 from worklog.proposals import SCHEMA as PROPOSAL_SCHEMA
 
@@ -20,7 +20,8 @@ STAMP = "2026-01-01T00:00:00+00:00"
 
 def legacy_database(path):
     with closing(sqlite3.connect(path)) as conn:
-        conn.executescript(PLAN_SCHEMA + PROPOSAL_SCHEMA + SCHEMA + DISCUSSION_SCHEMA)
+        # v1 discussions predate agent avatars.
+        conn.executescript(PLAN_SCHEMA + PROPOSAL_SCHEMA + SCHEMA + DISCUSSION_SCHEMA.replace(AGENT_AVATAR_COLUMN, ""))
         for key, value in {"dataId": "11111111-1111-4111-8111-111111111111", "timezone": "America/Chicago", "backlogRevision": 1}.items():
             conn.execute("INSERT INTO settings VALUES(?,?)", (key, json.dumps(value)))
         conn.execute("INSERT INTO credentials VALUES('credential','Existing','unchanged-hash',?,0)", (STAMP,))
@@ -39,7 +40,7 @@ def test_v1_upgrade_preserves_actor_receipts_legacy_names_and_pre_upgrade_snapsh
     legacy_database(path)
     Database(path).initialize()
     with Database(path).read() as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
         assert recovery._schema_signature(conn) == recovery._expected_schema()
         assert tuple(conn.execute("SELECT id,token_hash,revoked FROM credentials").fetchone()) == ("credential", "unchanged-hash", 0)
         assert tuple(conn.execute("SELECT actor_id,status FROM proposals").fetchone()) == ("credential", "draft")
@@ -54,7 +55,7 @@ def test_v1_upgrade_preserves_actor_receipts_legacy_names_and_pre_upgrade_snapsh
         assert json.loads(archive.read("manifest.json"))["schemaVersion"] == 1
     with closing(sqlite3.connect(snapshots[0])) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 1
-        assert recovery._schema_signature(conn) == recovery._expected_schema(coordination=False)
+        assert recovery._schema_signature(conn) == recovery._expected_schema(coordination=False, avatars=False)
     Database(path).initialize()
     assert len(list((tmp_path / "backups").glob("worklog-pre-migration-*.sqlite3"))) == 1
 
@@ -74,7 +75,7 @@ def test_coordination_migration_failure_rolls_back_all_tables_and_version(tmp_pa
         Database(path).initialize()
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 1
-        assert recovery._schema_signature(conn) == recovery._expected_schema(coordination=False)
+        assert recovery._schema_signature(conn) == recovery._expected_schema(coordination=False, avatars=False)
         assert conn.execute("SELECT count(*) FROM communication_credentials").fetchone()[0] == 0
     assert len(list((tmp_path / "backups").glob("worklog-pre-migration-*.sqlite3"))) == 1
 
@@ -91,10 +92,10 @@ def test_pre_migration_backup_failure_prevents_upgrade(tmp_path, monkeypatch):
         Database(path).initialize()
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 1
-        assert recovery._schema_signature(conn) == recovery._expected_schema(coordination=False)
+        assert recovery._schema_signature(conn) == recovery._expected_schema(coordination=False, avatars=False)
 
 
-@pytest.mark.parametrize("current_shape,version", [(True, 1), (False, 2)])
+@pytest.mark.parametrize("current_shape,version", [(True, 1), (True, 2), (False, 2), (False, 3)])
 def test_schema_version_cannot_disguise_another_shape(tmp_path, current_shape, version):
     path = tmp_path / "worklog.sqlite3"
     if current_shape:
@@ -130,7 +131,7 @@ def test_restore_and_export_preserve_coordination_snapshots_but_end_live_presenc
     archive_data = recovery.export_database(path)
     with zipfile.ZipFile(io.BytesIO(archive_data)) as archive:
         manifest = json.loads(archive.read("manifest.json"))
-        assert manifest["schemaVersion"] == 2
+        assert manifest["schemaVersion"] == 3
         updates = json.loads(archive.read("records/coordination_updates.json"))
         assert updates[0]["item_id"] is None
         assert json.loads(updates[0]["contexts_json"]) == snapshot_contexts
@@ -167,7 +168,9 @@ def populated_main_database(path):
     with Database(path).transaction() as conn:
         # This literal was computed from main's definitions, independently of v2.
         assert recovery._schema_digest(recovery._schema_signature(conn)) == "c5ae7406cdd63ddfa0cd7f3a18f2cc74f898936ef42c3b72909424c2d2e5a272"
-        bind_credential(conn, "credential", "Renamed agent profile")
+        # Main's own binding, which had no avatar column to fill.
+        conn.execute("INSERT INTO communication_agents(id,label,created_at) VALUES('credential','Renamed agent profile',?)", (STAMP,))
+        conn.execute("INSERT INTO communication_credentials VALUES('credential','credential')")
         conn.execute("INSERT INTO roadmaps(id,title,overview,revision,created_at,updated_at) VALUES('roadmap','Plan','Overview',4,?,?)", (STAMP, STAMP))
         conn.execute("INSERT INTO steps(id,roadmap_id,title,description,position,revision) VALUES('step','roadmap','Step','Details',0,2)")
         conn.execute("UPDATE work_items SET roadmap_id='roadmap',step_id='step',revision=3 WHERE id='item'")
@@ -215,10 +218,14 @@ def test_populated_current_main_upgrades_without_losing_records(tmp_path, operat
         assert after["credentials"] == [(*before["credentials"][0][:-1], 1)]
         after["settings"] = before["settings"]
         after["credentials"] = before["credentials"]
+    # The upgrade adds only an avatar, appended to each agent identity.
+    assert [row[:-1] for row in after["communication_agents"]] == before["communication_agents"]
+    assert all(avatars.is_avatar(row[-1]) for row in after["communication_agents"])
+    after["communication_agents"] = before["communication_agents"]
     assert after == before
     recovery.validate_database(target)
     with Database(target).read() as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
         for table in ("repositories", "item_repositories", "chat_repositories", "agent_runs", "participations", "coordination_updates"):
             assert conn.execute(f"SELECT count(*) FROM {table}").fetchone()[0] == 0
 

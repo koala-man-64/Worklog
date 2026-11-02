@@ -3,13 +3,34 @@ import { localStore } from "./storage";
 import { useQueryClient } from "@tanstack/react-query";
 import { download, getDataContext } from "./api";
 import { useAction, useData } from "./hooks";
+import {
+  AVATAR_COLORS,
+  AVATAR_EYES,
+  AVATAR_TOPS,
+  Avatar,
+  avatarName,
+  avatarParts,
+  type AvatarParts,
+} from "./Avatar";
 import { ErrorMessage, formatBytes } from "./components";
+import type { AvatarCatalog } from "./discussionTypes";
 import type { Settings as SettingsData } from "./types";
 export function Settings() {
   const client = useQueryClient();
   const query = useData<SettingsData>("/settings");
+  const catalog = useData<AvatarCatalog>("/discussions/avatars");
   const action = useAction();
   const [label, setLabel] = useState("");
+  // Null keeps the server's latest draw until the person picks one.
+  const [avatar, setAvatar] = useState<string | null>(null);
+  const chosenAvatar = avatar ?? catalog.data?.suggested;
+  const avatarTaken = !!(
+    catalog.data &&
+    chosenAvatar &&
+    !catalog.data.items.some(
+      (entry) => entry.available && entry.name === chosenAvatar,
+    )
+  );
   const [token, setToken] = useState("");
   const [credentialMessage, setCredentialMessage] = useState("");
   const [message, setMessage] = useState("");
@@ -157,7 +178,12 @@ export function Settings() {
           onSubmit={async (e) => {
             e.preventDefault();
             await action
-              .mutateAsync({ path: "/credentials", body: { label } })
+              .mutateAsync({
+                path: "/credentials",
+                body: chosenAvatar
+                  ? { label, avatar: chosenAvatar }
+                  : { label },
+              })
               .then((result) => {
                 const issued = (result as { token: string | null }).token;
                 if (typeof issued === "string") {
@@ -176,10 +202,19 @@ export function Settings() {
                     "This credential was already issued and its token cannot be shown again. Revoke it and create a new credential if you did not save the token.",
                   );
                 setLabel("");
+                setAvatar(null);
               })
               .catch(() => undefined);
           }}
         >
+          {catalog.data && chosenAvatar && (
+            <AvatarPicker
+              value={chosenAvatar}
+              catalog={catalog.data}
+              taken={avatarTaken}
+              onChange={setAvatar}
+            />
+          )}
           <input
             aria-label="Credential label"
             value={label}
@@ -187,10 +222,11 @@ export function Settings() {
             placeholder="Agent name / purpose"
             required
           />
-          <button disabled={action.isPending || !!token}>
+          <button disabled={action.isPending || !!token || avatarTaken}>
             Create credential
           </button>
         </form>
+        <ErrorMessage error={catalog.error} />
         {credentialMessage && (
           <p className="warning" role="status">
             {credentialMessage}
@@ -213,6 +249,7 @@ export function Settings() {
             <h3>Stable discussion profiles</h3>
             {data.agents.map((agent) => (
               <div className="line" key={agent.id}>
+                <Avatar name={agent.avatar} />
                 <strong>{agent.label}</strong>
                 <small>Profile {agent.id}</small>
               </div>
@@ -292,5 +329,68 @@ export function Settings() {
         </div>
       </section>
     </>
+  );
+}
+
+const COLOR_NAMES = Object.keys(AVATAR_COLORS) as AvatarParts["color"][];
+
+/** Shows the avatar a new agent will get; the parts change it, Shuffle draws a free one. */
+function AvatarPicker({
+  value,
+  catalog,
+  taken,
+  onChange,
+}: {
+  value: string;
+  catalog: AvatarCatalog;
+  taken: boolean;
+  onChange: (name: string) => void;
+}) {
+  const parts = avatarParts(value) ?? avatarParts(catalog.suggested);
+  if (!parts) return null;
+  const free = catalog.items.filter((entry) => entry.available);
+  const part = <K extends keyof AvatarParts>(
+    key: K,
+    label: string,
+    options: readonly AvatarParts[K][],
+  ) => (
+    <label>
+      {label}
+      <select
+        value={parts[key]}
+        onChange={(e) =>
+          onChange(
+            avatarName({ ...parts, [key]: e.target.value as AvatarParts[K] }),
+          )
+        }
+      >
+        {options.map((option) => (
+          <option key={option}>{option}</option>
+        ))}
+      </select>
+    </label>
+  );
+  return (
+    <fieldset className="avatar-picker">
+      <legend>Avatar</legend>
+      <Avatar name={value} size={36} />
+      {part("color", "Colour", COLOR_NAMES)}
+      {part("eyes", "Eyes", AVATAR_EYES)}
+      {part("top", "Top", AVATAR_TOPS)}
+      <button
+        type="button"
+        disabled={!free.length}
+        onClick={() =>
+          onChange(free[Math.floor(Math.random() * free.length)].name)
+        }
+      >
+        Shuffle
+      </button>
+      {taken && (
+        <small className="warning" role="status">
+          An active agent already shows this avatar. Choose another.
+        </small>
+      )}
+    </fieldset>
   );
 }

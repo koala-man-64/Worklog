@@ -1301,6 +1301,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/discussions/avatars": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Avatars */
+        get: operations["avatars_api_v1_discussions_avatars_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/discussions/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Choose Avatar */
+        post: operations["choose_avatar_api_v1_discussions_avatar_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/discussions/roles": {
         parameters: {
             query?: never;
@@ -1721,6 +1755,11 @@ export interface components {
             /** Archived */
             archived: boolean;
         };
+        /** AvatarChoice */
+        AvatarChoice: {
+            /** Avatar */
+            avatar: string;
+        };
         /** ChatCreate */
         ChatCreate: {
             /** Repositoryids */
@@ -1799,6 +1838,8 @@ export interface components {
         CredentialCreate: {
             /** Label */
             label: string;
+            /** Avatar */
+            avatar?: string | null;
         };
         /** CredentialRotate */
         CredentialRotate: {
@@ -5804,6 +5845,63 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+        };
+    };
+    avatars_api_v1_discussions_avatars_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    choose_avatar_api_v1_discussions_avatar_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AvatarChoice"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import sqlite3
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
+# Older versions that startup and offline restore upgrade in one transaction.
+UPGRADABLE_VERSIONS = frozenset({1, 2})
 
 COORDINATION_SCHEMA = """
 CREATE TABLE repositories(id TEXT PRIMARY KEY,name TEXT NOT NULL,url TEXT NOT NULL DEFAULT '',description TEXT NOT NULL DEFAULT '',archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
@@ -36,7 +38,7 @@ def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
 
 
 def upgrade(conn: sqlite3.Connection) -> None:
-    """Upgrade an accepted v1 shape atomically inside the caller's transaction.
+    """Upgrade an accepted v1 or v2 shape atomically inside the caller's transaction.
 
     Credential IDs, proposal authors, receipts, and legacy chat repository labels
     are deliberately unchanged. No repository names are guessed or imported.
@@ -44,8 +46,21 @@ def upgrade(conn: sqlite3.Connection) -> None:
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version == SCHEMA_VERSION:
         return
-    if version != 1:
+    if version not in UPGRADABLE_VERSIONS:
         raise ValueError(f"Unsupported database schema version {version}")
+    from .discussions import AGENT_AVATAR_COLUMN, assign_missing_avatars
+
+    tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    # v2, and v1 databases that already hold discussions, predate avatars.
+    if "communication_agents" in tables and "avatar" not in {row[1] for row in conn.execute("PRAGMA table_info(communication_agents)")}:
+        conn.execute("ALTER TABLE communication_agents ADD COLUMN " + AGENT_AVATAR_COLUMN.removeprefix(", "))
+    if version == 1:
+        _upgrade_v1(conn, tables)
+    assign_missing_avatars(conn)
+    conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
+
+
+def _upgrade_v1(conn: sqlite3.Connection, tables: set[str]) -> None:
     from .db import (
         AGENT_CHAT_COLUMNS,
         CHAT_STEPS_SCHEMA,
@@ -55,7 +70,6 @@ def upgrade(conn: sqlite3.Connection) -> None:
     )
     from .discussions import migrate as migrate_discussions
 
-    tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     columns = {row[1] for row in conn.execute("PRAGMA table_info(work_items)")}
     if "roadmap_id" not in columns:
         conn.execute("ALTER TABLE work_items ADD COLUMN roadmap_id TEXT REFERENCES roadmaps(id)")
@@ -76,7 +90,6 @@ def upgrade(conn: sqlite3.Connection) -> None:
         execute_schema(conn, QUESTIONS_DECISIONS_SCHEMA)
     migrate_discussions(conn)
     execute_schema(conn, COORDINATION_SCHEMA)
-    conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 
 def invalidate_restored_presence(conn: sqlite3.Connection, stamp: str) -> None:

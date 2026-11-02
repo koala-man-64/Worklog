@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setDataContext } from "./api";
+import { AVATAR_COLORS } from "./Avatar";
 import { Discussions } from "./Discussions";
 import type {
   AcknowledgementRequest,
@@ -20,18 +21,21 @@ const human = {
   label: "You",
   kind: "human" as const,
   active: true,
+  avatar: null,
 };
 const agentA = {
   id: "agent-a",
   label: "Agent Alpha",
   kind: "agent" as const,
   active: true,
+  avatar: "teal-visor-antenna",
 };
 const agentB = {
   id: "agent-b",
   label: "Agent Beta",
   kind: "agent" as const,
   active: true,
+  avatar: "amber-dots-ears",
 };
 const participants: DiscussionParticipants = {
   items: [human, agentA, agentB],
@@ -422,6 +426,46 @@ it("keeps human replies separate from acknowledgement and records a human releas
       (call) => call.path === "/discussions/messages/message-1/release",
     )?.body,
   ).toEqual({ reason: "The information is no longer needed." });
+});
+
+it("shows each author's avatar beside their messages", async () => {
+  const user = userEvent.setup();
+  serve({
+    initialMessages: [
+      message(),
+      message({
+        id: "message-2",
+        text: "Alpha here.",
+        authorId: agentA.id,
+        authorLabel: agentA.label,
+        authorKind: "agent",
+        request: null,
+      }),
+      message({
+        id: "message-3",
+        text: "Beta here.",
+        authorId: agentB.id,
+        authorLabel: agentB.label,
+        authorKind: "agent",
+        request: null,
+      }),
+    ],
+  });
+  renderPage();
+  await user.click(await screen.findByRole("link", { name: /Project notes/ }));
+  const avatarOf = async (text: string) =>
+    (await screen.findByText(text))
+      .closest(".discussion-message")
+      ?.querySelector(".discussion-message-head svg.avatar");
+  expect(await avatarOf("Please confirm the new convention.")).toHaveClass(
+    "human",
+  );
+  expect(
+    (await avatarOf("Alpha here."))?.querySelector("circle"),
+  ).toHaveAttribute("fill", AVATAR_COLORS.teal);
+  expect(
+    (await avatarOf("Beta here."))?.querySelector("circle"),
+  ).toHaveAttribute("fill", AVATAR_COLORS.amber);
 });
 
 it("keeps archived pending threads visible in Awaiting and replyable", async () => {

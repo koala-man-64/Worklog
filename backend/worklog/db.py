@@ -80,7 +80,7 @@ class Database:
         return conn
 
     def initialize(self) -> None:
-        from .migrations import SCHEMA_VERSION, upgrade
+        from .migrations import SCHEMA_VERSION, UPGRADABLE_VERSIONS, upgrade
         from .plans import SCHEMA as PLAN_SCHEMA
         from .proposals import SCHEMA as PROPOSAL_SCHEMA
 
@@ -93,7 +93,7 @@ class Database:
         with self.read() as conn:
             version = conn.execute("PRAGMA user_version").fetchone()[0]
             if existing:
-                if version not in {1, SCHEMA_VERSION}:
+                if version not in UPGRADABLE_VERSIONS | {SCHEMA_VERSION}:
                     raise AppError(503, "schema_version", "Unsupported database schema; no data was changed")
                 if conn.execute("PRAGMA quick_check").fetchone()[0] != "ok":
                     raise AppError(503, "database_invalid", "Database integrity check failed")

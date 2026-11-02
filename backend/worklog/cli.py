@@ -370,8 +370,10 @@ def _discussion_route_allowed(method: str, route: str) -> bool:
     """Keep the client independently unable to invoke human-only commands."""
     if route in {"/discussions", "/discussions/roles"}:
         return method in {"GET", "POST"}
-    if route in {"/discussions/participants", "/discussions/changes", "/discussions/resume"}:
+    if route in {"/discussions/participants", "/discussions/avatars", "/discussions/changes", "/discussions/resume"}:
         return method == "GET"
+    if route == "/discussions/avatar":
+        return method == "POST"
     parts = route.split("/")
     def valid_id(value: str) -> bool:
         try:
@@ -717,6 +719,10 @@ def discussion_command(client: AgentClient, args: argparse.Namespace) -> Any:
     base = "/discussions"
     if action == "participants":
         return client.request("GET", base + "/participants")
+    if action == "avatars":
+        return client.request("GET", base + "/avatars")
+    if action == "avatar":
+        return client.request("POST", base + "/avatar", {"avatar": args.name}, request_id=args.request_id)
     if action == "list":
         return client.request("GET", base + _discussion_query(args, "view", "q", "repo", "limit", "offset"))
     if action in {"changes", "resume"}:
@@ -780,6 +786,10 @@ def _discussion_parser(actions: Any) -> None:
     def write(command: Any) -> None:
         command.add_argument("--request-id", help="Reuse this key and the same payload when retrying a write")
     commands.add_parser("participants")
+    commands.add_parser("avatars", help="List avatar names, which are free, and your current one")
+    avatar = commands.add_parser("avatar", help="Show this avatar beside your name in discussions")
+    avatar.add_argument("name", help="An available name from `avatars`, such as teal-visor-antenna")
+    write(avatar)
     listing = commands.add_parser("list")
     listing.add_argument("--view", choices=("all", "awaiting", "archived"), default="all")
     listing.add_argument("--q")
