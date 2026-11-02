@@ -47,10 +47,10 @@ test("repositories connect work, named agent reports, chat badges and human run 
   await page
     .getByRole("textbox", { name: "Find repositories", exact: true })
     .fill(repoName);
-  const repositoryLink = page.getByRole("link", {
-    name: repoName,
-    exact: true,
-  });
+  // The list row's link: the notice above links to the same record by the same name.
+  const repositoryLink = page
+    .getByRole("article")
+    .getByRole("link", { name: repoName, exact: true });
   const repoHref = await repositoryLink.getAttribute("href");
   expect(repoHref).toBeTruthy();
   const repositoryId = repoHref!.split("/")[1];
@@ -231,7 +231,10 @@ test("repositories connect work, named agent reports, chat badges and human run 
     .getByRole("group", { name: "Show activity by" })
     .getByRole("button", { name: "Work item", exact: true })
     .click();
-  const group = page.getByRole("list", { name: "Chats in " + workName, exact: true });
+  const group = page.getByRole("list", {
+    name: "Chats in " + workName,
+    exact: true,
+  });
   await expect(
     group.getByRole("link", { name: repoName, exact: true }),
   ).toBeVisible();
