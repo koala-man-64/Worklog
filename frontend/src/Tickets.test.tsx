@@ -324,3 +324,27 @@ it("links and unlinks work, and edits labels as a whole set", async () => {
     { revision: 2, itemId: "item-1" },
   ]);
 });
+
+it("loads a ticket's full change records only when its history is opened", async () => {
+  const change = {
+    id: "event-1",
+    kind: "ticket.create",
+    actorId: agent.id,
+    actorLabel: agent.label,
+    actorKind: "agent" as const,
+    createdAt: "2026-11-02T08:00:00Z",
+  };
+  const { paths } = serve({
+    "/tickets/": () => detail({ history: [change] }),
+    "/discussions/participants": () => participants,
+    "/history": () => ({
+      items: [{ ...change, after: { title: "Recorded in full" } }],
+    }),
+  });
+  show(<Tickets selected={ID} />);
+  await screen.findByRole("heading", { name: "T-1 Backup holds a lock" });
+  expect(paths.some((p) => p.startsWith("/history"))).toBe(false);
+  await userEvent.click(screen.getByText("Activity history (1)"));
+  expect(await screen.findByText(/Recorded in full/)).toBeInTheDocument();
+  expect(paths).toContain("/history?entityId=" + ID);
+});

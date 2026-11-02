@@ -197,7 +197,8 @@ class TicketService:
         item_id = self._item(c, p.get("itemId"))
         assignee_id = self._assignee(c, p.get("assigneeId"))
         identity, stamp = uid(), now()
-        # The write transaction serializes creation, so the next number is never taken twice.
+        # The write transaction serializes creation, and tickets are never deleted, so a number
+        # is never taken twice or reused. A delete path would need a counter that only grows.
         number = c.execute("SELECT coalesce(max(number),0)+1 FROM tickets").fetchone()[0]
         c.execute("INSERT INTO tickets(id,number,title,description,kind,priority,status,resolution,item_id,assignee_id,"
                   "author_id,author_label,author_kind,revision,created_at,updated_at,closed_at,last_activity_at) "
@@ -311,10 +312,17 @@ class TicketService:
         return {"items": self.records(c, rows), "total": total, "limit": limit, "offset": offset}
 
     def detail(self, c: sqlite3.Connection, ref: str, comments: int = 200) -> dict:
-        """The whole ticket with its latest comments, oldest first, and its history."""
+        """The whole ticket with its latest comments, oldest first, and who changed it when.
+
+        History leaves out each change's before and after records: they repeat the whole
+        ticket, so a long description edited often would run to megabytes in every read.
+        /history?entityId= has them in full.
+        """
         row = self.resolve(c, ref)
         total = c.execute("SELECT count(*) FROM ticket_comments WHERE ticket_id=?", (row["id"],)).fetchone()[0]
         latest = c.execute("SELECT * FROM (SELECT * FROM ticket_comments WHERE ticket_id=? ORDER BY created_at DESC,id DESC LIMIT ?) "
                            "ORDER BY created_at,id", (row["id"], comments)).fetchall()
+        history = [{key: e[key] for key in ("id", "kind", "actorId", "actorLabel", "actorKind", "createdAt")}
+                   for e in read_events(c, row["id"])]
         return {**self.records(c, [row], full=True)[0], "comments": {"items": self._comments(c, latest), "total": total},
-                "history": read_events(c, row["id"])}
+                "history": history}

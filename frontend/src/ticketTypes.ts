@@ -45,8 +45,18 @@ export type TicketComment = {
   createdAt: string;
   author: TicketPerson;
 };
+/** Who changed a ticket and how, without the records: /history has those. */
+export type TicketChange = {
+  id: string;
+  kind: string;
+  actorId: string;
+  actorLabel: string;
+  actorKind: "agent" | "human";
+  createdAt: string;
+};
 export type TicketDetail = Ticket & {
   /** The latest comments, oldest first; `total` counts them all. */
   comments: { items: TicketComment[]; total: number };
-  history: unknown[];
+  /** The latest 100 changes, newest first. */
+  history: TicketChange[];
 };

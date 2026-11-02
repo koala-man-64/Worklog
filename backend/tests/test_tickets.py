@@ -124,6 +124,19 @@ def test_comments_leave_the_revision_alone_and_move_last_activity(client):
     assert patch(client, ticket, priority="urgent")["priority"] == "urgent"
 
 
+def test_detail_stays_small_however_often_a_long_ticket_changes(client):
+    ticket = create(client, description="x" * 99_000)
+    for priority in ("high", "low") * 10:
+        ticket = patch(client, ticket, priority=priority)
+    response = request(client, "GET", f"/tickets/{ticket['id']}")
+    # Each change repeats the whole ticket before and after; detail keeps only who, what and when.
+    assert len(response.content) < 150_000
+    history = response.json()["history"]
+    assert len(history) == 21 and set(history[0]) == {"id", "kind", "actorId", "actorLabel", "actorKind", "createdAt"}
+    full = get(client, f"/history?entityId={ticket['id']}&limit=1")["items"][0]
+    assert full["after"]["priority"] == "low" and full["before"]["priority"] == "high"
+
+
 def test_detail_keeps_the_latest_comments_oldest_first(client):
     ticket = create(client)
     for n in range(5):

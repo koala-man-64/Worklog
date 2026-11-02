@@ -6,7 +6,6 @@ import {
   DraftField,
   Empty,
   ErrorMessage,
-  History,
   Markdown,
   StatusSelect,
 } from "./components";
@@ -524,7 +523,7 @@ function TicketView({ id }: { id: string }) {
         )}
       </section>
       <Comments ticket={ticket} />
-      <History items={ticket.history} />
+      <TicketHistory id={ticket.id} changes={ticket.history.length} />
     </>
   );
 }
@@ -679,6 +678,34 @@ function Comments({ ticket }: { ticket: TicketDetail }) {
         </form>
       )}
     </section>
+  );
+}
+/**
+ * Each change's full before and after records repeat the whole ticket, so a long
+ * ticket's history is large: it loads only when opened.
+ */
+function TicketHistory({ id, changes }: { id: string; changes: number }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details onToggle={(e) => setOpen(e.currentTarget.open)}>
+      <summary>Activity history ({changes})</summary>
+      {open && <TicketChanges id={id} />}
+    </details>
+  );
+}
+function TicketChanges({ id }: { id: string }) {
+  const history = useData<{ items: unknown[] }>(
+    "/history?entityId=" + encodeURIComponent(id),
+  );
+  return (
+    <>
+      <ErrorMessage error={history.error} />
+      {history.isPending ? (
+        <p>Loading history…</p>
+      ) : (
+        <pre>{JSON.stringify(history.data?.items ?? [], null, 2)}</pre>
+      )}
+    </>
   );
 }
 /** A work item's tickets, newest activity first, with a way to file one for it. */
