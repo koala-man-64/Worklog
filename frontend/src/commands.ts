@@ -12,6 +12,7 @@ import type {
   AgentChat,
   GithubRef,
 } from "./types";
+import type { Ticket, TicketComment } from "./ticketTypes";
 type Schema = components["schemas"];
 /** Actual command payloads are checked against the exported backend OpenAPI schema. */
 export const commands = {
@@ -53,4 +54,10 @@ export const commands = {
     request<GithubRef>("/github", "POST", body),
   updateGithubRef: (id: string, body: Schema["GithubRefUpdate"]) =>
     request<GithubRef>("/github/" + id, "PATCH", body),
+  createTicket: (body: Schema["TicketCreate"]) =>
+    request<Ticket>("/tickets", "POST", body),
+  updateTicket: (id: string, body: Schema["TicketUpdate"]) =>
+    request<Ticket>("/tickets/" + id, "PATCH", body),
+  commentOnTicket: (id: string, body: Schema["TicketCommentCreate"]) =>
+    request<TicketComment>(`/tickets/${id}/comments`, "POST", body),
 };

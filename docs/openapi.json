@@ -4837,6 +4837,471 @@
         }
       }
     },
+    "/api/v1/tickets": {
+      "get": {
+        "summary": "Tickets",
+        "operationId": "tickets_api_v1_tickets_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "active",
+                "open",
+                "doing",
+                "blocked",
+                "done",
+                "all"
+              ],
+              "type": "string",
+              "default": "active",
+              "title": "Status"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Q"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "bug",
+                    "incident",
+                    "task"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "priority",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "low",
+                    "normal",
+                    "high",
+                    "urgent"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Priority"
+            }
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Label"
+            }
+          },
+          {
+            "name": "repositoryId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Repositoryid"
+            }
+          },
+          {
+            "name": "itemId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Itemid"
+            }
+          },
+          {
+            "name": "assigneeId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Assigneeid"
+            }
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Archived"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "priority",
+                "recent"
+              ],
+              "type": "string",
+              "default": "priority",
+              "title": "Sort"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Tickets Api V1 Tickets Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Ticket Create",
+        "operationId": "ticket_create_api_v1_tickets_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TicketCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Ticket Create Api V1 Tickets Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tickets/{ref}": {
+      "get": {
+        "summary": "Ticket",
+        "operationId": "ticket_api_v1_tickets__ref__get",
+        "parameters": [
+          {
+            "name": "ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ref"
+            }
+          },
+          {
+            "name": "comments",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 200,
+              "title": "Comments"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Ticket Api V1 Tickets  Ref  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Ticket Update",
+        "operationId": "ticket_update_api_v1_tickets__ref__patch",
+        "parameters": [
+          {
+            "name": "ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ref"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TicketUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Ticket Update Api V1 Tickets  Ref  Patch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tickets/{ref}/comments": {
+      "post": {
+        "summary": "Ticket Comment",
+        "operationId": "ticket_comment_api_v1_tickets__ref__comments_post",
+        "parameters": [
+          {
+            "name": "ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ref"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TicketCommentCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Ticket Comment Api V1 Tickets  Ref  Comments Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tickets/{ref}/{verb}": {
+      "post": {
+        "summary": "Ticket Archive",
+        "operationId": "ticket_archive_api_v1_tickets__ref___verb__post",
+        "parameters": [
+          {
+            "name": "ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ref"
+            }
+          },
+          {
+            "name": "verb",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Verb"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Expected"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Ticket Archive Api V1 Tickets  Ref   Verb  Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/discussions/participants": {
       "get": {
         "summary": "Participants",
@@ -8779,6 +9244,266 @@
           "revision"
         ],
         "title": "TaskUpdate"
+      },
+      "TicketCommentCreate": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 100000,
+            "minLength": 1,
+            "title": "Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "TicketCommentCreate"
+      },
+      "TicketCreate": {
+        "properties": {
+          "repositoryIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Repositoryids"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "bug",
+              "incident",
+              "task"
+            ],
+            "title": "Kind",
+            "default": "bug"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "normal",
+              "high",
+              "urgent"
+            ],
+            "title": "Priority",
+            "default": "normal"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "doing",
+              "blocked",
+              "done"
+            ],
+            "title": "Status",
+            "default": "open"
+          },
+          "resolution": {
+            "type": "string",
+            "title": "Resolution",
+            "default": ""
+          },
+          "labels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Labels"
+          },
+          "itemId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Itemid"
+          },
+          "assigneeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigneeid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "TicketCreate"
+      },
+      "TicketUpdate": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "repositoryIds": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repositoryids"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "bug",
+                  "incident",
+                  "task"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "normal",
+                  "high",
+                  "urgent"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "open",
+                  "doing",
+                  "blocked",
+                  "done"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          },
+          "labels": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Labels"
+          },
+          "itemId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Itemid"
+          },
+          "assigneeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigneeid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision"
+        ],
+        "title": "TicketUpdate"
       },
       "ValidationError": {
         "properties": {

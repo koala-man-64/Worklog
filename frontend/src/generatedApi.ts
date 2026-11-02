@@ -1319,6 +1319,76 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tickets */
+        get: operations["tickets_api_v1_tickets_get"];
+        put?: never;
+        /** Ticket Create */
+        post: operations["ticket_create_api_v1_tickets_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tickets/{ref}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ticket */
+        get: operations["ticket_api_v1_tickets__ref__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Ticket Update */
+        patch: operations["ticket_update_api_v1_tickets__ref__patch"];
+        trace?: never;
+    };
+    "/api/v1/tickets/{ref}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ticket Comment */
+        post: operations["ticket_comment_api_v1_tickets__ref__comments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tickets/{ref}/{verb}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ticket Archive */
+        post: operations["ticket_archive_api_v1_tickets__ref___verb__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/discussions/participants": {
         parameters: {
             query?: never;
@@ -2566,6 +2636,77 @@ export interface components {
             text?: string | null;
             /** Done */
             done?: boolean | null;
+        };
+        /** TicketCommentCreate */
+        TicketCommentCreate: {
+            /** Text */
+            text: string;
+        };
+        /** TicketCreate */
+        TicketCreate: {
+            /** Repositoryids */
+            repositoryIds?: string[];
+            /** Title */
+            title: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Kind
+             * @default bug
+             * @enum {string}
+             */
+            kind: "bug" | "incident" | "task";
+            /**
+             * Priority
+             * @default normal
+             * @enum {string}
+             */
+            priority: "low" | "normal" | "high" | "urgent";
+            /**
+             * Status
+             * @default open
+             * @enum {string}
+             */
+            status: "open" | "doing" | "blocked" | "done";
+            /**
+             * Resolution
+             * @default
+             */
+            resolution: string;
+            /** Labels */
+            labels?: string[];
+            /** Itemid */
+            itemId?: string | null;
+            /** Assigneeid */
+            assigneeId?: string | null;
+        };
+        /** TicketUpdate */
+        TicketUpdate: {
+            /** Revision */
+            revision: number;
+            /** Repositoryids */
+            repositoryIds?: string[] | null;
+            /** Title */
+            title?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Kind */
+            kind?: ("bug" | "incident" | "task") | null;
+            /** Priority */
+            priority?: ("low" | "normal" | "high" | "urgent") | null;
+            /** Status */
+            status?: ("open" | "doing" | "blocked" | "done") | null;
+            /** Resolution */
+            resolution?: string | null;
+            /** Labels */
+            labels?: string[] | null;
+            /** Itemid */
+            itemId?: string | null;
+            /** Assigneeid */
+            assigneeId?: string | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -5998,6 +6139,232 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["InboxReceive"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    tickets_api_v1_tickets_get: {
+        parameters: {
+            query?: {
+                status?: "active" | "open" | "doing" | "blocked" | "done" | "all";
+                q?: string;
+                kind?: ("bug" | "incident" | "task") | null;
+                priority?: ("low" | "normal" | "high" | "urgent") | null;
+                label?: string | null;
+                repositoryId?: string | null;
+                itemId?: string | null;
+                assigneeId?: string | null;
+                archived?: boolean;
+                sort?: "priority" | "recent";
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ticket_create_api_v1_tickets_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TicketCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ticket_api_v1_tickets__ref__get: {
+        parameters: {
+            query?: {
+                comments?: number;
+            };
+            header?: never;
+            path: {
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ticket_update_api_v1_tickets__ref__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TicketUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ticket_comment_api_v1_tickets__ref__comments_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TicketCommentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ticket_archive_api_v1_tickets__ref___verb__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ref: string;
+                verb: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Expected"];
             };
         };
         responses: {

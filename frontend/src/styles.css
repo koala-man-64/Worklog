@@ -2604,3 +2604,67 @@ code {
   padding-inline: 0.8rem;
   font-size: 0.9rem;
 }
+/* Tickets: the key and title first, then what kind of issue it is and how it stands. */
+.ticket-key {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  color: var(--muted);
+}
+.ticket-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-inline-end: 0.35rem;
+}
+.ticket-badges .badge button {
+  min-height: 0;
+  padding: 0 0.2rem;
+  margin-inline-start: 0.1rem;
+}
+.badge.ticket-kind.incident,
+.badge.ticket-priority.urgent {
+  background: var(--status-blocked-bg);
+  color: var(--status-blocked-ink);
+  border-color: var(--status-blocked-border);
+}
+.badge.ticket-priority.high {
+  background: var(--status-doing-bg);
+  color: var(--status-doing-ink);
+  border-color: var(--status-doing-border);
+}
+.ticket-row .item-title {
+  overflow-wrap: anywhere;
+}
+.ticket-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  vertical-align: middle;
+}
+.ticket-meta {
+  color: var(--muted);
+}
+.ticket-fields label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.ticket-comment {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.ticket-comment-head {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.ticket-comment-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.ticket-comment-form button {
+  justify-self: start;
+}

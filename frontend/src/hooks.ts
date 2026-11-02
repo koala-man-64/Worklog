@@ -121,6 +121,7 @@ export function useDraft(
       .replace(/^item-(title|description|ado)-/, "item-")
       .replace(/^person-(name|role|notes)-/, "person-")
       .replace(/^repository-(name|url|description)-/, "repository-")
+      .replace(/^ticket-(title|description|resolution)-/, "ticket-")
       .replace(/^note-title-/, "note-"),
     dataId,
   );
