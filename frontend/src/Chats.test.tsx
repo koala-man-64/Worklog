@@ -9,7 +9,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setDataContext } from "./api";
-import { Chats, ago, tallyText } from "./Chats";
+import { Chats, ago, tallyText, toolText } from "./Chats";
 import type { ChatOverview, ChatThread, Transcript } from "./types";
 import type { Outbox } from "./outboxTypes";
 
@@ -240,13 +240,27 @@ it("lists who is working on what, working chats first", async () => {
     "href",
     `#roadmaps/${ROADMAP_ID}/step-1`,
   );
-  // A chat's subagents show in its history, not in the list.
+  // A chat's subagents show in its history; the list names the tool and counts them.
   expect(list).not.toHaveTextContent(/Lorentz|pipeline_check/);
+  expect(within(first).getByText("Codex · 1 agent")).toBeInTheDocument();
+  expect(within(list).getByText("OpenAI · gpt-6.1-sol")).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Docs refresh" })).toHaveAttribute(
     "href",
     "#work/" + ITEM_ID,
   );
   expect(screen.getByText("No transcript on this machine")).toBeInTheDocument();
+});
+
+it("names the tool behind each chat and how many agents it started", () => {
+  const wegener = { ...lorentz, key: "wegener", name: "Wegener" };
+  const threads = [root, lorentz, wegener];
+  expect(toolText(release)).toBe("Codex · 1 agent");
+  expect(
+    toolText({ ...release, transcript: { ...release.transcript, threads } }),
+  ).toBe("Codex · 2 agents");
+  expect(toolText(token)).toBe("Claude");
+  // With no transcript on this machine, the provider and model it was tracked with.
+  expect(toolText(lost)).toBe("OpenAI · gpt-6.1-sol");
 });
 
 it("opens the most recent chat and shows every message sent", async () => {
