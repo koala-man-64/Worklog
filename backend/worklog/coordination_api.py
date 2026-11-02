@@ -1,0 +1,112 @@
+"""Narrow HTTP surface for reviewed repositories and self-reported activity."""
+
+import re
+from collections.abc import Callable
+
+from fastapi import FastAPI, Query, Request
+
+from . import coordination_models as m
+from .coordination import CoordinationService, _get, repository_apply, repository_record
+from .db import Database
+from .models import Expected
+
+
+def coordination_agent_route_allowed(method: str, path: str) -> bool:
+    suffix = path.removeprefix("/api/v1")
+    if method == "POST":
+        return (suffix in {"/agent-runs", "/participations"}
+                or re.fullmatch(r"/agent-runs/[^/]+/end", suffix) is not None
+                or re.fullmatch(r"/participations/[^/]+/(?:release|rejoin|check-in|updates)", suffix) is not None)
+    return method == "PATCH" and re.fullmatch(r"/participations/[^/]+", suffix) is not None
+
+
+def install_coordination_routes(app: FastAPI, db: Database, mutate: Callable) -> None:
+    service = CoordinationService(db)
+
+    def read(fn: Callable) -> dict:
+        with db.read() as c:
+            c.execute("BEGIN")
+            return fn(c)
+
+    def write(request: Request, body, fn: Callable, *, required_key=True, exclude_unset=False) -> dict:
+        return mutate(request, body.model_dump(exclude_unset=exclude_unset), fn, required_key=required_key)
+
+    @app.get("/api/v1/repositories")
+    def repositories(archived: bool = False, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0), q: str = "") -> dict:
+        return read(lambda c: service.repositories(c, archived, limit, offset, q))
+
+    @app.get("/api/v1/repositories/{identity}")
+    def repository(identity: str) -> dict:
+        return read(lambda c: repository_record(_get(c, "repositories", identity)))
+
+    @app.post("/api/v1/repositories")
+    def repository_create(request: Request, body: m.RepositoryCreate) -> dict:
+        return write(request, body, lambda c, a: repository_apply(c, a, "repository.create", body.model_dump()))
+
+    @app.patch("/api/v1/repositories/{identity}")
+    def repository_update(identity: str, request: Request, body: m.RepositoryUpdate) -> dict:
+        return write(request, body, lambda c, a: repository_apply(c, a, "repository.update", {"id": identity, **body.model_dump(exclude_unset=True)}), required_key=False, exclude_unset=True)
+
+    @app.post("/api/v1/repositories/{identity}/{verb}")
+    def repository_archive(identity: str, verb: str, request: Request, body: Expected) -> dict:
+        from .common import AppError
+        if verb not in {"archive", "recover"}:
+            raise AppError(404, "not_found", "Unknown repository command")
+        return write(request, body, lambda c, a: repository_apply(c, a, "repository." + verb, {"id": identity, **body.model_dump()}))
+
+    @app.get("/api/v1/agent-runs")
+    def runs(includeEnded: bool = False, externalChatId: str | None = None,
+             limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
+        return read(lambda c: service.runs(c, includeEnded, externalChatId, limit, offset))
+
+    @app.get("/api/v1/agent-runs/{identity}")
+    def run(identity: str) -> dict:
+        return read(lambda c: service.run_record(_get(c, "agent_runs", identity)))
+
+    @app.post("/api/v1/agent-runs")
+    def run_create(request: Request, body: m.RunCreate) -> dict:
+        return write(request, body, lambda c, a: service.create_run(c, a, body.model_dump()))
+
+    @app.post("/api/v1/agent-runs/{identity}/end")
+    def run_end(identity: str, request: Request, body: Expected) -> dict:
+        return write(request, body, lambda c, a: service.end_run(c, a, identity, body.model_dump()))
+
+    @app.get("/api/v1/participations")
+    def participations(itemId: str | None = None, repositoryId: str | None = None,
+                       runId: str | None = None, includeReleased: bool = False,
+                       limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
+        return read(lambda c: service.participations(c, itemId, repositoryId, runId, includeReleased, limit, offset))
+
+    @app.get("/api/v1/participations/{identity}")
+    def participation(identity: str) -> dict:
+        return read(lambda c: service.participation_record(c, _get(c, "participations", identity)))
+
+    @app.post("/api/v1/participations")
+    def participation_create(request: Request, body: m.ParticipationCreate) -> dict:
+        return write(request, body, lambda c, a: service.create_participation(c, a, body.model_dump()))
+
+    @app.patch("/api/v1/participations/{identity}")
+    def participation_update(identity: str, request: Request, body: m.ParticipationUpdate) -> dict:
+        return write(request, body, lambda c, a: service.change_participation(c, a, identity, body.model_dump(exclude_unset=True)), required_key=False, exclude_unset=True)
+
+    @app.post("/api/v1/participations/{identity}/release")
+    def participation_release(identity: str, request: Request, body: Expected) -> dict:
+        return write(request, body, lambda c, a: service.change_participation(c, a, identity, body.model_dump(), "release"))
+
+    @app.post("/api/v1/participations/{identity}/rejoin")
+    def participation_rejoin(identity: str, request: Request, body: Expected) -> dict:
+        return write(request, body, lambda c, a: service.change_participation(c, a, identity, body.model_dump(), "rejoin"))
+
+    @app.post("/api/v1/participations/{identity}/check-in")
+    def participation_checkin(identity: str, request: Request, body: Expected) -> dict:
+        return write(request, body, lambda c, a: service.change_participation(c, a, identity, body.model_dump(), "check-in"))
+
+    @app.post("/api/v1/participations/{identity}/updates")
+    def post_update(identity: str, request: Request, body: m.CoordinationUpdateCreate) -> dict:
+        return write(request, body, lambda c, a: service.post_update(c, a, identity, body.model_dump()))
+
+    @app.get("/api/v1/coordination-updates")
+    def updates(participationId: str | None = None, itemId: str | None = None,
+                repositoryId: str | None = None, limit: int = Query(50, ge=1, le=200),
+                offset: int = Query(0, ge=0)) -> dict:
+        return read(lambda c: service.updates(c, participationId, itemId, repositoryId, limit, offset))

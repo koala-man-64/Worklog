@@ -16,12 +16,29 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
-SCHEMA_VERSION = 1
+from .migrations import SCHEMA_VERSION
+
 REQUIRED_TABLES = frozenset(
     {"work_items", "days", "daily_entries", "notes", "tasks", "attachments",
      "credentials", "roadmaps", "steps", "proposals", "settings", "events",
      "receipts", "file_references", "search_index", "roadmap_versions", "plan_imports"}
 )
+
+# Sealed, normalized sqlite_master signatures for the nine supported v1 shapes.
+# They must not change when current feature schemas evolve. Hashes cover all
+# table definitions, constraints, indexes and FTS shadows, not database contents.
+V1_SCHEMA_DIGESTS = frozenset({
+    # Current main before coordination: discussions plus roadmap questions/decisions.
+    "c5ae7406cdd63ddfa0cd7f3a18f2cc74f898936ef42c3b72909424c2d2e5a272",
+    "23aab55b497a3d6534338da7887cb6a014169ecce1d2e0b91c229f42da8f9d2c",
+    "cd9f0804a6ceea36a375f52f9a00ad9ee9a593110a954d899e6ead5b8536370e",
+    "373ee0760a75eb3784e49fe21d65601c3b134bd8003445f07a962b8567a07f67",
+    "2ffa3142f4cabeb13fcf638c4def1b873dae12ee4b2ed4f4961e69241eba8bf6",
+    "f8dbb906b152ee449531b6cac6897802d3fd74fd860385cb992672760bde27bb",
+    "693ab61438716f2e5e834b78aa6ee418260b1d13be8558af771541b181c5d841",
+    "c73ee4b832defa66818053c6e16406268e70615ea7d5587d7857cb47bbdd3cb6",
+    "2f407e161a537b37236a95d1275b94566e9e4bdd35329462c5a7563950f15f11",
+})
 
 
 def _schema_signature(conn: sqlite3.Connection) -> dict[tuple[str, str], str]:
@@ -31,7 +48,12 @@ def _schema_signature(conn: sqlite3.Connection) -> dict[tuple[str, str], str]:
         "SELECT type,name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type,name")}
 
 
-def _expected_schema(*, discussions: bool = True) -> dict[tuple[str, str], str]:
+def _schema_digest(signature: dict[tuple[str, str], str]) -> str:
+    encoded = json.dumps(sorted((kind, name, sql) for (kind, name), sql in signature.items()), separators=(",", ":"))
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def _expected_schema(*, discussions: bool = True, coordination: bool = True) -> dict[tuple[str, str], str]:
     from worklog.db import SCHEMA
     from worklog.plans import SCHEMA as PLAN_SCHEMA
     from worklog.proposals import SCHEMA as PROPOSAL_SCHEMA
@@ -42,6 +64,10 @@ def _expected_schema(*, discussions: bool = True) -> dict[tuple[str, str], str]:
             from worklog.discussions import SCHEMA as DISCUSSION_SCHEMA
 
             conn.executescript(DISCUSSION_SCHEMA)
+        if coordination:
+            from worklog.migrations import COORDINATION_SCHEMA
+
+            conn.executescript(COORDINATION_SCHEMA)
         return _schema_signature(conn)
 
 
@@ -49,11 +75,11 @@ def _compatible_schemas() -> tuple[dict[tuple[str, str], str], ...]:
     from worklog.db import AGENT_CHAT_COLUMNS
 
     latest = _expected_schema()
+    discussion_v1 = _expected_schema(coordination=False)
     question_names = {"roadmap_questions", "roadmap_questions_roadmap", "roadmap_decisions", "roadmap_decisions_roadmap"}
-    # The last shape before roadmaps kept questions and decisions; discussions came first.
-    before_questions = {k: v for k, v in latest.items() if k[1] not in question_names}
-    # The last shape before discussions, which also predates questions and decisions.
-    before_discussions = {k: v for k, v in _expected_schema(discussions=False).items() if k[1] not in question_names}
+    # Questions and decisions shipped on main after discussions, still at v1.
+    before_questions = {k: v for k, v in discussion_v1.items() if k[1] not in question_names}
+    before_discussions = {k: v for k, v in _expected_schema(discussions=False, coordination=False).items() if k[1] not in question_names}
     # `current` is the last shape before agent chats gained provider, model, repos and step
     # assignments; every earlier shape below derives from it.
     current = {k: v for k, v in before_discussions.items() if k[1] not in {"chat_steps", "chat_steps_step"}}
@@ -90,7 +116,7 @@ def _compatible_schemas() -> tuple[dict[tuple[str, str], str], ...]:
             ", parent_id TEXT REFERENCES roadmaps(id)", "")}
         for schema in (current, without_lcg, without_people, legacy_roadmap, current_without_roadmap)
     ]
-    return (latest, before_questions, before_discussions, current, *earlier)
+    return (latest, discussion_v1, before_questions, before_discussions, current, *earlier)
 
 
 class InstanceLock:
@@ -159,13 +185,16 @@ def validate_database(path: Path | str, *, require_current: bool = True) -> None
                 raise ValueError("Database foreign key check failed")
             if require_current:
                 version = conn.execute("PRAGMA user_version").fetchone()[0]
-                if version != SCHEMA_VERSION:
-                    raise ValueError(f"Unsupported database schema version {version}; expected {SCHEMA_VERSION}")
+                if version not in {1, SCHEMA_VERSION}:
+                    raise ValueError(f"Unsupported database schema version {version}; expected 1 or {SCHEMA_VERSION}")
                 tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
                 missing = REQUIRED_TABLES - tables
                 if missing:
                     raise ValueError("Database missing expected tables: " + ", ".join(sorted(missing)))
-                if _schema_signature(conn) not in _compatible_schemas():
+                signature = _schema_signature(conn)
+                accepted = (signature == _expected_schema() if version == SCHEMA_VERSION
+                            else _schema_digest(signature) in V1_SCHEMA_DIGESTS)
+                if not accepted:
                     raise ValueError("Database schema definitions do not match this Worklog version")
                 settings = {row[0]: row[1] for row in conn.execute(
                     "SELECT key,value FROM settings WHERE key IN ('dataId','timezone','backlogRevision')")}
@@ -413,38 +442,13 @@ def restore_database(db_path: Path | str, candidate_path: Path | str,
         try:
             _snapshot(candidate, stage)
             with closing(sqlite3.connect(stage)) as conn:
-                columns = {r[1] for r in conn.execute("PRAGMA table_info(work_items)")}
-                if "roadmap_id" not in columns:
-                    conn.execute("ALTER TABLE work_items ADD COLUMN roadmap_id TEXT REFERENCES roadmaps(id)")
-                    conn.execute("UPDATE work_items SET roadmap_id=(SELECT roadmap_id FROM steps WHERE steps.id=work_items.step_id) WHERE step_id IS NOT NULL AND roadmap_id IS NULL")
-                tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-                if not {"people", "person_links"} <= tables:
-                    from worklog.db import PEOPLE_SCHEMA
-
-                    conn.executescript(PEOPLE_SCHEMA)
-                if not {"web_links", "agent_chats", "github_refs"} <= tables:
-                    from worklog.db import LINKS_CHATS_GITHUB_SCHEMA
-
-                    conn.executescript(LINKS_CHATS_GITHUB_SCHEMA)
-                roadmap_columns = {r[1] for r in conn.execute("PRAGMA table_info(roadmaps)")}
-                if "parent_id" not in roadmap_columns:
-                    conn.execute("ALTER TABLE roadmaps ADD COLUMN parent_id TEXT REFERENCES roadmaps(id)")
-                from worklog.db import AGENT_CHAT_COLUMNS, CHAT_STEPS_SCHEMA
-
-                chat_columns = {r[1] for r in conn.execute("PRAGMA table_info(agent_chats)")}
-                if "provider" not in chat_columns:
-                    for column in AGENT_CHAT_COLUMNS.split(", ")[1:]:
-                        conn.execute("ALTER TABLE agent_chats ADD COLUMN " + column)
-                if "chat_steps" not in tables:
-                    conn.executescript(CHAT_STEPS_SCHEMA)
-                if not {"roadmap_questions", "roadmap_decisions"} <= tables:
-                    from worklog.db import QUESTIONS_DECISIONS_SCHEMA
-
-                    conn.executescript(QUESTIONS_DECISIONS_SCHEMA)
-                from worklog.discussions import migrate as migrate_discussions
+                from .migrations import invalidate_restored_presence, upgrade
 
                 conn.row_factory = sqlite3.Row
-                migrate_discussions(conn)
+                conn.execute("PRAGMA foreign_keys=ON")
+                conn.execute("BEGIN IMMEDIATE")
+                upgrade(conn)
+                invalidate_restored_presence(conn, datetime.now(UTC).isoformat())
                 conn.execute("UPDATE credentials SET revoked=1")
                 conn.execute("UPDATE settings SET value=? WHERE key='dataId'", (json.dumps(new_data_id),))
                 conn.commit()
@@ -523,6 +527,7 @@ def export_database(db_path: Path | str) -> bytes:
         markdown = ["# Worklog export", "", "All records are in records/*.json. Binary content is in blobs/.", ""]
         with closing(_readonly(snapshot)) as conn:
             conn.row_factory = sqlite3.Row
+            snapshot_version = conn.execute("PRAGMA user_version").fetchone()[0]
             files["schema.json"] = json.dumps(
                 [{"type": kind, "name": name, "sql": sql}
                  for (kind, name), sql in _schema_signature(conn).items()],
@@ -557,7 +562,7 @@ def export_database(db_path: Path | str) -> bytes:
                     markdown.append("")
         files["worklog.md"] = "\n".join(markdown).encode("utf-8")
         manifest = {"format": "worklog-export", "version": 1,
-                    "schemaVersion": SCHEMA_VERSION, "createdAt": datetime.now(UTC).isoformat(),
+                    "schemaVersion": snapshot_version, "createdAt": datetime.now(UTC).isoformat(),
                     "files": [{"path": name, "size": len(data), "sha256": hashlib.sha256(data).hexdigest()}
                               for name, data in sorted(files.items())]}
         output = io.BytesIO()

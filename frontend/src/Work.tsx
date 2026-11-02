@@ -19,9 +19,16 @@ import {
   StatusSelect,
 } from "./components";
 import type { Detail, Item, List, Person, Roadmap } from "./types";
+import {
+  RepositoryBadges,
+  RepositoryPicker,
+  RepositoryFilter,
+} from "./RepositoryControls";
+import { Coordination } from "./Coordination";
 import { Icon } from "./icons";
 export function CreateItem({ day }: { day?: string }) {
   const [title, setTitle] = useState("");
+  const [repositoryIds, setRepositoryIds] = useState<string[]>([]);
   const [mode, setMode] = useState("plan");
   const action = useCommand(commands.createItem);
   return (
@@ -31,7 +38,13 @@ export function CreateItem({ day }: { day?: string }) {
         e.preventDefault();
         if (!title.trim()) return;
         await action
-          .mutateAsync({ title, description: "", day, worked: mode === "log" })
+          .mutateAsync({
+            title,
+            description: "",
+            day,
+            worked: mode === "log",
+            ...(repositoryIds.length ? { repositoryIds } : {}),
+          })
           .then(() => setTitle(""))
           .catch(() => undefined);
       }}
@@ -53,6 +66,14 @@ export function CreateItem({ day }: { day?: string }) {
           <option value="log">Log work already performed</option>
         </select>
       )}
+      {!day && (
+        <RepositoryPicker
+          label="New work repositories"
+          value={repositoryIds}
+          onChange={setRepositoryIds}
+          disabled={action.isPending}
+        />
+      )}
       <button className="primary" disabled={action.isPending || !title.trim()}>
         Add work
       </button>
@@ -66,13 +87,14 @@ export function Work({ selected }: { selected?: string }) {
 function WorkList() {
   const [archived, setArchived] = useState(false);
   const [status, setStatus] = useState("");
+  const [repositoryId, setRepositoryId] = useState("");
   const [personId, setPersonId] = useState("");
   const [view, setView] = useState("all");
   const [offset, setOffset] = useState(0);
   const [q, setQ] = useState("");
   const people = useData<List<Person>>("/people?archived=false");
   const list = useData<List<Item>>(
-    `/work-items?view=${view}&archived=${archived}&limit=100&offset=${offset}&q=${encodeURIComponent(q)}${status ? "&status=" + status : ""}${personId ? "&personId=" + encodeURIComponent(personId) : ""}`,
+    `/work-items?view=${view}&archived=${archived}&limit=100&offset=${offset}&q=${encodeURIComponent(q)}${status ? "&status=" + status : ""}${personId ? "&personId=" + encodeURIComponent(personId) : ""}${repositoryId ? "&repositoryId=" + encodeURIComponent(repositoryId) : ""}`,
   );
   const action = useAction();
   const move = (id: string, delta: number) => {
@@ -94,6 +116,13 @@ function WorkList() {
       </header>
       <CreateItem />
       <div className="toolbar">
+        <RepositoryFilter
+          value={repositoryId}
+          onChange={(id) => {
+            setRepositoryId(id);
+            setOffset(0);
+          }}
+        />
         <input
           aria-label="Filter work by text"
           placeholder="Find in work…"
@@ -169,6 +198,7 @@ function WorkList() {
                   {item.title}
                 </a>
                 <PersonBadges people={item.people} />
+                <RepositoryBadges ids={item.repositoryIds} />
                 <small>
                   {item.description?.slice(0, 130) || "Ready for a next step"}
                 </small>
@@ -489,6 +519,12 @@ export function ItemDetail({ id }: { id: string }) {
           </form>
         </section>
       </div>
+      <RepositoryPicker
+        value={item.repositoryIds ?? []}
+        onChange={(repositoryIds) => patch({ repositoryIds })}
+        disabled={!!item.archived || action.isPending}
+      />
+      <Coordination key={id} itemId={id} />
       <Notes ownerType="item" ownerId={id} notes={item.notes} />
       <PeopleLinks targetType="item" targetId={id} people={item.people} />
       <LinksSection ownerType="item" ownerId={id} links={item.links} />

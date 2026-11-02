@@ -72,7 +72,7 @@ Every restore creates a new data generation identity while staging the replaceme
 
 Restore writes a durable `.restore-in-progress.json` marker before moving sidecars or replacing the main file. Startup refuses that directory if a power failure interrupts restoration. Keep the evidence archives and rerun the explicit offline `restore` command with a verified SQLite candidate; the retry preserves earlier marker/quarantine evidence before completing recovery. Do not delete the marker to force a startup. It clears only after verified replacement and cleanup, or a verified rollback to the original files.
 
-For an upgrade, stop Worklog, make a manual backup with the installed version, update the checkout, run `Setup.ps1`, then start and check the application. Use the same data directory and port throughout. On first startup, the Discussions upgrade takes a pre-migration snapshot and adds its tables and credential bindings in one transaction. It preserves the existing data identity and agent tokens.
+For an upgrade, stop Worklog, make a manual backup with the installed version, update the checkout, run `Setup.ps1`, then start and check the application. Use the same data directory and port throughout. The first startup snapshots a supported version 1 database and upgrades it to version 2 in one transaction. Existing work, roadmap questions and decisions, discussions, data identity, and agent credentials are preserved. Existing chat repository labels remain labels; link them to catalog repositories explicitly.
 
 Keep the previous version and its manual backup until verification succeeds. To roll back, stop Worklog, switch to the previous version and run its setup, then use that version’s `restore` command with the pre-upgrade backup. Start and check Worklog again. Restoring returns the data to the time of the snapshot, creates a new data identity, and revokes the restored credentials.
 
@@ -109,6 +109,24 @@ Use the returned UUID and current revision. A draft file is a JSON object; `--fi
 ```
 
 Existing-target operations carry the target's current `revision` in their payload. A stale revision returns a conflict rather than overwriting newer edits. Evidence can be uploaded only to the owning agent's draft proposal. Agents can read context/search and create, edit, submit, inspect, or withdraw proposals; they cannot directly change canonical work or approve proposals. Review submitted operations and evidence in the browser, then approve or reject there. Approval applies all operations atomically; a conflict applies none. See [docs/API.md](docs/API.md) for the operation contract.
+
+## Repository coordination
+
+Repositories are canonical catalog records. Work items and tracked chats can link to several repositories; legacy chat repository labels remain visible separately. Edit the catalog and canonical links in the browser, or submit reviewed proposals. Agents can directly report their own runs, repository participation, and immutable status updates without creating a work item first.
+
+```powershell
+./.venv/Scripts/worklog.exe agent repositories list
+./.venv/Scripts/worklog.exe agent runs start --client-run-key 'my-chat-2026-11-01' --display-name 'Repository review' --request-id 'run-start-2026-11-01'
+./.venv/Scripts/worklog.exe agent participation start --run RUN_ID --repo REPOSITORY_ID --request-id 'participation-start-2026-11-01'
+./.venv/Scripts/worklog.exe agent updates post --participation PARTICIPATION_ID --kind update --text 'Reviewing the parser.' --request-id 'parser-update-2026-11-01'
+./.venv/Scripts/worklog.exe agent context --repo REPOSITORY_ID
+./.venv/Scripts/worklog.exe agent participation release PARTICIPATION_ID --revision CURRENT_REVISION --request-id 'participation-release-2026-11-01'
+./.venv/Scripts/worklog.exe agent runs end RUN_ID --revision CURRENT_REVISION --request-id 'run-end-2026-11-01'
+```
+
+Use returned IDs and revisions. Choose one stable `--request-id` per write and reuse it with exactly the same payload after an uncertain result. A run's `--client-run-key` identifies that run within the issuing credential. Use a new key for a new run. Optional `--item ITEM_ID` links participation to work. Use `participation start --file context.json` for reported checkout/worktree paths and branches, and `participation update ID --revision N --file context.json --request-id KEY` to replace contexts or change the work link.
+
+Participation is advisory overlap information, not an exclusive claim, lock, permission, or proof that a process is alive. Activity older than two hours displays as stale without releasing it. An optional explicit `participation check-in ID --revision N --request-id KEY` refreshes reported activity; no heartbeat is required. Release and rejoin are explicit, and updates retain their original repository/work snapshots when participation later changes. See [the API contract](docs/API.md#repository-coordination) for list filters and payloads.
 
 ## Agent discussions and handoffs
 

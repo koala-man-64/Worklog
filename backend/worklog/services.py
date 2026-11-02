@@ -26,6 +26,7 @@ from .common import (
     valid_date,
 )
 from .db import Database
+from .repository_links import linked_repositories, replace_repository_associations
 
 
 def item_record(r: Any) -> dict:
@@ -155,17 +156,23 @@ class WorkService:
         return grouped
 
     def list(self, *, view: str = "all", archived: bool = False, state: str | None = None,
-             roadmap_id: str | None = None, person_id: str | None = None,
-             limit: int = 100, offset: int = 0, q: str = "") -> dict:
+             roadmap_id: str | None = None, person_id: str | None = None, repository_id: str | None = None,
+             limit: int = 100, offset: int = 0, q: str = "", item_id: str | None = None) -> dict:
         with self.db.read() as c:
             where = ["w.archived=?"]
             args: builtins.list[Any] = [int(archived)]
+            if item_id is not None:
+                where.append("w.id=?")
+                args.append(item_id)
             if state:
                 where.append("w.status=?")
                 args.append(status(state))
             if roadmap_id:
                 where.append("(w.roadmap_id=? OR w.step_id IN(SELECT id FROM steps WHERE roadmap_id=?))")
                 args.extend([roadmap_id, roadmap_id])
+            if repository_id:
+                where.append("w.id IN(SELECT item_id FROM item_repositories WHERE repository_id=?)")
+                args.append(repository_id)
             if person_id:
                 where.append("w.id IN(SELECT target_id FROM person_links WHERE target_type='item' AND person_id=?)")
                 args.append(person_id)
@@ -183,7 +190,8 @@ class WorkService:
             current = today(setting(c, "timezone", "America/Chicago"))
             rows = c.execute(f"SELECT w.*, (w.archived=0 AND w.status!='done' AND NOT EXISTS(SELECT 1 FROM daily_entries de WHERE de.item_id=w.id AND de.planned=1 AND de.date>=?)) AS is_backlog FROM work_items w WHERE {clause} ORDER BY backlog_order,id LIMIT ? OFFSET ?", [current, *args, limit, offset]).fetchall()
             people_map = self.target_people(c, "item", [r["id"] for r in rows])
-            return {"items": [{**item_record(r), "isBacklog": bool(r["is_backlog"]), "people": people_map.get(r["id"], [])} for r in rows], "total": total,
+            repos = linked_repositories(c, "item", [r["id"] for r in rows])
+            return {"items": [{**item_record(r), "repositoryIds": repos.get(r["id"], []), "isBacklog": bool(r["is_backlog"]), "people": people_map.get(r["id"], [])} for r in rows], "total": total,
                     "collectionRevision": setting(c, "backlogRevision", 1)}
 
     @staticmethod
@@ -198,7 +206,8 @@ class WorkService:
 
     def chats(self, c: sqlite3.Connection, rows: builtins.list[Any]) -> builtins.list[dict]:
         steps = self.chat_steps(c, [r["id"] for r in rows])
-        return [{**support_record(r), "stepIds": steps[r["id"]]} for r in rows]
+        repos = linked_repositories(c, "chat", [r["id"] for r in rows])
+        return [{**support_record(r), "stepIds": steps[r["id"]], "repositoryIds": repos.get(r["id"], [])} for r in rows]
 
     def chat_overview(self, c: sqlite3.Connection, archived: bool = False) -> builtins.list[dict]:
         """Every agent chat with the record it belongs to, the roadmaps that record sits within, and the steps it works on."""
@@ -245,14 +254,16 @@ class WorkService:
             (roadmap_id, roadmap_id),
         ).fetchall()
         people_map = self.target_people(c, "item", [r["id"] for r in rows])
+        repos = linked_repositories(c, "item", [r["id"] for r in rows])
         return [
-            {**item_record(r), "roadmapId": r["roadmap_id"] or roadmap_id, "people": people_map.get(r["id"], [])}
+            {**item_record(r), "repositoryIds": repos.get(r["id"], []), "roadmapId": r["roadmap_id"] or roadmap_id, "people": people_map.get(r["id"], [])}
             for r in rows
         ]
 
     def detail(self, item_id: str) -> dict:
         with self.db.read() as c:
             result = item_record(self.item(c, item_id))
+            result["repositoryIds"] = linked_repositories(c, "item", [item_id]).get(item_id, [])
             result.update(self.support(c, "item", item_id))
             result["people"] = self.target_people(c, "item", [item_id]).get(item_id, [])
             result["dailyEntries"] = [entry_record(r) for r in c.execute("SELECT * FROM daily_entries WHERE item_id=? ORDER BY date DESC", (item_id,))]
@@ -337,6 +348,9 @@ class WorkService:
                     "createdAt": r["link_created_at"],
                     "item": item_record(r),
                 })
+            repos = linked_repositories(c, "item", [link["itemId"] for link in work_items])
+            for link in work_items:
+                link["item"]["repositoryIds"] = repos.get(link["itemId"], [])
             result["roadmaps"] = roadmaps
             result["workItems"] = work_items
             result["history"] = read_events(c, person_id)
@@ -376,6 +390,9 @@ class WorkService:
                 record = entry_record(r)
                 record["item"] = item_record(self.item(c, r["item_id"]))
                 entries.append(record)
+            repos = linked_repositories(c, "item", [entry["itemId"] for entry in entries])
+            for entry in entries:
+                entry["item"]["repositoryIds"] = repos.get(entry["itemId"], [])
             # Completed titles are preserved from the actual completion event, not current item state.
             completed = []
             for r in c.execute("SELECT after_json FROM events WHERE local_date=? AND kind='item.update' ORDER BY created_at", (date,)):
@@ -413,6 +430,10 @@ class WorkService:
         c.execute("UPDATE settings SET value=? WHERE key='backlogRevision'", (json.dumps(value),))
 
     def apply(self, c: sqlite3.Connection, actor: dict, action: str, p: dict) -> dict:
+        if action.startswith("repository."):
+            from .coordination import repository_apply
+
+            return repository_apply(c, actor, action, p)
         if action.startswith("item."):
             return self._item_apply(c, actor, action, p)
         if action == "entry.upsert":
@@ -538,6 +559,8 @@ class WorkService:
         if row is not None:
             require_revision(row, p.get("revision"))
         before = item_record(row) if row else None
+        if before:
+            before["repositoryIds"] = linked_repositories(c, "item", [before["id"]]).get(before["id"], [])
         val = before.copy() if before else {"id": uid(), "title": "", "description": "", "status": "open", "adoUrl": None, "roadmapId": None, "stepId": None, "archived": False,
                                             "backlogOrder": c.execute("SELECT coalesce(max(backlog_order),0)+1 FROM work_items").fetchone()[0],
                                             "revision": 0, "createdAt": now()}
@@ -585,6 +608,14 @@ class WorkService:
         val["updatedAt"] = now()
         c.execute("""INSERT INTO work_items VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,description=excluded.description,status=excluded.status,ado_url=excluded.ado_url,step_id=excluded.step_id,archived=excluded.archived,revision=excluded.revision,updated_at=excluded.updated_at,roadmap_id=excluded.roadmap_id""",
                   (val["id"], val["title"], val["description"], val["status"], val["adoUrl"], val["stepId"], val["backlogOrder"], int(val["archived"]), val["revision"], val["createdAt"], val["updatedAt"], val["roadmapId"]))
+        if "repositoryIds" in p:
+            val["repositoryIds"] = replace_repository_associations(c, "item", val["id"], p["repositoryIds"])
+        else:
+            val.setdefault("repositoryIds", [])
+        if action == "item.archive":
+            from .coordination import release_item_participations
+
+            release_item_participations(c, actor, val["id"])
         audit = {**val, "_statusChanged": bool(before and before["status"] != val["status"])}
         event(c, actor, action, val["id"], before, audit)
         self.index(c, val["id"], "item", val["title"], val["description"], val["id"], val["archived"])
@@ -705,6 +736,7 @@ class WorkService:
             require_revision(row, p.get("revision"))
         before = support_record(row) if row else None
         if kind == "chat" and before is not None:
+            before["repositoryIds"] = linked_repositories(c, "chat", [before["id"]]).get(before["id"], [])
             before["stepIds"] = self.chat_steps(c, [before["id"]])[before["id"]]
         val: dict[str, Any]
         if verb in {"archive", "recover"}:
@@ -863,6 +895,8 @@ class WorkService:
                 ).fetchone()
             )
         elif kind == "chat":
+            if "repositoryIds" in p:
+                replace_repository_associations(c, "chat", p["id"], p["repositoryIds"])
             after = self.chats(c, [c.execute("SELECT * FROM agent_chats WHERE id=?", (p["id"],)).fetchone()])[0]
         else:
             after = support_record(c.execute(f"SELECT * FROM {table} WHERE id=?", (p["id"],)).fetchone())

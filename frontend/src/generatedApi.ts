@@ -1058,6 +1058,232 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/repositories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Repositories */
+        get: operations["repositories_api_v1_repositories_get"];
+        put?: never;
+        /** Repository Create */
+        post: operations["repository_create_api_v1_repositories_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/repositories/{identity}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Repository */
+        get: operations["repository_api_v1_repositories__identity__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Repository Update */
+        patch: operations["repository_update_api_v1_repositories__identity__patch"];
+        trace?: never;
+    };
+    "/api/v1/repositories/{identity}/{verb}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Repository Archive */
+        post: operations["repository_archive_api_v1_repositories__identity___verb__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agent-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Runs */
+        get: operations["runs_api_v1_agent_runs_get"];
+        put?: never;
+        /** Run Create */
+        post: operations["run_create_api_v1_agent_runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agent-runs/{identity}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Run */
+        get: operations["run_api_v1_agent_runs__identity__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agent-runs/{identity}/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run End */
+        post: operations["run_end_api_v1_agent_runs__identity__end_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/participations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Participations */
+        get: operations["participations_api_v1_participations_get"];
+        put?: never;
+        /** Participation Create */
+        post: operations["participation_create_api_v1_participations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/participations/{identity}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Participation */
+        get: operations["participation_api_v1_participations__identity__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Participation Update */
+        patch: operations["participation_update_api_v1_participations__identity__patch"];
+        trace?: never;
+    };
+    "/api/v1/participations/{identity}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Participation Release */
+        post: operations["participation_release_api_v1_participations__identity__release_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/participations/{identity}/rejoin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Participation Rejoin */
+        post: operations["participation_rejoin_api_v1_participations__identity__rejoin_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/participations/{identity}/check-in": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Participation Checkin */
+        post: operations["participation_checkin_api_v1_participations__identity__check_in_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/participations/{identity}/updates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Update */
+        post: operations["post_update_api_v1_participations__identity__updates_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/coordination-updates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Updates */
+        get: operations["updates_api_v1_coordination_updates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/discussions/participants": {
         parameters: {
             query?: never;
@@ -1446,6 +1672,8 @@ export interface components {
         };
         /** ChatCreate */
         ChatCreate: {
+            /** Repositoryids */
+            repositoryIds?: string[];
             /**
              * Ownertype
              * @enum {string}
@@ -1478,6 +1706,8 @@ export interface components {
         ChatUpdate: {
             /** Revision */
             revision: number;
+            /** Repositoryids */
+            repositoryIds?: string[];
             /** Chatid */
             chatId?: string | null;
             /** Title */
@@ -1502,6 +1732,17 @@ export interface components {
             type: "item" | "roadmap" | "step";
             /** Id */
             id: string;
+        };
+        /** CoordinationUpdateCreate */
+        CoordinationUpdateCreate: {
+            /**
+             * Kind
+             * @default update
+             * @enum {string}
+             */
+            kind: "update" | "blocker" | "handoff";
+            /** Text */
+            text: string;
         };
         /** CredentialCreate */
         CredentialCreate: {
@@ -1648,6 +1889,8 @@ export interface components {
         };
         /** ItemCreate */
         ItemCreate: {
+            /** Repositoryids */
+            repositoryIds?: string[];
             /** Title */
             title: string;
             /**
@@ -1673,6 +1916,8 @@ export interface components {
         ItemUpdate: {
             /** Revision */
             revision: number;
+            /** Repositoryids */
+            repositoryIds?: string[];
             /** Title */
             title?: string | null;
             /** Description */
@@ -1774,11 +2019,56 @@ export interface components {
              * Action
              * @enum {string}
              */
-            action: "item.create" | "item.update" | "item.archive" | "item.recover" | "entry.upsert" | "note.create" | "note.update" | "task.create" | "task.update" | "roadmap.create" | "roadmap.revise" | "roadmap.move" | "progress.set" | "person.create" | "person.update" | "person.archive" | "person.recover" | "person.link" | "person.unlink" | "link.create" | "link.update" | "link.archive" | "link.recover" | "chat.create" | "chat.update" | "chat.archive" | "chat.recover" | "github.create" | "github.update" | "github.archive" | "github.recover" | "question.create" | "question.update" | "question.archive" | "question.recover" | "decision.create" | "decision.update" | "decision.archive" | "decision.recover";
+            action: "repository.create" | "repository.update" | "repository.archive" | "repository.recover" | "item.create" | "item.update" | "item.archive" | "item.recover" | "entry.upsert" | "note.create" | "note.update" | "task.create" | "task.update" | "roadmap.create" | "roadmap.revise" | "roadmap.move" | "progress.set" | "person.create" | "person.update" | "person.archive" | "person.recover" | "person.link" | "person.unlink" | "link.create" | "link.update" | "link.archive" | "link.recover" | "chat.create" | "chat.update" | "chat.archive" | "chat.recover" | "github.create" | "github.update" | "github.archive" | "github.recover" | "question.create" | "question.update" | "question.archive" | "question.recover" | "decision.create" | "decision.update" | "decision.archive" | "decision.recover";
             /** Payload */
             payload: {
                 [key: string]: unknown;
             };
+        };
+        /** ParticipationContext */
+        ParticipationContext: {
+            /** Repositoryid */
+            repositoryId: string;
+            /**
+             * Checkoutpath
+             * @default
+             */
+            checkoutPath: string;
+            /**
+             * Worktreepath
+             * @default
+             */
+            worktreePath: string;
+            /**
+             * Branch
+             * @default
+             */
+            branch: string;
+        };
+        /** ParticipationCreate */
+        ParticipationCreate: {
+            /** Runid */
+            runId: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Itemid */
+            itemId?: string | null;
+            /** Contexts */
+            contexts?: components["schemas"]["ParticipationContext"][];
+        };
+        /** ParticipationUpdate */
+        ParticipationUpdate: {
+            /** Revision */
+            revision: number;
+            /** Description */
+            description?: string | null;
+            /** Itemid */
+            itemId?: string | null;
+            /** Contexts */
+            contexts?: components["schemas"]["ParticipationContext"][] | null;
         };
         /** PersonCreate */
         PersonCreate: {
@@ -1918,6 +2208,32 @@ export interface components {
             /** Ids */
             ids: string[];
         };
+        /** RepositoryCreate */
+        RepositoryCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Url
+             * @default
+             */
+            url: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+        };
+        /** RepositoryUpdate */
+        RepositoryUpdate: {
+            /** Revision */
+            revision: number;
+            /** Name */
+            name?: string | null;
+            /** Url */
+            url?: string | null;
+            /** Description */
+            description?: string | null;
+        };
         /** Reschedule */
         Reschedule: {
             /** Revision */
@@ -2020,6 +2336,20 @@ export interface components {
         RoleRevision: {
             /** Revision */
             revision: number;
+        };
+        /** RunCreate */
+        RunCreate: {
+            /** Clientrunkey */
+            clientRunKey: string;
+            /** Displayname */
+            displayName: string;
+            /**
+             * Provider
+             * @default
+             */
+            provider: string;
+            /** Externalchatid */
+            externalChatId?: string | null;
         };
         /** SettingsUpdate */
         SettingsUpdate: {
@@ -2130,6 +2460,7 @@ export interface operations {
                 roadmapId?: string | null;
                 personId?: string | null;
                 q?: string;
+                repositoryId?: string | null;
                 limit?: number;
                 offset?: number;
             };
@@ -4196,6 +4527,10 @@ export interface operations {
         parameters: {
             query?: {
                 date?: string | null;
+                itemId?: string | null;
+                repositoryId?: string | null;
+                limit?: number;
+                offset?: number;
             };
             header?: never;
             path?: never;
@@ -4729,6 +5064,654 @@ export interface operations {
                 "application/json": components["schemas"]["Expected"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    repositories_api_v1_repositories_get: {
+        parameters: {
+            query?: {
+                archived?: boolean;
+                limit?: number;
+                offset?: number;
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    repository_create_api_v1_repositories_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepositoryCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    repository_api_v1_repositories__identity__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    repository_update_api_v1_repositories__identity__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepositoryUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    repository_archive_api_v1_repositories__identity___verb__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+                verb: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Expected"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    runs_api_v1_agent_runs_get: {
+        parameters: {
+            query?: {
+                includeEnded?: boolean;
+                externalChatId?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_create_api_v1_agent_runs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_api_v1_agent_runs__identity__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_end_api_v1_agent_runs__identity__end_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Expected"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    participations_api_v1_participations_get: {
+        parameters: {
+            query?: {
+                itemId?: string | null;
+                repositoryId?: string | null;
+                runId?: string | null;
+                includeReleased?: boolean;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    participation_create_api_v1_participations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ParticipationCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    participation_api_v1_participations__identity__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    participation_update_api_v1_participations__identity__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ParticipationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    participation_release_api_v1_participations__identity__release_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Expected"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    participation_rejoin_api_v1_participations__identity__rejoin_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Expected"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    participation_checkin_api_v1_participations__identity__check_in_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Expected"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_update_api_v1_participations__identity__updates_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CoordinationUpdateCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    updates_api_v1_coordination_updates_get: {
+        parameters: {
+            query?: {
+                participationId?: string | null;
+                itemId?: string | null;
+                repositoryId?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

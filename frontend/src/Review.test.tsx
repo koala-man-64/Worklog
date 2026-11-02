@@ -45,6 +45,7 @@ it.each([
   ["entry.upsert", { itemId: ID, date: "2026-10-28" }, "/days/2026-10-28"],
   ["note.update", { id: ID }, `/notes/${ID}`],
   ["task.update", { id: ID }, `/tasks/${ID}`],
+  ["repository.update", { id: ID }, `/repositories/${ID}`],
   ["work-item.update", { id: ID }, `/work-items/${ID}`],
   ["roadmap.update", { roadmapId: ID }, `/roadmaps/${ID}`],
   ["progress.set", { stepId: ID }, `/steps/${ID}`],

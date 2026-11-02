@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 from worklog import recovery
+from worklog.common import AppError
 from worklog.db import Database
 
 
@@ -452,17 +453,17 @@ def test_database_from_before_agent_assignments_keeps_its_chats_and_migrates(tmp
             assert recovery._schema_signature(conn) == recovery._expected_schema()
 
 
-def test_a_failed_chat_steps_migration_leaves_no_partial_table(tmp_path):
+def test_unknown_legacy_schema_is_rejected_before_migration(tmp_path):
     path = tmp_path / "previous.sqlite3"
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(before_agent_assignments())
         for key, value in {"timezone": "America/Chicago", "dataId": "11111111-1111-4111-8111-111111111111", "backlogRevision": 1}.items():
             conn.execute("INSERT INTO settings VALUES(?,?)", (key, json.dumps(value)))
-        # The index name is taken, so the migration's second statement fails after its first.
+        # An extra object is not an accepted legacy shape and must never be migrated.
         conn.execute("CREATE TABLE chat_steps_step(x)")
         conn.execute("PRAGMA user_version=1")
         conn.commit()
-    with pytest.raises(sqlite3.Error):
+    with pytest.raises(AppError, match="schema definitions"):
         Database(path).initialize()
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("SELECT count(*) FROM sqlite_master WHERE name='chat_steps'").fetchone() == (0,)
@@ -500,14 +501,23 @@ def test_database_from_before_questions_and_decisions_keeps_its_roadmaps_and_mig
         recovery.validate_database(migrated)
 
 
-def test_a_failed_questions_and_decisions_migration_leaves_no_partial_tables(tmp_path):
+def test_a_failed_questions_and_decisions_migration_leaves_no_partial_tables(tmp_path, monkeypatch):
+    from worklog import migrations
+    from worklog.db import QUESTIONS_DECISIONS_SCHEMA
+
+    execute = migrations.execute_schema
+
+    def fail_after_questions(conn, schema):
+        execute(conn, schema)
+        if schema == QUESTIONS_DECISIONS_SCHEMA:
+            raise sqlite3.OperationalError("Injected question migration failure")
+
+    monkeypatch.setattr(migrations, "execute_schema", fail_after_questions)
     path = tmp_path / "previous.sqlite3"
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(before_questions_and_decisions())
         for key, value in {"timezone": "America/Chicago", "dataId": "11111111-1111-4111-8111-111111111111", "backlogRevision": 1}.items():
             conn.execute("INSERT INTO settings VALUES(?,?)", (key, json.dumps(value)))
-        # The last index name is taken, so the migration fails after creating both tables.
-        conn.execute("CREATE TABLE roadmap_decisions_roadmap(x)")
         conn.execute("PRAGMA user_version=1")
         conn.commit()
     with pytest.raises(sqlite3.Error):

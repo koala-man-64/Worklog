@@ -2395,3 +2395,44 @@ code {
     }
   }
 }
+.repository-picker {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  padding: 0.7rem;
+}
+.repository-picker label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.repository-picker small {
+  overflow-wrap: anywhere;
+}
+.repository-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.coordination-report {
+  margin-block: 1rem;
+}
+.reported-context {
+  border-left: 2px solid var(--line);
+  padding-left: 0.8rem;
+  margin-block: 0.6rem;
+}
+.reported-context code,
+.coordination-update {
+  overflow-wrap: anywhere;
+}
+.preserve-lines {
+  white-space: pre-wrap;
+}
+.named-runs {
+  padding-inline: 0.8rem;
+  font-size: 0.9rem;
+}

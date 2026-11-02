@@ -1,0 +1,339 @@
+"""Reported activity with overlapping participants and no execution authority."""
+
+from __future__ import annotations
+
+import json
+import re
+import sqlite3
+from datetime import UTC, datetime, timedelta
+from typing import Any
+from urllib.parse import urlsplit, urlunsplit
+
+from .common import AppError, event, now, require_revision, text, uid
+from .discussions import communication_actor
+
+
+def _get(c: sqlite3.Connection, table: str, identity: str) -> sqlite3.Row:
+    # Table names are internal constants.
+    row = c.execute(f"SELECT * FROM {table} WHERE id=?", (identity,)).fetchone()
+    if row is None:
+        raise AppError(404, "not_found", "Coordination record not found")
+    return row
+
+
+def repository_record(row: Any) -> dict:
+    return {"id": row["id"], "name": row["name"], "url": row["url"],
+            "description": row["description"], "archived": bool(row["archived"]),
+            "revision": row["revision"], "createdAt": row["created_at"], "updatedAt": row["updated_at"]}
+
+
+def _repository_url(value: Any) -> str:
+    value = text(value, "url", limit=2000)
+    error = "Use an HTTP(S), ssh://git@host/path, or git@host:path remote without passwords, query, fragment or control characters"
+    if any(ord(char) < 32 or ord(char) == 127 for char in value):
+        raise AppError(422, "validation", error)
+    value = value.strip()
+    if not value:
+        return ""
+    if any(char.isspace() for char in value) or "?" in value or "#" in value:
+        raise AppError(422, "validation", error)
+    # SCP-like Git remotes are declared addresses, never commands or filesystem paths.
+    scp = re.fullmatch(r"git@([A-Za-z0-9][A-Za-z0-9._-]*):(.+)", value)
+    if scp:
+        return "git@" + scp[1].lower() + ":" + scp[2]
+    try:
+        parts = urlsplit(value)
+        if parts.scheme not in {"http", "https", "ssh"} or not parts.hostname or parts.password is not None:
+            raise ValueError
+        if not re.fullmatch(r"[A-Za-z0-9._:-]+", parts.hostname):
+            raise ValueError
+        if parts.scheme == "ssh":
+            if parts.username != "git" or parts.path in {"", "/"}:
+                raise ValueError
+        elif parts.username:
+            raise ValueError
+        _ = parts.port
+    except ValueError:
+        raise AppError(422, "validation", error) from None
+    path = parts.path if parts.scheme == "ssh" else parts.path.rstrip("/")
+    return urlunsplit((parts.scheme.lower(), parts.netloc.lower(), path, "", ""))
+
+
+def _release(c: sqlite3.Connection, actor: dict, row: Any, reason: str) -> None:
+    if row["released_at"] is not None:
+        return
+    stamp = now()
+    c.execute("UPDATE participations SET released_at=?,release_reason=?,updated_at=?,revision=revision+1 WHERE id=?",
+              (stamp, reason, stamp, row["id"]))
+    event(c, actor, "participation.release", row["id"], dict(row), {"reason": reason})
+
+
+def release_item_participations(c: sqlite3.Connection, actor: dict, item_id: str) -> None:
+    for row in c.execute("SELECT * FROM participations WHERE item_id=? AND released_at IS NULL", (item_id,)).fetchall():
+        _release(c, actor, row, "item_archived")
+
+
+def close_credential_runs(c: sqlite3.Connection, actor: dict, credential_id: str, reason: str = "credential_revoked") -> None:
+    for row in c.execute("SELECT * FROM agent_runs WHERE credential_id=? AND ended_at IS NULL", (credential_id,)).fetchall():
+        _close_run(c, actor, row, reason)
+
+
+def _close_run(c: sqlite3.Connection, actor: dict, row: Any, reason: str) -> None:
+    stamp = now()
+    c.execute("UPDATE agent_runs SET ended_at=?,end_reason=?,updated_at=?,revision=revision+1 WHERE id=?",
+              (stamp, reason, stamp, row["id"]))
+    for participation in c.execute("SELECT * FROM participations WHERE run_id=? AND released_at IS NULL", (row["id"],)).fetchall():
+        _release(c, actor, participation, reason)
+    event(c, actor, "run.end", row["id"], dict(row), {"reason": reason})
+
+
+def repository_apply(c: sqlite3.Connection, actor: dict, action: str, p: dict) -> dict:
+    if action not in {"repository.create", "repository.update", "repository.archive", "repository.recover"}:
+        raise AppError(422, "validation", "Unknown repository command")
+    before = None if action == "repository.create" else repository_record(_get(c, "repositories", p["id"]))
+    if before:
+        require_revision(before, p.get("revision"))
+    if action.endswith(("archive", "recover")):
+        assert before is not None
+        archived = action.endswith("archive")
+        c.execute("UPDATE repositories SET archived=?,revision=revision+1,updated_at=? WHERE id=?", (int(archived), now(), before["id"]))
+        if archived:
+            # A repository disappearing never implies that the work was completed.
+            rows = c.execute("SELECT DISTINCT p.* FROM participations p JOIN participation_contexts pc ON pc.participation_id=p.id WHERE pc.repository_id=? AND p.released_at IS NULL", (before["id"],)).fetchall()
+            for row in rows:
+                live_item = row["item_id"] and c.execute("SELECT 1 FROM work_items WHERE id=? AND archived=0", (row["item_id"],)).fetchone()
+                live_repo = c.execute("SELECT 1 FROM participation_contexts pc JOIN repositories r ON r.id=pc.repository_id WHERE pc.participation_id=? AND r.archived=0", (row["id"],)).fetchone()
+                if not live_item and not live_repo:
+                    _release(c, actor, row, "repository_archived")
+        identity = before["id"]
+    else:
+        values = {"name": "", "url": "", "description": ""} if before is None else dict(before)
+        for field in ("name", "url", "description"):
+            if field in p:
+                values[field] = p[field]
+        name = text(values["name"], "name", required=True, limit=200)
+        url = _repository_url(values["url"])
+        description = text(values["description"], "description", limit=10000)
+        duplicate = c.execute("SELECT id FROM repositories WHERE url=? AND id<>?", (url, before["id"] if before else "")).fetchone() if url else None
+        if duplicate:
+            raise AppError(409, "repository_duplicate", "That repository URL is already registered")
+        identity, stamp = (before["id"] if before else uid()), now()
+        if before:
+            c.execute("UPDATE repositories SET name=?,url=?,description=?,revision=revision+1,updated_at=? WHERE id=?", (name, url, description, stamp, identity))
+        else:
+            c.execute("INSERT INTO repositories(id,name,url,description,archived,revision,created_at,updated_at) VALUES(?,?,?,?,0,1,?,?)", (identity, name, url, description, stamp, stamp))
+    result = repository_record(_get(c, "repositories", identity))
+    event(c, actor, action, identity, before, result)
+    return result
+
+
+class CoordinationService:
+    def __init__(self, db):
+        self.db = db
+
+    @staticmethod
+    def _page(c: sqlite3.Connection, sql: str, args: list, limit: int, offset: int, render) -> dict:
+        total = c.execute("SELECT COUNT(*) FROM (" + sql + ")", args).fetchone()[0]
+        rows = c.execute(sql + " LIMIT ? OFFSET ?", [*args, limit, offset]).fetchall()
+        return {"items": [render(row) for row in rows], "total": total, "limit": limit, "offset": offset}
+
+    def repositories(self, c, archived=False, limit=50, offset=0, q="") -> dict:
+        q = text(q, "q", limit=500).strip().lower()
+        return self._page(c, "SELECT * FROM repositories WHERE archived=? AND (?='' OR instr(lower(name || ' ' || url || ' ' || description),?)>0) ORDER BY name COLLATE NOCASE,id", [int(archived), q, q], limit, offset, repository_record)
+
+    def context_summaries(self, c, item_id=None, repository_id=None, limit=50, offset=0) -> dict:
+        """Filter before paging; reported context never creates a canonical work link."""
+        if item_id is None and repository_id is None:
+            return {"repositories": self.repositories(c, limit=limit, offset=offset),
+                    "runs": self.runs(c, limit=limit, offset=offset)}
+        repo_where, repo_args = ["1=1"], []
+        run_where, run_args = ["p.run_id=ar.id", "p.released_at IS NULL"], []
+        if item_id is not None:
+            repo_where.append("(r.id IN (SELECT repository_id FROM item_repositories WHERE item_id=?) OR EXISTS(SELECT 1 FROM participation_contexts pc JOIN participations p ON p.id=pc.participation_id WHERE pc.repository_id=r.id AND p.item_id=? AND p.released_at IS NULL))")
+            repo_args.extend([item_id, item_id])
+            run_where.append("p.item_id=?")
+            run_args.append(item_id)
+        if repository_id is not None:
+            repo_where.append("r.id=?")
+            repo_args.append(repository_id)
+            run_where.append("EXISTS(SELECT 1 FROM participation_contexts pc JOIN repositories r ON r.id=pc.repository_id WHERE pc.participation_id=p.id AND pc.repository_id=? AND r.archived=0)")
+            run_args.append(repository_id)
+        repositories = self._page(c, "SELECT r.* FROM repositories r WHERE " + " AND ".join(repo_where) + " ORDER BY r.name COLLATE NOCASE,r.id", repo_args, limit, offset, repository_record)
+        runs = self._page(c, "SELECT ar.* FROM agent_runs ar WHERE ar.ended_at IS NULL AND EXISTS(SELECT 1 FROM participations p WHERE " + " AND ".join(run_where) + ") ORDER BY ar.created_at DESC,ar.id DESC", run_args, limit, offset, self.run_record)
+        return {"repositories": repositories, "runs": runs}
+
+    @staticmethod
+    def run_record(row) -> dict:
+        return {"id": row["id"], "agentId": row["agent_id"], "credentialId": row["credential_id"],
+                "clientRunKey": row["client_run_key"], "displayName": row["display_name"],
+                "provider": row["provider"], "externalChatId": row["external_chat_id"],
+                "revision": row["revision"], "createdAt": row["created_at"], "updatedAt": row["updated_at"],
+                "endedAt": row["ended_at"], "endReason": row["end_reason"]}
+
+    def _own_run(self, c, actor, identity, *, allow_ended=False):
+        principal = communication_actor(c, actor)
+        row = _get(c, "agent_runs", identity)
+        if actor["kind"] != "agent" or row["credential_id"] != actor["id"] or row["agent_id"] != principal["id"]:
+            raise AppError(403, "coordination_scope", "Only the originating credential may update this run")
+        if row["ended_at"] is not None and not allow_ended:
+            raise AppError(409, "run_ended", "This run has ended; start a new run")
+        return row
+
+    def create_run(self, c, actor, p) -> dict:
+        principal = communication_actor(c, actor)
+        if actor["kind"] != "agent":
+            raise AppError(403, "coordination_scope", "Agent credentials create their own runs")
+        key = text(p["clientRunKey"], "clientRunKey", required=True, limit=200)
+        existing = c.execute("SELECT * FROM agent_runs WHERE credential_id=? AND client_run_key=?", (actor["id"], key)).fetchone()
+        if existing:
+            return self.run_record(existing)
+        identity, stamp = uid(), now()
+        external = p.get("externalChatId")
+        if external is not None:
+            external = text(external, "externalChatId", required=True, limit=500)
+        c.execute("INSERT INTO agent_runs(id,agent_id,credential_id,client_run_key,display_name,provider,external_chat_id,revision,created_at,updated_at) VALUES(?,?,?,?,?,?,?,1,?,?)",
+                  (identity, principal["id"], actor["id"], key, text(p["displayName"], "displayName", required=True, limit=200), text(p.get("provider", ""), "provider", limit=100), external, stamp, stamp))
+        result = self.run_record(_get(c, "agent_runs", identity))
+        event(c, actor, "run.create", identity, None, result)
+        return result
+
+    def runs(self, c, include_ended=False, external_chat_id=None, limit=50, offset=0) -> dict:
+        conditions, args = ["1=1"], []
+        if not include_ended:
+            conditions.append("ended_at IS NULL")
+        if external_chat_id is not None:
+            conditions.append("external_chat_id=?")
+            args.append(external_chat_id)
+        return self._page(c, "SELECT * FROM agent_runs WHERE " + " AND ".join(conditions) + " ORDER BY created_at DESC,id DESC", args, limit, offset, self.run_record)
+
+    def end_run(self, c, actor, identity, p) -> dict:
+        row = _get(c, "agent_runs", identity) if actor["kind"] == "human" else self._own_run(c, actor, identity, allow_ended=True)
+        require_revision(row, p.get("revision"))
+        if row["ended_at"] is None:
+            _close_run(c, actor, row, "human_closed" if actor["kind"] == "human" else "run_ended")
+        return self.run_record(_get(c, "agent_runs", identity))
+
+    @staticmethod
+    def _contexts(c, identity) -> list[dict]:
+        return [{"repositoryId": r["repository_id"], "repositoryName": r["name"], "archived": bool(r["archived"]),
+                 "checkoutPath": r["checkout_path"], "worktreePath": r["worktree_path"], "branch": r["branch"]}
+                for r in c.execute("SELECT pc.*,r.name,r.archived FROM participation_contexts pc JOIN repositories r ON r.id=pc.repository_id WHERE participation_id=? ORDER BY position", (identity,))]
+
+    def participation_record(self, c, row) -> dict:
+        stale = datetime.fromisoformat(row["last_seen_at"]) < datetime.now(UTC) - timedelta(hours=2)
+        return {"id": row["id"], "runId": row["run_id"], "itemId": row["item_id"], "description": row["description"],
+                "contexts": self._contexts(c, row["id"]), "revision": row["revision"],
+                "createdAt": row["created_at"], "updatedAt": row["updated_at"], "lastSeenAt": row["last_seen_at"],
+                "releasedAt": row["released_at"], "releaseReason": row["release_reason"], "stale": stale,
+                "run": self.run_record(_get(c, "agent_runs", row["run_id"]))}
+
+    @staticmethod
+    def _validate_targets(c, item_id, contexts, prior_contexts=None) -> list[dict]:
+        if not isinstance(contexts, list) or len(contexts) > 40:
+            raise AppError(422, "validation", "contexts must contain at most 40 repository contexts")
+        if item_id is not None:
+            item_id = text(item_id, "itemId", required=True, limit=200)
+            if _get(c, "work_items", item_id)["archived"]:
+                raise AppError(409, "archived", "Archived work cannot receive new participation")
+        result = []
+        for context in contexts:
+            repo_id = text(context.get("repositoryId"), "repositoryId", required=True, limit=200)
+            repository = _get(c, "repositories", repo_id)
+            value = {"repositoryId": repo_id, **{field: text(context.get(field, ""), field, limit=2000) for field in ("checkoutPath", "worktreePath", "branch")}}
+            # Retain historical archived contexts only when the declaration is unchanged.
+            if repository["archived"] and value not in (prior_contexts or []):
+                raise AppError(409, "archived", "Archived repositories cannot receive new contexts")
+            result.append(value)
+        if item_id is None and not result:
+            raise AppError(422, "validation", "Participation requires work or a repository")
+        if item_id is None and not any(not _get(c, "repositories", v["repositoryId"])["archived"] for v in result):
+            raise AppError(409, "archived", "Participation requires an active target")
+        return result
+
+    @staticmethod
+    def _replace_contexts(c, identity, contexts) -> None:
+        c.execute("DELETE FROM participation_contexts WHERE participation_id=?", (identity,))
+        for position, context in enumerate(contexts):
+            c.execute("INSERT INTO participation_contexts(participation_id,position,repository_id,checkout_path,worktree_path,branch) VALUES(?,?,?,?,?,?)",
+                      (identity, position, context["repositoryId"], context["checkoutPath"], context["worktreePath"], context["branch"]))
+
+    def create_participation(self, c, actor, p) -> dict:
+        self._own_run(c, actor, p["runId"])
+        item_id = text(p["itemId"], "itemId", required=True, limit=200) if p.get("itemId") is not None else None
+        contexts = self._validate_targets(c, item_id, p.get("contexts", []))
+        identity, stamp = uid(), now()
+        c.execute("INSERT INTO participations(id,run_id,item_id,description,revision,created_at,updated_at,last_seen_at) VALUES(?,?,?,?,1,?,?,?)", (identity, p["runId"], item_id, text(p.get("description", ""), "description", limit=2000), stamp, stamp, stamp))
+        self._replace_contexts(c, identity, contexts)
+        result = self.participation_record(c, _get(c, "participations", identity))
+        event(c, actor, "participation.create", identity, None, result)
+        return result
+
+    def change_participation(self, c, actor, identity, p, verb="update") -> dict:
+        row = _get(c, "participations", identity)
+        self._own_run(c, actor, row["run_id"])
+        require_revision(row, p.get("revision"))
+        before = self.participation_record(c, row)
+        if verb == "release":
+            _release(c, actor, row, "released")
+            return self.participation_record(c, _get(c, "participations", identity))
+        if row["released_at"] is not None and verb != "rejoin":
+            raise AppError(409, "released", "Explicitly rejoin before reporting further activity")
+        prior = [{k: context[k] for k in ("repositoryId", "checkoutPath", "worktreePath", "branch")} for context in before["contexts"]]
+        item_id = p.get("itemId", row["item_id"])
+        if item_id is not None:
+            item_id = text(item_id, "itemId", required=True, limit=200)
+        contexts = self._validate_targets(c, item_id, p.get("contexts", prior), prior if verb != "rejoin" else None)
+        stamp = now()
+        description = text(p.get("description", row["description"]), "description", limit=2000)
+        c.execute("UPDATE participations SET item_id=?,description=?,last_seen_at=?,updated_at=?,revision=revision+1,released_at=NULL,release_reason=NULL WHERE id=?", (item_id, description, stamp, stamp, identity))
+        self._replace_contexts(c, identity, contexts)
+        result = self.participation_record(c, _get(c, "participations", identity))
+        event(c, actor, "participation." + verb, identity, before, result)
+        return result
+
+    def participations(self, c, item_id=None, repository_id=None, run_id=None, include_released=False, limit=50, offset=0) -> dict:
+        conditions, args = ["1=1"], []
+        if not include_released:
+            conditions.append("p.released_at IS NULL")
+        for column, value in (("p.item_id", item_id), ("p.run_id", run_id)):
+            if value is not None:
+                conditions.append(column + "=?")
+                args.append(value)
+        if repository_id is not None:
+            active = " AND r.archived=0" if not include_released else ""
+            conditions.append("EXISTS(SELECT 1 FROM participation_contexts pc JOIN repositories r ON r.id=pc.repository_id WHERE pc.participation_id=p.id AND pc.repository_id=?" + active + ")")
+            args.append(repository_id)
+        sql = "SELECT p.* FROM participations p WHERE " + " AND ".join(conditions) + " ORDER BY p.last_seen_at DESC,p.id DESC"
+        return self._page(c, sql, args, limit, offset, lambda row: self.participation_record(c, row))
+
+    @staticmethod
+    def update_record(row) -> dict:
+        return {"id": row["id"], "participationId": row["participation_id"], "runId": row["run_id"],
+                "agentId": row["agent_id"], "credentialId": row["credential_id"], "authorLabel": row["author_label"],
+                "kind": row["kind"], "text": row["text"], "itemId": row["item_id"],
+                "contexts": json.loads(row["contexts_json"]), "createdAt": row["created_at"]}
+
+    def post_update(self, c, actor, identity, p) -> dict:
+        row = _get(c, "participations", identity)
+        run = self._own_run(c, actor, row["run_id"])
+        if row["released_at"] is not None:
+            raise AppError(409, "released", "Rejoin before posting activity")
+        update_id, stamp = uid(), now()
+        c.execute("INSERT INTO coordination_updates(id,participation_id,run_id,agent_id,credential_id,author_label,kind,text,item_id,contexts_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                  (update_id, identity, run["id"], run["agent_id"], actor["id"], run["display_name"], p["kind"], text(p["text"], "text", required=True, limit=4000), row["item_id"], json.dumps(self._contexts(c, identity)), stamp))
+        c.executemany("INSERT INTO coordination_update_repositories(update_id,repository_id) VALUES(?,?)", [(update_id, repo_id) for repo_id in {context["repositoryId"] for context in self._contexts(c, identity)}])
+        c.execute("UPDATE participations SET last_seen_at=?,updated_at=?,revision=revision+1 WHERE id=?", (stamp, stamp, identity))
+        result = self.update_record(_get(c, "coordination_updates", update_id))
+        event(c, actor, "coordination.update", update_id, None, result)
+        return result
+
+    def updates(self, c, participation_id=None, item_id=None, repository_id=None, limit=50, offset=0) -> dict:
+        conditions, args = ["1=1"], []
+        for column, value in (("participation_id", participation_id), ("item_id", item_id)):
+            if value is not None:
+                conditions.append(column + "=?")
+                args.append(value)
+        if repository_id is not None:
+            conditions.append("EXISTS(SELECT 1 FROM coordination_update_repositories ur WHERE ur.update_id=coordination_updates.id AND ur.repository_id=?)")
+            args.append(repository_id)
+        return self._page(c, "SELECT * FROM coordination_updates WHERE " + " AND ".join(conditions) + " ORDER BY created_at DESC,id DESC", args, limit, offset, self.update_record)

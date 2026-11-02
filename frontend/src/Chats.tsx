@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { contextStorageKey } from "./api";
 import { useCollapsed, useData } from "./hooks";
+import { RepositoryBadges } from "./RepositoryControls";
+import { NamedRuns } from "./Coordination";
 import { Empty, ErrorMessage, Markdown } from "./components";
 import { Icon } from "./icons";
 import { localStore } from "./storage";
@@ -294,8 +296,9 @@ export function Chats({ selected }: { selected?: string }) {
       <header>
         <h1>Chats</h1>
         <p className="lede">
-          Who is working on what, and every message sent between you and your
-          agents, read from the transcripts on this machine.
+          Reported repository context and observed transcript activity. Every
+          message sent between you and your agents, read from the transcripts on
+          this machine.
         </p>
       </header>
       <ErrorMessage error={list.error} />
@@ -526,6 +529,10 @@ function ChatListItem({
           )}
         </div>
       )}
+      <div className="chat-row">
+        <RepositoryBadges ids={chat.repositoryIds} legacy={chat.repos} />
+      </div>
+      <NamedRuns chatId={chat.chatId} />
       {chat.steps.length > 0 && (
         <div className="chat-row chat-meta">
           <small>Working on</small>

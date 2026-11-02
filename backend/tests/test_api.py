@@ -740,3 +740,49 @@ def test_roadmap_questions_are_answered_and_decisions_are_recorded(client):
     assert write(client, "POST", f"/proposals/{unanswered['id']}/approve", {"revision": unanswered["revision"]}).status_code == 422
     unchanged = client.get(f"/api/v1/questions/{question['id']}").json()
     assert (unchanged["status"], unchanged["revision"]) == ("open", recovered["revision"])
+
+
+def test_repository_links_survive_legacy_chat_edits_and_filter_work(client):
+    repo = write(client, "POST", "/repositories", {"name": "Workbench"}).json()
+    rid = repo["id"]
+    linked = item(client, repositoryIds=[rid])
+    item(client)
+    filtered = client.get("/api/v1/work-items", params={"repositoryId": rid}).json()
+    assert [(row["id"], row["repositoryIds"]) for row in filtered["items"]] == [(linked["id"], [rid])]
+
+    chat = write(client, "POST", "/chats", {"ownerType": "item", "ownerId": linked["id"],
+                 "chatId": str(uuid.uuid4()), "title": "Run", "repos": ["legacy"],
+                 "repositoryIds": [rid]}).json()
+    proposal = write(client, "POST", "/proposals", {"title": "Update chat context", "rationale": "Recorded name",
+                     "operations": [{"action": "chat.update", "payload": {"id": chat["id"],
+                                     "revision": chat["revision"], "repos": ["other legacy name"]}}]}).json()
+    path = "/proposals/" + proposal["id"]
+    submitted = write(client, "POST", path + "/submit", {"revision": proposal["revision"]}).json()
+    approved = write(client, "POST", path + "/approve", {"revision": submitted["revision"]})
+    assert approved.status_code == 200, approved.text
+    saved = client.get("/api/v1/chats/" + chat["id"]).json()
+    assert saved["repos"] == ["other legacy name"] and saved["repositoryIds"] == [rid]
+
+    archive = write(client, "POST", f"/repositories/{rid}/archive", {"revision": repo["revision"]})
+    assert archive.status_code == 200, archive.text
+    assert client.get("/api/v1/work-items/" + linked["id"]).json()["repositoryIds"] == [rid]
+    denied = write(client, "POST", "/work-items", {"title": "Invalid archived link", "repositoryIds": [rid]})
+    assert denied.status_code == 422
+    assert client.get("/api/v1/work-items", params={"q": "Invalid archived link"}).json()["total"] == 0
+
+
+def test_catalog_proposals_require_review_and_rollback_as_a_unit(client):
+    token = write(client, "POST", "/credentials", {"label": "Catalog proposer"}).json()["token"]
+    bearer = {"Authorization": "Bearer " + token}
+    assert write(client, "POST", "/repositories", {"name": "Direct"}, headers=bearer).status_code == 403
+    w = item(client)
+    proposal = write(client, "POST", "/proposals", {"title": "Atomic catalog change", "rationale": "Review",
+                     "operations": [{"action": "repository.create", "payload": {"name": "Tentative"}},
+                                    {"action": "item.update", "payload": {"id": w["id"], "revision": w["revision"],
+                                     "repositoryIds": [str(uuid.uuid4())]}}]}, headers=bearer).json()
+    path = "/proposals/" + proposal["id"]
+    submitted = write(client, "POST", path + "/submit", {"revision": proposal["revision"]}, headers=bearer).json()
+    response = write(client, "POST", path + "/approve", {"revision": submitted["revision"]})
+    assert response.status_code == 422, response.text
+    assert client.get("/api/v1/repositories", params={"q": "Tentative"}).json()["items"] == []
+    assert client.get("/api/v1/work-items/" + w["id"]).json()["revision"] == w["revision"]

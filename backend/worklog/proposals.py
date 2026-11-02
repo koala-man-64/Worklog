@@ -20,8 +20,12 @@ CREATE INDEX IF NOT EXISTS proposals_status ON proposals(status,created_at);
 
 # Explicit schemas prevent a proposal becoming an arbitrary operation transport.
 FIELDS = {
-    "item.create": ({"title"}, {"title", "description", "adoUrl", "roadmapId", "stepId", "day", "worked"}),
-    "item.update": ({"id", "revision"}, {"id", "revision", "title", "description", "status", "adoUrl", "roadmapId", "stepId"}),
+    "repository.create": ({"name"}, {"name", "url", "description"}),
+    "repository.update": ({"id", "revision"}, {"id", "revision", "name", "url", "description"}),
+    "repository.archive": ({"id", "revision"}, {"id", "revision"}),
+    "repository.recover": ({"id", "revision"}, {"id", "revision"}),
+    "item.create": ({"title"}, {"title", "description", "adoUrl", "roadmapId", "stepId", "day", "worked", "repositoryIds"}),
+    "item.update": ({"id", "revision"}, {"id", "revision", "title", "description", "status", "adoUrl", "roadmapId", "stepId", "repositoryIds"}),
     "item.archive": ({"id", "revision"}, {"id", "revision"}),
     "item.recover": ({"id", "revision"}, {"id", "revision"}),
     "entry.upsert": ({"date", "itemId", "revision"}, {"date", "itemId", "revision", "planned", "worked", "outcome"}),
@@ -43,8 +47,8 @@ FIELDS = {
     "link.update": ({"id", "revision"}, {"id", "revision", "url", "title", "description"}),
     "link.archive": ({"id", "revision"}, {"id", "revision"}),
     "link.recover": ({"id", "revision"}, {"id", "revision"}),
-    "chat.create": ({"ownerType", "ownerId", "chatId", "title"}, {"ownerType", "ownerId", "chatId", "title", "createdDate", "provider", "model", "repos", "stepIds"}),
-    "chat.update": ({"id", "revision"}, {"id", "revision", "chatId", "title", "createdDate", "provider", "model", "repos", "stepIds"}),
+    "chat.create": ({"ownerType", "ownerId", "chatId", "title"}, {"ownerType", "ownerId", "chatId", "title", "createdDate", "provider", "model", "repos", "stepIds", "repositoryIds"}),
+    "chat.update": ({"id", "revision"}, {"id", "revision", "chatId", "title", "createdDate", "provider", "model", "repos", "stepIds", "repositoryIds"}),
     "chat.archive": ({"id", "revision"}, {"id", "revision"}),
     "chat.recover": ({"id", "revision"}, {"id", "revision"}),
     "github.create": ({"ownerType", "ownerId", "kind", "url"}, {"ownerType", "ownerId", "kind", "url", "reference", "title", "description", "chatId"}),

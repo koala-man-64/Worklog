@@ -284,6 +284,8 @@ it("ties an existing or new person to a target via PeopleLinks", async () => {
 it("adds and renders web links, agent chats, and GitHub commits/PRs", async () => {
   const calls: { url: string; method: string; body: unknown }[] = [];
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    if ((init?.method ?? "GET") === "GET" && String(input).includes("/repositories"))
+      return new Response(JSON.stringify({ items: [], total: 0 }), { status: 200 });
     calls.push({
       url: String(input),
       method: init?.method ?? "GET",

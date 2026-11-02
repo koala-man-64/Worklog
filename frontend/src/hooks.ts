@@ -120,6 +120,7 @@ export function useDraft(
     key
       .replace(/^item-(title|description|ado)-/, "item-")
       .replace(/^person-(name|role|notes)-/, "person-")
+      .replace(/^repository-(name|url|description)-/, "repository-")
       .replace(/^note-title-/, "note-"),
     dataId,
   );

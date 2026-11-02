@@ -393,6 +393,28 @@ def _discussion_route_allowed(method: str, route: str) -> bool:
     return False
 
 
+def _coordination_route_allowed(method: str, route: str) -> bool:
+    """Coordination writes are self-attributed; catalog edits remain reviewed."""
+    if not route.startswith("/") or route.endswith("/"):
+        return False
+    if route in {"/repositories", "/agent-runs", "/participations", "/coordination-updates"}:
+        return method == "GET" or (method == "POST" and route in {"/agent-runs", "/participations"})
+    parts = route.strip("/").split("/")
+    if len(parts) not in {2, 3}:
+        return False
+    try:
+        if str(uuid.UUID(parts[1])) != parts[1].lower():
+            return False
+    except ValueError:
+        return False
+    if len(parts) == 2:
+        return (method == "GET" and parts[0] in {"repositories", "agent-runs", "participations"}
+                or method == "PATCH" and parts[0] == "participations")
+    return method == "POST" and (
+        parts[0] == "agent-runs" and parts[2] == "end"
+        or parts[0] == "participations" and parts[2] in {"release", "rejoin", "check-in", "updates"})
+
+
 class AgentClient:
     def __init__(self, base_url: str | None = None) -> None:
         base_url = base_url or local_url(resolve_port())
@@ -431,7 +453,7 @@ class AgentClient:
             query = parse_qs(urlsplit(path).query)
             ids = query.get("ownerId", [])
             allowed = query.get("ownerType") == ["proposal"] and len(ids) == 1 and valid_id(ids[0])
-        allowed = allowed or _discussion_route_allowed(method, route)
+        allowed = allowed or _discussion_route_allowed(method, route) or _coordination_route_allowed(method, route)
         if not allowed:
             raise ValueError("Agent command is outside proposal/read scope")
         headers = {"Authorization": "Bearer " + self.token, "Accept": "application/json"}
@@ -441,14 +463,15 @@ class AgentClient:
         elif payload is not None:
             data = json.dumps(payload).encode("utf-8")
             headers["Content-Type"] = "application/json"
-        if method == "POST":
+        coordination_write = method in {"POST", "PATCH"} and route.startswith(("/agent-runs", "/participations"))
+        if method == "POST" or coordination_write:
             request_id = request_id or str(uuid.uuid4())
             if not 8 <= len(request_id) <= 200 or not request_id.isascii() or any(ord(c) < 33 or ord(c) > 126 for c in request_id):
                 raise ValueError("Request ID must contain 8–200 printable ASCII characters without spaces")
             headers["Idempotency-Key"] = request_id
         discussion_write = method == "POST" and route.startswith("/discussions")
         retry_hint = (f"; result uncertain; retry the same command and payload with --request-id {request_id}"
-                      if discussion_write else "")
+                      if discussion_write or coordination_write else "")
         request = Request(self.base + "/api/v1" + path, data=data, headers=headers, method=method)
         try:
             options = {"deadline": deadline} if deadline is not None else {}
@@ -483,8 +506,10 @@ def agent_command(args: argparse.Namespace, port: int) -> Any:
     client = AgentClient(args.url or local_url(port))
     if args.agent_action == "discussions":
         return discussion_command(client, args)
+    if args.agent_action in {"repositories", "runs", "participation", "updates"}:
+        return coordination_command(client, args)
     if args.agent_action == "context":
-        return client.request("GET", "/context" + ("?" + urlencode({"date": args.date}) if args.date else ""))
+        return client.request("GET", "/context" + _coordination_query(args, "date", "repositoryId", "itemId"))
     if args.agent_action == "search":
         return client.request("GET", "/search?" + urlencode({"q": args.query, "limit": args.limit,
                                                             "archived": str(args.archived).lower()}))
@@ -508,6 +533,129 @@ def agent_command(args: argparse.Namespace, port: int) -> Any:
             {"ownerType": "proposal", "ownerId": args.id, "name": args.name or path.name}),
             raw=path.read_bytes(), content_type=mimetypes.guess_type(path.name)[0])
     return client.request("POST", route + "/" + action, {"revision": args.revision})
+
+
+def _coordination_query(args: argparse.Namespace, *fields: str) -> str:
+    values = {key: getattr(args, key) for key in fields if getattr(args, key, None) is not None}
+    values = {key: str(value).lower() if isinstance(value, bool) else value for key, value in values.items()}
+    return "?" + urlencode(values) if values else ""
+
+
+def coordination_command(client: AgentClient, args: argparse.Namespace) -> Any:
+    action = args.coordination_action
+    group = args.agent_action
+    base = {"repositories": "/repositories", "runs": "/agent-runs",
+            "participation": "/participations", "updates": "/coordination-updates"}[group]
+    if action == "list":
+        return client.request("GET", base + _coordination_query(
+            args, "repositoryId", "itemId", "runId", "participationId", "q", "archived", "includeEnded", "includeReleased", "limit", "offset"))
+    if action == "show":
+        return client.request("GET", base + "/" + args.id)
+    payload = _payload(args.file) if getattr(args, "file", None) else {}
+    route = base
+    method = "POST"
+    if group == "runs" and action == "start":
+        payload.update(clientRunKey=args.client_run_key, displayName=args.display_name)
+        for flag, key in (("provider", "provider"), ("chat", "externalChatId")):
+            if getattr(args, flag, None) is not None:
+                payload[key] = getattr(args, flag)
+    elif group == "participation" and action == "start":
+        if args.run:
+            payload["runId"] = args.run
+        if args.repo:
+            payload["contexts"] = [{"repositoryId": repo} for repo in args.repo]
+        if args.item:
+            payload["itemId"] = args.item
+        if args.description is not None:
+            payload["description"] = args.description
+    elif group == "updates":
+        route = "/participations/" + args.participation + "/updates"
+        if args.text is not None:
+            payload["text"] = args.text
+            payload.setdefault("kind", "update")
+        if args.kind is not None:
+            payload["kind"] = args.kind
+    else:
+        route += "/" + args.id
+        payload["revision"] = args.revision
+        if group == "participation" and action == "update":
+            method = "PATCH"
+            if args.description is not None:
+                payload["description"] = args.description
+        else:
+            route += "/" + action
+    return client.request(method, route, payload, request_id=args.request_id)
+
+
+def _coordination_parser(actions: Any) -> None:
+    def pages(command: Any) -> None:
+        command.add_argument("--limit", type=int, default=50)
+        command.add_argument("--offset", type=int, default=0)
+
+    def write(command: Any) -> None:
+        command.add_argument("--request-id", required=True,
+                             help="Stable operation key; reuse with the same payload after an uncertain result")
+
+    repositories = actions.add_parser("repositories", help="Read the canonical repository catalog").add_subparsers(
+        dest="coordination_action", required=True)
+    listing = repositories.add_parser("list")
+    listing.add_argument("--archived", action="store_true", help="List archived catalog records")
+    listing.add_argument("--q", help="Search catalog name, URL and description")
+    pages(listing)
+    repositories.add_parser("show").add_argument("id")
+    runs = actions.add_parser("runs", help="Record this agent's explicit work runs").add_subparsers(
+        dest="coordination_action", required=True)
+    listing = runs.add_parser("list")
+    listing.add_argument("--include-ended", dest="includeEnded", action="store_true")
+    pages(listing)
+    runs.add_parser("show").add_argument("id")
+    start = runs.add_parser("start")
+    start.add_argument("--client-run-key", required=True)
+    start.add_argument("--display-name", required=True)
+    start.add_argument("--provider")
+    start.add_argument("--chat", help="External chat provenance only")
+    write(start)
+    end = runs.add_parser("end")
+    end.add_argument("id")
+    end.add_argument("--revision", type=int, required=True)
+    write(end)
+    participation = actions.add_parser("participation", help="Report repository activity and optional work context").add_subparsers(
+        dest="coordination_action", required=True)
+    listing = participation.add_parser("list")
+    for name, destination in (("repo", "repositoryId"), ("item", "itemId"), ("run", "runId")):
+        listing.add_argument("--" + name, dest=destination)
+    listing.add_argument("--include-released", dest="includeReleased", action="store_true")
+    pages(listing)
+    participation.add_parser("show").add_argument("id")
+    start = participation.add_parser("start")
+    start.add_argument("--file", help="JSON {runId,itemId?,contexts:[{repositoryId,checkoutPath?,worktreePath?,branch?}]}")
+    start.add_argument("--run")
+    start.add_argument("--repo", action="append", help="Catalog repository ID; repeat for multiple contexts")
+    start.add_argument("--item", help="Optional work item ID")
+    start.add_argument("--description", help="What this participation is doing")
+    write(start)
+    for verb in ("update", "check-in", "release", "rejoin"):
+        command = participation.add_parser(verb)
+        command.add_argument("id")
+        command.add_argument("--revision", type=int, required=True)
+        if verb == "update":
+            source = command.add_mutually_exclusive_group(required=True)
+            source.add_argument("--file", help="JSON object with itemId, description and/or replacement contexts")
+            source.add_argument("--description", help="Replace the participation's activity description")
+        write(command)
+    updates = actions.add_parser("updates", help="Append immutable status, blocker and handoff messages").add_subparsers(
+        dest="coordination_action", required=True)
+    listing = updates.add_parser("list")
+    for name, destination in (("repo", "repositoryId"), ("item", "itemId"), ("participation", "participationId")):
+        listing.add_argument("--" + name, dest=destination)
+    pages(listing)
+    post = updates.add_parser("post")
+    post.add_argument("--participation", required=True)
+    post.add_argument("--kind", choices=("update", "blocker", "handoff"))
+    source = post.add_mutually_exclusive_group(required=True)
+    source.add_argument("--text")
+    source.add_argument("--file", help="JSON {kind,text}; - reads standard input")
+    write(post)
 
 
 def _discussion_context(args: argparse.Namespace) -> dict:
@@ -708,8 +856,11 @@ def parser() -> argparse.ArgumentParser:
     agent.add_argument("--port", type=int, default=argparse.SUPPRESS)
     actions = agent.add_subparsers(dest="agent_action", required=True)
     _discussion_parser(actions)
+    _coordination_parser(actions)
     context = actions.add_parser("context")
     context.add_argument("--date")
+    context.add_argument("--repo", dest="repositoryId", help="Canonical repository ID")
+    context.add_argument("--item", dest="itemId", help="Work item ID")
     search = actions.add_parser("search")
     search.add_argument("query")
     search.add_argument("--limit", type=int, default=50)

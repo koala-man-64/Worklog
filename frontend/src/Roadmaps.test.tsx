@@ -169,6 +169,13 @@ it("adds, attaches, reassigns, and unlinks work items on a roadmap", async () =>
   };
   const calls: { url: string; method: string; body: unknown }[] = [];
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    if (
+      (init?.method ?? "GET") === "GET" &&
+      String(input).includes("/repositories")
+    )
+      return new Response(JSON.stringify({ items: [], total: 0 }), {
+        status: 200,
+      });
     const url = String(input);
     const method = init?.method ?? "GET";
     if (method === "GET" && url.includes(`/roadmaps/${ROADMAP}`))

@@ -50,6 +50,7 @@ export type PersonDetail = Person & {
   history: unknown[];
 };
 export type Item = RecordBase & {
+  repositoryIds?: string[];
   isBacklog?: boolean;
   title: string;
   description: string;
@@ -98,6 +99,7 @@ export type WebLink = RecordBase & {
   description: string;
 };
 export type AgentChat = RecordBase & {
+  repositoryIds?: string[];
   ownerType: string;
   ownerId: string;
   chatId: string;

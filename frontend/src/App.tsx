@@ -14,6 +14,7 @@ import { Today } from "./Today";
 import { Work } from "./Work";
 import { Roadmaps } from "./Roadmaps";
 import { RoadmapNav } from "./RoadmapNav";
+import { Repositories } from "./Repositories";
 import { People } from "./People";
 import { Chats } from "./Chats";
 import { Discussions } from "./Discussions";
@@ -25,6 +26,7 @@ const destinations: { route: string; icon: IconName; label: string }[] = [
   { route: "today", icon: "today", label: "Today" },
   { route: "work", icon: "work", label: "Work" },
   { route: "roadmaps", icon: "roadmaps", label: "Roadmaps" },
+  { route: "repositories", icon: "work", label: "Repositories" },
   { route: "people", icon: "people", label: "People" },
   { route: "chats", icon: "chats", label: "Chats" },
   { route: "discussions", icon: "chats", label: "Discussions" },
@@ -201,6 +203,8 @@ export default function App() {
             <Work key={id ?? "list"} selected={id} />
           ) : page === "roadmaps" ? (
             <Roadmaps key={id ?? "list"} selected={id} step={sub} />
+          ) : page === "repositories" ? (
+            <Repositories key={id ?? "list"} selected={id} />
           ) : page === "people" ? (
             <People key={id ?? "list"} selected={id} />
           ) : page === "chats" ? (
