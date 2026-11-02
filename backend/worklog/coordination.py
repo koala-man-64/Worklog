@@ -24,6 +24,7 @@ def _get(c: sqlite3.Connection, table: str, identity: str) -> sqlite3.Row:
 
 def repository_record(row: Any) -> dict:
     return {"id": row["id"], "name": row["name"], "url": row["url"],
+            "remoteIdentity": row["remote_identity"], "duplicateOf": row["duplicate_of"],
             "description": row["description"], "archived": bool(row["archived"]),
             "revision": row["revision"], "createdAt": row["created_at"], "updatedAt": row["updated_at"]}
 
@@ -48,16 +49,48 @@ def _repository_url(value: Any) -> str:
             raise ValueError
         if not re.fullmatch(r"[A-Za-z0-9._:-]+", parts.hostname):
             raise ValueError
-        if parts.scheme == "ssh":
-            if parts.username != "git" or parts.path in {"", "/"}:
-                raise ValueError
-        elif parts.username:
+        if parts.scheme == "ssh" and (parts.username != "git" or parts.path in {"", "/"}):
             raise ValueError
         _ = parts.port
     except ValueError:
         raise AppError(422, "validation", error) from None
-    path = parts.path if parts.scheme == "ssh" else parts.path.rstrip("/")
-    return urlunsplit((parts.scheme.lower(), parts.netloc.lower(), path, "", ""))
+    if parts.scheme == "ssh":
+        return urlunsplit(("ssh", parts.netloc.lower(), parts.path, "", ""))
+    # An HTTP(S) user name, as in Azure DevOps clone URLs, may be a token: never keep it.
+    return urlunsplit((parts.scheme.lower(), parts.netloc.rpartition("@")[2].lower(), parts.path.rstrip("/"), "", ""))
+
+
+def repository_identity(url: str) -> str:
+    """One key for every address of a remote: host plus path, lowercased, without
+    scheme, user, port, `.git` or trailing `/`.
+
+    HTTPS, ssh:// and scp-like forms share it, and so do Azure DevOps' dev.azure.com,
+    {org}.visualstudio.com and ssh.dev.azure.com:v3 forms. Expects an address that
+    _repository_url accepted; anything else keys as its lowercased text.
+    """
+    if not url:
+        return ""
+    scp = re.fullmatch(r"[^@/]+@([^:/]+):(.*)", url)
+    if scp:
+        host, path = scp[1].lower(), scp[2]
+    else:
+        try:
+            parts = urlsplit(url)
+        except ValueError:
+            return url.lower()
+        host, path = parts.hostname or "", parts.path
+    segments = [segment for segment in path.lower().strip("/").removesuffix(".git").split("/") if segment]
+    if host in {"ssh.dev.azure.com", "vs-ssh.visualstudio.com"}:
+        if len(segments) == 4 and segments[0] == "v3":
+            host, segments = "dev.azure.com", [segments[1], segments[2], "_git", segments[3]]
+    elif host.endswith(".visualstudio.com"):
+        if segments[:1] == ["defaultcollection"]:
+            segments = segments[1:]
+        host, segments = "dev.azure.com", [host.removesuffix(".visualstudio.com"), *segments]
+    if host == "dev.azure.com" and len(segments) == 3 and segments[1] == "_git":
+        # A project's default repository may leave out the project: {org}/_git/{project}.
+        segments = [segments[0], segments[2], "_git", segments[2]]
+    return "/".join([host, *segments])
 
 
 def _release(c: sqlite3.Connection, actor: dict, row: Any, reason: str) -> None:
@@ -89,6 +122,24 @@ def _close_run(c: sqlite3.Connection, actor: dict, row: Any, reason: str) -> Non
     event(c, actor, "run.end", row["id"], dict(row), {"reason": reason})
 
 
+def repository_holder(c: sqlite3.Connection, identity: str, exclude: str = "") -> Any:
+    """The record that answers for a remote: an active one before an archived one,
+    and the canonical record before a duplicate flagged for merging."""
+    return c.execute("SELECT * FROM repositories WHERE remote_identity=? AND id<>? ORDER BY archived,"
+                     "duplicate_of IS NOT NULL,created_at,id LIMIT 1", (identity, exclude)).fetchone() if identity else None
+
+
+def _hand_over(c: sqlite3.Connection, actor: dict, identity: str, old_key: str) -> None:
+    """The canonical record left its remote: the duplicates it leaves behind name a new one."""
+    heirs = c.execute("SELECT * FROM repositories WHERE duplicate_of=? AND remote_identity=? ORDER BY archived,created_at,id",
+                      (identity, old_key)).fetchall()
+    for position, heir in enumerate(heirs):
+        stamp = now()
+        c.execute("UPDATE repositories SET duplicate_of=?,revision=revision+1,updated_at=? WHERE id=?",
+                  (None if position == 0 else heirs[0]["id"], stamp, heir["id"]))
+        event(c, actor, "repository.update", heir["id"], repository_record(heir), repository_record(_get(c, "repositories", heir["id"])))
+
+
 def repository_apply(c: sqlite3.Connection, actor: dict, action: str, p: dict) -> dict:
     if action not in {"repository.create", "repository.update", "repository.archive", "repository.recover"}:
         raise AppError(422, "validation", "Unknown repository command")
@@ -116,17 +167,31 @@ def repository_apply(c: sqlite3.Connection, actor: dict, action: str, p: dict) -
         name = text(values["name"], "name", required=True, limit=200)
         url = _repository_url(values["url"])
         description = text(values["description"], "description", limit=10000)
-        duplicate = c.execute("SELECT id FROM repositories WHERE url=? AND id<>?", (url, before["id"] if before else "")).fetchone() if url else None
-        if duplicate:
-            raise AppError(409, "repository_duplicate", "That repository URL is already registered")
+        key = repository_identity(url)
+        old_key = before["remoteIdentity"] if before else None
+        holder = repository_holder(c, key, before["id"] if before else "") if key != old_key else None
+        if holder and before:
+            raise AppError(409, "repository_duplicate", f"That repository is already registered as {holder['name']}"
+                           + (" (archived)" if holder["archived"] else ""), {"repositoryId": holder["id"]})
+        if holder and holder["archived"]:
+            raise AppError(409, "repository_archived", f"{holder['name']} is registered at that address but archived; "
+                           "recover it instead", {"repositoryId": holder["id"]})
+        if holder:
+            # Registering a repository again links to the record it already has.
+            return {**repository_record(holder), "created": False}
         identity, stamp = (before["id"] if before else uid()), now()
         if before:
-            c.execute("UPDATE repositories SET name=?,url=?,description=?,revision=revision+1,updated_at=? WHERE id=?", (name, url, description, stamp, identity))
+            duplicate_of = before["duplicateOf"] if key == old_key else None
+            c.execute("UPDATE repositories SET name=?,url=?,remote_identity=?,duplicate_of=?,description=?,revision=revision+1,updated_at=? WHERE id=?",
+                      (name, url, key, duplicate_of, description, stamp, identity))
+            if old_key and key != old_key and before["duplicateOf"] is None:
+                _hand_over(c, actor, identity, old_key)
         else:
-            c.execute("INSERT INTO repositories(id,name,url,description,archived,revision,created_at,updated_at) VALUES(?,?,?,?,0,1,?,?)", (identity, name, url, description, stamp, stamp))
+            c.execute("INSERT INTO repositories(id,name,url,remote_identity,description,archived,revision,created_at,updated_at) VALUES(?,?,?,?,?,0,1,?,?)",
+                      (identity, name, url, key, description, stamp, stamp))
     result = repository_record(_get(c, "repositories", identity))
     event(c, actor, action, identity, before, result)
-    return result
+    return {**result, "created": True} if action == "repository.create" else result
 
 
 class CoordinationService:

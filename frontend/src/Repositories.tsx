@@ -3,7 +3,8 @@ import { request } from "./api";
 import { useAction, useData } from "./hooks";
 import { DraftField, Empty, ErrorMessage } from "./components";
 import { Coordination, OpenRuns, Pages } from "./Coordination";
-import type { Repository } from "./repositoryTypes";
+import { RepositoryName } from "./RepositoryControls";
+import type { Repository, RepositoryRegistration } from "./repositoryTypes";
 import type { Item, List } from "./types";
 
 export function Repositories({ selected }: { selected?: string }) {
@@ -21,6 +22,7 @@ function RepositoryList() {
   const [showActivity, setShowActivity] = useState(false);
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
+  const [existing, setExisting] = useState<Repository | null>(null);
   const action = useAction();
   const list = useData<List<Repository>>(
     `/repositories?archived=${archived}&limit=50&offset=${offset}&q=${encodeURIComponent(q)}`,
@@ -37,13 +39,18 @@ function RepositoryList() {
         className="quick-add"
         onSubmit={(e) => {
           e.preventDefault();
+          setExisting(null);
           action.mutate(
             {
               path: "/repositories",
               body: { name: name.trim(), url: url.trim(), description: "" },
             },
             {
-              onSuccess: () => {
+              onSuccess: (result) => {
+                const registration = result as RepositoryRegistration;
+                setExisting(
+                  registration.created === false ? registration : null,
+                );
                 setName("");
                 setUrl("");
               },
@@ -70,6 +77,12 @@ function RepositoryList() {
           Add repository
         </button>
       </form>
+      {existing && (
+        <p className="warning" role="status">
+          That remote is already registered as{" "}
+          <a href={"#repositories/" + existing.id}>{existing.name}</a>.
+        </p>
+      )}
       <ErrorMessage error={action.error || list.error} />
       <input
         aria-label="Find repositories"
@@ -108,6 +121,7 @@ function RepositoryList() {
                 {repo.name}
               </a>
               <small>{repo.url || "No remote URL"}</small>
+              {repo.duplicateOf && <SameRemote id={repo.duplicateOf} />}
               <p>{repo.description}</p>
             </div>
             <button
@@ -139,6 +153,18 @@ function RepositoryList() {
         {showActivity && <Coordination />}
       </details>
     </>
+  );
+}
+// Only an upgrade leaves two records on one remote.
+function SameRemote({ id }: { id: string }) {
+  return (
+    <p className="warning">
+      Same remote as{" "}
+      <a href={"#repositories/" + id}>
+        <RepositoryName id={id} />
+      </a>
+      : two records for one repository.
+    </p>
   );
 }
 function RepositoryDetail({ id }: { id: string }) {
@@ -178,6 +204,7 @@ function RepositoryDetail({ id }: { id: string }) {
       {repo.archived && (
         <p>Archived repository. Existing links and reports remain visible.</p>
       )}
+      {repo.duplicateOf && <SameRemote id={repo.duplicateOf} />}
       <ErrorMessage error={action.error} />
       {(
         [

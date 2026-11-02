@@ -28,6 +28,22 @@ test("repositories connect work, named agent reports, chat badges and human run 
   await page
     .getByRole("textbox", { name: "Repository remote URL" })
     .press("Enter");
+  // Another address of the same remote links to its record instead of adding one.
+  await expect(
+    page.getByRole("textbox", { name: "Repository name", exact: true }),
+  ).toHaveValue("");
+  await page
+    .getByRole("textbox", { name: "Repository name", exact: true })
+    .fill(repoName + " over SSH");
+  await page
+    .getByRole("textbox", { name: "Repository remote URL" })
+    .fill(`git@github.com:Example/${suffix}.git`);
+  await page
+    .getByRole("textbox", { name: "Repository remote URL" })
+    .press("Enter");
+  await expect(
+    page.getByRole("status").filter({ hasText: "already registered" }),
+  ).toHaveText(`That remote is already registered as ${repoName}.`);
   await page
     .getByRole("textbox", { name: "Find repositories", exact: true })
     .fill(repoName);

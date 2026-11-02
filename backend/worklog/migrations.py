@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import sqlite3
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 # Older versions that startup and offline restore upgrade in one transaction.
-UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4})
+UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5})
 
 COORDINATION_SCHEMA = """
 CREATE TABLE repositories(id TEXT PRIMARY KEY,name TEXT NOT NULL,url TEXT NOT NULL DEFAULT '',description TEXT NOT NULL DEFAULT '',archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
@@ -30,6 +30,32 @@ CREATE TABLE coordination_update_repositories(update_id TEXT NOT NULL REFERENCES
 CREATE INDEX coordination_update_repositories_repository ON coordination_update_repositories(repository_id,update_id);
 """
 
+# v6 keys repositories by remote rather than by address text. COORDINATION_SCHEMA keeps the
+# v2-v5 shape and every database, new ones included, reaches v6 through add_remote_identity.
+REPOSITORY_IDENTITY_COLUMNS = ", remote_identity TEXT NOT NULL DEFAULT '', duplicate_of TEXT REFERENCES repositories(id)"
+
+
+def add_remote_identity(conn: sqlite3.Connection) -> None:
+    """Key each repository by its remote, one canonical record per remote.
+
+    Records that already share a remote stay as they are: all but one are flagged as
+    duplicates for a person to merge, so this step never fails startup. The canonical
+    record is the oldest active one, or the oldest when all are archived.
+    """
+    from .coordination import repository_identity
+
+    for column in REPOSITORY_IDENTITY_COLUMNS.split(", ")[1:]:
+        conn.execute("ALTER TABLE repositories ADD COLUMN " + column)
+    conn.execute("DROP INDEX repositories_url")
+    canonical: dict[str, str] = {}
+    for record, url in conn.execute("SELECT id,url FROM repositories WHERE url<>'' ORDER BY archived,created_at,id").fetchall():
+        key = repository_identity(url)
+        holder = canonical.setdefault(key, record)
+        conn.execute("UPDATE repositories SET remote_identity=?,duplicate_of=? WHERE id=?",
+                     (key, None if holder == record else holder, record))
+    conn.execute("CREATE UNIQUE INDEX repositories_remote_identity ON repositories(remote_identity) "
+                 "WHERE remote_identity<>'' AND duplicate_of IS NULL")
+
 
 def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
     """Unlike executescript, preserve the caller's transaction and rollback boundary."""
@@ -38,7 +64,7 @@ def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
 
 
 def upgrade(conn: sqlite3.Connection) -> None:
-    """Upgrade an accepted v1, v2, v3 or v4 shape atomically inside the caller's transaction.
+    """Upgrade an accepted v1 to v5 shape atomically inside the caller's transaction.
 
     Credential IDs, proposal authors, receipts, and legacy chat repository labels
     are deliberately unchanged. No repository names are guessed or imported.
@@ -62,8 +88,10 @@ def upgrade(conn: sqlite3.Connection) -> None:
 
     if version < 4:
         execute_schema(conn, CHAT_MESSAGE_SCHEMA)
-    # Every upgradable version predates tickets (v5).
-    execute_schema(conn, TICKET_SCHEMA)
+    if version < 5:
+        execute_schema(conn, TICKET_SCHEMA)
+    # Every upgradable version predates remote identities (v6).
+    add_remote_identity(conn)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 
