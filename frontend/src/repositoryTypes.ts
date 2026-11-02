@@ -27,6 +27,14 @@ export type RepositoryResolution = {
   remoteIdentity: string;
   repository: Repository | null;
 };
+/** Registering a remote that is already registered returns its record. */
+export type RepositoryRegistration = Repository & { created: boolean };
+/** What registering an address would do: link to `repository`, or add one when it is null. */
+export type RepositoryResolution = {
+  url: string;
+  remoteIdentity: string;
+  repository: Repository | null;
+};
 type CoordinationRecord = Pick<
   RecordBase,
   "id" | "revision" | "createdAt" | "updatedAt"
