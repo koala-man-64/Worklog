@@ -16,6 +16,7 @@ from typing import Any
 
 from .common import AppError
 from .coordination import CoordinationService
+from .registration import registered_by
 
 STALE_AFTER = timedelta(hours=2)
 TIE_LIMIT = 200
@@ -244,8 +245,10 @@ class AgentRegistry:
                                      "ownerTitle": owner_titles.get(chat["owner_id"], chat["owner_id"])} for chat in tracked}
 
         credentials = c.execute("SELECT cr.id,cr.label,cr.created_at,cr.revoked FROM credentials cr JOIN communication_credentials cc ON cc.credential_id=cr.id WHERE cc.agent_id=? ORDER BY cr.created_at DESC,cr.id", (identity,)).fetchall()
+        sponsors = registered_by(c, [r["id"] for r in credentials])
         return {**summary,
-                "credentials": [{"id": r["id"], "label": r["label"], "createdAt": r["created_at"], "revoked": bool(r["revoked"])} for r in credentials],
+                "credentials": [{"id": r["id"], "label": r["label"], "createdAt": r["created_at"], "revoked": bool(r["revoked"]),
+                                 "registeredBy": sponsors.get(r["id"])} for r in credentials],
                 "runs": {"items": [{**CoordinationService.run_record(r), "chats": [chat_records[chat["id"]] for chat in by_chat_id.get(r["external_chat_id"] or "", [])]} for r in runs[:TIE_LIMIT]], "total": len(runs)},
                 "workItems": items.render(work), "roadmaps": roadmaps.render(roadmap_titles),
                 "repositories": repositories.render(repos), "chats": chats.render(chat_records)}

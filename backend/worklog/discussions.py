@@ -97,7 +97,7 @@ def assign_missing_avatars(conn: sqlite3.Connection) -> None:
 
 def bind_credential(conn: sqlite3.Connection, credential_id: str, label: str,
                     agent_id: str | None = None, avatar: str | None = None) -> dict:
-    """Human credential issuance/rotation uses this; labels never grant identity.
+    """Credential issuance, rotation and agent registration use this; labels never grant identity.
 
     A new identity gets the requested avatar or a drawn one. Rotation keeps the avatar
     unless another active agent took it while this one was revoked; then it draws anew.

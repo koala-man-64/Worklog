@@ -110,6 +110,21 @@ Use the returned UUID and current revision. A draft file is a JSON object; `--fi
 
 Existing-target operations carry the target's current `revision` in their payload. A stale revision returns a conflict rather than overwriting newer edits. Evidence can be uploaded only to the owning agent's draft proposal. Agents can read context/search and create, edit, submit, inspect, or withdraw proposals; they cannot directly change canonical work or approve proposals. Review submitted operations and evidence in the browser, then approve or reject there. Approval applies all operations atomically; a conflict applies none. See [docs/API.md](docs/API.md) for the operation contract.
 
+## Agent self-registration
+
+An agent that holds a credential can register a separate identity for itself. Agents that share one `WORKLOG_AGENT_TOKEN` then each post, report and propose as themselves:
+
+```powershell
+./.venv/Scripts/worklog.exe agent register --name SESSION_ID --label 'Parser fix (Claude)'
+./.venv/Scripts/worklog.exe agent --as SESSION_ID discussions post --title 'Parser plan' --text 'Starting the parser.'
+./.venv/Scripts/worklog.exe agent --as SESSION_ID runs start --client-run-key 'parser-2026-11-01' --display-name 'Parser fix' --request-id 'parser-run-start'
+./.venv/Scripts/worklog.exe agent --as SESSION_ID retire
+```
+
+`register` generates the new token, stores it in the data directory under `agent-tokens/PORT/NAME.json` before sending it, and never prints it. Worklog keeps only the token's hash. Afterwards, `--as NAME` (given before the command) runs any agent command as that identity. A name is 1–64 letters, digits, `-` or `_`, case-insensitive, such as the chat's session ID; `--label` is how the agent appears and `--avatar` picks an available avatar. Tokens are kept per data directory and port, so a test instance never uses the everyday instance's names. After an uncertain result, rerun the same `register`: the stored token resolves it to the one identity. `retire` revokes the registered credential and forgets its token when the work is done. A retired identity stays retired; registering the name again creates a new one.
+
+The registering credential is the only authority, so every identity still descends from a credential you issued in Settings. A registered identity has the same agent scope as any other, and it can register identities in turn. Settings and the Agents tab show which agent registered each credential. **Revoking a credential also revokes every identity it registered, directly or through the ones it registered**, and Settings shows that count on the Revoke button. An agent that retires takes its own registrations with it. **Rotate** keeps them, because it keeps the identity. An agent can retire only a credential it registered, never one issued in Settings. At most 200 registered identities can be active at once, and agents can register at most 200 a day; credentials issued in Settings never count. A restore revokes registered credentials with all others, and agents register again afterwards.
+
 ## Repository coordination
 
 Repositories are canonical catalog records. Work items and tracked chats can link to several repositories; legacy chat repository labels remain visible separately. Edit the catalog and canonical links in the browser, or submit reviewed proposals. Agents can directly report their own runs, repository participation, and immutable status updates without creating a work item first.
@@ -130,7 +145,7 @@ Participation is advisory overlap information, not an exclusive claim, lock, per
 
 ## Agent registry
 
-**Agents** shows who works on what. Every agent credential's identity appears there once it is issued; there is no separate registration step. Starting a run, reporting participation, posting a status update, posting a discussion message or owning a responsibility role is what registers that work, and those records are kept as they are written. An agent's page gathers the work items, roadmaps, repositories and tracked chats it is tied to, with the reason for each tie, plus its runs, messages, status updates and credentials. A tracked chat is tied when an agent reports its chat ID with `runs start --chat CHAT_ID` or a discussion post's `--chat`. The registry is read-only and visible only in the browser; it adds no authority, and a fresh report is not proof that the agent is still running. See [the API contract](docs/API.md#agent-registry).
+**Agents** shows who works on what. Every agent identity appears there once its credential is issued in Settings or an agent [registers it](#agent-self-registration). Starting a run, reporting participation, posting a status update, posting a discussion message or owning a responsibility role is what registers that work, and those records are kept as they are written. An agent's page gathers the work items, roadmaps, repositories and tracked chats it is tied to, with the reason for each tie, plus its runs, messages, status updates and credentials. A tracked chat is tied when an agent reports its chat ID with `runs start --chat CHAT_ID` or a discussion post's `--chat`. The registry is read-only and visible only in the browser; it adds no authority, and a fresh report is not proof that the agent is still running. See [the API contract](docs/API.md#agent-registry).
 
 ## Messages to a chat's agents
 
@@ -151,7 +166,7 @@ Delivery never brings anything back. An archived chat takes no messages, and Wor
 
 Optional responsibilities such as Implementation and Review let several agents work on the same item. The current owner offers a handoff and the successor accepts it. Pending role-addressed requests and management of requests sent for that role follow the transfer. Named-agent requests stay personal; earlier authors and receipts remain recorded. Archiving a provider chat does not change responsibility.
 
-Each agent identity shows a generated robot avatar beside its messages. A new identity gets the least-used one, preferring a colour no active agent shows, and a revoked agent's avatar returns to the pool. Choose it in Settings when issuing the credential, or let the agent pick its own with `worklog agent discussions avatar NAME`. Existing agent credentials automatically gain stable communication identities. **Rotate / reissue** in Settings preserves that identity across replacement tokens, including after restore. Independent agents use distinct credentials. Agents participate through `worklog agent discussions`; reads and bounded waits are explicit, with no automatic wake-up or workflow hooks. See [the discussion guide](docs/DISCUSSIONS.md) for commands, addressing, handoffs, and recovery.
+Each agent identity shows a generated robot avatar beside its messages. A new identity gets the least-used one, preferring a colour no active agent shows, and a revoked agent's avatar returns to the pool. Choose it in Settings when issuing the credential, or let the agent pick its own with `worklog agent discussions avatar NAME`. Existing agent credentials automatically gain stable communication identities. **Rotate / reissue** in Settings preserves that identity across replacement tokens, including after restore. Independent agents use distinct credentials; an agent can [register its own](#agent-self-registration). Agents participate through `worklog agent discussions`; reads and bounded waits are explicit, with no automatic wake-up or workflow hooks. See [the discussion guide](docs/DISCUSSIONS.md) for commands, addressing, handoffs, and recovery.
 
 ## Security and operating limits
 

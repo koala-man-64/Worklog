@@ -21,6 +21,8 @@ const settings: SettingsData = {
       agentId: "profile-alpha",
       createdAt: "2026-10-01T10:00:00Z",
       revoked: false,
+      registeredBy: null,
+      registeredActive: 0,
     },
   ],
   agents: [
@@ -184,5 +186,67 @@ it("issues a credential with the suggested avatar or one the person picks", asyn
   await user.click(screen.getByRole("button", { name: "Create credential" }));
   await waitFor(() =>
     expect(posted).toEqual([{ label: "Reviewer", avatar: "pink-dots-ears" }]),
+  );
+});
+
+it("names the agent that registered a credential and what revoking takes with it", async () => {
+  const registered: SettingsData = {
+    ...settings,
+    credentials: [
+      { ...settings.credentials[0], registeredActive: 1 },
+      {
+        id: "credential-registered",
+        label: "Parser fix",
+        agentId: "profile-parser",
+        createdAt: "2026-11-01T10:00:00Z",
+        revoked: false,
+        registeredBy: { id: "profile-alpha", label: "Agent Alpha profile" },
+        registeredActive: 0,
+      },
+    ],
+    agents: [
+      ...settings.agents,
+      { id: "profile-parser", label: "Parser fix", avatar: "amber-dots-ears" },
+    ],
+  };
+  const calls: string[] = [];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const path = new URL(String(input), "http://worklog.test").pathname;
+    if (init?.method === "POST") calls.push(path);
+    return new Response(
+      JSON.stringify(
+        path.endsWith("/discussions/avatars") ? catalog : registered,
+      ),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+  });
+  const user = userEvent.setup();
+  render(
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      <Settings />
+    </QueryClientProvider>,
+  );
+  const registrar = await screen.findByRole("link", {
+    name: "Agent Alpha profile",
+  });
+  expect(registrar).toHaveAttribute("href", "#agents/profile-alpha");
+  expect(registrar.parentElement).toHaveTextContent(
+    "Registered by Agent Alpha profile",
+  );
+  // Only the registered credential names a registering agent.
+  expect(screen.getAllByText(/^Registered by/)).toHaveLength(1);
+  expect(
+    screen.getByText(/revoking this credential revokes them too/),
+  ).toHaveTextContent("Registered 1 active agent;");
+  expect(screen.getAllByRole("button", { name: "Revoke" })).toHaveLength(1);
+  await user.click(
+    screen.getByRole("button", { name: "Revoke with 1 registered" }),
+  );
+  await waitFor(() =>
+    expect(calls).toEqual(["/api/v1/credentials/credential-old/revoke"]),
   );
 });
