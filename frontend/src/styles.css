@@ -1113,8 +1113,60 @@ section:not(.draft) > h3 {
 .step-meta {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0 12px;
   font-variant-numeric: tabular-nums;
+}
+/* Who works on a step: an avatar and a name, linking to the agent or its tracked chat. */
+.agents-here {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--line);
+}
+.agent-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  margin: 2px 0;
+}
+.agent-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 16em;
+  padding: 1px 8px 1px 1px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+  text-decoration: none;
+}
+.agent-chip > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.agent-chip:hover {
+  border-color: var(--teal);
+  color: var(--teal);
+}
+.agent-chip.stale {
+  border-style: dashed;
+  opacity: 0.65;
+}
+button.agent-chip.more {
+  min-height: 0;
+  padding: 1px 8px;
+  background: none;
+  color: var(--muted);
 }
 /* In a narrow outline every row puts its pill under the title, so rows read alike at every depth. */
 @container (max-width: 400px) {
@@ -2506,6 +2558,10 @@ code {
   .pane {
     padding-right: 8px;
   }
+}
+/* Chats spends the whole window on the list and the conversation, however wide. */
+.workspace:has(.chats-split) > main {
+  max-width: none;
 }
 @media (prefers-reduced-motion: no-preference) {
   main > header {

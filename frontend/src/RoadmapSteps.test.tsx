@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setDataContext } from "./api";
 import { RoadmapDetail } from "./Roadmaps";
+import type { RoadmapTie, RoadmapWorker } from "./agentTypes";
 import type { AgentChat, Roadmap, Step } from "./types";
 
 const ROADMAP = "22222222-2222-4222-8222-222222222222";
@@ -39,20 +40,27 @@ const road: Roadmap = {
   history: [],
 };
 let served = road;
+let workers: RoadmapWorker[] = [];
+const AGENTS = `/roadmaps/${ROADMAP}/agents`;
+function respond(input: RequestInfo | URL) {
+  const url = String(input);
+  if (url.endsWith(AGENTS)) return Response.json({ items: workers });
+  return Response.json(
+    url.endsWith("/roadmaps/" + ROADMAP) ? served : { items: [], total: 0 },
+  );
+}
 beforeEach(() => {
   vi.restoreAllMocks();
   setDataContext("roadmap-steps-" + crypto.randomUUID());
   served = road;
+  workers = [];
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input) =>
-    Response.json(
-      String(input).endsWith("/roadmaps/" + ROADMAP)
-        ? served
-        : { items: [], total: 0 },
-    ),
+    respond(input),
   );
 });
 const PARENT = "aaaaaaaa-0000-4000-8000-000000000001";
 const CHILD = "aaaaaaaa-0000-4000-8000-000000000002";
+const SOLO = "aaaaaaaa-0000-4000-8000-000000000003";
 const view = (step?: string) =>
   render(
     <QueryClientProvider
@@ -236,28 +244,17 @@ function recordWrites() {
         method,
         body: JSON.parse(String(init?.body)),
       });
-    return Response.json(
-      String(input).endsWith("/roadmaps/" + ROADMAP)
-        ? served
-        : { items: [], total: 0 },
-    );
+    return respond(input);
   });
   return writes;
 }
 
-it("shows who is working on which step in the outline and the roadmap's chats", async () => {
+it("shows the roadmap's chats with their agents, repositories and steps", async () => {
   served = { ...road, chats: [API_CHAT, DOCS_CHAT] };
   view();
-  const outline = await screen.findByRole("region", { name: "Plan outline" });
-  const parentRow = within(outline)
-    .getByRole("link", { name: "Parent" })
-    .closest(".step-row") as HTMLElement;
-  expect(within(parentRow).getByText("1 agent chat")).toBeVisible();
-  expect(
-    within(outline).queryByText(/agent chats?$/, { selector: "small" }),
-  ).toBe(within(parentRow).getByText("1 agent chat"));
-
-  const details = screen.getByRole("region", { name: "Roadmap details" });
+  const details = await screen.findByRole("region", {
+    name: "Roadmap details",
+  });
   const apiChat = within(details)
     .getByText("Build the API")
     .closest(".chat-line") as HTMLElement;
@@ -388,4 +385,206 @@ it("edits a chat's provider, model, and repositories in place", async () => {
       },
     }),
   );
+});
+
+function worker(
+  kind: RoadmapWorker["kind"],
+  id: string,
+  label: string,
+  ties: Partial<RoadmapTie>[],
+  extra: Partial<RoadmapWorker> = {},
+): RoadmapWorker {
+  const full = ties.map((t) => ({
+    stepId: null,
+    via: "chat" as const,
+    item: null,
+    chat: null,
+    role: null,
+    lastAt: "2026-11-02T07:00:00+00:00",
+    stale: false,
+    ...t,
+  }));
+  return {
+    kind,
+    id,
+    label,
+    avatar: null,
+    provider: "",
+    model: "",
+    ties: full,
+    lastAt: full[0]?.lastAt ?? null,
+    stale: full.every((t) => t.stale),
+    ...extra,
+  };
+}
+const BUILDER = worker(
+  "agent",
+  "dddddddd-0000-4000-8000-000000000001",
+  "Builder",
+  [
+    {
+      stepId: CHILD,
+      via: "participation",
+      item: { id: "item-1", title: "Build the API" },
+    },
+    {
+      via: "participation",
+      item: { id: "item-2", title: "Chores" },
+      lastAt: "2026-11-02T03:00:00+00:00",
+      stale: true,
+    },
+  ],
+  { avatar: "teal-visor-antenna" },
+);
+const REVIEWER = worker(
+  "agent",
+  "dddddddd-0000-4000-8000-000000000002",
+  "Reviewer",
+  [
+    {
+      stepId: PARENT,
+      via: "role",
+      role: { id: "role-1", label: "Review" },
+      lastAt: "2026-11-02T06:00:00+00:00",
+    },
+  ],
+);
+const DOCS = worker(
+  "chat",
+  DOCS_CHAT.id,
+  "Write the docs",
+  [{ stepId: SOLO, chat: { id: DOCS_CHAT.id, title: "Write the docs" } }],
+  { provider: "OpenAI", model: "gpt-5.5" },
+);
+const SLEEPY = worker(
+  "agent",
+  "dddddddd-0000-4000-8000-000000000003",
+  "Sleepy",
+  [
+    {
+      stepId: SOLO,
+      via: "participation",
+      item: { id: "item-3", title: "Old report" },
+      lastAt: "2026-11-01T01:00:00+00:00",
+      stale: true,
+    },
+  ],
+);
+const chipsIn = (element: Element | null) =>
+  Array.from(element?.querySelectorAll("a.agent-chip") ?? []).map((a) =>
+    a.getAttribute("aria-label"),
+  );
+async function outlineRows() {
+  const outline = await screen.findByRole("region", { name: "Plan outline" });
+  return {
+    outline,
+    row: (title: string) =>
+      within(outline)
+        .getByRole("link", { name: title })
+        .closest(".step-row") as HTMLElement,
+  };
+}
+
+it("shows which agents work on each step, and on the sub-steps a collapsed step hides", async () => {
+  workers = [SLEEPY, REVIEWER, BUILDER, DOCS];
+  view();
+  const { outline, row } = await outlineRows();
+  const summary = (await within(outline).findByText("Agents working here"))
+    .parentElement;
+  // Fresh work first, then the most recent.
+  expect(chipsIn(summary)).toEqual([
+    "Builder",
+    "Write the docs",
+    "Reviewer",
+    "Sleepy, stale report",
+  ]);
+  const everywhere = within(summary as HTMLElement).getByRole("link", {
+    name: "Builder",
+  });
+  expect(everywhere).toHaveAttribute(
+    "title",
+    expect.stringMatching(
+      /^Builder\nReporting work on “Build the API” on Child\nStale report on “Chores”, last reported .+$/,
+    ),
+  );
+  expect(
+    within(summary as HTMLElement).getByRole("link", {
+      name: "Sleepy, stale report",
+    }),
+  ).toHaveAttribute(
+    "title",
+    expect.stringMatching(
+      /^Sleepy\nStale report on “Old report” on Solo, last reported .+$/,
+    ),
+  );
+
+  // An open step shows only who works on it; its sub-steps show their own.
+  expect(chipsIn(row("Parent"))).toEqual(["Reviewer"]);
+  expect(chipsIn(row("Child"))).toEqual(["Builder"]);
+  const builder = within(row("Child")).getByRole("link", { name: "Builder" });
+  expect(builder).toHaveAttribute("href", "#agents/" + BUILDER.id);
+  expect(builder).toHaveAttribute(
+    "title",
+    "Builder\nReporting work on “Build the API”",
+  );
+  expect(chipsIn(row("Solo"))).toEqual([
+    "Write the docs",
+    "Sleepy, stale report",
+  ]);
+  const docs = within(row("Solo")).getByRole("link", {
+    name: "Write the docs",
+  });
+  expect(docs).toHaveAttribute("href", "#chats/" + DOCS_CHAT.id);
+  expect(docs).toHaveAttribute(
+    "title",
+    "Write the docs · OpenAI · gpt-5.5\nTracked chat",
+  );
+  expect(
+    within(row("Solo")).getByRole("link", { name: "Sleepy, stale report" }),
+  ).toHaveClass("agent-chip", "stale");
+
+  await userEvent.click(
+    within(outline).getByRole("button", { name: "Collapse Parent" }),
+  );
+  expect(chipsIn(row("Parent"))).toEqual(["Builder", "Reviewer"]);
+  expect(
+    within(row("Parent")).getByRole("link", { name: "Builder" }),
+  ).toHaveAttribute(
+    "title",
+    "Builder\nReporting work on “Build the API” on Child",
+  );
+});
+
+it("shows three agents on a step until asked for the rest", async () => {
+  workers = ["One", "Two", "Three", "Four", "Five"].map((label, i) =>
+    worker("chat", `eeeeeeee-0000-4000-8000-00000000000${i}`, label, [
+      { stepId: SOLO, chat: { id: "chat-" + i, title: label } },
+    ]),
+  );
+  view();
+  const { row } = await outlineRows();
+  await waitFor(() =>
+    expect(chipsIn(row("Solo"))).toEqual(["One", "Two", "Three"]),
+  );
+  await userEvent.click(
+    within(row("Solo")).getByRole("button", { name: "Show 2 more" }),
+  );
+  expect(chipsIn(row("Solo"))).toEqual(["One", "Two", "Three", "Four", "Five"]);
+});
+
+it("says when it cannot tell who works on the roadmap, and keeps the plan", async () => {
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) =>
+    String(input).endsWith(AGENTS)
+      ? Response.json(
+          { error: { code: "database_busy", message: "Database is busy" } },
+          { status: 503 },
+        )
+      : respond(input),
+  );
+  view();
+  const { outline } = await outlineRows();
+  expect(await within(outline).findByRole("alert")).toHaveTextContent(
+    "Database is busy",
+  );
+  expect(within(outline).getByRole("link", { name: "Child" })).toBeVisible();
 });

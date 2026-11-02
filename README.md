@@ -164,7 +164,7 @@ Every agent identity appears on **Agents** once its credential is issued in Sett
   - a title and its chat ID: a Claude Code session ID, a Claude desktop `local_…` ID, or a Codex thread ID
   - its provider, model and repositories
   - on a roadmap, the steps it works on
-- **See every tracked chat.** **Chats** lists each one with its owner, steps and reported runs, grouped by chat, work item or roadmap.
+- **See every tracked chat.** **Chats** lists each one with its owner, steps, reported runs, and whether Claude or Codex keeps it with how many agents it started, grouped by chat, work item or roadmap.
   - A chat shows as Working while its transcript shows a turn in progress within the last 15 minutes, otherwise as Idle.
   - "Show archive" lists archived chats.
 - **Read a chat.** Open a chat to read the transcript Claude Code or Codex keeps for it: your prompts, agent replies, runs of tool calls, and messages between agents.
@@ -196,7 +196,7 @@ Every agent identity appears on **Agents** once its credential is issued in Sett
 
 ## Working with agents
 
-Every agent acts with a credential: one you issue in Settings, or an identity it [registers for itself](#agent-self-registration) from one. Create a labeled agent credential in Settings and provide its one-time token to the agent process through **`WORKLOG_AGENT_TOKEN`**. Do not put the token in a command argument, source file, log, or shell history. Revoke it in Settings when the agent no longer needs access. The CLI uses a bearer credential only against literal loopback HTTP, ignores HTTP proxy settings, refuses redirects, and prints no credential. Every command prints JSON.
+Every agent acts with a credential: one you issue in Settings, or an identity it [registers for itself](#agent-self-registration) from one. Create a labeled agent credential in Settings and provide its one-time token to the agent process through **`WORKLOG_AGENT_TOKEN`**. Do not put the token in a command argument, source file, log, or shell history. Revoke it in Settings when the agent no longer needs access. The CLI uses a bearer credential only against literal loopback HTTP, ignores HTTP proxy settings, refuses redirects, and prints no credential. Every command prints JSON in ASCII, writing other characters as `\u` escapes, so text arrives intact through any console code page.
 
 ### Instructions for agents
 
@@ -249,6 +249,8 @@ The examples in this and the following sections omit `--as NAME`; agents followi
 ./.venv/Scripts/worklog.exe agent context
 ./.venv/Scripts/worklog.exe agent context --date 2026-10-28
 ./.venv/Scripts/worklog.exe agent search 'release checks'
+./.venv/Scripts/worklog.exe agent roadmap show ROADMAP_UUID
+./.venv/Scripts/worklog.exe agent step show STEP_UUID
 ./.venv/Scripts/worklog.exe agent proposals --status submitted
 ./.venv/Scripts/worklog.exe agent proposal draft --file proposal.json
 ./.venv/Scripts/worklog.exe agent proposal show PROPOSAL_UUID
@@ -257,6 +259,8 @@ The examples in this and the following sections omit `--as NAME`; agents followi
 ./.venv/Scripts/worklog.exe agent proposal submit PROPOSAL_UUID --revision 2
 ./.venv/Scripts/worklog.exe agent proposal withdraw PROPOSAL_UUID --revision 3
 ```
+
+`context` lists roadmaps without their steps, and `search` shows the first 220 characters of each match. `roadmap show` prints a roadmap with the full text, progress and revision of every step, retired ones included. It leaves out the roadmap's history, whose events repeat whole copies of the plan. `step show` prints one step with its notes. Build a `roadmap.revise` proposal from `roadmap show`: a revision replaces the whole step list, so it retires each step it leaves out, restores each retired step it includes, and keeps exactly the descriptions it carries.
 
 Use the returned UUID and current revision. A draft file is a JSON object; `--file -` reads JSON from standard input:
 
@@ -270,7 +274,7 @@ Use the returned UUID and current revision. A draft file is a JSON object; `--fi
 }
 ```
 
-Existing-target operations carry the target's current `revision` in their payload. A stale revision returns a conflict rather than overwriting newer edits. Evidence can be uploaded only to the owning agent's draft proposal. Agents can read context/search and create, edit, submit, inspect, or withdraw proposals; they cannot directly change canonical work or approve proposals. Review submitted operations and evidence in the browser, then approve or reject there. Approval applies all operations atomically; a conflict applies none. See [docs/API.md](docs/API.md) for the operation contract.
+Existing-target operations carry the target's current `revision` in their payload. A stale revision returns a conflict rather than overwriting newer edits. Evidence can be uploaded only to the owning agent's draft proposal. Agents can read context, search, roadmaps and steps, and create, edit, submit, inspect, or withdraw proposals; they cannot directly change canonical work or approve proposals. Review submitted operations and evidence in the browser, then approve or reject there. Approval applies all operations atomically; a conflict applies none. See [docs/API.md](docs/API.md) for the operation contract.
 
 ### Report runs and repository work
 

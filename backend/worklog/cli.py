@@ -476,6 +476,8 @@ class AgentClient:
             allowed = method in {"GET", "PATCH"} and valid_id(segments[1])
         if len(segments) == 3 and segments[0] == "proposals" and segments[2] in {"submit", "withdraw"}:
             allowed = method == "POST" and valid_id(segments[1])
+        if len(segments) == 2 and segments[0] in {"roadmaps", "steps"}:
+            allowed = method == "GET" and valid_id(segments[1])
         if route in {"/proposals", "/agent-registrations", "/agent-registrations/retire"} and method == "POST":
             allowed = True
         if route == "/attachments" and method == "POST":
@@ -653,6 +655,13 @@ def agent_command(args: argparse.Namespace, port: int, redact: list[str]) -> Any
     if args.agent_action == "search":
         return client.request("GET", "/search?" + urlencode({"q": args.query, "limit": args.limit,
                                                             "archived": str(args.archived).lower()}))
+    if args.agent_action == "roadmap":
+        roadmap = client.request("GET", "/roadmaps/" + args.id)
+        # Each history event keeps whole before-and-after copies of the plan; the steps already hold its text.
+        roadmap.pop("history", None)
+        return roadmap
+    if args.agent_action == "step":
+        return client.request("GET", "/steps/" + args.id)
     if args.agent_action == "proposals":
         return client.request("GET", "/proposals" + ("?" + urlencode({"status": args.status}) if args.status else ""))
     action = args.proposal_action
@@ -1125,6 +1134,11 @@ def parser() -> argparse.ArgumentParser:
     search.add_argument("query")
     search.add_argument("--limit", type=int, default=50)
     search.add_argument("--archived", action="store_true")
+    # context lists roadmaps without their steps and search shows snippets; these read the whole text.
+    roadmap = actions.add_parser("roadmap", help="Read a roadmap with the full text of every step")
+    roadmap.add_subparsers(dest="roadmap_action", required=True).add_parser("show").add_argument("id")
+    step = actions.add_parser("step", help="Read one step's full text, progress and notes")
+    step.add_subparsers(dest="step_action", required=True).add_parser("show").add_argument("id")
     proposals = actions.add_parser("proposals")
     proposals.add_argument("--status")
     proposal = actions.add_parser("proposal")
@@ -1200,7 +1214,8 @@ def main(argv: list[str] | None = None) -> int:
                 output = Path(args.file).resolve()
                 _publish_new_file(output, lambda: export_database(database))
                 result = {"exported": str(output), "size": output.stat().st_size}
-        print(_redacted(json.dumps(result, ensure_ascii=False, indent=2), redact))
+        # ASCII JSON: \u escapes reach the reader intact whatever code page a pipe or console uses.
+        print(_redacted(json.dumps(result, indent=2), redact))
         return 0
     except (OSError, ValueError, RuntimeError, sqlite3.Error) as exc:
         print("Worklog: " + _redacted(str(exc), redact), file=sys.stderr)

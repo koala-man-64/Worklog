@@ -6809,6 +6809,47 @@
         }
       }
     },
+    "/api/v1/roadmaps/{identity}/agents": {
+      "get": {
+        "summary": "Roadmap Agents",
+        "operationId": "roadmap_agents_api_v1_roadmaps__identity__agents_get",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Roadmap Agents Api V1 Roadmaps  Identity  Agents Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/{resource}/{identity}/{verb}": {
       "post": {
         "summary": "Support Archive",
