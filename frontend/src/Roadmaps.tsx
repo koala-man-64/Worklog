@@ -5,9 +5,10 @@ import {
   useState,
   type CSSProperties,
 } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { localStore, readIdSet } from "./storage";
 import { roadmapChildren } from "./RoadmapNav";
-import { request, download, contextStorageKey } from "./api";
+import { ApiError, request, download, contextStorageKey } from "./api";
 import { commands } from "./commands";
 import {
   useAction,
@@ -1203,6 +1204,7 @@ export function StructureEditor({
     revision: number;
     // Active step ids when the draft started; missing on drafts saved before it was recorded.
     baseStepIds?: string[];
+    note?: string;
   } | null = null;
   try {
     draft = stored ? JSON.parse(stored) : null;
@@ -1223,9 +1225,10 @@ export function StructureEditor({
   const [recovered, setRecovered] = useState(draft !== null);
   const serverOnly = active().filter((s) => !steps.some((d) => d.id === s.id));
   const [keep, setKeep] = useState(() => new Set(serverOnly.map((s) => s.id)));
-  const [note, setNote] = useState("");
+  const [note, setNote] = useState(draft?.note ?? "");
   const [storageWarning, setStorageWarning] = useState(!storedResult.ok);
   const action = useAction();
+  const client = useQueryClient();
   const stale = revision !== roadmap.revision;
   function persist(
     nextTitle: string,
@@ -1233,6 +1236,7 @@ export function StructureEditor({
     nextSteps: Step[],
     base = revision,
     baseIds = baseStepIds,
+    nextNote = note,
   ) {
     const persisted = localStore.write(
       key,
@@ -1242,6 +1246,7 @@ export function StructureEditor({
         steps: nextSteps,
         revision: base,
         ...(baseIds ? { baseStepIds: baseIds } : {}),
+        ...(nextNote ? { note: nextNote } : {}),
       }),
     );
     if (!persisted) setStorageWarning(true);
@@ -1265,6 +1270,7 @@ export function StructureEditor({
     setSteps(active().map((s) => ({ ...s })));
     setRevision(roadmap.revision);
     setBaseStepIds(active().map((s) => s.id));
+    setNote("");
     setRecovered(false);
   }
   function rebase() {
@@ -1314,7 +1320,14 @@ export function StructureEditor({
             localStore.remove(key);
             onDone();
           })
-          .catch(() => undefined);
+          .catch((error) => {
+            // The roadmap moved past this draft's base. Refetching it remounts the
+            // editor from the stored draft, which then offers a rebase.
+            if (error instanceof ApiError && error.status === 409)
+              client.invalidateQueries({
+                predicate: (q) => q.queryKey[0] !== "session",
+              });
+          });
       }}
     >
       <h2>Edit roadmap structure</h2>
@@ -1488,7 +1501,20 @@ export function StructureEditor({
       <div className="editor-actions">
         <label>
           Version note
-          <input value={note} onChange={(e) => setNote(e.target.value)} />
+          <input
+            value={note}
+            onChange={(e) => {
+              setNote(e.target.value);
+              persist(
+                title,
+                overview,
+                steps,
+                revision,
+                baseStepIds,
+                e.target.value,
+              );
+            }}
+          />
         </label>
         <ErrorMessage error={action.error} />
         <button className="primary" disabled={action.isPending || stale}>
