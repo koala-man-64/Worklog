@@ -489,7 +489,8 @@ small {
   gap: 20px;
   min-height: 80px;
   border-bottom: 1px solid var(--line);
-  padding: 0 5%;
+  /* Inset like main below, so the bar's ends line up with the page's. */
+  padding: 0 clamp(24px, 5vw, 72px);
   font-size: 12px;
 }
 .search {
@@ -505,9 +506,8 @@ small {
 .search > .icon {
   color: var(--muted);
 }
+/* Every page spends the whole window beside the sidebar, however wide. */
 main {
-  max-width: 1120px;
-  margin: 0 auto;
   padding: 48px clamp(24px, 5vw, 72px) 80px;
   outline: none;
 }
@@ -713,7 +713,8 @@ header {
   padding: 22px 0;
   border-top: 1px solid var(--line);
 }
-.work-row > div:nth-child(2) {
+/* The text takes the row and pushes its controls to the end, whether or not a status dot comes first. */
+.work-row > div:first-of-type {
   flex: 1;
   min-width: 0;
 }
@@ -722,7 +723,6 @@ header {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 390px;
   margin-top: 5px;
 }
 .work-row select {
@@ -1211,7 +1211,6 @@ button.agent-chip.more {
   margin: 0;
 }
 .detail > .markdown {
-  max-width: 70ch;
   margin-bottom: 24px;
 }
 .detail .markdown h1,
@@ -1950,9 +1949,6 @@ a.context-tag:hover {
 .discussion-message > :not(.discussion-message-head) {
   margin-left: 32px;
 }
-.discussion-message .markdown {
-  max-width: 72ch;
-}
 .discussion-message .markdown > :first-child {
   margin-top: 0;
 }
@@ -2087,7 +2083,6 @@ a.context-tag:hover {
   margin: 0;
 }
 .discussion-reply > p {
-  max-width: 72ch;
   margin: 0 0 6px;
   font-size: 12px;
 }
@@ -2653,9 +2648,6 @@ code {
   .work-row > div:nth-child(2) {
     flex-basis: calc(100% - 30px);
   }
-  .work-row small {
-    max-width: none;
-  }
   .work-row select {
     margin-left: 22px;
   }
@@ -2732,12 +2724,11 @@ code {
   }
   .workspace:has(.bounded-screen) > .topbar {
     flex-shrink: 0;
+    padding-inline: clamp(16px, 3vw, 48px);
   }
   .workspace:has(.bounded-screen) > main {
     flex: 1;
     min-height: 0;
-    width: 100%;
-    max-width: 1440px;
     display: flex;
     flex-direction: column;
     padding: 24px clamp(16px, 3vw, 48px);
@@ -2813,10 +2804,6 @@ code {
   .pane {
     padding-right: 8px;
   }
-}
-/* Chats spends the whole window on the list and the conversation, however wide. */
-.workspace:has(.chats-split) > main {
-  max-width: none;
 }
 @media (prefers-reduced-motion: no-preference) {
   main > header {
@@ -2954,7 +2941,6 @@ code {
 }
 /* The status line is short and says when the ticket last moved, so it wraps rather than cut. */
 .ticket-row small {
-  max-width: none;
   white-space: normal;
 }
 .ticket-person {

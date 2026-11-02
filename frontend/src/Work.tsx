@@ -201,7 +201,7 @@ function WorkList() {
                 <PersonBadges people={item.people} />
                 <RepositoryBadges ids={item.repositoryIds} />
                 <small>
-                  {item.description?.slice(0, 130) || "Ready for a next step"}
+                  {item.description?.slice(0, 1000) || "Ready for a next step"}
                 </small>
               </div>
               <StatusSelect
