@@ -242,7 +242,11 @@ class ProposalService:
         proposer = {"id": row["actor_id"], "label": row["actor_label"], "kind": row["actor_kind"]}
         # Dispatch uses this same transaction. Any stale revision, validation
         # error, or injected failure rolls back all operations and approval.
-        for operation in operations:
+        # GitHub references may link to a chat created or updated elsewhere in the same proposal.
+        ordered = [op for op in operations if not op["action"].startswith("github.")] + [
+            op for op in operations if op["action"].startswith("github.")
+        ]
+        for operation in ordered:
             self.dispatch(connection, proposer, operation["action"], operation["payload"])
 
     def _advance(self, connection, identifier, verb, actor, before):
