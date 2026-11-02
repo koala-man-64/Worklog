@@ -121,20 +121,26 @@ function RepositoryList() {
                 {repo.name}
               </a>
               <small>{repo.url || "No remote URL"}</small>
-              {repo.duplicateOf && <SameRemote id={repo.duplicateOf} />}
+              {repo.mergedInto ? (
+                <MergedInto id={repo.mergedInto} />
+              ) : (
+                repo.duplicateOf && <SameRemote id={repo.duplicateOf} />
+              )}
               <p>{repo.description}</p>
             </div>
-            <button
-              disabled={action.isPending}
-              onClick={() =>
-                action.mutate({
-                  path: `/repositories/${repo.id}/${repo.archived ? "recover" : "archive"}`,
-                  body: { revision: repo.revision },
-                })
-              }
-            >
-              {repo.archived ? "Recover" : "Archive"}
-            </button>
+            {!repo.mergedInto && (
+              <button
+                disabled={action.isPending}
+                onClick={() =>
+                  action.mutate({
+                    path: `/repositories/${repo.id}/${repo.archived ? "recover" : "archive"}`,
+                    body: { revision: repo.revision },
+                  })
+                }
+              >
+                {repo.archived ? "Recover" : "Archive"}
+              </button>
+            )}
           </article>
         ))}
       </div>
@@ -167,6 +173,113 @@ function SameRemote({ id }: { id: string }) {
     </p>
   );
 }
+function MergedInto({ id }: { id: string }) {
+  return (
+    <p className="muted">
+      Merged into{" "}
+      <a href={"#repositories/" + id}>
+        <RepositoryName id={id} />
+      </a>
+      , which now answers for its remote.
+    </p>
+  );
+}
+// Folding one record into another is the person's call; it cannot be undone.
+function MergeInto({ source }: { source: Repository }) {
+  const [q, setQ] = useState("");
+  const [target, setTarget] = useState(source.duplicateOf ?? "");
+  const choices = useData<List<Repository>>(
+    `/repositories?limit=50&q=${encodeURIComponent(q)}`,
+  );
+  const options = (choices.data?.items ?? []).filter(
+    (repo) => repo.id !== source.id,
+  );
+  return (
+    <details open={!!source.duplicateOf}>
+      <summary>Merge into another repository</summary>
+      <p className="muted">
+        Merging moves this repository’s work and chat links, tickets, reported
+        activity and updates to the other record, archives this one as merged,
+        and makes its remote answer with the other. It cannot be undone.
+      </p>
+      <input
+        aria-label="Find a repository to merge into"
+        placeholder="Find repositories…"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+      />
+      <select
+        aria-label="Merge into"
+        value={target}
+        onChange={(e) => setTarget(e.target.value)}
+      >
+        <option value="">Choose a repository</option>
+        {target && !options.some((repo) => repo.id === target) && (
+          <option value={target}>Selected repository</option>
+        )}
+        {options.map((repo) => (
+          <option key={repo.id} value={repo.id}>
+            {repo.name}
+            {repo.url ? ` · ${repo.url}` : ""}
+          </option>
+        ))}
+      </select>
+      <ErrorMessage error={choices.error} />
+      {target && (
+        <MergeConfirm key={target} source={source} targetId={target} />
+      )}
+    </details>
+  );
+}
+function MergeConfirm({
+  source,
+  targetId,
+}: {
+  source: Repository;
+  targetId: string;
+}) {
+  const target = useData<Repository>("/repositories/" + targetId);
+  const action = useAction();
+  const [confirm, setConfirm] = useState(false);
+  const into = target.data;
+  if (!into) return <ErrorMessage error={target.error} />;
+  return confirm ? (
+    <div className="decision">
+      <strong>
+        Merge {source.name} into {into.name}?
+      </strong>
+      <div className="toolbar">
+        <button
+          className="danger"
+          disabled={action.isPending}
+          onClick={() =>
+            // The refetch shows this record merged and unmounts this control before a
+            // mutate-level onSuccess would run, so follow the settled promise instead.
+            action
+              .mutateAsync({
+                path: `/repositories/${source.id}/merge`,
+                body: {
+                  revision: source.revision,
+                  intoId: into.id,
+                  intoRevision: into.revision,
+                },
+              })
+              .then(() => {
+                location.hash = "repositories/" + into.id;
+              })
+              .catch(() => undefined)
+          }
+        >
+          Confirm merge
+        </button>
+        <button onClick={() => setConfirm(false)}>Cancel</button>
+      </div>
+      <ErrorMessage error={action.error} />
+    </div>
+  ) : (
+    <button onClick={() => setConfirm(true)}>Merge into {into.name}…</button>
+  );
+}
 function RepositoryDetail({ id }: { id: string }) {
   const query = useData<Repository>("/repositories/" + id);
   const [offset, setOffset] = useState(0);
@@ -189,46 +302,59 @@ function RepositoryDetail({ id }: { id: string }) {
       </a>
       <header>
         <h1>{repo.name}</h1>
-        <button
-          disabled={action.isPending}
-          onClick={() =>
-            action.mutate({
-              path: `/repositories/${id}/${repo.archived ? "recover" : "archive"}`,
-              body: { revision: repo.revision },
-            })
-          }
-        >
-          {repo.archived ? "Recover repository" : "Archive repository"}
-        </button>
+        {!repo.mergedInto && (
+          <button
+            disabled={action.isPending}
+            onClick={() =>
+              action.mutate({
+                path: `/repositories/${id}/${repo.archived ? "recover" : "archive"}`,
+                body: { revision: repo.revision },
+              })
+            }
+          >
+            {repo.archived ? "Recover repository" : "Archive repository"}
+          </button>
+        )}
       </header>
-      {repo.archived && (
-        <p>Archived repository. Existing links and reports remain visible.</p>
+      {repo.mergedInto ? (
+        <MergedInto id={repo.mergedInto} />
+      ) : (
+        <>
+          {repo.archived && (
+            <p>
+              Archived repository. Existing links and reports remain visible.
+            </p>
+          )}
+          {repo.duplicateOf && <SameRemote id={repo.duplicateOf} />}
+          <ErrorMessage error={action.error} />
+          {(
+            [
+              ["name", "Repository name", false],
+              ["url", "Remote URL", false],
+              ["description", "Description", true],
+            ] as const
+          ).map(([field, label, multiline]) => (
+            <DraftField
+              key={field}
+              draftKey={`repository-${field}-${id}`}
+              label={label}
+              initial={repo[field]}
+              revision={repo.revision}
+              multiline={multiline}
+              maxLength={
+                field === "name" ? 200 : field === "url" ? 2000 : 10000
+              }
+              save={(value, revision) =>
+                request<Repository>("/repositories/" + id, "PATCH", {
+                  revision,
+                  [field]: value,
+                })
+              }
+            />
+          ))}
+          <MergeInto source={repo} />
+        </>
       )}
-      {repo.duplicateOf && <SameRemote id={repo.duplicateOf} />}
-      <ErrorMessage error={action.error} />
-      {(
-        [
-          ["name", "Repository name", false],
-          ["url", "Remote URL", false],
-          ["description", "Description", true],
-        ] as const
-      ).map(([field, label, multiline]) => (
-        <DraftField
-          key={field}
-          draftKey={`repository-${field}-${id}`}
-          label={label}
-          initial={repo[field]}
-          revision={repo.revision}
-          multiline={multiline}
-          maxLength={field === "name" ? 200 : field === "url" ? 2000 : 10000}
-          save={(value, revision) =>
-            request<Repository>("/repositories/" + id, "PATCH", {
-              revision,
-              [field]: value,
-            })
-          }
-        />
-      ))}
       <section>
         <h2>Linked work</h2>
         <ErrorMessage error={work.error} />

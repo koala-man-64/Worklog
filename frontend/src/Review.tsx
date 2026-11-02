@@ -4,6 +4,7 @@ import { ApiError, request, getDataContext } from "./api";
 import { useAction, useData } from "./hooks";
 import { Empty, ErrorMessage, Files, Markdown } from "./components";
 import type { Day, List, Operation, Proposal, Settings } from "./types";
+import type { RepositoryResolution } from "./repositoryTypes";
 import { Icon } from "./icons";
 export function Review({ selectedId }: { selectedId?: string }) {
   const [status, setStatus] = useState("submitted");
@@ -111,6 +112,7 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
       {p.operations.map((op, index) => (
         <OperationDiff
           key={index}
+          number={index + 1}
           action={op.action}
           payload={op.payload}
           proposedEarlier={(target) => (declared.get(target) ?? index) < index}
@@ -257,10 +259,13 @@ function currentPath(
   return "/" + collection + "/" + id;
 }
 export function OperationDiff({
+  number,
   action,
   payload,
   proposedEarlier,
 }: {
+  // The change's place in the proposal, as a failed approval names it.
+  number?: number;
   action: string;
   payload: Record<string, unknown>;
   // True when an earlier operation in the same proposal creates the target.
@@ -303,7 +308,13 @@ export function OperationDiff({
     !!proposedEarlier?.(target);
   return (
     <article className="operation">
-      <h4>{action}</h4>
+      <h4>
+        {number ? `Change ${number}: ` : ""}
+        <span>{action}</span>
+      </h4>
+      {action === "repository.create" &&
+        typeof payload.url === "string" &&
+        payload.url.trim() && <RegistrationCheck url={payload.url} />}
       {created ? (
         <p className="muted">
           An earlier change in this proposal creates this target, so it has no
@@ -349,6 +360,25 @@ export function OperationDiff({
         </div>
       ))}
     </article>
+  );
+}
+// Registering a remote that is already registered links to its record, so say which.
+function RegistrationCheck({ url }: { url: string }) {
+  const query = useData<RepositoryResolution>(
+    "/repositories/resolve?url=" + encodeURIComponent(url),
+  );
+  const holder = query.data?.repository;
+  if (query.error) return <ErrorMessage error={query.error} />;
+  if (!holder) return null;
+  const link = <a href={"#repositories/" + holder.id}>{holder.name}</a>;
+  return holder.archived ? (
+    <p className="warning">
+      Registered as {link}, which is archived: recover it, or approval fails.
+    </p>
+  ) : (
+    <p className="muted">
+      Already registered as {link}: approval links to it and adds nothing.
+    </p>
   );
 }
 function display(value: unknown) {

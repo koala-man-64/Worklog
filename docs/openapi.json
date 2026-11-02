@@ -3775,6 +3775,48 @@
         }
       }
     },
+    "/api/v1/repositories/resolve": {
+      "get": {
+        "summary": "Repository Resolve",
+        "operationId": "repository_resolve_api_v1_repositories_resolve_get",
+        "parameters": [
+          {
+            "name": "url",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 2000,
+              "title": "Url"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Repository Resolve Api V1 Repositories Resolve Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/repositories/{identity}": {
       "get": {
         "summary": "Repository",
@@ -3848,6 +3890,57 @@
                   "type": "object",
                   "additionalProperties": true,
                   "title": "Response Repository Update Api V1 Repositories  Identity  Patch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/repositories/{identity}/merge": {
+      "post": {
+        "summary": "Repository Merge Into",
+        "operationId": "repository_merge_into_api_v1_repositories__identity__merge_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepositoryMerge"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Repository Merge Into Api V1 Repositories  Identity  Merge Post"
                 }
               }
             }
@@ -9285,6 +9378,33 @@
           "name"
         ],
         "title": "RepositoryCreate"
+      },
+      "RepositoryMerge": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "intoId": {
+            "type": "string",
+            "title": "Intoid"
+          },
+          "intoRevision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Intorevision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision",
+          "intoId",
+          "intoRevision"
+        ],
+        "title": "RepositoryMerge",
+        "description": "Merge the addressed repository into `intoId`; both revisions must be current."
       },
       "RepositoryUpdate": {
         "properties": {

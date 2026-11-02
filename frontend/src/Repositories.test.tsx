@@ -14,6 +14,7 @@ const repo: Repository = {
   url: "https://github.com/a/service",
   remoteIdentity: "github.com/a/service",
   duplicateOf: null,
+  mergedInto: null,
   description: "Shared API",
   revision: 1,
   archived: false,
@@ -154,6 +155,81 @@ it("names the record that already holds a remote instead of adding another", asy
     "href",
     "#repositories/repo-1",
   );
+});
+
+it("merges a flagged duplicate into the record that holds its remote only after confirmation", async () => {
+  const duplicate = {
+    ...repo,
+    id: "repo-2",
+    name: "Service over SSH",
+    url: "git@github.com:a/service.git",
+    duplicateOf: repo.id,
+    revision: 4,
+  };
+  const writes: { path: string; body: unknown }[] = [];
+  const merged = { ...duplicate, archived: true, mergedInto: repo.id };
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const path = String(input);
+    if (init?.method === "POST") {
+      writes.push({ path, body: JSON.parse(String(init.body)) });
+      return json(merged);
+    }
+    // Once merged, the refetched record replaces the merge controls.
+    if (path.endsWith("/repositories/repo-2"))
+      return json(writes.length ? merged : duplicate);
+    if (path.endsWith("/repositories/repo-1")) return json(repo);
+    if (path.includes("/repositories?"))
+      return json({ items: [repo, duplicate], total: 2 });
+    return json({ items: [], total: 0 });
+  });
+  show(<Repositories selected="repo-2" />);
+  // A flagged duplicate opens the merge with the record that holds its remote chosen.
+  expect(
+    await screen.findByRole("combobox", { name: "Merge into" }),
+  ).toHaveValue("repo-1");
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Merge into Service…" }),
+  );
+  expect(writes).toHaveLength(0);
+  expect(
+    screen.getByText("Merge Service over SSH into Service?"),
+  ).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Confirm merge" }));
+  await waitFor(() =>
+    expect(writes).toEqual([
+      {
+        path: "/api/v1/repositories/repo-2/merge",
+        body: { revision: 4, intoId: "repo-1", intoRevision: 1 },
+      },
+    ]),
+  );
+  await waitFor(() => expect(location.hash).toBe("#repositories/repo-1"));
+});
+
+it("shows a merged record read-only, naming the record that answers for it", async () => {
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) =>
+    String(input).endsWith("/repositories/repo-2")
+      ? json({
+          ...repo,
+          id: "repo-2",
+          name: "Old",
+          archived: true,
+          mergedInto: repo.id,
+        })
+      : String(input).endsWith("/repositories/repo-1")
+        ? json(repo)
+        : json({ items: [], total: 0 }),
+  );
+  show(<Repositories selected="repo-2" />);
+  expect(await screen.findByRole("heading", { name: "Old" })).toBeVisible();
+  expect(await screen.findByRole("link", { name: "Service" })).toHaveAttribute(
+    "href",
+    "#repositories/repo-1",
+  );
+  expect(screen.getByText(/now answers for its remote/)).toBeVisible();
+  expect(screen.queryByRole("button", { name: /repository$/ })).toBeNull();
+  expect(screen.queryByRole("textbox", { name: "Repository name" })).toBeNull();
+  expect(screen.queryByText("Merge into another repository")).toBeNull();
 });
 
 it("keeps overlapping reports, marks staleness separately, and ends a run only after confirmation", async () => {

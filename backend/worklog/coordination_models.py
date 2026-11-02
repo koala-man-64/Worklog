@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from .models import Command, Expected
+from .models import Command, Expected, Revision
 
 
 class RepositoryCreate(Command):
@@ -17,6 +17,12 @@ class RepositoryUpdate(Expected):
     name: str | None = None
     url: str | None = None
     description: str | None = None
+
+
+class RepositoryMerge(Expected):
+    """Merge the addressed repository into `intoId`; both revisions must be current."""
+    intoId: str
+    intoRevision: Revision
 
 
 class RunCreate(Command):

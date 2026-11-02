@@ -1076,6 +1076,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/repositories/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Repository Resolve */
+        get: operations["repository_resolve_api_v1_repositories_resolve_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/repositories/{identity}": {
         parameters: {
             query?: never;
@@ -1092,6 +1109,23 @@ export interface paths {
         head?: never;
         /** Repository Update */
         patch: operations["repository_update_api_v1_repositories__identity__patch"];
+        trace?: never;
+    };
+    "/api/v1/repositories/{identity}/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Repository Merge Into */
+        post: operations["repository_merge_into_api_v1_repositories__identity__merge_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/repositories/{identity}/{verb}": {
@@ -2697,6 +2731,18 @@ export interface components {
              * @default
              */
             description: string;
+        };
+        /**
+         * RepositoryMerge
+         * @description Merge the addressed repository into `intoId`; both revisions must be current.
+         */
+        RepositoryMerge: {
+            /** Revision */
+            revision: number;
+            /** Intoid */
+            intoId: string;
+            /** Intorevision */
+            intoRevision: number;
         };
         /** RepositoryUpdate */
         RepositoryUpdate: {
@@ -5706,6 +5752,39 @@ export interface operations {
             };
         };
     };
+    repository_resolve_api_v1_repositories_resolve_get: {
+        parameters: {
+            query: {
+                url: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     repository_api_v1_repositories__identity__get: {
         parameters: {
             query?: never;
@@ -5751,6 +5830,43 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["RepositoryUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    repository_merge_into_api_v1_repositories__identity__merge_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepositoryMerge"];
             };
         };
         responses: {

@@ -6,7 +6,14 @@ from collections.abc import Callable
 from fastapi import FastAPI, Query, Request
 
 from . import coordination_models as m
-from .coordination import CoordinationService, _get, repository_apply, repository_record
+from .coordination import (
+    CoordinationService,
+    _get,
+    repository_apply,
+    repository_merge,
+    repository_record,
+    repository_resolution,
+)
 from .db import Database
 from .models import Expected
 
@@ -35,6 +42,11 @@ def install_coordination_routes(app: FastAPI, db: Database, mutate: Callable) ->
     def repositories(archived: bool = False, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0), q: str = "") -> dict:
         return read(lambda c: service.repositories(c, archived, limit, offset, q))
 
+    # Registered before /repositories/{identity}, which would otherwise take "resolve" as an ID.
+    @app.get("/api/v1/repositories/resolve")
+    def repository_resolve(url: str = Query(max_length=2000)) -> dict:
+        return read(lambda c: repository_resolution(c, url))
+
     @app.get("/api/v1/repositories/{identity}")
     def repository(identity: str) -> dict:
         return read(lambda c: repository_record(_get(c, "repositories", identity)))
@@ -46,6 +58,11 @@ def install_coordination_routes(app: FastAPI, db: Database, mutate: Callable) ->
     @app.patch("/api/v1/repositories/{identity}")
     def repository_update(identity: str, request: Request, body: m.RepositoryUpdate) -> dict:
         return write(request, body, lambda c, a: repository_apply(c, a, "repository.update", {"id": identity, **body.model_dump(exclude_unset=True)}), required_key=False, exclude_unset=True)
+
+    # Registered before /repositories/{identity}/{verb}. Agents cannot reach it: merging is a person's call.
+    @app.post("/api/v1/repositories/{identity}/merge")
+    def repository_merge_into(identity: str, request: Request, body: m.RepositoryMerge) -> dict:
+        return write(request, body, lambda c, a: repository_merge(c, a, identity, body.model_dump()))
 
     @app.post("/api/v1/repositories/{identity}/{verb}")
     def repository_archive(identity: str, verb: str, request: Request, body: Expected) -> dict:

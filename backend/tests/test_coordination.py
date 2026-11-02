@@ -1,5 +1,6 @@
 """Coordination exercises real auth and transactions without Git or filesystem activity."""
 
+import json
 import threading
 import uuid
 from contextlib import contextmanager
@@ -414,3 +415,112 @@ def test_context_scopes_catalog_runs_and_keeps_reported_work_separate(client):
     page = ok(request(client, "GET", f"/context?repositoryId={reported['id']}&limit=1&offset=1"))
     assert page["repositories"]["items"] == [] and page["repositories"]["total"] == 1
     assert page["runs"]["items"] == [] and page["runs"]["total"] == 1
+
+
+def merge(c, source, target, agent=None):
+    return request(c, "POST", f"/repositories/{source['id']}/merge",
+                   {"revision": source["revision"], "intoId": target["id"], "intoRevision": target["revision"]}, agent)
+
+
+def links(c, table, column, owner):
+    with c.app.state.db.read() as conn:
+        return [row[0] for row in conn.execute(f"SELECT repository_id FROM {table} WHERE {column}=?", (owner,))]
+
+
+def test_merge_moves_links_reports_and_updates_and_the_old_remote_answers_with_the_survivor(client):
+    old, new = repo(client, "Old name", url="https://github.com/team/old-name"), repo(client, "New name", url="https://github.com/team/new-name")
+    credential = agent(client)
+    both = post(client, "/work-items", {"title": "Both", "repositoryIds": [old["id"], new["id"]]})
+    only = post(client, "/work-items", {"title": "Only old", "repositoryIds": [old["id"]]})
+    chat = post(client, "/chats", {"ownerType": "item", "ownerId": only["id"], "chatId": "merge-chat", "title": "Chat", "repositoryIds": [old["id"]]})
+    ticket = post(client, "/tickets", {"title": "Ticket", "repositoryIds": [old["id"]]})
+    participation = report(client, credential, old)
+    update = post(client, f"/participations/{participation['id']}/updates", {"kind": "update", "text": "Before the merge"}, credential)
+    reported = ok(request(client, "GET", f"/participations/{participation['id']}"))
+    # Merging is the person's call: agents cannot reach it.
+    assert merge(client, old, new, credential).status_code == 403
+    merged = ok(merge(client, old, new))
+    assert (merged["mergedInto"], merged["archived"], merged["duplicateOf"]) == (new["id"], True, None)
+    assert links(client, "item_repositories", "item_id", both["id"]) == [new["id"]]
+    assert links(client, "item_repositories", "item_id", only["id"]) == [new["id"]]
+    assert links(client, "chat_repositories", "chat_id", chat["id"]) == [new["id"]]
+    assert links(client, "ticket_repositories", "ticket_id", ticket["id"]) == [new["id"]]
+    # Reports move without a new revision, so the agent keeps working; snapshots keep their names.
+    moved = ok(request(client, "GET", f"/participations/{participation['id']}"))
+    assert (moved["contexts"][0]["repositoryId"], moved["revision"], moved["releasedAt"]) == (new["id"], reported["revision"], None)
+    assert ok(request(client, "GET", f"/coordination-updates?repositoryId={new['id']}"))["items"] == [update]
+    assert ok(request(client, "GET", f"/coordination-updates?repositoryId={old['id']}"))["total"] == 0
+    with client.app.state.db.read() as c:
+        history = {row[0]: json.loads(row[1]) for row in c.execute("SELECT entity_id,after_json FROM events WHERE kind='repository.merge'")}
+    assert history[old["id"]]["moved"] == {"contexts": 1, "items": 2, "chats": 1, "tickets": 1, "updates": 1}
+    assert history[new["id"]]["mergedFrom"] == old["id"]
+    # The old remote now answers with the survivor, so agents on old clones land there.
+    again = repo(client, "Old again", url="git@github.com:team/old-name.git")
+    assert (again["id"], again["created"]) == (new["id"], False)
+    resolved = ok(request(client, "GET", "/repositories/resolve?url=https://github.com/Team/Old-Name.git"))
+    assert (resolved["remoteIdentity"], resolved["repository"]["id"]) == ("github.com/team/old-name", new["id"])
+    # A merged record is read-only and takes no new reports.
+    response = request(client, "POST", f"/repositories/{old['id']}/recover", {"revision": merged["revision"]})
+    assert (response.status_code, response.json()["error"]["code"]) == (409, "repository_merged")
+    response = request(client, "POST", "/participations", {"runId": participation["runId"], "contexts": [{"repositoryId": old["id"]}]}, credential)
+    assert response.json()["error"] == {"code": "repository_merged", "fields": {"repositoryId": new["id"]},
+                                         "message": "Old name was merged into New name; use that repository instead"}
+    # With the survivor archived, the merged remote has nothing active to answer for it.
+    post(client, f"/repositories/{new['id']}/archive", {"revision": new["revision"]})
+    response = request(client, "POST", "/repositories", {"name": "Old", "url": "https://github.com/team/old-name"})
+    assert (response.status_code, response.json()["error"]["fields"]) == (409, {"repositoryId": new["id"]})
+
+
+def test_merging_flagged_duplicates_leaves_one_record_for_their_remote(client):
+    first = repo(client, "First", url="https://github.com/team/shared")
+    with client.app.state.db.transaction() as c:
+        for identity, day in (("second", "02"), ("third", "03")):
+            c.execute("INSERT INTO repositories(id,name,url,remote_identity,duplicate_of,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+                      (identity, identity.title(), "git@github.com:team/shared.git", first["remoteIdentity"], first["id"],
+                       f"2026-01-{day}T00:00:00+00:00", STAMP))
+    second = ok(request(client, "GET", "/repositories/second"))
+    # Keep a duplicate: the canonical record folds into it, and the other duplicate follows.
+    ok(merge(client, first, second))
+    kept, third = ok(request(client, "GET", "/repositories/second")), ok(request(client, "GET", "/repositories/third"))
+    assert (kept["duplicateOf"], third["duplicateOf"]) == (None, "second")
+    assert repo(client, url="https://github.com/team/shared.git")["id"] == "second"
+    ok(merge(client, third, kept))
+    assert ok(request(client, "GET", "/repositories/third"))["mergedInto"] == "second"
+    with client.app.state.db.read() as c:
+        holders = c.execute("SELECT id FROM repositories WHERE remote_identity=? AND duplicate_of IS NULL AND merged_into IS NULL",
+                            (first["remoteIdentity"],)).fetchall()
+    assert [row[0] for row in holders] == ["second"]
+
+
+def test_merge_refuses_itself_stale_revisions_archived_survivors_and_merged_records(client):
+    source, target, other = repo(client, "Source"), repo(client, "Target"), repo(client, "Other")
+    assert merge(client, source, source).status_code == 422
+    assert merge(client, source, {**target, "revision": target["revision"] + 1}).status_code == 409
+    archived = post(client, f"/repositories/{other['id']}/archive", {"revision": other["revision"]})
+    response = merge(client, source, archived)
+    assert (response.status_code, response.json()["error"]["message"]) == (409, "Recover Other before merging into it")
+    merged = ok(merge(client, source, target))
+    assert merge(client, merged, target).json()["error"]["code"] == "repository_merged"
+    assert merge(client, ok(request(client, "GET", f"/repositories/{target['id']}")), merged).json()["error"]["code"] == "repository_merged"
+
+
+def test_resolve_reports_what_registering_an_address_would_do(client):
+    existing = repo(client, url="https://dev.azure.com/org/project/_git/repo")
+    found = ok(request(client, "GET", "/repositories/resolve?url=git@ssh.dev.azure.com:v3/org/project/repo"))
+    assert (found["url"], found["repository"]["id"]) == ("git@ssh.dev.azure.com:v3/org/project/repo", existing["id"])
+    assert ok(request(client, "GET", "/repositories/resolve?url=https://github.com/team/unknown"))["repository"] is None
+    assert request(client, "GET", "/repositories/resolve?url=file:///C:/repo").status_code == 422
+
+
+def test_a_failed_approval_names_the_change_that_failed(client):
+    existing, credential = repo(client, url="https://github.com/team/existing"), agent(client)
+    draft = post(client, "/proposals", {"title": "Register", "rationale": "", "operations": [
+        {"action": "repository.create", "payload": {"name": "New", "url": "https://github.com/team/new"}},
+        {"action": "repository.update", "payload": {"id": existing["id"], "revision": existing["revision"] + 1, "name": "Stale"}}]}, credential)
+    submitted = post(client, f"/proposals/{draft['id']}/submit", {"revision": draft["revision"]}, credential)
+    response = request(client, "POST", f"/proposals/{draft['id']}/approve", {"revision": submitted["revision"]})
+    assert response.status_code == 409
+    error = response.json()["error"]
+    assert error["message"] == "Change 2 of 2, repository.update: This record changed. Reload and review your draft."
+    assert (error["fields"]["operation"], error["fields"]["action"]) == (2, "repository.update")
+    assert ok(request(client, "GET", "/repositories"))["total"] == 1
