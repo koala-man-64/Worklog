@@ -187,6 +187,52 @@ def test_agent_proposal_scope_atomic_conflict_and_idempotent_approval(client):
     assert client.get("/api/v1/context", headers=headers).status_code == 401
 
 
+def test_only_the_person_turns_approval_off_and_submitting_then_applies(client):
+    w = item(client)
+    cred = write(client, "POST", "/credentials", {"label": "Review agent"}).json()
+    agent = {"Authorization": "Bearer " + cred["token"]}
+
+    def propose(title, revision=None):
+        current = client.get(f"/api/v1/work-items/{w['id']}").json()["revision"]
+        operations = [{"action": "item.update", "payload": {"id": w["id"], "revision": revision or current, "title": title}}]
+        draft = write(client, "POST", "/proposals", {"title": title, "rationale": "", "operations": operations}, headers=agent).json()
+        return draft, write(client, "POST", f"/proposals/{draft['id']}/submit", {"revision": draft["revision"]}, headers=agent)
+
+    assert client.get("/api/v1/settings").json()["requireProposalApproval"] is True
+    _, waiting = propose("Waiting")
+    assert waiting.json()["status"] == "submitted"
+    assert write(client, "PATCH", "/settings", {"requireProposalApproval": False}, headers=agent).status_code == 403
+    for invalid in ("false", 0):
+        assert write(client, "PATCH", "/settings", {"requireProposalApproval": invalid}).status_code == 422
+    off = write(client, "PATCH", "/settings", {"requireProposalApproval": False})
+    assert off.status_code == 200 and off.json()["requireProposalApproval"] is False
+    # Saving the timezone leaves the choice alone.
+    assert write(client, "PATCH", "/settings", {"timezone": "America/Chicago"}).json()["requireProposalApproval"] is False
+
+    _, applied = propose("Applied")
+    assert applied.status_code == 200, applied.text
+    assert applied.json()["status"] == "approved" and applied.json()["autoApproved"] is True
+    assert client.get(f"/api/v1/work-items/{w['id']}").json()["title"] == "Applied"
+    # What was waiting when approval went off still waits for the person.
+    assert client.get(f"/api/v1/proposals/{waiting.json()['id']}").json()["status"] == "submitted"
+    history = client.get("/api/v1/history", params={"entityId": applied.json()["id"]}).json()["items"]
+    assert [(e["actorId"], e["actorLabel"], e["actorKind"]) for e in history if e["kind"] == "proposal.approve"] == [
+        ("automatic-approval", "Automatic approval", "human")]
+
+    # A stale target refuses the submission rather than leaving it for review.
+    stale_draft, stale = propose("Stale", revision=1)
+    assert stale.status_code == 409 and stale.json()["error"]["message"].startswith("Not submitted")
+    assert client.get(f"/api/v1/proposals/{stale_draft['id']}", headers=agent).json()["status"] == "draft"
+    with client.app.state.db.read() as conn:
+        assert [r[0] for r in conn.execute("SELECT actor_id FROM events WHERE kind='item.update'")] == [cred["id"]]
+        changes = conn.execute("SELECT actor_id,before_json,after_json FROM events WHERE kind='settings.requireProposalApproval'").fetchall()
+        assert [tuple(r) for r in changes] == [("local-user", "true", "false")]
+
+    assert write(client, "PATCH", "/settings", {"requireProposalApproval": True}).json()["requireProposalApproval"] is True
+    _, reviewed = propose("Reviewed")
+    assert reviewed.json()["status"] == "submitted" and reviewed.json()["autoApproved"] is False
+
+
 def test_injected_failure_rolls_back_item_and_event(client, monkeypatch):
     import worklog.services as services
     w = item(client)

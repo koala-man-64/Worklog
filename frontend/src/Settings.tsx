@@ -167,6 +167,29 @@ export function Settings() {
         </section>
       </div>
       <section>
+        <h2>Agent proposals</h2>
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={data.requireProposalApproval}
+            disabled={action.isPending}
+            onChange={(e) =>
+              action.mutate({
+                path: "/settings",
+                method: "PATCH",
+                body: { requireProposalApproval: e.target.checked },
+              })
+            }
+          />
+          Require my approval for agent proposals
+        </label>
+        <p className="muted">
+          {data.requireProposalApproval
+            ? "A submitted proposal waits in Review until you approve or reject it."
+            : "A proposal is applied as soon as its agent submits it, and Review marks it approved automatically. Each change is still recorded in its record's history under the agent's name. Proposals already waiting in Review still need your decision."}
+        </p>
+      </section>
+      <section>
         <h2>Agent credentials</h2>
         <p>
           Agents can propose changes, and discussion messages keep a stable

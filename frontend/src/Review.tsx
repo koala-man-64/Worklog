@@ -3,13 +3,14 @@ import { useQuery } from "@tanstack/react-query";
 import { ApiError, request, getDataContext } from "./api";
 import { useAction, useData } from "./hooks";
 import { Empty, ErrorMessage, Files, Markdown } from "./components";
-import type { Day, List, Operation, Proposal } from "./types";
+import type { Day, List, Operation, Proposal, Settings } from "./types";
 import { Icon } from "./icons";
 export function Review({ selectedId }: { selectedId?: string }) {
   const [status, setStatus] = useState("submitted");
   const proposals = useData<List<Proposal>>(
     "/proposals" + (status ? "?status=" + status : ""),
   );
+  const settings = useData<Settings>("/settings");
   const selected = selectedId ?? "";
   return (
     <>
@@ -19,6 +20,12 @@ export function Review({ selectedId }: { selectedId?: string }) {
           Inspect agent suggestions before they change your work.
         </p>
       </header>
+      {settings.data?.requireProposalApproval === false && (
+        <p className="warning">
+          Approval is off: a proposal is applied as soon as its agent submits
+          it. Turn approval back on in <a href="#settings">Settings</a>.
+        </p>
+      )}
       <div className="toolbar">
         <label>
           Proposal status
@@ -67,7 +74,7 @@ export function Review({ selectedId }: { selectedId?: string }) {
                 {p.actorLabel}, {p.operations.length} proposed changes
               </p>
             </div>
-            <span className="badge">{p.status}</span>
+            <span className="badge">{statusLabel(p)}</span>
           </article>
         ))
       )}
@@ -95,7 +102,7 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
       </button>
       <h2>{p.title}</h2>
       <p className="muted">
-        Proposed by {p.actorLabel}, {p.status}, revision {p.revision}
+        Proposed by {p.actorLabel}, {statusLabel(p)}, revision {p.revision}
       </p>
       <Markdown text={p.rationale} />
       <h3>Proposed changes</h3>
@@ -165,6 +172,10 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
       )}
     </section>
   );
+}
+// An automatic approval was the Settings choice, not the person's decision.
+function statusLabel(p: Proposal) {
+  return p.autoApproved ? "approved automatically" : p.status;
 }
 // Agents choose step IDs in roadmap.create and roadmap.revise, so a later
 // operation may target a step that exists only once the proposal is approved.
