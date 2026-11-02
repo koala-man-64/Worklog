@@ -824,9 +824,7 @@ class WorkService:
             if val["chatId"]:
                 if not isinstance(val["chatId"], str):
                     raise AppError(422, "validation", "Invalid chatId")
-                chat_row = c.execute("SELECT id,owner_type,owner_id FROM agent_chats WHERE id=?", (val["chatId"],)).fetchone()
-                if not chat_row or chat_row["owner_type"] != val["ownerType"] or chat_row["owner_id"] != val["ownerId"]:
-                    raise AppError(422, "validation", "Agent chat does not belong to this record")
+                val["chatId"] = self._github_chat_id(c, val["ownerType"], val["ownerId"], val["chatId"])
             else:
                 val["chatId"] = None
             c.execute(
@@ -926,6 +924,45 @@ class WorkService:
             c.execute("DELETE FROM search_index WHERE entity_id=?", (after["id"],))
         event(c, actor, action, p["id"], before, after)
         return after
+
+    @staticmethod
+    def _github_chat_id(c: sqlite3.Connection, owner_type: str, owner_id: str, chat_ref: str) -> str:
+        """Resolve a GitHub reference's chat by record ID or external chatId on this record or its linked roadmap/items."""
+        ref = chat_ref.strip()
+        if not ref:
+            raise AppError(422, "validation", "Agent chat does not belong to this record")
+        row = c.execute(
+            """SELECT id FROM agent_chats
+               WHERE owner_type=? AND owner_id=? AND (id=? OR chat_id=?)
+               ORDER BY CASE WHEN id=? THEN 0 ELSE 1 END, archived ASC, created_at DESC, id DESC""",
+            (owner_type, owner_id, ref, ref, ref),
+        ).fetchone()
+        if row is not None:
+            return row["id"]
+        if owner_type == "item":
+            row = c.execute(
+                """SELECT ac.id FROM agent_chats ac
+                   JOIN work_items w ON w.id=?
+                   LEFT JOIN steps s ON s.id=w.step_id
+                   WHERE ac.owner_type='roadmap'
+                     AND ac.owner_id=COALESCE(s.roadmap_id, w.roadmap_id)
+                     AND (ac.id=? OR ac.chat_id=?)
+                   ORDER BY CASE WHEN ac.id=? THEN 0 ELSE 1 END, ac.archived ASC, ac.created_at DESC, ac.id DESC""",
+                (owner_id, ref, ref, ref),
+            ).fetchone()
+        elif owner_type == "roadmap":
+            row = c.execute(
+                """SELECT ac.id FROM agent_chats ac
+                   JOIN work_items w ON ac.owner_type='item' AND ac.owner_id=w.id
+                   LEFT JOIN steps s ON s.id=w.step_id
+                   WHERE COALESCE(s.roadmap_id, w.roadmap_id)=?
+                     AND (ac.id=? OR ac.chat_id=?)
+                   ORDER BY CASE WHEN ac.id=? THEN 0 ELSE 1 END, ac.archived ASC, ac.created_at DESC, ac.id DESC""",
+                (owner_id, ref, ref, ref),
+            ).fetchone()
+        if row is not None:
+            return row["id"]
+        raise AppError(422, "validation", "Agent chat does not belong to this record")
 
     @staticmethod
     def _chat_step_ids(c: sqlite3.Connection, chat: dict, kept: builtins.list[str]) -> builtins.list[str]:
