@@ -135,6 +135,10 @@ export function Discussions({ selected }: { selected?: string }) {
   const total = list.data?.total ?? 0;
   const pageStart = total ? offset + 1 : 0;
   const pageEnd = Math.min(offset + PAGE, total);
+  const scopeFilters = [
+    contextFilter && "context",
+    repoFilter.trim() && "repository",
+  ].filter(Boolean);
 
   return (
     <div className="bounded-screen">
@@ -146,7 +150,12 @@ export function Discussions({ selected }: { selected?: string }) {
         </p>
       </header>
       <ErrorMessage error={list.error || participants.error || chats.error} />
-      <div className="split discussions-split">
+      <div
+        className={
+          "split discussions-split" +
+          (newPostOpen || selectedId ? " has-detail" : "")
+        }
+      >
         <section
           className="panel discussion-list-panel"
           role="region"
@@ -187,7 +196,7 @@ export function Discussions({ selected }: { selected?: string }) {
                 </button>
               ))}
             </div>
-            <label>
+            <label className="discussion-search">
               Search discussions
               <input
                 type="search"
@@ -196,46 +205,58 @@ export function Discussions({ selected }: { selected?: string }) {
                 placeholder="Search messages and titles…"
               />
             </label>
-            <ContextPicker
-              label="Filter by context"
-              query={contextQuery}
-              onQueryChange={setContextQuery}
-              selected={contextFilter ? [contextFilter] : []}
-              onAdd={(choice) => {
-                setContextFilter(choice);
-                setOffset(0);
-                setContextQuery("");
-              }}
-              onRemove={() => {
-                setContextFilter(null);
-                setOffset(0);
-              }}
-              results={contextSearch.data?.items ?? []}
-              loading={contextSearch.isFetching}
-              single
-            />
-            <label>
-              Filter by repository
-              <input
-                type="search"
-                list="discussion-repositories"
-                value={repoFilter}
-                onChange={(event) => {
-                  setRepoFilter(event.target.value);
+            <details
+              className={
+                "discussion-scope-filters" +
+                (scopeFilters.length ? " filtered" : "")
+              }
+            >
+              <summary>
+                {scopeFilters.length
+                  ? "Filtered by " + scopeFilters.join(" and ")
+                  : "Filter by context or repository"}
+              </summary>
+              <ContextPicker
+                label="Filter by context"
+                query={contextQuery}
+                onQueryChange={setContextQuery}
+                selected={contextFilter ? [contextFilter] : []}
+                onAdd={(choice) => {
+                  setContextFilter(choice);
+                  setOffset(0);
+                  setContextQuery("");
+                }}
+                onRemove={() => {
+                  setContextFilter(null);
                   setOffset(0);
                 }}
-                placeholder="Any repository"
+                results={contextSearch.data?.items ?? []}
+                loading={contextSearch.isFetching}
+                single
               />
-              <datalist id="discussion-repositories">
-                {repoOptions.map((repo) => (
-                  <option key={repo} value={repo} />
-                ))}
-              </datalist>
-            </label>
+              <label>
+                Filter by repository
+                <input
+                  type="search"
+                  list="discussion-repositories"
+                  value={repoFilter}
+                  onChange={(event) => {
+                    setRepoFilter(event.target.value);
+                    setOffset(0);
+                  }}
+                  placeholder="Any repository"
+                />
+                <datalist id="discussion-repositories">
+                  {repoOptions.map((repo) => (
+                    <option key={repo} value={repo} />
+                  ))}
+                </datalist>
+              </label>
+            </details>
           </div>
           <div className="panel-body">
             {list.isPending ? (
-              <p>Loading discussions…</p>
+              <p className="discussion-loading">Loading discussions…</p>
             ) : !items.length ? (
               <Empty>
                 {view === "awaiting"
@@ -269,7 +290,7 @@ export function Discussions({ selected }: { selected?: string }) {
                   Previous page
                 </button>
                 <small>
-                  {pageStart}–{pageEnd} of {total}
+                  {pageStart} to {pageEnd} of {total}
                 </small>
                 <button
                   type="button"
@@ -280,18 +301,18 @@ export function Discussions({ selected }: { selected?: string }) {
                 </button>
               </div>
             )}
-            <DiscussionRolesPanel
-              roles={roles.data?.items ?? []}
-              total={roles.data?.total ?? 0}
-              offset={roleOffset}
-              limit={ROLE_PAGE}
-              onPage={setRoleOffset}
-              onCreated={() => setRoleOffset(0)}
-              participants={participants.data}
-              error={roles.error}
-              isPending={roles.isPending}
-            />
           </div>
+          <DiscussionRolesPanel
+            roles={roles.data?.items ?? []}
+            total={roles.data?.total ?? 0}
+            offset={roleOffset}
+            limit={ROLE_PAGE}
+            onPage={setRoleOffset}
+            onCreated={() => setRoleOffset(0)}
+            participants={participants.data}
+            error={roles.error}
+            isPending={roles.isPending}
+          />
         </section>
         <section
           className="pane detail discussion-detail"
@@ -361,14 +382,18 @@ function DiscussionListItem({
         <strong>{discussion.title || "Untitled discussion"}</strong>
         <small>{when(discussion.updatedAt || discussion.createdAt)}</small>
       </a>
-      {discussion.archived && (
-        <span className="discussion-archived-label">Archived</span>
-      )}
-      {discussion.pendingCount > 0 && (
-        <span className="discussion-pending-count">
-          {discussion.pendingCount} awaiting acknowledgement
-          {discussion.pendingCount === 1 ? "" : "s"}
-        </span>
+      {(discussion.pendingCount > 0 || discussion.archived) && (
+        <div className="discussion-states">
+          {discussion.pendingCount > 0 && (
+            <span className="discussion-pending-count">
+              {discussion.pendingCount} awaiting acknowledgement
+              {discussion.pendingCount === 1 ? "" : "s"}
+            </span>
+          )}
+          {discussion.archived && (
+            <span className="discussion-archived-label">Archived</span>
+          )}
+        </div>
       )}
       {discussion.contexts.length > 0 && (
         <div className="discussion-contexts" aria-label="Linked context">

@@ -1,12 +1,16 @@
-/* Hallmark · checked: 2026-10-30 · genre: modern-minimal (inferred) · shape: app screen
- * floor: 0 FAIL · fixed: 11 (19, 30a, 34, 39a, 39b, 40, 48, 54, 63, 67, 75) · structural: 4 printed (header, add-forms, title echo, date formats)
- * built: the project · redesign: polish for the system and spacing (#23), kept; the roadmap screens recomposed in full · v2.0.0
- * screen: plan outline beside a detail pane, both bounded to the window from 900px wide; narrower or shorter windows stack, the outline capped at 60dvh with its own scroll
- * signature: the plan outline, every step a row of title and status with its detail beside it
- * finish-review: subagent · 8 findings · 5 resolved, 3 kept as found (status coding kept per the prominence change and waiver 3; shared Notes and Files sections and the list summary sit outside this recomposition) · gap: the selected-row miss in the step shots came from the capture resizing after load, verified in view at a fixed 1440x900 */
+/* Hallmark · checked: 2026-11-02 · genre: modern-minimal (inferred) · shape: app screen · theme: brand
+ * floor: 0 FAIL · fixed: 11 (19, 30a, 34, 39a, 39b, 40, 48, 54, 63, 67, 75), then 19 and 75 on the discussions screen · structural: 4 printed (header, add-forms, title echo, date formats), date formats since settled on the discussions screen
+ * built: the project · redesign: polish for the system and spacing (#23), kept; the roadmap screens and the discussions screen recomposed in full · v2.0.0
+ * screen: roadmaps, a plan outline beside a detail pane, both bounded to the window from 900px wide; narrower or shorter windows stack, the outline capped at 60dvh with its own scroll. discussions, the threads beside the open thread, the filters folded to the view, a search and one toggle, the roles in a tray that takes the panel while open, a phone showing the open thread above the threads · states: loading, empty, error, full
+ * signature: roadmaps, the plan outline, every step a row of title and status with its detail beside it. discussions, the receipt under each acknowledgement request, one row per recipient with its state in the status colours
+ * finish-review: roadmaps, subagent · 8 findings · 5 resolved, 3 kept as found (status coding kept per the prominence change and waiver 3; shared Notes and Files sections and the list summary sit outside this recomposition) · gap: the selected-row miss in the step shots came from the capture resizing after load, verified in view at a fixed 1440x900. discussions, subagent · 8 findings · 5 resolved (the pane short of the list by the section margin, the receipt rows in the status colours, the quiet empty pane hidden on a phone, the folded filter spacing, outlined wait buttons), 1 partial (new post now takes focus, so a phone scrolls to it; a thread tap already scrolled to the top), 2 kept as found (the page header is every screen's, and a request can sit anywhere in a long thread; clamping the list chips would hide facts and leave clipped links reachable by keyboard) · gap: 73 reads the rows clipped by the list's scroll area as covered by the roles summary, measured below the list's visible bottom (text tops 846 to 865px, list bottom 829px) */
 /* Hallmark · dropped fields with no name, the per-step note and file controls in the plan tree · each step's description, notes, files and history now open in the detail pane when that step is selected, so the tree keeps one row per step */
 /* Hallmark · answered F19 · the fourth weight is the 700 status pill from the status prominence change, outside this recomposition */
-/* Hallmark · pre-emit critique: P4 H5 E4 S4 R4 V3 · weakest: V, the outline and detail split is the familiar master-detail shape; kept because fluency in the category beats novelty on a working screen */
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V3 · weakest: V, the threads beside the open thread is the master-detail shape the Chats screen already uses; kept so the two screens read alike, and the receipt carries this screen's own idea */
+/* Hallmark · reworded "10/30/2026, 2:42:38 PM" to "Oct 30, 2:42 PM" · every discussion time, the date formats the polish printed as structural; the year shows only when it is not this one */
+/* Hallmark · reworded "1–50 of 120" to "1 to 50 of 120" · 19 names the en dash in the thread, message and role page ranges */
+/* Hallmark · reworded "Data steward · Launch readiness · unassigned" to "Data steward (Launch readiness, unassigned)" · 63 names the dot-joined role recipient label */
+/* Hallmark · dismissed 70 · the composer prints "Sent" only after its POST to the discussions API resolves, and only to say edits made meanwhile stay a draft */
 /* Hallmark · waive 3 · step stripe beside the status dot and pill · the plan tree's status stripe was made prominent on purpose in the status pill change */
 /* Hallmark · waive 49b · the wrapping links are work item and roadmap titles the person typed · a long item title wraps rather than hiding part of its name */
 /* Hallmark · waive 72 · the crowding is the sidebar roadmap titles cut by text-overflow ellipsis · roadmap names truncate inside the sidebar by design */
@@ -1568,6 +1572,7 @@ button.agent-chip.more {
 .chat-messages[aria-busy] .messages {
   opacity: 0.6;
 }
+/* Discussions: the threads beside the open one. The list keeps its view and search in view, folds context and repository behind one toggle, and keeps the roles in a tray at its foot. */
 .discussion-list-panel .panel-head .toolbar.compact,
 .discussion-detail-head .toolbar.compact {
   gap: 6px;
@@ -1575,36 +1580,24 @@ button.agent-chip.more {
 .discussion-list-panel .panel-head .toolbar button,
 .discussion-detail-head .toolbar button {
   min-height: 32px;
-  padding: 4px 9px;
+  padding: 4px 10px;
   font-size: 12px;
 }
 .discussion-filters {
   display: grid;
   gap: 10px;
-  padding: 12px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--line);
 }
-.discussion-filters > label,
-.discussion-composer > label,
-.discussion-context-picker > label,
-.discussion-role-card label,
-.discussion-create-role label,
-.release-request-form label {
-  display: grid;
-  gap: 4px;
-  color: var(--muted);
-  font-size: 12px;
-}
-.discussion-filters input,
-.discussion-composer input,
-.discussion-composer select,
-.discussion-context-picker input,
-.discussion-role-card select,
-.discussion-role-card textarea,
-.discussion-create-role input,
-.release-request-form textarea {
-  width: 100%;
-  min-width: 0;
+/* Wide enough, the view switch and the search share a row. */
+@container (min-width: 560px) {
+  .discussion-filters {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+    align-items: end;
+  }
+  .discussion-scope-filters {
+    grid-column: 1 / -1;
+  }
 }
 .discussion-filters .thread-filter {
   gap: 4px;
@@ -1612,14 +1605,64 @@ button.agent-chip.more {
 .discussion-filters .thread-filter button {
   flex: 1;
 }
+.discussion-filters label,
+.discussion-context-picker > label,
+.discussion-composer label:not(.checkbox-label),
+.discussion-roles-panel label,
+.release-request-form label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.discussion-filters label > input,
+.discussion-context-picker > label > input,
+.discussion-composer label > input:not([type="checkbox"]),
+.discussion-composer label > select,
+.discussion-composer label > textarea,
+.discussion-roles-panel label > input,
+.discussion-roles-panel label > select,
+.discussion-roles-panel label > textarea,
+.release-request-form label > textarea {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  font-size: 14px;
+}
+.discussion-scope-filters {
+  margin: 0;
+  padding: 0;
+  border-top: 0;
+}
+.discussion-scope-filters > summary {
+  width: fit-content;
+}
+.discussion-scope-filters[open] > summary {
+  margin-bottom: 12px;
+}
+.discussion-scope-filters > label {
+  margin-top: 16px;
+}
+.discussion-scope-filters.filtered > summary {
+  color: var(--teal);
+  font-weight: 600;
+}
+.discussion-loading {
+  margin: 0;
+  padding: 16px 8px;
+  color: var(--muted);
+}
 .discussion-list {
   list-style: none;
   margin: 0;
   padding: 0;
 }
+/* A thread reads as its title and when it last moved, then what waits on it, then where it belongs. */
 .discussion-list > li {
-  display: grid;
-  gap: 5px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
   padding: 12px 8px;
   border-top: 1px solid var(--line);
   border-radius: 4px;
@@ -1632,46 +1675,74 @@ button.agent-chip.more {
   background: var(--teal-wash);
 }
 .discussion-list-link {
+  flex: 1 1 100%;
   display: grid;
-  gap: 2px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
   color: var(--ink);
   text-decoration: none;
 }
-.discussion-list-link:hover strong,
+.discussion-list-link strong {
+  font-weight: 600;
+  line-height: 1.4;
+}
+.discussion-list-link small {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.discussion-list-link:hover strong {
+  color: var(--teal);
+  text-decoration: underline;
+}
 .discussion-list-link[aria-current] strong {
   color: var(--teal);
 }
-.discussion-list-link small {
-  font-variant-numeric: tabular-nums;
-}
-.discussion-archived-label,
-.discussion-pending-count {
-  width: fit-content;
-  color: var(--muted);
-  font-size: 11px;
-}
-.discussion-pending-count {
-  color: var(--status-doing-ink);
-}
+.discussion-states,
 .discussion-contexts,
 .discussion-repos {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: 4px 6px;
   min-width: 0;
+}
+/* In the list a row's chips share lines, so a thread with one context and one repository takes one line for both. */
+.discussion-list .discussion-states,
+.discussion-list .discussion-contexts,
+.discussion-list .discussion-repos {
+  display: contents;
+}
+.discussion-pending-count,
+.discussion-archived-label {
+  width: fit-content;
+  padding: 0 8px;
+  border-radius: 12px;
+  background: var(--status-open-bg);
+  color: var(--status-open-ink);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.discussion-pending-count {
+  background: var(--status-doing-bg);
+  color: var(--status-doing-ink);
+  font-weight: 600;
 }
 .context-tag,
 .repo-tag {
   display: inline-block;
   max-width: 100%;
-  padding: 1px 7px;
-  border-radius: 12px;
+  padding: 0 7px;
+  border-radius: 4px;
   background: var(--sidebar);
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
+  line-height: 1.6;
   overflow-wrap: anywhere;
   text-decoration: none;
+}
+.context-tag {
+  color: var(--ink);
 }
 a.context-tag:hover {
   color: var(--teal);
@@ -1686,69 +1757,201 @@ a.context-tag:hover {
   padding: 12px 0;
 }
 .discussion-pagination button {
-  min-height: 30px;
-  padding: 3px 8px;
+  min-height: 32px;
+  padding: 4px 10px;
   font-size: 12px;
 }
+.discussion-pagination small {
+  font-variant-numeric: tabular-nums;
+}
+/* Roles are a second kind of record, so they keep a tray of their own below the threads rather than after the last one. */
+.discussion-roles-panel {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+.discussion-roles-panel > summary {
+  padding: 12px 16px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+.discussion-roles-panel > summary:hover {
+  color: var(--teal);
+}
+/* Open, the roles take the panel in place of the threads and their filters; closing the tray brings them back. */
+.discussion-list-panel:has(> .discussion-roles-panel[open])
+  > :is(.discussion-filters, .panel-body) {
+  display: none;
+}
+.discussion-roles-panel[open] {
+  border-top: 0;
+}
+.discussion-roles-body {
+  display: grid;
+  gap: 4px;
+  padding: 0 16px 12px;
+}
+.discussion-roles-body > .empty {
+  padding: 12px 0;
+  border: 0;
+  font-size: 15px;
+  text-align: left;
+}
+.discussion-roles-body > p:last-child {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+.discussion-role-list {
+  display: grid;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.discussion-role-card {
+  display: grid;
+  gap: 6px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.discussion-role-card:first-child {
+  border-top: 0;
+}
+.discussion-role-head strong {
+  font-weight: 600;
+}
+.discussion-role-card > .context-tag {
+  justify-self: start;
+}
+.discussion-role-card p {
+  margin: 0;
+  font-size: 12px;
+}
+.role-offer {
+  padding: 6px 10px;
+  border-radius: 5px;
+  background: var(--status-doing-bg);
+  color: var(--status-doing-ink);
+  font-size: 12px;
+}
+.role-offer p {
+  margin-top: 2px;
+}
+.discussion-role-card details,
+.discussion-create-role {
+  margin: 0;
+  padding: 0;
+  border-top: 0;
+}
+.discussion-create-role {
+  padding: 12px 0 4px;
+  border-top: 1px solid var(--line);
+}
+.discussion-role-card details > summary,
+.discussion-create-role > summary {
+  width: fit-content;
+  color: var(--teal);
+  font-weight: 600;
+}
+.discussion-role-card details form,
+.discussion-create-role form {
+  display: grid;
+  gap: 10px;
+  padding-top: 10px;
+}
+.discussion-role-card details form > button,
+.discussion-create-role form > button {
+  justify-self: start;
+}
+/* Both columns end on the row's edge, clear of the global section margin. */
+.discussions-split > .discussion-list-panel,
+.discussions-split > .discussion-detail {
+  margin-bottom: 0;
+}
+/* The open thread: its head, then the messages as a ruled record, each message's text under its author. */
 .discussion-detail {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 .discussion-detail-head {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 10px;
-  padding: 0 0 12px;
+  gap: 10px 16px;
+  padding: 12px 0 16px;
   border-bottom: 1px solid var(--line);
-  background: var(--bg);
+}
+/* With nothing open, the pane says so in one quiet line beside the list's head. */
+.discussion-detail > .empty {
+  max-width: 52ch;
+  padding: 14px 0 0;
+  border: 0;
+  font-family: var(--font-body);
+  font-size: 14px;
+  text-align: left;
 }
 .discussion-detail-head h2 {
-  margin: 0 0 6px;
+  margin: 0;
   font-size: 24px;
-  overflow-wrap: anywhere;
+  line-height: 1.2;
 }
 .discussion-detail-head > div:first-child {
+  display: grid;
+  gap: 8px;
+  flex: 1 1 280px;
   min-width: 0;
-  flex: 1 1 240px;
 }
-.discussion-detail-head > div:first-child > small {
-  display: block;
-  margin-top: 6px;
+.discussion-detail-head small {
+  font-variant-numeric: tabular-nums;
 }
 .discussion-message-page {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 .discussion-messages {
   list-style: none;
   display: grid;
-  gap: 12px;
   margin: 0;
   padding: 0;
 }
 .discussion-message {
+  display: grid;
+  gap: 8px;
   min-width: 0;
-  padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--paper);
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
   overflow-wrap: anywhere;
+}
+.discussion-message:first-child {
+  padding-top: 4px;
+  border-top: 0;
 }
 .discussion-message-head {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 5px 9px;
-  margin-bottom: 8px;
+  align-items: center;
+  gap: 4px 8px;
+}
+.discussion-message-head strong {
+  font-weight: 600;
 }
 .discussion-message-head time {
   margin-left: auto;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
+}
+/* Past the 24px avatar and its gap, so the text starts under the author's name. */
+.discussion-message > :not(.discussion-message-head) {
+  margin-left: 32px;
+}
+.discussion-message .markdown {
+  max-width: 72ch;
 }
 .discussion-message .markdown > :first-child {
   margin-top: 0;
@@ -1757,33 +1960,52 @@ a.context-tag:hover {
   margin-bottom: 0;
 }
 .discussion-chat-reference {
-  margin: 10px 0 0;
+  margin: 0;
   color: var(--muted);
   font-size: 12px;
 }
+/* The receipt: who was asked, who has acknowledged and when, the state in the status colours. A reply never changes it. Its buttons share the last row. */
 .acknowledgement-card {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
-  margin-top: 12px;
-  padding: 10px;
+  max-width: 72ch;
+  padding: 12px 14px;
   border: 1px solid var(--line);
-  border-left: 3px solid var(--teal);
-  border-radius: 5px;
-  background: var(--bg);
+  border-radius: 7px;
+  background: var(--paper);
+  color: var(--ink);
+}
+.acknowledgement-card > :not(button) {
+  flex: 1 1 100%;
 }
 .acknowledgement-head {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 5px 10px;
+  gap: 4px 12px;
 }
-.ack-state {
-  color: var(--muted);
-  font-size: 12px;
+.acknowledgement-head strong {
   font-weight: 600;
 }
+.ack-state {
+  padding: 0 8px;
+  border-radius: 12px;
+  background: var(--status-open-bg);
+  color: var(--status-open-ink);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.6;
+}
 .ack-state.pending {
+  background: var(--status-doing-bg);
   color: var(--status-doing-ink);
+}
+.ack-state.satisfied {
+  background: var(--status-done-bg);
+  color: var(--status-done-ink);
 }
 .acknowledgement-card > p {
   margin: 0;
@@ -1792,11 +2014,10 @@ a.context-tag:hover {
 .acknowledgement-targets,
 .acknowledgement-receipts {
   display: grid;
-  gap: 4px;
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 12px;
+  font-size: 13px;
 }
 .acknowledgement-targets li,
 .acknowledgement-receipts li {
@@ -1804,47 +2025,89 @@ a.context-tag:hover {
   flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 4px 12px;
+  gap: 2px 12px;
+  padding: 6px 0;
+  border-top: 1px solid var(--line);
+}
+/* Each recipient's state is a chip: received in the done colours, still owed in the doing colours while the request waits. */
+.acknowledgement-targets li > span:last-child {
+  padding: 0 8px;
+  border-radius: 12px;
+  background: var(--status-open-bg);
+  color: var(--status-open-ink);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.acknowledgement-card.pending .acknowledgement-targets li > span:last-child {
+  background: var(--status-doing-bg);
+  color: var(--status-doing-ink);
+}
+.acknowledgement-card .acknowledgement-targets li.received > span:last-child {
+  background: var(--status-done-bg);
+  color: var(--status-done-ink);
+  font-weight: 600;
+}
+.acknowledgement-receipts li > span {
+  margin-right: auto;
 }
 .acknowledgement-receipts time {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
-.acknowledgement-reason {
-  padding: 8px;
-  border-left: 2px solid var(--line);
+.release-request-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
-.release-request-form,
+.release-request-form > label {
+  flex: 1 1 100%;
+}
 .discussion-composer,
-.discussion-create-role form {
+.discussion-composer-scope {
   display: grid;
   gap: 12px;
 }
 .release-request-form textarea {
   min-height: 70px;
 }
+.discussion-composer .toolbar {
+  margin: 0;
+}
+/* The reply closes the thread, below its last message. */
 .discussion-reply {
+  display: grid;
+  gap: 6px;
   margin-top: auto;
-  padding-top: 12px;
+  padding-top: 16px;
   border-top: 1px solid var(--line);
 }
 .discussion-reply h3 {
-  margin: 0 0 4px;
+  margin: 0;
 }
 .discussion-reply > p {
-  margin: 0 0 10px;
+  max-width: 72ch;
+  margin: 0 0 6px;
   font-size: 12px;
 }
-.discussion-composer > label > textarea {
-  min-height: 125px;
+.discussion-composer label > textarea {
+  min-height: 120px;
   resize: vertical;
 }
-.discussion-composer .toolbar {
-  margin: 0;
+.discussion-reply .discussion-composer label > textarea {
+  min-height: 96px;
+}
+@container (min-width: 600px) {
+  .discussion-composer-scope {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
 }
 .discussion-context-picker {
   display: grid;
   gap: 6px;
+  min-width: 0;
 }
 .discussion-context-suggestions,
 .discussion-selected-contexts {
@@ -1859,6 +2122,7 @@ a.context-tag:hover {
   min-height: 32px;
   padding: 4px 8px;
   text-align: left;
+  white-space: normal;
   overflow-wrap: anywhere;
 }
 .discussion-selected-contexts li {
@@ -1868,21 +2132,22 @@ a.context-tag:hover {
   flex-wrap: wrap;
   gap: 6px;
 }
-.acknowledgement-request-input,
-.acknowledgement-recipient-list {
+.acknowledgement-request-input {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
   margin: 0;
-  padding: 10px;
+  padding: 10px 12px;
   border: 1px solid var(--line);
-  border-radius: 5px;
+  border-radius: 7px;
 }
-.acknowledgement-request-input > label:not(.checkbox-label) {
+.acknowledgement-recipient-list {
   display: grid;
-  gap: 4px;
-  color: var(--muted);
-  font-size: 12px;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 .acknowledgement-recipient-list .checkbox-label,
 .checkbox-label {
@@ -1898,78 +2163,15 @@ a.context-tag:hover {
   width: auto;
   margin: 0;
 }
+.discussion-composer .checkbox-label {
+  flex-wrap: nowrap;
+  align-items: baseline;
+}
 .acknowledgement-recipient-list legend {
-  padding: 0 4px;
+  margin-bottom: 4px;
+  padding: 0;
   color: var(--muted);
   font-size: 12px;
-}
-.discussion-roles-panel {
-  margin: 14px 4px 0;
-  padding: 10px 4px;
-  border-top: 1px solid var(--line);
-}
-.discussion-roles-panel > summary,
-.discussion-create-role > summary,
-.discussion-role-card details > summary {
-  color: var(--ink);
-  font-size: 13px;
-  font-weight: 600;
-}
-.discussion-role-list {
-  display: grid;
-  gap: 8px;
-  list-style: none;
-  margin: 10px 0;
-  padding: 0;
-}
-.discussion-role-card {
-  display: grid;
-  gap: 7px;
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  overflow-wrap: anywhere;
-}
-.discussion-role-head {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 4px 10px;
-}
-.discussion-role-card p {
-  margin: 0;
-  font-size: 12px;
-}
-.discussion-role-card details {
-  margin: 0;
-  padding: 7px 0 0;
-}
-.discussion-role-card details form {
-  display: grid;
-  gap: 8px;
-  padding-top: 8px;
-}
-.discussion-role-card textarea {
-  min-height: 60px;
-}
-.role-offer {
-  padding: 8px;
-  border-left: 3px solid var(--status-doing-border);
-  background: var(--bg);
-  font-size: 12px;
-}
-.role-offer p {
-  margin-top: 4px;
-}
-.discussion-create-role {
-  margin: 10px 0;
-  padding: 10px 0;
-}
-.discussion-create-role form {
-  padding-top: 10px;
-}
-.discussion-roles-panel > p:last-child {
-  font-size: 11px;
 }
 .credential-identity {
   display: grid;
@@ -2196,6 +2398,7 @@ code {
   border-collapse: collapse;
   display: block;
   overflow: auto;
+  margin-bottom: 1em;
 }
 .markdown th,
 .markdown td {
@@ -2496,6 +2699,9 @@ code {
   .quick-add button {
     font-size: 12px;
   }
+  .discussion-message > :not(.discussion-message-head) {
+    margin-left: 0;
+  }
 }
 /* Stacked on a narrow or short window, the outline keeps its own scroll so the detail stays a few screens down. */
 @media not all and (min-width: 900px) and (min-height: 560px) {
@@ -2503,10 +2709,18 @@ code {
     display: none;
   }
   .roadmap-split .panel-body,
-  .chats-split .panel-body {
+  .chats-split .panel-body,
+  .discussions-split .panel-body {
     max-height: 60dvh;
     overflow-y: auto;
     overscroll-behavior: contain;
+  }
+  /* The thread or new post someone opened comes first; the threads follow it. With nothing open, the list is the screen. */
+  .discussions-split.has-detail > .discussion-detail {
+    order: -1;
+  }
+  .discussions-split:not(.has-detail) > .discussion-detail {
+    display: none;
   }
 }
 /* Roadmap screens fit the window and scroll inside their panes; narrow or short windows stack and scroll the page. */
@@ -2567,6 +2781,13 @@ code {
   }
   .discussions-split {
     grid-template-columns: minmax(280px, 2fr) minmax(0, 3fr);
+  }
+  .discussion-roles-panel[open] {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
   }
   /* The chat's name and agent filter stay in view while its messages scroll in the pane. */
   .chat-history-head {

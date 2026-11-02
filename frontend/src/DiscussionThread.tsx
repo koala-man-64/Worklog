@@ -6,7 +6,10 @@ import { Empty, ErrorMessage, Markdown } from "./components";
 import { ContextReference } from "./discussionContexts";
 import { Composer } from "./DiscussionComposer";
 import { useAction, useData } from "./hooks";
-import { formatDiscussionDate } from "./discussionFormatting";
+import {
+  exactDiscussionDate,
+  formatDiscussionDate,
+} from "./discussionFormatting";
 import type { ChatOverview } from "./types";
 import type {
   AcknowledgementMode,
@@ -86,7 +89,16 @@ export function DiscussionThread({
       <div className="discussion-detail-head">
         <div>
           <h2>{discussion.title || "Untitled discussion"}</h2>
+          <small className="muted">
+            Started {when(discussion.createdAt)} · updated{" "}
+            {when(discussion.updatedAt)}
+          </small>
           <div className="discussion-contexts" aria-label="Discussion context">
+            {discussion.archived && (
+              <span className="discussion-archived-label">
+                Archived · replies are open
+              </span>
+            )}
             {discussion.contexts.map((context) => (
               <ContextReference
                 key={context.type + context.id}
@@ -98,16 +110,7 @@ export function DiscussionThread({
                 {repo}
               </span>
             ))}
-            {discussion.archived && (
-              <span className="discussion-archived-label">
-                Archived · replies are open
-              </span>
-            )}
           </div>
-          <small className="muted">
-            Started {when(discussion.createdAt)} · updated{" "}
-            {when(discussion.updatedAt)}
-          </small>
         </div>
         <div className="toolbar compact">
           <button type="button" onClick={refreshDetail}>
@@ -124,26 +127,28 @@ export function DiscussionThread({
       </div>
       <ErrorMessage error={detail.error || action.error} />
       <div className="discussion-message-page">
-        <div className="discussion-pagination">
-          <button
-            type="button"
-            disabled={offset <= 0}
-            onClick={() => setOffset(Math.max(0, offset - PAGE))}
-          >
-            Previous messages
-          </button>
-          <small>
-            {total ? offset + 1 : 0}–{Math.min(offset + messages.length, total)}{" "}
-            of {total}
-          </small>
-          <button
-            type="button"
-            disabled={offset >= maxOffset}
-            onClick={() => setOffset(Math.min(offset + PAGE, maxOffset))}
-          >
-            Next messages
-          </button>
-        </div>
+        {total > PAGE && (
+          <div className="discussion-pagination">
+            <button
+              type="button"
+              disabled={offset <= 0}
+              onClick={() => setOffset(Math.max(0, offset - PAGE))}
+            >
+              Previous messages
+            </button>
+            <small>
+              {offset + 1} to {Math.min(offset + messages.length, total)} of{" "}
+              {total}
+            </small>
+            <button
+              type="button"
+              disabled={offset >= maxOffset}
+              onClick={() => setOffset(Math.min(offset + PAGE, maxOffset))}
+            >
+              Next messages
+            </button>
+          </div>
+        )}
         {!messages.length ? (
           <Empty>No messages in this thread yet.</Empty>
         ) : (
@@ -276,7 +281,12 @@ function DiscussionMessageView({
         {messageRole && (
           <span className="muted">on behalf of {messageRole.label}</span>
         )}
-        <time dateTime={message.createdAt}>{when(message.createdAt)}</time>
+        <time
+          dateTime={message.createdAt}
+          title={exactDiscussionDate(message.createdAt)}
+        >
+          {when(message.createdAt)}
+        </time>
       </div>
       <Markdown text={message.text} untrusted />
       {message.chatId && (
@@ -291,7 +301,7 @@ function DiscussionMessageView({
       )}
       {requestState && (
         <section
-          className="acknowledgement-card"
+          className={"acknowledgement-card " + requestState.state}
           aria-label="Acknowledgement request"
         >
           <div className="acknowledgement-head">
@@ -310,7 +320,10 @@ function DiscussionMessageView({
           {requestState.targets.length > 0 && (
             <ul className="acknowledgement-targets">
               {requestState.targets.map((target) => (
-                <li key={target.id}>
+                <li
+                  key={target.id}
+                  className={target.acknowledged ? "received" : undefined}
+                >
                   <span>{target.label}</span>
                   <span>
                     {target.acknowledged
@@ -333,7 +346,10 @@ function DiscussionMessageView({
               {requestState.receipts.map((receipt) => (
                 <li key={receipt.id}>
                   <span>{receipt.actorLabel} acknowledged</span>
-                  <time dateTime={receipt.createdAt}>
+                  <time
+                    dateTime={receipt.createdAt}
+                    title={exactDiscussionDate(receipt.createdAt)}
+                  >
                     {when(receipt.createdAt)}
                   </time>
                   {receipt.late && (
@@ -366,6 +382,7 @@ function DiscussionMessageView({
             requestState.actionableTargetIds.length > 0 && (
               <button
                 type="button"
+                className="primary"
                 disabled={disabled}
                 onClick={() => void run(() => onAcknowledge(requestState))}
               >
@@ -375,7 +392,6 @@ function DiscussionMessageView({
           {requestState.state === "pending" && requestState.canCancel && (
             <button
               type="button"
-              className="quiet"
               disabled={disabled}
               onClick={() => void run(onCancel)}
             >
@@ -414,7 +430,7 @@ function DiscussionMessageView({
                 </button>
               </form>
             ) : (
-              <button type="button" className="quiet" onClick={onRelease}>
+              <button type="button" onClick={onRelease}>
                 Release wait…
               </button>
             ))}

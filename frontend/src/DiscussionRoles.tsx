@@ -62,83 +62,85 @@ export function DiscussionRolesPanel({
   return (
     <details className="discussion-roles-panel">
       <summary>Discussion roles ({roles.length})</summary>
-      <ErrorMessage error={error || action.error || roleError} />
-      {isPending ? (
-        <p>Loading roles…</p>
-      ) : !roles.length ? (
-        <Empty>No roles have been created.</Empty>
-      ) : (
-        <>
-          <ul className="discussion-role-list">
-            {roles.map((role) => (
-              <DiscussionRoleRow
-                key={role.id}
-                role={role}
-                participants={participants}
-                action={action}
-              />
-            ))}
-          </ul>
-          {total > limit && (
-            <div className="discussion-pagination">
-              <button
-                type="button"
-                disabled={offset <= 0}
-                onClick={() => onPage(Math.max(0, offset - limit))}
-              >
-                Previous roles
-              </button>
-              <small>
-                {offset + 1}–{Math.min(offset + limit, total)} of {total}
-              </small>
-              <button
-                type="button"
-                disabled={offset + limit >= total}
-                onClick={() => onPage(offset + limit)}
-              >
-                More roles
-              </button>
-            </div>
-          )}
-        </>
-      )}
-      <details className="discussion-create-role">
-        <summary>Create an unassigned role</summary>
-        <form onSubmit={createRole}>
-          <ContextPicker
-            label="Role context"
-            query={contextQuery}
-            onQueryChange={setContextQuery}
-            selected={roleContext ? [roleContext] : []}
-            onAdd={(choice) => {
-              setRoleContext(choice);
-              setContextQuery("");
-            }}
-            onRemove={() => setRoleContext(null)}
-            results={contextSearch.data?.items ?? []}
-            loading={contextSearch.isFetching}
-            single
-          />
-          <label>
-            Role name
-            <input
-              value={roleLabel}
-              onChange={(event) => setRoleLabel(event.target.value)}
-              required
-              maxLength={200}
+      <div className="discussion-roles-body">
+        <ErrorMessage error={error || action.error || roleError} />
+        {isPending ? (
+          <p>Loading roles…</p>
+        ) : !roles.length ? (
+          <Empty>No roles have been created.</Empty>
+        ) : (
+          <>
+            <ul className="discussion-role-list">
+              {roles.map((role) => (
+                <DiscussionRoleRow
+                  key={role.id}
+                  role={role}
+                  participants={participants}
+                  action={action}
+                />
+              ))}
+            </ul>
+            {total > limit && (
+              <div className="discussion-pagination">
+                <button
+                  type="button"
+                  disabled={offset <= 0}
+                  onClick={() => onPage(Math.max(0, offset - limit))}
+                >
+                  Previous roles
+                </button>
+                <small>
+                  {offset + 1} to {Math.min(offset + limit, total)} of {total}
+                </small>
+                <button
+                  type="button"
+                  disabled={offset + limit >= total}
+                  onClick={() => onPage(offset + limit)}
+                >
+                  More roles
+                </button>
+              </div>
+            )}
+          </>
+        )}
+        <details className="discussion-create-role">
+          <summary>Create an unassigned role</summary>
+          <form onSubmit={createRole}>
+            <ContextPicker
+              label="Role context"
+              query={contextQuery}
+              onQueryChange={setContextQuery}
+              selected={roleContext ? [roleContext] : []}
+              onAdd={(choice) => {
+                setRoleContext(choice);
+                setContextQuery("");
+              }}
+              onRemove={() => setRoleContext(null)}
+              results={contextSearch.data?.items ?? []}
+              loading={contextSearch.isFetching}
+              single
             />
-          </label>
-          <button
-            disabled={!roleContext || !roleLabel.trim() || action.isPending}
-          >
-            Create role
-          </button>
-        </form>
-      </details>
-      <p className="muted">
-        Agent claims, offers, and acceptance happen through authenticated agent
-        actions. This view shows the current owner and pending offer.
-      </p>
+            <label>
+              Role name
+              <input
+                value={roleLabel}
+                onChange={(event) => setRoleLabel(event.target.value)}
+                required
+                maxLength={200}
+              />
+            </label>
+            <button
+              disabled={!roleContext || !roleLabel.trim() || action.isPending}
+            >
+              Create role
+            </button>
+          </form>
+        </details>
+        <p className="muted">
+          Agent claims, offers, and acceptance happen through authenticated
+          agent actions. This view shows the current owner and pending offer.
+        </p>
+      </div>
     </details>
   );
 }
