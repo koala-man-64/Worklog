@@ -137,9 +137,11 @@ export function RepositoryPicker({
 export function RepositoryFilter({
   value,
   onChange,
+  label = "Filter work by repository",
 }: {
   value: string;
   onChange: (id: string) => void;
+  label?: string;
 }) {
   const [q, setQ] = useState("");
   const [offset, setOffset] = useState(0);
@@ -158,7 +160,7 @@ export function RepositoryFilter({
         }}
       />
       <select
-        aria-label="Filter work by repository"
+        aria-label={label}
         value={value}
         onChange={(e) => onChange(e.target.value)}
       >

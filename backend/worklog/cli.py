@@ -46,6 +46,11 @@ AGENT_NAME = re.compile(r"[a-z0-9][a-z0-9_-]{0,63}")
 AGENT_TOKEN = re.compile(r"[A-Za-z0-9_-]{43,200}")
 # Windows device names cannot name a file, even with an extension.
 RESERVED_NAMES = frozenset({"con", "prn", "aux", "nul", *(f"{d}{n}" for d in ("com", "lpt") for n in range(10))})
+# A ticket's key (T-12), number or ID, the only forms a ticket route may carry.
+TICKET_REF = re.compile(r"[Tt]-[1-9][0-9]{0,8}|[1-9][0-9]{0,8}|[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}")
+TICKET_KINDS = ("bug", "incident", "task")
+TICKET_PRIORITIES = ("low", "normal", "high", "urgent")
+TICKET_STATUSES = ("open", "doing", "blocked", "done")
 
 
 def resolve_port(value: int | None = None) -> int:
@@ -426,6 +431,18 @@ def _coordination_route_allowed(method: str, route: str) -> bool:
         or parts[0] == "participations" and parts[2] in {"release", "rejoin", "check-in", "updates"})
 
 
+def _ticket_route_allowed(method: str, route: str) -> bool:
+    """Agents file, change and comment on tickets; archive and recover stay with the person."""
+    if route == "/tickets":
+        return method in {"GET", "POST"}
+    parts = route.split("/")
+    if len(parts) not in {3, 4} or parts[1] != "tickets" or not TICKET_REF.fullmatch(parts[2]):
+        return False
+    if len(parts) == 3:
+        return method in {"GET", "PATCH"}
+    return method == "POST" and parts[3] == "comments"
+
+
 def _agent_url(base_url: str) -> str:
     parsed = urlsplit(base_url)
     if (parsed.scheme != "http" or parsed.hostname != HOST or parsed.username
@@ -470,7 +487,7 @@ class AgentClient:
             ids = query.get("ownerId", [])
             allowed = query.get("ownerType") == ["proposal"] and len(ids) == 1 and valid_id(ids[0])
         allowed = (allowed or _discussion_route_allowed(method, route) or _coordination_route_allowed(method, route)
-                   or (method == "POST" and route == "/inbox/receive"))
+                   or _ticket_route_allowed(method, route) or (method == "POST" and route == "/inbox/receive"))
         if not allowed:
             raise ValueError("Agent command is outside proposal/read scope")
         headers = {"Authorization": "Bearer " + self.token, "Accept": "application/json"}
@@ -480,7 +497,7 @@ class AgentClient:
         elif payload is not None:
             data = json.dumps(payload).encode("utf-8")
             headers["Content-Type"] = "application/json"
-        coordination_write = method in {"POST", "PATCH"} and route.startswith(("/agent-runs", "/participations"))
+        coordination_write = method in {"POST", "PATCH"} and route.startswith(("/agent-runs", "/participations", "/tickets"))
         if method == "POST" or coordination_write:
             request_id = request_id or str(uuid.uuid4())
             if not 8 <= len(request_id) <= 200 or not request_id.isascii() or any(ord(c) < 33 or ord(c) > 126 for c in request_id):
@@ -628,6 +645,8 @@ def agent_command(args: argparse.Namespace, port: int, redact: list[str]) -> Any
         return discussion_command(client, args)
     if args.agent_action in {"repositories", "runs", "participation", "updates"}:
         return coordination_command(client, args)
+    if args.agent_action == "tickets":
+        return ticket_command(client, args)
     if args.agent_action == "inbox":
         return client.request("POST", "/inbox/receive", {"chatId": args.chat} if args.chat else {},
                               request_id=args.request_id)
@@ -785,6 +804,106 @@ def _coordination_parser(actions: Any) -> None:
     source = post.add_mutually_exclusive_group(required=True)
     source.add_argument("--text")
     source.add_argument("--file", help="JSON {kind,text}; - reads standard input")
+    write(post)
+
+
+def _self_id(client: AgentClient) -> str:
+    """This agent's communication identity: the one tickets record as author and assignee."""
+    return client.request("GET", "/discussions/participants")["self"]["id"]
+
+
+def _assignee(client: AgentClient, value: str) -> str | None:
+    return None if value == "none" else _self_id(client) if value == "me" else value
+
+
+def ticket_command(client: AgentClient, args: argparse.Namespace) -> Any:
+    action = args.ticket_action
+    if action == "list":
+        if args.assigneeId == "me":
+            args.assigneeId = _self_id(client)
+        return client.request("GET", "/tickets" + _coordination_query(
+            args, "status", "q", "kind", "priority", "label", "repositoryId", "itemId", "assigneeId", "sort",
+            "archived", "limit", "offset"))
+    route = "/tickets" if action == "create" else "/tickets/" + args.ticket
+    if action == "show":
+        return client.request("GET", route + ("?" + urlencode({"comments": args.comments}) if args.comments else ""))
+    payload = _payload(args.file) if getattr(args, "file", None) else {}
+    if action == "comment":
+        if args.text is not None:
+            payload["text"] = args.text
+        return client.request("POST", route + "/comments", payload, request_id=args.request_id)
+    for flag, field in (("title", "title"), ("description", "description"), ("kind", "kind"),
+                        ("priority", "priority"), ("status", "status"), ("resolution", "resolution"),
+                        ("item", "itemId"), ("label", "labels"), ("repo", "repositoryIds")):
+        if getattr(args, flag, None) is not None:
+            payload[field] = getattr(args, flag)
+    if getattr(args, "assign", None) is not None:
+        payload["assigneeId"] = _assignee(client, args.assign)
+    if action == "create":
+        return client.request("POST", route, payload, request_id=args.request_id)
+    if action == "close":
+        payload["status"] = "done"
+    for flag, field, empty in (("no_item", "itemId", None), ("no_labels", "labels", []), ("no_repos", "repositoryIds", [])):
+        if getattr(args, flag, False):
+            payload[field] = empty
+    payload["revision"] = args.revision
+    return client.request("PATCH", route, payload, request_id=args.request_id)
+
+
+def _ticket_parser(actions: Any) -> None:
+    def write(command: Any) -> None:
+        command.add_argument("--request-id", help="Reuse with the same payload after an uncertain result")
+
+    def ticket(command: Any) -> None:
+        command.add_argument("ticket", help="T-12, 12 or the ticket's ID")
+
+    tickets = actions.add_parser("tickets", help="File, work and close tickets, and search past ones").add_subparsers(
+        dest="ticket_action", required=True)
+    listing = tickets.add_parser("list", help="Open, doing and blocked tickets unless --status says otherwise")
+    listing.add_argument("--status", choices=("active", "all", *TICKET_STATUSES))
+    listing.add_argument("--q", help="Words from a ticket's title, text, resolution, labels or comments")
+    listing.add_argument("--kind", choices=TICKET_KINDS)
+    listing.add_argument("--priority", choices=TICKET_PRIORITIES)
+    listing.add_argument("--label")
+    listing.add_argument("--repo", dest="repositoryId", help="Catalog repository ID")
+    listing.add_argument("--item", dest="itemId", help="Work item ID")
+    listing.add_argument("--assignee", dest="assigneeId", help="me, none, local-user (the person) or an agent ID")
+    listing.add_argument("--sort", choices=("priority", "recent"))
+    listing.add_argument("--archived", action="store_true", help="List archived tickets")
+    listing.add_argument("--limit", type=int, default=50)
+    listing.add_argument("--offset", type=int, default=0)
+    show = tickets.add_parser("show", help="A ticket with its latest comments and history")
+    ticket(show)
+    show.add_argument("--comments", type=int, help="How many of the latest comments to include (default 200)")
+    for verb in ("create", "update", "close"):
+        command = tickets.add_parser(verb)
+        if verb != "create":
+            ticket(command)
+            command.add_argument("--revision", type=int, required=True)
+        if verb == "close":
+            command.add_argument("--resolution", required=True, help="What fixed it, or why it is closed (Markdown)")
+        else:
+            command.add_argument("--file", help="JSON object with any ticket fields; - reads standard input")
+            command.add_argument("--title")
+            command.add_argument("--description", help="Markdown")
+            command.add_argument("--kind", choices=TICKET_KINDS)
+            command.add_argument("--priority", choices=TICKET_PRIORITIES)
+            command.add_argument("--status", choices=TICKET_STATUSES)
+            command.add_argument("--resolution", help="Markdown; Done needs one")
+            command.add_argument("--label", action="append", help="Repeat for several; replaces the ticket's labels")
+            command.add_argument("--repo", action="append", help="Catalog repository ID; repeat for several; replaces the links")
+            command.add_argument("--item", help="Work item ID")
+            command.add_argument("--assign", help="me, none, local-user (the person) or an agent ID")
+        if verb == "update":
+            command.add_argument("--no-item", action="store_true", help="Unlink the work item")
+            command.add_argument("--no-labels", action="store_true", help="Remove every label")
+            command.add_argument("--no-repos", action="store_true", help="Remove every repository link")
+        write(command)
+    post = tickets.add_parser("comment", help="Add an immutable comment; correct one with another")
+    ticket(post)
+    source = post.add_mutually_exclusive_group(required=True)
+    source.add_argument("--text", help="Markdown")
+    source.add_argument("--file", help="JSON {text}; - reads standard input")
     write(post)
 
 
@@ -1003,6 +1122,7 @@ def parser() -> argparse.ArgumentParser:
     actions.add_parser("retire", help="Revoke the credential of the agent given with --as and forget its token")
     _discussion_parser(actions)
     _coordination_parser(actions)
+    _ticket_parser(actions)
     inbox = actions.add_parser("inbox", help="Receive the messages the person wrote into your chats; each arrives once")
     inbox.add_argument("--chat", help="Only messages for your open runs that reported this chat ID")
     inbox.add_argument("--request-id", help="Reuse after an uncertain result to receive the same messages again")

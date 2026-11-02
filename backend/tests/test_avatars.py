@@ -169,7 +169,7 @@ def test_v2_upgrade_snapshots_then_gives_every_agent_a_distinct_avatar_and_resto
     assert len(snapshots) == 1
     with closing(sqlite3.connect(snapshots[0])) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
-        assert recovery._schema_signature(conn) == recovery._expected_schema(avatars=False, chat_messages=False)
+        assert recovery._schema_signature(conn) == recovery._expected_schema(avatars=False, chat_messages=False, tickets=False)
     Database(path).initialize()
     assert len(list((path.parent / "backups").glob("worklog-pre-migration-*.sqlite3"))) == 1
     restored = tmp_path / "restored" / "worklog.sqlite3"
@@ -192,7 +192,7 @@ def test_failed_avatar_backfill_rolls_back_the_column_and_version(tmp_path, monk
         Database(path).initialize()
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
-        assert recovery._schema_signature(conn) == recovery._expected_schema(avatars=False, chat_messages=False)
+        assert recovery._schema_signature(conn) == recovery._expected_schema(avatars=False, chat_messages=False, tickets=False)
     recovery.validate_database(path)
 
 

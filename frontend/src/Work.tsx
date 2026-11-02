@@ -25,6 +25,7 @@ import {
   RepositoryFilter,
 } from "./RepositoryControls";
 import { Coordination } from "./Coordination";
+import { TicketsSection } from "./Tickets";
 import { Icon } from "./icons";
 export function CreateItem({ day }: { day?: string }) {
   const [title, setTitle] = useState("");
@@ -535,6 +536,7 @@ export function ItemDetail({ id }: { id: string }) {
         github={item.github}
         chats={item.chats}
       />
+      <TicketsSection itemId={id} disabled={!!item.archived} />
       {!!item.dailyEntries?.length && (
         <section>
           <h3>Daily record</h3>

@@ -1,0 +1,71 @@
+"""HTTP surface for tickets: agents file, change and comment directly; the person archives."""
+
+import re
+from collections.abc import Callable
+from typing import Literal
+
+from fastapi import FastAPI, Query, Request
+
+from . import models as m
+from .common import AppError
+from .db import Database
+from .tickets import TicketService
+
+
+def ticket_agent_route_allowed(method: str, path: str) -> bool:
+    """Archive and recover stay with the person."""
+    suffix = path.removeprefix("/api/v1")
+    if method == "POST":
+        return suffix == "/tickets" or re.fullmatch(r"/tickets/[^/]+/comments", suffix) is not None
+    return method == "PATCH" and re.fullmatch(r"/tickets/[^/]+", suffix) is not None
+
+
+def install_ticket_routes(app: FastAPI, db: Database, mutate: Callable) -> None:
+    service = TicketService()
+
+    def read(fn: Callable) -> dict:
+        with db.read() as c:
+            c.execute("BEGIN")
+            return fn(c)
+
+    def write(request: Request, payload: dict, fn: Callable, *, required_key: bool = True) -> dict:
+        # The stable communication identity authors each change, and its retry receipts
+        # survive a token rotation; a revoked credential is refused inside the write lock.
+        return mutate(request, payload, fn, required_key=required_key, communication=True)
+
+    @app.get("/api/v1/tickets")
+    def tickets(status: Literal["active", "open", "doing", "blocked", "done", "all"] = "active", q: str = "",
+                kind: m.TicketKind | None = None, priority: m.TicketPriority | None = None,
+                label: str | None = None, repositoryId: str | None = None, itemId: str | None = None,
+                assigneeId: str | None = None, archived: bool = False,
+                sort: Literal["priority", "recent"] = "priority",
+                limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
+        return read(lambda c: service.list(
+            c, status=status, q=q, kind=kind, priority=priority, label=label, repository_id=repositoryId,
+            item_id=itemId, assignee_id=assigneeId, archived=archived, sort=sort, limit=limit, offset=offset))
+
+    @app.get("/api/v1/tickets/{ref}")
+    def ticket(ref: str, comments: int = Query(200, ge=1, le=1000)) -> dict:
+        return read(lambda c: service.detail(c, ref, comments))
+
+    @app.post("/api/v1/tickets")
+    def ticket_create(request: Request, body: m.TicketCreate) -> dict:
+        p = body.model_dump()
+        return write(request, p, lambda c, a: service.create(c, a, p))
+
+    @app.patch("/api/v1/tickets/{ref}")
+    def ticket_update(ref: str, request: Request, body: m.TicketUpdate) -> dict:
+        p = body.model_dump(exclude_unset=True)
+        return write(request, p, lambda c, a: service.update(c, a, ref, p), required_key=False)
+
+    @app.post("/api/v1/tickets/{ref}/comments")
+    def ticket_comment(ref: str, request: Request, body: m.TicketCommentCreate) -> dict:
+        p = body.model_dump()
+        return write(request, p, lambda c, a: service.comment(c, a, ref, p))
+
+    @app.post("/api/v1/tickets/{ref}/{verb}")
+    def ticket_archive(ref: str, verb: str, request: Request, body: m.Expected) -> dict:
+        if verb not in {"archive", "recover"}:
+            raise AppError(404, "not_found", "Unknown ticket command")
+        p = body.model_dump()
+        return write(request, p, lambda c, a: service.set_archived(c, a, ref, p, verb == "archive"))

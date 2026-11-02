@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import sqlite3
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 # Older versions that startup and offline restore upgrade in one transaction.
-UPGRADABLE_VERSIONS = frozenset({1, 2, 3})
+UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4})
 
 COORDINATION_SCHEMA = """
 CREATE TABLE repositories(id TEXT PRIMARY KEY,name TEXT NOT NULL,url TEXT NOT NULL DEFAULT '',description TEXT NOT NULL DEFAULT '',archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
@@ -38,7 +38,7 @@ def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
 
 
 def upgrade(conn: sqlite3.Connection) -> None:
-    """Upgrade an accepted v1, v2 or v3 shape atomically inside the caller's transaction.
+    """Upgrade an accepted v1, v2, v3 or v4 shape atomically inside the caller's transaction.
 
     Credential IDs, proposal authors, receipts, and legacy chat repository labels
     are deliberately unchanged. No repository names are guessed or imported.
@@ -58,9 +58,12 @@ def upgrade(conn: sqlite3.Connection) -> None:
         _upgrade_v1(conn, tables)
     assign_missing_avatars(conn)
     from .chat_messages import SCHEMA as CHAT_MESSAGE_SCHEMA
+    from .tickets import SCHEMA as TICKET_SCHEMA
 
-    # Every upgradable version predates messages to chats (v4).
-    execute_schema(conn, CHAT_MESSAGE_SCHEMA)
+    if version < 4:
+        execute_schema(conn, CHAT_MESSAGE_SCHEMA)
+    # Every upgradable version predates tickets (v5).
+    execute_schema(conn, TICKET_SCHEMA)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 

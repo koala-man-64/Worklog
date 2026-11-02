@@ -160,6 +160,36 @@ it("saves the link on the item's acknowledged revision after a title save", asyn
     }),
   );
 });
+it("files a ticket for the work item from its page", async () => {
+  const create = vi
+    .spyOn(commands, "createTicket")
+    .mockResolvedValue({} as Awaited<ReturnType<typeof commands.createTicket>>);
+  render(view(newClient()));
+  expect(
+    screen.getByText("No tickets for this work item."),
+  ).toBeInTheDocument();
+  await userEvent.type(
+    screen.getByRole("textbox", { name: "New ticket title" }),
+    "Release check fails on Windows",
+  );
+  await userEvent.click(screen.getByRole("button", { name: "File ticket" }));
+  await waitFor(() =>
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Release check fails on Windows",
+        itemId: ID,
+      }),
+      expect.anything(),
+    ),
+  );
+});
+it("files no tickets for archived work", () => {
+  state.item = item({ archived: true });
+  render(view(newClient()));
+  expect(
+    screen.getByRole("textbox", { name: "New ticket title" }),
+  ).toBeDisabled();
+});
 it("links a work item directly to a roadmap without requiring a step", async () => {
   state.item = item({
     roadmapId: "22222222-2222-4222-8222-222222222222",

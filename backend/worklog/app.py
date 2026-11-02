@@ -55,6 +55,8 @@ from .registration import (
 from .registration import agent_route_allowed as registration_route_allowed
 from .registry_api import install_registry_routes
 from .services import WorkService, support_record
+from .ticket_api import install_ticket_routes, ticket_agent_route_allowed
+from .tickets import TicketService
 from .transcripts import MESSAGE_LIMIT, TranscriptReader, TranscriptRoots
 
 logger = logging.getLogger("worklog")
@@ -226,8 +228,9 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                             raise AppError(403, "agent_scope", "This discussion operation is outside agent scope")
                     elif forbidden or (method != "GET" and not agent_write and not coordination_agent_route_allowed(method, suffix)
                                        and not chat_message_agent_route_allowed(method, suffix)
-                                       and not registration_route_allowed(method, suffix)):
-                        raise AppError(403, "agent_scope", "Agents may read context, participate in discussions, and submit proposals")
+                                       and not registration_route_allowed(method, suffix)
+                                       and not ticket_agent_route_allowed(method, suffix)):
+                        raise AppError(403, "agent_scope", "Agents may read context, participate in discussions, file tickets, and submit proposals")
                 else:
                     session_id = request.cookies.get("worklog_session", "")
                     session = app.state.sessions.get(session_id)
@@ -673,7 +676,9 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             current = today(setting(c, "timezone", "America/Chicago"))
             activity = {**coordination.context_summaries(c, item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset),
                         "participations": coordination.participations(c, item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset),
-                        "updates": coordination.updates(c, item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset)}
+                        "updates": coordination.updates(c, item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset),
+                        # Open, doing and blocked tickets, so an agent sees known issues before it starts.
+                        "tickets": TicketService().list(c, item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset)}
         items_result = work.list(item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset)
         return {"day": work.day(date or current), "workItems": items_result,
                 "roadmaps": plans.list(), "people": work.people_list(), "proposals": proposals.list(request.state.actor),
@@ -826,6 +831,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
 
     install_coordination_routes(app, db, mutate)
     install_chat_message_routes(app, db, mutate)
+    install_ticket_routes(app, db, mutate)
     install_discussion_routes(app, db, discussion_mutate)
     install_registration_routes(app, db, auto_backup)
     install_registry_routes(app, db)

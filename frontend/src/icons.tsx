@@ -14,6 +14,12 @@ const shapes = {
       <path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01" strokeWidth={3} />
     </>
   ),
+  tickets: (
+    <>
+      <path d="M3.5 7.5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v2a2.5 2.5 0 0 0 0 5v2a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-2a2.5 2.5 0 0 0 0-5z" />
+      <path d="M14.5 5.5v13" strokeDasharray="1.5 2" />
+    </>
+  ),
   roadmaps: (
     <>
       <circle cx="6" cy="5" r="2" />

@@ -55,7 +55,7 @@ def test_v1_upgrade_preserves_actor_receipts_legacy_names_and_pre_upgrade_snapsh
         assert json.loads(archive.read("manifest.json"))["schemaVersion"] == 1
     with closing(sqlite3.connect(snapshots[0])) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 1
-        assert recovery._schema_signature(conn) == recovery._expected_schema(coordination=False, avatars=False, chat_messages=False)
+        assert recovery._schema_signature(conn) == recovery._expected_schema(coordination=False, avatars=False, chat_messages=False, tickets=False)
     Database(path).initialize()
     assert len(list((tmp_path / "backups").glob("worklog-pre-migration-*.sqlite3"))) == 1
 
@@ -75,7 +75,7 @@ def test_coordination_migration_failure_rolls_back_all_tables_and_version(tmp_pa
         Database(path).initialize()
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 1
-        assert recovery._schema_signature(conn) == recovery._expected_schema(coordination=False, avatars=False, chat_messages=False)
+        assert recovery._schema_signature(conn) == recovery._expected_schema(coordination=False, avatars=False, chat_messages=False, tickets=False)
         assert conn.execute("SELECT count(*) FROM communication_credentials").fetchone()[0] == 0
     assert len(list((tmp_path / "backups").glob("worklog-pre-migration-*.sqlite3"))) == 1
 
@@ -92,10 +92,10 @@ def test_pre_migration_backup_failure_prevents_upgrade(tmp_path, monkeypatch):
         Database(path).initialize()
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 1
-        assert recovery._schema_signature(conn) == recovery._expected_schema(coordination=False, avatars=False, chat_messages=False)
+        assert recovery._schema_signature(conn) == recovery._expected_schema(coordination=False, avatars=False, chat_messages=False, tickets=False)
 
 
-@pytest.mark.parametrize("current_shape,version", [(True, 1), (True, 2), (True, 3), (False, 2), (False, 3), (False, 4)])
+@pytest.mark.parametrize("current_shape,version", [(True, 1), (True, 2), (True, 3), (True, 4), (False, 2), (False, 3), (False, 4), (False, 5)])
 def test_schema_version_cannot_disguise_another_shape(tmp_path, current_shape, version):
     path = tmp_path / "worklog.sqlite3"
     if current_shape:
