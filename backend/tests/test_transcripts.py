@@ -75,6 +75,9 @@ def roots(tmp_path):
         return {"type": kind, "text": value}
     def item(minute, payload):
         return {"type": "response_item", "timestamp": at(minute), "payload": payload}
+    def envelope(kind, task, sender, payload=""):
+        return text("input_text", f"Message Type: {kind}\nTask name: {task}\nSender: {sender}\nPayload:\n{payload}")
+    sealed = {"type": "encrypted_content", "encrypted_content": "gAAAAABsealed"}
     lines(codex / "sessions" / "2026" / "11" / "01" / f"rollout-2026-11-01T08-00-00-{CODEX}.jsonl", [
         {"type": "session_meta", "timestamp": at(0), "payload": {"id": CODEX, "session_id": CODEX, "base_instructions": "x" * 1000}},
         {"type": "turn_context", "timestamp": at(0), "payload": {"model": "gpt-6.1-sol"}},
@@ -84,13 +87,14 @@ def roots(tmp_path):
         item(2, {"type": "message", "role": "user", "content": [text("input_text", "Review the release")]}),
         item(3, {"type": "function_call", "namespace": "collaboration", "name": "spawn_agent", "arguments": json.dumps({"task": "Check the pipeline"})}),
         item(4, {"type": "function_call", "namespace": "collaboration", "name": "send_message", "arguments": json.dumps({"target": "pipeline_check", "message": "sent side"})}),
-        item(6, {"type": "agent_message", "author": "/root/pipeline_check", "recipient": "/root", "content": [text("input_text", "Pipeline is green"), {"type": "encrypted_content", "encrypted_content": "zz"}]}),
+        item(5, {"type": "agent_message", "author": "/root/pipeline_check", "recipient": "/root", "content": [envelope("MESSAGE", "/root", "/root/pipeline_check"), sealed]}),
+        item(6, {"type": "agent_message", "author": "/root/pipeline_check", "recipient": "/root", "content": [envelope("FINAL_ANSWER", "/root", "/root/pipeline_check", "Pipeline is green"), sealed]}),
         item(7, {"type": "message", "role": "assistant", "phase": "final_answer", "content": [text("output_text", "Release looks good")]}),
         {"type": "event_msg", "timestamp": at(7), "payload": {"type": "task_complete"}},
     ])
     lines(codex / "archived_sessions" / f"rollout-2026-11-01T08-03-00-{CHILD}.jsonl", [
         {"type": "session_meta", "timestamp": at(3), "payload": {"id": CHILD, "session_id": CODEX, "agent_nickname": "Lorentz", "agent_path": "/root/pipeline_check", "parent_thread_id": CODEX}},
-        item(4, {"type": "agent_message", "author": "/root", "recipient": "/root/pipeline_check", "content": [text("input_text", "Check the pipeline")]}),
+        item(4, {"type": "agent_message", "author": "/root", "recipient": "/root/pipeline_check", "content": [envelope("NEW_TASK", "/root/pipeline_check", "/root"), sealed]}),
         item(5, {"type": "custom_tool_call", "name": "exec", "input": "git status\nls"}),
     ])
     lines(codex / "archived_sessions" / "rollout-2026-11-01T09-00-00-01a19999-0000-7000-8000-000000000000.jsonl", [
@@ -235,19 +239,24 @@ def test_a_codex_thread_and_the_agents_it_started_read_as_one_conversation(clien
     assert shown == [
         ("user", "You", None, "Review the release"),
         ("tools", "Codex", None, None),
-        ("agent", "Codex", "Lorentz", "Check the pipeline"),
+        ("agent", "Codex", "Lorentz", ""),
+        ("agent", "Lorentz", "Codex", ""),
         ("tools", "Lorentz", None, None),
         ("agent", "Lorentz", "Codex", "Pipeline is green"),
         ("assistant", "Codex", None, "Release looks good"),
     ]
+    # Codex's header is dropped; a message it kept only encrypted says so, and readable text always shows.
+    assert [(m["messageType"], m.get("encrypted")) for m in body["messages"] if m["kind"] == "agent"] == [
+        ("NEW_TASK", True), ("MESSAGE", True), ("FINAL_ANSWER", None)]
     assert body["messages"][1]["tools"] == [{"name": "spawn_agent", "summary": "Check the pipeline"}]
-    assert body["messages"][3]["tools"] == [{"name": "exec", "summary": "git status ls"}]
+    assert body["messages"][4]["tools"] == [{"name": "exec", "summary": "git status ls"}]
     assert body["threads"][0]["model"] == "gpt-6.1-sol" and body["threads"][1]["parent"] == CODEX
-    assert "developer rules" not in json.dumps(body) and "sent side" not in json.dumps(body)
+    for hidden in ("developer rules", "sent side", "Message Type", "gAAAA"):
+        assert hidden not in json.dumps(body), hidden
 
     # One agent's view includes what it sent, though the agent it sent to recorded it.
     lorentz = client.get(f"/api/v1/chats/{record['id']}/transcript?thread={CHILD}").json()["messages"]
-    assert [(m["kind"], m.get("text")) for m in lorentz] == [("agent", "Check the pipeline"), ("tools", None), ("agent", "Pipeline is green")]
+    assert [(m["kind"], m.get("text")) for m in lorentz] == [("agent", ""), ("agent", ""), ("tools", None), ("agent", "Pipeline is green")]
     assert client.get(f"/api/v1/chats/{record['id']}/transcript?thread=nobody").json()["messages"] == []
 
     # A subagent's own ID shows that agent alone.

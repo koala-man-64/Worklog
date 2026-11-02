@@ -169,6 +169,9 @@ export type ChatMessage = {
   recipient?: string;
   text?: string;
   truncated?: boolean;
+  // Codex messages between agents: their type, such as NEW_TASK, and whether only an encrypted copy exists.
+  messageType?: string;
+  encrypted?: boolean;
   // Tool runs only.
   count?: number;
   until?: string | null;

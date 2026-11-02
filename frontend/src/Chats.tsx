@@ -796,9 +796,21 @@ function Message({ message: m }: { message: ChatMessage }) {
             <strong>{m.recipient}</strong>
           </>
         )}
+        {m.messageType && m.messageType !== "MESSAGE" && (
+          <span className="muted">
+            · {m.messageType.toLowerCase().replace(/_/g, " ")}
+          </span>
+        )}
         {time}
       </div>
-      <Markdown text={m.text ?? ""} untrusted />
+      {m.encrypted ? (
+        <p className="message-encrypted muted">
+          Encrypted by Codex. The transcript keeps no readable copy of this
+          message.
+        </p>
+      ) : (
+        <Markdown text={m.text ?? ""} untrusted />
+      )}
       {m.truncated && (
         <small className="muted">
           Shortened here; the full message is in the transcript.
