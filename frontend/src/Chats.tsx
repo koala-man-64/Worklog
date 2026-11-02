@@ -5,7 +5,7 @@ import { RepositoryBadges } from "./RepositoryControls";
 import { NamedRuns } from "./Coordination";
 import { ChatOutbox } from "./ChatOutbox";
 import { Empty, ErrorMessage, Markdown } from "./components";
-import { Icon } from "./icons";
+import { Icon, type IconName } from "./icons";
 import { localStore } from "./storage";
 import type {
   ChatMessage,
@@ -133,6 +133,12 @@ export type ChatGroup = {
   tally: Tally;
 };
 const KINDS = { roadmap: "Roadmap", item: "Work item", loose: "" };
+// A group leads with its record's sidebar icon, so it never reads as a chat, which leads with its state dot.
+const ICONS: Record<ChatGroup["kind"], IconName> = {
+  roadmap: "roadmaps",
+  item: "work",
+  loose: "work",
+};
 // Sub-roadmaps come before work items, and work items off every roadmap come last.
 const RANK = { roadmap: 0, item: 1, loose: 2 };
 
@@ -442,10 +448,10 @@ function GroupItem({
         : undefined;
   return (
     <li className="chat-group">
-      <div className="chat-group-head">
-        <StateDot
-          state={tally.working ? "working" : tally.found ? "idle" : "missing"}
-        />
+      <div className={"chat-group-head " + group.kind}>
+        <span className={"chat-kind" + (tally.working ? " doing" : "")}>
+          <Icon name={ICONS[group.kind]} />
+        </span>
         <span className="chat-link-text">
           {href ? (
             <a href={href}>{group.title}</a>
@@ -542,7 +548,7 @@ function ChatListItem({
           )}
         </div>
       )}
-      <div className="chat-row">
+      <div className="chat-row chat-meta">
         <RepositoryBadges ids={chat.repositoryIds} legacy={chat.repos} />
       </div>
       <NamedRuns chatId={chat.chatId} />
