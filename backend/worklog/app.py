@@ -226,7 +226,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                                  chats == "/agents" or chats.startswith("/agents/") or
                                  (chats.startswith("/roadmaps/") and chats.endswith("/agents")))
                     agent_write = ((suffix == "/proposals" and method == "POST") or
-                                   (suffix.startswith("/proposals/") and (method == "PATCH" or (method == "POST" and suffix.rsplit("/", 1)[-1] in {"submit", "withdraw"}))) or
+                                   (suffix.startswith("/proposals/") and (method == "PATCH" or (method == "POST" and suffix.rsplit("/", 1)[-1] in {"submit", "withdraw", "reopen"}))) or
                                    (suffix == "/attachments" and method == "POST" and request.query_params.get("ownerType") == "proposal"))
                     in_discussions = suffix == "/discussions" or suffix.startswith("/discussions/")
                     in_quota = suffix == "/quota" or suffix.startswith("/quota/")
@@ -638,6 +638,8 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         def commit(c: sqlite3.Connection, actor: dict) -> dict:
             result = plans.import_commit(identity, payload, actor, conn=c)
             work.refresh_plans(c, result["id"])
+            if payload.get("roadmapId"):
+                proposals.notify_stale_proposals(c, result["id"])
             return result
         return mutate(request, payload, commit, required_key=True)
 
@@ -835,7 +837,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
 
     @app.post("/api/v1/proposals/{identity}/{verb}")
     def proposal_transition(identity: str, verb: str, request: Request, body: m.Expected) -> dict:
-        if verb not in {"submit", "withdraw", "approve", "reject"}:
+        if verb not in {"submit", "withdraw", "reopen", "approve", "reject"}:
             raise AppError(404, "not_found", "Unknown proposal command")
         p = body.model_dump()
 

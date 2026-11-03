@@ -347,3 +347,53 @@ it("says what approving a repository registration would do", async () => {
   );
   expect(screen.getAllByText(/registered as/i)).toHaveLength(2);
 });
+it("warns at the decision bar when a target changed and can return the proposal to draft", async () => {
+  const roadmap = "6f1c0a52-3c4e-4b7a-9d1e-2a5b8c7d9e01";
+  const proposal = {
+    id: ID,
+    title: "Add Layer 4 Watchdog",
+    rationale: "",
+    status: "submitted",
+    revision: 2,
+    actorLabel: "Watchdog Architect",
+    attachments: [],
+    operations: [
+      {
+        action: "roadmap.revise",
+        payload: { id: roadmap, revision: 15, title: "NMWC", steps: [] },
+      },
+    ],
+  };
+  requestMock.mockImplementation(
+    async (path: string, method?: string, _body?: unknown) => {
+      if (path === `/proposals/${ID}` && !method) return proposal;
+      if (path === `/roadmaps/${roadmap}`) return { id: roadmap, revision: 17 };
+      if (path === `/proposals/${ID}/reopen` && method === "POST")
+        return { ...proposal, status: "draft", revision: 3 };
+      if (path === "/settings") return { requireProposalApproval: true };
+      return { items: [], total: 0 };
+    },
+  );
+  renderWithClient(<Review selectedId={ID} />);
+  expect(
+    await screen.findByText(
+      /Target record changed since this proposal was drafted: Change 1 \(roadmap\.revise: expected revision 15, current revision 17\)/,
+    ),
+  ).toBeInTheDocument();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Return to draft" }),
+  );
+  expect(
+    screen.getByText("Return this proposal to draft and notify its agent?"),
+  ).toBeInTheDocument();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Confirm return to draft" }),
+  );
+  await waitFor(() =>
+    expect(requestMock).toHaveBeenCalledWith(
+      `/proposals/${ID}/reopen`,
+      "POST",
+      { revision: 2 },
+    ),
+  );
+});

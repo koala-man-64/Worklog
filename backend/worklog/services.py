@@ -445,6 +445,9 @@ class WorkService:
             # Moving changes no indexed text or archive state.
             if action not in {"progress.set", "roadmap.move"}:
                 self.refresh_plans(c, result["id"])
+            if self.proposals is not None and action != "roadmap.create":
+                self.proposals.notify_stale_proposals(
+                    c, result.get("roadmapId") if action == "progress.set" else result.get("id"))
             return result
         if action.startswith("person."):
             return self._person_apply(c, actor, action, p)

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ApiError, request, getDataContext } from "./api";
 import { useAction, useData } from "./hooks";
@@ -86,8 +86,28 @@ export function Review({ selectedId }: { selectedId?: string }) {
 function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
   const query = useData<Proposal>("/proposals/" + id);
   const action = useAction();
-  const [decision, setDecision] = useState<"approve" | "reject" | null>(null);
+  const [decision, setDecision] = useState<
+    "approve" | "reopen" | "reject" | null
+  >(null);
+  const [staleByOp, setStaleByOp] = useState<Record<string, string>>({});
   const p = query.data;
+  const scope = p ? `${id}:${p.revision}` : id;
+  const reportStale = useCallback(
+    (number: number, detail: string | null) => {
+      const key = `${scope}:${number}`;
+      setStaleByOp((prev) => {
+        if (detail === null) {
+          if (!(key in prev)) return prev;
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        }
+        if (prev[key] === detail) return prev;
+        return { ...prev, [key]: detail };
+      });
+    },
+    [scope],
+  );
   if (!p)
     return (
       <>
@@ -96,6 +116,10 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
       </>
     );
   const declared = proposedSteps(p.operations);
+  const staleList = Object.entries(staleByOp)
+    .filter(([key]) => key.startsWith(scope + ":"))
+    .sort(([a], [b]) => Number(a.split(":").pop()) - Number(b.split(":").pop()))
+    .map(([, detail]) => detail);
   return (
     <section>
       <button className="quiet" onClick={onBack}>
@@ -116,6 +140,7 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
           action={op.action}
           payload={op.payload}
           proposedEarlier={(target) => (declared.get(target) ?? index) < index}
+          onStale={reportStale}
         />
       ))}
       <Files
@@ -127,6 +152,13 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
       <ErrorMessage error={action.error} />
       {p.status === "submitted" && (
         <div className="decision">
+          {staleList.length > 0 && (
+            <p className="warning">
+              Target record changed since this proposal was drafted:{" "}
+              {staleList.join("; ")}. Return this proposal to draft to notify{" "}
+              {p.actorLabel} to rebase and resubmit, or reject it.
+            </p>
+          )}
           <p>
             Approval applies all operations together. If any target has changed,
             the server keeps the proposal pending.
@@ -136,11 +168,19 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
               <strong>
                 {decision === "approve"
                   ? "Apply all of these changes?"
-                  : "Reject this proposal?"}
+                  : decision === "reopen"
+                    ? "Return this proposal to draft and notify its agent?"
+                    : "Reject this proposal?"}
               </strong>
               <div className="toolbar">
                 <button
-                  className={decision === "approve" ? "primary" : "danger"}
+                  className={
+                    decision === "approve"
+                      ? "primary"
+                      : decision === "reject"
+                        ? "danger"
+                        : ""
+                  }
                   disabled={action.isPending}
                   onClick={async () => {
                     await action
@@ -152,7 +192,9 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
                       .catch(() => undefined);
                   }}
                 >
-                  Confirm {decision}
+                  {decision === "reopen"
+                    ? "Confirm return to draft"
+                    : `Confirm ${decision}`}
                 </button>
                 <button onClick={() => setDecision(null)}>
                   Keep reviewing
@@ -166,6 +208,9 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
                 onClick={() => setDecision("approve")}
               >
                 Approve proposal
+              </button>
+              <button onClick={() => setDecision("reopen")}>
+                Return to draft
               </button>
               <button onClick={() => setDecision("reject")}>
                 Reject proposal
@@ -263,6 +308,7 @@ export function OperationDiff({
   action,
   payload,
   proposedEarlier,
+  onStale,
 }: {
   // The change's place in the proposal, as a failed approval names it.
   number?: number;
@@ -270,6 +316,7 @@ export function OperationDiff({
   payload: Record<string, unknown>;
   // True when an earlier operation in the same proposal creates the target.
   proposedEarlier?: (target: string) => boolean;
+  onStale?: (number: number, detail: string | null) => void;
 }) {
   const target = String(
     payload.id ?? payload.itemId ?? payload.roadmapId ?? payload.stepId ?? "",
@@ -322,6 +369,17 @@ export function OperationDiff({
     current.error instanceof ApiError &&
     current.error.status === 404 &&
     !!proposedEarlier?.(target);
+  const staleDetail =
+    before &&
+    payload.revision !== undefined &&
+    before.revision !== payload.revision
+      ? `Change ${number ?? "?"} (${action}: expected revision ${String(payload.revision)}, current revision ${String(before.revision)})`
+      : null;
+  useEffect(() => {
+    if (number !== undefined && onStale) {
+      onStale(number, staleDetail);
+    }
+  }, [number, onStale, staleDetail]);
   return (
     <article className="operation">
       <h4>

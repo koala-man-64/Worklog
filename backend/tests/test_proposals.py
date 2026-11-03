@@ -326,3 +326,27 @@ def test_github_ref_links_to_chat_by_external_chat_id_even_when_listed_before_ch
                 "chatId": "unrelated-session",
             })
 
+
+def test_reopen_returns_submitted_proposal_to_draft_and_resubmits(proposals):
+    proposal = submit(proposals, draft(proposals))
+    assert proposal["status"] == "submitted" and proposal["submittedAt"] is not None
+    with pytest.raises(AppError, match="Only the originating actor may edit or submit this proposal"):
+        proposals.transition(proposal["id"], "reopen", {"revision": proposal["revision"]}, OTHER)
+    reopened = proposals.transition(proposal["id"], "reopen", {"revision": proposal["revision"]}, HUMAN)
+    assert reopened["status"] == "draft" and reopened["submittedAt"] is None
+    updated = proposals.update(
+        proposal["id"],
+        {
+            "revision": reopened["revision"],
+            "operations": [{"action": "item.update", "payload": {"id": "target", "revision": 1, "title": "Rebased"}}],
+        },
+        AGENT,
+    )
+    resubmitted = submit(proposals, updated)
+    assert resubmitted["status"] == "submitted" and resubmitted["submittedAt"] is not None
+    approved = proposals.transition(proposal["id"], "approve", {"revision": resubmitted["revision"]}, HUMAN)
+    assert approved["status"] == "approved"
+    with proposals.db.read() as conn:
+        assert conn.execute("SELECT title FROM test_targets").fetchone()[0] == "Rebased"
+
+

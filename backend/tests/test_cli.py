@@ -43,7 +43,7 @@ def test_draft_update_submit_and_withdraw_use_exact_proposal_routes(requests, tm
     assert cli.main(["agent", "proposal", "update", PROPOSAL_ID, "--revision", "3", "--file", str(payload)]) == 0
     assert requests[-1].method == "PATCH"
     assert json.loads(requests[-1].data)["revision"] == 3
-    for verb in ("submit", "withdraw"):
+    for verb in ("submit", "reopen", "withdraw"):
         assert cli.main(["agent", "proposal", verb, PROPOSAL_ID, "--revision", "4"]) == 0
         assert requests[-1].full_url.endswith(f"/proposals/{PROPOSAL_ID}/{verb}")
         assert json.loads(requests[-1].data) == {"revision": 4}

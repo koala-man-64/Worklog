@@ -856,3 +856,155 @@ def test_catalog_proposals_require_review_and_rollback_as_a_unit(client):
     assert response.status_code == 422, response.text
     assert client.get("/api/v1/repositories", params={"q": "Tentative"}).json()["items"] == []
     assert client.get("/api/v1/work-items/" + w["id"]).json()["revision"] == w["revision"]
+
+
+def test_plan_change_and_reopen_notify_submitting_agent_and_allow_in_place_rebase(client):
+    cred = write(client, "POST", "/credentials", {"label": "Watchdog Architect"}).json()
+    agent = {"Authorization": "Bearer " + cred["token"]}
+    roadmap = write(client, "POST", "/roadmaps", {"title": "NMWC", "overview": "Initial", "steps": [{"title": "Program 1"}]}).json()
+    step_id = roadmap["steps"][0]["id"]
+    chat = write(
+        client,
+        "POST",
+        "/chats",
+        {
+            "ownerType": "roadmap",
+            "ownerId": roadmap["id"],
+            "chatId": "watchdog-chat-session",
+            "title": "Watchdog Session",
+        },
+    ).json()
+    run = write(
+        client,
+        "POST",
+        "/agent-runs",
+        {
+            "clientRunKey": "watchdog-run-1",
+            "displayName": "Watchdog Run",
+            "provider": "antigravity",
+            "externalChatId": chat["chatId"],
+        },
+        headers=agent,
+    ).json()
+    assert run["id"]
+
+    proposal = write(
+        client,
+        "POST",
+        "/proposals",
+        {
+            "title": "Add Program 2",
+            "rationale": "Extend NMWC",
+            "operations": [
+                {
+                    "action": "roadmap.revise",
+                    "payload": {
+                        "id": roadmap["id"],
+                        "revision": roadmap["revision"],
+                        "title": "NMWC",
+                        "overview": "Extended",
+                        "steps": [
+                            {"id": step_id, "title": "Program 1", "description": "", "parentId": None, "position": 0},
+                            {"title": "Program 2", "description": "", "parentId": None, "position": 1},
+                        ],
+                    },
+                }
+            ],
+        },
+        headers=agent,
+    ).json()
+    submitted = write(
+        client,
+        "POST",
+        f"/proposals/{proposal['id']}/submit",
+        {"revision": proposal["revision"]},
+        headers=agent,
+    ).json()
+    assert submitted["status"] == "submitted"
+
+    # Concurrent plan change bumps the roadmap revision to 2 and notifies the submitting agent.
+    revised = write(
+        client,
+        "POST",
+        f"/roadmaps/{roadmap['id']}/revisions",
+        {
+            "revision": roadmap["revision"],
+            "title": "NMWC",
+            "overview": "Concurrent edit",
+            "steps": [
+                {"id": step_id, "title": "Program 1", "description": "", "parentId": None, "position": 0},
+                {"title": "Concurrent Program", "description": "", "parentId": None, "position": 1},
+            ],
+        },
+    ).json()
+    assert revised["revision"] == 2
+
+    # 1. Agent receives an awaiting discussion request scoped to the roadmap.
+    awaiting = client.get(
+        "/api/v1/discussions",
+        params={"view": "awaiting", "contextType": "roadmap", "contextId": roadmap["id"]},
+        headers=agent,
+    ).json()
+    assert awaiting["total"] == 1
+    assert proposal["title"] in awaiting["items"][0]["title"]
+    thread = client.get(f"/api/v1/discussions/{awaiting['items'][0]['id']}", headers=agent).json()
+    assert proposal["id"] in thread["messages"][0]["text"]
+
+    # 2. Agent also receives a chat inbox delivery for its open run tied to the roadmap's tracked chat.
+    inbox = write(client, "POST", "/inbox/receive", {}, headers=agent).json()
+    assert len(inbox["items"]) == 1
+    assert proposal["id"] in inbox["items"][0]["text"]
+    assert "expected revision 1, current revision 2" in inbox["items"][0]["text"]
+
+    # 3. Reviewer returns the submitted proposal to draft ("reopen"), allowing in-place rebase.
+    reopened = write(
+        client,
+        "POST",
+        f"/proposals/{proposal['id']}/reopen",
+        {"revision": submitted["revision"]},
+    ).json()
+    assert reopened["status"] == "draft" and reopened["submittedAt"] is None
+
+    rebased_steps = [
+        {"id": s["id"], "title": s["title"], "description": s["description"], "parentId": s["parentId"], "position": s["position"]}
+        for s in revised["steps"]
+    ] + [{"title": "Program 2", "description": "", "parentId": None, "position": len(revised["steps"])}]
+    updated = write(
+        client,
+        "PATCH",
+        f"/proposals/{proposal['id']}",
+        {
+            "revision": reopened["revision"],
+            "operations": [
+                {
+                    "action": "roadmap.revise",
+                    "payload": {
+                        "id": roadmap["id"],
+                        "revision": revised["revision"],
+                        "title": "NMWC",
+                        "overview": "Extended onto rev 2",
+                        "steps": rebased_steps,
+                    },
+                }
+            ],
+        },
+        headers=agent,
+    ).json()
+    resubmitted = write(
+        client,
+        "POST",
+        f"/proposals/{proposal['id']}/submit",
+        {"revision": updated["revision"]},
+        headers=agent,
+    ).json()
+    assert resubmitted["status"] == "submitted"
+    approved = write(
+        client,
+        "POST",
+        f"/proposals/{proposal['id']}/approve",
+        {"revision": resubmitted["revision"]},
+    )
+    assert approved.status_code == 200, approved.text
+    assert approved.json()["status"] == "approved"
+    assert len(client.get(f"/api/v1/roadmaps/{roadmap['id']}").json()["steps"]) == 3
+

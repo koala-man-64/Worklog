@@ -514,7 +514,7 @@ class AgentClient:
 
         if len(segments) == 2 and segments[0] == "proposals":
             allowed = method in {"GET", "PATCH"} and valid_id(segments[1])
-        if len(segments) == 3 and segments[0] == "proposals" and segments[2] in {"submit", "withdraw"}:
+        if len(segments) == 3 and segments[0] == "proposals" and segments[2] in {"submit", "withdraw", "reopen"}:
             allowed = method == "POST" and valid_id(segments[1])
         if len(segments) == 2 and segments[0] in {"roadmaps", "steps"}:
             allowed = method == "GET" and valid_id(segments[1])
@@ -1251,13 +1251,13 @@ def parser() -> argparse.ArgumentParser:
     proposals.add_argument("--status")
     proposal = actions.add_parser("proposal")
     operations = proposal.add_subparsers(dest="proposal_action", required=True)
-    for verb in ("draft", "update", "submit", "show", "withdraw", "evidence"):
+    for verb in ("draft", "update", "submit", "reopen", "show", "withdraw", "evidence"):
         operation = operations.add_parser(verb)
         if verb != "draft":
             operation.add_argument("id")
         if verb in {"draft", "update", "evidence"}:
             operation.add_argument("--file", required=True)
-        if verb in {"update", "submit", "withdraw"}:
+        if verb in {"update", "submit", "reopen", "withdraw"}:
             operation.add_argument("--revision", required=True, type=int)
         if verb == "evidence":
             operation.add_argument("--name")
