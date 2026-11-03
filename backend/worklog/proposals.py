@@ -71,7 +71,7 @@ AUTOMATIC = {"id": "automatic-approval", "label": "Automatic approval", "kind": 
 # The approval event is the one record of how a proposal was approved, and the submit
 # event of when it was submitted.
 SELECT = ("SELECT p.*,EXISTS(SELECT 1 FROM events e WHERE e.entity_id=p.id AND e.kind='proposal.approve'"
-          " AND e.actor_id=?) AS auto_approved,(SELECT MIN(e.created_at) FROM events e"
+          " AND e.actor_id=?) AS auto_approved,(SELECT MAX(e.created_at) FROM events e"
           " WHERE e.entity_id=p.id AND e.kind='proposal.submit') AS submitted_at FROM proposals p")
 
 
@@ -115,7 +115,9 @@ def _record(row):
             "revision": row["revision"], "actorId": row["actor_id"],
             "actorLabel": row["actor_label"], "operations": json.loads(row["operations"]),
             "supersedesId": row["supersedes_id"], "createdAt": row["created_at"],
-            "updatedAt": row["updated_at"], "submittedAt": row["submitted_at"], "attachments": []}
+            "updatedAt": row["updated_at"],
+            "submittedAt": None if row["status"] == "draft" else row["submitted_at"],
+            "attachments": []}
 
 
 def _row(conn, identifier):
@@ -147,6 +149,7 @@ class ProposalService:
     def __init__(self, db, dispatch):
         self.db = db
         self.dispatch = dispatch
+        self._applying_id: str | None = None
 
     def list(self, actor, status=None):
         if status is not None and status not in {"draft", "submitted", "approved", "rejected", "withdrawn"}:
@@ -206,7 +209,7 @@ class ProposalService:
             return result
 
     def transition(self, identifier, verb, payload, actor, conn=None):
-        if verb not in {"submit", "withdraw", "approve", "reject"}:
+        if verb not in {"submit", "withdraw", "reopen", "approve", "reject"}:
             raise AppError(422, "validation", "Unsupported proposal transition")
         with self.db.transaction() if conn is None else nullcontext(conn) as connection:
             row = _row(connection, identifier)
@@ -215,6 +218,10 @@ class ProposalService:
             if verb in {"approve", "reject"}:
                 if actor["kind"] != "human":
                     raise AppError(403, "forbidden", "Only a human may approve or reject proposals")
+                allowed = {"submitted"}
+            elif verb == "reopen":
+                if actor["kind"] != "human":
+                    _owner(row, actor)
                 allowed = {"submitted"}
             else:
                 _owner(row, actor)
@@ -236,6 +243,10 @@ class ProposalService:
                     raise AppError(exc.status, exc.code, "Not submitted: with approval off, submitting "
                                    f"applies the proposal, and that failed. {exc.message}", exc.fields) from exc
                 result = self._advance(connection, identifier, "approve", AUTOMATIC, result)
+            if verb == "reopen" and actor["kind"] == "human":
+                self._notify_proposer(connection, row, conflicts=self._stale_operations(connection, row), reason="reopened")
+            elif result["status"] == "approved":
+                self.notify_stale_proposals(connection)
             return result
 
     def _apply(self, connection, row):
@@ -246,16 +257,27 @@ class ProposalService:
         # error, or injected failure rolls back all operations and approval.
         # GitHub references may link to a chat created or updated elsewhere in the same proposal.
         ordered = sorted(enumerate(operations, 1), key=lambda pair: pair[1]["action"].startswith("github."))
-        for number, operation in ordered:
-            try:
-                self.dispatch(connection, proposer, operation["action"], operation["payload"])
-            except AppError as exc:
-                # Name the change as Review numbers it, so the person knows which one to fix.
-                raise AppError(exc.status, exc.code, f"Change {number} of {len(operations)}, {operation['action']}: {exc.message}",
-                               {"operation": number, "action": operation["action"], "fields": exc.fields}) from exc
+        previous = self._applying_id
+        self._applying_id = row["id"]
+        try:
+            for number, operation in ordered:
+                try:
+                    self.dispatch(connection, proposer, operation["action"], operation["payload"])
+                except AppError as exc:
+                    # Name the change as Review numbers it, so the person knows which one to fix.
+                    raise AppError(exc.status, exc.code, f"Change {number} of {len(operations)}, {operation['action']}: {exc.message}",
+                                   {"operation": number, "action": operation["action"], "fields": exc.fields}) from exc
+        finally:
+            self._applying_id = previous
 
     def _advance(self, connection, identifier, verb, actor, before):
-        state = {"submit": "submitted", "withdraw": "withdrawn", "approve": "approved", "reject": "rejected"}[verb]
+        state = {
+            "submit": "submitted",
+            "withdraw": "withdrawn",
+            "reopen": "draft",
+            "approve": "approved",
+            "reject": "rejected",
+        }[verb]
         stamp = now()
         connection.execute("UPDATE proposals SET status=?,revision=revision+1,updated_at=? WHERE id=?",
                            (state, stamp, identifier))
@@ -265,8 +287,166 @@ class ProposalService:
         result["autoApproved"] = result["autoApproved"] or actor is AUTOMATIC
         if verb == "submit":
             result["submittedAt"] = stamp
+        elif verb == "reopen":
+            result["submittedAt"] = None
         event(connection, actor, f"proposal.{verb}", identifier, before, result, at=stamp)
         return result
+
+    def _stale_operations(self, conn, row, roadmap_id=None):
+        operations = json.loads(row["operations"])
+        revised_steps: dict[str, int] = {}
+        conflicts = []
+        for number, op in enumerate(operations, 1):
+            action, payload = op["action"], op["payload"]
+            if action in {"roadmap.revise", "roadmap.move", "roadmap.archive", "roadmap.recover"}:
+                target = payload.get("id") or payload.get("roadmapId")
+                rm = conn.execute("SELECT id,title,revision FROM roadmaps WHERE id=?", (target,)).fetchone() if isinstance(target, str) else None
+                if rm is not None:
+                    if action == "roadmap.revise" and rm["revision"] == payload.get("revision") and isinstance(payload.get("steps"), list):
+                        for step in payload["steps"]:
+                            sid = step.get("id") if isinstance(step, dict) else None
+                            if isinstance(sid, str):
+                                revised_steps[sid] = revised_steps.get(sid, 0) + 1
+                    if (roadmap_id is None or rm["id"] == roadmap_id) and rm["revision"] != payload.get("revision"):
+                        conflicts.append({
+                            "operation": number,
+                            "action": action,
+                            "targetType": "roadmap",
+                            "targetId": rm["id"],
+                            "targetTitle": rm["title"],
+                            "roadmapId": rm["id"],
+                            "expectedRevision": payload.get("revision"),
+                            "currentRevision": rm["revision"],
+                        })
+            elif action == "progress.set":
+                target = payload.get("id") or payload.get("stepId")
+                st = conn.execute(
+                    "SELECT s.id,s.title,s.revision,s.roadmap_id,r.title AS roadmap_title FROM steps s JOIN roadmaps r ON r.id=s.roadmap_id WHERE s.id=?",
+                    (target,),
+                ).fetchone() if isinstance(target, str) else None
+                if st is not None:
+                    expected_after_earlier = st["revision"] + revised_steps.get(st["id"], 0)
+                    if (roadmap_id is None or st["roadmap_id"] == roadmap_id) and expected_after_earlier != payload.get("revision"):
+                        conflicts.append({
+                            "operation": number,
+                            "action": action,
+                            "targetType": "step",
+                            "targetId": st["id"],
+                            "targetTitle": st["title"],
+                            "roadmapId": st["roadmap_id"],
+                            "expectedRevision": payload.get("revision"),
+                            "currentRevision": st["revision"],
+                        })
+        return conflicts
+
+    def notify_stale_proposals(self, conn, roadmap_id=None):
+        if self._applying_id is not None:
+            return []
+        notified = []
+        rows = conn.execute(SELECT + " WHERE p.status='submitted' ORDER BY p.created_at,p.id", (AUTOMATIC["id"],)).fetchall()
+        for row in rows:
+            conflicts = self._stale_operations(conn, row, roadmap_id=roadmap_id)
+            if not conflicts:
+                continue
+            signature = [(c["operation"], c["currentRevision"]) for c in conflicts]
+            already = False
+            for (after_json,) in conn.execute("SELECT after_json FROM events WHERE entity_id=? AND kind='proposal.stale'", (row["id"],)):
+                recorded = json.loads(after_json)
+                if (recorded.get("proposalRevision") == row["revision"]
+                        and [(c["operation"], c["currentRevision"]) for c in recorded.get("conflicts", [])] == signature):
+                    already = True
+                    break
+            if already:
+                continue
+            discussion = self._notify_proposer(conn, row, conflicts=conflicts, reason="plan_changed")
+            if discussion is not None:
+                notified.append({"proposalId": row["id"], "discussionId": discussion["discussion"]["id"],
+                                 "messageId": discussion["message"]["id"], "conflicts": conflicts})
+        return notified
+
+    def _notify_proposer(self, conn, row, *, conflicts, reason):
+        agent = conn.execute(
+            """SELECT a.id, a.label FROM communication_agents a
+               LEFT JOIN communication_credentials cc ON cc.agent_id = a.id
+               WHERE cc.credential_id = ? OR a.id = ?
+               LIMIT 1""",
+            (row["actor_id"], row["actor_id"]),
+        ).fetchone()
+        if agent is None:
+            return None
+        contexts: list[dict[str, str]] = []
+        seen_ctx: set[tuple[str, str]] = set()
+        for conflict in conflicts:
+            rid = conflict.get("roadmapId")
+            if isinstance(rid, str) and ("roadmap", rid) not in seen_ctx and conn.execute("SELECT 1 FROM roadmaps WHERE id=?", (rid,)).fetchone():
+                seen_ctx.add(("roadmap", rid))
+                contexts.append({"type": "roadmap", "id": rid})
+        if not contexts:
+            for op in json.loads(row["operations"]):
+                act, p = op["action"], op["payload"]
+                for ctype, table, key in (
+                    ("roadmap", "roadmaps", "roadmapId" if "roadmapId" in p else "id" if act.startswith("roadmap.") else "ownerId" if p.get("ownerType") == "roadmap" else ""),
+                    ("item", "work_items", "itemId" if "itemId" in p else "id" if act.startswith("item.") else "ownerId" if p.get("ownerType") == "item" else ""),
+                    ("step", "steps", "stepId" if "stepId" in p else "id" if act == "progress.set" else "ownerId" if p.get("ownerType") == "step" else ""),
+                ):
+                    val = p.get(key) if key else None
+                    if isinstance(val, str) and (ctype, val) not in seen_ctx and conn.execute(f"SELECT 1 FROM {table} WHERE id=?", (val,)).fetchone():
+                        seen_ctx.add((ctype, val))
+                        contexts.append({"type": ctype, "id": val})
+        lines = [
+            f"Change {c['operation']} ({c['action']} on {c['targetTitle']!r} `{c['targetId']}`): expected revision {c['expectedRevision']}, current revision {c['currentRevision']}"
+            for c in conflicts
+        ]
+        summary = "; ".join(lines)
+        if reason == "reopened":
+            title = f"Proposal returned to draft: {row['title']}"[:1000]
+            body = (
+                f"Proposal **{row['title']}** (`{row['id']}`) was returned to draft for re-review."
+                + (f" Stale target(s): {summary}." if summary else "")
+                + " Reload the current plan, update the draft, and resubmit."
+            )
+        else:
+            title = f"Plan changed — re-review proposal: {row['title']}"[:1000]
+            body = (
+                f"Proposal **{row['title']}** (`{row['id']}`) has stale target revision(s) after a plan update: {summary}. "
+                "Reload the plan, reopen or supersede the proposal, and resubmit."
+            )
+        from .chat_messages import RECIPIENTS, ChatMessageService
+        from .discussions import DiscussionService
+
+        notifier = {"id": "local-user", "label": "You", "kind": "human"}
+        discussion = DiscussionService(self.db).create(
+            conn,
+            notifier,
+            {
+                "title": title,
+                "text": body,
+                "contexts": contexts,
+                "acknowledgement": {
+                    "mode": "all",
+                    "targets": [{"kind": "agent", "id": agent["id"]}],
+                },
+            },
+        )
+        chat_service = ChatMessageService()
+        for chat_id, ext_id in conn.execute(
+            """SELECT DISTINCT ch.id, ch.chat_id FROM agent_chats ch
+               JOIN agent_runs ar ON ar.external_chat_id = ch.chat_id
+               JOIN credentials cr ON cr.id = ar.credential_id
+               WHERE ch.archived = 0 AND ar.ended_at IS NULL AND cr.revoked = 0
+                 AND (ar.agent_id = ? OR ar.credential_id = ?)""",
+            (agent["id"], row["actor_id"]),
+        ).fetchall():
+            if conn.execute(RECIPIENTS, (ext_id,)).fetchone():
+                chat_service.post(conn, notifier, chat_id, {"text": body})
+        if reason == "plan_changed":
+            event(conn, notifier, "proposal.stale", row["id"], None, {
+                "proposalRevision": row["revision"],
+                "discussionId": discussion["discussion"]["id"],
+                "messageId": discussion["message"]["id"],
+                "conflicts": conflicts,
+            })
+        return discussion
 
     def check_upload(self, conn, identifier, actor):
         row = _row(conn, identifier)
