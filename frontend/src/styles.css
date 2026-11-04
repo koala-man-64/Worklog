@@ -377,10 +377,11 @@ small {
   margin-top: 26px;
   overflow-y: auto;
 }
-/* The nav keeps its full height, so the Roadmaps list keeps its cap and its own scroll. */
+/* The nav keeps its full height, so the Roadmaps list keeps its cap and its own scroll. Its column never outgrows the scroll area, so a narrow sidebar beside a scrollbar does not scroll sideways. */
 .sidebar nav {
   flex: none;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 2px;
 }
 .sidebar nav a {
