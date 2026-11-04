@@ -40,10 +40,9 @@ from worklog.recovery import (
 HOST = "127.0.0.1"
 DEFAULT_PORT = 8877
 # stop waits STOP_WAIT_S for the server process to exit. Shutdown spends at most SHUTDOWN_GRACE_S
-# on requests still open and QUOTA_CLOSE_S on quota threads, which leaves room to spare.
+# on requests still open, which leaves room to spare.
 STOP_WAIT_S = 15
 SHUTDOWN_GRACE_S = 5
-QUOTA_CLOSE_S = 2
 WAIT_RESPONSE_LIMIT = 8_000_000
 # Tokens of agents registered from this OS account, under the data directory; see _token_store.
 AGENT_TOKENS = "agent-tokens"
@@ -326,19 +325,10 @@ def stop(directory: Path, port: int = DEFAULT_PORT) -> dict[str, Any]:
 
 
 def _server(app: Any, port: int, grace: int = SHUTDOWN_GRACE_S) -> Any:
-    """Uvicorn that ends the quota event streams when it starts to shut down, by any route.
-
-    A stream never finishes by itself, so Uvicorn would otherwise wait on it forever; `grace`
-    bounds the wait for any other request still open, so stop's wait can rely on an exit.
-    """
+    """Uvicorn that cuts any request still open `grace` seconds into shutdown, so stop's wait can rely on an exit."""
     import uvicorn
 
-    class Server(uvicorn.Server):
-        async def shutdown(self, sockets: Any = None) -> None:
-            app.state.quota.end_streams()
-            await super().shutdown(sockets)
-
-    return Server(uvicorn.Config(app, host=HOST, port=port, access_log=False, timeout_graceful_shutdown=grace))
+    return uvicorn.Server(uvicorn.Config(app, host=HOST, port=port, access_log=False, timeout_graceful_shutdown=grace))
 
 
 def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
@@ -379,25 +369,11 @@ def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
 
         watcher = threading.Thread(target=watch, daemon=True)
         watcher.start()
-        quota_started = False
-        if os.environ.get("WORKLOG_QUOTA_DISABLE") != "1":
-            try:
-                app.state.quota.start_embedded(local_url(port))
-                quota_started = True
-            except Exception as exc:
-                print(f"Quota service not started ({type(exc).__name__}: {exc})", file=sys.stderr, flush=True)
         try:
             server.run()
         finally:
             finished.set()
             watcher.join(timeout=1)
-            if quota_started:
-                try:
-                    # The process exits next and the OS releases the writer lease, so a collector
-                    # in the middle of a scan need not finish first.
-                    app.state.quota.close(timeout=QUOTA_CLOSE_S)
-                except Exception:
-                    pass
             marker.unlink(missing_ok=True)
             state_path = directory / "server-state.json"
             if _json_file(state_path).get("instanceId") == instance_id:
@@ -478,11 +454,6 @@ def _ticket_route_allowed(method: str, route: str) -> bool:
     return method == "POST" and parts[3] == "comments"
 
 
-def _quota_route_allowed(method: str, route: str) -> bool:
-    """Agents read quota capacity, status and usage summaries; raw request text and writes stay with the person."""
-    return method == "GET" and route in {"/quota/capacity", "/quota/status", "/quota/usage"}
-
-
 def _agent_url(base_url: str) -> str:
     parsed = urlsplit(base_url)
     if (parsed.scheme != "http" or parsed.hostname != HOST or parsed.username
@@ -527,8 +498,7 @@ class AgentClient:
             ids = query.get("ownerId", [])
             allowed = query.get("ownerType") == ["proposal"] and len(ids) == 1 and valid_id(ids[0])
         allowed = (allowed or _discussion_route_allowed(method, route) or _coordination_route_allowed(method, route)
-                   or _ticket_route_allowed(method, route) or _quota_route_allowed(method, route)
-                   or (method == "POST" and route == "/inbox/receive"))
+                   or _ticket_route_allowed(method, route) or (method == "POST" and route == "/inbox/receive"))
         if not allowed:
             raise ValueError("Agent command is outside proposal/read scope")
         headers = {"Authorization": "Bearer " + self.token, "Accept": "application/json"}
@@ -688,8 +658,6 @@ def agent_command(args: argparse.Namespace, port: int, redact: list[str]) -> Any
         return coordination_command(client, args)
     if args.agent_action == "tickets":
         return ticket_command(client, args)
-    if args.agent_action == "quota":
-        return agent_quota_command(client, args)
     if args.agent_action == "inbox":
         return client.request("POST", "/inbox/receive", {"chatId": args.chat} if args.chat else {},
                               request_id=args.request_id)
@@ -994,24 +962,6 @@ def _ticket_parser(actions: Any) -> None:
     write(post)
 
 
-def agent_quota_command(client: AgentClient, args: argparse.Namespace) -> Any:
-    action = getattr(args, "quota_action", None) or "capacity"
-    if action == "capacity":
-        return client.request("GET", "/quota/capacity")
-    if action == "status":
-        return client.request("GET", "/quota/status")
-    return client.request("GET", "/quota/usage?" + urlencode({"view": args.view}))
-
-
-def _quota_agent_parser(actions: Any) -> None:
-    quota = actions.add_parser("quota", help="Read live provider quota capacity, burndown status and usage summaries")
-    sub = quota.add_subparsers(dest="quota_action")
-    sub.add_parser("capacity", help="Read the normalized provider capacity and dispatch gate snapshot")
-    sub.add_parser("status", help="Read active burndown windows and latest readings")
-    usage = sub.add_parser("usage", help="Read rolling token usage totals or efficiency drilldowns")
-    usage.add_argument("--view", choices=("summary", "efficiency"), default="summary")
-
-
 def _discussion_context(args: argparse.Namespace) -> dict:
     context = getattr(args, "context", None)
     if context:
@@ -1213,8 +1163,6 @@ def parser() -> argparse.ArgumentParser:
             sub.add_argument("--port", type=int, default=argparse.SUPPRESS)
         if command in {"restore", "export"}:
             sub.add_argument("file")
-    quota_cmd = commands.add_parser("quota", add_help=False, help="Collect, inspect and manage AI provider quota burndown")
-    quota_cmd.add_argument("quota_args", nargs=argparse.REMAINDER)
     agent = commands.add_parser("agent", help="Read context, register agents and propose reviewed changes")
     agent.add_argument("--url", help="Agent base URL (default: the selected local port)")
     agent.add_argument("--port", type=int, default=argparse.SUPPRESS)
@@ -1230,7 +1178,6 @@ def parser() -> argparse.ArgumentParser:
     _discussion_parser(actions)
     _coordination_parser(actions)
     _ticket_parser(actions)
-    _quota_agent_parser(actions)
     inbox = actions.add_parser("inbox", help="Receive the messages the person wrote into your chats; each arrives once")
     inbox.add_argument("--chat", help="Only messages for your open runs that reported this chat ID")
     inbox.add_argument("--request-id", help="Reuse after an uncertain result to receive the same messages again")
@@ -1297,16 +1244,6 @@ def _redacted(value: str, tokens: list[str]) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    known, extra = parser().parse_known_args(argv)
-    if getattr(known, "command", None) == "quota":
-        from worklog.quota import cli as quota_cli
-
-        raw_args = list(sys.argv[1:] if argv is None else argv)
-        idx = raw_args.index("quota") if "quota" in raw_args else -1
-        forwarded = raw_args[idx + 1 :] if idx >= 0 else [*getattr(known, "quota_args", []), *extra]
-        if forwarded[:1] == ["--"]:
-            forwarded = forwarded[1:]
-        return quota_cli.main(forwarded)
     args = parser().parse_args(argv)
     # Every credential this command holds, including one generated or loaded on the way.
     redact = [os.environ.get("WORKLOG_AGENT_TOKEN", "")]

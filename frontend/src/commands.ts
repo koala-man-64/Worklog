@@ -60,10 +60,4 @@ export const commands = {
     request<Ticket>("/tickets/" + id, "PATCH", body),
   commentOnTicket: (id: string, body: Schema["TicketCommentCreate"]) =>
     request<TicketComment>(`/tickets/${id}/comments`, "POST", body),
-  saveQuotaPlan: (body: Schema["QuotaPlanUpdate"]) =>
-    request<Record<string, unknown>>("/quota/plans", "POST", body),
-  saveQuotaPolicy: (body: Schema["QuotaPolicyUpdate"]) =>
-    request<{ accepted: boolean }>("/quota/policy", "POST", body),
-  collectQuota: (body: Schema["QuotaCollectRequest"]) =>
-    request<Record<string, unknown>>("/quota/collect", "POST", body),
 };
