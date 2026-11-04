@@ -95,6 +95,12 @@ beforeEach(() => {
   state.list = null;
   state.paths = [];
 });
+const workList = () =>
+  render(
+    <QueryClientProvider client={newClient()}>
+      <Work />
+    </QueryClientProvider>,
+  );
 it("ranks the work list and moves a row past the one shown beside it", async () => {
   // A filtered page: ranks 1, 4 and 5 of 6 show, with done work after them.
   state.list = {
@@ -343,6 +349,131 @@ it("ticks a task at once and takes the tick back when the save is refused", asyn
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "This record changed.",
   );
+});
+it("lays the work list out as a sheet, one row per item and one column per fact", () => {
+  state.list = {
+    total: 2,
+    rankedCount: 5,
+    items: [
+      {
+        ...item({ description: "Run the smoke suite", status: "doing" }),
+        people: [
+          {
+            id: "l1",
+            personId: "p1",
+            name: "Priya",
+            personRole: "",
+            relationship: "owner",
+            archived: false,
+            createdAt: "",
+          },
+        ],
+      },
+      item({
+        id: "22222222-2222-4222-8222-222222222222",
+        title: "Rollback runbook",
+        status: "done",
+        rank: null,
+      }),
+    ],
+  };
+  workList();
+  const sheet = screen.getByRole("table", { name: "Work items" });
+  expect(
+    within(sheet)
+      .getAllByRole("columnheader")
+      .map((head) => head.getAttribute("aria-label") ?? head.textContent),
+  ).toEqual([
+    "Rank",
+    "Title",
+    "Status",
+    "Description",
+    "People",
+    "Repositories",
+    "Order",
+    "Archive",
+  ]);
+  const [first, second] = within(sheet).getAllByRole("row").slice(1);
+  expect(
+    within(first).getByRole("button", {
+      name: "Change stack rank of Release checks, now 2",
+    }),
+  ).toHaveTextContent("#2");
+  expect(within(first).getByRole("rowheader")).toHaveTextContent(
+    "Release checks",
+  );
+  expect(
+    within(first).getByRole("link", { name: "Release checks" }),
+  ).toHaveAttribute("href", "#work/" + ID);
+  expect(within(first).getByRole("combobox", { name: "Status" })).toHaveValue(
+    "doing",
+  );
+  expect(within(first).getByText("Run the smoke suite")).toBeInTheDocument();
+  expect(
+    within(first).getByRole("link", { name: "Priya (owner)" }),
+  ).toHaveAttribute("href", "#people/p1");
+  expect(
+    within(first).getByRole("button", { name: "Move Release checks up" }),
+  ).toBeEnabled();
+  expect(
+    within(first).getByRole("button", { name: "Archive" }),
+  ).toBeInTheDocument();
+  // Done work has no stack rank, so its rank cell is empty and it keeps its place.
+  expect(
+    within(second).queryByRole("button", { name: /Change stack rank/ }),
+  ).toBeNull();
+  expect(
+    within(second).getByRole("button", { name: "Move Rollback runbook down" }),
+  ).toBeDisabled();
+  expect(within(second).getByText("Ready for a next step")).toBeInTheDocument();
+  expect(screen.getByText("2 work items")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Next work" })).toBeNull();
+});
+it("opens a row's rank picker in a row of its own under it", async () => {
+  state.list = {
+    items: [row("a", "Alpha", 1), row("b", "Bravo", 2)],
+    total: 2,
+    rankedCount: 2,
+  };
+  workList();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Change stack rank of Alpha, now 1" }),
+  );
+  const picker = screen
+    .getByRole("spinbutton", { name: "New stack rank for Alpha" })
+    .closest("tr")!;
+  expect(picker).toHaveClass("rank-row");
+  expect(picker.previousElementSibling).toHaveTextContent("Alpha");
+  expect(document.querySelectorAll(".work-row")).toHaveLength(2);
+});
+it("keeps the sheet's header row over an empty list", () => {
+  workList();
+  const sheet = screen.getByRole("table", { name: "Work items" });
+  expect(
+    within(sheet).getByRole("columnheader", { name: "Title" }),
+  ).toBeInTheDocument();
+  expect(
+    within(sheet).getByText("No work items yet. Add your first one above."),
+  ).toBeInTheDocument();
+  expect(sheet.querySelectorAll(".work-row")).toHaveLength(0);
+  expect(screen.getByText("0 work items")).toBeInTheDocument();
+});
+it("pages a long list from the sheet's foot", async () => {
+  state.list = { total: 312, items: [item({})] };
+  workList();
+  const offset = () =>
+    new URLSearchParams(
+      state.paths
+        .filter((path) => path.startsWith("/work-items?"))
+        .at(-1)!
+        .split("?")[1],
+    ).get("offset");
+  expect(screen.getByText("1 to 100 of 312")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Previous work" })).toBeDisabled();
+  await userEvent.click(screen.getByRole("button", { name: "Next work" }));
+  expect(offset()).toBe("100");
+  expect(screen.getByText("101 to 200 of 312")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Previous work" })).toBeEnabled();
 });
 it("filters the work list by any of the pressed states", async () => {
   render(

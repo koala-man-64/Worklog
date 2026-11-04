@@ -1,19 +1,22 @@
 /* Hallmark · checked: 2026-11-04 · genre: modern-minimal (inferred) · shape: app screen · theme: brand
- * floor: 0 FAIL · fixed: 11 (19, 30a, 34, 39a, 39b, 40, 48, 54, 63, 67, 75), then 19 and 75 on the discussions screen · structural: 4 printed (header, add-forms, title echo, date formats), date formats since settled on the discussions screen
- * built: the project · redesign: polish for the system and spacing (#23), kept; the roadmap screens and the discussions screen recomposed in full · v2.0.0
- * screen: roadmaps, a plan outline beside a detail pane, both bounded to the window from 900px wide; narrower or shorter windows stack, the outline capped at 60dvh with its own scroll. discussions, the threads beside the open thread, the filters folded to the view, a search and one toggle, the roles in a tray that takes the panel while open, a phone showing the open thread above the threads · states: loading, empty, error, full
- * signature: roadmaps, the plan outline, every step a row of title and status with its detail beside it. discussions, the receipt under each acknowledgement request, one row per recipient with its state in the status colours
- * finish-review: roadmaps, subagent · 8 findings · 5 resolved, 3 kept as found (status coding kept per the prominence change and waiver 3; shared Notes and Files sections and the list summary sit outside this recomposition) · gap: the selected-row miss in the step shots came from the capture resizing after load, verified in view at a fixed 1440x900. discussions, subagent · 8 findings · 5 resolved (the pane short of the list by the section margin, the receipt rows in the status colours, the quiet empty pane hidden on a phone, the folded filter spacing, outlined wait buttons), 1 partial (new post now takes focus, so a phone scrolls to it; a thread tap already scrolled to the top), 2 kept as found (the page header is every screen's, and a request can sit anywhere in a long thread; clamping the list chips would hide facts and leave clipped links reachable by keyboard) · gap: 73 reads the rows clipped by the list's scroll area as covered by the roles summary, measured below the list's visible bottom (text tops 846 to 865px, list bottom 829px) */
+ * floor: 0 FAIL · fixed: 11 (19, 30a, 34, 39a, 39b, 40, 48, 54, 63, 67, 75), then 19 and 75 on the discussions screen, then 34 on the work list at 375px; open on main since #73, outside the work list's recomposition: 48, a shadow colour literal on the floating repository search · structural: 4 printed (header, add-forms, title echo, date formats), date formats since settled on the discussions screen
+ * built: the project · redesign: polish for the system and spacing (#23), kept; the roadmap screens, the discussions screen and the work list recomposed in full · v2.0.0
+ * screen: roadmaps, a plan outline beside a detail pane, both bounded to the window from 900px wide; narrower or shorter windows stack, the outline capped at 60dvh with its own scroll. discussions, the threads beside the open thread, the filters folded to the view, a search and one toggle, the roles in a tray that takes the panel while open, a phone showing the open thread above the threads. work, a sheet of work items filling the window from 900px wide, its filters in a bar at its head, a frozen header row and frozen rank and title columns over gridlined rows, a rank picker opening in a row of its own, its count and pager in a bar at its foot; narrower than 68rem it scrolls sideways under the frozen columns, and a phone restacks each row · states: loading, empty, error, full
+ * signature: roadmaps, the plan outline, every step a row of title and status with its detail beside it. discussions, the receipt under each acknowledgement request, one row per recipient with its state in the status colours. work, the sheet, one row per item and one column per fact, the status pills filling their column so the colours read straight down it
+ * finish-review: roadmaps, subagent · 8 findings · 5 resolved, 3 kept as found (status coding kept per the prominence change and waiver 3; shared Notes and Files sections and the list summary sit outside this recomposition) · gap: the selected-row miss in the step shots came from the capture resizing after load, verified in view at a fixed 1440x900. discussions, subagent · 8 findings · 5 resolved (the pane short of the list by the section margin, the receipt rows in the status colours, the quiet empty pane hidden on a phone, the folded filter spacing, outlined wait buttons), 1 partial (new post now takes focus, so a phone scrolls to it; a thread tap already scrolled to the top), 2 kept as found (the page header is every screen's, and a request can sit anywhere in a long thread; clamping the list chips would hide facts and leave clipped links reachable by keyboard) · gap: 73 reads the rows clipped by the list's scroll area as covered by the roles summary, measured below the list's visible bottom (text tops 846 to 865px, list bottom 829px). work, subagent · 7 findings · 3 resolved (the head a line shorter with the lede on the heading's baseline, the nested repository box gone with #73's one-line picker, the stand-in description a step quieter), 4 partial (the filters in two groups that wrap as wholes, so no clipped search and no lone control, on one line from a 1440px window rather than 1200; the title column capped at 26rem from a 1300px sheet so the description takes the rest, while titles still wrap at 1280 to 1440 per waiver 49b; a darker edge on the frozen title column, 16rem whenever the sheet scrolls sideways, though below about 1270px the order and archive columns still sit past a sideways scroll; 44px arrows with borders on touch screens, the arrows and Archive keeping a line of their own because the status line would put them ahead of the description in the visual order only) · gap: 56's static half pairs the sheet's thead with the Chats pane's head, on another route in another scroll container, and the render half passes; 73 reads rows clipped by the sheet's scroll area as covered by its foot (area bottom 834px, flagged text tops 832 and 873px, the foot hit-testing as itself); 72 measures the sheet's scrolled-out cells (right -801px) under the sidebar waiver */
 /* Hallmark · dropped fields with no name, the per-step note and file controls in the plan tree · each step's description, notes, files and history now open in the detail pane when that step is selected, so the tree keeps one row per step */
 /* Hallmark · answered F19 · the fourth weight is the 700 status pill from the status prominence change, outside this recomposition */
 /* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V3 · weakest: V, the threads beside the open thread is the master-detail shape the Chats screen already uses; kept so the two screens read alike, and the receipt carries this screen's own idea */
+/* Hallmark · pre-emit critique (work): P4 H4 E4 S3 R4 V3 · weakest: S and V, a gridlined sheet is the category's own answer, which the request asked for by name; the frozen title column and the status colours reading down their column are what make it this list's */
 /* Hallmark · reworded "10/30/2026, 2:42:38 PM" to "Oct 30, 2:42 PM" · every discussion time, the date formats the polish printed as structural; the year shows only when it is not this one */
 /* Hallmark · reworded "1–50 of 120" to "1 to 50 of 120" · 19 names the en dash in the thread, message and role page ranges */
 /* Hallmark · reworded "Data steward · Launch readiness · unassigned" to "Data steward (Launch readiness, unassigned)" · 63 names the dot-joined role recipient label */
 /* Hallmark · dismissed 70 · the composer prints "Sent" only after its POST to the discussions API resolves, and only to say edits made meanwhile stay a draft */
+/* Hallmark · dismissed F7 · the work sheet takes the panel recipe that Roadmaps, Chats and Discussions give their panes, so the bounded screens read as one app */
 /* Hallmark · waive 3 · step stripe beside the status dot and pill · the plan tree's status stripe was made prominent on purpose in the status pill change */
 /* Hallmark · waive 49b · the wrapping links are work item and roadmap titles the person typed · a long item title wraps rather than hiding part of its name */
 /* Hallmark · waive 72 · the crowding is the sidebar roadmap titles cut by text-overflow ellipsis · roadmap names truncate inside the sidebar by design */
+/* Hallmark · waive 11 · a tint on the work sheet row under the pointer, the row holding its controls · rows run the width of a 2234px window, and the tint carries the eye along one row to its status, order and archive controls */
 /* Hallmark · answered F23 · Worklog is served only on loopback, so no link preview ever reads a meta description */
 /* Hallmark · audit 2026-11-04 · Today's density carried app-wide: Save now in every field's heading row, text boxes that grow with their text, inline unruled disclosures with ruled page folds only, record titles with their controls beside them, labels beside their controls, single-column create diffs in Review, tighter field, section and empty-state gaps · fixed: 19 (the coordination pager's range dash) · structural: 3 printed (middle-dot meta strings across agents, chats, coordination and tickets; list rows at the work list's padding; the work item page's mixed h2 and h3 sections), left to the work list and work item redesigns in flight */
 /* Hallmark · waive 38iii · the .count after a section heading is the number of rows that section lists · a row count beside its heading reads as a figure, as on every list section here */
@@ -1097,6 +1100,394 @@ select.status-select option {
 }
 .reorder button {
   padding: 4px 9px;
+}
+/* Work: the list as a sheet, one row per item and one column per fact, its filters heading it
+   and its count and pager footing it. Every control on the screen is 32px tall. */
+.work-screen {
+  --control-height: 32px;
+}
+.work-screen button,
+.work-screen input:not([type="checkbox"]):not([type="file"]),
+.work-screen select {
+  padding-block: 4px;
+}
+/* The lede sits on the heading's baseline, so the sheet starts a line higher. */
+.work-screen > header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 16px;
+}
+.work-screen > header h1 {
+  margin-bottom: 0;
+}
+.work-screen > .quick-add {
+  flex-shrink: 0;
+  gap: 8px;
+  padding: 8px;
+  margin-bottom: 12px;
+}
+.work-grid {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+/* Two groups at fixed widths share one line from a 1440px window; narrower, the second moves under
+   the first as a whole, and on a phone each wraps within itself. */
+.work-filters {
+  gap: 6px;
+  margin: 0;
+  padding: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.work-filters-find,
+.work-filters-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.work-filters-find > input,
+.work-filters-find > select {
+  width: 9rem;
+  min-width: 0;
+}
+.work-filters-state > select {
+  width: 11rem;
+  min-width: 0;
+}
+/* The repository filter's search and choice sit together. */
+.work-filters-find > div:first-child {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+.work-filters-find > div:first-child > input {
+  width: 10rem;
+  min-width: 0;
+}
+.work-filters-find > div:first-child > select {
+  width: 9rem;
+  min-width: 0;
+}
+.work-filters .status-toggles {
+  gap: 4px;
+}
+.work-filters .status-toggles button {
+  min-height: var(--control-height);
+  padding-inline: 8px;
+}
+.work-grid-body {
+  overflow: auto;
+  overscroll-behavior: contain;
+  /* Tabbing to a row keeps it clear of the frozen header row and of the title column, 16rem wide
+     whenever the sheet scrolls sideways. */
+  scroll-padding: 32px 0 0 20.5rem;
+}
+.work-grid-body :focus-visible {
+  outline-offset: 0;
+}
+/* Narrower than 68rem, the sheet scrolls sideways under its frozen title column. */
+.work-grid table {
+  width: 100%;
+  min-width: 68rem;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+/* Columns of text widen with the window, the description most; columns of controls hold their size.
+   The title column stops at 26rem on a wide sheet, so the description takes the rest, and narrows to
+   16rem when the sheet scrolls sideways, so less of the window is pinned. */
+.work-grid .col-rank {
+  width: 4.5rem;
+}
+.work-grid .col-title {
+  width: 26%;
+}
+@container (min-width: 1300px) {
+  .work-grid .col-title {
+    width: 26rem;
+  }
+}
+@container (max-width: 951px) {
+  .work-grid .col-title {
+    width: 16rem;
+  }
+}
+.work-grid .col-status {
+  width: 8rem;
+}
+.work-grid .col-people {
+  width: 14%;
+}
+.work-grid .col-repositories {
+  width: 11%;
+}
+.work-grid .col-order {
+  width: 6rem;
+}
+.work-grid .col-archive {
+  width: 6.5rem;
+}
+.work-grid .work-row {
+  display: table-row;
+  padding: 0;
+  border: 0;
+}
+.work-grid th,
+.work-grid td {
+  padding: 4px 8px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+  font-weight: inherit;
+  line-height: 1.4;
+  text-align: left;
+  vertical-align: middle;
+}
+.work-grid th:last-child,
+.work-grid td:last-child {
+  border-right: 0;
+}
+/* The header row is one sticky element; its cells ride with it. */
+.work-grid thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.work-grid thead th {
+  padding-block: 6px;
+  background: var(--sidebar);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+/* The frozen title column, edged in a darker line like a spreadsheet's frozen pane. */
+/* The stack rank leads each row, its numbers right-aligned so they read down the column; it and the
+   title stay in view when the sheet scrolls sideways. */
+.work-grid .cell-rank {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  padding-inline: 4px;
+  text-align: right;
+}
+.work-grid .cell-rank button.rank {
+  min-height: var(--control-height);
+}
+.work-grid .cell-title {
+  position: sticky;
+  left: 4.5rem;
+  z-index: 1;
+  border-right-color: var(--field-edge);
+}
+.work-grid .item-title {
+  font-size: 14px;
+}
+.work-grid .cell-description {
+  font-size: 13px;
+}
+.work-grid .cell-description > span {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* "Ready for a next step" stands in for a missing description, a step quieter than a real one. */
+.work-grid .cell-description > .muted {
+  font-size: 12px;
+}
+/* The status pills fill their column, so its colours read straight down the sheet. */
+.work-grid select.status-select {
+  width: 100%;
+  height: 32px;
+  min-width: 0;
+  padding: 4px 12px;
+}
+.work-grid .person-badges,
+.work-grid .repository-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-left: 0;
+}
+.work-grid .person-badge {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* A hundred rows of arrows stay quiet until one is pointed at. */
+.work-grid .reorder button {
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  padding-inline: 7px;
+}
+.work-grid .reorder button:hover:not(:disabled) {
+  border-color: var(--teal);
+  background: var(--teal-wash);
+  color: var(--teal);
+}
+.work-grid tr:not(.rank-row) > td[colspan] {
+  padding: 12px 8px;
+  color: var(--muted);
+}
+.work-grid td[colspan] > .empty {
+  border: 0;
+  padding: 32px 16px;
+}
+/* An open rank picker runs under its row, tinted with it, and stays at the sheet's left edge when
+   the sheet scrolls sideways. */
+.work-grid .rank-row > td {
+  padding: 8px;
+  background: var(--teal-wash);
+}
+.work-grid .rank-row .rank-picker {
+  position: sticky;
+  left: 8px;
+  display: inline-flex;
+  margin: 0;
+}
+/* Rows run the width of the window; the tint carries the eye along one, and marks the row being edited. */
+@media (hover: hover) {
+  .work-grid tbody tr:hover > * {
+    background: var(--bg);
+  }
+}
+.work-grid tbody tr:focus-within > * {
+  background: var(--teal-wash);
+}
+/* With no pointer to point, the arrows show as buttons; a finger gets a 44px target. */
+@media (hover: none) {
+  .work-grid .reorder button:not(:disabled) {
+    border-color: var(--line);
+    background: var(--paper);
+  }
+}
+@media (pointer: coarse) {
+  .work-grid .reorder button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+.work-grid-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 41px;
+  padding: 4px 8px;
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 6px 6px;
+  background: var(--sidebar);
+  color: var(--muted);
+  font-size: 12px;
+}
+.work-pager {
+  display: flex;
+  gap: 8px;
+}
+/* From 900px wide the sheet fills the window, and only its rows scroll. */
+@media (min-width: 900px) and (min-height: 560px) {
+  .work-grid {
+    flex: 1;
+    min-height: 18rem;
+  }
+  .work-grid-body {
+    flex: 1;
+    min-height: 0;
+  }
+}
+/* A phone restacks each row: the title, then its status beside the description, then the rest. */
+@media (max-width: 760px) {
+  .work-grid table,
+  .work-grid tbody,
+  .work-grid tr,
+  .work-grid th,
+  .work-grid td {
+    display: block;
+  }
+  .work-grid table {
+    min-width: 0;
+  }
+  .work-grid thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .work-grid .work-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    padding: 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  .work-grid tbody th,
+  .work-grid tbody td {
+    position: static;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  .work-grid .work-row select {
+    margin-left: 0;
+  }
+  /* The rank sits before the title on its line; nothing else fits beside them. */
+  .work-grid .cell-rank {
+    position: static;
+    flex: none;
+  }
+  .work-grid .cell-title {
+    position: static;
+    flex: 1 1 calc(100% - 4.5rem - 8px);
+  }
+  .work-grid .rank-row .rank-picker {
+    position: static;
+  }
+  .work-grid .cell-description {
+    flex: 1 1 12rem;
+    min-width: 0;
+  }
+  .work-grid td:empty,
+  .work-grid .cell-repositories:has(> .repository-badges:empty) {
+    display: none;
+  }
+  /* The arrows and Archive close the row together, on a line of their own at its end. */
+  .work-grid .work-row::after {
+    content: "";
+    flex-basis: 100%;
+    order: 1;
+  }
+  .work-grid td:has(> .reorder),
+  .work-grid .work-row > td:last-child {
+    order: 2;
+  }
+  .work-grid td:has(> .reorder) {
+    margin-left: auto;
+  }
+  .work-grid tbody tr:focus-within {
+    background: var(--teal-wash);
+  }
+  .work-grid tbody tr:hover > *,
+  .work-grid tbody tr:focus-within > * {
+    background: none;
+  }
+  .work-grid tr:not(.rank-row) > td[colspan] {
+    padding: 12px;
+  }
 }
 .two-column {
   display: grid;
