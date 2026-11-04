@@ -142,6 +142,36 @@ it("recovers and saves a locally persisted draft", async () => {
   );
   expect(save).toHaveBeenCalledWith("Recovered", 1);
 });
+it("puts Save now in a compact field's heading row and still saves from there", async () => {
+  const save = vi.fn().mockResolvedValue({ revision: 2 });
+  render(
+    <>
+      <DraftField
+        compact
+        draftKey="test-compact"
+        label="Outcome"
+        initial=""
+        revision={1}
+        save={save}
+      />
+      <DraftField
+        draftKey="test-not-compact"
+        label="Body"
+        initial=""
+        revision={1}
+        save={vi.fn()}
+      />
+    </>,
+    { wrapper },
+  );
+  const [compact, plain] = screen.getAllByRole("button", { name: "Save now" });
+  expect(compact.closest(".field-heading")).not.toBeNull();
+  // Without compact, Save now stays under the text box.
+  expect(plain.closest(".field-heading")).toBeNull();
+  await userEvent.type(screen.getByLabelText("Outcome"), "Shipped");
+  await userEvent.click(compact);
+  await waitFor(() => expect(save).toHaveBeenCalledWith("Shipped", 1));
+});
 it("keeps the original base revision after a reload of a conflicted draft", async () => {
   localStorage.setItem("worklog:test:draft:test-old-base", "Local work");
   localStorage.setItem("worklog:test:draft-base:test-old-base", "2");
