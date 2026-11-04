@@ -94,6 +94,15 @@ class ReferenceCreate(Command):
     path: str
 
 
+class AttachmentCreate(Command):
+    """A copy of a file uploaded to a proposal as evidence, attached when Worklog applies the proposal."""
+    ownerType: Literal["item", "roadmap", "step", "repository"]
+    ownerId: str
+    attachmentId: str
+    # The proposal that holds the file. Worklog sets it when it applies the proposal; an agent cannot.
+    proposalId: str
+
+
 class LinkCreate(Command):
     ownerType: Literal["item", "roadmap"]
     ownerId: str
@@ -302,7 +311,7 @@ class Operation(Command):
                     "roadmap.create", "roadmap.revise", "roadmap.move", "progress.set",
                     "person.create", "person.update", "person.archive", "person.recover",
                     "person.link", "person.unlink",
-                    "link.create", "link.update", "link.archive", "link.recover",
+                    "link.create", "link.update", "link.archive", "link.recover", "attachment.create",
                     "chat.create", "chat.update", "chat.archive", "chat.recover",
                     "github.create", "github.update", "github.archive", "github.recover",
                     "question.create", "question.update", "question.archive", "question.recover",
