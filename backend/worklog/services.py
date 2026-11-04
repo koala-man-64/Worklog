@@ -1178,9 +1178,10 @@ class WorkService:
               OR coalesce(st.retired,0)=1 OR coalesce(rm.archived,0)=1 OR coalesce(p.archived,0)=1 OR coalesce(ds.archived,0)=1
               OR coalesce(tk.archived,0)=1)=?"""
         with self.db.read() as c:
+            # A resource is its own page and carries its own archive flag in the index.
             rows = c.execute("""SELECT s.entity_id,s.type,s.title,s.body,s.owner_id,
-                             CASE WHEN ds.id IS NOT NULL THEN 'discussions' WHEN tk.id IS NOT NULL THEN 'tickets' WHEN w.id IS NOT NULL THEN 'work' WHEN p.id IS NOT NULL THEN 'people' ELSE 'roadmaps' END AS route_type,
-                             coalesce(ds.id,tk.id,w.id,p.id,rm.id) AS route_id """ + source + " ORDER BY rank LIMIT ? OFFSET ?", (match, int(archived), limit, offset)).fetchall()
+                             CASE WHEN s.type='resource' THEN 'resources' WHEN ds.id IS NOT NULL THEN 'discussions' WHEN tk.id IS NOT NULL THEN 'tickets' WHEN w.id IS NOT NULL THEN 'work' WHEN p.id IS NOT NULL THEN 'people' ELSE 'roadmaps' END AS route_type,
+                             CASE WHEN s.type='resource' THEN s.entity_id ELSE coalesce(ds.id,tk.id,w.id,p.id,rm.id) END AS route_id """ + source + " ORDER BY rank LIMIT ? OFFSET ?", (match, int(archived), limit, offset)).fetchall()
             total = c.execute("SELECT count(*) " + source, (match, int(archived))).fetchone()[0]
             return {"items": [{"id": r[0], "type": r[1], "title": r[2], "snippet": r[3][:220], "ownerId": r[4],
                                "routeType": r["route_type"], "routeId": r["route_id"]} for r in rows], "total": total}

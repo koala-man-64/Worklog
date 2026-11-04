@@ -1,6 +1,6 @@
 # Worklog agent guide
 
-> Worklog is a single-user workbench that runs on the person's own machine, by default at http://127.0.0.1:8877. It holds the person's daily plan, work items, roadmaps, people, repositories and tickets, and it coordinates the AI agents working for them. Agents use the `worklog agent` command line to read that context, report their own runs and repository activity, write tickets and discussion messages, receive the messages the person writes into their chats, and propose changes to the person's records for the person to approve.
+> Worklog is a single-user workbench that runs on the person's own machine, by default at http://127.0.0.1:8877. It holds the person's daily plan, work items, roadmaps, people, repositories, tickets and resources (reference pages the person writes for you), and it coordinates the AI agents working for them. Agents use the `worklog agent` command line to read that context, report their own runs and repository activity, write tickets and discussion messages, receive the messages the person writes into their chats, and propose changes to the person's records for the person to approve.
 
 This guide is for AI agents (Claude Code, Codex and others) acting for the person. Read sections 1 to 4 before your first Worklog command; sections 5 to 12 are reference. `worklog agent guide` prints this guide; it needs no credential and no running Worklog. The person's own guide is `docs/GUIDE.md`, which Worklog shows on its Guide page.
 
@@ -32,7 +32,7 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 3. **Act as yourself.** Every later command MUST give `--as NAME` before the group. Your runs, reports, messages, tickets and proposals then carry your own identity.
 4. **One request ID per write.** Give each write a stable `--request-id`: 8-200 printable ASCII characters without spaces. After an uncertain result, rerun with the same ID and the identical payload; it cannot apply twice. A new operation MUST get a new ID. Proposal commands take none (section 7).
 5. **Current revisions.** A revision-checked command MUST carry the revision from your latest read. On `409 conflict`, read the record again and decide afresh; never reapply blindly.
-6. **Proposals for the person's records.** Work items, day entries, scratchpads and notes, checklist tasks, roadmaps and step progress, people, links, tracked chats, GitHub references, questions, decisions and repository edits change only through a proposal the person approves (section 6). You write tickets, discussions, your own runs, participation and updates, repository registrations and your inbox directly.
+6. **Proposals for the person's records.** Work items, day entries, scratchpads and notes, checklist tasks, roadmaps and step progress, people, links, tracked chats, GitHub references, questions, decisions and repository edits change only through a proposal the person approves (section 6). You write tickets, discussions, your own runs, participation and updates, repository registrations and your inbox directly. Resources, the person's reference pages, are read-only to you: no command and no proposal changes one.
 7. **Advisory, not authority.** Participation, ticket assignment and roles reserve nothing and lock nothing, and a fresh report does not prove an agent is running. An acknowledgement means "received and understood", never approval.
 8. **Search first.** Before you investigate a failure, search past tickets, closed ones included: `tickets list --status all --q 'WORDS'`. File a ticket for an issue worth tracking, comment as you learn, and close it with a resolution that says what fixed it.
 9. **Never work around a refusal.** `401` means your identity was revoked: by the person, by the retirement of the agent that registered you, or by a restore. Stop, tell the person, and register again only if they agree. `403 agent_scope` is outside agent authority: propose the change or ask. `429 agent_limit`: report it and do not retry. `403 repository_registration_off`: propose `repository.create`. Section 8 lists every code.
@@ -55,6 +55,7 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 | Tracked chat | Worklog's UUID, and `chatId`, the provider's ID | on a work item or roadmap; `stepIds`, `provider`, `model` | proposal (`chat.*`) |
 | Repository | UUID; one record per remote | `registeredBy`, `reviewed`, `duplicateOf`, `mergedInto` | you register; edits by proposal |
 | Ticket | `T-12`, `12` or UUID | `kind` bug, incident or task; `priority` low, normal, high or urgent; `status` open, doing, blocked or done; `resolution` | you, directly |
+| Resource | UUID | `title`, `summary` (what the page is for), `body` (Markdown); `archived` | the person only; you read |
 | Proposal | UUID | draft, submitted, approved, rejected or withdrawn; `autoApproved` | you draft; the person decides |
 | Identity, credential | `agentId`; a credential `id` | active or revoked | the person issues; you register and retire your own |
 | Run | UUID; `--client-run-key` is unique per credential | open or ended | you, directly |
@@ -70,7 +71,7 @@ Records are archived, never deleted, and only the person archives or recovers th
 
 | Action | The person | You directly | You by proposal |
 |---|---|---|---|
-| Read work, days, roadmaps, steps, people, notes, tickets, discussions, repositories, runs and proposals | yes | yes | - |
+| Read work, days, roadmaps, steps, people, notes, tickets, resources, discussions, repositories, runs and proposals | yes | yes | - |
 | Read chat transcripts, chat messages, the Agents page, Settings, credentials, backups or the export | yes | no | - |
 | Change work items, day entries, notes, tasks, roadmaps, progress, people, links, tracked chats, GitHub references, questions or decisions | yes | no | yes |
 | Register a repository | yes | yes, unless the person turned it off | yes |
@@ -78,6 +79,7 @@ Records are archived, never deleted, and only the person archives or recovers th
 | Confirm or merge repositories | yes | no | no |
 | File, change, comment on and close tickets | yes | yes | - |
 | Archive or recover tickets | yes | no | no |
+| Write, archive or recover resources | yes | no | no |
 | Post, reply, acknowledge, cancel your own requests, act on roles | yes | yes | - |
 | Archive a discussion, release a wait, reassign a role | yes | no | - |
 | Start and end runs; report participation and updates | - | yes, your own | - |
@@ -106,12 +108,13 @@ worklog agent register --chat CHAT_ID --label 'Parser fix (Claude)'
 worklog agent --as NAME runs start --client-run-key CHAT_ID --display-name 'Parser fix' --provider claude --request-id run-start-CHAT_ID
 ```
 
-**Step 4. Read before you act:** the day's context, matching work, and known issues.
+**Step 4. Read before you act:** the day's context, matching work, known issues, and the person's resources. `context` lists every resource by title and summary; read each one that bears on your task, and any the person names, with `resources show`: they hold what the person wants every agent to know.
 
 ```powershell
 worklog agent --as NAME context
 worklog agent --as NAME search 'parser'
 worklog agent --as NAME tickets list --status all --q 'parser crash'
+worklog agent --as NAME resources show RESOURCE_ID
 ```
 
 **Step 5. Report each repository you change** by its checkout. This registers the checkout's `origin` remote when Worklog lacks it, and records your branch and checkout or worktree path. Repeat `--checkout` for each repository; add `--item` when the work has a work item, which also tracks your chat on that work item (once; the person can archive it). Many agents can report in one repository at once.
@@ -166,20 +169,24 @@ worklog agent --as NAME retire
 
 | Command | Arguments and options | Prints |
 |---|---|---|
-| `context` | `[--date DATE] [--repo REPOSITORY_ID] [--item ITEM_ID]` | `{day,workItems,roadmaps,people,proposals,repositories,runs,participations,updates,tickets}`: the day's entries, roadmaps without their steps, up to 100 of each list, open tickets |
+| `context` | `[--date DATE] [--repo REPOSITORY_ID] [--item ITEM_ID]` | `{day,workItems,roadmaps,people,proposals,repositories,runs,participations,updates,tickets,resources}`: the day's entries, roadmaps without their steps, up to 100 of each list, open tickets, and resources by title and summary without their text |
 | `search QUERY` | `[--limit 50] [--archived]` | `{items:[{id,type,title,snippet,ownerId,routeType,routeId}],total}`; 220-character snippets; the first 30 words of QUERY count |
 | `roadmap show ID` | - | the roadmap with every step's full text, progress, revision and `retired` flag, its versions, work items, notes, links, tracked chats, GitHub references, questions and decisions; without its history |
 | `step show ID` | - | the step with its `roadmapId`, notes and attachments |
+| `resources list` | `[--q WORDS] [--archived] [--limit 50] [--offset 0]` | `{items:[{id,title,summary,archived,revision,createdAt,updatedAt}],total,limit,offset}` by title, without the pages' text; `--q` searches titles, summaries and text; `--archived` lists archived pages only |
+| `resources show ID` | - | one page with its whole Markdown `body`, and its latest 100 changes without their records |
 | `proposals` | `[--status draft\|submitted\|approved\|rejected\|withdrawn]` | `{items,total}`: yours, and other agents' once submitted |
 | `proposal show ID` | - | one proposal with its operations and evidence |
 
-`search` covers work items, notes, file names, links, tracked chats, GitHub references, roadmaps and steps, questions and decisions, people, discussions, tickets and ticket comments, but not proposals.
+`search` covers work items, notes, file names, links, tracked chats, GitHub references, roadmaps and steps, questions and decisions, people, discussions, tickets and ticket comments, and resources, but not proposals.
 
 ```powershell
 worklog agent --as NAME context --date 2026-11-04 --repo REPOSITORY_ID --item ITEM_ID
 worklog agent --as NAME search 'release checks' --limit 20 --archived
 worklog agent --as NAME roadmap show ROADMAP_ID
 worklog agent --as NAME step show STEP_ID
+worklog agent --as NAME resources list --q 'release checks' --limit 20 --archived
+worklog agent --as NAME resources show RESOURCE_ID
 worklog agent --as NAME proposals --status submitted
 worklog agent --as NAME proposal show PROPOSAL_ID
 ```
@@ -654,6 +661,7 @@ Invoke-RestMethod -Uri 'http://127.0.0.1:8877/api/v1/work-items/ITEM_ID' -Header
 - **Today.** Their plan for the day. It has nothing of yours unless a proposal planned an item.
 - **Work, and a work item's page.** Your participation under "Participants" and "Recent updates", and tracked chats under "Agent chats". Also the item's tickets, and "GitHub commits & PRs".
 - **Tickets.** Every ticket, with its author, assignee and comments.
+- **Resources.** The reference pages the person writes for you and for themselves. Only the person writes, archives and recovers them.
 - **Roadmaps.** "Agents working here", agent chips beside each step, tracked chats, questions and decisions.
 - **Repositories.** Registered repositories; yours say "Registered by" your label and "unreviewed" until the person confirms them. A repository's page lists participants and recent updates. "Open agent runs" lets the person end a run you left open.
 - **Agents.** One entry per identity. It shows a status ("Reporting work", "Stale reports", "No current reports" or "Credential revoked"), your runs, messages, updates and the work you are tied to.
@@ -685,6 +693,7 @@ Point the person to the page that matters:
 | scratchpad | the note of a work item | "Scratchpad (Markdown)" |
 | backlog | `view=backlog`, `isBacklog` | "Unscheduled backlog" |
 | `tickets list --status active` | `status=active` | "Open, doing or blocked" |
+| resource | `/resources` | a page under "Pages" on Resources |
 | step progress | `/steps/{id}/progress` | the progress control beside each step |
 | role | `/discussions/roles` | "Discussion roles" |
 | acknowledgement request | a message's `request` | "Request acknowledgement (received and understood)" |

@@ -17,6 +17,7 @@ import { RoadmapNav } from "./RoadmapNav";
 import { Repositories } from "./Repositories";
 import { Tickets } from "./Tickets";
 import { People } from "./People";
+import { Resources } from "./Resources";
 import { Agents } from "./Agents";
 import { Chats } from "./Chats";
 import { Discussions } from "./Discussions";
@@ -206,6 +207,8 @@ export default function App() {
             <Repositories key={id ?? "list"} selected={id} />
           ) : page === "people" ? (
             <People key={id ?? "list"} selected={id} />
+          ) : page === "resources" ? (
+            <Resources selected={id} section={sub} />
           ) : page === "agents" ? (
             <Agents key={id ?? "list"} selected={id} />
           ) : page === "chats" ? (

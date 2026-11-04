@@ -10,6 +10,7 @@ export const destinations: Destination[] = [
   { route: "roadmaps", icon: "roadmaps", label: "Roadmaps" },
   { route: "repositories", icon: "work", label: "Repositories" },
   { route: "people", icon: "people", label: "People" },
+  { route: "resources", icon: "resources", label: "Resources" },
   { route: "agents", icon: "agents", label: "Agents" },
   { route: "chats", icon: "chats", label: "Chats" },
   { route: "discussions", icon: "chats", label: "Discussions" },

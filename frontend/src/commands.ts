@@ -13,6 +13,7 @@ import type {
   GithubRef,
   RankResult,
 } from "./types";
+import type { ResourcePage } from "./resourceTypes";
 import type { Ticket, TicketComment } from "./ticketTypes";
 type Schema = components["schemas"];
 /** Actual command payloads are checked against the exported backend OpenAPI schema. */
@@ -63,4 +64,8 @@ export const commands = {
     request<Ticket>("/tickets/" + id, "PATCH", body),
   commentOnTicket: (id: string, body: Schema["TicketCommentCreate"]) =>
     request<TicketComment>(`/tickets/${id}/comments`, "POST", body),
+  createResource: (body: Schema["ResourceCreate"]) =>
+    request<ResourcePage>("/resources", "POST", body),
+  updateResource: (id: string, body: Schema["ResourceUpdate"]) =>
+    request<ResourcePage>("/resources/" + id, "PATCH", body),
 };

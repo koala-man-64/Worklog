@@ -1283,7 +1283,6 @@ select.status-select option {
   font-weight: 600;
   white-space: nowrap;
 }
-/* The frozen title column, edged in a darker line like a spreadsheet's frozen pane. */
 /* The stack rank leads each row, its numbers right-aligned so they read down the column; it and the
    title stay in view when the sheet scrolls sideways. */
 .work-grid .cell-rank {
@@ -1296,14 +1295,23 @@ select.status-select option {
 .work-grid .cell-rank button.rank {
   min-height: var(--control-height);
 }
+/* The frozen title column, edged in a darker line like a spreadsheet's frozen pane. */
 .work-grid .cell-title {
   position: sticky;
   left: 4.5rem;
   z-index: 1;
   border-right-color: var(--field-edge);
 }
+/* A long title stops at two lines, so no row is taller than two lines of title. The link keeps the
+   whole title, for screen readers and for the tooltip that shows it on hover. */
 .work-grid .item-title {
+  display: -webkit-box;
+  overflow: hidden;
   font-size: 14px;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 .work-grid .cell-description {
   font-size: 13px;
@@ -1467,6 +1475,10 @@ select.status-select option {
   .work-grid .cell-title {
     position: static;
     flex: 1 1 calc(100% - 4.5rem - 8px);
+  }
+  /* A phone has no hover to show a cut title, so its titles wrap in full. */
+  .work-grid .item-title {
+    display: inline;
   }
   .work-grid .rank-row .rank-picker {
     position: static;
@@ -3404,7 +3416,8 @@ code {
   .roadmap-split .panel-body,
   .chats-split .panel-body,
   .discussions-split .panel-body,
-  .guide-split .panel-body {
+  .guide-split .panel-body,
+  .resources-split .panel-body {
     max-height: 60dvh;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -3477,6 +3490,9 @@ code {
   }
   .guide-split {
     grid-template-columns: minmax(240px, 1fr) minmax(0, 3fr);
+  }
+  .resources-split {
+    grid-template-columns: minmax(260px, 1fr) minmax(0, 3fr);
   }
   .discussion-roles-panel[open] {
     flex: 1 1 auto;
@@ -3555,6 +3571,79 @@ code {
 }
 .guide .markdown h2:first-child {
   margin-top: 0;
+}
+/* Resources: the person's reference pages, named and summarised, beside the page they open. */
+.resource-tools {
+  display: grid;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.resource-tools input {
+  margin: 0;
+}
+.resource-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+/* The title and its button share a row from the panel's narrowest width up. */
+.resource-add input {
+  flex: 1 1 120px;
+  min-width: 0;
+}
+.resource-add .error {
+  flex-basis: 100%;
+  margin: 0;
+}
+.resource-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px 0;
+}
+.resource-list a {
+  display: grid;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  color: var(--ink);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.resource-list a:hover {
+  background: var(--teal-wash);
+}
+.resource-list a[aria-current] {
+  background: var(--teal-wash);
+  color: var(--teal);
+}
+.resource-list a[aria-current] .resource-name {
+  font-weight: 600;
+}
+.resource-list small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.resource-none {
+  margin: 12px 8px;
+}
+.resource-head {
+  margin-bottom: 12px;
+}
+.resource-head > h2 {
+  margin: 0;
+}
+.resource-pane .lede {
+  margin: 0 0 20px;
+}
+.resource-pane .markdown h1:first-child,
+.resource-pane .markdown h2:first-child {
+  margin-top: 0;
+}
+.resource-updated {
+  margin: 16px 0 8px;
+  font-size: 12px;
 }
 /* Linked repositories read as chips that unlink; "Link repository" searches for another. */
 .repository-picker {
