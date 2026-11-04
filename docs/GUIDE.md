@@ -242,7 +242,8 @@ A person's page lists everything they are tied to, their "Notes (Markdown)" and 
 - **Keep documents with it.** On a repository's page, "Attach a file" under "Files" stores a copy of a design, runbook or any other file in Worklog, up to 25 MB.
   - Each file's name downloads it, and "Archive" puts it under "Archived supporting records".
   - Search finds a file by its name and opens its repository.
-  - An archived repository keeps its files readable but takes no new ones until you recover it.
+  - An archived repository takes no new files until you recover it. You can still download, archive and recover the ones it has.
+  - Agents you give a credential can read these files, as they can your other records.
 - **Merge duplicates.**
   - On the duplicate's page, find the record to keep under "Merge into another repository", and press "Confirm merge".
   - Its work and chat links, tickets, files and agent reports move to the record you keep. The duplicate is archived as "Merged into" that record.

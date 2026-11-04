@@ -311,12 +311,23 @@ it("attaches a file to a repository, offers it for download and recovers an arch
   );
 });
 
-it("keeps an archived repository's files readable but takes no new ones", async () => {
-  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+it("keeps an archived repository's files and their archive, but takes no new ones", async () => {
+  const writes: string[] = [];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const path = String(input);
+    if (init?.method === "POST") {
+      writes.push(path);
+      return json(runbook);
+    }
     if (path.endsWith("/repositories/repo-1"))
       return json({ ...repo, archived: true });
     if (path === repoFiles) return json({ items: [runbook], total: 1 });
+    // Archived before the repository was, it stays where search sends you.
+    if (path === repoFiles + "&archived=true")
+      return json({
+        items: [{ ...runbook, id: "file-2", name: "old.md", archived: true }],
+        total: 1,
+      });
     return json({ items: [], total: 0 });
   });
   show(<Repositories selected={repo.id} />);
@@ -325,10 +336,18 @@ it("keeps an archived repository's files readable but takes no new ones", async 
     await within(section).findByRole("link", { name: "runbook.md" }),
   ).toHaveAttribute("href", "/api/v1/attachments/file-1?download=1");
   expect(within(section).queryByLabelText("Attach a file")).toBeNull();
-  expect(within(section).queryByRole("button", { name: "Archive" })).toBeNull();
   expect(
     screen.getByText(/Existing links, files and reports remain visible/),
   ).toBeVisible();
+  expect(
+    await within(section).findByText("Archived supporting records (1)"),
+  ).toBeVisible();
+  await userEvent.click(
+    within(section).getByRole("button", { name: "Archive" }),
+  );
+  await waitFor(() =>
+    expect(writes).toEqual(["/api/v1/attachments/file-1/archive"]),
+  );
 });
 
 it("shows who registered a repository and lets the person confirm an agent's registration", async () => {

@@ -499,6 +499,7 @@ def test_a_repository_keeps_files_that_search_finds_while_it_is_active(client):
     # Agents read a repository's files like the rest of their context, but only the person attaches them.
     assert ok(request(client, "GET", f"/attachments?ownerType=repository&ownerId={service['id']}", agent=credential))["total"] == 1
     assert attach(client, service, "agent.md", agent=credential).status_code == 403
+    assert request(client, "POST", f"/attachments/{runbook['id']}/archive", {"revision": runbook["revision"]}, credential).status_code == 403
     # A repository holds files only; notes on one are still refused.
     assert request(client, "POST", "/notes", {"ownerType": "repository", "ownerId": service["id"], "title": "No"}).status_code == 422
     assert attach(client, {"id": "missing"}, "lost.md").status_code == 404
@@ -534,6 +535,8 @@ def test_merge_carries_a_repositorys_files_to_the_survivor(client):
     assert files(client, old) == [] and files(client, old, archived=True) == []
     found = ok(request(client, "GET", "/search?q=alpha"))["items"]
     assert [(r["id"], r["ownerId"], r["routeId"]) for r in found] == [(design["id"], new["id"], new["id"])]
+    found = ok(request(client, "GET", "/search?q=beta&archived=true"))["items"]
+    assert [(r["id"], r["ownerId"], r["routeId"]) for r in found] == [(retired["id"], new["id"], new["id"])]
     with client.app.state.db.read() as c:
         history = json.loads(c.execute("SELECT after_json FROM events WHERE kind='repository.merge' AND entity_id=?", (old["id"],)).fetchone()[0])
     assert history["moved"]["attachments"] == 2

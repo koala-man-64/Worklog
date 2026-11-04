@@ -402,7 +402,7 @@ function LinkedWork({ repo }: { repo: Repository }) {
   );
 }
 // Documents kept with the repository, such as designs and runbooks. As with links, only an
-// active record takes new ones; an archived record keeps its files readable.
+// active record takes new ones; an archived record's files can still be archived and recovered.
 function RepositoryFiles({ repo }: { repo: Repository }) {
   const owner = `/attachments?ownerType=repository&ownerId=${encodeURIComponent(repo.id)}`;
   const active = useData<List<Attachment>>(owner);
@@ -420,20 +420,18 @@ function RepositoryFiles({ repo }: { repo: Repository }) {
         ownerType="repository"
         ownerId={repo.id}
         files={active.data?.items ?? []}
-        readOnly={repo.archived}
+        attach={!repo.archived}
         heading={false}
       />
-      {!repo.archived && (
-        <RecoverRecords
-          groups={[
-            {
-              label: "Files",
-              path: "attachments",
-              records: archived.data?.items ?? [],
-            },
-          ]}
-        />
-      )}
+      <RecoverRecords
+        groups={[
+          {
+            label: "Files",
+            path: "attachments",
+            records: archived.data?.items ?? [],
+          },
+        ]}
+      />
     </section>
   );
 }

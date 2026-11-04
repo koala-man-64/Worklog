@@ -367,6 +367,7 @@ export function Files({
   references,
   readOnly = false,
   heading = true,
+  attach = true,
 }: {
   ownerType: string;
   ownerId: string;
@@ -375,6 +376,8 @@ export function Files({
   readOnly?: boolean;
   /** False where a tab already names the section. */
   heading?: boolean;
+  /** False where the owner takes no new files but can still archive its own. */
+  attach?: boolean;
 }) {
   const action = useAction();
   const [error, setError] = useState("");
@@ -410,13 +413,13 @@ export function Files({
   return (
     <section className="files">
       {heading && <h3>Files</h3>}
-      {!readOnly && !references && (
+      {!readOnly && attach && !references && (
         <label className="file-upload">
           Attach a file
           <input type="file" onChange={upload} />
         </label>
       )}
-      {!readOnly && references && (
+      {!readOnly && attach && references && (
         <div className="file-add">
           <div
             className="thread-filter"
