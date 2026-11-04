@@ -6,6 +6,7 @@ identity: the agent keeps seeing, editing, evidencing and submitting what it wro
 while other agents still never see an unsubmitted draft.
 """
 
+import secrets
 import uuid
 
 import pytest
@@ -83,3 +84,19 @@ def test_another_agents_draft_stays_private_after_either_rotates(client, wire):
         assert call(wire, "PATCH", f"/proposals/{draft['id']}", {"revision": draft["revision"], "title": "Taken"},
                     token).status_code == 404
     assert listed(wire, rotated_writer["token"]) == [draft["id"]]
+
+
+def test_a_registered_agent_and_its_sponsor_keep_their_drafts_apart(client, wire):
+    # Registration gives the new credential an identity of its own, never its sponsor's.
+    sponsor = ok(call(client, "POST", "/credentials", {"label": "Shared agents"}))
+    child_token = secrets.token_urlsafe(32)
+    child = ok(call(wire, "POST", "/agent-registrations",
+                    {"label": "Parser fix", "token": child_token, "chatId": str(uuid.uuid4())}, sponsor["token"]))
+    assert child["agentId"] != sponsor["agentId"]
+    item = ok(call(client, "POST", "/work-items", {"title": "Target"}))
+    sponsors_draft = proposal_for(wire, sponsor["token"], item)
+    childs_draft = proposal_for(wire, child_token, item)
+    assert listed(wire, child_token) == [childs_draft["id"]]
+    assert listed(wire, sponsor["token"]) == [sponsors_draft["id"]]
+    assert call(wire, "GET", f"/proposals/{sponsors_draft['id']}", token=child_token).status_code == 404
+    assert call(wire, "GET", f"/proposals/{childs_draft['id']}", token=sponsor["token"]).status_code == 404
