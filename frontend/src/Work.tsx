@@ -5,6 +5,7 @@ import { commands } from "./commands";
 import { useAction, useData, useCommand } from "./hooks";
 import {
   AgentChatsSection,
+  Checklist,
   DraftField,
   Empty,
   ErrorMessage,
@@ -29,6 +30,7 @@ import {
 import { Coordination } from "./Coordination";
 import { TicketsSection } from "./Tickets";
 import { Icon } from "./icons";
+import { RankButton, RankPicker, useRank } from "./StackRank";
 export function CreateItem({ day }: { day?: string }) {
   const [title, setTitle] = useState("");
   const [repositoryIds, setRepositoryIds] = useState<string[]>([]);
@@ -101,19 +103,44 @@ function WorkList() {
   const statusQuery = STATUSES.filter((s) => statuses.includes(s))
     .map((s) => "&status=" + s)
     .join("");
-  const list = useData<List<Item>>(
-    `/work-items?view=${view}&archived=${archived}&limit=100&offset=${offset}&q=${encodeURIComponent(q)}${statusQuery}${personId ? "&personId=" + encodeURIComponent(personId) : ""}${repositoryId ? "&repositoryId=" + encodeURIComponent(repositoryId) : ""}`,
-  );
+  const page = (from: number, limit: number) =>
+    `/work-items?view=${view}&archived=${archived}&limit=${limit}&offset=${from}&q=${encodeURIComponent(q)}${statusQuery}${personId ? "&personId=" + encodeURIComponent(personId) : ""}${repositoryId ? "&repositoryId=" + encodeURIComponent(repositoryId) : ""}`;
+  const list = useData<List<Item>>(page(offset, 100));
   const action = useAction();
-  const move = (id: string, delta: number) => {
-    action.mutate({
-      path: `/work-items/${id}/move`,
-      body: {
-        direction: delta < 0 ? "up" : "down",
-        revision: list.data?.collectionRevision,
-      },
-    });
+  const rank = useRank();
+  // One row's rank picker is open at a time.
+  const [ranking, setRanking] = useState<string | null>(null);
+  // Reading the row beside one at a page's edge, before moving past it.
+  const [seeking, setSeeking] = useState(false);
+  const [seekError, setSeekError] = useState<unknown>(null);
+  const items = list.data?.items ?? [];
+  const total = list.data?.total ?? 0;
+  const rankedCount = list.data?.rankedCount ?? 0;
+  // Up and down move past the row shown beside this one, which a filter may leave a few ranks
+  // away. At a page's edge that row is on the next or previous page, so it is read first; with
+  // no row there at all, the item moves one rank.
+  const move = async (index: number, delta: number) => {
+    const item = items[index];
+    if (!item.rank) return;
+    setSeekError(null);
+    let beside: Item | undefined = items[index + delta];
+    const at = offset + index + delta;
+    if (!beside && at >= 0 && at < total) {
+      setSeeking(true);
+      try {
+        beside = (await request<List<Item>>(page(at, 1))).items[0];
+      } catch (error) {
+        setSeekError(error);
+        return;
+      } finally {
+        setSeeking(false);
+      }
+    }
+    const target = beside?.rank ?? item.rank + delta;
+    if (target < 1 || target > rankedCount) return;
+    rank.mutate({ id: item.id, rank: target, revision: item.revision });
   };
+  const busy = action.isPending || rank.isPending || seeking || list.isFetching;
   return (
     <>
       <header>
@@ -198,15 +225,27 @@ function WorkList() {
           ))}
         </select>
       </div>
-      <ErrorMessage error={list.error || action.error} />
+      <ErrorMessage
+        error={list.error || action.error || rank.error || seekError}
+      />
       {list.isPending ? (
         <p>Loading work…</p>
-      ) : !list.data?.items.length ? (
+      ) : !items.length ? (
         <Empty>No work items yet. Add your first one above.</Empty>
       ) : (
         <div className="work-list">
-          {list.data.items.map((item) => (
+          {items.map((item, index) => (
             <article className="work-row" key={item.id}>
+              <span className="rank-cell">
+                <RankButton
+                  item={item}
+                  open={ranking === item.id}
+                  disabled={busy}
+                  onToggle={() =>
+                    setRanking(ranking === item.id ? null : item.id)
+                  }
+                />
+              </span>
               <span className={"status-dot " + item.status} />
               <div>
                 <a className="item-title" href={"#work/" + item.id}>
@@ -217,6 +256,13 @@ function WorkList() {
                 <small>
                   {item.description?.slice(0, 1000) || "Ready for a next step"}
                 </small>
+                {ranking === item.id && item.rank && (
+                  <RankPicker
+                    item={item}
+                    rankedCount={rankedCount}
+                    onClose={() => setRanking(null)}
+                  />
+                )}
               </div>
               <StatusSelect
                 value={item.status}
@@ -231,15 +277,15 @@ function WorkList() {
               <div className="reorder">
                 <button
                   aria-label={"Move " + item.title + " up"}
-                  onClick={() => move(item.id, -1)}
-                  disabled={archived || !item.isBacklog || action.isPending}
+                  onClick={() => void move(index, -1)}
+                  disabled={!item.rank || item.rank === 1 || busy}
                 >
                   <Icon name="up" />
                 </button>
                 <button
                   aria-label={"Move " + item.title + " down"}
-                  onClick={() => move(item.id, 1)}
-                  disabled={archived || !item.isBacklog || action.isPending}
+                  onClick={() => void move(index, 1)}
+                  disabled={!item.rank || item.rank >= rankedCount || busy}
                 >
                   <Icon name="down" />
                 </button>
@@ -295,7 +341,7 @@ export function ItemDetail({ id }: { id: string }) {
     enabled: !!activeRoadId,
   });
   const action = useAction();
-  const [task, setTask] = useState("");
+  const [ranking, setRanking] = useState(false);
   const [date, setDate] = useState("");
   if (!item)
     return (
@@ -319,6 +365,12 @@ export function ItemDetail({ id }: { id: string }) {
       <header>
         <h1>{item.title}</h1>
         <div className="toolbar">
+          <RankButton
+            item={item}
+            open={ranking}
+            onToggle={() => setRanking(!ranking)}
+            suffix={"of " + item.rankedCount}
+          />
           <StatusSelect
             value={item.status}
             onChange={(status) => patch({ status })}
@@ -334,6 +386,13 @@ export function ItemDetail({ id }: { id: string }) {
             {item.archived ? "Recover" : "Archive"}
           </button>
         </div>
+        {ranking && item.rank && (
+          <RankPicker
+            item={item}
+            rankedCount={item.rankedCount}
+            onClose={() => setRanking(false)}
+          />
+        )}
       </header>
       <ErrorMessage error={action.error} />
       <DraftField
@@ -463,75 +522,7 @@ export function ItemDetail({ id }: { id: string }) {
             <button>Plan for day</button>
           </form>
         </section>
-        <section>
-          <h3>Checklist</h3>
-          {item.tasks
-            ?.filter((t) => !t.archived)
-            .map((t) => (
-              <div className="line" key={t.id}>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={t.done}
-                    onChange={(e) =>
-                      action.mutate({
-                        path: "/tasks/" + t.id,
-                        method: "PATCH",
-                        body: { revision: t.revision, done: e.target.checked },
-                      })
-                    }
-                  />
-                  {t.text}
-                </label>
-                <button
-                  className="quiet"
-                  onClick={() =>
-                    action.mutate({
-                      path: `/tasks/${t.id}/archive`,
-                      body: { revision: t.revision },
-                    })
-                  }
-                >
-                  Archive
-                </button>
-                <details className="task-edit">
-                  <summary>Edit task</summary>
-                  <DraftField
-                    draftKey={"task-" + t.id}
-                    label="Task text"
-                    initial={t.text}
-                    revision={t.revision}
-                    multiline={false}
-                    save={(text, revision) =>
-                      request("/tasks/" + t.id, "PATCH", { text, revision })
-                    }
-                  />
-                </details>
-              </div>
-            ))}
-          <form
-            className="inline"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              await action
-                .mutateAsync({
-                  path: "/tasks",
-                  body: { itemId: id, text: task, done: false },
-                })
-                .then(() => setTask(""))
-                .catch(() => undefined);
-            }}
-          >
-            <input
-              aria-label="New checklist task"
-              value={task}
-              onChange={(e) => setTask(e.target.value)}
-              placeholder="Small next action"
-              required
-            />
-            <button>Add</button>
-          </form>
-        </section>
+        <Checklist itemId={id} tasks={item.tasks ?? []} />
       </div>
       <RepositoryPicker
         value={item.repositoryIds ?? []}

@@ -9,6 +9,7 @@ import { ItemDetail, Work } from "./Work";
 
 const state = vi.hoisted(() => ({
   item: null as unknown,
+  list: null as unknown,
   paths: [] as string[],
 }));
 vi.mock("./hooks", async (importOriginal) => ({
@@ -18,7 +19,9 @@ vi.mock("./hooks", async (importOriginal) => ({
     return {
       data: path.startsWith("/work-items/")
         ? state.item
-        : { items: [], total: 0 },
+        : path.startsWith("/work-items?") && state.list
+          ? state.list
+          : { items: [], total: 0 },
     };
   },
 }));
@@ -41,9 +44,37 @@ function item(fields: Partial<Detail>): Detail {
     references: [],
     history: [],
     dailyEntries: [],
+    rank: 2,
+    rankedCount: 5,
     ...fields,
   };
 }
+const writes = () =>
+  vi
+    .mocked(globalThis.fetch)
+    .mock.calls.filter(([, init]) => (init?.method ?? "GET") !== "GET")
+    .map(([url, init]) => [String(url), JSON.parse(String(init?.body))]);
+const respond = () =>
+  vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(async () => new Response("{}", { status: 200 }));
+// A row's revision tells which item a move was checked against.
+const row = (
+  id: string,
+  title: string,
+  rank: number | null,
+  status = "open",
+) => ({
+  id,
+  title,
+  rank,
+  status,
+  description: "",
+  revision: 10 + (rank ?? 0),
+  archived: false,
+  adoUrl: null,
+  stepId: null,
+});
 const newClient = () =>
   new QueryClient({ defaultOptions: { queries: { retry: false } } });
 function view(client: QueryClient) {
@@ -59,7 +90,257 @@ beforeEach(() => {
   // Acknowledged revision chains are module-level; a fresh data context keeps tests independent.
   setDataContext("work-test-" + crypto.randomUUID());
   state.item = item({});
+  state.list = null;
   state.paths = [];
+});
+it("ranks the work list and moves a row past the one shown beside it", async () => {
+  // A filtered page: ranks 1, 4 and 5 of 6 show, with done work after them.
+  state.list = {
+    items: [
+      row("a", "Alpha", 1),
+      row("b", "Bravo", 4),
+      row("c", "Charlie", 5),
+      row("d", "Delta", null, "done"),
+    ],
+    total: 4,
+    rankedCount: 6,
+  };
+  respond();
+  render(
+    <QueryClientProvider client={newClient()}>
+      <Work />
+    </QueryClientProvider>,
+  );
+  expect(
+    screen.getByRole("button", { name: "Change stack rank of Bravo, now 4" }),
+  ).toHaveTextContent("#4");
+  expect(
+    screen.queryByRole("button", { name: /Change stack rank of Delta/ }),
+  ).toBeNull();
+  expect(screen.getByRole("button", { name: "Move Alpha up" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Move Delta up" })).toBeDisabled();
+  expect(
+    screen.getByRole("button", { name: "Move Delta down" }),
+  ).toBeDisabled();
+  await userEvent.click(screen.getByRole("button", { name: "Move Bravo up" }));
+  // Charlie has no ranked row below it on this page, so it moves one rank.
+  await userEvent.click(
+    screen.getByRole("button", { name: "Move Charlie down" }),
+  );
+  await waitFor(() => expect(writes()).toHaveLength(2));
+  expect(writes()).toEqual([
+    ["/api/v1/work-items/b/rank", { revision: 14, rank: 1 }],
+    ["/api/v1/work-items/c/rank", { revision: 15, rank: 6 }],
+  ]);
+});
+it("reads the row beside one at a page's edge before moving past it", async () => {
+  state.list = {
+    items: [row("a", "Alpha", 1), row("b", "Bravo", 3)],
+    total: 3,
+    rankedCount: 9,
+  };
+  const network = vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(
+      async (url) =>
+        new Response(
+          JSON.stringify(
+            String(url).includes("/work-items?")
+              ? { items: [row("c", "Charlie", 7)], total: 3 }
+              : {},
+          ),
+          { status: 200 },
+        ),
+    );
+  render(
+    <QueryClientProvider client={newClient()}>
+      <Work />
+    </QueryClientProvider>,
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Move Bravo down" }),
+  );
+  await waitFor(() => expect(writes()).toHaveLength(1));
+  const read = network.mock.calls.find(([url]) =>
+    String(url).includes("/work-items?"),
+  )!;
+  expect(String(read[0])).toContain("limit=1&offset=2");
+  expect(writes()).toEqual([
+    ["/api/v1/work-items/b/rank", { revision: 13, rank: 7 }],
+  ]);
+});
+it("moves a row to the rank typed into its picker", async () => {
+  state.list = {
+    items: [row("a", "Alpha", 1), row("b", "Bravo", 2)],
+    total: 2,
+    rankedCount: 2,
+  };
+  respond();
+  render(
+    <QueryClientProvider client={newClient()}>
+      <Work />
+    </QueryClientProvider>,
+  );
+  const open = screen.getByRole("button", {
+    name: "Change stack rank of Bravo, now 2",
+  });
+  await userEvent.click(open);
+  expect(open).toHaveAttribute("aria-expanded", "true");
+  const input = screen.getByRole("spinbutton", {
+    name: "New stack rank for Bravo",
+  });
+  expect(input).toHaveFocus();
+  expect(screen.getByRole("button", { name: "Move" })).toBeDisabled();
+  await userEvent.clear(input);
+  await userEvent.type(input, "1");
+  await userEvent.click(screen.getByRole("button", { name: "Move" }));
+  await waitFor(() =>
+    expect(writes()).toEqual([
+      ["/api/v1/work-items/b/rank", { revision: 12, rank: 1 }],
+    ]),
+  );
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("spinbutton", { name: "New stack rank for Bravo" }),
+    ).toBeNull(),
+  );
+});
+it("shows the item's stack rank on its page, where the picker sets it", async () => {
+  respond();
+  render(view(newClient()));
+  const open = screen.getByRole("button", {
+    name: "Change stack rank of Release checks, now 2",
+  });
+  expect(open).toHaveTextContent("#2 of 5");
+  await userEvent.click(open);
+  const input = screen.getByRole("spinbutton", {
+    name: "New stack rank for Release checks",
+  });
+  await userEvent.keyboard("{Escape}");
+  expect(input).not.toBeInTheDocument();
+  await userEvent.click(open);
+  await userEvent.clear(
+    screen.getByRole("spinbutton", {
+      name: "New stack rank for Release checks",
+    }),
+  );
+  await userEvent.type(
+    screen.getByRole("spinbutton", {
+      name: "New stack rank for Release checks",
+    }),
+    "5{Enter}",
+  );
+  await waitFor(() =>
+    expect(writes()).toEqual([
+      [`/api/v1/work-items/${ID}/rank`, { revision: 3, rank: 5 }],
+    ]),
+  );
+});
+it("shows done work without a stack rank", () => {
+  state.item = item({ status: "done", rank: null, rankedCount: 4 });
+  render(view(newClient()));
+  expect(
+    screen.queryByRole("button", { name: /Change stack rank/ }),
+  ).toBeNull();
+});
+it("keeps the item's tasks as a checklist that adds, ticks and marks done ones", async () => {
+  state.item = item({
+    tasks: [
+      {
+        id: "t1",
+        revision: 1,
+        archived: false,
+        text: "Draft notes",
+        done: true,
+        itemId: ID,
+      },
+      {
+        id: "t2",
+        revision: 4,
+        archived: false,
+        text: "Ask review",
+        done: false,
+        itemId: ID,
+      },
+      {
+        id: "t3",
+        revision: 2,
+        archived: true,
+        text: "Dropped",
+        done: false,
+        itemId: ID,
+      },
+    ],
+  });
+  respond();
+  render(view(newClient()));
+  // The archived task waits under the archived records, with a "Tasks" heading of its own.
+  const tasks = screen
+    .getByRole("heading", { name: "Tasks 1 of 2 done" })
+    .closest("section")!;
+  expect(within(tasks).queryByText("Dropped")).toBeNull();
+  expect(within(tasks).getByText("Draft notes").closest(".task")).toHaveClass(
+    "done",
+  );
+  await userEvent.click(
+    within(tasks).getByRole("checkbox", { name: "Ask review" }),
+  );
+  await userEvent.type(
+    within(tasks).getByRole("textbox", { name: "New task" }),
+    "Tag the release",
+  );
+  await userEvent.click(
+    within(tasks).getByRole("button", { name: "Add task" }),
+  );
+  await waitFor(() => expect(writes()).toHaveLength(2));
+  expect(writes()).toEqual([
+    ["/api/v1/tasks/t2", { revision: 4, done: true }],
+    ["/api/v1/tasks", { itemId: ID, text: "Tag the release", done: false }],
+  ]);
+});
+it("ticks a task at once and takes the tick back when the save is refused", async () => {
+  state.item = item({
+    tasks: [
+      {
+        id: "t1",
+        revision: 4,
+        archived: false,
+        text: "Ask review",
+        done: false,
+        itemId: ID,
+      },
+    ],
+  });
+  let refuse: () => void = () => undefined;
+  vi.spyOn(globalThis, "fetch").mockImplementation(
+    () =>
+      new Promise<Response>((resolve) => {
+        refuse = () =>
+          resolve(
+            new Response(
+              JSON.stringify({
+                error: { code: "conflict", message: "This record changed." },
+              }),
+              { status: 409 },
+            ),
+          );
+      }),
+  );
+  render(view(newClient()));
+  const box = screen.getByRole("checkbox", { name: "Ask review" });
+  await userEvent.click(box);
+  // Ticked while the save is out, and held still so a second click can't race it.
+  expect(box).toBeChecked();
+  expect(box).toBeDisabled();
+  expect(
+    screen.getByRole("heading", { name: "Tasks 1 of 1 done" }),
+  ).toBeInTheDocument();
+  refuse();
+  await waitFor(() => expect(box).not.toBeChecked());
+  expect(box).toBeEnabled();
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "This record changed.",
+  );
 });
 it("filters the work list by any of the pressed states", async () => {
   render(
