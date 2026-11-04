@@ -111,7 +111,7 @@ Fix: insert directly after the bulk delete. Findings: B-01.
 
 #### 0.4 · Rotating a credential keeps the agent's drafts
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branch: `claude/rotation-keeps-drafts` · PR: [#90](https://github.com/koala-man-64/Worklog/pull/90)
 
 Rotation binds a new credential id to the same agent identity. Proposal ownership compares credential ids, so the agent can no longer see, edit or submit its own drafts.
 
