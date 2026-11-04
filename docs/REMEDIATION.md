@@ -1,5 +1,7 @@
 # Worklog remediation plan
 
+> **Superseded on 2026-11-04 by [CONSOLIDATION.md](CONSOLIDATION.md).** Waves 0 and 1 merged. Waves 2 to 5 never started, while about 50 feature PRs landed outside the wave gates. Every open item and decision below now lives in CONSOLIDATION.md, which also maps each REM item to its new step. This file stays as the record of the 2026-10-28 audit; don't update its statuses.
+
 Tracking document for the findings of the 2026-10-28 audit of commit `d19a39e`. Work runs in sequential waves; inside a wave, streams run in parallel and own separate code. At audit time 87 backend and 16 frontend tests passed; the Playwright suite was not run because the personal instance held port 8877.
 
 Waves 0–4 change no database schema and add no runtime dependency. Wave 5 (schema v2) is optional and gated on decision D6.
