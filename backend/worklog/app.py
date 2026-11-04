@@ -327,10 +327,11 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         return response
 
     @app.get("/api/v1/work-items")
-    def items(view: str = "all", archived: bool = False, status: str | None = None,
+    def items(view: str = "all", archived: bool = False,
+              status: list[str] | None = Query(None, description="Repeat to match any of several states"),
               roadmapId: str | None = None, personId: str | None = None, q: str = "", repositoryId: str | None = None,
               limit: int = Query(100, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
-        return work.list(view=view, archived=archived, state=status, roadmap_id=roadmapId, person_id=personId, limit=limit, offset=offset, q=q, repository_id=repositoryId)
+        return work.list(view=view, archived=archived, states=status, roadmap_id=roadmapId, person_id=personId, limit=limit, offset=offset, q=q, repository_id=repositoryId)
 
     @app.post("/api/v1/work-items")
     def create_item(request: Request, body: m.ItemCreate) -> dict:

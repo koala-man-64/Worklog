@@ -372,6 +372,32 @@ def test_paged_work_move_and_search_route_ownership(client):
     assert result["id"] == note["id"] and result["routeType"] == "work" and result["routeId"] == values[0]["id"]
 
 
+def test_work_is_filtered_by_any_of_several_states(client):
+    made = {}
+    for state in ("open", "doing", "blocked", "done"):
+        created = item(client, title=f"Stateful {state}")
+        if state != "open":
+            r = write(client, "PATCH", f"/work-items/{created['id']}", {"revision": created["revision"], "status": state})
+            assert r.status_code == 200, r.text
+        made[state] = created["id"]
+
+    def ids(query):
+        r = client.get("/api/v1/work-items?q=Stateful&" + query)
+        assert r.status_code == 200, r.text
+        return {i["id"] for i in r.json()["items"]}
+
+    assert ids("status=blocked") == {made["blocked"]}
+    assert ids("status=open&status=doing&status=blocked") == {made["open"], made["doing"], made["blocked"]}
+    assert ids("status=done&status=done") == {made["done"]}
+    # No state, or an empty one as before, matches every state.
+    assert ids("") == ids("status=") == set(made.values())
+    # States narrow the other filters rather than widening them.
+    assert ids("view=backlog&status=open&status=done") == {made["open"]}
+    refused = client.get("/api/v1/work-items?status=open&status=later")
+    assert refused.status_code == 422
+    assert refused.json()["error"]["fields"] == {"status": "invalid"}
+
+
 def test_interrupted_restore_startup_fails_before_opening_database(tmp_path):
     from worklog.common import AppError
     path = tmp_path / "worklog.sqlite3"

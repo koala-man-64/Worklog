@@ -196,6 +196,9 @@ export function ResizeHandle({
     />
   );
 }
+export const STATUSES: Status[] = ["open", "doing", "blocked", "done"];
+export const statusLabel = (status: Status) =>
+  status[0].toUpperCase() + status.slice(1);
 export function StatusSelect({
   value,
   onChange,
@@ -216,9 +219,9 @@ export function StatusSelect({
       value={value}
       onChange={(e) => onChange(e.target.value as Status)}
     >
-      {["open", "doing", "blocked", "done"].map((s) => (
+      {STATUSES.map((s) => (
         <option key={s} value={s}>
-          {s[0].toUpperCase() + s.slice(1)}
+          {statusLabel(s)}
         </option>
       ))}
     </select>

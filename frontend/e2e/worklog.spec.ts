@@ -390,6 +390,61 @@ test("native day drag reorders actual entries without losing an outcome", async 
       .getByLabel("Outcome / next action"),
   ).toHaveValue("Keep this outcome");
 });
+test("open work is planned for the day and rescheduled from beside its title", async ({
+  page,
+  baseURL,
+}) => {
+  const origin = new URL(baseURL!).origin;
+  const title = "Open work " + Date.now();
+  // Created before the page loads and outside the day, so it waits in Open work.
+  const boot = await page.request.post("/api/v1/session/bootstrap", {
+    headers: { Origin: origin, "X-Worklog-Bootstrap": "1" },
+    data: {},
+  });
+  const { csrfToken } = await boot.json();
+  const created = await page.request.post("/api/v1/work-items", {
+    headers: {
+      Origin: origin,
+      "X-CSRF-Token": csrfToken,
+      "Idempotency-Key": crypto.randomUUID(),
+    },
+    data: { title },
+  });
+  expect(created.ok()).toBeTruthy();
+  await page.goto("/");
+  const open = page.locator("section.open-work");
+  await open.getByRole("textbox", { name: "Find open work" }).fill(title);
+  await open
+    .getByRole("button", { name: `Work on ${title} today`, exact: true })
+    .click();
+  const entry = page
+    .locator(".day-entry")
+    .filter({ has: page.getByRole("link", { name: title, exact: true }) });
+  await expect(entry).toBeVisible();
+  await expect(
+    open.getByRole("link", { name: title, exact: true }),
+  ).toHaveCount(0);
+  const today = await page.getByLabel("Working day").inputValue();
+  const next = new Date(Date.parse(today + "T12:00:00Z") + 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  await entry
+    .getByRole("button", { name: "Reschedule " + title, exact: true })
+    .click();
+  await entry.getByLabel("New date for " + title).fill(next);
+  await entry.getByRole("button", { name: "Move", exact: true }).click();
+  // The picker closes, and this day keeps its record of the entry, no longer planned.
+  await expect(
+    entry.getByRole("button", { name: "Move", exact: true }),
+  ).toHaveCount(0);
+  await expect(entry.getByLabel("Planned", { exact: true })).not.toBeChecked();
+  await page.goto("/#today/" + next);
+  const moved = page
+    .locator(".day-entry")
+    .filter({ has: page.getByRole("link", { name: title, exact: true }) });
+  await expect(moved).toBeVisible();
+  await expect(moved.getByLabel("Planned", { exact: true })).toBeChecked();
+});
 test("a link changed in another tab survives tabbing through a stale field", async ({
   context,
   page,

@@ -73,14 +73,19 @@
             "schema": {
               "anyOf": [
                 {
-                  "type": "string"
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
                 },
                 {
                   "type": "null"
                 }
               ],
+              "description": "Repeat to match any of several states",
               "title": "Status"
-            }
+            },
+            "description": "Repeat to match any of several states"
           },
           {
             "name": "roadmapId",
