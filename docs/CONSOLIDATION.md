@@ -127,7 +127,7 @@ Until 1.4 lands, the chat page marks every recipient whose identity didn't regis
 
 #### 0.6 · Settings lists backups without hashing them
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branch: `claude/settings-backup-hashes` · PR: [#92](https://github.com/koala-man-64/Worklog/pull/92)
 
 Every `GET /settings` hashes every backup file (`recovery.py`, `list_backups`), which takes seconds once backups total a few gigabytes. The page never shows the hashes.
 
