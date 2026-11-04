@@ -49,6 +49,7 @@ export function RepositoryPicker({
   label = "Repositories",
   heading,
   folded = false,
+  labelHidden = false,
 }: {
   value: string[];
   onChange: (ids: string[]) => void;
@@ -57,6 +58,8 @@ export function RepositoryPicker({
   /** Shows the label as a section heading, for pages made of sections. */
   heading?: "h2" | "h3";
   folded?: boolean;
+  /** For a picker a tab already names: the label still names its group for assistive technology. */
+  labelHidden?: boolean;
 }) {
   const labelId = useId();
   const Root = heading ? "section" : "div";
@@ -70,7 +73,11 @@ export function RepositoryPicker({
       <Label
         id={labelId}
         className={
-          folded ? "visually-hidden" : heading ? undefined : "picker-label"
+          folded || labelHidden
+            ? "visually-hidden"
+            : heading
+              ? undefined
+              : "picker-label"
         }
       >
         {label}

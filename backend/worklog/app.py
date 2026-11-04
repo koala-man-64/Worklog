@@ -355,6 +355,11 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         p = body.model_dump()
         return mutate(request, p, lambda c, a: work.move_backlog(c, a, identity, p))
 
+    @app.post("/api/v1/work-items/{identity}/rank")
+    def rank_item(identity: str, request: Request, body: m.Rank) -> dict:
+        p = body.model_dump()
+        return mutate(request, p, lambda c, a: work.rank(c, a, identity, p))
+
     @app.post("/api/v1/work-items/{identity}/{verb}")
     def archive_item(identity: str, verb: str, request: Request, body: m.Expected) -> dict:
         if verb not in {"archive", "recover"}:

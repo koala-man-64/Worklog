@@ -118,10 +118,8 @@ it("uses historical API summary and makes archived actuals read only", () => {
   expect(
     screen.getByRole("button", { name: "Reschedule Archived work" }),
   ).toBeDisabled();
-  // An archived item's scratchpad, links and files stay on its own page.
-  expect(
-    screen.queryByText("Scratchpad, links, files and repositories"),
-  ).toBeNull();
+  // An archived item's tasks, scratchpad, links and files stay on its own page.
+  expect(screen.queryByRole("tablist")).toBeNull();
 });
 
 it("keeps an entry's controls on its title row and the day's counts beside its heading", () => {
@@ -156,46 +154,183 @@ it("keeps an entry's controls on its title row and the day's counts beside its h
   expect(heading.querySelector(".day-summary")).not.toBeNull();
 });
 
-it("reads an entry's scratchpad, links and files only once they are opened", async () => {
+const release = () => ({
+  id: "release",
+  notes: [
+    {
+      id: "pad",
+      revision: 3,
+      archived: false,
+      title: "Scratchpad",
+      text: "Release notes",
+      ownerType: "item",
+      ownerId: "release",
+    },
+  ],
+  tasks: [
+    {
+      id: "t1",
+      revision: 1,
+      archived: false,
+      text: "Tag it",
+      done: true,
+      itemId: "release",
+    },
+    {
+      id: "t2",
+      revision: 5,
+      archived: false,
+      text: "Announce it",
+      done: false,
+      itemId: "release",
+    },
+  ],
+  links: [],
+  attachments: [],
+  references: [],
+});
+
+it("shows an entry's outcome first and reads its work item only once another tab opens", async () => {
+  state.day = day("2026-10-28", [
+    entry("release", "Ship the release", "doing", {
+      outcome: "Cut the branch",
+      counts: { tasks: 2, tasksDone: 1, links: 3, files: 0, scratchpad: true },
+    }),
+  ]);
+  state.detail = release();
+  render(view("2026-10-28", "2026-10-28"));
+  const tabs = screen.getByRole("tablist", { name: "Ship the release" });
+  // The counts say what each tab holds before anything is read.
+  expect(
+    within(tabs)
+      .getAllByRole("tab")
+      .map((tab) => tab.textContent),
+  ).toEqual([
+    "Outcome / next action",
+    "Tasks1/2",
+    "Scratchpad•",
+    "Links3",
+    "Files",
+    "Repositories",
+  ]);
+  expect(
+    within(tabs).getByRole("tab", { name: "Tasks, 1 of 2 done" }),
+  ).toHaveAttribute("aria-selected", "false");
+  expect(
+    within(tabs).getByRole("tab", { name: "Outcome / next action" }),
+  ).toHaveAttribute("aria-selected", "true");
+  expect(
+    screen.getByRole("textbox", { name: "Outcome / next action" }),
+  ).toHaveValue("Cut the branch");
+  expect(state.paths).not.toContain("/work-items/release");
+  await userEvent.click(
+    within(tabs).getByRole("tab", { name: "Scratchpad, has text" }),
+  );
+  expect(
+    screen.getByRole("textbox", { name: "Scratchpad (Markdown)" }),
+  ).toHaveValue("Release notes");
+  expect(state.paths).toContain("/work-items/release");
+  // The outcome keeps its place, hidden, so a draft in it survives the switch.
+  expect(
+    screen.getByRole("textbox", {
+      name: "Outcome / next action",
+      hidden: true,
+    }),
+  ).not.toBeVisible();
+  const panel = screen.getByRole("tabpanel", { name: "Scratchpad, has text" });
+  expect(panel).toBeVisible();
+  // The tab names the panel; it repeats no heading of its own.
+  expect(within(panel).queryByRole("heading")).toBeNull();
+});
+
+it("ticks an entry's tasks off and adds more from its Tasks tab", async () => {
   state.day = day("2026-10-28", [
     entry("release", "Ship the release", "doing"),
   ]);
-  state.detail = {
-    id: "release",
-    notes: [
-      {
-        id: "pad",
-        revision: 3,
-        archived: false,
-        title: "Scratchpad",
-        text: "Release notes",
-        ownerType: "item",
-        ownerId: "release",
-      },
-    ],
-    links: [],
-    attachments: [],
-    references: [],
-  };
+  state.detail = release();
+  const network = vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(async () => new Response("{}", { status: 200 }));
   render(view("2026-10-28", "2026-10-28"));
-  const details = screen
-    .getByText("Scratchpad, links, files and repositories")
-    .closest("details")!;
-  expect(state.paths).not.toContain("/work-items/release");
-  expect(screen.queryByLabelText("Scratchpad (Markdown)")).toBeNull();
-  details.open = true;
-  fireEvent(details, new Event("toggle"));
-  expect(await screen.findByLabelText("Scratchpad (Markdown)")).toHaveValue(
-    "Release notes",
+  await userEvent.click(screen.getByRole("tab", { name: "Tasks" }));
+  const panel = screen.getByRole("tabpanel", { name: "Tasks" });
+  expect(within(panel).getByRole("checkbox", { name: "Tag it" })).toBeChecked();
+  await userEvent.click(
+    within(panel).getByRole("checkbox", { name: "Announce it" }),
   );
-  expect(state.paths).toContain("/work-items/release");
+  await userEvent.type(
+    within(panel).getByRole("textbox", { name: "New task" }),
+    "Close the milestone{Enter}",
+  );
+  await waitFor(() => expect(writes(network)).toHaveLength(2));
   expect(
-    within(details).getByRole("heading", { name: /^Links/ }),
-  ).toBeInTheDocument();
-  expect(within(details).getByLabelText("Attach a file")).toBeInTheDocument();
+    writes(network).map(([url, init]) => [url, JSON.parse(String(init?.body))]),
+  ).toEqual([
+    ["/api/v1/tasks/t2", { revision: 5, done: true }],
+    [
+      "/api/v1/tasks",
+      { itemId: "release", text: "Close the milestone", done: false },
+    ],
+  ]);
 });
 
-it("shows the repositories work links to, and links another from an entry's details", async () => {
+it("moves between an entry's tabs with the arrow keys, Home and End", async () => {
+  state.day = day("2026-10-28", [
+    entry("release", "Ship the release", "doing"),
+  ]);
+  state.detail = release();
+  render(view("2026-10-28", "2026-10-28"));
+  const tab = (name: string) => screen.getByRole("tab", { name });
+  await userEvent.click(tab("Outcome / next action"));
+  await userEvent.keyboard("{ArrowRight}");
+  expect(tab("Tasks")).toHaveFocus();
+  expect(tab("Tasks")).toHaveAttribute("aria-selected", "true");
+  await userEvent.keyboard("{End}");
+  expect(tab("Repositories")).toHaveAttribute("aria-selected", "true");
+  expect(
+    within(screen.getByRole("tabpanel", { name: "Repositories" })).getByRole(
+      "button",
+      { name: "Link repository" },
+    ),
+  ).toBeInTheDocument();
+  await userEvent.keyboard("{ArrowLeft}");
+  expect(tab("Files")).toHaveFocus();
+  expect(
+    within(screen.getByRole("tabpanel", { name: "Files" })).getByLabelText(
+      "Attach a file",
+    ),
+  ).toBeInTheDocument();
+  await userEvent.keyboard("{End}{ArrowRight}");
+  expect(tab("Outcome / next action")).toHaveFocus();
+  await userEvent.keyboard("{ArrowLeft}");
+  expect(tab("Repositories")).toHaveFocus();
+  await userEvent.keyboard("{Home}");
+  expect(tab("Outcome / next action")).toHaveAttribute("aria-selected", "true");
+  // Only the selected tab is in the page's tab order.
+  expect(
+    screen.getAllByRole("tab").map((t) => t.getAttribute("tabindex")),
+  ).toEqual(["0", "-1", "-1", "-1", "-1", "-1"]);
+});
+
+it("shows the stack rank of the day's work and of open work", () => {
+  state.day = day("2026-10-28", [
+    entry("release", "Ship the release", "doing", {
+      item: { ...item("release", "Ship the release", "doing"), rank: 2 },
+    }),
+  ]);
+  state.work = {
+    items: [{ ...item("runbook", "Write the runbook", "open"), rank: 5 }],
+    total: 1,
+  };
+  render(view("2026-10-28", "2026-10-28"));
+  const heading = screen
+    .getByRole("link", { name: "Ship the release" })
+    .closest<HTMLElement>(".section-heading")!;
+  expect(within(heading).getByText("Stack rank 2")).toBeInTheDocument();
+  expect(within(openWork()).getByText("Stack rank 5")).toBeInTheDocument();
+});
+
+it("shows the repositories work links to, and links another from an entry's Repositories tab", async () => {
   state.day = day("2026-10-28", [
     entry("release", "Ship the release", "doing", {
       item: {
@@ -251,14 +386,13 @@ it("shows the repositories work links to, and links another from an entry's deta
   expect(
     screen.getByRole("group", { name: "New work repositories" }),
   ).toBeInTheDocument();
-  const details = within(day_)
-    .getByText("Scratchpad, links, files and repositories")
-    .closest("details")!;
-  details.open = true;
-  fireEvent(details, new Event("toggle"));
-  const repositories = await within(details).findByRole("group", {
-    name: "Repositories",
-  });
+  // The tab counts the item's repositories before the item is read.
+  await userEvent.click(
+    within(day_).getByRole("tab", { name: "Repositories, 1" }),
+  );
+  const repositories = await within(
+    within(day_).getByRole("tabpanel", { name: "Repositories, 1" }),
+  ).findByRole("group", { name: "Repositories" });
   await userEvent.click(
     within(repositories).getByRole("button", { name: "Link repository" }),
   );
@@ -391,7 +525,7 @@ it("collapses an entry to its heading row and keeps it collapsed on any day", as
     within(release).getByRole("button", { name: "Expand Ship the release" }),
   ).toHaveAttribute("aria-expanded", "false");
   // The heading row stays usable, its controls included; the outcome and
-  // details are hidden but still mounted.
+  // the other tabs are hidden but still mounted.
   expect(
     within(release).getByRole("button", {
       name: "Reschedule Ship the release",
@@ -404,15 +538,18 @@ it("collapses an entry to its heading row and keeps it collapsed on any day", as
     within(release).getByRole("combobox", { name: "Status" }),
   ).toBeVisible();
   expect(
-    within(release).getByLabelText("Outcome / next action"),
+    within(release).getByRole("textbox", {
+      name: "Outcome / next action",
+      hidden: true,
+    }),
   ).not.toBeVisible();
   expect(
-    within(release).getByText("Scratchpad, links, files and repositories"),
+    within(release).getByRole("tablist", { hidden: true }),
   ).not.toBeVisible();
   expect(
-    within(entryOf("Write the runbook")).getByLabelText(
-      "Outcome / next action",
-    ),
+    within(entryOf("Write the runbook")).getByRole("textbox", {
+      name: "Outcome / next action",
+    }),
   ).toBeVisible();
   // The same work item planned on another day opens collapsed too.
   first.unmount();
@@ -426,7 +563,9 @@ it("collapses an entry to its heading row and keeps it collapsed on any day", as
   expect(
     screen.getByRole("button", { name: "Collapse Ship the release" }),
   ).toHaveAttribute("aria-expanded", "true");
-  expect(screen.getByLabelText("Outcome / next action")).toBeVisible();
+  expect(
+    screen.getByRole("textbox", { name: "Outcome / next action" }),
+  ).toBeVisible();
 });
 
 it("collapses and expands every entry of the day at once", async () => {

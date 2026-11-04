@@ -414,6 +414,57 @@
         }
       }
     },
+    "/api/v1/work-items/{identity}/rank": {
+      "post": {
+        "summary": "Rank Item",
+        "operationId": "rank_item_api_v1_work_items__identity__rank_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Rank"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Rank Item Api V1 Work Items  Identity  Rank Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/work-items/{identity}/{verb}": {
       "post": {
         "summary": "Archive Item",
@@ -8937,6 +8988,28 @@
           "revision"
         ],
         "title": "QuestionUpdate"
+      },
+      "Rank": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "rank": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Rank"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision",
+          "rank"
+        ],
+        "title": "Rank",
+        "description": "revision is the item's own; a rank past the last moves the item last."
       },
       "ReferenceCreate": {
         "properties": {
