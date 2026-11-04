@@ -1,4 +1,20 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+/** Links a repository through the picker the group names, and waits for its chip. */
+async function linkRepository(page: Page, group: string, name: string) {
+  const picker = page.getByRole("group", { name: group, exact: true });
+  await picker
+    .getByRole("button", { name: "Link repository", exact: true })
+    .click();
+  await picker
+    .getByRole("textbox", { name: group + " search", exact: true })
+    .fill(name);
+  await picker
+    .getByRole("list", { name: group + " matches", exact: true })
+    .getByRole("button", { name: new RegExp(name) })
+    .click();
+  await expect(picker.getByRole("link", { name, exact: true })).toBeVisible();
+}
 
 test("repositories connect work, named agent reports, chat badges and human run cleanup", async ({
   page,
@@ -57,15 +73,11 @@ test("repositories connect work, named agent reports, chat badges and human run 
 
   await page.goto("/#work");
   await page.getByRole("textbox", { name: "New work item" }).fill(workName);
-  await page
-    .getByRole("textbox", { name: "New work repositories search", exact: true })
-    .fill(repoName);
-  await page
-    .getByRole("group", { name: "New work repositories", exact: true })
-    .getByRole("checkbox", { name: new RegExp(repoName) })
-    .check();
+  await linkRepository(page, "New work repositories", repoName);
   await page.getByRole("button", { name: "Add work", exact: true }).click();
-  await page.getByRole("textbox", { name: "Find repository filter" }).fill(repoName);
+  await page
+    .getByRole("textbox", { name: "Find repository filter" })
+    .fill(repoName);
   await page
     .getByRole("combobox", { name: "Filter work by repository" })
     .selectOption(repositoryId);
@@ -82,19 +94,7 @@ test("repositories connect work, named agent reports, chat badges and human run 
   await page
     .getByRole("textbox", { name: "Agent chat repositories", exact: true })
     .fill("legacy/unresolved-" + suffix);
-  await page
-    .getByRole("textbox", {
-      name: "Agent chat registered repositories search",
-      exact: true,
-    })
-    .fill(repoName);
-  await page
-    .getByRole("group", {
-      name: "Agent chat registered repositories",
-      exact: true,
-    })
-    .getByRole("checkbox", { name: new RegExp(repoName) })
-    .check();
+  await linkRepository(page, "Agent chat registered repositories", repoName);
   await page.getByRole("button", { name: "Add chat", exact: true }).click();
   await expect(
     page.getByRole("link", { name: "Messages of Shared API chat" }),
@@ -198,9 +198,9 @@ test("repositories connect work, named agent reports, chat badges and human run 
   ).toBeVisible();
   await expect(
     page
-      .getByRole("group", { name: "Linked repositories", exact: true })
-      .getByRole("checkbox", { name: new RegExp(repoName) }),
-  ).toBeChecked();
+      .getByRole("group", { name: "Repositories", exact: true })
+      .getByRole("link", { name: repoName, exact: true }),
+  ).toBeVisible();
   const reviewerCard = page.locator("article.coordination-report").filter({
     has: page.getByRole("heading", { name: reviewerName, exact: true }),
   });
@@ -231,7 +231,10 @@ test("repositories connect work, named agent reports, chat badges and human run 
     .getByRole("group", { name: "Show activity by" })
     .getByRole("button", { name: "Work item", exact: true })
     .click();
-  const group = page.getByRole("list", { name: "Chats in " + workName, exact: true });
+  const group = page.getByRole("list", {
+    name: "Chats in " + workName,
+    exact: true,
+  });
   await expect(
     group.getByRole("link", { name: repoName, exact: true }),
   ).toBeVisible();
@@ -399,4 +402,93 @@ test("an agent registers the repository it reports in, and the person confirms i
   await row.getByRole("button", { name: "Confirm", exact: true }).click();
   await expect(row).toContainText(`Registered by ${label}`);
   await expect(row).not.toContainText("unreviewed");
+});
+
+test("a person links work and repositories from either side and from Today", async ({
+  page,
+  baseURL,
+}) => {
+  const origin = new URL(baseURL!).origin;
+  const suffix = crypto.randomUUID();
+  const repoName = "Linkable " + suffix;
+  const title = "Linked from the repository " + suffix;
+  const captured = "Captured on Today " + suffix;
+  await page.goto("/");
+  // Bootstrap after the page has its session, so both share one CSRF token.
+  await expect(
+    page.getByRole("heading", { name: "Today", exact: true }),
+  ).toBeVisible();
+  const boot = await page.request.post("/api/v1/session/bootstrap", {
+    headers: { Origin: origin, "X-Worklog-Bootstrap": "1" },
+    data: {},
+  });
+  const { csrfToken } = await boot.json();
+  async function write(path: string, data: unknown) {
+    const response = await page.request.post("/api/v1" + path, {
+      headers: {
+        "Idempotency-Key": crypto.randomUUID(),
+        Origin: origin,
+        "X-CSRF-Token": csrfToken,
+      },
+      data,
+    });
+    expect(response.ok(), `${path}: ${await response.text()}`).toBeTruthy();
+    return response.json();
+  }
+  const repository = await write("/repositories", {
+    name: repoName,
+    url: `https://github.com/links/${suffix}`,
+  });
+  await write("/work-items", { title });
+
+  // From the repository's page, link the work; the item shows the link.
+  await page.goto("/#repositories/" + repository.id);
+  const linkedWork = page
+    .getByRole("heading", { name: "Linked work", exact: true })
+    .locator("xpath=..");
+  await expect(
+    linkedWork.getByText("No work linked to this repository."),
+  ).toBeVisible();
+  await linkedWork
+    .getByRole("button", { name: "Link work item", exact: true })
+    .click();
+  await linkedWork
+    .getByRole("textbox", { name: "Work to link search", exact: true })
+    .fill(title);
+  await linkedWork
+    .getByRole("list", { name: "Work to link matches", exact: true })
+    .getByRole("button", { name: new RegExp(title) })
+    .click();
+  await linkedWork.getByRole("link", { name: title, exact: true }).click();
+  const repositories = page.getByRole("group", {
+    name: "Repositories",
+    exact: true,
+  });
+  await expect(
+    repositories.getByRole("link", { name: repoName, exact: true }),
+  ).toBeVisible();
+
+  // Unlinking on the item takes it off the repository's page.
+  await repositories
+    .getByRole("button", { name: "Unlink " + repoName, exact: true })
+    .click();
+  await expect(
+    repositories.getByRole("link", { name: repoName, exact: true }),
+  ).toHaveCount(0);
+  await page.goto("/#repositories/" + repository.id);
+  await expect(
+    linkedWork.getByText("No work linked to this repository."),
+  ).toBeVisible();
+
+  // Today captures work with a repository, and its entry shows it.
+  await page.goto("/#today");
+  await page.getByRole("textbox", { name: "New work item" }).fill(captured);
+  await linkRepository(page, "New work repositories", repoName);
+  await page.getByRole("button", { name: "Add work", exact: true }).click();
+  const entry = page
+    .locator(".day-entry")
+    .filter({ has: page.getByRole("link", { name: captured, exact: true }) });
+  await expect(
+    entry.getByRole("link", { name: repoName, exact: true }),
+  ).toBeVisible();
 });

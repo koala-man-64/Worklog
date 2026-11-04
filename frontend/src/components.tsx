@@ -1356,6 +1356,7 @@ function ChatForm({
       />
       <RepositoryPicker
         label={label + " registered repositories"}
+        folded
         value={repositoryIds}
         onChange={setRepositoryIds}
         disabled={disabled}

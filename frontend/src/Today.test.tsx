@@ -28,7 +28,9 @@ vi.mock("./hooks", async (importOriginal) => ({
           ? state.work
           : path.startsWith("/work-items/")
             ? state.detail
-            : { items: [], total: 0 },
+            : path.startsWith("/repositories/")
+              ? { id: path.split("/")[2], name: "Platform", archived: false }
+              : { items: [], total: 0 },
     };
   },
 }));
@@ -209,6 +211,7 @@ it("shows an entry's outcome first and reads its work item only once another tab
     "Scratchpad•",
     "Links3",
     "Files",
+    "Repositories",
   ]);
   expect(
     within(tabs).getByRole("tab", { name: "Tasks, 1 of 2 done" }),
@@ -283,22 +286,30 @@ it("moves between an entry's tabs with the arrow keys, Home and End", async () =
   expect(tab("Tasks")).toHaveFocus();
   expect(tab("Tasks")).toHaveAttribute("aria-selected", "true");
   await userEvent.keyboard("{End}");
-  expect(tab("Files")).toHaveAttribute("aria-selected", "true");
+  expect(tab("Repositories")).toHaveAttribute("aria-selected", "true");
+  expect(
+    within(screen.getByRole("tabpanel", { name: "Repositories" })).getByRole(
+      "button",
+      { name: "Link repository" },
+    ),
+  ).toBeInTheDocument();
+  await userEvent.keyboard("{ArrowLeft}");
+  expect(tab("Files")).toHaveFocus();
   expect(
     within(screen.getByRole("tabpanel", { name: "Files" })).getByLabelText(
       "Attach a file",
     ),
   ).toBeInTheDocument();
-  await userEvent.keyboard("{ArrowRight}");
+  await userEvent.keyboard("{End}{ArrowRight}");
   expect(tab("Outcome / next action")).toHaveFocus();
   await userEvent.keyboard("{ArrowLeft}");
-  expect(tab("Files")).toHaveFocus();
+  expect(tab("Repositories")).toHaveFocus();
   await userEvent.keyboard("{Home}");
   expect(tab("Outcome / next action")).toHaveAttribute("aria-selected", "true");
   // Only the selected tab is in the page's tab order.
   expect(
     screen.getAllByRole("tab").map((t) => t.getAttribute("tabindex")),
-  ).toEqual(["0", "-1", "-1", "-1", "-1"]);
+  ).toEqual(["0", "-1", "-1", "-1", "-1", "-1"]);
 });
 
 it("shows the stack rank of the day's work and of open work", () => {
@@ -317,6 +328,84 @@ it("shows the stack rank of the day's work and of open work", () => {
     .closest<HTMLElement>(".section-heading")!;
   expect(within(heading).getByText("Stack rank 2")).toBeInTheDocument();
   expect(within(openWork()).getByText("Stack rank 5")).toBeInTheDocument();
+});
+
+it("shows the repositories work links to, and links another from an entry's Repositories tab", async () => {
+  state.day = day("2026-10-28", [
+    entry("release", "Ship the release", "doing", {
+      item: {
+        ...item("release", "Ship the release", "doing"),
+        repositoryIds: ["repo-a"],
+      },
+    }),
+  ]);
+  state.work = {
+    items: [
+      {
+        ...item("runbook", "Write the runbook", "open"),
+        repositoryIds: ["repo-a"],
+      },
+    ],
+    total: 1,
+  };
+  state.detail = {
+    ...item("release", "Ship the release", "doing"),
+    repositoryIds: ["repo-a"],
+    notes: [],
+    links: [],
+    attachments: [],
+    references: [],
+  };
+  const network = vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(async (_input, init) =>
+      (init?.method ?? "GET") === "GET"
+        ? new Response(
+            JSON.stringify({
+              items: [
+                { id: "repo-a", name: "Platform", url: "", archived: false },
+                { id: "repo-b", name: "Billing", url: "", archived: false },
+              ],
+              total: 2,
+            }),
+          )
+        : new Response("{}"),
+    );
+  render(view("2026-10-28", "2026-10-28"));
+  const day_ = screen
+    .getByRole("link", { name: "Ship the release" })
+    .closest("article")!;
+  expect(within(day_).getByRole("link", { name: "Platform" })).toHaveAttribute(
+    "href",
+    "#repositories/repo-a",
+  );
+  expect(
+    within(openWork()).getByRole("link", { name: "Platform" }),
+  ).toBeInTheDocument();
+  // Capturing from Today can link repositories too.
+  expect(
+    screen.getByRole("group", { name: "New work repositories" }),
+  ).toBeInTheDocument();
+  // The tab counts the item's repositories before the item is read.
+  await userEvent.click(
+    within(day_).getByRole("tab", { name: "Repositories, 1" }),
+  );
+  const repositories = await within(
+    within(day_).getByRole("tabpanel", { name: "Repositories, 1" }),
+  ).findByRole("group", { name: "Repositories" });
+  await userEvent.click(
+    within(repositories).getByRole("button", { name: "Link repository" }),
+  );
+  await userEvent.click(
+    await within(repositories).findByRole("button", { name: /Billing/ }),
+  );
+  await waitFor(() => expect(writes(network)).toHaveLength(1));
+  const [url, init] = writes(network)[0];
+  expect([url, init?.method]).toEqual(["/api/v1/work-items/release", "PATCH"]);
+  expect(JSON.parse(String(init?.body))).toEqual({
+    revision: 4,
+    repositoryIds: ["repo-a", "repo-b"],
+  });
 });
 
 it("offers open work that is not on the day and plans it there", async () => {

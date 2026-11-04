@@ -335,27 +335,113 @@ it("keeps overlapping reports, marks staleness separately, and ends a run only a
   );
 });
 
-it("distinguishes same-name repositories and preserves unresolved linked IDs", async () => {
-  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) =>
-    json({
-      items: String(input).includes("archived=true")
-        ? []
-        : [
-            repo,
-            { ...repo, id: "repo-2", url: "https://github.com/b/service" },
-          ],
-      total: 2,
-    }),
-  );
+it("shows linked repositories as chips that unlink, and reads no list until asked", async () => {
+  const reads: string[] = [];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const path = String(input);
+    reads.push(path);
+    if (path.endsWith("/repositories/old"))
+      return json({ ...repo, id: "old", name: "Retired API", archived: true });
+    return json({ error: { message: "Not found" } }, 404);
+  });
   const change = vi.fn();
-  show(<RepositoryPicker value={["missing"]} onChange={change} />);
-  const group = screen.getByRole("group", { name: "Linked repositories" });
-  await waitFor(() =>
-    expect(within(group).getAllByRole("checkbox")).toHaveLength(3),
+  show(<RepositoryPicker value={["missing", "old"]} onChange={change} />);
+  const group = screen.getByRole("group", { name: "Repositories" });
+  expect(
+    await within(group).findByRole("link", { name: "Retired API (archived)" }),
+  ).toHaveAttribute("href", "#repositories/old");
+  // A link whose record can't be read still shows, and can still be removed.
+  expect(
+    within(group).getByRole("link", { name: "Repository (missing)" }),
+  ).toBeVisible();
+  await userEvent.click(
+    within(group).getByRole("button", { name: "Unlink Retired API" }),
   );
-  await userEvent.click(within(group).getAllByRole("checkbox")[1]);
-  expect(change).toHaveBeenCalledWith(["missing", "repo-2"]);
-  expect(screen.getByText(/Repository \(missing\)/)).toBeVisible();
+  expect(change).toHaveBeenCalledWith(["missing"]);
+  expect(reads.some((path) => path.includes("/repositories?"))).toBe(false);
+});
+
+it("links a repository from a search, telling same-name repositories apart by remote", async () => {
+  const reads: string[] = [];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const path = String(input);
+    reads.push(path);
+    if (path.endsWith("/repositories/repo-1")) return json(repo);
+    return json({
+      items: [
+        repo,
+        { ...repo, id: "repo-2", url: "https://github.com/b/service" },
+      ],
+      total: 2,
+    });
+  });
+  const change = vi.fn();
+  show(<RepositoryPicker value={["repo-1"]} onChange={change} />);
+  const group = screen.getByRole("group", { name: "Repositories" });
+  const open = within(group).getByRole("button", { name: "Link repository" });
+  await userEvent.click(open);
+  expect(
+    within(group).getByRole("textbox", { name: "Repositories search" }),
+  ).toHaveFocus();
+  const matches = await within(group).findByRole("list", {
+    name: "Repositories matches",
+  });
+  // The linked record isn't offered again; its namesake shows its remote.
+  expect(within(matches).getAllByRole("button")).toHaveLength(1);
+  await userEvent.click(
+    within(matches).getByRole("button", { name: /github\.com\/b\/service/ }),
+  );
+  expect(change).toHaveBeenCalledWith(["repo-1", "repo-2"]);
+  expect(within(group).queryByRole("textbox")).toBeNull();
+  expect(open).toHaveFocus();
+  expect(reads).toContain("/api/v1/repositories?limit=20&q=");
+});
+
+it("says when every match is already linked", async () => {
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) =>
+    String(input).endsWith("/repositories/repo-1")
+      ? json(repo)
+      : json({ items: [repo], total: 1 }),
+  );
+  show(<RepositoryPicker value={["repo-1"]} onChange={vi.fn()} />);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Link repository" }),
+  );
+  expect(
+    await screen.findByText("Every match is already linked."),
+  ).toBeVisible();
+});
+
+it("closes the search on Escape, and a floating one on a click elsewhere", async () => {
+  vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
+    json({ items: [], total: 0 }),
+  );
+  show(
+    <>
+      <RepositoryPicker
+        label="New work repositories"
+        folded
+        value={[]}
+        onChange={vi.fn()}
+      />
+      <p>Elsewhere</p>
+    </>,
+  );
+  const open = screen.getByRole("button", { name: "Link repository" });
+  await userEvent.click(open);
+  expect(open).toHaveAttribute("aria-expanded", "true");
+  // With nothing registered, it says where to register one.
+  expect(
+    await screen.findByRole("link", { name: "Add a repository" }),
+  ).toHaveAttribute("href", "#repositories");
+  await userEvent.keyboard("{Escape}");
+  expect(screen.queryByRole("textbox")).toBeNull();
+  expect(open).toHaveFocus();
+  await userEvent.click(open);
+  expect(screen.getByRole("textbox")).toBeVisible();
+  await userEvent.click(screen.getByText("Elsewhere"));
+  expect(screen.queryByRole("textbox")).toBeNull();
+  expect(open).toHaveAttribute("aria-expanded", "false");
 });
 
 it("renders released reports and feed failures without pretending they are empty", async () => {
@@ -389,39 +475,170 @@ it("renders released reports and feed failures without pretending they are empty
   expect(await screen.findByText("Released", { exact: true })).toBeVisible();
 });
 
-it("searches past the first page without dropping an archived selection", async () => {
+it("narrows a long list by text and picks the first match with Enter, without submitting the form it sits in", async () => {
   const reads: string[] = [];
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
     const path = String(input);
     reads.push(path);
-    if (path.endsWith("/old"))
+    if (path.endsWith("/repositories/old"))
       return json({ ...repo, id: "old", name: "Retired API", archived: true });
-    if (path.includes("q=target") || path.includes("offset=50"))
+    if (path.includes("q=target"))
       return json({
         items: [{ ...repo, id: "later", name: "Target API" }],
-        total: 51,
+        total: 1,
       });
     return json({ items: [repo], total: 51 });
   });
   const change = vi.fn();
-  show(<RepositoryPicker value={["old"]} onChange={change} />);
-  expect(
-    await screen.findByRole("checkbox", { name: /Retired API \(archived\)/ }),
-  ).toBeVisible();
-  await userEvent.click(
-    screen.getByRole("button", { name: "Next repository choices" }),
+  const submit = vi.fn((e: React.FormEvent) => e.preventDefault());
+  show(
+    <form onSubmit={submit}>
+      <RepositoryPicker
+        label="New work repositories"
+        folded
+        value={["old"]}
+        onChange={change}
+      />
+    </form>,
   );
-  expect(await screen.findByText("Target API")).toBeVisible();
+  const group = screen.getByRole("group", { name: "New work repositories" });
+  // Folded into a one-line form, the label names the picker without showing.
+  expect(within(group).getByText("New work repositories")).toHaveClass(
+    "visually-hidden",
+  );
+  await userEvent.click(
+    within(group).getByRole("button", { name: "Link repository" }),
+  );
+  expect(
+    await screen.findByText("Showing 1 of 51. Keep typing to narrow."),
+  ).toBeVisible();
   await userEvent.type(
-    screen.getByRole("textbox", { name: "Linked repositories search" }),
+    screen.getByRole("textbox", { name: "New work repositories search" }),
     "target",
   );
-  await waitFor(() =>
-    expect(reads.some((path) => path.includes("offset=0&q=target"))).toBe(true),
-  );
-  await userEvent.click(screen.getByRole("checkbox", { name: /Target API/ }));
+  expect(
+    await screen.findByRole("button", { name: /Target API/ }),
+  ).toBeVisible();
+  expect(reads).toContain("/api/v1/repositories?limit=20&q=target");
+  await userEvent.keyboard("{Enter}");
   expect(change).toHaveBeenCalledWith(["old", "later"]);
-  expect(screen.getByRole("checkbox", { name: /Retired API/ })).toBeChecked();
+  expect(submit).not.toHaveBeenCalled();
+  // The archived link it already had stays.
+  expect(
+    within(group).getByRole("link", { name: "Retired API (archived)" }),
+  ).toBeVisible();
+});
+
+it("closes a search that something else disabled, and leaves it closed", async () => {
+  vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
+    json({ items: [repo], total: 1 }),
+  );
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const picker = (disabled: boolean) => (
+    <QueryClientProvider client={client}>
+      <RepositoryPicker value={[]} onChange={vi.fn()} disabled={disabled} />
+    </QueryClientProvider>
+  );
+  const { rerender } = render(picker(false));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Link repository" }),
+  );
+  expect(screen.getByRole("textbox")).toHaveFocus();
+  rerender(picker(true));
+  expect(screen.queryByRole("textbox")).toBeNull();
+  // Enabled again, it doesn't reopen and take focus back.
+  rerender(picker(false));
+  expect(screen.queryByRole("textbox")).toBeNull();
+  expect(
+    screen.getByRole("button", { name: "Link repository" }),
+  ).toHaveAttribute("aria-expanded", "false");
+});
+
+const shipApi = {
+  id: "w1",
+  title: "Ship API",
+  description: "",
+  status: "doing" as const,
+  adoUrl: null,
+  stepId: null,
+  archived: false,
+  revision: 5,
+  repositoryIds: [repo.id, "repo-9"],
+};
+
+it("links work to a repository from its page and unlinks it, each on the item's own revision", async () => {
+  const writes: { path: string; body: unknown }[] = [];
+  const parser = {
+    ...shipApi,
+    id: "w2",
+    title: "Fix parser",
+    status: "open" as const,
+    revision: 2,
+    repositoryIds: [],
+  };
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const path = String(input);
+    if (init?.method === "PATCH") {
+      writes.push({ path, body: JSON.parse(String(init.body)) });
+      return json({});
+    }
+    if (path.endsWith("/repositories/repo-1")) return json(repo);
+    if (path.includes("/work-items?repositoryId="))
+      return json({ items: [shipApi], total: 1 });
+    if (path.includes("/work-items?view=all"))
+      return json({ items: [shipApi, parser], total: 2 });
+    return json({ items: [], total: 0 });
+  });
+  show(<Repositories selected={repo.id} />);
+  const section = (
+    await screen.findByRole("heading", { name: "Linked work" })
+  ).closest("section")!;
+  await userEvent.click(
+    await within(section).findByRole("button", { name: "Unlink Ship API" }),
+  );
+  await waitFor(() =>
+    expect(writes).toEqual([
+      {
+        path: "/api/v1/work-items/w1",
+        body: { revision: 5, repositoryIds: ["repo-9"] },
+      },
+    ]),
+  );
+  const link = within(section).getByRole("button", { name: "Link work item" });
+  await waitFor(() => expect(link).toBeEnabled());
+  await userEvent.click(link);
+  const matches = await within(section).findByRole("list", {
+    name: "Work to link matches",
+  });
+  // Work already linked here isn't offered again.
+  expect(within(matches).getAllByRole("button")).toHaveLength(1);
+  await userEvent.click(
+    within(matches).getByRole("button", { name: /Fix parser/ }),
+  );
+  await waitFor(() =>
+    expect(writes.at(-1)).toEqual({
+      path: "/api/v1/work-items/w2",
+      body: { revision: 2, repositoryIds: ["repo-1"] },
+    }),
+  );
+});
+
+it("keeps an archived repository's work links removable but takes no new ones", async () => {
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const path = String(input);
+    if (path.endsWith("/repositories/repo-1"))
+      return json({ ...repo, archived: true });
+    if (path.includes("/work-items?repositoryId="))
+      return json({ items: [shipApi], total: 1 });
+    return json({ items: [], total: 0 });
+  });
+  show(<Repositories selected={repo.id} />);
+  expect(
+    await screen.findByRole("button", { name: "Unlink Ship API" }),
+  ).toBeEnabled();
+  expect(screen.queryByRole("button", { name: "Link work item" })).toBeNull();
 });
 
 it("shows immutable update context names and paths instead of the repository's current name", async () => {

@@ -21,7 +21,9 @@ vi.mock("./hooks", async (importOriginal) => ({
         ? state.item
         : path.startsWith("/work-items?") && state.list
           ? state.list
-          : { items: [], total: 0 },
+          : path.startsWith("/repositories/")
+            ? { id: path.split("/")[2], name: "Service", archived: false }
+            : { items: [], total: 0 },
     };
   },
 }));
@@ -608,6 +610,94 @@ it("files no tickets for archived work", () => {
   render(view(newClient()));
   expect(
     screen.getByRole("textbox", { name: "New ticket title" }),
+  ).toBeDisabled();
+});
+it("captures work with or without repositories, folded to one button until used", async () => {
+  const posts: unknown[] = [];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
+    if (init?.method === "POST") {
+      posts.push(JSON.parse(String(init.body)));
+      return new Response(JSON.stringify(item({})));
+    }
+    return new Response(
+      JSON.stringify({
+        items: [
+          {
+            id: "repo-1",
+            name: "Service",
+            url: "https://github.com/a/service",
+            archived: false,
+          },
+        ],
+        total: 1,
+      }),
+    );
+  });
+  render(
+    <QueryClientProvider client={newClient()}>
+      <Work />
+    </QueryClientProvider>,
+  );
+  const capture = screen.getByRole("group", { name: "New work repositories" });
+  // Linking is optional: one button, not a list of every repository.
+  expect(within(capture).getAllByRole("button")).toHaveLength(1);
+  const title = screen.getByRole("textbox", { name: "New work item" });
+  await userEvent.type(title, "No repository{Enter}");
+  await waitFor(() =>
+    expect(posts).toEqual([
+      { title: "No repository", description: "", worked: false },
+    ]),
+  );
+  await userEvent.click(
+    within(capture).getByRole("button", { name: "Link repository" }),
+  );
+  await userEvent.click(await screen.findByRole("button", { name: /Service/ }));
+  expect(
+    within(capture).getByRole("link", { name: "Service" }),
+  ).toHaveAttribute("href", "#repositories/repo-1");
+  await userEvent.type(title, "With a repository{Enter}");
+  await waitFor(() =>
+    expect(posts.at(-1)).toEqual({
+      title: "With a repository",
+      description: "",
+      worked: false,
+      repositoryIds: ["repo-1"],
+    }),
+  );
+});
+it("links and unlinks repositories in the item's Context on its revision", async () => {
+  state.item = item({ repositoryIds: ["repo-1"] });
+  const patches: unknown[] = [];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
+    if (init?.method === "PATCH") patches.push(JSON.parse(String(init.body)));
+    return new Response(JSON.stringify(item({ revision: 4 })));
+  });
+  render(view(newClient()));
+  const context = screen
+    .getByRole("heading", { name: "Context" })
+    .closest("section")!;
+  const repositories = within(context).getByRole("group", {
+    name: "Repositories",
+  });
+  expect(
+    within(repositories).getByRole("link", { name: "Service" }),
+  ).toHaveAttribute("href", "#repositories/repo-1");
+  await userEvent.click(
+    within(repositories).getByRole("button", { name: "Unlink Service" }),
+  );
+  await waitFor(() =>
+    expect(patches).toEqual([{ revision: 3, repositoryIds: [] }]),
+  );
+});
+it("keeps an archived item's repositories as they are", () => {
+  state.item = item({ archived: true, repositoryIds: ["repo-1"] });
+  render(view(newClient()));
+  const repositories = screen.getByRole("group", { name: "Repositories" });
+  expect(
+    within(repositories).getByRole("button", { name: "Unlink Service" }),
+  ).toBeDisabled();
+  expect(
+    within(repositories).getByRole("button", { name: "Link repository" }),
   ).toBeDisabled();
 });
 it("links a work item directly to a roadmap without requiring a step", async () => {

@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useData } from "./hooks";
+import { LinkPicker } from "./LinkPicker";
 import type { List } from "./types";
 import type { Repository } from "./repositoryTypes";
 
@@ -10,6 +11,7 @@ export function RepositoryBadges({
   ids?: string[];
   legacy?: string[];
 }) {
+  if (!ids.length && !legacy.length) return null;
   return (
     <span className="repository-badges">
       {ids.map((id) => (
@@ -35,102 +37,112 @@ export function RepositoryName({ id }: { id: string }) {
   );
 }
 
+/**
+ * What something links to: each repository a chip that unlinks it, and "Link repository"
+ * to search for another. Linking is optional. `folded` keeps it to one line inside a
+ * form: the label is read out but not shown, and the search floats over what follows.
+ */
 export function RepositoryPicker({
   value,
   onChange,
   disabled = false,
-  label = "Linked repositories",
+  label = "Repositories",
+  heading,
+  folded = false,
+  labelHidden = false,
 }: {
   value: string[];
   onChange: (ids: string[]) => void;
   disabled?: boolean;
   label?: string;
+  /** Shows the label as a section heading, for pages made of sections. */
+  heading?: "h2" | "h3";
+  folded?: boolean;
+  /** For a picker a tab already names: the label still names its group for assistive technology. */
+  labelHidden?: boolean;
 }) {
-  const [q, setQ] = useState("");
-  const [offset, setOffset] = useState(0);
-  const query = useData<List<Repository>>(
-    `/repositories?limit=50&offset=${offset}&q=${encodeURIComponent(q)}`,
-  );
-  const unique = query.data?.items ?? [];
+  const labelId = useId();
+  const Root = heading ? "section" : "div";
+  const Label = heading ?? "span";
   return (
-    <fieldset className="repository-picker" disabled={disabled}>
-      <legend>{label}</legend>
-      <input
-        aria-label={label + " search"}
-        placeholder="Find repositories…"
-        value={q}
-        onChange={(e) => {
-          setQ(e.target.value);
-          setOffset(0);
-        }}
-      />
-      {query.error ? (
-        <p role="alert">
-          Could not load repositories.{" "}
-          <button type="button" onClick={() => void query.refetch()}>
-            Retry repositories
-          </button>
-        </p>
-      ) : null}
-      {query.isPending ? (
-        <p>Loading repositories…</p>
-      ) : !query.error && !unique.length ? (
-        <p>
-          {q
-            ? "No repositories match this search."
-            : "No repositories registered."}{" "}
-          <a href="#repositories">Add a repository</a>.
-        </p>
-      ) : null}
-      {unique.map((repo) => (
-        <label key={repo.id} title={repo.url || repo.id}>
-          <input
-            type="checkbox"
-            checked={value.includes(repo.id)}
-            onChange={(e) =>
-              onChange(
-                e.target.checked
-                  ? [...value, repo.id]
-                  : value.filter((id) => id !== repo.id),
-              )
-            }
-          />
-          {repo.name}
-          {repo.archived ? " (archived)" : ""}
-          {repo.url && <small>{repo.url}</small>}
-        </label>
+    <Root
+      className={"repository-picker" + (folded ? " folded" : "")}
+      role="group"
+      aria-labelledby={labelId}
+    >
+      <Label
+        id={labelId}
+        className={
+          folded || labelHidden
+            ? "visually-hidden"
+            : heading
+              ? undefined
+              : "picker-label"
+        }
+      >
+        {label}
+      </Label>
+      {value.map((id) => (
+        <RepositoryChip
+          key={id}
+          id={id}
+          disabled={disabled}
+          onUnlink={() => onChange(value.filter((other) => other !== id))}
+        />
       ))}
-      {value
-        .filter((id) => !unique.some((r) => r.id === id))
-        .map((id) => (
-          <label key={id}>
-            <input
-              type="checkbox"
-              checked
-              onChange={() => onChange(value.filter((v) => v !== id))}
-            />
-            <RepositoryName id={id} /> (selected)
-          </label>
-        ))}
-      {(offset > 0 || (query.data?.total ?? 0) > 50) && (
-        <span>
-          <button
-            type="button"
-            disabled={!offset}
-            onClick={() => setOffset(Math.max(0, offset - 50))}
-          >
-            Previous repository choices
-          </button>
-          <button
-            type="button"
-            disabled={offset + 50 >= (query.data?.total ?? 0)}
-            onClick={() => setOffset(offset + 50)}
-          >
-            Next repository choices
-          </button>
-        </span>
-      )}
-    </fieldset>
+      <LinkPicker<Repository>
+        action="Link repository"
+        label={label}
+        placeholder="Find repositories…"
+        path={(q) => `/repositories?limit=20&q=${encodeURIComponent(q)}`}
+        linked={(repo) => value.includes(repo.id)}
+        option={(repo) => (
+          <>
+            <strong>{repo.name}</strong>
+            {repo.url && <small>{repo.url}</small>}
+          </>
+        )}
+        none={
+          <>
+            No repositories registered.{" "}
+            <a href="#repositories">Add a repository</a>.
+          </>
+        }
+        onPick={(repo) => onChange([...value, repo.id])}
+        disabled={disabled}
+        floating={folded}
+      />
+    </Root>
+  );
+}
+function RepositoryChip({
+  id,
+  disabled,
+  onUnlink,
+}: {
+  id: string;
+  disabled: boolean;
+  onUnlink: () => void;
+}) {
+  const query = useData<Repository>("/repositories/" + encodeURIComponent(id));
+  const name = query.data?.name ?? `Repository (${id})`;
+  return (
+    <span className="repository-chip">
+      <a href={"#repositories/" + id}>
+        {name}
+        {query.data?.archived ? " (archived)" : ""}
+      </a>
+      <button
+        type="button"
+        className="quiet"
+        aria-label={"Unlink " + name}
+        title={"Unlink " + name}
+        disabled={disabled}
+        onClick={onUnlink}
+      >
+        ×
+      </button>
+    </span>
   );
 }
 

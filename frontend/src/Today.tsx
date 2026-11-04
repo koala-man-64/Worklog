@@ -18,6 +18,7 @@ import { CreateItem } from "./Work";
 import type { Day, Detail, Entry, Item, List, Status } from "./types";
 import { Icon } from "./icons";
 import { RankBadge } from "./StackRank";
+import { RepositoryBadges, RepositoryPicker } from "./RepositoryControls";
 // The work Today offers to plan: anything not finished.
 const OPEN_STATES: Status[] = ["open", "doing", "blocked"];
 // A tab showing part of the work item. Every such tab shares one read of the item, made when
@@ -53,11 +54,35 @@ function counted(title: string, shown: string | false, spoken: string) {
         name: `${title}, ${spoken}`,
       };
 }
-// An entry's outcome for the day, and its work item's own tasks, scratchpad, links and files.
-// The tabs say what they hold from the day's counts, before the item is read.
+// The work item's repositories: linking or unlinking one replaces its set under the revision
+// the item was read at, so a change made elsewhere is refused, not lost.
+function ItemRepositories({ item }: { item: Detail }) {
+  const action = useAction();
+  return (
+    <>
+      <RepositoryPicker
+        labelHidden
+        value={item.repositoryIds ?? []}
+        onChange={(repositoryIds) =>
+          action.mutate({
+            path: "/work-items/" + item.id,
+            method: "PATCH",
+            body: { revision: item.revision, repositoryIds },
+          })
+        }
+        disabled={!!item.archived || action.isPending}
+      />
+      <ErrorMessage error={action.error} />
+    </>
+  );
+}
+// An entry's outcome for the day, and its work item's own tasks, scratchpad, links, files and
+// repositories. The tabs say what they hold from the day's counts, before the item is read.
 function EntryTabs({ entry, date }: { entry: Entry; date: string }) {
   const counts = entry.counts;
   const itemId = entry.itemId;
+  // The day's record of the item already lists its repositories.
+  const repositories = entry.item.repositoryIds?.length ?? 0;
   return (
     <Tabs
       className="entry-tabs"
@@ -149,6 +174,19 @@ function EntryTabs({ entry, date }: { entry: Entry; date: string }) {
                   heading={false}
                 />
               )}
+            </ItemPart>
+          ),
+        },
+        {
+          id: "repositories",
+          ...counted(
+            "Repositories",
+            !!repositories && String(repositories),
+            String(repositories),
+          ),
+          panel: () => (
+            <ItemPart itemId={itemId}>
+              {(item) => <ItemRepositories item={item} />}
             </ItemPart>
           ),
         },
@@ -420,6 +458,7 @@ export function Today({
                       {entry.item.title}
                     </a>
                     <RankBadge rank={entry.item.rank} />
+                    <RepositoryBadges ids={entry.item.repositoryIds} />
                     {entry.item.archived && (
                       <span className="badge">
                         Archived, recover in work details
@@ -589,10 +628,13 @@ export function Today({
                       className={"status-dot " + item.status}
                       aria-hidden="true"
                     />
-                    <a className="item-title" href={"#work/" + item.id}>
-                      {item.title}
-                    </a>
-                    <RankBadge rank={item.rank} />
+                    <span className="line-title">
+                      <a className="item-title" href={"#work/" + item.id}>
+                        {item.title}
+                      </a>
+                      <RankBadge rank={item.rank} />
+                      <RepositoryBadges ids={item.repositoryIds} />
+                    </span>
                     <button
                       aria-label={planFor(item.title)}
                       disabled={action.isPending}
