@@ -176,9 +176,23 @@ def _row(conn, identifier):
     return row
 
 
+def _same_principal(conn, actor_id, actor):
+    """Whether actor_id, as a proposal records it, names the caller.
+
+    A proposal records the credential that wrote it. Rotation binds a new credential to the
+    same agent identity and revokes the old one (discussions.bind_credential), so for an
+    agent any credential of its identity counts as its own.
+    """
+    if actor_id == actor["id"]:
+        return True
+    return actor["kind"] == "agent" and conn.execute(
+        "SELECT 1 FROM communication_credentials theirs JOIN communication_credentials mine ON mine.agent_id=theirs.agent_id"
+        " WHERE theirs.credential_id=? AND mine.credential_id=?", (actor_id, actor["id"])).fetchone() is not None
+
+
 def _can_see(conn, row, actor):
     # Agents see other agents' proposals only once submitted; withdrawing an unsubmitted draft keeps it private.
-    if actor["kind"] != "agent" or row["actor_id"] == actor["id"] or row["status"] in {"submitted", "approved", "rejected"}:
+    if actor["kind"] != "agent" or row["status"] in {"submitted", "approved", "rejected"} or _same_principal(conn, row["actor_id"], actor):
         return True
     return row["status"] == "withdrawn" and conn.execute(
         "SELECT 1 FROM events WHERE entity_id=? AND kind='proposal.submit'", (row["id"],)).fetchone() is not None
@@ -189,8 +203,8 @@ def _visible(conn, row, actor):
         raise AppError(404, "not_found", "Proposal not found")
 
 
-def _owner(row, actor):
-    if row["actor_id"] != actor["id"]:
+def _owner(conn, row, actor):
+    if not _same_principal(conn, row["actor_id"], actor):
         raise AppError(403, "forbidden", "Only the originating actor may edit or submit this proposal")
 
 
@@ -250,7 +264,7 @@ class ProposalService:
             if supersedes:
                 prior = _row(connection, supersedes)
                 _visible(connection, prior, actor)
-                _owner(prior, actor)
+                _owner(connection, prior, actor)
                 if prior["status"] not in {"rejected", "withdrawn"}:
                     raise AppError(409, "conflict", "Only rejected or withdrawn proposals may be superseded")
             identifier, stamp = uid(), now()
@@ -267,7 +281,7 @@ class ProposalService:
         with self.db.transaction() as conn:
             row = _row(conn, identifier)
             _visible(conn, row, actor)
-            _owner(row, actor)
+            _owner(conn, row, actor)
             require_revision(row, payload.get("revision"))
             if row["status"] != "draft":
                 raise AppError(409, "conflict", "Only drafts can be edited")
@@ -294,10 +308,10 @@ class ProposalService:
                 allowed = {"submitted"}
             elif verb == "reopen":
                 if actor["kind"] != "human":
-                    _owner(row, actor)
+                    _owner(connection, row, actor)
                 allowed = {"submitted"}
             else:
-                _owner(row, actor)
+                _owner(connection, row, actor)
                 allowed = {"draft"} if verb == "submit" else {"draft", "submitted"}
             if row["status"] not in allowed:
                 raise AppError(409, "conflict", f"Cannot {verb} a {row['status']} proposal")
@@ -540,7 +554,7 @@ class ProposalService:
         row = _row(conn, identifier)
         _visible(conn, row, actor)
         if actor["kind"] == "agent":
-            _owner(row, actor)
+            _owner(conn, row, actor)
             if row["status"] != "draft":
                 raise AppError(409, "conflict", "Agent evidence uploads require an owned draft")
         return _record(row)
