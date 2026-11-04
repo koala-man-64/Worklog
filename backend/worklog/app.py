@@ -735,7 +735,8 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                       "registeredBy": sponsors.get(r["id"]), "chatId": chats.get(r["id"]),
                       "registeredActive": registered.get(r["agent_id"], 0)} for r in rows]
             agents = [{"id": r["id"], "label": r["label"], "avatar": r["avatar"]} for r in c.execute("SELECT id,label,avatar FROM communication_agents ORDER BY label,id")]
-        backups = list_backups(directory / "backups")
+        # Settings shows no hashes, and hashing would read every backup on each load.
+        backups = list_backups(directory / "backups", hashed=False)
         size = db.path.stat().st_size
         return {"timezone": tz, "today": today(tz), "version": __version__, "requireProposalApproval": require_approval,
                 "agentRepositoryRegistration": register_repositories,

@@ -314,6 +314,7 @@ To stop reviewing, clear "Require my approval for agent proposals" in Settings. 
    - Worklog only reads these transcripts and never changes them.
 5. **Message the chat's agents.** Write in "Message this chat’s agents" and press "Send".
    - The message reaches every agent whose open run reported this chat; "Reaches" names them before you send.
+   - "not registered with this chat" marks an agent whose run reported this chat's ID although the agent never registered with this chat. It still receives the message, so check it is an agent you mean to reach before you send.
    - Each agent picks the message up the next time it checks Worklog. Nothing wakes it.
    - A message nobody picks up within two hours expires.
 

@@ -119,7 +119,7 @@ Fix: compare principals through `communication_credentials.agent_id`, with no sc
 
 #### 0.5 · Mark chat recipients the chat isn't bound to
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branch: `claude/chat-recipient-registration` · PR: [#93](https://github.com/koala-man-64/Worklog/pull/93)
 
 Delivery of the person's chat messages matches on the chat ID a run reports, and any credential can report any chat ID.
 
@@ -127,7 +127,7 @@ Until 1.4 lands, the chat page marks every recipient whose identity didn't regis
 
 #### 0.6 · Settings lists backups without hashing them
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branch: `claude/settings-backup-hashes` · PR: [#92](https://github.com/koala-man-64/Worklog/pull/92)
 
 Every `GET /settings` hashes every backup file (`recovery.py`, `list_backups`), which takes seconds once backups total a few gigabytes. The page never shows the hashes.
 
@@ -135,7 +135,7 @@ Fix: list without hashes; the CLI `backups` command keeps them. Findings: B-05, 
 
 #### 0.7 · Header search clears when a result is chosen
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branch: `claude/search-clears-on-choice` · PR: [#94](https://github.com/koala-man-64/Worklog/pull/94)
 
 Search clears only on `hashchange` (`App.tsx`), so a result that points at the page already open leaves the results on screen.
 
@@ -146,6 +146,14 @@ Fix: clear on result click. Findings: A-11.
 v11 (steps 1.1 and 1.2, one PR) adds derived data only, and its documented way back drops it. v12 (steps 1.3 and 1.4) moves authorization state out of event JSON and binds chats. Because v12 changes how registration, proposals and chat delivery decide, it is a separate migration with its own independent review; the split was made on 2026-11-04, while building v11.
 
 Each migration's PR owns `migrations.py`, `db.py` and `recovery.py` while it is open. A deploy that runs a migration on real data waits for the person's go-ahead.
+
+#### 1.0 · One writer for the search index
+
+Status: Merged · Branch: `claude/one-search-writer` · PR: [#95](https://github.com/koala-man-64/Worklog/pull/95)
+
+This step was added on 2026-11-04 while preparing 1.1. Keyed search rows only work if every writer keeps the keys in step. Before this step, discussions, tickets, repository merges and `WorkService` all wrote `search_index` directly.
+
+`search.py` now owns every write, unchanged in behaviour. `test_search_writes.py` fails when another module writes the table; historic migrations are exempt. No schema change. Findings: B-13.
 
 #### 1.0 · One writer for the search index
 
