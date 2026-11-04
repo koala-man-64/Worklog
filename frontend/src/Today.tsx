@@ -93,7 +93,6 @@ function EntryTabs({ entry, date }: { entry: Entry; date: string }) {
           label: "Outcome / next action",
           panel: () => (
             <DraftField
-              compact
               draftKey={"entry-" + entry.id}
               label="Outcome / next action"
               labelHidden
@@ -126,12 +125,7 @@ function EntryTabs({ entry, date }: { entry: Entry; date: string }) {
           panel: () => (
             <ItemPart itemId={itemId}>
               {(item) => (
-                <Scratchpad
-                  itemId={itemId}
-                  notes={item.notes}
-                  compact
-                  labelHidden
-                />
+                <Scratchpad itemId={itemId} notes={item.notes} labelHidden />
               )}
             </ItemPart>
           ),
@@ -657,7 +651,6 @@ export function Today({
             )}
           </section>
           <DraftField
-            compact
             key={date}
             draftKey={"reflection-" + date}
             label="End-of-day reflection (Markdown)"

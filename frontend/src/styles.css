@@ -18,6 +18,9 @@
 /* Hallmark · waive 72 · the crowding is the sidebar roadmap titles cut by text-overflow ellipsis · roadmap names truncate inside the sidebar by design */
 /* Hallmark · waive 11 · a tint on the work sheet row under the pointer, the row holding its controls · rows run the width of a 2234px window, and the tint carries the eye along one row to its status, order and archive controls */
 /* Hallmark · answered F23 · Worklog is served only on loopback, so no link preview ever reads a meta description */
+/* Hallmark · audit 2026-11-04 · Today's density carried app-wide: Save now in every field's heading row, text boxes that grow with their text, inline unruled disclosures with ruled page folds only, record titles with their controls beside them, labels beside their controls, single-column create diffs in Review, tighter field, section and empty-state gaps · fixed: 19 (the coordination pager's range dash) · structural: 3 printed (middle-dot meta strings across agents, chats, coordination and tickets; list rows at the work list's padding; the work item page's mixed h2 and h3 sections), left to the work list and work item redesigns in flight */
+/* Hallmark · waive 38iii · the .count after a section heading is the number of rows that section lists · a row count beside its heading reads as a figure, as on every list section here */
+/* Hallmark · answered F1 · the outbox's "this chat's ID" notice and its textbox name keep straight quotes, which its tests read by text; the heading and the archive notice take typographic ones */
 :root {
   --font-body: "Segoe UI", Tahoma, sans-serif;
   --font-display: Georgia, "Times New Roman", serif;
@@ -249,9 +252,12 @@ input[type="file"]::file-selector-button:hover {
   border-color: var(--teal);
   background: var(--teal-wash);
 }
+/* Every text box grows with what is written, from its minimum up to most of the window, instead of scrolling inside a fixed box; browsers without field-sizing keep the minimum and the drag handle. */
 textarea {
   width: 100%;
   min-height: 98px;
+  max-height: 75vh;
+  field-sizing: content;
   resize: vertical;
   line-height: 1.65;
 }
@@ -529,6 +535,25 @@ main {
 header {
   margin-bottom: 32px;
 }
+/* A record's title with its controls beside it on one row, the first line's baselines aligned; a long title or a narrow window drops the controls under it, as on a Today entry. */
+.title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+.title-row > :first-child {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+.title-row > h1 {
+  margin: 0;
+}
+.title-row > .toolbar {
+  margin: 0;
+  gap: 8px;
+}
 .lede {
   font-size: 15px;
   color: var(--muted);
@@ -571,18 +596,43 @@ header {
   flex-wrap: wrap;
   margin: 18px 0;
 }
+/* In a toolbar a label sits beside its control, centred on one row, as a filter or a field of the record above. */
 .toolbar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 12px;
   color: var(--muted);
 }
-.toolbar label > select {
-  margin-bottom: 0;
+.toolbar label > select,
+.toolbar label > input:not([type="checkbox"]) {
+  width: auto;
+  margin: 0;
+}
+.toolbar label > input[type="checkbox"] {
+  margin-right: 0;
 }
 .toolbar select {
   font-size: 12px;
 }
 .plan-picker {
   margin: 18px 0 30px;
+}
+/* A field and the button that saves it share a row, the button level with the field. */
+.field-action {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+/* form. outranks the two-column label margin, which would leave the button low. */
+form.field-action > label {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
+}
+.field-action > label > input {
+  margin-bottom: 0;
 }
 /* Today: the day's work and the open work each open on one row, the heading and its count, then what sits beside them. */
 .day-heading {
@@ -840,7 +890,6 @@ button.rank:hover {
 .entry-tabs .draft textarea {
   min-height: 62px;
   max-height: 50vh;
-  field-sizing: content;
 }
 .day-entry.dragging {
   opacity: 0.55;
@@ -920,7 +969,7 @@ button.rank:hover {
   color: var(--teal);
 }
 .draft {
-  margin: 22px 0;
+  margin: 16px 0;
 }
 .draft > input {
   width: 100%;
@@ -932,7 +981,7 @@ button.rank:hover {
 .empty {
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
-  padding: 45px 20px;
+  padding: 28px 20px;
   text-align: center;
   color: var(--muted);
   font-family: var(--font-display);
@@ -1453,7 +1502,7 @@ select.status-select option {
   margin-bottom: 16px;
 }
 section:not(.draft) {
-  margin-bottom: 35px;
+  margin-bottom: 28px;
 }
 section:not(.draft) > h2 {
   margin-top: 20px;
@@ -1500,11 +1549,9 @@ section:not(.draft) > h3 {
   border-radius: 5px;
   background: var(--paper);
 }
-/* A note body grows with its text up to most of the window; browsers without field-sizing keep the taller minimum. */
+/* A note body starts taller than other text boxes; it grows like them. */
 .note textarea {
   min-height: 240px;
-  max-height: 75vh;
-  field-sizing: content;
 }
 .back {
   display: inline-block;
@@ -1592,21 +1639,9 @@ section:not(.draft) > h3 {
 .roadmap-head .back {
   margin-bottom: 0;
 }
-.roadmap-title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px 16px;
-}
+/* The roadmap screen sets its title smaller, inside its panes. */
 .roadmap-title h1 {
-  flex: 1 1 320px;
   font-size: 34px;
-  margin: 0;
-}
-.roadmap-title .toolbar {
-  margin: 0;
-  gap: 8px;
 }
 .roadmap-progress {
   display: flex;
@@ -2400,7 +2435,9 @@ a.context-tag:hover {
   padding: 0;
   border-top: 1px solid var(--line);
 }
+/* The roles tray's summary is the tray's own bar, so it keeps the panel's width. */
 .discussion-roles-panel > summary {
+  width: auto;
   padding: 12px 16px;
   color: var(--ink);
   font-size: 13px;
@@ -2979,12 +3016,25 @@ progress {
   height: 5px;
   accent-color: var(--teal);
 }
+/* A disclosure opens in place, unruled, wherever it sits: in a row, a card, a form. Only a page's own folds (activity history, archived records, merging) close the page as ruled sections. */
 details {
-  border-top: 1px solid var(--line);
-  padding: 18px 0;
-  margin-top: 25px;
+  margin-top: 8px;
 }
+details[open] > summary {
+  margin-bottom: 8px;
+}
+main > details {
+  border-top: 1px solid var(--line);
+  padding: 12px 0;
+  margin-top: 20px;
+}
+/* In a row it is one of the row's items, centred with the rest. */
+.line > details {
+  margin-top: 0;
+}
+/* A summary is as wide as its words, so a click beside it does not open it. */
 summary {
+  width: fit-content;
   cursor: pointer;
   font-size: 12px;
   color: var(--muted);
@@ -3072,6 +3122,10 @@ code {
 }
 .diff-after pre {
   background: var(--teal-wash);
+}
+/* A new record has no current column: its proposed values take the row. */
+.diff-row.new .diff-after {
+  grid-column: 2 / -1;
 }
 .decision {
   padding: 25px;
@@ -3289,7 +3343,8 @@ code {
   .diff-row {
     grid-template-columns: 1fr 1fr;
   }
-  .diff-row > strong {
+  .diff-row > strong,
+  .diff-row.new .diff-after {
     grid-column: 1/-1;
   }
   .section-heading {
@@ -3680,11 +3735,6 @@ code {
 }
 .ticket-meta {
   color: var(--muted);
-}
-.ticket-fields label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
 }
 .ticket-comment {
   padding: 12px 0;

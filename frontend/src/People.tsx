@@ -156,9 +156,11 @@ export function PersonDetailView({ id }: { id: string }) {
         <Icon name="back" />
         All people
       </a>
-      <header>
-        <h1>{person.name}</h1>
-        {person.role && <p className="lede">{person.role}</p>}
+      <header className="title-row">
+        <div>
+          <h1>{person.name}</h1>
+          {person.role && <p className="lede">{person.role}</p>}
+        </div>
         <div className="toolbar">
           <button
             onClick={() =>

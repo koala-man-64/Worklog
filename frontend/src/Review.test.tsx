@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -358,7 +358,17 @@ it("says what approving a repository registration would do", async () => {
   );
   // The record a registration would link to is the current value it is compared with.
   expect(screen.getByText("https://github.com/a/service")).toBeVisible();
-  expect(screen.getAllByText("New record")).toHaveLength(2);
+  // The new one says so once and shows only what it proposes; the registered ones compare.
+  expect(screen.getAllByText("New record")).toHaveLength(1);
+  const fresh = screen
+    .getByRole("heading", { name: "Change 3: repository.create" })
+    .closest("article") as HTMLElement;
+  expect(within(fresh).queryByText("Current")).toBeNull();
+  expect(within(fresh).getAllByText("Proposed")).toHaveLength(2);
+  const linked = screen
+    .getByRole("heading", { name: "Change 1: repository.create" })
+    .closest("article") as HTMLElement;
+  expect(within(linked).getAllByText("Current")).toHaveLength(2);
   // Each change carries the number a failed approval names it by.
   expect(
     screen.getByRole("heading", { name: "Change 3: repository.create" }),

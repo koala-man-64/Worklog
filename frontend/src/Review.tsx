@@ -122,9 +122,10 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
     .map(([, detail]) => detail);
   return (
     <section>
-      <button className="quiet" onClick={onBack}>
+      <button className="quiet back" onClick={onBack}>
         <Icon name="back" />
-        Proposal list
+        {/* Its own element, so the icon is not the button's only child and stays inline. */}
+        <span>Proposal list</span>
       </button>
       <h2>{p.title}</h2>
       <p className="muted">
@@ -143,12 +144,14 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
           onStale={reportStale}
         />
       ))}
-      <Files
-        ownerType="proposal"
-        ownerId={id}
-        files={p.attachments ?? []}
-        readOnly
-      />
+      {(p.attachments?.length ?? 0) > 0 && (
+        <Files
+          ownerType="proposal"
+          ownerId={id}
+          files={p.attachments ?? []}
+          readOnly
+        />
+      )}
       <ErrorMessage error={action.error} />
       {p.status === "submitted" && (
         <div className="decision">
@@ -383,6 +386,10 @@ export function OperationDiff({
     current.error instanceof ApiError &&
     current.error.status === 404 &&
     !!proposedEarlier?.(target);
+  const loading = current.isFetching || registration.isFetching;
+  // Nothing exists yet to compare with: a create with no registered record, or a target an
+  // earlier change creates.
+  const isNew = !before && !loading && (action.endsWith(".create") || created);
   const staleDetail =
     before &&
     payload.revision !== undefined &&
@@ -433,21 +440,23 @@ export function OperationDiff({
             by the server.
           </p>
         )}
+      {isNew && !created && <p className="muted">New record</p>}
       {Object.entries(payload).map(([key, value]) => (
-        <div className="diff-row" key={key}>
+        <div className={isNew ? "diff-row new" : "diff-row"} key={key}>
           <strong>{key}</strong>
-          <div>
-            <small>Current</small>
-            <pre>
-              {before && key in before
-                ? display(before[key])
-                : current.isFetching || registration.isFetching
-                  ? "Loading…"
-                  : action.endsWith(".create") || created
-                    ? "New record"
+          {/* A new record has nothing to compare with, so its values take the row. */}
+          {!isNew && (
+            <div>
+              <small>Current</small>
+              <pre>
+                {before && key in before
+                  ? display(before[key])
+                  : loading
+                    ? "Loading…"
                     : "No current value"}
-            </pre>
-          </div>
+              </pre>
+            </div>
+          )}
           <div className="diff-after">
             <small>Proposed</small>
             <pre>{display(value)}</pre>
