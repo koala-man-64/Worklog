@@ -44,7 +44,7 @@ test("daily capture, outcome persistence and keyboard planning controls", async 
   await row.getByLabel("Worked on", { exact: true }).click();
   await expect(row.getByLabel("Worked on", { exact: true })).toBeChecked();
   await row
-    .getByLabel("Outcome / next action")
+    .getByRole("textbox", { name: "Outcome / next action" })
     .fill("Verified through the browser");
   await row.getByRole("button", { name: "Save now" }).click();
   await expect(row.getByRole("status")).toHaveText("Saved");
@@ -53,7 +53,7 @@ test("daily capture, outcome persistence and keyboard planning controls", async 
     page
       .locator(".day-entry")
       .filter({ has: page.getByRole("link", { name: title, exact: true }) })
-      .getByLabel("Outcome / next action"),
+      .getByRole("textbox", { name: "Outcome / next action" }),
   ).toHaveValue("Verified through the browser");
   await page.getByRole("link", { name: title, exact: true }).click();
   await expect(
@@ -131,11 +131,11 @@ test("scratchpad, checklist, paths, attachments and archive recovery persist", a
   await page.getByRole("button", { name: "Add work", exact: true }).click();
   await page.getByRole("textbox", { name: "Filter work by text" }).fill(title);
   await page.getByRole("link", { name: title, exact: true }).click();
-  await page
-    .getByRole("textbox", { name: "New checklist task" })
-    .fill("A small action");
-  await page.getByRole("button", { name: "Add", exact: true }).click();
-  await expect(page.getByLabel("A small action")).toBeVisible();
+  await page.getByRole("textbox", { name: "New task" }).fill("A small action");
+  await page.getByRole("button", { name: "Add task", exact: true }).click();
+  await expect(
+    page.getByRole("checkbox", { name: "A small action" }),
+  ).toBeVisible();
   await page
     .getByRole("button", { name: "Reference a local file", exact: true })
     .click();
@@ -358,13 +358,15 @@ test("native day drag reorders actual entries without losing an outcome", async 
   const source = page
     .locator(".day-entry")
     .filter({ has: page.getByRole("link", { name: second, exact: true }) });
-  await source.getByLabel("Outcome / next action").fill("Keep this outcome");
+  await source
+    .getByRole("textbox", { name: "Outcome / next action" })
+    .fill("Keep this outcome");
   await source.getByRole("button", { name: "Save now" }).click();
   await expect(source.getByRole("status")).toHaveText("Saved");
   await page.reload();
-  await expect(source.getByLabel("Outcome / next action")).toHaveValue(
-    "Keep this outcome",
-  );
+  await expect(
+    source.getByRole("textbox", { name: "Outcome / next action" }),
+  ).toHaveValue("Keep this outcome");
   const target = page
     .locator(".day-entry")
     .filter({ has: page.getByRole("link", { name: first, exact: true }) });
@@ -386,7 +388,7 @@ test("native day drag reorders actual entries without losing an outcome", async 
     page
       .locator(".day-entry")
       .filter({ has: page.getByRole("link", { name: second, exact: true }) })
-      .getByLabel("Outcome / next action"),
+      .getByRole("textbox", { name: "Outcome / next action" }),
   ).toHaveValue("Keep this outcome");
 });
 test("an entry's scratchpad on Today is its work item's own", async ({
@@ -399,7 +401,7 @@ test("an entry's scratchpad on Today is its work item's own", async ({
   const entry = page
     .locator(".day-entry")
     .filter({ has: page.getByRole("link", { name: title, exact: true }) });
-  await entry.getByText("Scratchpad, links, files and repositories").click();
+  await entry.getByRole("tab", { name: "Scratchpad", exact: true }).click();
   await entry
     .getByRole("textbox", { name: "Scratchpad (Markdown)", exact: true })
     .fill("Written on Today");
@@ -421,7 +423,10 @@ test("a Today entry collapses to its heading row and stays collapsed after a rel
   const entry = page
     .locator(".day-entry")
     .filter({ has: page.getByRole("link", { name: title, exact: true }) });
-  const outcome = entry.getByLabel("Outcome / next action");
+  const outcome = entry.getByRole("textbox", {
+    name: "Outcome / next action",
+    includeHidden: true,
+  });
   await expect(outcome).toBeVisible();
   await entry
     .getByRole("button", { name: "Collapse " + title, exact: true })
@@ -441,6 +446,103 @@ test("a Today entry collapses to its heading row and stays collapsed after a rel
   await expect(outcome).toBeHidden();
   await expand.click();
   await expect(outcome).toBeVisible();
+});
+test("an entry's tasks on Today are its work item's own", async ({ page }) => {
+  await page.goto("/");
+  const title = "Tasks " + Date.now();
+  await page.getByRole("textbox", { name: "New work item" }).fill(title);
+  await page.getByRole("button", { name: "Add work", exact: true }).click();
+  const entry = page
+    .locator(".day-entry")
+    .filter({ has: page.getByRole("link", { name: title, exact: true }) });
+  await entry.getByRole("tab", { name: "Tasks", exact: true }).click();
+  const tasks = entry.getByRole("tabpanel", { name: "Tasks" });
+  await tasks.getByRole("textbox", { name: "New task" }).fill("Write the plan");
+  await tasks.getByRole("button", { name: "Add task", exact: true }).click();
+  // The tab counts what the list holds.
+  await expect(
+    entry.getByRole("tab", { name: "Tasks, 0 of 1 done", exact: true }),
+  ).toBeVisible();
+  await tasks.getByRole("checkbox", { name: "Write the plan" }).check();
+  await expect(
+    entry.getByRole("tab", { name: "Tasks, 1 of 1 done", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  await entry.getByRole("link", { name: title, exact: true }).click();
+  await expect(
+    page.getByRole("checkbox", { name: "Write the plan" }),
+  ).toBeChecked();
+});
+test("stack rank moves work from its row, its picker and its page", async ({
+  page,
+  baseURL,
+}) => {
+  const origin = new URL(baseURL!).origin;
+  const prefix = "Ranked " + Date.now();
+  const [a, b, c] = ["A", "B", "C"].map((name) => prefix + " " + name);
+  // Created before the page loads, so the filtered list shows all three at once.
+  const boot = await page.request.post("/api/v1/session/bootstrap", {
+    headers: { Origin: origin, "X-Worklog-Bootstrap": "1" },
+    data: {},
+  });
+  const { csrfToken } = await boot.json();
+  for (const title of [a, b, c]) {
+    const created = await page.request.post("/api/v1/work-items", {
+      headers: {
+        Origin: origin,
+        "X-CSRF-Token": csrfToken,
+        "Idempotency-Key": crypto.randomUUID(),
+      },
+      data: { title },
+    });
+    expect(created.ok()).toBeTruthy();
+  }
+  await page.goto("/#work");
+  await page.getByRole("textbox", { name: "Filter work by text" }).fill(prefix);
+  const titles = page.locator(".work-row .item-title");
+  await expect(titles).toHaveText([a, b, c]);
+  await page
+    .getByRole("button", { name: `Move ${a} down`, exact: true })
+    .click();
+  await expect(titles).toHaveText([b, a, c]);
+  // The picker takes C to the top of all work, so above A and B whatever else is ranked.
+  await page
+    .getByRole("button", {
+      name: new RegExp(`^Change stack rank of ${c}, now`),
+    })
+    .click();
+  const input = page.getByRole("spinbutton", {
+    name: `New stack rank for ${c}`,
+  });
+  await input.fill("1");
+  await input.press("Enter");
+  await expect(titles).toHaveText([c, b, a]);
+  await expect(input).toHaveCount(0);
+  await expect(
+    page.getByRole("button", {
+      name: `Change stack rank of ${c}, now 1`,
+      exact: true,
+    }),
+  ).toBeVisible();
+  // Done work leaves the ranking and follows the ranked work.
+  await page
+    .locator(".work-row")
+    .filter({ has: page.getByRole("link", { name: c, exact: true }) })
+    .getByRole("combobox", { name: "Status" })
+    .selectOption("done");
+  await expect(titles).toHaveText([b, a, c]);
+  await expect(
+    page.getByRole("button", {
+      name: new RegExp(`^Change stack rank of ${c}`),
+    }),
+  ).toHaveCount(0);
+  // The item page shows the rank among all ranked work.
+  await page.getByRole("link", { name: b, exact: true }).click();
+  await expect(
+    page.getByRole("button", {
+      name: new RegExp(`^Change stack rank of ${b}, now \\d+$`),
+    }),
+  ).toContainText(/^#\d+ of \d+$/);
+  await expect(page.getByRole("alert")).toHaveCount(0);
 });
 test("open work is planned for the day and rescheduled from beside its title", async ({
   page,

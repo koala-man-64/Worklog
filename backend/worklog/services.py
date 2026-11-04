@@ -45,6 +45,36 @@ def entry_record(r: Any) -> dict:
             "outcome": r["outcome"], "position": r["position"], "revision": r["revision"]}
 
 
+# The stack rank orders unfinished, unarchived work, 1 first. It reads backlog_order, the one
+# order every work item keeps, so done and archived items hold their place in it and rejoin
+# the ranking there when reopened or recovered.
+RANKED = "archived=0 AND status!='done'"
+RANKS = f"SELECT id,ROW_NUMBER() OVER (ORDER BY backlog_order,id) AS stack_rank FROM work_items WHERE {RANKED}"
+
+
+def stack_ranks(c: sqlite3.Connection, ids: list[str]) -> dict[str, int]:
+    """The 1-based stack rank of each of these items that is ranked."""
+    if not ids:
+        return {}
+    return dict(c.execute(f"SELECT id,stack_rank FROM ({RANKS}) WHERE id IN ({','.join('?' for _ in ids)})", ids).fetchall())
+
+
+def ranked_count(c: sqlite3.Connection) -> int:
+    return c.execute(f"SELECT count(*) FROM work_items WHERE {RANKED}").fetchone()[0]
+
+
+def renumber(c: sqlite3.Connection, order: list[str]) -> None:
+    """Give every work item its own backlog position in this order, writing only those that move."""
+    current = dict(c.execute("SELECT id,backlog_order FROM work_items").fetchall())
+    c.executemany("UPDATE work_items SET backlog_order=? WHERE id=?",
+                  [(position, identity) for position, identity in enumerate(order, 1) if current[identity] != position])
+
+
+def backlog_sequence(c: sqlite3.Connection) -> list[str]:
+    """Every work item, archived and done ones included, in backlog order."""
+    return [r[0] for r in c.execute("SELECT id FROM work_items ORDER BY backlog_order,id")]
+
+
 def support_record(r: Any) -> dict:
     keys = {"owner_type": "ownerType", "owner_id": "ownerId", "item_id": "itemId",
             "chat_id": "chatId", "created_date": "createdDate", "chat_title": "chatTitle",
@@ -191,11 +221,12 @@ class WorkService:
             clause = " AND ".join(where)
             total = c.execute(f"SELECT count(*) FROM work_items w WHERE {clause}", args).fetchone()[0]
             current = today(setting(c, "timezone", "America/Chicago"))
-            rows = c.execute(f"SELECT w.*, (w.archived=0 AND w.status!='done' AND NOT EXISTS(SELECT 1 FROM daily_entries de WHERE de.item_id=w.id AND de.planned=1 AND de.date>=?)) AS is_backlog FROM work_items w WHERE {clause} ORDER BY backlog_order,id LIMIT ? OFFSET ?", [current, *args, limit, offset]).fetchall()
+            # Ranked work comes first, in stack rank order; done and archived work follows it.
+            rows = c.execute(f"SELECT w.*, r.stack_rank, (w.archived=0 AND w.status!='done' AND NOT EXISTS(SELECT 1 FROM daily_entries de WHERE de.item_id=w.id AND de.planned=1 AND de.date>=?)) AS is_backlog FROM work_items w LEFT JOIN ({RANKS}) r ON r.id=w.id WHERE {clause} ORDER BY r.stack_rank IS NULL,w.backlog_order,w.id LIMIT ? OFFSET ?", [current, *args, limit, offset]).fetchall()
             people_map = self.target_people(c, "item", [r["id"] for r in rows])
             repos = linked_repositories(c, "item", [r["id"] for r in rows])
-            return {"items": [{**item_record(r), "repositoryIds": repos.get(r["id"], []), "isBacklog": bool(r["is_backlog"]), "people": people_map.get(r["id"], [])} for r in rows], "total": total,
-                    "collectionRevision": setting(c, "backlogRevision", 1)}
+            return {"items": [{**item_record(r), "rank": r["stack_rank"], "repositoryIds": repos.get(r["id"], []), "isBacklog": bool(r["is_backlog"]), "people": people_map.get(r["id"], [])} for r in rows], "total": total,
+                    "rankedCount": ranked_count(c), "collectionRevision": setting(c, "backlogRevision", 1)}
 
     @staticmethod
     def chat_steps(c: sqlite3.Connection, chat_ids: builtins.list[str]) -> dict[str, builtins.list[str]]:
@@ -266,6 +297,8 @@ class WorkService:
     def detail(self, item_id: str) -> dict:
         with self.db.read() as c:
             result = item_record(self.item(c, item_id))
+            result["rank"] = stack_ranks(c, [item_id]).get(item_id)
+            result["rankedCount"] = ranked_count(c)
             result["repositoryIds"] = linked_repositories(c, "item", [item_id]).get(item_id, [])
             result.update(self.support(c, "item", item_id))
             result["people"] = self.target_people(c, "item", [item_id]).get(item_id, [])
@@ -393,9 +426,14 @@ class WorkService:
                 record = entry_record(r)
                 record["item"] = item_record(self.item(c, r["item_id"]))
                 entries.append(record)
-            repos = linked_repositories(c, "item", [entry["itemId"] for entry in entries])
+            ids = [entry["itemId"] for entry in entries]
+            repos = linked_repositories(c, "item", ids)
+            ranked = stack_ranks(c, ids)
+            counts = self.tab_counts(c, ids)
             for entry in entries:
                 entry["item"]["repositoryIds"] = repos.get(entry["itemId"], [])
+                entry["item"]["rank"] = ranked.get(entry["itemId"])
+                entry["counts"] = counts[entry["itemId"]]
             # Completed titles are preserved from the actual completion event, not current item state.
             completed = []
             for r in c.execute("SELECT after_json FROM events WHERE local_date=? AND kind='item.update' ORDER BY created_at", (date,)):
@@ -408,6 +446,30 @@ class WorkService:
                                 "completed": completed,
                                 "blocked": self._blocked_as_of(c, date)},
                     "nextItemId": next((e["itemId"] for e in entries if e["planned"] and not e["item"]["archived"] and e["item"]["status"] in {"open", "doing"}), None)}
+
+    @staticmethod
+    def tab_counts(c: sqlite3.Connection, ids: builtins.list[str]) -> dict[str, dict]:
+        """What each item's tabs on Today hold, so they say so before the item is read: its active
+        tasks and how many are done, its links and files, and whether its scratchpad has text."""
+        counts = {i: {"tasks": 0, "tasksDone": 0, "links": 0, "files": 0, "scratchpad": False} for i in ids}
+        if not ids:
+            return counts
+        marks = ",".join("?" for _ in ids)
+        for owner, total, done in c.execute(f"SELECT item_id,count(*),total(done) FROM tasks WHERE archived=0 AND item_id IN ({marks}) GROUP BY item_id", ids):
+            counts[owner].update(tasks=total, tasksDone=int(done))
+        for owner, total in c.execute(f"SELECT owner_id,count(*) FROM web_links WHERE owner_type='item' AND archived=0 AND owner_id IN ({marks}) GROUP BY owner_id", ids):
+            counts[owner]["links"] = total
+        # The Files tab lists attached copies and local paths together.
+        files = (f"SELECT owner_id AS owner FROM attachments WHERE owner_type='item' AND archived=0 AND owner_id IN ({marks}) "
+                 f"UNION ALL SELECT item_id FROM file_references WHERE archived=0 AND item_id IN ({marks})")
+        for owner, total in c.execute(f"SELECT owner,count(*) FROM ({files}) GROUP BY owner", [*ids, *ids]):
+            counts[owner]["files"] = total
+        # Blank counts as empty: whitespace alone, as str.strip() sees it (ASCII whitespace,
+        # no-break spaces and Unicode line breaks), holds nothing to read.
+        blank = "char(9,10,11,12,13,28,29,30,31,32,133,160,5760,8192,8193,8194,8195,8196,8197,8198,8199,8200,8201,8202,8232,8233,8239,8287,12288)"
+        for (owner,) in c.execute(f"SELECT owner_id FROM notes WHERE owner_type='item' AND archived=0 AND trim(text,{blank})<>'' AND owner_id IN ({marks})", ids):
+            counts[owner]["scratchpad"] = True
+        return counts
 
     @staticmethod
     def _blocked_as_of(c: sqlite3.Connection, date: str) -> builtins.list[dict]:
@@ -677,13 +739,17 @@ class WorkService:
         ids = p.get("ids")
         if not isinstance(ids, list) or len(ids) != len(set(ids)) or set(ids) != set(actual):
             raise AppError(409, "conflict", "Order must include exactly the current records")
-        for pos, identity in enumerate(ids):
-            if date:
-                c.execute("UPDATE daily_entries SET position=?,revision=revision+1 WHERE id=?", (pos, identity))
-            else:
-                c.execute("UPDATE work_items SET backlog_order=?,revision=revision+1 WHERE id=?", (pos, identity))
         if date:
+            for pos, identity in enumerate(ids):
+                c.execute("UPDATE daily_entries SET position=?,revision=revision+1 WHERE id=?", (pos, identity))
             c.execute("UPDATE days SET revision=revision+1 WHERE date=?", (date,))
+        else:
+            # The backlog trades the positions it already holds, so planned work keeps its stack
+            # rank and done work its place.
+            renumber(c, backlog_sequence(c))
+            held = dict(c.execute("SELECT id,backlog_order FROM work_items").fetchall())
+            for slot, identity in zip(sorted(held[i] for i in actual), ids, strict=True):
+                c.execute("UPDATE work_items SET backlog_order=?,revision=revision+1 WHERE id=?", (slot, identity))
         self.bump_backlog(c)
         event(c, actor, "day.reorder" if date else "backlog.reorder", date or "backlog", actual, ids)
         return {"ok": True}
@@ -708,20 +774,45 @@ class WorkService:
         target = index + (-1 if p["direction"] == "up" else 1)
         if not 0 <= target < len(rows):
             return {"ok": True}
-        source, neighbor = rows[index], rows[target]
-        if source["backlog_order"] == neighbor["backlog_order"]:
-            # A previously scheduled item can rejoin with a tied position. Normalize
-            # only lightweight order columns before the two-row swap.
-            for position, row in enumerate(rows):
-                c.execute("UPDATE work_items SET backlog_order=? WHERE id=?", (position, row["id"]))
-            positions = (target, index)
-        else:
-            positions = (neighbor["backlog_order"], source["backlog_order"])
+        neighbor = rows[target]["id"]
+        # Older orderings left tied positions, where swapping two items' values would let a
+        # third item tied with either fall on the other side of it. Every item gets its own
+        # position first (nothing is written once they have), so only the two trade places.
+        renumber(c, backlog_sequence(c))
+        held = dict(c.execute("SELECT id,backlog_order FROM work_items WHERE id IN (?,?)", (identity, neighbor)).fetchall())
+        positions = (held[neighbor], held[identity])
         c.execute("UPDATE work_items SET backlog_order=?,revision=revision+1 WHERE id=?", (positions[0], identity))
-        c.execute("UPDATE work_items SET backlog_order=?,revision=revision+1 WHERE id=?", (positions[1], neighbor["id"]))
+        c.execute("UPDATE work_items SET backlog_order=?,revision=revision+1 WHERE id=?", (positions[1], neighbor))
         self.bump_backlog(c)
         event(c, actor, "backlog.move", "backlog", {"id": identity, "position": index}, {"id": identity, "position": target})
         return {"ok": True}
+
+    def rank(self, c: sqlite3.Connection, actor: dict, identity: str, p: dict) -> dict:
+        """Move unfinished, unarchived work to a stack rank; a rank past the last moves it last.
+
+        The move is checked against the item's own revision, not the collection's, which every
+        change to any work or day bumps: a stale view can only place the item at the rank it
+        showed. Moving changes no item's revision, so a draft open on any of them still saves.
+        """
+        wanted = p.get("rank")
+        if not isinstance(wanted, int) or isinstance(wanted, bool) or wanted < 1:
+            raise AppError(422, "validation", "rank must be a whole number from 1")
+        row = self.item(c, identity, active=True)
+        require_revision(row, p.get("revision"))
+        if row["status"] == "done":
+            raise AppError(409, "conflict", "Done work has no stack rank; reopen it to rank it")
+        ranked = [r[0] for r in c.execute(f"SELECT id FROM work_items WHERE {RANKED} ORDER BY backlog_order,id")]
+        before, after = ranked.index(identity) + 1, min(wanted, len(ranked))
+        if after != before:
+            others = [i for i in ranked if i != identity]
+            order = [i for i in backlog_sequence(c) if i != identity]
+            # Taken out, the item goes back in just before the one that then holds its new rank,
+            # or just after the last. Done and archived work keeps its place among the rest.
+            order.insert(order.index(others[after - 1]) if after <= len(others) else order.index(others[-1]) + 1, identity)
+            renumber(c, order)
+            self.bump_backlog(c)
+            event(c, actor, "item.rank", identity, {"rank": before}, {"rank": after})
+        return {"id": identity, "rank": after, "rankedCount": len(ranked)}
 
     def _support_apply(self, c: sqlite3.Connection, actor: dict, action: str, p: dict) -> dict:
         kind, verb = action.split(".", 1)

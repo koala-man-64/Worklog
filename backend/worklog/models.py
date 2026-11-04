@@ -55,6 +55,11 @@ class Move(Expected):
     direction: Literal["up", "down"]
 
 
+class Rank(Expected):
+    """revision is the item's own; a rank past the last moves the item last."""
+    rank: Annotated[StrictInt, Field(ge=1)]
+
+
 class Reschedule(Expected):
     itemId: str
     targetDate: str

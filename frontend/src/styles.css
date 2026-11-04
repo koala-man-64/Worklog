@@ -1,7 +1,7 @@
 /* Hallmark · checked: 2026-11-04 · genre: modern-minimal (inferred) · shape: app screen · theme: brand
  * floor: 0 FAIL · fixed: 11 (19, 30a, 34, 39a, 39b, 40, 48, 54, 63, 67, 75), then 19 and 75 on the discussions screen, then 34 on the work list at 375px; open on main since #73, outside the work list's recomposition: 48, a shadow colour literal on the floating repository search · structural: 4 printed (header, add-forms, title echo, date formats), date formats since settled on the discussions screen
  * built: the project · redesign: polish for the system and spacing (#23), kept; the roadmap screens, the discussions screen and the work list recomposed in full · v2.0.0
- * screen: roadmaps, a plan outline beside a detail pane, both bounded to the window from 900px wide; narrower or shorter windows stack, the outline capped at 60dvh with its own scroll. discussions, the threads beside the open thread, the filters folded to the view, a search and one toggle, the roles in a tray that takes the panel while open, a phone showing the open thread above the threads. work, a sheet of work items filling the window from 900px wide, its filters in a bar at its head, a frozen header row and title column over gridlined rows, its count and pager in a bar at its foot; narrower than 68rem it scrolls sideways under the frozen title column, and a phone restacks each row · states: loading, empty, error, full
+ * screen: roadmaps, a plan outline beside a detail pane, both bounded to the window from 900px wide; narrower or shorter windows stack, the outline capped at 60dvh with its own scroll. discussions, the threads beside the open thread, the filters folded to the view, a search and one toggle, the roles in a tray that takes the panel while open, a phone showing the open thread above the threads. work, a sheet of work items filling the window from 900px wide, its filters in a bar at its head, a frozen header row and frozen rank and title columns over gridlined rows, a rank picker opening in a row of its own, its count and pager in a bar at its foot; narrower than 68rem it scrolls sideways under the frozen columns, and a phone restacks each row · states: loading, empty, error, full
  * signature: roadmaps, the plan outline, every step a row of title and status with its detail beside it. discussions, the receipt under each acknowledgement request, one row per recipient with its state in the status colours. work, the sheet, one row per item and one column per fact, the status pills filling their column so the colours read straight down it
  * finish-review: roadmaps, subagent · 8 findings · 5 resolved, 3 kept as found (status coding kept per the prominence change and waiver 3; shared Notes and Files sections and the list summary sit outside this recomposition) · gap: the selected-row miss in the step shots came from the capture resizing after load, verified in view at a fixed 1440x900. discussions, subagent · 8 findings · 5 resolved (the pane short of the list by the section margin, the receipt rows in the status colours, the quiet empty pane hidden on a phone, the folded filter spacing, outlined wait buttons), 1 partial (new post now takes focus, so a phone scrolls to it; a thread tap already scrolled to the top), 2 kept as found (the page header is every screen's, and a request can sit anywhere in a long thread; clamping the list chips would hide facts and leave clipped links reachable by keyboard) · gap: 73 reads the rows clipped by the list's scroll area as covered by the roles summary, measured below the list's visible bottom (text tops 846 to 865px, list bottom 829px). work, subagent · 7 findings · 3 resolved (the head a line shorter with the lede on the heading's baseline, the nested repository box gone with #73's one-line picker, the stand-in description a step quieter), 4 partial (the filters in two groups that wrap as wholes, so no clipped search and no lone control, on one line from a 1440px window rather than 1200; the title column capped at 26rem from a 1300px sheet so the description takes the rest, while titles still wrap at 1280 to 1440 per waiver 49b; a darker edge on the frozen title column, 16rem whenever the sheet scrolls sideways, though below about 1270px the order and archive columns still sit past a sideways scroll; 44px arrows with borders on touch screens, the arrows and Archive keeping a line of their own because the status line would put them ahead of the description in the visual order only) · gap: 56's static half pairs the sheet's thead with the Chats pane's head, on another route in another scroll container, and the render half passes; 73 reads rows clipped by the sheet's scroll area as covered by its foot (area bottom 834px, flagged text tops 832 and 873px, the foot hit-testing as itself); 72 measures the sheet's scrolled-out cells (right -801px) under the sidebar waiver */
 /* Hallmark · dropped fields with no name, the per-step note and file controls in the plan tree · each step's description, notes, files and history now open in the detail pane when that step is selected, so the tree keeps one row per step */
@@ -615,29 +615,126 @@ header {
 .reschedule-picker input {
   flex: 0 1 auto;
 }
-/* Today: an entry's scratchpad, links and files, opened on demand under its outcome. */
-.entry-details {
-  border-top: 0;
-  padding: 0;
+/* Tabs: a row of names over the one panel that shows. */
+.tab-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 14px;
+}
+.tab-list > [role="tab"] {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 5px 12px;
+  min-height: 34px;
+  margin-bottom: -1px;
+}
+.tab-list > [role="tab"]:hover {
+  background: transparent;
+  color: var(--ink);
+  border-bottom-color: var(--field-edge);
+}
+.tab-list > [role="tab"][aria-selected="true"] {
+  color: var(--ink);
+  border-bottom-color: var(--teal);
+}
+.tab-list > [role="tab"]:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: -2px;
+}
+.tab-list .count {
+  margin-left: 6px;
+}
+.tab-panel:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 4px;
+}
+/* A panel's section starts under the tabs, with no heading or gap of its own. */
+.tab-panel > section,
+.tab-panel > section > .draft:first-child {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+/* Today: an entry's outcome, and its work item's tasks, scratchpad, links and files. */
+.entry-tabs {
   margin-top: 4px;
 }
-.entry-details > summary {
-  width: fit-content;
-  cursor: pointer;
+.entry-tabs .tab-list {
+  margin-bottom: 10px;
+}
+.checklist > .muted {
+  margin: 0 0 6px;
   font-size: 12px;
+}
+/* Task text reads at body size wherever the list sits, level with its buttons. */
+.checklist .task > label {
+  font-size: inherit;
+  margin-bottom: 0;
+}
+.task.done > label {
   color: var(--muted);
+  text-decoration: line-through;
 }
-.entry-details[open] > summary {
-  margin-bottom: 12px;
-}
-.entry-details .draft {
+/* A task's edit field opens under it, without the rule and spacing other disclosures have. */
+.line > .task-edit {
+  border-top: 0;
+  padding: 0;
   margin: 0;
 }
-.entry-details section:not(.draft) {
-  margin-bottom: 16px;
+.line > .task-edit[open] {
+  flex-basis: 100%;
 }
-.entry-details section:not(.draft):last-child {
-  margin-bottom: 0;
+.task-edit > .draft {
+  margin: 8px 0 0;
+}
+/* Stack rank: a button on each Work row and on the item page, a badge on Today. */
+.rank-cell {
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+  min-width: 46px;
+}
+button.rank {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  padding: 3px 7px;
+  min-height: 28px;
+}
+button.rank:hover {
+  border-color: var(--line);
+}
+.rank-of {
+  color: var(--muted);
+  font-weight: 400;
+}
+.rank-badge {
+  display: inline-block;
+  margin-left: 9px;
+  padding: 0 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 18px;
+  vertical-align: middle;
+}
+.rank-picker {
+  margin-top: 10px;
+}
+.rank-picker > input {
+  flex: none;
+  width: 90px;
+  min-width: 0;
+}
+.rank-picker > .error {
+  flex-basis: 100%;
 }
 .archived-notes {
   margin-top: 12px;
@@ -739,7 +836,8 @@ header {
   font-size: 12px;
   margin-bottom: 7px;
 }
-.entry-body > .draft textarea {
+.entry-body > .draft textarea,
+.entry-tabs .draft textarea {
   min-height: 62px;
   max-height: 50vh;
   field-sizing: content;
@@ -1041,7 +1139,7 @@ select.status-select option {
   overscroll-behavior: contain;
   /* Tabbing to a row keeps it clear of the frozen header row and of the title column, 16rem wide
      whenever the sheet scrolls sideways. */
-  scroll-padding: 32px 0 0 16rem;
+  scroll-padding: 32px 0 0 20.5rem;
 }
 .work-grid-body :focus-visible {
   outline-offset: 0;
@@ -1057,8 +1155,11 @@ select.status-select option {
 /* Columns of text widen with the window, the description most; columns of controls hold their size.
    The title column stops at 26rem on a wide sheet, so the description takes the rest, and narrows to
    16rem when the sheet scrolls sideways, so less of the window is pinned. */
+.work-grid .col-rank {
+  width: 4.5rem;
+}
 .work-grid .col-title {
-  width: 28%;
+  width: 26%;
 }
 @container (min-width: 1300px) {
   .work-grid .col-title {
@@ -1120,9 +1221,21 @@ select.status-select option {
   white-space: nowrap;
 }
 /* The frozen title column, edged in a darker line like a spreadsheet's frozen pane. */
-.work-grid .cell-title {
+/* The stack rank leads each row, its numbers right-aligned so they read down the column; it and the
+   title stay in view when the sheet scrolls sideways. */
+.work-grid .cell-rank {
   position: sticky;
   left: 0;
+  z-index: 1;
+  padding-inline: 4px;
+  text-align: right;
+}
+.work-grid .cell-rank button.rank {
+  min-height: var(--control-height);
+}
+.work-grid .cell-title {
+  position: sticky;
+  left: 4.5rem;
   z-index: 1;
   border-right-color: var(--field-edge);
 }
@@ -1174,13 +1287,25 @@ select.status-select option {
   background: var(--teal-wash);
   color: var(--teal);
 }
-.work-grid td[colspan] {
+.work-grid tr:not(.rank-row) > td[colspan] {
   padding: 12px 8px;
   color: var(--muted);
 }
 .work-grid td[colspan] > .empty {
   border: 0;
   padding: 32px 16px;
+}
+/* An open rank picker runs under its row, tinted with it, and stays at the sheet's left edge when
+   the sheet scrolls sideways. */
+.work-grid .rank-row > td {
+  padding: 8px;
+  background: var(--teal-wash);
+}
+.work-grid .rank-row .rank-picker {
+  position: sticky;
+  left: 8px;
+  display: inline-flex;
+  margin: 0;
 }
 /* Rows run the width of the window; the tint carries the eye along one, and marks the row being edited. */
 @media (hover: hover) {
@@ -1271,9 +1396,17 @@ select.status-select option {
   .work-grid .work-row select {
     margin-left: 0;
   }
+  /* The rank sits before the title on its line; nothing else fits beside them. */
+  .work-grid .cell-rank {
+    position: static;
+    flex: none;
+  }
   .work-grid .cell-title {
     position: static;
-    flex: 1 1 100%;
+    flex: 1 1 calc(100% - 4.5rem - 8px);
+  }
+  .work-grid .rank-row .rank-picker {
+    position: static;
   }
   .work-grid .cell-description {
     flex: 1 1 12rem;
@@ -1303,7 +1436,7 @@ select.status-select option {
   .work-grid tbody tr:focus-within > * {
     background: none;
   }
-  .work-grid td[colspan] {
+  .work-grid tr:not(.rank-row) > td[colspan] {
     padding: 12px;
   }
 }
@@ -3136,11 +3269,15 @@ code {
   .work-row {
     flex-wrap: wrap;
   }
-  .work-row > div:nth-child(2) {
-    flex-basis: calc(100% - 30px);
+  /* The text takes the first line beside the rank and status dot; the controls wrap under it. */
+  .work-row > div:first-of-type {
+    flex-basis: calc(100% - 80px);
+  }
+  .work-row .rank-cell {
+    min-width: 36px;
   }
   .work-row select {
-    margin-left: 22px;
+    margin-left: 66px;
   }
   .quick-add {
     padding: 10px;
