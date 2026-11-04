@@ -300,6 +300,8 @@ export type Settings = {
     agentId: string | null;
     // The agent whose credential registered this one; null when issued in Settings.
     registeredBy: { id: string; label: string } | null;
+    // The chat a registered identity works in; null when issued in Settings.
+    chatId: string | null;
     // Active identities this one registered, directly or through them; revoking it revokes them.
     registeredActive: number;
   }[];

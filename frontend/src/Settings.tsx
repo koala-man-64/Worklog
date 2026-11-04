@@ -317,6 +317,12 @@ export function Settings() {
                   <a href={"#agents/" + c.registeredBy.id}>
                     {c.registeredBy.label}
                   </a>
+                  {c.chatId && (
+                    <>
+                      {" "}
+                      for chat <code>{c.chatId}</code>
+                    </>
+                  )}
                 </small>
               )}
               {!c.revoked && c.registeredActive > 0 && (

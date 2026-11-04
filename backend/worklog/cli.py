@@ -601,20 +601,29 @@ def _store_new_token(path: Path, name: str, token: str) -> None:
 
 
 def register_command(client: AgentClient, args: argparse.Namespace, redact: list[str]) -> dict:
-    """Register a new identity whose token is generated here and never printed."""
-    name = _agent_name(args.name)
+    """Register a new identity for this chat, with a token generated here and never printed."""
+    if args.name is None:
+        # The chat's ID names the identity unless it cannot be a name.
+        try:
+            name = _agent_name(args.chat)
+        except ValueError:
+            raise ValueError("This chat ID cannot name the agent; give --name as well") from None
+    else:
+        name = _agent_name(args.name)
     path = _token_store(args, client.base) / (name + ".json")
     token = _stored_token(path)
     if token is None:
         token = secrets.token_urlsafe(32)
         _store_new_token(path, name, token)
     redact.append(token)
-    payload = {"label": args.label, "token": token, **({"avatar": args.avatar} if args.avatar else {})}
+    payload = {"label": args.label, "token": token, "chatId": args.chat, **({"avatar": args.avatar} if args.avatar else {})}
     try:
         registration = client.request("POST", "/agent-registrations", payload)
     except AgentRequestError as exc:
         if exc.code == "token_revoked":
             raise ValueError(f"The credential stored for {name} was revoked; run `worklog agent --as {name} retire` to forget it before registering {name} again") from None
+        if exc.code == "chat_mismatch":
+            raise ValueError(f"{name} is registered for another chat; register this chat under another --name") from None
         if exc.status is None or exc.status >= 500:
             raise AgentRequestError(f"{exc}; result uncertain; run the same register command again", exc.status) from None
         raise
@@ -645,7 +654,7 @@ def agent_command(args: argparse.Namespace, port: int, redact: list[str]) -> Any
         name = _agent_name(args.as_name)
         token = _stored_token(_token_store(args, base) / (name + ".json"))
         if token is None:
-            raise ValueError(f"No agent named {name} was registered for {base}; run `worklog agent register --name {name} --label LABEL` first")
+            raise ValueError(f"No agent named {name} was registered for {base}; run `worklog agent register --chat CHAT_ID --name {name} --label LABEL` first")
         redact.append(token)
     client = AgentClient(base, token)
     if args.agent_action == "register":
@@ -815,7 +824,7 @@ def _coordination_parser(actions: Any) -> None:
     start.add_argument("--client-run-key", required=True)
     start.add_argument("--display-name", required=True)
     start.add_argument("--provider")
-    start.add_argument("--chat", help="External chat provenance only")
+    start.add_argument("--chat", help="The chat this run works in (default: the chat you registered with)")
     write(start)
     end = runs.add_parser("end")
     end.add_argument("id")
@@ -1170,8 +1179,11 @@ def parser() -> argparse.ArgumentParser:
     agent.add_argument("--as", dest="as_name", metavar="NAME",
                        help="Act as an agent registered here with `register` (default: WORKLOG_AGENT_TOKEN)")
     actions = agent.add_subparsers(dest="agent_action", required=True)
-    register = actions.add_parser("register", help="Register a new agent identity; its token is generated and kept here, never printed")
-    register.add_argument("--name", required=True, help="Local name for --as NAME afterwards, such as the chat's session ID")
+    register = actions.add_parser("register", help="Register a new agent identity for your chat; its token is generated and kept here, never printed")
+    register.add_argument("--chat", required=True, metavar="CHAT_ID",
+                          help="Your chat's ID: a Claude Code session ID, a Claude desktop local_ ID or a Codex thread ID. "
+                               "Your runs report it, and the work they report tracks your chat")
+    register.add_argument("--name", help="Local name for --as NAME afterwards (default: the chat ID)")
     register.add_argument("--label", required=True, help="How the new agent appears in Worklog")
     register.add_argument("--avatar", help="An available name from `discussions avatars`")
     actions.add_parser("retire", help="Revoke the credential of the agent given with --as and forget its token")

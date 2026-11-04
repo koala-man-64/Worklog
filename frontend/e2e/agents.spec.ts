@@ -184,12 +184,14 @@ test("an agent registers its own identity and speaks as it", async ({
   const token = Buffer.from(
     crypto.getRandomValues(new Uint8Array(32)),
   ).toString("base64url");
+  const chatId = crypto.randomUUID();
   const agent = await post(
     "/agent-registrations",
-    { label, token },
+    { label, token, chatId },
     sponsor.token,
   );
   expect(agent.registeredBy.label).toBe(sponsorLabel);
+  expect(agent.chatId).toBe(chatId);
   const posted = await post(
     "/discussions",
     { title: "Self registered " + suffix, text: "Speaking for myself" },

@@ -50,6 +50,7 @@ from .registration import (
     active_registrations,
     install_registration_routes,
     registered_by,
+    registered_chats,
     revoke_registered,
 )
 from .registration import agent_route_allowed as registration_route_allowed
@@ -700,9 +701,11 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             register_repositories = agents_may_register(c)
             rows = c.execute("SELECT c.id,c.label,c.created_at,c.revoked,b.agent_id FROM credentials c LEFT JOIN communication_credentials b ON b.credential_id=c.id").fetchall()
             sponsors = registered_by(c, [r["id"] for r in rows])
+            chats = registered_chats(c, [r["id"] for r in rows])
             registered = active_registrations(c, [r["agent_id"] for r in rows if r["agent_id"]])
             creds = [{"id": r["id"], "label": r["label"], "createdAt": r["created_at"], "revoked": bool(r["revoked"]), "agentId": r["agent_id"],
-                      "registeredBy": sponsors.get(r["id"]), "registeredActive": registered.get(r["agent_id"], 0)} for r in rows]
+                      "registeredBy": sponsors.get(r["id"]), "chatId": chats.get(r["id"]),
+                      "registeredActive": registered.get(r["agent_id"], 0)} for r in rows]
             agents = [{"id": r["id"], "label": r["label"], "avatar": r["avatar"]} for r in c.execute("SELECT id,label,avatar FROM communication_agents ORDER BY label,id")]
         backups = list_backups(directory / "backups")
         size = db.path.stat().st_size

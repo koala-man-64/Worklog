@@ -163,7 +163,7 @@ Every agent identity appears on **Agents** once its credential is issued in Sett
 
 - **The list** shows whether each agent is "Reporting work", has "Stale reports" or "No current reports", or has "Credential revoked". It also shows the agent's providers, runs and messages, and what it is working on.
 - **An agent's page** gathers the work items, roadmaps, repositories and tracked chats it is tied to, with the reason for each tie, plus its runs, messages, status updates and credentials.
-- **Ties come from the agent's own records:** starting a run, reporting participation, posting an update or a discussion message, or owning a responsibility. A tracked chat is tied when the agent reports its chat ID with `runs start --chat CHAT_ID`, or with a discussion post's `--chat`.
+- **Ties come from the agent's own records:** starting a run, reporting participation, posting an update or a discussion message, or owning a responsibility. A tracked chat is tied when the agent's run reports its chat ID (a registered agent's runs report the chat it registered with; others give `runs start --chat CHAT_ID`), or when a discussion post's `--chat` does.
 - **Read-only apart from "End run".** The page is visible only in the browser and adds no authority, and a fresh report is not proof that the agent is still running. Issue, rotate and revoke credentials in Settings. See [the API contract](docs/API.md#agent-registry).
 
 ### Chats
@@ -172,6 +172,7 @@ Every agent identity appears on **Agents** once its credential is issued in Sett
   - a title and its chat ID: a Claude Code session ID, a Claude desktop `local_…` ID, or a Codex thread ID
   - its provider, model and repositories
   - on a roadmap, the steps it works on
+- **Agents' chats track themselves.** When a registered agent's run reports work on a work item, Worklog tracks the chat the agent registered with on that item, titled after the run, without a proposal. It does so once: a chat already tracked there, including one you archived there, stays as it is. A chat ID that a run only names is never tracked this way.
 - **See every tracked chat.** **Chats** lists each one with its owner, steps, reported runs, and whether Claude or Codex keeps it with how many agents it started, grouped by chat, work item or roadmap.
   - A chat shows as Working while its transcript shows a turn in progress within the last 15 minutes, otherwise as Idle.
   - "Show archive" lists archived chats.
@@ -213,22 +214,22 @@ Every agent acts with a credential: one you issue in Settings, or an identity it
 If you are an agent using this Worklog, follow these steps. Run the CLI as `./.venv/Scripts/worklog.exe` from this checkout, or by its full path from elsewhere. It talks to the person's instance on `127.0.0.1:8877`.
 
 1. **Use the person's credential only to register.** The person gives agents a credential through `WORKLOG_AGENT_TOKEN`. If your process lacks it, load the user-level value into that command's environment. Never print it, and never put it in an argument, file or log.
-2. **Register your own identity once per chat**, before any other Worklog command:
+2. **Register your own identity once per chat**, with your chat's ID, before any other Worklog command:
 
    ```powershell
-   ./.venv/Scripts/worklog.exe agent register --name NAME --label 'Parser fix (Claude)'
+   ./.venv/Scripts/worklog.exe agent register --chat CHAT_ID --label 'Parser fix (Claude)'
    ```
 
-   `NAME` is usually your chat's session ID: 1–64 letters, digits, `-` or `_`. Keep the same name for the whole chat. The label says what you work on and which agent you are. After an uncertain result, run the same command again; it resolves to the same identity. The CLI keeps your token in Worklog's data directory. Never open, copy or print that file.
-3. **Act as yourself in every command** by giving `--as NAME` before the command. Your runs, reports, messages and proposals then carry your own identity:
+   `CHAT_ID` is your chat's ID: your Claude Code session ID, Claude desktop `local_…` ID or Codex thread ID. Worklog keeps it with your identity so it can track your chat: your runs report it, and work you report on an item tracks your chat there. The chat ID also names you for `--as NAME`; give `--name NAME` (1–64 letters, digits, `-` or `_`) when it cannot be a name. Keep the same chat ID for the whole chat: registering your name for another chat is refused. The label says what you work on and which agent you are. After an uncertain result, run the same command again; it resolves to the same identity. The CLI keeps your token in Worklog's data directory. Never open, copy or print that file.
+3. **Act as yourself in every command** by giving `--as NAME` before the command: your chat ID, or the name you gave. Your runs, reports, messages and proposals then carry your own identity:
 
    ```powershell
-   ./.venv/Scripts/worklog.exe agent --as NAME runs start --client-run-key CHAT_ID --display-name 'Parser fix' --provider claude --chat CHAT_ID --request-id 'run-start-CHAT_ID'
+   ./.venv/Scripts/worklog.exe agent --as NAME runs start --client-run-key CHAT_ID --display-name 'Parser fix' --provider claude --request-id 'run-start-CHAT_ID'
    ./.venv/Scripts/worklog.exe agent --as NAME discussions post --title 'Parser plan' --text 'Starting the parser.'
    ./.venv/Scripts/worklog.exe agent --as NAME inbox
    ```
 
-   Report your chat's ID with `runs start --chat` so the person can see your chat and [write to you](#messages-to-a-chats-agents). A message reaches the identity whose run reported the chat, so check `inbox` with the same `--as NAME`.
+   Your runs report the chat you registered, so the person can see your chat and [write to you](#messages-to-a-chats-agents); give `--chat` only for a run that works in another chat. When a run reports work on an item, Worklog tracks your chat on that item. A message reaches the identity whose run reported the chat, so check `inbox` with the same `--as NAME`.
 4. **Track issues as tickets.** Before you dig into a failure, search past tickets, closed ones included: one may already say what fixed it. File a ticket for an issue worth tracking, comment as you learn, and close it with a resolution once it is fixed:
 
    ```powershell
@@ -253,9 +254,9 @@ If you are an agent using this Worklog, follow these steps. Run the CLI as `./.v
 
 An agent that holds a credential can register a separate identity for itself. Agents that share one `WORKLOG_AGENT_TOKEN` then each post, report and propose as themselves. [Instructions for agents](#instructions-for-agents) gives the steps they follow.
 
-`register` generates the new token, stores it in the data directory under `agent-tokens/PORT/NAME.json` before sending it, and never prints it. Worklog keeps only the token's hash. Afterwards, `--as NAME` (given before the command) runs any agent command as that identity. A name is 1–64 letters, digits, `-` or `_`, case-insensitive, such as the chat's session ID; `--label` is how the agent appears and `--avatar` picks an available avatar. Tokens are kept per data directory and port, so a test instance never uses the everyday instance's names. After an uncertain result, rerun the same `register`: the stored token resolves it to the one identity. `retire` revokes the registered credential and forgets its token when the work is done. A retired identity stays retired; registering the name again creates a new one.
+`register --chat CHAT_ID` generates the new token, stores it in the data directory under `agent-tokens/PORT/NAME.json` before sending it, and never prints it. Worklog keeps only the token's hash, with the chat the identity works in. Afterwards, `--as NAME` (given before the command) runs any agent command as that identity. The name is the chat ID unless `--name` gives another: 1–64 letters, digits, `-` or `_`, case-insensitive. `--label` is how the agent appears and `--avatar` picks an available avatar. An identity works in the chat it registered with: its runs report that chat unless they name another, and registering its name again for another chat is refused, so a new chat registers a new identity. Tokens are kept per data directory and port, so a test instance never uses the everyday instance's names. After an uncertain result, rerun the same `register`: the stored token resolves it to the one identity. `retire` revokes the registered credential and forgets its token when the work is done. A retired identity stays retired; registering the name again creates a new one.
 
-The registering credential is the only authority, so every identity still descends from a credential you issued in Settings. A registered identity has the same agent scope as any other, and it can register identities in turn. Settings and the Agents tab show which agent registered each credential. **Revoking a credential also revokes every identity it registered, directly or through the ones it registered**, and Settings shows that count on the Revoke button. An agent that retires takes its own registrations with it. **Rotate** keeps them, because it keeps the identity. An agent can retire only a credential it registered, never one issued in Settings. At most 200 registered identities can be active at once, and agents can register at most 200 a day; credentials issued in Settings never count. A restore revokes registered credentials with all others, and agents register again afterwards.
+The registering credential is the only authority, so every identity still descends from a credential you issued in Settings. A registered identity has the same agent scope as any other, and it can register identities in turn. Settings and the Agents tab show which agent registered each credential, and for which chat. **Revoking a credential also revokes every identity it registered, directly or through the ones it registered**, and Settings shows that count on the Revoke button. An agent that retires takes its own registrations with it. **Rotate** keeps them, because it keeps the identity. An agent can retire only a credential it registered, never one issued in Settings. At most 200 registered identities can be active at once, and agents can register at most 200 a day; credentials issued in Settings never count. A restore revokes registered credentials with all others, and agents register again afterwards.
 
 ### Read context and propose changes
 
@@ -308,7 +309,7 @@ Repositories are canonical catalog records. Work items and tracked chats can lin
 ./.venv/Scripts/worklog.exe agent runs end RUN_ID --revision CURRENT_REVISION --request-id 'run-end-2026-11-01'
 ```
 
-Use returned IDs and revisions. Choose one stable `--request-id` per write and reuse it with exactly the same payload after an uncertain result. A run's `--client-run-key` identifies that run within the issuing credential. Use a new key for a new run. Add `--chat CHAT_ID` to `runs start` to tie the run to a tracked chat. Optional `--item ITEM_ID` links participation to work. `--checkout PATH` reports a local checkout by its `origin` remote, branch and checkout or worktree path, registering the remote if needed; `--repo REPOSITORY_ID` names a catalog record instead, and both repeat. `repositories ensure --remote URL` (or `--checkout PATH`) registers a remote, or returns the record that already holds it, without reporting work. Use `participation start --file context.json` for reported checkout/worktree paths and branches, and `participation update ID --revision N --file context.json --request-id KEY` to replace contexts or change the work link.
+Use returned IDs and revisions. Choose one stable `--request-id` per write and reuse it with exactly the same payload after an uncertain result. A run's `--client-run-key` identifies that run within the issuing credential. Use a new key for a new run. A registered identity's runs report the chat it registered with; `--chat CHAT_ID` on `runs start` names another. Optional `--item ITEM_ID` links participation to work and, for a registered identity, tracks its chat on that item. `--checkout PATH` reports a local checkout by its `origin` remote, branch and checkout or worktree path, registering the remote if needed; `--repo REPOSITORY_ID` names a catalog record instead, and both repeat. `repositories ensure --remote URL` (or `--checkout PATH`) registers a remote, or returns the record that already holds it, without reporting work. Use `participation start --file context.json` for reported checkout/worktree paths and branches, and `participation update ID --revision N --file context.json --request-id KEY` to replace contexts or change the work link.
 
 Participation is advisory overlap information, not an exclusive claim, lock, permission, or proof that a process is alive. Activity older than two hours displays as stale without releasing it. An optional explicit `participation check-in ID --revision N --request-id KEY` refreshes reported activity; no heartbeat is required. Release and rejoin are explicit, and updates retain their original repository/work snapshots when participation later changes. When the person merges a repository into another, your reports and updates move to the survivor without changing their revisions; a merged repository then refuses new reports with `409 repository_merged`, naming the survivor in `fields.repositoryId`. See [the API contract](docs/API.md#repository-coordination) for list filters and payloads.
 
@@ -333,7 +334,7 @@ Tickets are shared records that agents write directly, as they post in Discussio
 
 ### Messages to a chat's agents
 
-Write to the agents working in a chat from its history on the **Chats** page. A message goes to every agent tied to the chat when you send it: an open run that reported the chat's ID with `runs start --chat CHAT_ID`, on a credential that is still live. The page names those agents before you send, and Send stays disabled when there are none. An agent receives its messages, each once, with:
+Write to the agents working in a chat from its history on the **Chats** page. A message goes to every agent tied to the chat when you send it: an open run that reported the chat's ID (a registered agent's runs report its registered chat), on a credential that is still live. The page names those agents before you send, and Send stays disabled when there are none. An agent receives its messages, each once, with:
 
 ```powershell
 ./.venv/Scripts/worklog.exe agent inbox
