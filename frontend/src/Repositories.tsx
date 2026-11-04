@@ -85,26 +85,28 @@ function RepositoryList() {
         </p>
       )}
       <ErrorMessage error={action.error || list.error} />
-      <input
-        aria-label="Find repositories"
-        placeholder="Find repositories…"
-        value={q}
-        onChange={(e) => {
-          setQ(e.target.value);
-          setOffset(0);
-        }}
-      />
-      <label>
+      <div className="toolbar">
         <input
-          type="checkbox"
-          checked={archived}
+          aria-label="Find repositories"
+          placeholder="Find repositories…"
+          value={q}
           onChange={(e) => {
-            setArchived(e.target.checked);
+            setQ(e.target.value);
             setOffset(0);
           }}
-        />{" "}
-        Show archive
-      </label>
+        />
+        <label>
+          <input
+            type="checkbox"
+            checked={archived}
+            onChange={(e) => {
+              setArchived(e.target.checked);
+              setOffset(0);
+            }}
+          />{" "}
+          Show archive
+        </label>
+      </div>
       {list.isPending ? (
         <p>Loading repositories…</p>
       ) : !list.error && !list.data?.items.length ? (
@@ -408,7 +410,7 @@ function RepositoryDetail({ id }: { id: string }) {
       <a className="back" href="#repositories">
         All repositories
       </a>
-      <header>
+      <header className="title-row">
         <h1>{repo.name}</h1>
         {!repo.mergedInto && (
           <button

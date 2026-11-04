@@ -218,7 +218,7 @@ function AgentView({ id }: { id: string }) {
       <a className="back" href="#agents">
         All agents
       </a>
-      <header>
+      <header className="title-row">
         <h1>{agent.label}</h1>
         <span className="badge">{state(agent)}</span>
       </header>

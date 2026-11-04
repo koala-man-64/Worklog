@@ -112,7 +112,7 @@ export function ChatOutbox({
 
   return (
     <section className="chat-outbox" aria-labelledby={`outbox-${chat.id}`}>
-      <h3 id={`outbox-${chat.id}`}>Message this chat's agents</h3>
+      <h3 id={`outbox-${chat.id}`}>Message this chat’s agents</h3>
       <ErrorMessage error={outbox.error} />
       {!!data?.items.length && (
         <>
@@ -144,7 +144,7 @@ export function ChatOutbox({
       )}
       {data?.chat.archived ? (
         <p className="muted">
-          This chat is archived. Archived chats don't receive messages, and
+          This chat is archived. Archived chats don’t receive messages, and
           Worklog never recovers a chat to deliver one.
         </p>
       ) : (

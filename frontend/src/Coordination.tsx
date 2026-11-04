@@ -342,7 +342,7 @@ export function Pages({
         Previous {label}
       </button>
       <span>
-        {offset + 1}–{Math.min(offset + PAGE, total)} of {total}
+        {offset + 1} to {Math.min(offset + PAGE, total)} of {total}
       </span>
       <button
         disabled={offset + PAGE >= total}

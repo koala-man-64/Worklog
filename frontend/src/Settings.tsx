@@ -68,6 +68,7 @@ export function Settings() {
         <section>
           <h2>Preferences</h2>
           <form
+            className="field-action"
             onSubmit={async (e) => {
               e.preventDefault();
               const form = new FormData(e.currentTarget);

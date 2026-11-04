@@ -239,7 +239,6 @@ export function DraftField({
   placeholder,
   maxLength,
   disabled = false,
-  compact = false,
   labelHidden = false,
 }: {
   draftKey: string;
@@ -251,20 +250,14 @@ export function DraftField({
   placeholder?: string;
   maxLength?: number;
   disabled?: boolean;
-  /** Puts Save now in the heading row, so a field in a list takes one row less. */
-  compact?: boolean;
   /** For a field a tab already names: the label still names it for assistive technology. */
   labelHidden?: boolean;
 }) {
   const draft = useDraft(draftKey, initial, revision, save);
   const [preview, setPreview] = useState(false);
-  const saveNow = (
-    <button className="quiet" onClick={draft.flush} disabled={disabled}>
-      Save now
-    </button>
-  );
   return (
     <section className="draft">
+      {/* The label, the save state and the field's own buttons share one row above it. */}
       <div className="field-heading">
         <label
           htmlFor={draftKey}
@@ -278,7 +271,9 @@ export function DraftField({
             {preview ? "Edit" : "Preview"}
           </button>
         )}
-        {compact && saveNow}
+        <button className="quiet" onClick={draft.flush} disabled={disabled}>
+          Save now
+        </button>
       </div>
       {preview ? (
         <Markdown text={draft.value} />
@@ -303,7 +298,6 @@ export function DraftField({
           onBlur={draft.flush}
         />
       )}
-      {!compact && saveNow}
       {draft.storageWarning && (
         <p className="warning">
           Browser draft storage unavailable; keep this tab open until saved.
@@ -580,13 +574,10 @@ export function Notes({
 export function Scratchpad({
   itemId,
   notes,
-  compact = false,
   labelHidden = false,
 }: {
   itemId: string;
   notes: Note[];
-  /** Passed to its field: Save now in the heading row. */
-  compact?: boolean;
   /** Passed to its field, where a tab already names it. */
   labelHidden?: boolean;
 }) {
@@ -615,7 +606,6 @@ export function Scratchpad({
         initial={pad?.text ?? ""}
         revision={pad?.revision ?? 0}
         save={save}
-        compact={compact}
       />
       {archived.length > 0 && (
         <details className="archived-notes">
