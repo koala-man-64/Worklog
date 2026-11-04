@@ -11,8 +11,8 @@ import re
 import sqlite3
 from typing import Any
 
+from . import search
 from .common import NOTE_LIMIT, AppError, event, now, read_events, require_revision, text, uid
-from .services import WorkService
 
 # Added in schema v9. Every statement stands alone: execute_schema splits on semicolons.
 # The page's text is the last column, so listing titles need not read through a long page's overflow pages.
@@ -65,7 +65,7 @@ class ResourceService:
     @staticmethod
     def _index(c: sqlite3.Connection, resource: dict) -> None:
         body = "\n\n".join(part for part in (resource["summary"].strip(), resource["body"]) if part.strip())
-        WorkService.index(c, resource["id"], "resource", resource["title"], body, resource["id"], resource["archived"])
+        search.put(c, resource["id"], "resource", resource["title"], body, resource["id"], resource["archived"])
 
     def create(self, c: sqlite3.Connection, actor: dict, p: dict) -> dict:
         self._person(actor)

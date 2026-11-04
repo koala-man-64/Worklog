@@ -14,6 +14,7 @@ import re
 import sqlite3
 from typing import Any
 
+from . import search
 from .avatars import AVATARS, choose, is_avatar
 from .common import AppError, event, now, require_revision, setting, text, uid
 from .services import repositories
@@ -313,7 +314,7 @@ class DiscussionService:
         c.execute("INSERT INTO discussions(id,title,created_at,updated_at) VALUES(?,?,?,?)", (identity, title, at, at))
         c.executemany("INSERT INTO discussion_contexts VALUES(?,?,?)", [(identity, *scope) for scope in sorted(contexts)])
         c.executemany("INSERT INTO discussion_repos VALUES(?,?)", [(identity, repo) for repo in repos])
-        c.execute("INSERT INTO search_index(entity_id,type,title,body,owner_id,archived) VALUES(?,'discussion',?,'',?,0)", (identity, title, identity))
+        search.put(c, identity, "discussion", title, "", identity, replace=False)
         message = self.post(c, actor, identity, p, first=True)
         return {"discussion": self.summary(c, identity), "message": message}
 
@@ -338,7 +339,8 @@ class DiscussionService:
             self._create_request(c, identity, ack)
         if not first:
             c.execute("UPDATE discussions SET revision=revision+1,updated_at=? WHERE id=?", (at, discussion_id))
-        c.execute("INSERT INTO search_index(entity_id,type,title,body,owner_id,archived) VALUES(?,'discussion_message',?,?,?,?)", (identity, discussion["title"], body, discussion_id, discussion["archived"]))
+        search.put(c, identity, "discussion_message", discussion["title"], body, discussion_id, bool(discussion["archived"]),
+                   replace=False)
         result = self.message(c, identity, actor)
         self._emit(c, actor, "discussion.create" if first else "discussion.message", identity, None, result, discussion_id=discussion_id, message_id=identity)
         return result
@@ -513,7 +515,7 @@ class DiscussionService:
         require_revision(row, p["revision"])
         before = self.summary(c, identity)
         c.execute("UPDATE discussions SET archived=?,revision=revision+1,updated_at=? WHERE id=?", (int(p["archived"]), now(), identity))
-        c.execute("UPDATE search_index SET archived=? WHERE type IN ('discussion','discussion_message') AND owner_id=?", (int(p["archived"]), identity))
+        search.set_archived(c, ("discussion", "discussion_message"), identity, p["archived"])
         result = self.summary(c, identity)
         self._emit(c, actor, "discussion.archive" if p["archived"] else "discussion.reopen", identity, before, result, discussion_id=identity)
         return result

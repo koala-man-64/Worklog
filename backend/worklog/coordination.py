@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
+from . import search
 from .chat_messages import expire_pending
 from .common import AppError, event, now, require_revision, setting, text, uid
 from .discussions import communication_actor
@@ -230,8 +231,7 @@ def repository_merge(c: sqlite3.Connection, actor: dict, identity: str, p: dict)
               (survivor["id"], source["id"]))
     c.execute("DELETE FROM person_links WHERE target_type='repository' AND target_id=?", (source["id"],))
     # Attached files follow too, archived ones included, so none stay on a record that takes no changes.
-    c.execute("UPDATE search_index SET owner_id=? WHERE type='attachment' AND entity_id IN "
-              "(SELECT id FROM attachments WHERE owner_type='repository' AND owner_id=?)", (survivor["id"], source["id"]))
+    search.move_repository_files(c, source["id"], survivor["id"])
     moved["attachments"] = c.execute("UPDATE attachments SET owner_id=? WHERE owner_type='repository' AND owner_id=?",
                                      (survivor["id"], source["id"])).rowcount
     before = repository_record(source)

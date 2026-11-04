@@ -12,7 +12,7 @@ from pathlib import PureWindowsPath
 from typing import Any
 from urllib.parse import urlsplit
 
-from . import scratchpad
+from . import scratchpad, search
 from .common import (
     FILE_LIMIT,
     NOTE_LIMIT,
@@ -1125,7 +1125,8 @@ class WorkService:
         elif kind == "decision":
             self.index(c, after["id"], "decision", after["title"], after["rationale"], after["roadmapId"], after["archived"])
         elif kind == "attachment":
-            c.execute("DELETE FROM search_index WHERE entity_id=?", (after["id"],))
+            # Proposal evidence lands here: unapproved files never appear in global search.
+            search.remove(c, after["id"])
         event(c, actor, action, p["id"], before, after)
         return after
 
@@ -1225,20 +1226,11 @@ class WorkService:
         event(c, actor, "attachment.create", identity, None, after)
         return after
 
-    @staticmethod
-    def index(c: sqlite3.Connection, identity: str, kind: str, title: str, body: str,
-              owner: str, archived: bool = False, *, replace: bool = True) -> None:
-        # entity_id is UNINDEXED in FTS5, so this delete reads the whole index. A caller that
-        # has already deleted the rows it rewrites passes replace=False.
-        if replace:
-            c.execute("DELETE FROM search_index WHERE entity_id=?", (identity,))
-        c.execute("INSERT INTO search_index(entity_id,type,title,body,owner_id,archived) VALUES(?,?,?,?,?,?)", (identity, kind, title, body, owner, int(archived)))
+    # Every write to the search index goes through search.py; this name serves this module's callers.
+    index = staticmethod(search.put)
 
     def refresh_plans(self, c: sqlite3.Connection, roadmap_id: str | None = None) -> None:
-        if roadmap_id:
-            c.execute("DELETE FROM search_index WHERE entity_id=? OR (type='step' AND owner_id=?)", (roadmap_id, roadmap_id))
-        else:
-            c.execute("DELETE FROM search_index WHERE type IN ('roadmap','step')")
+        search.remove_plans(c, roadmap_id)
         clause = " WHERE id=?" if roadmap_id else ""
         args = (roadmap_id,) if roadmap_id else ()
         # The delete above removed every row rewritten below, so each insert skips its own scan.

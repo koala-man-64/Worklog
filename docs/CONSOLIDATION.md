@@ -145,6 +145,14 @@ Fix: clear on result click. Findings: A-11.
 
 One PR that owns `migrations.py`, `db.py` and `recovery.py`. Rollback drops the additions and sets `user_version` to 10. A deploy that runs the migration on real data waits for the person's go-ahead.
 
+#### 1.0 · One writer for the search index
+
+Status: Merged · Branch: `claude/one-search-writer` · PR: [#95](https://github.com/koala-man-64/Worklog/pull/95)
+
+This step was added on 2026-11-04 while preparing 1.1. Keyed search rows only work if every writer keeps the keys in step. Before this step, discussions, tickets, repository merges and `WorkService` all wrote `search_index` directly.
+
+`search.py` now owns every write, unchanged in behaviour. `test_search_writes.py` fails when another module writes the table; historic migrations are exempt. No schema change. Findings: B-13.
+
 #### 1.1 · Search keys and missing indexes
 
 Status: Not started · Branch: — · PR: —
@@ -200,11 +208,11 @@ One proposal operation is defined in four places: `proposals.FIELDS`, the `dispa
 
 Fix: one registry with `agent_proposable` and `server_only` markers, and payloads validated at submit as well as at approve. Findings: A-01, C-09, C-16, REM-23.
 
-#### 2.4 · One search module, then the WorkService split
+#### 2.4 · Global search in the search module, then the WorkService split
 
 Status: Not started · Branch: — · PR: —
 
-`search.py` owns the index and global search; today discussions and tickets also insert into the index directly. Then split `WorkService` into items, people, supporting records and search, with a layering test. Needs 1.1. Findings: B-13, A-04, A-06.
+Index writes moved to `search.py` in 1.0. Here the global search query, the 13-way join, moves there too. Then split `WorkService` into items, people, supporting records and search, with a layering test. Needs 1.1. Findings: B-13, A-04, A-06.
 
 #### 2.5 · Baseline schema and sealed digests
 
@@ -379,7 +387,7 @@ Severity is the final rating after cross-examination. P1 means fix now, P2 the n
 | C-06 / B-16 / N-3 | P2 | Two principal namespaces; rotation orphans drafts and breaks receipt replay | 0.4 |
 | A-09 | P3 | Two handoff mechanisms | 5.6 |
 | A-16 | P3 | Docs drift at the edges | 5.5 |
-| B-13 | P3 | Three search-maintenance styles; no reindex | 2.4 |
+| B-13 | P3 | Three search-maintenance styles; no reindex | 1.0, 2.4 |
 | B-14 | P3 | Multi-query reads are not snapshot-consistent | 2.1 |
 | B-15 | P3 | Hand-written downgrade SQL in the README | 5.5 |
 | C-02 | P3 | Any local process can start a human session (accepted under K1) | — |
