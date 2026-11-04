@@ -1274,7 +1274,6 @@ select.status-select option {
   font-weight: 600;
   white-space: nowrap;
 }
-/* The frozen title column, edged in a darker line like a spreadsheet's frozen pane. */
 /* The stack rank leads each row, its numbers right-aligned so they read down the column; it and the
    title stay in view when the sheet scrolls sideways. */
 .work-grid .cell-rank {
@@ -1287,14 +1286,23 @@ select.status-select option {
 .work-grid .cell-rank button.rank {
   min-height: var(--control-height);
 }
+/* The frozen title column, edged in a darker line like a spreadsheet's frozen pane. */
 .work-grid .cell-title {
   position: sticky;
   left: 4.5rem;
   z-index: 1;
   border-right-color: var(--field-edge);
 }
+/* A long title stops at two lines, so no row is taller than two lines of title. The link keeps the
+   whole title, for screen readers and for the tooltip that shows it on hover. */
 .work-grid .item-title {
+  display: -webkit-box;
+  overflow: hidden;
   font-size: 14px;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 .work-grid .cell-description {
   font-size: 13px;
@@ -1458,6 +1466,10 @@ select.status-select option {
   .work-grid .cell-title {
     position: static;
     flex: 1 1 calc(100% - 4.5rem - 8px);
+  }
+  /* A phone has no hover to show a cut title, so its titles wrap in full. */
+  .work-grid .item-title {
+    display: inline;
   }
   .work-grid .rank-row .rank-picker {
     position: static;
