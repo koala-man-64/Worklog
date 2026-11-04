@@ -493,8 +493,8 @@ Any other field is refused. Proposals cannot archive or recover files, import pl
   1. Draft the proposal; its operations may be empty for now.
   2. Upload the file to the draft with `proposal evidence`. It prints the file's record; keep its `id`.
   3. Update the draft with an `attachment.create` whose `attachmentId` is that `id`, then submit it.
-  - Approval attaches a copy with the name and type the evidence has; the evidence stays with the proposal. One upload can be attached to several records.
-  - `attachmentId` must name a file of this same proposal. Submitting refuses any other with `422 validation`, and one the person archived with `409 archived`.
+  - Approval attaches a copy with the name and type the evidence has; the evidence stays with the proposal. One upload can be attached to several records, but to each record once: `draft` and `update` refuse a repeat with `422 validation`.
+  - `attachmentId` must name a file of this same proposal. Submitting refuses any other with `422 validation`, and one the person archived with `409 archived`. A proposal that supersedes another uploads its files again.
   - An archived or merged repository refuses a file at approval (`409 archived`, `409 repository_merged`).
   - A file is at most 25,000,000 bytes, as evidence is.
 

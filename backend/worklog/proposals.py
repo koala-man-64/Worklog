@@ -108,6 +108,16 @@ def _operations(value):
         raise AppError(422, "validation", "Operations must contain JSON values") from None
     if len(encoded.encode("utf-8")) > 5_000_000:
         raise AppError(413, "too_large", "Proposal operations exceed 5,000,000 bytes")
+    # A file attaches to a record once: a repeat would only add an identical copy beside it.
+    attached: dict[str, int] = {}
+    for number, operation in enumerate(value, 1):
+        if operation["action"] == "attachment.create":
+            payload = operation["payload"]
+            key = json.dumps([payload["attachmentId"], payload["ownerType"], payload["ownerId"]])
+            if key in attached:
+                raise _numbered(AppError(422, "validation", f"Change {attached[key]} already attaches this file to this record",
+                                         {"attachmentId": "duplicate"}), number, len(value), "attachment.create")
+            attached[key] = number
     return encoded
 
 

@@ -131,9 +131,15 @@ def test_a_proposal_attaches_only_live_evidence_of_its_own(client):
     smuggled["payload"]["proposalId"] = theirs["ownerId"]
     response = call(client, "POST", "/proposals", {"title": "Copy", "rationale": "", "operations": [smuggled]}, credential)
     assert (response.status_code, response.json()["error"]["message"]) == (422, "Invalid fields for attachment.create")
-    # A file the person archived from the proposal stays where it is.
+    # A file attaches to a record once; the draft refuses a repeat as soon as it is written.
     mine = ok(call(client, "GET", f"/proposals/{mine['id']}", agent=credential))
     file = evidence(client, credential, mine)
+    twice = [attach("item", item["id"], file["id"]), attach("item", item["id"], file["id"])]
+    response = call(client, "PATCH", f"/proposals/{mine['id']}", {"revision": mine["revision"], "operations": twice}, credential)
+    assert (response.status_code, response.json()["error"]) == (422, {
+        "code": "validation", "message": "Change 2 of 2, attachment.create: Change 1 already attaches this file to this record",
+        "fields": {"operation": 2, "action": "attachment.create", "fields": {"attachmentId": "duplicate"}}})
+    # A file the person archived from the proposal stays where it is.
     ok(call(client, "POST", f"/attachments/{file['id']}/archive", {"revision": file["revision"]}))
     refused = submit(client, credential, mine, [attach("item", item["id"], file["id"])])
     assert (refused.status_code, refused.json()["error"]["code"], refused.json()["error"]["message"]) == (
@@ -152,21 +158,28 @@ def test_approval_refuses_a_file_its_record_cannot_take_and_applies_nothing(clie
         resolved = [{**op, "payload": {**op["payload"], "attachmentId": file["id"]}} if op["action"] == "attachment.create" else op
                     for op in operations]
         assert submit(client, credential, proposal, resolved).status_code == 200
-        return proposal
+        return proposal, file
 
     # The person's own proposals hold evidence too, but no file lands on a proposal this way.
-    response = approve(client, proposed(attach("proposal", item["id"], "")))
+    response = approve(client, proposed(attach("proposal", item["id"], ""))[0])
     assert (response.status_code, response.json()["error"]["message"]) == (
         422, "Change 1 of 1, attachment.create: Invalid proposed operation")
     archived = ok(call(client, "POST", f"/repositories/{repository['id']}/archive", {"revision": repository["revision"]}))
-    response = approve(client, proposed(attach("repository", repository["id"], "")))
+    response = approve(client, proposed(attach("repository", repository["id"], ""))[0])
     assert (response.status_code, response.json()["error"]["code"], response.json()["error"]["message"]) == (
         409, "archived", "Change 1 of 1, attachment.create: Recover Service before attaching files to it")
     ok(call(client, "POST", f"/repositories/{repository['id']}/recover", {"revision": archived["revision"]}))
     # One stale change refuses the whole proposal, its files included.
     stale = {"action": "item.update", "payload": {"id": item["id"], "revision": item["revision"] + 1, "status": "doing"}}
-    response = approve(client, proposed(attach("item", item["id"], ""), stale))
+    response = approve(client, proposed(attach("item", item["id"], ""), stale)[0])
     assert (response.status_code, response.json()["error"]["code"]) == (409, "conflict")
+    # Evidence the person archives after the agent submitted stays out of the record, and the proposal waits.
+    proposal, file = proposed(attach("item", item["id"], ""))
+    ok(call(client, "POST", f"/attachments/{file['id']}/archive", {"revision": file["revision"]}))
+    response = approve(client, proposal)
+    assert (response.status_code, response.json()["error"]["code"], response.json()["error"]["message"]) == (
+        409, "archived", "Change 1 of 1, attachment.create: That file was archived from this proposal, so it cannot be attached")
+    assert ok(call(client, "GET", f"/proposals/{proposal['id']}"))["status"] == "submitted"
     assert copies(client) == 0
 
 
