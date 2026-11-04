@@ -1,5 +1,6 @@
 """Coordination exercises real auth and transactions without Git or filesystem activity."""
 
+import hashlib
 import json
 import threading
 import uuid
@@ -452,7 +453,7 @@ def test_merge_moves_links_reports_and_updates_and_the_old_remote_answers_with_t
     assert ok(request(client, "GET", f"/coordination-updates?repositoryId={old['id']}"))["total"] == 0
     with client.app.state.db.read() as c:
         history = {row[0]: json.loads(row[1]) for row in c.execute("SELECT entity_id,after_json FROM events WHERE kind='repository.merge'")}
-    assert history[old["id"]]["moved"] == {"contexts": 1, "items": 2, "chats": 1, "tickets": 1, "updates": 1}
+    assert history[old["id"]]["moved"] == {"contexts": 1, "items": 2, "chats": 1, "tickets": 1, "updates": 1, "attachments": 0}
     assert history[new["id"]]["mergedFrom"] == old["id"]
     # The old remote now answers with the survivor, so agents on old clones land there.
     again = repo(client, "Old again", url="git@github.com:team/old-name.git")
@@ -469,6 +470,80 @@ def test_merge_moves_links_reports_and_updates_and_the_old_remote_answers_with_t
     post(client, f"/repositories/{new['id']}/archive", {"revision": new["revision"]})
     response = request(client, "POST", "/repositories", {"name": "Old", "url": "https://github.com/team/old-name"})
     assert (response.status_code, response.json()["error"]["fields"]) == (409, {"repositoryId": new["id"]})
+
+
+def attach(c, repository, name, data=b"# Notes", agent=None):
+    headers = {"Idempotency-Key": str(uuid.uuid4()), "Content-Type": "text/markdown"}
+    if agent:
+        headers["Authorization"] = "Bearer " + agent["token"]
+    return c.post(f"/api/v1/attachments?ownerType=repository&ownerId={repository['id']}&name={name}", content=data, headers=headers)
+
+
+def files(c, repository, archived=False):
+    path = f"/attachments?ownerType=repository&ownerId={repository['id']}" + ("&archived=true" if archived else "")
+    return ok(request(c, "GET", path))["items"]
+
+
+def test_a_repository_keeps_files_that_search_finds_while_it_is_active(client):
+    service, credential = repo(client, "Service", url="https://github.com/team/service"), agent(client)
+    data = b"# Runbook\nRestart the worker."
+    runbook = ok(attach(client, service, "on-call-runbook.md", data))
+    assert (runbook["ownerType"], runbook["ownerId"], runbook["name"], runbook["mime"], runbook["size"], runbook["sha256"]) == (
+        "repository", service["id"], "on-call-runbook.md", "text/markdown", len(data), hashlib.sha256(data).hexdigest())
+    assert files(client, service) == [runbook]
+    download = client.get(f"/api/v1/attachments/{runbook['id']}?download=1")
+    assert download.content == data and download.headers["content-disposition"].startswith("attachment;")
+    # Search finds a file by its name and opens the repository that holds it.
+    found = ok(request(client, "GET", "/search?q=runbook"))["items"]
+    assert [(r["id"], r["type"], r["routeType"], r["routeId"]) for r in found] == [(runbook["id"], "attachment", "repositories", service["id"])]
+    # Agents read a repository's files like the rest of their context, but only the person attaches them.
+    assert ok(request(client, "GET", f"/attachments?ownerType=repository&ownerId={service['id']}", agent=credential))["total"] == 1
+    assert attach(client, service, "agent.md", agent=credential).status_code == 403
+    assert request(client, "POST", f"/attachments/{runbook['id']}/archive", {"revision": runbook["revision"]}, credential).status_code == 403
+    # A repository holds files only; notes on one are still refused.
+    assert request(client, "POST", "/notes", {"ownerType": "repository", "ownerId": service["id"], "title": "No"}).status_code == 422
+    assert attach(client, {"id": "missing"}, "lost.md").status_code == 404
+    # An archived repository keeps its files readable and takes no new ones; search files them with the archive.
+    archived = post(client, f"/repositories/{service['id']}/archive", {"revision": service["revision"]})
+    response = attach(client, service, "late.md")
+    assert (response.status_code, response.json()["error"]) == (409, {
+        "code": "archived", "message": "Recover Service before attaching files to it", "fields": {"repositoryId": service["id"]}})
+    assert files(client, service) == [runbook]
+    assert ok(request(client, "GET", "/search?q=runbook"))["total"] == 0
+    assert ok(request(client, "GET", "/search?q=runbook&archived=true"))["items"][0]["routeId"] == service["id"]
+    post(client, f"/repositories/{service['id']}/recover", {"revision": archived["revision"]})
+    late = ok(attach(client, service, "late.md"))
+    # Each file archives and recovers on its own.
+    post(client, f"/attachments/{runbook['id']}/archive", {"revision": runbook["revision"]})
+    assert (files(client, service), [f["id"] for f in files(client, service, archived=True)]) == ([late], [runbook["id"]])
+    assert ok(request(client, "GET", "/search?q=runbook"))["total"] == 0
+    post(client, f"/attachments/{runbook['id']}/recover", {"revision": runbook["revision"] + 1})
+    assert ok(request(client, "GET", "/search?q=runbook"))["total"] == 1
+
+
+def test_merge_carries_a_repositorys_files_to_the_survivor(client):
+    old, new = repo(client, "Old", url="https://github.com/team/old"), repo(client, "New", url="https://github.com/team/new")
+    design = ok(attach(client, old, "alpha-design.md"))
+    retired = ok(attach(client, old, "beta-notes.md"))
+    post(client, f"/attachments/{retired['id']}/archive", {"revision": retired["revision"]})
+    plan = ok(attach(client, new, "gamma-plan.md"))
+    merged = ok(merge(client, old, new))
+    # Archived files move too, so the survivor can recover them; each keeps its revision.
+    assert [(f["id"], f["ownerId"], f["revision"]) for f in files(client, new)] == [
+        (design["id"], new["id"], design["revision"]), (plan["id"], new["id"], plan["revision"])]
+    assert [f["id"] for f in files(client, new, archived=True)] == [retired["id"]]
+    assert files(client, old) == [] and files(client, old, archived=True) == []
+    found = ok(request(client, "GET", "/search?q=alpha"))["items"]
+    assert [(r["id"], r["ownerId"], r["routeId"]) for r in found] == [(design["id"], new["id"], new["id"])]
+    found = ok(request(client, "GET", "/search?q=beta&archived=true"))["items"]
+    assert [(r["id"], r["ownerId"], r["routeId"]) for r in found] == [(retired["id"], new["id"], new["id"])]
+    with client.app.state.db.read() as c:
+        history = json.loads(c.execute("SELECT after_json FROM events WHERE kind='repository.merge' AND entity_id=?", (old["id"],)).fetchone()[0])
+    assert history["moved"]["attachments"] == 2
+    # The merged record takes no new files; they belong on the survivor.
+    response = attach(client, merged, "late.md")
+    assert (response.status_code, response.json()["error"]["code"], response.json()["error"]["fields"]) == (
+        409, "repository_merged", {"repositoryId": new["id"]})
 
 
 def test_merging_flagged_duplicates_leaves_one_record_for_their_remote(client):
