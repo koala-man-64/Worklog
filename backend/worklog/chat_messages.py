@@ -53,6 +53,19 @@ def _recipient(r: sqlite3.Row) -> dict:
             "agentId": r["agent_id"], "agentLabel": r["agent_label"], "avatar": r["avatar"]}
 
 
+def _recipients(c: sqlite3.Connection, chat_id: str) -> list[dict]:
+    """Who a message sent now would reach, each marked by whether its identity registered with this chat.
+
+    Any credential's run can report any chat ID, so a run's claim alone doesn't show that
+    the agent works in this chat. Until a chat is bound to identities, the person sees
+    which recipients only made that claim.
+    """
+    from .registration import identity_chat
+
+    rows = c.execute(RECIPIENTS, (chat_id,)).fetchall()
+    return [{**_recipient(r), "registered": identity_chat(c, r["agent_id"]) == chat_id} for r in rows]
+
+
 class ChatMessageService:
     @staticmethod
     def _chat(c: sqlite3.Connection, identity: str) -> sqlite3.Row:
@@ -90,7 +103,7 @@ class ChatMessageService:
         total = c.execute("SELECT COUNT(*) FROM chat_messages WHERE chat_id=?", (identity,)).fetchone()[0]
         rows = c.execute("SELECT * FROM chat_messages WHERE chat_id=? ORDER BY created_at DESC,id DESC LIMIT ? OFFSET ?",
                          (identity, limit, offset)).fetchall()
-        recipients = [] if chat["archived"] else [_recipient(r) for r in c.execute(RECIPIENTS, (chat["chat_id"],))]
+        recipients = [] if chat["archived"] else _recipients(c, chat["chat_id"])
         return {"chat": {"id": chat["id"], "chatId": chat["chat_id"], "archived": bool(chat["archived"])},
                 "recipients": recipients, "items": self._records(c, rows),
                 "total": total, "limit": limit, "offset": offset}

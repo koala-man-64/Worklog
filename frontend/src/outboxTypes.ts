@@ -7,6 +7,8 @@ export type OutboxRecipient = {
   agentId: string;
   agentLabel: string;
   avatar: string | null;
+  /** Whether the agent's identity registered with this chat; false when its run only reported the chat's ID. */
+  registered: boolean;
 };
 /** Why a delivery ended without the agent receiving the message. */
 export type DeliveryReason =

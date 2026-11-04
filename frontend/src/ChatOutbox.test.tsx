@@ -20,6 +20,7 @@ const implementer: OutboxRecipient = {
   agentId: "agent-1",
   agentLabel: "Implementer",
   avatar: null,
+  registered: true,
 };
 const pending: OutboxDelivery = {
   runId: "run-1",
@@ -141,6 +142,30 @@ it("names who a message reaches, sends it once and clears the draft", async () =
   expect(
     localStorage.getItem(contextStorageKey("chat-message-draft", CHAT.id)),
   ).toBeNull();
+});
+
+it("marks a recipient whose agent only reported the chat's ID", async () => {
+  const claimant: OutboxRecipient = {
+    ...implementer,
+    runId: "run-2",
+    runName: "Claims the chat",
+    agentId: "agent-2",
+    agentLabel: "Other agents",
+    registered: false,
+  };
+  serve(() => outbox({ recipients: [implementer, claimant] }));
+  show();
+  const reaches = await screen.findByRole("list", {
+    name: "Agents a message reaches",
+  });
+  const [registered, unregistered] = within(reaches).getAllByRole("listitem");
+  expect(registered).not.toHaveTextContent("not registered with this chat");
+  expect(unregistered).toHaveTextContent("Other agents");
+  expect(unregistered).toHaveTextContent("not registered with this chat");
+  expect(unregistered).toHaveAttribute(
+    "title",
+    expect.stringContaining("It still receives what you send."),
+  );
 });
 
 it("cannot send when no open agent run reports the chat", async () => {

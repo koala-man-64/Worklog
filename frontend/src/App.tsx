@@ -62,6 +62,11 @@ export default function App() {
     window.addEventListener("hashchange", change);
     return () => window.removeEventListener("hashchange", change);
   }, []);
+  // A result for the page already open changes no hash, so choosing it clears search here.
+  const chooseResult = () => {
+    setSearch("");
+    window.scrollTo(0, 0);
+  };
   const [page, id, sub] = route.split("/");
   const link = (route: string, icon: IconName, label: string) => (
     <a
@@ -190,7 +195,7 @@ export default function App() {
               <button onClick={() => session.refetch()}>Reconnect</button>
             </div>
           ) : search ? (
-            <Search query={search} />
+            <Search query={search} onChoose={chooseResult} />
           ) : page === "today" ? (
             <Today
               key={id ?? "today"}
@@ -232,7 +237,13 @@ export default function App() {
     </div>
   );
 }
-function Search({ query }: { query: string }) {
+function Search({
+  query,
+  onChoose,
+}: {
+  query: string;
+  onChoose: () => void;
+}) {
   const [stable, setStable] = useState(query);
   const [archived, setArchived] = useState(false);
   const [offset, setOffset] = useState(0);
@@ -271,6 +282,7 @@ function Search({ query }: { query: string }) {
           <small>{r.type}</small>
           <a
             className="item-title"
+            onClick={onChoose}
             href={
               r.routeType && r.routeId
                 ? "#" + r.routeType + "/" + r.routeId
