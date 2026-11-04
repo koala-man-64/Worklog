@@ -798,6 +798,7 @@ test("every page spends the whole window beside the sidebar", async ({
     roadmaps: "Roadmaps",
     repositories: "Repositories",
     people: "People",
+    resources: "Resources",
     agents: "Agents",
     chats: "Chats",
     discussions: "Discussions",

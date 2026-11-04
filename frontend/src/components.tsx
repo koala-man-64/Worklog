@@ -49,7 +49,8 @@ const HEADINGS = ["h1", "h2", "h3", "h4", "h5", "h6"] as const;
  *
  * `anchors` names the page the text fills, such as `guide`: its headings get ids
  * (`guide-<slug>`) and its `#slug` links become routes to them (`#guide/<slug>`),
- * since the whole hash is the page route.
+ * since the whole hash is the page route. Other `#` links, such as `#work/<id>`,
+ * already name a route and stay as written.
  */
 export function Markdown({
   text,
@@ -62,19 +63,28 @@ export function Markdown({
 }) {
   // Ids follow each heading's source line, so they match the page's outline however
   // often React renders them.
-  const headings = useMemo(() => {
+  const { headings, slugs } = useMemo(() => {
     const components: Components = {};
-    if (!anchors) return components;
-    const slugs = new Map(headingList(text).map((h) => [h.line, h.slug]));
+    if (!anchors) return { headings: components, slugs: new Set<string>() };
+    const found = headingList(text);
+    const byLine = new Map(found.map((h) => [h.line, h.slug]));
     for (const Tag of HEADINGS)
       components[Tag] = ({ node, children }) => {
-        const found = slugs.get(node?.position?.start.line ?? 0);
+        const slug = byLine.get(node?.position?.start.line ?? 0);
         return (
-          <Tag id={found ? `${anchors}-${found}` : undefined}>{children}</Tag>
+          <Tag id={slug ? `${anchors}-${slug}` : undefined}>{children}</Tag>
         );
       };
-    return components;
+    return { headings: components, slugs: new Set(found.map((h) => h.slug)) };
   }, [text, anchors]);
+  // Link targets arrive percent-encoded, so a heading such as "Café" is #caf%C3%A9.
+  const ownHeading = (target: string) => {
+    try {
+      return slugs.has(decodeURIComponent(target));
+    } catch {
+      return false;
+    }
+  };
   return (
     <div className="markdown">
       <ReactMarkdown
@@ -89,7 +99,7 @@ export function Markdown({
           ),
           a: ({ href: given, title, children }) => {
             const href =
-              anchors && given?.startsWith("#")
+              anchors && given?.startsWith("#") && ownHeading(given.slice(1))
                 ? `#${anchors}/${given.slice(1)}`
                 : given;
             const external = href ? !isSameOrigin(href) : false;
@@ -878,6 +888,40 @@ export function History({ items }: { items: unknown[] }) {
       <summary>Activity history ({items?.length ?? 0})</summary>
       <pre>{JSON.stringify(items, null, 2)}</pre>
     </details>
+  );
+}
+/**
+ * Each change's full before and after records repeat the whole record, so the history
+ * of a long one that changes often is large: it loads only when opened.
+ */
+export function ChangeHistory({
+  id,
+  changes,
+}: {
+  id: string;
+  changes: number;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details onToggle={(e) => setOpen(e.currentTarget.open)}>
+      <summary>Activity history ({changes})</summary>
+      {open && <Changes id={id} />}
+    </details>
+  );
+}
+function Changes({ id }: { id: string }) {
+  const history = useData<{ items: unknown[] }>(
+    "/history?entityId=" + encodeURIComponent(id),
+  );
+  return (
+    <>
+      <ErrorMessage error={history.error} />
+      {history.isPending ? (
+        <p>Loading history…</p>
+      ) : (
+        <pre>{JSON.stringify(history.data?.items ?? [], null, 2)}</pre>
+      )}
+    </>
   );
 }
 export function RecoverRecords({
