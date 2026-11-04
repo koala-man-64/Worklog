@@ -369,15 +369,20 @@ small {
   letter-spacing: 0;
   margin-top: 7px;
 }
-/* Every page link and a long roadmap tree can outgrow a short window: the links then scroll while the brand and the note stay. The padding, given back by the margin, keeps focus rings clear of the scroll edge. */
-.sidebar nav {
-  display: grid;
-  align-content: start;
-  gap: 2px;
-  min-height: 0;
+/* Under the brand, the nav and the note scroll together once a long Roadmaps list leaves them taller than the window; while they fit, the note keeps to the foot. */
+.sidebar-scroll {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin-top: 26px;
   overflow-y: auto;
-  margin: 20px -6px 0;
-  padding: 6px;
+}
+/* The nav keeps its full height, so the Roadmaps list keeps its cap and its own scroll. Its column never outgrows the scroll area, so a narrow sidebar beside a scrollbar does not scroll sideways. */
+.sidebar nav {
+  flex: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
 }
 .sidebar nav a {
   color: var(--muted);
@@ -395,6 +400,10 @@ small {
 }
 .sidebar nav a:hover {
   background: var(--teal-wash);
+}
+/* Focus rings sit inside the links and toggles, where neither the sidebar's scroll area nor the Roadmaps list can clip them. */
+.sidebar nav :focus-visible {
+  outline-offset: -3px;
 }
 .sidebar nav .subnav[hidden] {
   display: none;
@@ -3280,12 +3289,14 @@ code {
     width: 34px;
     font-size: 25px;
   }
+  /* The page scrolls past the stacked sidebar, so the nav needs no scroll area of its own. */
+  .sidebar-scroll {
+    display: contents;
+  }
   .sidebar nav {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 2px;
-    margin: 18px 0 0;
-    padding: 0;
-    overflow: visible;
+    margin-top: 18px;
   }
   .sidebar nav a {
     font-size: 12px;
