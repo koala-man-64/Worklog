@@ -9,9 +9,9 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import ReactMarkdown, { type Components } from "react-markdown";
+import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { headings as headingList } from "./guideAnchors";
+import { slugger } from "./guideAnchors";
 import { RepositoryBadges, RepositoryPicker } from "./RepositoryControls";
 import { download } from "./api";
 import { commands } from "./commands";
@@ -42,14 +42,69 @@ function resolveLink(url: string): URL | null {
 function isSameOrigin(url: string): boolean {
   return resolveLink(url)?.origin === window.location.origin;
 }
-const HEADINGS = ["h1", "h2", "h3", "h4", "h5", "h6"] as const;
+/** The parts of a Markdown syntax tree node that `anchorHeadings` reads and sets. */
+type MarkdownNode = {
+  type: string;
+  value?: string;
+  url?: string;
+  children?: MarkdownNode[];
+  data?: { hProperties?: Record<string, unknown> };
+};
+function visit(node: MarkdownNode, each: (node: MarkdownNode) => void) {
+  each(node);
+  for (const child of node.children ?? []) visit(child, each);
+}
+/** A heading's text as the page shows it; raw HTML is left out, as the page leaves it out. */
+function plain(node: MarkdownNode): string {
+  return node.type === "html"
+    ? ""
+    : (node.value ?? (node.children ?? []).map(plain).join(""));
+}
+/**
+ * A remark plugin that takes headings from the parsed text, so underlined headings count
+ * and lines in any code block never do. Each heading gets the id `<anchors>-<slug>`, a
+ * repeated one numbered as GitHub numbers it, and `#slug` links and link definitions
+ * become routes to them (`#<anchors>/<slug>`), since the whole hash is the page route.
+ */
+function anchorHeadings(anchors: string) {
+  return () => (tree: MarkdownNode) => {
+    const next = slugger();
+    const slugs = new Set<string>();
+    visit(tree, (node) => {
+      if (node.type !== "heading") return;
+      const slug = next(plain(node));
+      if (!slug) return;
+      slugs.add(slug);
+      node.data = {
+        ...node.data,
+        hProperties: { ...node.data?.hProperties, id: `${anchors}-${slug}` },
+      };
+    });
+    // A target may be written percent-encoded, so a heading "Café" is also #caf%C3%A9.
+    const own = (target: string) => {
+      try {
+        return slugs.has(decodeURIComponent(target));
+      } catch {
+        return false;
+      }
+    };
+    visit(tree, (node) => {
+      if (
+        (node.type === "link" || node.type === "definition") &&
+        node.url?.startsWith("#") &&
+        own(node.url.slice(1))
+      )
+        node.url = `#${anchors}/${node.url.slice(1)}`;
+    });
+  };
+}
 /**
  * `untrusted` is for text written elsewhere, such as an agent transcript: its links
  * may lead off this site but never to a page or download of Worklog itself.
  *
  * `anchors` names the page the text fills, such as `guide`: its headings get ids
- * (`guide-<slug>`) and its `#slug` links become routes to them (`#guide/<slug>`),
- * since the whole hash is the page route.
+ * (`guide-<slug>`) and its `#slug` links become routes to them (`#guide/<slug>`).
+ * Other `#` links, such as `#work/<id>`, already name a route and stay as written.
  */
 export function Markdown({
   text,
@@ -60,38 +115,22 @@ export function Markdown({
   untrusted?: boolean;
   anchors?: string;
 }) {
-  // Ids follow each heading's source line, so they match the page's outline however
-  // often React renders them.
-  const headings = useMemo(() => {
-    const components: Components = {};
-    if (!anchors) return components;
-    const slugs = new Map(headingList(text).map((h) => [h.line, h.slug]));
-    for (const Tag of HEADINGS)
-      components[Tag] = ({ node, children }) => {
-        const found = slugs.get(node?.position?.start.line ?? 0);
-        return (
-          <Tag id={found ? `${anchors}-${found}` : undefined}>{children}</Tag>
-        );
-      };
-    return components;
-  }, [text, anchors]);
+  const plugins = useMemo(
+    () => (anchors ? [remarkGfm, anchorHeadings(anchors)] : [remarkGfm]),
+    [anchors],
+  );
   return (
     <div className="markdown">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={plugins}
         skipHtml
         components={{
-          ...headings,
           img: ({ alt }) => (
             <span className="image-reference">
               [Image: {alt || "image reference"}]
             </span>
           ),
-          a: ({ href: given, title, children }) => {
-            const href =
-              anchors && given?.startsWith("#")
-                ? `#${anchors}/${given.slice(1)}`
-                : given;
+          a: ({ href, title, children }) => {
             const external = href ? !isSameOrigin(href) : false;
             return (
               <a
@@ -881,6 +920,40 @@ export function History({ items }: { items: unknown[] }) {
       <summary>Activity history ({items?.length ?? 0})</summary>
       <pre>{JSON.stringify(items, null, 2)}</pre>
     </details>
+  );
+}
+/**
+ * Each change's full before and after records repeat the whole record, so the history
+ * of a long one that changes often is large: it loads only when opened.
+ */
+export function ChangeHistory({
+  id,
+  changes,
+}: {
+  id: string;
+  changes: number;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details onToggle={(e) => setOpen(e.currentTarget.open)}>
+      <summary>Activity history ({changes})</summary>
+      {open && <Changes id={id} />}
+    </details>
+  );
+}
+function Changes({ id }: { id: string }) {
+  const history = useData<{ items: unknown[] }>(
+    "/history?entityId=" + encodeURIComponent(id),
+  );
+  return (
+    <>
+      <ErrorMessage error={history.error} />
+      {history.isPending ? (
+        <p>Loading history…</p>
+      ) : (
+        <pre>{JSON.stringify(history.data?.items ?? [], null, 2)}</pre>
+      )}
+    </>
   );
 }
 export function RecoverRecords({
