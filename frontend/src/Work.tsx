@@ -16,9 +16,11 @@ import {
   PeopleLinks,
   PersonBadges,
   RecoverRecords,
+  STATUSES,
   StatusSelect,
+  statusLabel,
 } from "./components";
-import type { Detail, Item, List, Person, Roadmap } from "./types";
+import type { Detail, Item, List, Person, Roadmap, Status } from "./types";
 import {
   RepositoryBadges,
   RepositoryPicker,
@@ -87,15 +89,20 @@ export function Work({ selected }: { selected?: string }) {
 }
 function WorkList() {
   const [archived, setArchived] = useState(false);
-  const [status, setStatus] = useState("");
+  // Any pressed state matches; none pressed shows every state.
+  const [statuses, setStatuses] = useState<Status[]>([]);
   const [repositoryId, setRepositoryId] = useState("");
   const [personId, setPersonId] = useState("");
   const [view, setView] = useState("all");
   const [offset, setOffset] = useState(0);
   const [q, setQ] = useState("");
   const people = useData<List<Person>>("/people?archived=false");
+  // In a fixed order, so the same states always make the same query.
+  const statusQuery = STATUSES.filter((s) => statuses.includes(s))
+    .map((s) => "&status=" + s)
+    .join("");
   const list = useData<List<Item>>(
-    `/work-items?view=${view}&archived=${archived}&limit=100&offset=${offset}&q=${encodeURIComponent(q)}${status ? "&status=" + status : ""}${personId ? "&personId=" + encodeURIComponent(personId) : ""}${repositoryId ? "&repositoryId=" + encodeURIComponent(repositoryId) : ""}`,
+    `/work-items?view=${view}&archived=${archived}&limit=100&offset=${offset}&q=${encodeURIComponent(q)}${statusQuery}${personId ? "&personId=" + encodeURIComponent(personId) : ""}${repositoryId ? "&repositoryId=" + encodeURIComponent(repositoryId) : ""}`,
   );
   const action = useAction();
   const move = (id: string, delta: number) => {
@@ -155,19 +162,26 @@ function WorkList() {
           />{" "}
           Show archive
         </label>
-        <select
-          aria-label="Filter status"
-          value={status}
-          onChange={(e) => {
-            setStatus(e.target.value);
-            setOffset(0);
-          }}
-        >
-          <option value="">All states</option>
-          {["open", "doing", "blocked", "done"].map((s) => (
-            <option key={s}>{s}</option>
+        <div className="status-toggles" role="group" aria-label="Filter status">
+          {STATUSES.map((s) => (
+            <button
+              key={s}
+              type="button"
+              aria-pressed={statuses.includes(s)}
+              onClick={() => {
+                setStatuses(
+                  statuses.includes(s)
+                    ? statuses.filter((other) => other !== s)
+                    : [...statuses, s],
+                );
+                setOffset(0);
+              }}
+            >
+              <span className={"status-dot " + s} aria-hidden="true" />
+              {statusLabel(s)}
+            </button>
           ))}
-        </select>
+        </div>
         <select
           aria-label="Filter by person"
           value={personId}

@@ -98,14 +98,14 @@ Records are archived rather than deleted, and you recover them from the same pla
 ### Today
 
 - **Choose the day.** "Working day" picks the date, starting on today in your timezone.
-- **Add work.** "New work item" creates an item. "Plan work" plans it for the day; "Log work already performed" records it as worked without planning it. Bring in existing work with "Find existing work…" and "Choose existing work".
-- **Record each entry.** An entry has its status, "Planned" and "Worked on" checkboxes, and an "Outcome / next action" in Markdown. Reorder by dragging the grip or with the up and down buttons, and move an entry to another day with "Reschedule".
+- **Add work.** "New work item" creates an item. "Plan work" plans it for the day; "Log work already performed" records it as worked without planning it. "Open work", below the day's work, lists every open, doing and blocked item not yet on the day; "Work on today" plans one for the day (on another day the button names that day), and "Find open work…" narrows the list.
+- **Record each entry.** An entry has its status, "Planned" and "Worked on" checkboxes, and an "Outcome / next action" in Markdown. Reorder by dragging the grip or with the up and down buttons. "Reschedule", beside the entry's title, opens a date picker: "Move" plans the item on that day instead, and this day keeps its entry, no longer planned, with anything recorded on it; "Cancel" or Escape closes the picker.
 - **Close the day.** Write an "End-of-day reflection". The summary lists what you worked on, completed and blocked that day, and "Continue your next open item" jumps to the next planned item still open.
 
 ### Work
 
 - **Capture and find work.** Capture items with "New work item", optionally choosing repositories.
-  - Filter the list by text, repository, status and person.
+  - Filter the list by text, repository, status and person. The status buttons combine: pressing "Doing" and "Blocked" shows both, and with none pressed the list shows every state.
   - Switch between "All work" and the "Unscheduled backlog": items not done and not planned for today or later.
   - "Show archive" shows archived items. The list pages at 100, and you reorder the backlog with the up and down buttons.
 - **A work item's page** has its title, Markdown description, status, Azure DevOps link, roadmap and step, and checklist tasks. It also holds notes, people with their roles, linked repositories, web links, tracked agent chats, GitHub pull requests and commits, and its tickets.

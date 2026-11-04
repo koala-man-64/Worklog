@@ -2895,7 +2895,8 @@ export interface operations {
             query?: {
                 view?: string;
                 archived?: boolean;
-                status?: string | null;
+                /** @description Repeat to match any of several states */
+                status?: string[] | null;
                 roadmapId?: string | null;
                 personId?: string | null;
                 q?: string;

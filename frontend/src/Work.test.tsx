@@ -5,16 +5,22 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiError, setDataContext } from "./api";
 import { commands } from "./commands";
 import type { Detail } from "./types";
-import { ItemDetail } from "./Work";
+import { ItemDetail, Work } from "./Work";
 
-const state = vi.hoisted(() => ({ item: null as unknown }));
+const state = vi.hoisted(() => ({
+  item: null as unknown,
+  paths: [] as string[],
+}));
 vi.mock("./hooks", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./hooks")>()),
-  useData: (path: string) => ({
-    data: path.startsWith("/work-items/")
-      ? state.item
-      : { items: [], total: 0 },
-  }),
+  useData: (path: string) => {
+    state.paths.push(path);
+    return {
+      data: path.startsWith("/work-items/")
+        ? state.item
+        : { items: [], total: 0 },
+    };
+  },
 }));
 
 const ID = "11111111-1111-4111-8111-111111111111";
@@ -53,6 +59,35 @@ beforeEach(() => {
   // Acknowledged revision chains are module-level; a fresh data context keeps tests independent.
   setDataContext("work-test-" + crypto.randomUUID());
   state.item = item({});
+  state.paths = [];
+});
+it("filters the work list by any of the pressed states", async () => {
+  render(
+    <QueryClientProvider client={newClient()}>
+      <Work />
+    </QueryClientProvider>,
+  );
+  const states = () =>
+    new URLSearchParams(
+      state.paths
+        .filter((path) => path.startsWith("/work-items?"))
+        .at(-1)!
+        .split("?")[1],
+    ).getAll("status");
+  const toggle = (name: string) =>
+    within(screen.getByRole("group", { name: "Filter status" })).getByRole(
+      "button",
+      { name },
+    );
+  expect(states()).toEqual([]);
+  await userEvent.click(toggle("Blocked"));
+  await userEvent.click(toggle("Doing"));
+  expect(toggle("Doing")).toHaveAttribute("aria-pressed", "true");
+  // The states keep one order whichever was pressed first, so the query stays the same.
+  expect(states()).toEqual(["doing", "blocked"]);
+  await userEvent.click(toggle("Doing"));
+  expect(toggle("Doing")).toHaveAttribute("aria-pressed", "false");
+  expect(states()).toEqual(["blocked"]);
 });
 it("shows a link that changed elsewhere while the page is open", () => {
   const client = newClient();

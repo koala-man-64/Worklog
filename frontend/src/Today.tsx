@@ -10,8 +10,10 @@ import {
   Markdown,
 } from "./components";
 import { CreateItem } from "./Work";
-import type { Day, Item, List } from "./types";
+import type { Day, Entry, Item, List, Status } from "./types";
 import { Icon } from "./icons";
+// The work Today offers to plan: anything not finished.
+const OPEN_STATES: Status[] = ["open", "doing", "blocked"];
 export function Today({
   today,
   initialDate,
@@ -22,15 +24,28 @@ export function Today({
   const [date, setDate] = useState(initialDate ?? today);
   const day = useData<Day>("/days/" + date);
   const [workQuery, setWorkQuery] = useState("");
-  const work = useData<List<Item>>(
-    `/work-items?view=all&archived=false&limit=100&q=${encodeURIComponent(workQuery)}`,
+  const openWork = useData<List<Item>>(
+    `/work-items?view=all&archived=false&limit=100${OPEN_STATES.map((s) => "&status=" + s).join("")}&q=${encodeURIComponent(workQuery)}`,
   );
   const action = useAction();
-  const [pick, setPick] = useState("");
-  const [targets, setTargets] = useState<Record<string, string>>({});
+  // One entry's reschedule picker is open at a time.
+  const [rescheduling, setRescheduling] = useState<string | null>(null);
+  const [target, setTarget] = useState("");
   const [rescheduleError, setRescheduleError] = useState<unknown>(null);
   const [dragged, setDragged] = useState<string | null>(null);
   const data = day.data;
+  const weekday = new Date(date + "T12:00:00").toLocaleDateString(undefined, {
+    weekday: "long",
+  });
+  const planLabel = date === today ? "Work on today" : "Work on " + weekday;
+  const planFor = (title: string) =>
+    date === today
+      ? `Work on ${title} today`
+      : `Work on ${title} on ${weekday}`;
+  const candidates =
+    openWork.data?.items.filter(
+      (i) => !data?.entries.some((e) => e.itemId === i.id),
+    ) ?? [];
   const move = (from: number, delta: number) => {
     if (!data) return;
     const ids = data.entries.map((e) => e.id);
@@ -42,17 +57,34 @@ export function Today({
       body: { revision: data.revision, ids },
     });
   };
+  const closeReschedule = () => {
+    setRescheduling(null);
+    setTarget("");
+  };
+  const reschedule = async (entry: Entry) => {
+    if (!target || target === date) return;
+    try {
+      const other = await request<Day>("/days/" + target);
+      await action.mutateAsync({
+        path: `/days/${date}/reschedule`,
+        body: {
+          itemId: entry.itemId,
+          targetDate: target,
+          revision: entry.revision,
+          targetRevision:
+            other.entries.find((e) => e.itemId === entry.itemId)?.revision ?? 0,
+        },
+      });
+      closeReschedule();
+    } catch (error) {
+      setRescheduleError(error);
+    }
+  };
   return (
     <>
       <header className="day-header">
         <div>
-          <h1>
-            {date === today
-              ? "Today"
-              : new Date(date + "T12:00:00").toLocaleDateString(undefined, {
-                  weekday: "long",
-                })}
-          </h1>
+          <h1>{date === today ? "Today" : weekday}</h1>
           <p className="lede">Plan the day and record what you worked on.</p>
         </div>
         <label className="date-label">
@@ -71,46 +103,6 @@ export function Today({
         </label>
       </header>
       <CreateItem day={date} />
-      <form
-        className="inline plan-picker"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (pick)
-            action.mutate({
-              path: `/days/${date}/entries/${pick}`,
-              method: "PUT",
-              body: { revision: 0, planned: true },
-            });
-        }}
-      >
-        <input
-          aria-label="Find existing work"
-          placeholder="Find existing work…"
-          value={workQuery}
-          onChange={(e) => {
-            setWorkQuery(e.target.value);
-            setPick("");
-          }}
-        />
-        <select
-          aria-label="Choose existing work"
-          value={pick}
-          onChange={(e) => setPick(e.target.value)}
-        >
-          <option value="">Bring existing work into this day…</option>
-          {work.data?.items
-            .filter((i) => !data?.entries.some((e) => e.itemId === i.id))
-            .map((i) => (
-              <option value={i.id} key={i.id}>
-                {i.title}
-              </option>
-            ))}
-        </select>
-        <button disabled={!pick}>Plan work</button>
-        {(work.data?.total ?? 0) > 100 && (
-          <small>Showing the first 100 matches. Refine your search.</small>
-        )}
-      </form>
       <ErrorMessage error={day.error || action.error || rescheduleError} />
       {data && (
         <>
@@ -142,7 +134,8 @@ export function Today({
           </h2>
           {!data.entries.length && (
             <Empty>
-              No work planned yet. Add work above or bring in existing work.
+              No work planned yet. Add new work above or pick from open work
+              below.
             </Empty>
           )}
           {data.entries.map((entry, index) => (
@@ -236,6 +229,23 @@ export function Today({
                       Archived, recover in work details
                     </span>
                   )}
+                  <button
+                    className="quiet reschedule"
+                    aria-label={"Reschedule " + entry.item.title}
+                    aria-expanded={rescheduling === entry.id}
+                    disabled={entry.item.archived}
+                    onClick={() => {
+                      if (rescheduling === entry.id) {
+                        closeReschedule();
+                      } else {
+                        setRescheduleError(null);
+                        setTarget("");
+                        setRescheduling(entry.id);
+                      }
+                    }}
+                  >
+                    Reschedule
+                  </button>
                 </div>
                 <StatusSelect
                   disabled={entry.item.archived}
@@ -249,6 +259,39 @@ export function Today({
                   }
                 />
               </div>
+              {rescheduling === entry.id && (
+                <form
+                  className="inline reschedule-picker"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void reschedule(entry);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") closeReschedule();
+                  }}
+                >
+                  <input
+                    aria-label={"New date for " + entry.item.title}
+                    type="date"
+                    value={target}
+                    onChange={(e) => setTarget(e.target.value)}
+                    autoFocus
+                    required
+                  />
+                  <button
+                    disabled={!target || target === date || action.isPending}
+                  >
+                    Move
+                  </button>
+                  <button
+                    type="button"
+                    className="quiet"
+                    onClick={closeReschedule}
+                  >
+                    Cancel
+                  </button>
+                </form>
+              )}
               <div className="toolbar">
                 <label>
                   <input
@@ -322,44 +365,54 @@ export function Today({
                   }
                 />
               )}
-              <form
-                className="inline"
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  const target = targets[entry.id];
-                  if (!target || target === date) return;
-                  try {
-                    const other = await request<Day>("/days/" + target);
-                    action.mutate({
-                      path: `/days/${date}/reschedule`,
-                      body: {
-                        itemId: entry.itemId,
-                        targetDate: target,
-                        revision: entry.revision,
-                        targetRevision:
-                          other.entries.find((e) => e.itemId === entry.itemId)
-                            ?.revision ?? 0,
-                      },
-                    });
-                  } catch (error) {
-                    setRescheduleError(error);
-                  }
-                }}
-              >
-                <input
-                  aria-label={"Reschedule " + entry.item.title}
-                  type="date"
-                  disabled={entry.item.archived}
-                  value={targets[entry.id] ?? ""}
-                  onChange={(e) =>
-                    setTargets({ ...targets, [entry.id]: e.target.value })
-                  }
-                  required
-                />
-                <button disabled={entry.item.archived}>Reschedule</button>
-              </form>
             </article>
           ))}
+          <section className="open-work">
+            <div className="section-heading">
+              <h2>
+                Open work <span className="count">{candidates.length}</span>
+              </h2>
+              <input
+                aria-label="Find open work"
+                placeholder="Find open work…"
+                value={workQuery}
+                onChange={(e) => setWorkQuery(e.target.value)}
+              />
+            </div>
+            <ErrorMessage error={openWork.error} />
+            {openWork.data && !candidates.length && (
+              <p className="muted">
+                {workQuery ? "No open work matches." : "No other open work."}
+              </p>
+            )}
+            {candidates.map((item) => (
+              <div className="line" key={item.id}>
+                <span
+                  className={"status-dot " + item.status}
+                  aria-hidden="true"
+                />
+                <a className="item-title" href={"#work/" + item.id}>
+                  {item.title}
+                </a>
+                <button
+                  aria-label={planFor(item.title)}
+                  disabled={action.isPending}
+                  onClick={() =>
+                    action.mutate({
+                      path: `/days/${date}/entries/${item.id}`,
+                      method: "PUT",
+                      body: { revision: 0, planned: true },
+                    })
+                  }
+                >
+                  {planLabel}
+                </button>
+              </div>
+            ))}
+            {(openWork.data?.total ?? 0) > 100 && (
+              <small>Showing the first 100 matches. Refine your search.</small>
+            )}
+          </section>
           <DraftField
             key={date}
             draftKey={"reflection-" + date}

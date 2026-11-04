@@ -155,18 +155,20 @@ class WorkService:
             grouped.setdefault(r["target_id"], []).append(person_assignment_record(r))
         return grouped
 
-    def list(self, *, view: str = "all", archived: bool = False, state: str | None = None,
+    def list(self, *, view: str = "all", archived: bool = False, states: builtins.list[str] | None = None,
              roadmap_id: str | None = None, person_id: str | None = None, repository_id: str | None = None,
              limit: int = 100, offset: int = 0, q: str = "", item_id: str | None = None) -> dict:
+        # Any of the given states matches; none, or only empty values, means every state.
+        chosen = sorted({status(value) for value in states or [] if value != ""})
         with self.db.read() as c:
             where = ["w.archived=?"]
             args: builtins.list[Any] = [int(archived)]
             if item_id is not None:
                 where.append("w.id=?")
                 args.append(item_id)
-            if state:
-                where.append("w.status=?")
-                args.append(status(state))
+            if chosen:
+                where.append("w.status IN(" + ",".join("?" for _ in chosen) + ")")
+                args.extend(chosen)
             if roadmap_id:
                 where.append("(w.roadmap_id=? OR w.step_id IN(SELECT id FROM steps WHERE roadmap_id=?))")
                 args.extend([roadmap_id, roadmap_id])

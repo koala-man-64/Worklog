@@ -569,6 +569,24 @@ header {
 .plan-picker {
   margin: 18px 0 30px;
 }
+/* Today: the work still open to plan, below the day's own work. */
+.open-work {
+  margin: 34px 0 30px;
+}
+.open-work .section-heading {
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.open-work .section-heading h2 {
+  margin: 0;
+}
+/* The date picker a day entry's Reschedule button opens under its title. */
+.reschedule-picker {
+  margin: 0 0 14px;
+}
+.reschedule-picker input {
+  flex: 0 1 auto;
+}
 .day-header {
   display: flex;
   flex-wrap: wrap;
@@ -1447,12 +1465,15 @@ button.agent-chip.more {
 .chat-history-head h2 {
   margin: 0;
 }
-.thread-filter {
+/* Toggle filters: Discussions' threads and the Work list's states. */
+.thread-filter,
+.status-toggles {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
-.thread-filter button {
+.thread-filter button,
+.status-toggles button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1460,7 +1481,8 @@ button.agent-chip.more {
   padding: 3px 10px;
   font-size: 12px;
 }
-.thread-filter button[aria-pressed="true"] {
+.thread-filter button[aria-pressed="true"],
+.status-toggles button[aria-pressed="true"] {
   border-color: var(--teal);
   background: var(--teal-wash);
   color: var(--teal);
