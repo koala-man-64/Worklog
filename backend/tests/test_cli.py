@@ -3,6 +3,7 @@ import json
 import threading
 import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
 from urllib.error import HTTPError
 
 import pytest
@@ -102,6 +103,43 @@ def test_agent_http_error_redacts_credential(requests, monkeypatch, capsys):
     result = capsys.readouterr()
     assert "test-sensitive-token" not in result.out + result.err
     assert "[redacted]" in result.err
+
+
+def test_cli_messages_are_ascii():
+    # Every message reaches an agent intact whatever code page its console or pipe uses.
+    source = Path(cli.__file__).read_bytes()
+    assert source.isascii(), [line for line in source.splitlines() if not line.isascii()]
+
+
+def _rejecting(status, body):
+    def rejected(*args, **kwargs):
+        raise HTTPError("http://127.0.0.1", status, "Rejected", {}, io.BytesIO(json.dumps(body).encode()))
+    return rejected
+
+
+def test_agent_http_error_names_the_api_code_and_fields(requests, monkeypatch, capsys):
+    """Agents act on the code, and on fields such as a conflict's currentRevision."""
+    monkeypatch.setattr(cli, "_open", _rejecting(409, {"error": {
+        "code": "conflict", "message": "This record changed. Reload and review your draft.",
+        "fields": {"expected": 3, "currentRevision": 4}}}))
+    assert cli.main(["agent", "tickets", "update", "T-12", "--revision", "3", "--status", "doing"]) == 1
+    assert capsys.readouterr().err.strip() == (
+        'Worklog: HTTP 409 conflict: This record changed. Reload and review your draft.'
+        ' {"currentRevision":4,"expected":3}')
+
+
+@pytest.mark.parametrize("body,expected", [
+    ({"detail": "Not Found"}, "Worklog: HTTP 404: Request rejected"),
+    ({"error": {"code": "Not a code!", "message": "Odd"}}, "Worklog: HTTP 404: Odd"),
+    ({"error": {"code": "not_found", "message": "Record not found", "fields": {}}},
+     "Worklog: HTTP 404 not_found: Record not found"),
+    ({"error": {"code": "validation", "message": "Invalid", "fields": {"text": "x" * 2000}}},
+     "Worklog: HTTP 404 validation: Invalid (fields omitted)"),
+])
+def test_agent_http_error_shows_only_a_well_formed_code_and_short_fields(requests, monkeypatch, capsys, body, expected):
+    monkeypatch.setattr(cli, "_open", _rejecting(404, body))
+    assert cli.main(["agent", "context"]) == 1
+    assert capsys.readouterr().err.strip() == expected
 
 
 def test_agent_ignores_proxy_and_refuses_redirect(monkeypatch):
