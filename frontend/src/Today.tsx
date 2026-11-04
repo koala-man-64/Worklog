@@ -461,10 +461,12 @@ export function Today({
                       className={"status-dot " + item.status}
                       aria-hidden="true"
                     />
-                    <a className="item-title" href={"#work/" + item.id}>
-                      {item.title}
-                    </a>
-                    <RepositoryBadges ids={item.repositoryIds} />
+                    <span className="line-title">
+                      <a className="item-title" href={"#work/" + item.id}>
+                        {item.title}
+                      </a>
+                      <RepositoryBadges ids={item.repositoryIds} />
+                    </span>
                     <button
                       aria-label={planFor(item.title)}
                       disabled={action.isPending}

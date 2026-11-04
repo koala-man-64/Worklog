@@ -975,6 +975,12 @@ section:not(.draft) > h3 {
   flex: none;
   white-space: nowrap;
 }
+/* A title and the badges after it share a row's free space, so badges wrap under the title rather than squeeze it. */
+.line > .line-title {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .line button {
   font-size: 12px;
 }
