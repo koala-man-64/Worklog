@@ -13,10 +13,10 @@ import sqlite3
 from collections.abc import Iterator
 from typing import Any
 
+from . import search
 from .common import AppError, event, now, read_events, require_revision, text, uid
 from .common import status as valid_status
 from .repository_links import linked_repositories, replace_repository_associations
-from .services import WorkService
 
 # Added in schema v5. Every statement stands alone: execute_schema splits on semicolons.
 SCHEMA = """
@@ -185,10 +185,10 @@ class TicketService:
         title = ticket["key"] + " " + ticket["title"]
         body = "\n\n".join(part for part in (ticket["description"], ticket["resolution"],
                                              " ".join([ticket["kind"], *ticket["labels"]])) if part)
-        WorkService.index(c, ticket["id"], "ticket", title, body, ticket["id"])
+        search.put(c, ticket["id"], "ticket", title, body, ticket["id"])
         if retitle:
             # Comments show their ticket's key and title in search results.
-            c.execute("UPDATE search_index SET title=? WHERE type='ticket_comment' AND owner_id=?", (title, ticket["id"]))
+            search.retitle(c, "ticket_comment", ticket["id"], title)
 
     def create(self, c: sqlite3.Connection, actor: dict, p: dict) -> dict:
         values = self._fields({"title": "", "description": "", "kind": "bug", "priority": "normal",
@@ -252,7 +252,7 @@ class TicketService:
         # A comment changes none of the ticket's fields, so it can't make an edit conflict.
         c.execute("UPDATE tickets SET last_activity_at=? WHERE id=?", (stamp, row["id"]))
         comment = self._comments(c, c.execute("SELECT * FROM ticket_comments WHERE id=?", (identity,)).fetchall())[0]
-        WorkService.index(c, identity, "ticket_comment", key(row["number"]) + " " + row["title"], body, row["id"])
+        search.put(c, identity, "ticket_comment", key(row["number"]) + " " + row["title"], body, row["id"])
         event(c, actor, "ticket.comment", row["id"], None, comment)
         return comment
 
