@@ -252,7 +252,9 @@ def add_search_keys_and_receipt_dates(conn: sqlite3.Connection) -> None:
 # - who registered each credential's identity, and the chat it registered with;
 # - when each proposal was last submitted, and whether automatic approval applied it;
 # - which stale-plan notices each proposal's agent was already sent.
-REGISTRATION_COLUMNS = (", registered_by TEXT REFERENCES communication_agents(id)"
+# registered_by names the sponsor's identity without a foreign key, like every other actor id here,
+# so the documented way back can drop it on any SQLite that has DROP COLUMN.
+REGISTRATION_COLUMNS = (", registered_by TEXT"
                         ", registered_by_label TEXT NOT NULL DEFAULT ''"
                         ", chat_id TEXT")
 PROPOSAL_STATE_COLUMNS = (", submitted_at TEXT"

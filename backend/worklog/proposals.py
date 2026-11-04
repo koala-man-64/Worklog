@@ -384,7 +384,8 @@ class ProposalService:
         connection.execute("UPDATE proposals SET status=?,revision=revision+1,updated_at=?"
                            ",submitted_at=CASE WHEN ? THEN ? ELSE submitted_at END"
                            ",auto_approved=CASE WHEN ? THEN 1 ELSE auto_approved END WHERE id=?",
-                           (state, stamp, verb == "submit", stamp, verb == "approve" and actor is AUTOMATIC, identifier))
+                           (state, stamp, verb == "submit", stamp,
+                            verb == "approve" and actor.get("id") == AUTOMATIC_APPROVAL_ID, identifier))
         result = _record(_row(connection, identifier))
         event(connection, actor, f"proposal.{verb}", identifier, before, result, at=stamp)
         return result
