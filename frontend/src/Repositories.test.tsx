@@ -7,6 +7,7 @@ import { Repositories } from "./Repositories";
 import { Coordination } from "./Coordination";
 import { RepositoryPicker } from "./RepositoryControls";
 import type { AgentRun, Participation, Repository } from "./repositoryTypes";
+import type { Attachment } from "./types";
 
 const repo: Repository = {
   id: "repo-1",
@@ -232,6 +233,121 @@ it("shows a merged record read-only, naming the record that answers for it", asy
   expect(screen.queryByRole("button", { name: /repository$/ })).toBeNull();
   expect(screen.queryByRole("textbox", { name: "Repository name" })).toBeNull();
   expect(screen.queryByText("Merge into another repository")).toBeNull();
+  // Its files went to the record that answers for it.
+  expect(screen.queryByRole("heading", { name: "Files" })).toBeNull();
+});
+
+const runbook: Attachment = {
+  id: "file-1",
+  name: "runbook.md",
+  mime: "text/markdown",
+  size: 2048,
+  sha256: "",
+  revision: 1,
+  archived: false,
+  createdAt: "2026-11-04T10:00:00+00:00",
+};
+const repoFiles = "/api/v1/attachments?ownerType=repository&ownerId=repo-1";
+async function filesSection() {
+  return (
+    await screen.findByRole("heading", { name: "Files", level: 2 })
+  ).closest("section")!;
+}
+
+it("attaches a file to a repository, offers it for download and recovers an archived one", async () => {
+  const design = {
+    ...runbook,
+    id: "file-2",
+    name: "design.pdf",
+    revision: 2,
+    archived: true,
+  };
+  let active: Attachment[] = [];
+  const writes: { path: string; body: unknown }[] = [];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const path = String(input);
+    if (init?.method === "POST") {
+      writes.push({ path, body: init.body });
+      if (path.startsWith(repoFiles)) active = [runbook];
+      return json(path.startsWith(repoFiles) ? runbook : design);
+    }
+    if (path.endsWith("/repositories/repo-1")) return json(repo);
+    if (path === repoFiles)
+      return json({ items: active, total: active.length });
+    if (path === repoFiles + "&archived=true")
+      return json({ items: [design], total: 1 });
+    return json({ items: [], total: 0 });
+  });
+  show(<Repositories selected={repo.id} />);
+  const section = await filesSection();
+  expect(
+    await within(section).findByText("No files attached to this repository."),
+  ).toBeVisible();
+  await userEvent.upload(
+    within(section).getByLabelText("Attach a file"),
+    new File(["# Runbook"], "runbook.md", { type: "text/markdown" }),
+  );
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0].path).toBe(repoFiles + "&name=runbook.md");
+  expect(writes[0].body).toBeInstanceOf(File);
+  expect(
+    await within(section).findByRole("link", { name: "runbook.md" }),
+  ).toHaveAttribute("href", "/api/v1/attachments/file-1?download=1");
+  expect(
+    within(section).queryByText("No files attached to this repository."),
+  ).toBeNull();
+  // Archived files wait in the section's own recovery list.
+  await userEvent.click(
+    within(section).getByText("Archived supporting records (1)"),
+  );
+  await userEvent.click(
+    within(section).getByRole("button", { name: "Recover" }),
+  );
+  await waitFor(() =>
+    expect(writes.at(-1)).toEqual({
+      path: "/api/v1/attachments/file-2/recover",
+      body: JSON.stringify({ revision: 2 }),
+    }),
+  );
+});
+
+it("keeps an archived repository's files and their archive, but takes no new ones", async () => {
+  const writes: string[] = [];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const path = String(input);
+    if (init?.method === "POST") {
+      writes.push(path);
+      return json(runbook);
+    }
+    if (path.endsWith("/repositories/repo-1"))
+      return json({ ...repo, archived: true });
+    if (path === repoFiles) return json({ items: [runbook], total: 1 });
+    // Archived before the repository was, it stays where search sends you.
+    if (path === repoFiles + "&archived=true")
+      return json({
+        items: [{ ...runbook, id: "file-2", name: "old.md", archived: true }],
+        total: 1,
+      });
+    return json({ items: [], total: 0 });
+  });
+  show(<Repositories selected={repo.id} />);
+  const section = await filesSection();
+  expect(
+    await within(section).findByRole("link", { name: "runbook.md" }),
+  ).toHaveAttribute("href", "/api/v1/attachments/file-1?download=1");
+  expect(within(section).queryByLabelText("Attach a file")).toBeNull();
+  expect(
+    screen.getByText(/Existing links, files and reports remain visible/),
+  ).toBeVisible();
+  expect(
+    await within(section).findByText("Archived supporting records (1)"),
+  ).toBeVisible();
+  await userEvent.click(
+    within(section).getByRole("button", { name: "Archive" }),
+  );
+  await waitFor(() =>
+    expect(writes).toEqual(["/api/v1/attachments/file-1/archive"]),
+  );
 });
 
 it("shows who registered a repository and lets the person confirm an agent's registration", async () => {

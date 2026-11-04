@@ -492,3 +492,69 @@ test("a person links work and repositories from either side and from Today", asy
     entry.getByRole("link", { name: repoName, exact: true }),
   ).toBeVisible();
 });
+
+test("a person keeps a document with a repository, and search opens the repository", async ({
+  page,
+  baseURL,
+}) => {
+  const origin = new URL(baseURL!).origin;
+  const suffix = crypto.randomUUID();
+  const repoName = "Documented " + suffix;
+  // A word of this run's own, so search finds only the file made here.
+  const file = "runbook" + suffix.replaceAll("-", "") + ".md";
+  const text = "# On call\n\nRestart the worker.";
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Today", exact: true }),
+  ).toBeVisible();
+  const boot = await page.request.post("/api/v1/session/bootstrap", {
+    headers: { Origin: origin, "X-Worklog-Bootstrap": "1" },
+    data: {},
+  });
+  const { csrfToken } = await boot.json();
+  const created = await page.request.post("/api/v1/repositories", {
+    headers: {
+      "Idempotency-Key": crypto.randomUUID(),
+      Origin: origin,
+      "X-CSRF-Token": csrfToken,
+    },
+    data: { name: repoName, url: `https://github.com/docs-owner/${suffix}` },
+  });
+  expect(created.ok(), await created.text()).toBeTruthy();
+  const repository = await created.json();
+
+  await page.goto("/#repositories/" + repository.id);
+  const files = page.locator("section").filter({
+    has: page.getByRole("heading", { name: "Files", level: 2 }),
+  });
+  await expect(
+    files.getByText("No files attached to this repository."),
+  ).toBeVisible();
+  await files.getByLabel("Attach a file").setInputFiles({
+    name: file,
+    mimeType: "text/markdown",
+    buffer: Buffer.from(text),
+  });
+  const link = files.getByRole("link", { name: file, exact: true });
+  await expect(link).toBeVisible();
+  // Its name downloads what was attached.
+  const download = await page.request.get((await link.getAttribute("href"))!);
+  expect(download.ok()).toBeTruthy();
+  expect(await download.text()).toBe(text);
+
+  // Search from another page finds the file by name and opens its repository.
+  await page.goto("/#today");
+  await page.getByRole("searchbox", { name: "Search all work" }).fill(file);
+  const result = page.locator(".search-result", { hasText: "attachment" });
+  await expect(result).toBeVisible();
+  await result.getByRole("link", { name: file, exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`#repositories/${repository.id}$`));
+  await expect(page.getByRole("heading", { name: repoName })).toBeVisible();
+
+  // An archived file waits under the section's recovery list.
+  await files.getByRole("button", { name: "Archive", exact: true }).click();
+  await expect(link).toHaveCount(0);
+  await files.getByText("Archived supporting records (1)").click();
+  await files.getByRole("button", { name: "Recover", exact: true }).click();
+  await expect(link).toBeVisible();
+});

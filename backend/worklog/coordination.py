@@ -164,6 +164,14 @@ def _refuse_merged(c: sqlite3.Connection, row: Any) -> None:
                        {"repositoryId": row["merged_into"]})
 
 
+def repository_takes_files(c: sqlite3.Connection, identity: str) -> None:
+    """Only an active record takes new files, as with links; the ones it has stay readable."""
+    row = _get(c, "repositories", identity)
+    _refuse_merged(c, row)
+    if row["archived"]:
+        raise AppError(409, "archived", f"Recover {row['name']} before attaching files to it", {"repositoryId": identity})
+
+
 def repository_resolution(c: sqlite3.Connection, url: str) -> dict:
     """What registering this address would do: link to the record holding its remote, or add one."""
     address = _repository_url(url)
@@ -180,8 +188,8 @@ _REPOSITORY_LINKS = {"items": "item_repositories", "chats": "chat_repositories",
 def repository_merge(c: sqlite3.Connection, actor: dict, identity: str, p: dict) -> dict:
     """Fold a record into another that stands for the same repository: a person's decision.
 
-    Links, reported contexts and updates move to the survivor without changing the revisions
-    of the records that hold them; update snapshots keep the names they were posted with.
+    Links, reported contexts, updates and attached files move to the survivor without changing
+    the revisions of the records that hold them; update snapshots keep the names they were posted with.
     The merged record stays, archived and read-only, and its remote answers with the survivor.
     """
     if actor["kind"] != "human":
@@ -203,6 +211,11 @@ def repository_merge(c: sqlite3.Connection, actor: dict, identity: str, p: dict)
         moved[kind] = c.execute(f"SELECT count(*) FROM {table} WHERE repository_id=?", (source["id"],)).fetchone()[0]
         c.execute(f"UPDATE OR IGNORE {table} SET repository_id=? WHERE repository_id=?", (survivor["id"], source["id"]))
         c.execute(f"DELETE FROM {table} WHERE repository_id=?", (source["id"],))
+    # Attached files follow too, archived ones included, so none stay on a record that takes no changes.
+    c.execute("UPDATE search_index SET owner_id=? WHERE type='attachment' AND entity_id IN "
+              "(SELECT id FROM attachments WHERE owner_type='repository' AND owner_id=?)", (survivor["id"], source["id"]))
+    moved["attachments"] = c.execute("UPDATE attachments SET owner_id=? WHERE owner_type='repository' AND owner_id=?",
+                                     (survivor["id"], source["id"])).rowcount
     before = repository_record(source)
     c.execute("UPDATE repositories SET archived=1,duplicate_of=NULL,merged_into=?,revision=revision+1,updated_at=? WHERE id=?",
               (survivor["id"], now(), source["id"]))
