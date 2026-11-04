@@ -1,5 +1,7 @@
 import io
 import json
+import os
+import subprocess
 import threading
 import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -262,6 +264,69 @@ def test_start_launches_and_verifies_the_selected_port(tmp_path, monkeypatch):
     assert result["url"] == "http://127.0.0.1:8878" and result["reused"] is False
     assert launched[0][-3:] == ["--port", "8878", "serve"]
     assert set(probed) == {8878}
+
+
+@pytest.fixture
+def launches(tmp_path, monkeypatch):
+    """start against a fake Popen: each attempt's options, and errors that refuse the next attempts."""
+    health = {"app": "worklog", "ready": True, "instanceId": "instance", "dataId": "data"}
+    process = {"created": 123, "executable": "python"}
+    state = tmp_path / "server-state.json"
+    attempts, refusals = [], []
+
+    class Launched:
+        def poll(self):
+            return None
+
+    def popen(args, **options):
+        attempts.append(options)
+        if refusals:
+            raise refusals.pop(0)
+        cli._write_json(state, {**health, "dataDir": str(tmp_path.resolve()), "pid": 4321, "process": process})
+        return Launched()
+
+    monkeypatch.setattr(cli.subprocess, "Popen", popen)
+    monkeypatch.setattr(cli, "_health", lambda port: health if state.exists() else None)
+    monkeypatch.setattr(cli, "_port_busy", lambda port: False)
+    monkeypatch.setattr(cli, "_process_identity", lambda pid: process)
+    return attempts, refusals
+
+
+windows_only = pytest.mark.skipif(os.name != "nt", reason="Windows process creation flags")
+
+
+@windows_only
+def test_start_launches_the_hidden_server_breaking_away_from_its_windows_job(tmp_path, launches):
+    attempts, _ = launches
+    result = cli.start(tmp_path, 8878)
+    assert [attempt["creationflags"] for attempt in attempts] == [
+        subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_BREAKAWAY_FROM_JOB]
+    assert result["running"] is True and "warning" not in result
+    assert not (tmp_path / "server.log").read_bytes()
+
+
+@windows_only
+def test_start_stays_in_a_job_that_forbids_breakaway_and_says_so(tmp_path, launches, capsys):
+    attempts, refusals = launches
+    # What CreateProcess raises when the job lacks JOB_OBJECT_LIMIT_BREAKAWAY_OK.
+    refusals.append(OSError(None, "Access is denied", None, cli.ERROR_ACCESS_DENIED))
+    assert cli.main(["--data-dir", str(tmp_path), "--port", "8878", "start"]) == 0
+    hidden = subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP
+    assert [attempt["creationflags"] for attempt in attempts] == [hidden | subprocess.CREATE_BREAKAWAY_FROM_JOB, hidden]
+    result = json.loads(capsys.readouterr().out)
+    assert result["running"] is True and result["warning"] == cli.JOB_WARNING
+    # Whoever reads server.log after the server vanished learns why.
+    assert (tmp_path / "server.log").read_text(encoding="ascii") == f"worklog start: {cli.JOB_WARNING}\n"
+
+
+@windows_only
+def test_start_reports_any_other_launch_failure_without_a_second_attempt(tmp_path, launches, capsys):
+    attempts, refusals = launches
+    refusals.append(OSError(None, "The system cannot find the file specified", None, 2))
+    assert cli.main(["--data-dir", str(tmp_path), "--port", "8878", "start"]) == 1
+    assert len(attempts) == 1
+    assert "cannot find the file" in capsys.readouterr().err
+    assert not (tmp_path / "server.log").read_bytes()
 
 
 def _export_args(tmp_path, target):

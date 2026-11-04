@@ -60,6 +60,11 @@ TICKET_STATUSES = ("open", "doing", "blocked", "done")
 AGENT_GUIDE = Path(__file__).resolve().parents[2] / "docs" / "AGENT-GUIDE.md"
 ERROR_CODE = re.compile(r"[a-z][a-z0-9_]{0,63}")
 ERROR_FIELDS_LIMIT = 1000
+# What CreateProcess fails with when the caller's job does not allow CREATE_BREAKAWAY_FROM_JOB.
+ERROR_ACCESS_DENIED = 5
+# start's report, and its line in server.log, when the server has to stay in start's own job.
+JOB_WARNING = ("This command runs in a Windows job that does not let the server leave it, so the server "
+               "stops when that job ends, for example when the session or app that started this shell ends")
 
 
 def resolve_port(value: int | None = None) -> int:
@@ -274,6 +279,31 @@ def check(directory: Path, port: int = DEFAULT_PORT) -> dict[str, Any]:
     return {"running": False, "url": local_url(port), "dataDir": str(directory)}
 
 
+def _launch_server(command: list[str], log: Any,
+                   environment: dict[str, str]) -> tuple[subprocess.Popen[bytes], str | None]:
+    """Launch the hidden server so it outlives this command; return it and any warning for start's report."""
+    def launch(**platform: Any) -> subprocess.Popen[bytes]:
+        return subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=log, stderr=log, env=environment,
+                                close_fds=True, **platform)
+
+    if os.name != "nt":
+        return launch(start_new_session=True), None
+    hidden = subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP
+    # A new process joins its creator's Windows jobs, and a job's owner can end every process in it at
+    # once: a Claude Code session ends its shells' processes that way when it ends. Breaking away leaves
+    # each job, from this command's own outwards, that allows it (a Claude Code session's does), so the
+    # server outlives the command, its shell and the session. The first job that forbids it keeps the
+    # server without an error; only this command's own job refusing makes the launch fail.
+    try:
+        return launch(creationflags=hidden | subprocess.CREATE_BREAKAWAY_FROM_JOB), None
+    except OSError as exc:
+        if getattr(exc, "winerror", None) != ERROR_ACCESS_DENIED:
+            raise
+    log.write(f"worklog start: {JOB_WARNING}\n".encode("ascii"))
+    log.flush()
+    return launch(creationflags=hidden), JOB_WARNING
+
+
 def start(directory: Path, port: int = DEFAULT_PORT) -> dict[str, Any]:
     directory.mkdir(parents=True, exist_ok=True)
     with InstanceLock(directory, ".launcher.lock"):
@@ -287,13 +317,9 @@ def start(directory: Path, port: int = DEFAULT_PORT) -> dict[str, Any]:
         environment["WORKLOG_DATA_DIR"] = str(directory)
         # The server never needs the invoking agent credential.
         environment.pop("WORKLOG_AGENT_TOKEN", None)
-        flags = (subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP) if os.name == "nt" else 0
+        command = [sys.executable, "-m", "worklog.cli", "--data-dir", str(directory), "--port", str(port), "serve"]
         with (directory / "server.log").open("ab") as log:
-            process = subprocess.Popen(
-                [sys.executable, "-m", "worklog.cli", "--data-dir", str(directory), "--port", str(port), "serve"],
-                stdin=subprocess.DEVNULL, stdout=log, stderr=log, env=environment,
-                creationflags=flags, start_new_session=os.name != "nt", close_fds=True,
-            )
+            process, warning = _launch_server(command, log, environment)
         deadline = time.monotonic() + 20
         while time.monotonic() < deadline:
             if process.poll() is not None:
@@ -302,7 +328,7 @@ def start(directory: Path, port: int = DEFAULT_PORT) -> dict[str, Any]:
             health = _health(port)
             if _owned(directory, health, state):
                 return {"running": True, "url": local_url(port), **(health or {}), "pid": state["pid"],
-                        "dataDir": str(directory), "reused": False}
+                        "dataDir": str(directory), "reused": False, **({"warning": warning} if warning else {})}
             time.sleep(0.1)
         raise RuntimeError(f"Startup did not become ready; inspect {directory / 'server.log'} and run check")
 
