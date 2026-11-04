@@ -48,6 +48,7 @@ FIELDS = {
     "link.update": ({"id", "revision"}, {"id", "revision", "url", "title", "description"}),
     "link.archive": ({"id", "revision"}, {"id", "revision"}),
     "link.recover": ({"id", "revision"}, {"id", "revision"}),
+    "attachment.create": ({"ownerType", "ownerId", "attachmentId"}, {"ownerType", "ownerId", "attachmentId"}),
     "chat.create": ({"ownerType", "ownerId", "chatId", "title"}, {"ownerType", "ownerId", "chatId", "title", "createdDate", "provider", "model", "repos", "stepIds", "repositoryIds"}),
     "chat.update": ({"id", "revision"}, {"id", "revision", "chatId", "title", "createdDate", "provider", "model", "repos", "stepIds", "repositoryIds"}),
     "chat.archive": ({"id", "revision"}, {"id", "revision"}),
@@ -108,6 +109,31 @@ def _operations(value):
     if len(encoded.encode("utf-8")) > 5_000_000:
         raise AppError(413, "too_large", "Proposal operations exceed 5,000,000 bytes")
     return encoded
+
+
+def evidence_file(conn, proposal_id, attachment_id):
+    """The file, uploaded to this proposal as evidence, that an attachment.create names.
+
+    Only the proposal's own files qualify, so an agent can never copy another proposal's
+    evidence or a file already on the person's records. The refusal is the same whether the
+    file is missing or belongs elsewhere, so it reveals nothing about other drafts.
+    """
+    # Not the content: a copy is made inside SQLite, so the bytes never need to be read here.
+    row = conn.execute("SELECT id,archived FROM attachments WHERE id=? AND owner_type='proposal' AND owner_id=?",
+                       (attachment_id, proposal_id)).fetchone() if isinstance(attachment_id, str) else None
+    if row is None:
+        raise AppError(422, "validation", "attachmentId must name a file uploaded to this proposal as evidence",
+                       {"attachmentId": "not_evidence"})
+    if row["archived"]:
+        raise AppError(409, "archived", "That file was archived from this proposal, so it cannot be attached",
+                       {"attachmentId": "archived"})
+    return row
+
+
+def _numbered(exc, number, total, action):
+    """Name the change as Review numbers it, so the person or agent knows which one to fix."""
+    return AppError(exc.status, exc.code, f"Change {number} of {total}, {action}: {exc.message}",
+                    {"operation": number, "action": action, "fields": exc.fields})
 
 
 def _record(row):
@@ -256,6 +282,10 @@ class ProposalService:
             before = _record(row)
             if verb == "submit" and not before["operations"]:
                 raise AppError(422, "validation", "A submitted proposal needs at least one operation")
+            if verb == "submit" and approval_required(connection):
+                # A file it cannot attach would only wait for the person to reject it. With
+                # approval off, applying it below makes the same check.
+                self._check_files(connection, row)
             if verb == "approve":
                 self._apply(connection, row)
             result = self._advance(connection, identifier, verb, actor, before)
@@ -288,13 +318,23 @@ class ProposalService:
             for number, operation in ordered:
                 try:
                     action, payload = _scratchpad_landing(connection, operation["action"], operation["payload"])
+                    if action == "attachment.create":
+                        # The file is this proposal's own evidence, which only Worklog names.
+                        payload = {**payload, "proposalId": row["id"]}
                     self.dispatch(connection, proposer, action, payload)
                 except AppError as exc:
-                    # Name the change as Review numbers it, so the person knows which one to fix.
-                    raise AppError(exc.status, exc.code, f"Change {number} of {len(operations)}, {operation['action']}: {exc.message}",
-                                   {"operation": number, "action": operation["action"], "fields": exc.fields}) from exc
+                    raise _numbered(exc, number, len(operations), operation["action"]) from exc
         finally:
             self._applying_id = previous
+
+    def _check_files(self, connection, row):
+        operations = json.loads(row["operations"])
+        for number, operation in enumerate(operations, 1):
+            if operation["action"] == "attachment.create":
+                try:
+                    evidence_file(connection, row["id"], operation["payload"].get("attachmentId"))
+                except AppError as exc:
+                    raise _numbered(exc, number, len(operations), operation["action"]) from exc
 
     def _advance(self, connection, identifier, verb, actor, before):
         state = {

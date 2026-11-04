@@ -101,7 +101,7 @@ Agents act with credentials you issue in Settings (see [Bring an AI agent in](#b
 - file and work tickets
 - receive the messages you write into their chat
 
-They never change your work items, days, roadmaps, people or repositories directly. They propose those changes, and you approve or reject each proposal on Review. You can turn approval off in Settings; then a proposal applies as soon as its agent submits it. Resources are yours alone: agents read them, but nothing they do changes one, not even a proposal.
+They never change your work items, days, roadmaps, people or repositories directly, nor attach files to them. They propose those changes, and you approve or reject each proposal on Review. You can turn approval off in Settings; then a proposal applies as soon as its agent submits it. Resources are yours alone: agents read them, but nothing they do changes one, not even a proposal.
 
 ## How to
 
@@ -259,7 +259,7 @@ Agents read your pages but never change them. Their `context` lists every page b
   - Each file's name downloads it, and "Archive" puts it under "Archived supporting records".
   - Search finds a file by its name and opens its repository.
   - An archived repository takes no new files until you recover it. You can still download, archive and recover the ones it has.
-  - Agents you give a credential can read these files, as they can your other records.
+  - Agents you give a credential can read these files, as they can your other records, and propose attaching new ones.
 - **Merge duplicates.**
   - On the duplicate's page, find the record to keep under "Merge into another repository", and press "Confirm merge".
   - Its work and chat links, tickets, files and agent reports move to the record you keep. The duplicate is archived as "Merged into" that record.
@@ -283,7 +283,7 @@ One credential can serve many agents: each registers its own identity from it, a
 ### Review what an agent proposes
 
 1. Open **Review**. "Proposal status" starts on submitted proposals; choose "All proposals" or another status to see the rest.
-2. Open a proposal. You see the agent's rationale and each numbered change, with the current and proposed values. A warning marks any target that changed after the agent proposed. The agent's evidence files are attached.
+2. Open a proposal. You see the agent's rationale and each numbered change, with the current and proposed values. A warning marks any target that changed after the agent proposed. The agent's evidence files are attached. A change that attaches one of them to a work item, roadmap, step or repository names the file, with its size and a download link. Approval attaches a copy there, and the evidence stays with the proposal.
 3. Choose "Approve proposal", "Return to draft" or "Reject proposal", then press the confirm button that appears, or "Keep reviewing" to back out.
 
 Approval applies every change at once, or none if any target changed meanwhile. The error then names the change that failed, such as `Change 2 of 3, repository.update`. Return to draft sends the proposal back to its agent to update and resubmit.

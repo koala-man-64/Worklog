@@ -146,6 +146,82 @@ it("treats a missing step as new only when an earlier operation creates it", asy
   expect(screen.getAllByText(CREATED_NOTE)).toHaveLength(1);
   expect(screen.getByText("open")).toBeInTheDocument();
 });
+it("names the file a change attaches, from the proposal's own files", async () => {
+  const evidence = "7a8b9c0d-1e2f-4a3b-8c4d-5e6f7a8b9c0d";
+  requestMock.mockImplementation(async (path: string) => {
+    if (path === `/proposals/${ID}`)
+      return {
+        id: ID,
+        title: "Attach the parser report",
+        rationale: "",
+        status: "submitted",
+        revision: 2,
+        actorLabel: "Parser agent",
+        operations: [
+          {
+            action: "attachment.create",
+            payload: {
+              ownerType: "item",
+              ownerId: OTHER_ID,
+              attachmentId: evidence,
+            },
+          },
+        ],
+        attachments: [
+          {
+            id: evidence,
+            name: "parser-report.pdf",
+            mime: "application/pdf",
+            size: 2048,
+            sha256: "0".repeat(64),
+            archived: false,
+            revision: 1,
+          },
+        ],
+      };
+    if (path === "/settings") return { requireProposalApproval: true };
+    return { items: [], total: 0 };
+  });
+  renderWithClient(<Review selectedId={ID} />);
+  const note = await screen.findByText(/^Approval attaches a copy of/);
+  expect(note).toHaveTextContent(
+    "Approval attaches a copy of parser-report.pdf (2.0 KB), from this proposal’s files.",
+  );
+  expect(
+    within(note).getByRole("link", { name: "parser-report.pdf" }),
+  ).toHaveAttribute("href", `/api/v1/attachments/${evidence}?download=1`);
+  // The change names no record to look up: it creates the copy.
+  expect(requestMock).not.toHaveBeenCalledWith(
+    expect.stringContaining("/attachments"),
+  );
+});
+const archivedFile = {
+  id: ID,
+  name: "old.pdf",
+  mime: "application/pdf",
+  size: 1,
+  sha256: "0".repeat(64),
+  archived: true,
+  revision: 2,
+};
+it.each([
+  ["missing", [], /^No file with this ID was uploaded to this proposal/],
+  [
+    "archived",
+    [archivedFile],
+    /was archived from this proposal, so approval fails\.$/,
+  ],
+])("warns when approval cannot attach a %s file", async (_, files, warning) => {
+  renderWithClient(
+    <OperationDiff
+      action="attachment.create"
+      payload={{ ownerType: "item", ownerId: OTHER_ID, attachmentId: ID }}
+      files={files}
+    />,
+  );
+  expect(await screen.findByText(warning)).toHaveClass("warning");
+  expect(screen.queryByText(/^Approval attaches/)).toBeNull();
+});
 it("says when approval is off and marks automatic approvals", async () => {
   const proposal = (id: string, autoApproved: boolean) => ({
     id,

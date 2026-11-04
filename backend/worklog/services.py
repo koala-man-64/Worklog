@@ -998,6 +998,25 @@ class WorkService:
             c.execute("INSERT INTO tasks VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET text=excluded.text,done=excluded.done,revision=excluded.revision,updated_at=excluded.updated_at",
                       (val["id"], val["itemId"], val["text"], int(val["done"]), 0, val["revision"] + 1, val["createdAt"], now()))
             p = {**p, "id": val["id"]}
+        elif kind == "attachment" and creating:
+            from .proposals import evidence_file
+
+            # Only an applied proposal attaches a file this way: a copy of evidence uploaded to it,
+            # so the proposal keeps the file it was reviewed with. The person uploads directly.
+            owner_type, owner_id = p.get("ownerType"), p.get("ownerId")
+            if not (isinstance(owner_type, str) and owner_type in FILE_OWNERS.keys() - {"proposal"} and isinstance(owner_id, str)):
+                raise AppError(422, "validation", "Files belong to a work item, roadmap, step or repository")
+            source = evidence_file(c, p.get("proposalId"), p.get("attachmentId"))
+            self.owner(c, owner_type, owner_id, files=True)
+            if owner_type == "repository":
+                from .coordination import repository_takes_files
+
+                repository_takes_files(c, owner_id)
+            identity = uid()
+            c.execute("INSERT INTO attachments(id,owner_type,owner_id,name,mime,size,sha256,content,archived,revision,created_at) "
+                      "SELECT ?,?,?,name,mime,size,sha256,content,0,1,? FROM attachments WHERE id=?",
+                      (identity, owner_type, owner_id, now(), source["id"]))
+            p = {**p, "id": identity}
         elif kind == "reference" and creating:
             self.item(c, p.get("itemId", ""))
             identity = uid()

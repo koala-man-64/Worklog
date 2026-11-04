@@ -32,7 +32,7 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 3. **Act as yourself.** Every later command MUST give `--as NAME` before the group. Your runs, reports, messages, tickets and proposals then carry your own identity.
 4. **One request ID per write.** Give each write a stable `--request-id`: 8-200 printable ASCII characters without spaces. After an uncertain result, rerun with the same ID and the identical payload; it cannot apply twice. A new operation MUST get a new ID. Proposal commands take none (section 7).
 5. **Current revisions.** A revision-checked command MUST carry the revision from your latest read. On `409 conflict`, read the record again and decide afresh; never reapply blindly.
-6. **Proposals for the person's records.** Work items, day entries, scratchpads and notes, checklist tasks, roadmaps and step progress, people, links, tracked chats, GitHub references, questions, decisions and repository edits change only through a proposal the person approves (section 6). You write tickets, discussions, your own runs, participation and updates, repository registrations and your inbox directly. Resources, the person's reference pages, are read-only to you: no command and no proposal changes one.
+6. **Proposals for the person's records.** Work items, day entries, scratchpads and notes, checklist tasks, roadmaps and step progress, people, links, tracked chats, GitHub references, questions, decisions, repository edits and the files attached to the person's records change only through a proposal the person approves (section 6). You write tickets, discussions, your own runs, participation and updates, repository registrations and your inbox directly. Resources, the person's reference pages, are read-only to you: no command and no proposal changes one.
 7. **Advisory, not authority.** Participation, ticket assignment and roles reserve nothing and lock nothing, and a fresh report does not prove an agent is running. An acknowledgement means "received and understood", never approval.
 8. **Search first.** Before you investigate a failure, search past tickets, closed ones included: `tickets list --status all --q 'WORDS'`. File a ticket for an issue worth tracking, comment as you learn, and close it with a resolution that says what fixed it.
 9. **Never work around a refusal.** `401` means your identity was revoked: by the person, by the retirement of the agent that registered you, or by a restore. Stop, tell the person, and register again only if they agree. `403 agent_scope` is outside agent authority: propose the change or ask. `429 agent_limit`: report it and do not retry. `403 repository_registration_off`: propose `repository.create`. Section 8 lists every code.
@@ -52,6 +52,7 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 | Question, decision | UUID | a question is open or answered | proposal |
 | Person | UUID | `name`, `role`; tied to work items and roadmaps with a relationship | proposal (`person.*`) |
 | Link, GitHub reference | UUID | `url`; a GitHub reference's `kind` is commit or pr | proposal |
+| File | UUID | `name`, `mime`, `size`, `sha256`, `archived`; `ownerType` item, roadmap, step, repository, or proposal for evidence | evidence: you, on your own draft; elsewhere: proposal (`attachment.create`) |
 | Tracked chat | Worklog's UUID, and `chatId`, the provider's ID | on a work item or roadmap; `stepIds`, `provider`, `model` | proposal (`chat.*`) |
 | Repository | UUID; one record per remote | `registeredBy`, `reviewed`, `duplicateOf`, `mergedInto` | you register; edits by proposal |
 | Ticket | `T-12`, `12` or UUID | `kind` bug, incident or task; `priority` low, normal, high or urgent; `status` open, doing, blocked or done; `resolution` | you, directly |
@@ -87,7 +88,8 @@ Records are archived, never deleted, and only the person archives or recovers th
 | Approve or reject proposals; change Settings | yes | no | no |
 | Write a message into a chat | yes | no: you receive with `inbox` | - |
 | Upload evidence | - | to your own draft proposal | - |
-| Attach files, import plans, reorder, archive or restore roadmaps | yes | no | no |
+| Attach files to work items, roadmaps, steps or repositories | yes | no | yes, a copy of your evidence |
+| Archive or recover files, import plans, reorder, archive or restore roadmaps | yes | no | no |
 | Issue, rotate or revoke credentials | yes | you register and retire identities you registered | - |
 
 Approval is on by default. When the person turns it off in Settings, `proposal submit` applies your proposal at once (section 6).
@@ -197,7 +199,7 @@ worklog agent --as NAME proposal show PROPOSAL_ID
 |---|---|---|---|
 | `proposal draft` | `--file FILE` | - | the new draft |
 | `proposal update ID` | `--revision N --file FILE` | yes | the draft, with the title, rationale and operations the file carries |
-| `proposal evidence ID` | `--file PATH [--name NAME]`: a file path, not standard input; at most 25,000,000 bytes | - | the uploaded file's record |
+| `proposal evidence ID` | `--file PATH [--name NAME]`: a file path, not standard input; at most 25,000,000 bytes | - | the uploaded file's record, whose `id` an `attachment.create` names (section 6.2) |
 | `proposal submit ID` | `--revision N` | yes | the proposal, submitted, or approved when approval is off |
 | `proposal reopen ID` | `--revision N` | yes | the proposal, back in draft, with its evidence |
 | `proposal withdraw ID` | `--revision N` | yes | the proposal, withdrawn |
@@ -443,6 +445,7 @@ A proposal is a JSON file with a title (up to 1,000 bytes), a rationale for the 
 | `link.update` | `id`, `revision` | `url`, `title`, `description` |
 | `link.archive` | `id`, `revision` | - |
 | `link.recover` | `id`, `revision` | - |
+| `attachment.create` | `ownerType`, `ownerId`, `attachmentId` | - |
 | `chat.create` | `ownerType`, `ownerId`, `chatId`, `title` | `createdDate`, `provider`, `model`, `repos`, `stepIds`, `repositoryIds` |
 | `chat.update` | `id`, `revision` | `chatId`, `title`, `createdDate`, `provider`, `model`, `repos`, `stepIds`, `repositoryIds` |
 | `chat.archive` | `id`, `revision` | - |
@@ -460,7 +463,7 @@ A proposal is a JSON file with a title (up to 1,000 bytes), a rationale for the 
 | `decision.archive` | `id`, `revision` | - |
 | `decision.recover` | `id`, `revision` | - |
 
-Any other field is refused. Proposals cannot attach files, import plans, reorder, archive or restore roadmaps, or touch tickets.
+Any other field is refused. Proposals cannot archive or recover files, import plans, reorder, archive or restore roadmaps, or touch tickets.
 
 ### 6.2 Field rules
 
@@ -468,6 +471,7 @@ Any other field is refused. Proposals cannot attach files, import plans, reorder
 - **Owner and target types.**
   - A note's `ownerType` is `item`, `roadmap` or `step`.
   - A link's, tracked chat's or GitHub reference's `ownerType` is `item` or `roadmap`.
+  - A file's `ownerType` is `item`, `roadmap`, `step` or `repository`.
   - `targetType` is `item` or `roadmap`.
 - **Statuses.**
   - `status` on `item.update` and `progress.set` is `open`, `doing`, `blocked` or `done`. `progress.set` takes leaf steps; a parent step's progress follows its children.
@@ -485,6 +489,27 @@ Any other field is refused. Proposals cannot attach files, import plans, reorder
   - `repos` holds free-text labels, at most 20. `repositoryIds` holds catalog IDs, at most 100.
 - **GitHub references.** `kind` is `commit` or `pr`. `chatId` names a tracked chat on the same work item or roadmap, or on its linked work: by its Worklog ID or its provider ID.
 - **Existing repositories.** A `repository.create` for a remote that is already registered links to that record instead of failing.
+- **Files.** You attach a file to the person's records with a copy of evidence uploaded to the same proposal:
+  1. Draft the proposal; its operations may be empty for now.
+  2. Upload the file to the draft with `proposal evidence`. It prints the file's record; keep its `id`.
+  3. Update the draft with an `attachment.create` whose `attachmentId` is that `id`, then submit it.
+  - Approval attaches a copy with the name and type the evidence has; the evidence stays with the proposal. One upload can be attached to several records.
+  - `attachmentId` must name a file of this same proposal. Submitting refuses any other with `422 validation`, and one the person archived with `409 archived`.
+  - An archived or merged repository refuses a file at approval (`409 archived`, `409 repository_merged`).
+  - A file is at most 25,000,000 bytes, as evidence is.
+
+```powershell
+worklog agent --as NAME proposal draft --file proposal.json
+worklog agent --as NAME proposal evidence PROPOSAL_ID --file C:/Projects/repo/out/parser-report.pdf --name 'Parser report.pdf'
+worklog agent --as NAME proposal update PROPOSAL_ID --revision 1 --file proposal.json
+worklog agent --as NAME proposal submit PROPOSAL_ID --revision 2
+```
+
+Uploading evidence leaves the proposal's revision alone. Before the update, `proposal.json` gains the operation:
+
+```json
+{"action": "attachment.create", "payload": {"ownerType": "item", "ownerId": "ITEM_ID", "attachmentId": "EVIDENCE_ID"}}
+```
 
 ### 6.3 Lifecycle and approval
 
@@ -568,7 +593,7 @@ worklog check
 | `not_found` | 404 | No such record, or not one you can see, such as another agent's draft | Check the ID with `search` or `context` |
 | `conflict` | 409 | A stale revision (`fields` `{expected,currentRevision}`), or a state that forbids the change, such as editing a submitted proposal | Read again; retry with the current revision only if the change is still right |
 | `operation` | 422 | An unsupported operation reached the server | Use an action from section 6.1 |
-| `archived` | 409 | The target, or what it links to, is archived | Ask the person to recover it, or choose another |
+| `archived` | 409 | The target, what it links to, or the evidence file to attach is archived | Ask the person to recover it, or choose another |
 | `too_large` | 413 | The request or file exceeds its limit | Shrink it (section 9) |
 | `file_size` | 413 or 422 | A file is empty or larger than 25,000,000 bytes | Upload a non-empty file within the limit |
 | `forbidden` | 403 | Not yours to do, such as approving, or acting on another agent's proposal | Do not retry; ask the person |
@@ -667,7 +692,7 @@ Invoke-RestMethod -Uri 'http://127.0.0.1:8877/api/v1/work-items/ITEM_ID' -Header
 - **Agents.** One entry per identity. It shows a status ("Reporting work", "Stale reports", "No current reports" or "Credential revoked"), your runs, messages, updates and the work you are tied to.
 - **Chats.** Tracked chats, shown as "Working" or "Idle", with their transcripts. The person writes to a chat's agents there, and you receive it in your inbox.
 - **Discussions.** Threads, acknowledgement requests and roles.
-- **Review.** Your submitted proposals, with "Approve proposal", "Return to draft" and "Reject proposal", each confirmed.
+- **Review.** Your submitted proposals, with "Approve proposal", "Return to draft" and "Reject proposal", each confirmed. A change that attaches a file names it, with its size and a download link.
 - **Settings.**
   - "Agent credentials": issue, "Rotate token" and "Revoke".
   - "Require my approval for agent proposals" and "Agents may register repositories".

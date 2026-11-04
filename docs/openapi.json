@@ -8758,6 +8758,7 @@
               "link.update",
               "link.archive",
               "link.recover",
+              "attachment.create",
               "chat.create",
               "chat.update",
               "chat.archive",

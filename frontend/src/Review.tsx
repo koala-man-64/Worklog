@@ -1,9 +1,23 @@
 import { useCallback, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ApiError, request, getDataContext } from "./api";
+import { ApiError, download, request, getDataContext } from "./api";
 import { useAction, useData } from "./hooks";
-import { Empty, ErrorMessage, Files, Markdown } from "./components";
-import type { Day, Detail, List, Operation, Proposal, Settings } from "./types";
+import {
+  Empty,
+  ErrorMessage,
+  Files,
+  Markdown,
+  formatBytes,
+} from "./components";
+import type {
+  Attachment,
+  Day,
+  Detail,
+  List,
+  Operation,
+  Proposal,
+  Settings,
+} from "./types";
 import type { Repository, RepositoryResolution } from "./repositoryTypes";
 import { Icon } from "./icons";
 export function Review({ selectedId }: { selectedId?: string }) {
@@ -140,6 +154,7 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
           number={index + 1}
           action={op.action}
           payload={op.payload}
+          files={p.attachments ?? []}
           proposedEarlier={(target) => (declared.get(target) ?? index) < index}
           onStale={reportStale}
         />
@@ -310,6 +325,7 @@ export function OperationDiff({
   number,
   action,
   payload,
+  files,
   proposedEarlier,
   onStale,
 }: {
@@ -317,6 +333,8 @@ export function OperationDiff({
   number?: number;
   action: string;
   payload: Record<string, unknown>;
+  // The proposal's own files, which an attachment.create copies onto a record.
+  files?: Attachment[];
   // True when an earlier operation in the same proposal creates the target.
   proposedEarlier?: (target: string) => boolean;
   onStale?: (number: number, detail: string | null) => void;
@@ -417,6 +435,11 @@ export function OperationDiff({
         </p>
       )}
       <ErrorMessage error={noteOwner.error} />
+      {action === "attachment.create" && files && (
+        <EvidenceFile
+          file={files.find((file) => file.id === payload.attachmentId)}
+        />
+      )}
       {created ? (
         <p className="muted">
           An earlier change in this proposal creates this target, so it has no
@@ -464,6 +487,28 @@ export function OperationDiff({
         </div>
       ))}
     </article>
+  );
+}
+// The file a change attaches is a copy of one of the proposal's own files, so name it.
+function EvidenceFile({ file }: { file?: Attachment }) {
+  if (!file)
+    return (
+      <p className="warning">
+        No file with this ID was uploaded to this proposal, so approval fails.
+      </p>
+    );
+  const link = (
+    <a href={download(`/attachments/${file.id}?download=1`)}>{file.name}</a>
+  );
+  return file.archived ? (
+    <p className="warning">
+      {link} was archived from this proposal, so approval fails.
+    </p>
+  ) : (
+    <p className="muted">
+      Approval attaches a copy of {link} ({formatBytes(file.size)}), from this
+      proposal’s files.
+    </p>
   );
 }
 // Registering a remote that is already registered links to its record, so say which.
