@@ -186,6 +186,37 @@ def test_backlog_move_over_tied_positions_leaves_other_work_in_place(client):
     assert len(set(positions)) == 3
 
 
+def test_backlog_move_keeps_planned_work_tied_with_its_neighbour_at_its_rank(client):
+    made = items(client, "X", "Y", "Z")
+    name = {i["id"]: i["title"] for i in made}
+    low, middle, high = sorted(name)
+    # An ordering from before stack rank tied planned work with the backlog item after it.
+    with client.app.state.db.transaction() as conn:
+        conn.execute("UPDATE work_items SET backlog_order=5 WHERE id=?", (low,))
+        conn.execute("UPDATE work_items SET backlog_order=6 WHERE id IN (?,?)", (middle, high))
+    ok(write(client, "PUT", f"/days/2099-01-01/entries/{middle}", {"revision": 0, "planned": True}))
+    assert ranking(client) == [name[low], name[middle], name[high]]
+    ok(write(client, "POST", f"/work-items/{low}/move", {"revision": work(client)["collectionRevision"], "direction": "down"}))
+    # The two backlog items trade places; the planned item between them keeps its rank.
+    assert ranking(client) == [name[high], name[middle], name[low]]
+
+
+def test_only_the_person_ranks_work(client):
+    a, b = items(client, "A", "B")
+    cred = ok(write(client, "POST", "/credentials", {"label": "Ranking agent"}))
+    agent = {"Authorization": "Bearer " + cred["token"]}
+    refused = write(client, "POST", f"/work-items/{b['id']}/rank", {"revision": b["revision"], "rank": 1}, headers=agent)
+    assert refused.status_code == 403
+    assert ranking(client) == ["A", "B"]
+
+
+def test_scratchpad_of_whitespace_alone_counts_as_empty(client):
+    day = "2026-10-28"
+    (blank,) = items(client, "Blank", day=day)
+    ok(write(client, "POST", "/notes", {"ownerType": "item", "ownerId": blank["id"], "title": "Scratchpad", "text": "  \t 　"}))
+    assert client.get(f"/api/v1/days/{day}").json()["entries"][0]["counts"]["scratchpad"] is False
+
+
 def test_today_entries_carry_rank_and_what_their_tabs_hold(client):
     day = "2026-10-28"
     first, second = items(client, "First", "Second", day=day)

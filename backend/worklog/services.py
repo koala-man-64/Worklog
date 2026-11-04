@@ -464,8 +464,10 @@ class WorkService:
                  f"UNION ALL SELECT item_id FROM file_references WHERE archived=0 AND item_id IN ({marks})")
         for owner, total in c.execute(f"SELECT owner,count(*) FROM ({files}) GROUP BY owner", [*ids, *ids]):
             counts[owner]["files"] = total
-        # Blank counts as empty: spaces, tabs and line breaks alone hold nothing to read.
-        for (owner,) in c.execute(f"SELECT owner_id FROM notes WHERE owner_type='item' AND archived=0 AND trim(text,char(32,9,10,13))<>'' AND owner_id IN ({marks})", ids):
+        # Blank counts as empty: whitespace alone, as str.strip() sees it (ASCII whitespace,
+        # no-break spaces and Unicode line breaks), holds nothing to read.
+        blank = "char(9,10,11,12,13,28,29,30,31,32,133,160,5760,8192,8193,8194,8195,8196,8197,8198,8199,8200,8201,8202,8232,8233,8239,8287,12288)"
+        for (owner,) in c.execute(f"SELECT owner_id FROM notes WHERE owner_type='item' AND archived=0 AND trim(text,{blank})<>'' AND owner_id IN ({marks})", ids):
             counts[owner]["scratchpad"] = True
         return counts
 
@@ -772,17 +774,15 @@ class WorkService:
         target = index + (-1 if p["direction"] == "up" else 1)
         if not 0 <= target < len(rows):
             return {"ok": True}
-        source, neighbor = rows[index], rows[target]
-        if source["backlog_order"] == neighbor["backlog_order"]:
-            # Older orderings left tied positions. Every item gets its own before the two swap,
-            # so the rest of the work keeps its place.
-            renumber(c, backlog_sequence(c))
-            held = dict(c.execute("SELECT id,backlog_order FROM work_items WHERE id IN (?,?)", (identity, neighbor["id"])).fetchall())
-            positions = (held[neighbor["id"]], held[identity])
-        else:
-            positions = (neighbor["backlog_order"], source["backlog_order"])
+        neighbor = rows[target]["id"]
+        # Older orderings left tied positions, where swapping two items' values would let a
+        # third item tied with either fall on the other side of it. Every item gets its own
+        # position first (nothing is written once they have), so only the two trade places.
+        renumber(c, backlog_sequence(c))
+        held = dict(c.execute("SELECT id,backlog_order FROM work_items WHERE id IN (?,?)", (identity, neighbor)).fetchall())
+        positions = (held[neighbor], held[identity])
         c.execute("UPDATE work_items SET backlog_order=?,revision=revision+1 WHERE id=?", (positions[0], identity))
-        c.execute("UPDATE work_items SET backlog_order=?,revision=revision+1 WHERE id=?", (positions[1], neighbor["id"]))
+        c.execute("UPDATE work_items SET backlog_order=?,revision=revision+1 WHERE id=?", (positions[1], neighbor))
         self.bump_backlog(c)
         event(c, actor, "backlog.move", "backlog", {"id": identity, "position": index}, {"id": identity, "position": target})
         return {"ok": True}
