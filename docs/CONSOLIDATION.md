@@ -135,7 +135,7 @@ Fix: list without hashes; the CLI `backups` command keeps them. Findings: B-05, 
 
 #### 0.7 · Header search clears when a result is chosen
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branch: `claude/search-clears-on-choice` · PR: [#94](https://github.com/koala-man-64/Worklog/pull/94)
 
 Search clears only on `hashchange` (`App.tsx`), so a result that points at the page already open leaves the results on screen.
 
