@@ -254,10 +254,10 @@ A person's page lists everything they are tied to, their "Notes (Markdown)" and 
    - Restart Claude Code, Codex or the terminal you run them from, so they see it.
 
    Setting it this way keeps the token out of your shell history. Never paste it into a chat, a file or a command.
-4. Tell your agents to run `worklog agent guide` before they use Worklog, for example in their instructions file. The command lives in your Worklog folder at `.venv/Scripts/worklog.exe`. The guide tells agents to register an identity of their own for each chat, report their work, and change your records only through proposals.
+4. Tell your agents to run `worklog agent guide` before they use Worklog, for example in their instructions file. The command lives in your Worklog folder at `.venv/Scripts/worklog.exe`. The guide tells agents to register an identity of their own for each chat, with the chat's ID, report their work, and change your records only through proposals.
 5. Watch them on **Agents**, **Repositories** and **Chats**, and decide their proposals on **Review**.
 
-One credential can serve many agents: each registers its own identity from it, and Settings shows "Registered by" beside those. Revoking the credential revokes every identity registered from it.
+One credential can serve many agents: each registers its own identity from it, and Settings shows "Registered by" beside those, with the chat each one registered for. Revoking the credential revokes every identity registered from it.
 
 ### Review what an agent proposes
 
@@ -276,7 +276,7 @@ To stop reviewing, clear "Require my approval for agent proposals" in Settings. 
    - its chat ID: a Claude Code session ID, a Claude desktop `local_…` ID or a Codex thread ID
    - its provider, model and repositories
 
-   An agent can propose the same for its own chat.
+   An agent can propose the same for its own chat. An agent that registered with its chat ID needs no proposal: when it reports work on a work item, Worklog tracks its chat there, titled after its run, once. Archive it if you don't want it there; it stays archived.
 2. **Assign a roadmap's chat to steps.** On the step's pane, choose it in "Agent chat to assign" and press "Assign chat".
 3. **Watch it on Chats.**
    - Every tracked chat appears on **Chats**, shown as working while its transcript has a turn in progress within the last 15 minutes, otherwise as idle.
@@ -471,7 +471,7 @@ This guide. "Contents" lists its sections; pick one to jump to it. A section has
 | A page asks you to reload | Worklog was restored or switched data folders while the page was open | Reload every open Worklog tab |
 | "Stale report" | An agent has reported nothing for two hours | Nothing is wrong with your data; ask the agent, or "End run" if it has stopped |
 | A chat shows no transcript | Its chat ID matches no Claude Code or Codex transcript on this machine | Check the chat ID |
-| "Send" is greyed out on a chat | No agent has an open run that reported this chat | Ask the agent to start a run with its chat ID |
+| "Send" is greyed out on a chat | No agent has an open run that reported this chat | Ask the agent to start a run; a registered agent's runs report its chat |
 | An agent says Worklog answered 401 | Its identity was revoked, or Worklog was restored | Decide whether it should register again; see Settings |
 | A proposal will not approve | A record it changes was edited after the agent proposed | Read the error's change number, then "Return to draft" so the agent can update it |
 | The page will not open | Worklog is not running, or did not start | Run `./scripts/Worklog.ps1 check`; if it failed to start, read `server.log` in the data folder |

@@ -344,6 +344,11 @@ function AgentView({ id }: { id: string }) {
               ) : (
                 "Issued"
               )}{" "}
+              {credential.chatId && (
+                <>
+                  for chat <code>{credential.chatId}</code>{" "}
+                </>
+              )}
               {timestamp(credential.createdAt)} ·{" "}
               {credential.revoked ? "Revoked" : "Active"}
             </small>

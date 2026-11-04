@@ -86,6 +86,7 @@ const detail: AgentDetail = {
       createdAt: "2026-11-01T08:00:00Z",
       revoked: false,
       registeredBy: { id: "agent-0", label: "Shared agents" },
+      chatId: "7d3c1f2a-5b6e-4f10-9a8b-1c2d3e4f5a6b",
     },
     {
       id: "cred-1",
@@ -93,6 +94,7 @@ const detail: AgentDetail = {
       createdAt: "2026-10-01T08:00:00Z",
       revoked: true,
       registeredBy: null,
+      chatId: null,
     },
   ],
   runs: {
@@ -281,7 +283,7 @@ it("shows an agent's ties with their reasons, runs, messages and updates", async
   const registrar = screen.getByRole("link", { name: "Shared agents" });
   expect(registrar).toHaveAttribute("href", "#agents/agent-0");
   expect(registrar.parentElement).toHaveTextContent(
-    /^Registered by Shared agents .* · Active$/,
+    /^Registered by Shared agents for chat 7d3c1f2a-5b6e-4f10-9a8b-1c2d3e4f5a6b .* · Active$/,
   );
   expect(screen.getByText(/^Issued/)).toHaveTextContent("· Revoked");
   expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute(

@@ -12,7 +12,8 @@ from worklog import cli
 from worklog.app import create_app
 
 SPONSOR = "sponsor-token-that-must-stay-private"
-REGISTERED = {"id": "credential", "agentId": "agent", "label": "Parser fix", "avatar": "teal-visor-antenna",
+CHAT = "4c1e4f6b-3f6a-4c49-9a1d-2b7f0e5d8a11"
+REGISTERED = {"id": "credential", "agentId": "agent", "label": "Parser fix", "avatar": "teal-visor-antenna", "chatId": CHAT,
               "registeredBy": {"id": "sponsor", "label": "Shared agents"}}
 
 
@@ -65,13 +66,13 @@ def test_register_stores_a_generated_token_before_sending_it_and_never_prints_it
         return respond(request, **kwargs)
 
     monkeypatch.setattr(cli, "_open", check_first)
-    assert cli.main(["agent", "register", "--name", "Parser-Fix", "--label", "Parser fix", "--avatar", "teal-visor-antenna"]) == 0
+    assert cli.main(["agent", "register", "--chat", CHAT, "--name", "Parser-Fix", "--label", "Parser fix", "--avatar", "teal-visor-antenna"]) == 0
     request = sent[-1]
     assert (request.method, urlsplit(request.full_url).path) == ("POST", "/api/v1/agent-registrations")
     assert request.get_header("Authorization") == "Bearer " + SPONSOR
     body = json.loads(request.data)
     token = stored(home, "parser-fix")
-    assert body == {"label": "Parser fix", "token": token, "avatar": "teal-visor-antenna"}
+    assert body == {"label": "Parser fix", "token": token, "chatId": CHAT, "avatar": "teal-visor-antenna"}
     assert len(token) == 43 and seen_on_disk == [True]
     if os.name != "nt":
         assert path.stat().st_mode & 0o777 == 0o600
@@ -83,10 +84,10 @@ def test_register_stores_a_generated_token_before_sending_it_and_never_prints_it
 def test_uncertain_registration_is_retried_with_the_same_token(home, transport, capsys):
     sent, replies = transport
     replies.append(URLError("connection reset"))
-    assert cli.main(["agent", "register", "--name", "parser-fix", "--label", "Parser fix"]) == 1
+    assert cli.main(["agent", "register", "--chat", CHAT, "--name", "parser-fix", "--label", "Parser fix"]) == 1
     assert "result uncertain; run the same register command again" in capsys.readouterr().err
     first = json.loads(sent[-1].data)["token"]
-    assert cli.main(["agent", "register", "--name", "parser-fix", "--label", "Parser fix"]) == 0
+    assert cli.main(["agent", "register", "--chat", CHAT, "--name", "parser-fix", "--label", "Parser fix"]) == 0
     assert json.loads(sent[-1].data)["token"] == first == stored(home, "parser-fix")
 
 
@@ -94,7 +95,7 @@ def test_a_revoked_stored_token_says_how_to_register_again(home, transport, caps
     sent, replies = transport
     store(home, "parser-fix", "r" * 43)
     replies.append(rejected(409, "token_revoked", "This token was revoked"))
-    assert cli.main(["agent", "register", "--name", "parser-fix", "--label", "Parser fix"]) == 1
+    assert cli.main(["agent", "register", "--chat", CHAT, "--name", "parser-fix", "--label", "Parser fix"]) == 1
     err = capsys.readouterr().err
     assert "worklog agent --as parser-fix retire" in err and "r" * 43 not in err
 
@@ -115,7 +116,7 @@ def test_as_needs_a_registration_for_that_instance(home, transport, monkeypatch,
     store(home, "parser-fix", "s" * 43, port=8878)
     monkeypatch.delenv("WORKLOG_AGENT_TOKEN")
     assert cli.main(["agent", "--as", "parser-fix", "context"]) == 1
-    assert "worklog agent register --name parser-fix" in capsys.readouterr().err
+    assert "worklog agent register --chat CHAT_ID --name parser-fix" in capsys.readouterr().err
     assert cli.main(["agent", "--port", "8878", "--as", "parser-fix", "context"]) == 0
     assert urlsplit(sent[-1].full_url).port == 8878
     assert sent[-1].get_header("Authorization") == "Bearer " + "s" * 43
@@ -123,7 +124,7 @@ def test_as_needs_a_registration_for_that_instance(home, transport, monkeypatch,
 
 def test_register_keeps_tokens_per_port(home, transport):
     sent, replies = transport
-    assert cli.main(["agent", "--port", "8878", "register", "--name", "tester", "--label", "Test instance"]) == 0
+    assert cli.main(["agent", "--port", "8878", "register", "--chat", CHAT, "--name", "tester", "--label", "Test instance"]) == 0
     assert urlsplit(sent[-1].full_url).port == 8878
     assert (home / "8878" / "tester.json").exists() and not (home / "8877").exists()
 
@@ -131,7 +132,7 @@ def test_register_keeps_tokens_per_port(home, transport):
 @pytest.mark.parametrize("name", ["../escape", "con", "Lpt1", "com0", "-leading", "a" * 65, "", "with space", "dot.name"])
 def test_agent_names_cannot_escape_or_collide_with_device_names(home, transport, name, capsys):
     sent, replies = transport
-    assert cli.main(["agent", "register", "--name=" + name, "--label", "Bad"]) == 1
+    assert cli.main(["agent", "register", "--chat", CHAT, "--name=" + name, "--label", "Bad"]) == 1
     # An empty name never falls back to WORKLOG_AGENT_TOKEN.
     assert cli.main(["agent", "--as=" + name, "context"]) == 1
     assert "agent name" in capsys.readouterr().err
@@ -200,10 +201,18 @@ def test_register_post_and_retire_against_the_application(tmp_path, home, monkey
             assert sponsor["token"] not in out + err
             return json.loads(out)
 
-        registered = run("register", "--name", "parser-fix", "--label", "Parser fix")
+        registered = run("register", "--chat", CHAT, "--name", "parser-fix", "--label", "Parser fix")
         token = stored(home, "parser-fix")
         assert registered["registeredBy"] == {"id": sponsor["agentId"], "label": "Shared agents"}
-        assert run("register", "--name", "parser-fix", "--label", "Parser fix")["id"] == registered["id"]
+        assert registered["chatId"] == CHAT
+        assert run("register", "--chat", CHAT, "--name", "parser-fix", "--label", "Parser fix")["id"] == registered["id"]
+        # The name stays with its chat: registering it for another chat is refused, and says what to do.
+        assert cli.main(["agent", "register", "--chat", "other-chat", "--name", "parser-fix", "--label", "Parser fix"]) == 1
+        assert "registered for another chat" in capsys.readouterr().err
+        # A run reports the registered chat without --chat.
+        started = run("--as", "parser-fix", "runs", "start", "--client-run-key", "run-1", "--display-name", "Parser fix",
+                      "--request-id", "run-start-1")
+        assert started["externalChatId"] == CHAT
         posted = run("--as", "parser-fix", "discussions", "post", "--title", "Parser plan", "--text", "Starting the parser")
         assert (posted["message"]["authorId"], posted["message"]["authorLabel"]) == (registered["agentId"], "Parser fix")
         reply = run("discussions", "reply", posted["discussion"]["id"], "--text", "From the shared credential")
@@ -214,3 +223,25 @@ def test_register_post_and_retire_against_the_application(tmp_path, home, monkey
         assert wire.get("/api/v1/context", headers={"Authorization": "Bearer " + token}).status_code == 401
         with app.state.db.read() as conn:
             assert token not in "\n".join(conn.iterdump())
+
+
+def test_register_names_the_identity_after_its_chat_by_default(home, transport, capsys):
+    sent, replies = transport
+    assert cli.main(["agent", "register", "--chat", CHAT.upper(), "--label", "Parser fix"]) == 0
+    assert json.loads(sent[-1].data)["chatId"] == CHAT.upper()
+    assert json.loads(capsys.readouterr().out)["name"] == CHAT
+    assert stored(home, CHAT)
+    # A chat ID that cannot be a name needs one, and nothing is sent or stored without it.
+    sent.clear()
+    assert cli.main(["agent", "register", "--chat", "thread.with.dots", "--label", "Parser fix"]) == 1
+    assert "give --name as well" in capsys.readouterr().err
+    assert not sent and not (home / "8877" / "thread.with.dots.json").exists()
+
+
+def test_register_needs_the_chat_id(home, transport, capsys):
+    sent, replies = transport
+    with pytest.raises(SystemExit) as exit_:
+        cli.main(["agent", "register", "--name", "parser-fix", "--label", "Parser fix"])
+    assert exit_.value.code == 2
+    assert "--chat" in capsys.readouterr().err
+    assert not sent and not home.exists()

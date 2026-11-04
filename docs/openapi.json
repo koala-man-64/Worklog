@@ -7240,6 +7240,12 @@
             "pattern": "^[A-Za-z0-9_-]+$",
             "title": "Token"
           },
+          "chatId": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Chatid"
+          },
           "avatar": {
             "anyOf": [
               {
@@ -7258,7 +7264,8 @@
         "type": "object",
         "required": [
           "label",
-          "token"
+          "token",
+          "chatId"
         ],
         "title": "AgentRegistration"
       },

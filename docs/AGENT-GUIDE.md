@@ -25,10 +25,10 @@ worklog [--port N] [--data-dir DIR] agent [--as NAME] [--url URL] GROUP COMMAND 
 1. **Credential.** The person issues a credential in Worklog's Settings and gives it to agents in the environment variable `WORKLOG_AGENT_TOKEN`. You MUST NOT print, echo, log or store its value, or put it in a command argument. You need it to `register`, and for the optional reads in section 10. If your process lacks it, load the person's user-level value into the same command by reference; each tool call starts a fresh shell:
 
 ```powershell
-$env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_TOKEN', 'User'); worklog agent register --name NAME --label 'Parser fix (Claude)'
+$env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_TOKEN', 'User'); worklog agent register --chat CHAT_ID --label 'Parser fix (Claude)'
 ```
 
-2. **Register once per chat**, before any other Worklog command (section 4). NAME is usually your chat's session ID: 1-64 letters, digits, `-` or `_`, starting with a letter or digit, compared without case. Keep it for the whole chat. Worklog keeps your new token in its data directory; you MUST NOT open, copy or print that file.
+2. **Register once per chat, with your chat's ID**, before any other Worklog command (section 4). CHAT_ID is your Claude Code session ID, Claude desktop `local_...` ID or Codex thread ID. Worklog keeps it with your identity, so it can track your chat: your runs report it, and work you report on an item tracks your chat there. CHAT_ID also names you: NAME below is your chat ID, unless you give `--name NAME` (1-64 letters, digits, `-` or `_`, starting with a letter or digit, compared without case), which a chat ID that cannot be a name needs. Keep both for the whole chat: registering your name for another chat is refused (`chat_mismatch`). Worklog keeps your new token in its data directory; you MUST NOT open, copy or print that file.
 3. **Act as yourself.** Every later command MUST give `--as NAME` before the group. Your runs, reports, messages, tickets and proposals then carry your own identity.
 4. **One request ID per write.** Give each write a stable `--request-id`: 8-200 printable ASCII characters without spaces. After an uncertain result, rerun with the same ID and the identical payload; it cannot apply twice. A new operation MUST get a new ID. Proposal commands take none (section 7).
 5. **Current revisions.** A revision-checked command MUST carry the revision from your latest read. On `409 conflict`, read the record again and decide afresh; never reapply blindly.
@@ -97,13 +97,13 @@ Approval is on by default. When the person turns it off in Settings, `proposal s
 **Step 2. Register your identity** (rules 1 and 2). The label says what you work on and which agent you are. After an uncertain result, run the same command again: it resolves to the same identity.
 
 ```powershell
-worklog agent register --name NAME --label 'Parser fix (Claude)'
+worklog agent register --chat CHAT_ID --label 'Parser fix (Claude)'
 ```
 
-**Step 3. Start a run that reports your chat ID.** Keep the run's `id` and `revision`. The person sees your chat through it, and their messages reach the identity whose run reported the chat. Starting again with the same `--client-run-key` returns the same run; use a new key for a new run.
+**Step 3. Start a run.** It reports the chat you registered with; you need not give `--chat`. Keep the run's `id` and `revision`. The person sees your chat through it, and their messages reach the identity whose run reported the chat. Starting again with the same `--client-run-key` returns the same run; use a new key for a new run.
 
 ```powershell
-worklog agent --as NAME runs start --client-run-key CHAT_ID --display-name 'Parser fix' --provider claude --chat CHAT_ID --request-id run-start-CHAT_ID
+worklog agent --as NAME runs start --client-run-key CHAT_ID --display-name 'Parser fix' --provider claude --request-id run-start-CHAT_ID
 ```
 
 **Step 4. Read before you act:** the day's context, matching work, and known issues.
@@ -114,7 +114,7 @@ worklog agent --as NAME search 'parser'
 worklog agent --as NAME tickets list --status all --q 'parser crash'
 ```
 
-**Step 5. Report each repository you change** by its checkout. This registers the checkout's `origin` remote when Worklog lacks it, and records your branch and checkout or worktree path. Repeat `--checkout` for each repository; add `--item` when the work has a work item. Many agents can report in one repository at once.
+**Step 5. Report each repository you change** by its checkout. This registers the checkout's `origin` remote when Worklog lacks it, and records your branch and checkout or worktree path. Repeat `--checkout` for each repository; add `--item` when the work has a work item, which also tracks your chat on that work item (once; the person can archive it). Many agents can report in one repository at once.
 
 ```powershell
 worklog agent --as NAME participation start --run RUN_ID --checkout C:/Projects/repo --item ITEM_ID --description 'Fixing the parser' --request-id participation-CHAT_ID
@@ -147,9 +147,10 @@ Every command below except `guide` and `register` takes `--as NAME` before its g
 | Command | Arguments and options | Rev | Request ID | Prints |
 |---|---|---|---|---|
 | `guide` | - | - | - | this guide, as Markdown |
-| `register` | `--name NAME --label LABEL [--avatar AVATAR]` | - | - (rerun the same command) | `{name,id,agentId,label,avatar,registeredBy}`, never the token |
+| `register` | `--chat CHAT_ID --label LABEL [--name NAME] [--avatar AVATAR]` | - | - (rerun the same command) | `{name,id,agentId,label,avatar,chatId,registeredBy}`, never the token |
 | `retire` | needs `--as NAME` | - | - | `{name,id,agentId,retired,registeredRevoked}` |
 
+- **Your chat.** An identity works in the one chat it registered with. Its runs report that chat unless `runs start --chat` names another, and its participation with `--item` tracks that chat on the work item. A new chat registers a new identity; registering a name again for another chat is refused (`chat_mismatch`). The name is the chat ID unless `--name` gives another.
 - **Authority.** `register` acts with `--as NAME` (an identity you registered) or else with `WORKLOG_AGENT_TOKEN`. An identity you register can register others; retiring or revoking it takes them with it.
 - **Tokens.** Tokens are kept per data directory and port, so a test instance never uses the everyday instance's names.
 - **Retiring.** A retired identity stays retired: registering the name again creates a new identity. You can retire only an identity you registered, never a credential the person issued.
@@ -157,7 +158,7 @@ Every command below except `guide` and `register` takes `--as NAME` before its g
 
 ```powershell
 worklog agent guide
-worklog agent register --name NAME --label 'Parser fix (Claude)' --avatar teal-visor-antenna
+worklog agent register --chat CHAT_ID --label 'Parser fix (Claude)' --avatar teal-visor-antenna
 worklog agent --as NAME retire
 ```
 
@@ -214,7 +215,7 @@ worklog agent --as NAME proposal withdraw PROPOSAL_ID --revision 4
 | `repositories ensure` | `--remote URL` or `--checkout PATH`; `[--name NAME] [--description TEXT]` | - | required | registers the remote, or returns the record that holds it, with `created`; reports no work |
 | `runs list` | `[--include-ended] [--limit 50] [--offset 0]` | - | - | open runs unless `--include-ended` |
 | `runs show ID` | - | - | - | one run |
-| `runs start` | `--client-run-key KEY --display-name NAME [--provider PROVIDER] [--chat CHAT_ID]` | - | required | a key already used by this credential returns that run |
+| `runs start` | `--client-run-key KEY --display-name NAME [--provider PROVIDER] [--chat CHAT_ID]` | - | required | a key already used by this credential returns that run; without `--chat`, the run reports the chat you registered with |
 | `runs end ID` | `--revision N` | yes | required | ends the run and releases its participation |
 | `participation list` | `[--repo ID] [--item ID] [--run ID] [--include-released] [--limit 50] [--offset 0]` | - | - | active participation unless `--include-released` |
 | `participation show ID` | - | - | - | one participation |
@@ -287,7 +288,7 @@ worklog agent --as NAME tickets comment T-12 --text 'Reproduced with a file that
 |---|---|---|---|
 | `inbox` | `[--chat CHAT_ID]` | optional | `{items,total}`; each item is `{id,text,authorKind,authorId,authorLabel,sentAt,chat:{id,chatId,title},runIds}` |
 
-The person writes to a chat's agents from the Chats page. A message reaches every identity with an open run that reported the chat's ID (`runs start --chat`) when it was sent. `inbox` hands you your waiting messages oldest first and marks them delivered, so each arrives once. `--chat` takes only the messages for runs that reported that chat ID. Check with a fresh request ID each time. After an uncertain result, rerun with the ID the error names to receive the same messages again.
+The person writes to a chat's agents from the Chats page. A message reaches every identity with an open run that reported the chat's ID when it was sent; your runs report the chat you registered with. `inbox` hands you your waiting messages oldest first and marks them delivered, so each arrives once. `--chat` takes only the messages for runs that reported that chat ID. Check with a fresh request ID each time. After an uncertain result, rerun with the ID the error names to receive the same messages again.
 
 A message expires when its run ends, its credential is revoked, rotated or retired, its chat is archived or given another ID, or Worklog is restored. It also expires when nobody picks it up within 2 hours. You cannot read a chat's messages or their history, only receive your own.
 
@@ -471,6 +472,7 @@ Any other field is refused. Proposals cannot attach files, import plans, reorder
   - `roadmap.revise` replaces the whole step list. It retires each step it leaves out, restores each retired step it includes, and keeps exactly the descriptions it carries. Build it from `roadmap show`.
   - `roadmap.move` changes only the nesting; `parentId` is null for the top level.
 - **Tracked chats.**
+  - Your own chat needs no proposal: participation with `--item` tracks the chat you registered with on that work item, once. Propose `chat.*` for any other chat, and to change or archive one.
   - `chatId` is your chat's provider ID.
   - `stepIds` is the complete list of steps a roadmap's chat works on. The steps belong to that roadmap, and a retired step can stay but cannot be added. It is always empty on a work item's chat.
   - `repos` holds free-text labels, at most 20. `repositoryIds` holds catalog IDs, at most 100.
@@ -542,6 +544,8 @@ For example: `Worklog: HTTP 409 conflict: This record changed. Reload and review
 | `Set WORKLOG_AGENT_TOKEN` | No credential and no `--as` | Load the credential (rule 1) or give `--as NAME` |
 | `No agent named NAME was registered` | `--as NAME` names no identity on this instance and data directory | Register (section 4, step 2) |
 | `The credential stored for NAME was revoked` | Your identity was revoked | Tell the person; register again only if they agree |
+| `NAME is registered for another chat` | That name's identity works in another chat | Register this chat under another `--name` |
+| `This chat ID cannot name the agent` | The chat ID is not 1-64 letters, digits, `-` or `_` | Give `--name NAME` as well |
 | `Agent command is outside proposal/read scope` | The command line refuses that route | Propose the change, or ask the person |
 | `Request ID must contain 8-200 printable ASCII characters` | A malformed `--request-id` | Fix the ID |
 
@@ -580,6 +584,7 @@ worklog check
 | `released` | 409 | The participation is released | `participation rejoin`, or start a new one |
 | `token_revoked` | 409 | The token stored for your name was revoked | Tell the person; the error says how to forget the token |
 | `token_in_use` | 409 | The token stored for your name belongs to a credential the person issued | Tell the person; a registration never reuses the person's token |
+| `chat_mismatch` | 409 | Your name's identity was registered for another chat, or before chats were recorded | Register this chat under another `--name` |
 | `agent_limit` | 429 | 200 registered identities are active, or 200 were registered today | Report it; do not retry |
 | `avatar_in_use` | 409 | Another active agent shows that avatar | Choose one marked available |
 | `identity_binding` | 409 | A credential cannot change its agent identity | Tell the person |

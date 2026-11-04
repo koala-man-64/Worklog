@@ -56,6 +56,8 @@ export type AgentDetail = AgentSummary & {
     createdAt: string;
     revoked: boolean;
     registeredBy: { id: string; label: string } | null;
+    // The chat a registered identity works in; null when issued in Settings.
+    chatId: string | null;
   }[];
   runs: { items: (AgentRun & { chats: TrackedChat[] })[]; total: number };
   workItems: Ties<Titled & { status: string; roadmap: Titled | null }>;
