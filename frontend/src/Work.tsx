@@ -294,7 +294,11 @@ function WorkList() {
                         />
                       </td>
                       <th scope="row" className="cell-title">
-                        <a className="item-title" href={"#work/" + item.id}>
+                        <a
+                          className="item-title"
+                          href={"#work/" + item.id}
+                          title={item.title}
+                        >
                           {item.title}
                         </a>
                       </th>
