@@ -1976,6 +1976,11 @@ button.agent-chip.more {
 .person-contact a {
   color: var(--teal);
 }
+/* A person's title, team and counts wrap rather than lose the counts to an ellipsis. */
+.person-row small {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 /* A person's description reads in two lines on their row; their page shows all of it. */
 .person-row .person-description {
   display: -webkit-box;
