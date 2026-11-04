@@ -5,9 +5,9 @@ from __future__ import annotations
 import json
 import sqlite3
 
-SCHEMA_VERSION = 11
+SCHEMA_VERSION = 12
 # Older versions that startup and offline restore upgrade in one transaction.
-UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11})
 
 COORDINATION_SCHEMA = """
 CREATE TABLE repositories(id TEXT PRIMARY KEY,name TEXT NOT NULL,url TEXT NOT NULL DEFAULT '',description TEXT NOT NULL DEFAULT '',archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
@@ -246,6 +246,55 @@ def add_search_keys_and_receipt_dates(conn: sqlite3.Connection) -> None:
     conn.execute("CREATE INDEX receipts_created ON receipts(created_at)")
 
 
+# v12 moves state that features read from event history into columns, so history can be
+# thinned later without changing what Worklog decides. Each value is copied from the events
+# that held it, which stay as they are.
+# - who registered each credential's identity, and the chat it registered with;
+# - when each proposal was last submitted, and whether automatic approval applied it;
+# - which stale-plan notices each proposal's agent was already sent.
+# registered_by names the sponsor's identity without a foreign key, like every other actor id here,
+# so the documented way back can drop it on any SQLite that has DROP COLUMN.
+REGISTRATION_COLUMNS = (", registered_by TEXT"
+                        ", registered_by_label TEXT NOT NULL DEFAULT ''"
+                        ", chat_id TEXT")
+PROPOSAL_STATE_COLUMNS = (", submitted_at TEXT"
+                          ", auto_approved INTEGER NOT NULL DEFAULT 0 CHECK(auto_approved IN(0,1))")
+STALE_NOTICES_SCHEMA = """
+CREATE TABLE proposal_stale_notices(proposal_id TEXT NOT NULL REFERENCES proposals(id),proposal_revision INTEGER NOT NULL,conflicts TEXT NOT NULL,created_at TEXT NOT NULL,PRIMARY KEY(proposal_id,proposal_revision,conflicts));
+"""
+# The approval actor of the Settings choice that applies submitted proposals (proposals.AUTOMATIC).
+AUTOMATIC_APPROVAL_ID = "automatic-approval"
+
+
+def stale_signature(conflicts: list[dict]) -> str:
+    """What makes two stale-plan notices the same: each conflicting operation and the revision it met."""
+    return json.dumps([[conflict.get("operation"), conflict.get("currentRevision")] for conflict in conflicts],
+                      separators=(",", ":"))
+
+
+def add_decision_state(conn: sqlite3.Connection) -> None:
+    """Copy registration, proposal and stale-notice state out of event JSON into columns."""
+    for column in REGISTRATION_COLUMNS.split(", ")[1:]:
+        conn.execute("ALTER TABLE communication_credentials ADD COLUMN " + column)
+    for credential, after in conn.execute("SELECT entity_id,after_json FROM events WHERE kind='credential.register' "
+                                          "ORDER BY created_at,id").fetchall():
+        record = json.loads(after)
+        sponsor = record.get("registeredBy") or {}
+        conn.execute("UPDATE communication_credentials SET registered_by=?,registered_by_label=?,chat_id=? WHERE credential_id=?",
+                     (sponsor.get("id"), sponsor.get("label") or "", record.get("chatId") or None, credential))
+    for column in PROPOSAL_STATE_COLUMNS.split(", ")[1:]:
+        conn.execute("ALTER TABLE proposals ADD COLUMN " + column)
+    conn.execute("UPDATE proposals SET submitted_at=(SELECT MAX(e.created_at) FROM events e WHERE e.entity_id=proposals.id"
+                 " AND e.kind='proposal.submit'),auto_approved=EXISTS(SELECT 1 FROM events e WHERE e.entity_id=proposals.id"
+                 " AND e.kind='proposal.approve' AND e.actor_id=?)", (AUTOMATIC_APPROVAL_ID,))
+    execute_schema(conn, STALE_NOTICES_SCHEMA)
+    for proposal, after, at in conn.execute("SELECT entity_id,after_json,created_at FROM events WHERE kind='proposal.stale' "
+                                            "ORDER BY created_at,id").fetchall():
+        record = json.loads(after)
+        conn.execute("INSERT OR IGNORE INTO proposal_stale_notices VALUES(?,?,?,?)",
+                     (proposal, record.get("proposalRevision"), stale_signature(record.get("conflicts", [])), at))
+
+
 def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
     """Unlike executescript, preserve the caller's transaction and rollback boundary."""
     for statement in filter(str.strip, schema.split(";")):
@@ -290,8 +339,10 @@ def upgrade(conn: sqlite3.Connection) -> None:
         execute_schema(conn, RESOURCE_SCHEMA)  # resources start empty
     if version < 10:
         add_person_details(conn)
-    # Every upgradable version predates the search keys and receipt dates of v11.
-    add_search_keys_and_receipt_dates(conn)
+    if version < 11:
+        add_search_keys_and_receipt_dates(conn)
+    # Every upgradable version predates the decision state of v12.
+    add_decision_state(conn)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 

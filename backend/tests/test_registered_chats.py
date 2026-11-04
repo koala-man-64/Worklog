@@ -96,8 +96,9 @@ def test_an_identity_registered_before_chats_were_recorded_registers_anew(client
     first, token = register(agent_http, sponsor["token"])
     legacy = ok(first)
     with client.app.state.db.transaction() as conn:
-        # Registrations before this change recorded no chat.
+        # Registrations before this change recorded no chat, so v12 copied none into their row.
         conn.execute("UPDATE events SET after_json=json_remove(after_json,'$.chatId') WHERE kind='credential.register'")
+        conn.execute("UPDATE communication_credentials SET chat_id=NULL WHERE credential_id=?", (legacy["id"],))
     assert {c["id"]: c["chatId"] for c in ok(client.get("/api/v1/settings"))["credentials"]}[legacy["id"]] is None
     again, _ = register(agent_http, sponsor["token"], token=token)
     assert again.status_code == 409 and "registered before chats were recorded" in again.json()["error"]["message"]

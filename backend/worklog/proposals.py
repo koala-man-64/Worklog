@@ -7,6 +7,7 @@ from contextlib import nullcontext
 
 from . import scratchpad
 from .common import NOTE_LIMIT, AppError, event, now, require_revision, setting, uid
+from .migrations import AUTOMATIC_APPROVAL_ID, stale_signature
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS proposals (
@@ -70,12 +71,10 @@ FIELDS = {
 
 # Approves under the person's standing choice in Settings rather than a decision on one
 # proposal: the person's authority, recorded apart from the approvals they give in Review.
-AUTOMATIC = {"id": "automatic-approval", "label": "Automatic approval", "kind": "human"}
-# The approval event is the one record of how a proposal was approved, and the submit
-# event of when it was submitted.
-SELECT = ("SELECT p.*,EXISTS(SELECT 1 FROM events e WHERE e.entity_id=p.id AND e.kind='proposal.approve'"
-          " AND e.actor_id=?) AS auto_approved,(SELECT MAX(e.created_at) FROM events e"
-          " WHERE e.entity_id=p.id AND e.kind='proposal.submit') AS submitted_at FROM proposals p")
+AUTOMATIC = {"id": AUTOMATIC_APPROVAL_ID, "label": "Automatic approval", "kind": "human"}
+# Since v12 a proposal's row says when it was last submitted and whether automatic approval
+# applied it; before, both were read from its events.
+SELECT = "SELECT p.* FROM proposals p"
 
 
 def approval_required(conn):
@@ -170,7 +169,7 @@ def _record(row):
 
 
 def _row(conn, identifier):
-    row = conn.execute(SELECT + " WHERE p.id=?", (AUTOMATIC["id"], identifier)).fetchone()
+    row = conn.execute(SELECT + " WHERE p.id=?", (identifier,)).fetchone()
     if row is None:
         raise AppError(404, "not_found", "Proposal not found")
     return row
@@ -194,8 +193,8 @@ def _can_see(conn, row, actor):
     # Agents see other agents' proposals only once submitted; withdrawing an unsubmitted draft keeps it private.
     if actor["kind"] != "agent" or row["status"] in {"submitted", "approved", "rejected"} or _same_principal(conn, row["actor_id"], actor):
         return True
-    return row["status"] == "withdrawn" and conn.execute(
-        "SELECT 1 FROM events WHERE entity_id=? AND kind='proposal.submit'", (row["id"],)).fetchone() is not None
+    # submitted_at is set by every submit and never cleared, reopening included.
+    return row["status"] == "withdrawn" and row["submitted_at"] is not None
 
 
 def _visible(conn, row, actor):
@@ -242,7 +241,7 @@ class ProposalService:
         if status is not None and status not in {"draft", "submitted", "approved", "rejected", "withdrawn"}:
             raise AppError(422, "validation", "Invalid proposal status")
         with self.db.read() as conn:
-            rows = conn.execute(SELECT + " ORDER BY p.created_at,p.id", (AUTOMATIC["id"],)).fetchall()
+            rows = conn.execute(SELECT + " ORDER BY p.created_at,p.id").fetchall()
             items = [_record(r) for r in rows if (not status or r["status"] == status)
                      and _can_see(conn, r, actor)]
             return {"items": items, "total": len(items)}
@@ -268,7 +267,8 @@ class ProposalService:
                 if prior["status"] not in {"rejected", "withdrawn"}:
                     raise AppError(409, "conflict", "Only rejected or withdrawn proposals may be superseded")
             identifier, stamp = uid(), now()
-            connection.execute("INSERT INTO proposals VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+            connection.execute("INSERT INTO proposals(id,title,rationale,status,revision,actor_id,actor_label,actor_kind,"
+                               "operations,supersedes_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
                                (identifier, title, rationale, "draft", 1, actor["id"], actor["label"],
                                 actor["kind"], operations, supersedes, stamp, stamp))
             result = _record(_row(connection, identifier))
@@ -381,16 +381,12 @@ class ProposalService:
             "reject": "rejected",
         }[verb]
         stamp = now()
-        connection.execute("UPDATE proposals SET status=?,revision=revision+1,updated_at=? WHERE id=?",
-                           (state, stamp, identifier))
+        connection.execute("UPDATE proposals SET status=?,revision=revision+1,updated_at=?"
+                           ",submitted_at=CASE WHEN ? THEN ? ELSE submitted_at END"
+                           ",auto_approved=CASE WHEN ? THEN 1 ELSE auto_approved END WHERE id=?",
+                           (state, stamp, verb == "submit", stamp,
+                            verb == "approve" and actor.get("id") == AUTOMATIC_APPROVAL_ID, identifier))
         result = _record(_row(connection, identifier))
-        # The event written next is what marks an automatic approval and dates a submission,
-        # so its record says so first, with the event's own time.
-        result["autoApproved"] = result["autoApproved"] or actor is AUTOMATIC
-        if verb == "submit":
-            result["submittedAt"] = stamp
-        elif verb == "reopen":
-            result["submittedAt"] = None
         event(connection, actor, f"proposal.{verb}", identifier, before, result, at=stamp)
         return result
 
@@ -445,20 +441,14 @@ class ProposalService:
         if self._applying_id is not None:
             return []
         notified = []
-        rows = conn.execute(SELECT + " WHERE p.status='submitted' ORDER BY p.created_at,p.id", (AUTOMATIC["id"],)).fetchall()
+        rows = conn.execute(SELECT + " WHERE p.status='submitted' ORDER BY p.created_at,p.id").fetchall()
         for row in rows:
             conflicts = self._stale_operations(conn, row, roadmap_id=roadmap_id)
             if not conflicts:
                 continue
-            signature = [(c["operation"], c["currentRevision"]) for c in conflicts]
-            already = False
-            for (after_json,) in conn.execute("SELECT after_json FROM events WHERE entity_id=? AND kind='proposal.stale'", (row["id"],)):
-                recorded = json.loads(after_json)
-                if (recorded.get("proposalRevision") == row["revision"]
-                        and [(c["operation"], c["currentRevision"]) for c in recorded.get("conflicts", [])] == signature):
-                    already = True
-                    break
-            if already:
+            # One notice per proposal revision and set of conflicts, however often the plan changes.
+            if conn.execute("SELECT 1 FROM proposal_stale_notices WHERE proposal_id=? AND proposal_revision=? AND conflicts=?",
+                            (row["id"], row["revision"], stale_signature(conflicts))).fetchone():
                 continue
             discussion = self._notify_proposer(conn, row, conflicts=conflicts, reason="plan_changed")
             if discussion is not None:
@@ -542,12 +532,15 @@ class ProposalService:
             if conn.execute(RECIPIENTS, (ext_id,)).fetchone():
                 chat_service.post(conn, notifier, chat_id, {"text": body})
         if reason == "plan_changed":
+            stamp = now()
+            conn.execute("INSERT OR IGNORE INTO proposal_stale_notices VALUES(?,?,?,?)",
+                         (row["id"], row["revision"], stale_signature(conflicts), stamp))
             event(conn, notifier, "proposal.stale", row["id"], None, {
                 "proposalRevision": row["revision"],
                 "discussionId": discussion["discussion"]["id"],
                 "messageId": discussion["message"]["id"],
                 "conflicts": conflicts,
-            })
+            }, at=stamp)
         return discussion
 
     def check_upload(self, conn, identifier, actor):

@@ -34,7 +34,10 @@ COMMIT;
 
 
 def to_v10(path):
-    """Take a current database back to the v10 shape the documented way."""
+    """Take a current database back to the v10 shape the documented way: to version 11 first."""
+    from test_decision_state_recovery import to_v11
+
+    to_v11(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK)
 
@@ -80,10 +83,10 @@ def search_count(c, word="quokka"):
     return c.get("/api/v1/search", params={"q": word, "archived": True, "limit": 200}).json()["total"]
 
 
-def test_a_new_database_is_v11_with_every_row_keyed(client):
+def test_a_new_database_keys_every_search_row(client):
     populate(client)
     with client.app.state.db.read() as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION == 11
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
         assert recovery._schema_signature(conn) == recovery._expected_schema()
         assert keyed(conn)
         names = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='index'")}
@@ -112,7 +115,7 @@ def test_v10_upgrade_keys_every_row_drops_duplicates_and_dates_receipts(tmp_path
         conn.commit()
     Database(path).initialize()
     with Database(path).read() as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 11
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
         assert recovery._schema_signature(conn) == recovery._expected_schema()
         assert keyed(conn)
         # The newest row is the item's current one, and the only one left.
@@ -134,16 +137,19 @@ def test_the_documented_way_back_to_v10_gives_its_exact_shape_and_upgrades_again
     recovery.validate_database(path)
     Database(path).initialize()
     with Database(path).read() as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 11
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
         assert keyed(conn)
 
 
 def test_a_v10_shape_cannot_claim_version_11_and_a_v11_shape_cannot_claim_10(tmp_path):
-    older, current = tmp_path / "older.sqlite3", tmp_path / "current.sqlite3"
+    from test_decision_state_recovery import to_v11
+
+    older, v11 = tmp_path / "older.sqlite3", tmp_path / "v11.sqlite3"
     Database(older).initialize()
     to_v10(older)
-    Database(current).initialize()
-    for path, version in ((older, 11), (current, 10)):
+    Database(v11).initialize()
+    to_v11(v11)
+    for path, version in ((older, 11), (v11, 10)):
         with closing(sqlite3.connect(path)) as conn:
             conn.execute(f"PRAGMA user_version={version}")
         with pytest.raises(ValueError, match="schema definitions"):

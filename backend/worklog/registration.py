@@ -3,8 +3,9 @@
 The registering agent's own credential is the authority, so every identity still
 descends from a credential the person issued in Settings. The agent generates the
 new token and Worklog stores only its SHA-256, like a credential issued in Settings.
-The `credential.register` event is the one record of who registered whom, and of the
-chat the new identity works in: its runs report that chat, and work they report tracks it. A
+The registered credential's row in communication_credentials says who registered it and the
+chat the new identity works in (since v12; before, only the `credential.register` event did):
+its runs report that chat, and work they report tracks it. A
 registered identity gets the same agent scope as any other, nothing more, and it
 loses access with the identity that registered it.
 """
@@ -12,7 +13,6 @@ loses access with the identity that registered it.
 from __future__ import annotations
 
 import hashlib
-import json
 import sqlite3
 from collections.abc import Callable, Iterable
 
@@ -55,8 +55,9 @@ def registered_by(c: sqlite3.Connection, credential_ids: Iterable[str]) -> dict[
     found: dict[str, dict] = {}
     for start in range(0, len(ids), 500):
         chunk = ids[start:start + 500]
-        rows = c.execute("SELECT entity_id,after_json FROM events WHERE kind='credential.register' AND entity_id IN ({})".format(",".join("?" * len(chunk))), chunk)
-        found.update((row[0], json.loads(row[1])["registeredBy"]) for row in rows)
+        rows = c.execute("SELECT credential_id,registered_by,registered_by_label FROM communication_credentials "
+                         "WHERE registered_by IS NOT NULL AND credential_id IN ({})".format(",".join("?" * len(chunk))), chunk)
+        found.update((row[0], {"id": row[1], "label": row[2]}) for row in rows)
     return found
 
 
@@ -67,11 +68,9 @@ def registered_chats(c: sqlite3.Connection, credential_ids: Iterable[str]) -> di
     found: dict[str, str] = {}
     for start in range(0, len(ids), 500):
         chunk = ids[start:start + 500]
-        rows = c.execute("SELECT entity_id,after_json FROM events WHERE kind='credential.register' AND entity_id IN ({})".format(",".join("?" * len(chunk))), chunk)
-        for identity, after in rows:
-            chat = json.loads(after).get("chatId")
-            if chat:
-                found[identity] = chat
+        rows = c.execute("SELECT credential_id,chat_id FROM communication_credentials "
+                         "WHERE chat_id IS NOT NULL AND credential_id IN ({})".format(",".join("?" * len(chunk))), chunk)
+        found.update((row[0], row[1]) for row in rows)
     return found
 
 
@@ -85,9 +84,8 @@ def identity_chat(c: sqlite3.Connection, agent_id: str) -> str | None:
 def _registered(c: sqlite3.Connection) -> Callable[[str], list[str]]:
     """Every identity an identity registered, directly or through the ones it registered."""
     children: dict[str, list[str]] = {}
-    for (after,) in c.execute("SELECT after_json FROM events WHERE kind='credential.register'"):
-        record = json.loads(after)
-        children.setdefault(record["registeredBy"]["id"], []).append(record["agentId"])
+    for sponsor, child in c.execute("SELECT registered_by,agent_id FROM communication_credentials WHERE registered_by IS NOT NULL"):
+        children.setdefault(sponsor, []).append(child)
 
     def descendants(agent_id: str) -> list[str]:
         found: list[str] = []
@@ -160,7 +158,8 @@ def register(c: sqlite3.Connection, actor: dict, p: dict) -> dict:
     label = text(p["label"], "label", required=True, limit=200)
     if label.casefold() == "you":
         raise AppError(422, "validation", "Choose another label; You names the person in discussions", {"label": "invalid"})
-    active = c.execute("SELECT count(*) FROM credentials cr WHERE cr.revoked=0 AND EXISTS(SELECT 1 FROM events e WHERE e.entity_id=cr.id AND e.kind='credential.register')").fetchone()[0]
+    active = c.execute("SELECT count(*) FROM credentials cr JOIN communication_credentials cc ON cc.credential_id=cr.id "
+                       "WHERE cr.revoked=0 AND cc.registered_by IS NOT NULL").fetchone()[0]
     if active >= ACTIVE_LIMIT:
         raise AppError(429, "agent_limit", f"{ACTIVE_LIMIT} registered agents are already active; retire or revoke unused ones first")
     registered_today = c.execute("SELECT count(*) FROM events WHERE local_date=? AND kind='credential.register'",
@@ -170,6 +169,8 @@ def register(c: sqlite3.Connection, actor: dict, p: dict) -> dict:
     identity = uid()
     c.execute("INSERT INTO credentials VALUES(?,?,?,?,0)", (identity, label, digest, now()))
     agent = bind_credential(c, identity, label, avatar=p["avatar"])
+    c.execute("UPDATE communication_credentials SET registered_by=?,registered_by_label=?,chat_id=? WHERE credential_id=?",
+              (sponsor["id"], sponsor["label"], chat, identity))
     event(c, actor, "credential.register", identity, None, {"label": label, "avatar": agent["avatar"], "agentId": agent["id"],
                                                              "registeredBy": {"id": sponsor["id"], "label": sponsor["label"]},
                                                              "chatId": chat})

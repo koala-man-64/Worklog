@@ -229,6 +229,12 @@ def test_populated_current_main_upgrades_without_losing_records(tmp_path, operat
     assert [row[:-1] for row in after["receipts"]] == before["receipts"]
     assert all(row[-1] for row in after["receipts"])
     after["receipts"] = before["receipts"]
+    # v12 copies decision state into columns: a credential issued in Settings has no sponsor
+    # or chat, and a draft never submitted has no submission time.
+    assert after["communication_credentials"] == [(*row, None, "", None) for row in before["communication_credentials"]]
+    after["communication_credentials"] = before["communication_credentials"]
+    assert after["proposals"] == [(*row, None, 0) for row in before["proposals"]]
+    after["proposals"] = before["proposals"]
     assert after == before
     recovery.validate_database(target)
     with Database(target).read() as conn:

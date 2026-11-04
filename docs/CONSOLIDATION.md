@@ -141,9 +141,13 @@ Search clears only on `hashchange` (`App.tsx`), so a result that points at the p
 
 Fix: clear on result click. Findings: A-11.
 
-### Phase 1 · Schemas v11 and v12, additive only
+### Phase 1 · Schemas v11 to v13, additive only
 
-v11 (steps 1.1 and 1.2, one PR) adds derived data only, and its documented way back drops it. v12 (steps 1.3 and 1.4) moves authorization state out of event JSON and binds chats. Because v12 changes how registration, proposals and chat delivery decide, it is a separate migration with its own independent review; the split was made on 2026-11-04, while building v11.
+Each of these is a separate migration with its own PR and its own independent review. The splits were made on 2026-11-04, while building v11 and v12.
+
+- v11 (steps 1.1 and 1.2) adds derived data only, and its documented way back drops it.
+- v12 (step 1.3) copies decision state out of event JSON into columns.
+- v13 (step 1.4) binds chats to identities. It changes who receives the person's messages, so it gets a security review rather than a data review.
 
 Each migration's PR owns `migrations.py`, `db.py` and `recovery.py` while it is open. A deploy that runs a migration on real data waits for the person's go-ahead.
 
@@ -179,15 +183,17 @@ A cap on stored response size is deferred. A capped receipt cannot replay its re
 
 #### 1.3 · State out of event JSON
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branch: `claude/schema-v12` · PR: [#97](https://github.com/koala-man-64/Worklog/pull/97)
 
-In v12, add two columns to `communication_credentials`, the registration sponsor and the registered chat, backfilled from `credential.register` events. Add a proposal `submitted_at` and a record of stale notices. Afterwards, no runtime path depends on event JSON for authorization. Findings: C-07, A-18, N-1.
+In v12, `communication_credentials` gains the registration sponsor (identity and label) and the registered chat. Proposals gain `submitted_at` and `auto_approved`, and `proposal_stale_notices` records the notices sent. All of it is backfilled from the events, which stay as they are.
+
+Afterwards no runtime decision reads event JSON. A test blanks the registration and proposal event payloads and checks that nothing Worklog shows or decides changes. Event kinds and local dates still count registrations per day, which compaction keeps. Findings: C-07, A-18, N-1.
 
 #### 1.4 · Chats bound to identities
 
 Status: Not started · Branch: — · PR: —
 
-In v12. Implements K3. A registered chat binds automatically; the person confirms any other binding on the chat page; deliveries go to bound identities only, and the inbox is keyed by identity. Needs 1.3. Findings: C-01.
+In v13. Implements K3. A registered chat binds automatically; the person confirms any other binding on the chat page; deliveries go to bound identities only. Needs 1.3. Findings: C-01.
 
 ### Phase 2 · Registries and plumbing
 
