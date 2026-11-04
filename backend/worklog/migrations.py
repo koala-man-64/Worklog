@@ -5,9 +5,9 @@ from __future__ import annotations
 import json
 import sqlite3
 
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
 # Older versions that startup and offline restore upgrade in one transaction.
-UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9})
+UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
 
 COORDINATION_SCHEMA = """
 CREATE TABLE repositories(id TEXT PRIMARY KEY,name TEXT NOT NULL,url TEXT NOT NULL DEFAULT '',description TEXT NOT NULL DEFAULT '',archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
@@ -206,6 +206,46 @@ def _propose_team(conn: sqlite3.Connection) -> None:
                      (rewritten, stamp, identity))
 
 
+# v11 adds derived data only, so dropping it gives back v10 exactly (README):
+# - search_keys maps each indexed record to its row in search_index. The index's own entity_id,
+#   type and owner_id columns are FTS5 UNINDEXED, so finding a row by them read the whole index.
+# - indexes for foreign keys that pages look records up by;
+# - a date on each idempotency receipt, so receipts can be pruned (maintenance.prune_receipts).
+SEARCH_KEYS_SCHEMA = """
+CREATE TABLE search_keys(entity_id TEXT NOT NULL PRIMARY KEY,doc INTEGER NOT NULL UNIQUE,type TEXT NOT NULL,owner_id TEXT NOT NULL);
+CREATE INDEX search_keys_owner ON search_keys(owner_id,type);
+"""
+LOOKUP_INDEXES = """
+CREATE INDEX tasks_item ON tasks(item_id,archived);
+CREATE INDEX file_references_item ON file_references(item_id,archived);
+CREATE INDEX work_items_step ON work_items(step_id);
+CREATE INDEX work_items_roadmap ON work_items(roadmap_id);
+CREATE INDEX github_refs_chat ON github_refs(chat_id);
+CREATE INDEX steps_parent ON steps(parent_id);
+"""
+RECEIPT_DATE_COLUMN = "created_at TEXT NOT NULL DEFAULT ''"
+
+
+def add_search_keys_and_receipt_dates(conn: sqlite3.Connection) -> None:
+    """Key every search row, add the lookup indexes, and date the receipts.
+
+    Older writers could leave a record indexed twice; the newest row is the current one, so
+    the others go, and a row that names no record goes too. Receipts written before this
+    upgrade take its time, so a retry still in flight keeps replaying for the whole window.
+    """
+    from .common import now
+
+    execute_schema(conn, SEARCH_KEYS_SCHEMA)
+    conn.execute("DELETE FROM search_index WHERE entity_id IS NULL")
+    conn.execute("DELETE FROM search_index WHERE rowid NOT IN (SELECT MAX(rowid) FROM search_index GROUP BY entity_id)")
+    conn.execute("INSERT INTO search_keys(entity_id,doc,type,owner_id) "
+                 "SELECT entity_id,rowid,COALESCE(type,''),COALESCE(owner_id,'') FROM search_index")
+    execute_schema(conn, LOOKUP_INDEXES)
+    conn.execute("ALTER TABLE receipts ADD COLUMN " + RECEIPT_DATE_COLUMN)
+    conn.execute("UPDATE receipts SET created_at=?", (now(),))
+    conn.execute("CREATE INDEX receipts_created ON receipts(created_at)")
+
+
 def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
     """Unlike executescript, preserve the caller's transaction and rollback boundary."""
     for statement in filter(str.strip, schema.split(";")):
@@ -215,8 +255,8 @@ def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
 def upgrade(conn: sqlite3.Connection) -> None:
     """Upgrade an accepted older version to the current shape atomically inside the caller's transaction.
 
-    Credential IDs, proposal authors, receipts, and legacy chat repository labels
-    are deliberately unchanged. No repository names are guessed or imported.
+    Credential IDs, proposal authors, receipts (beyond the date v11 gives them), and legacy
+    chat repository labels are deliberately unchanged. No repository names are guessed or imported.
     """
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version == SCHEMA_VERSION:
@@ -248,8 +288,10 @@ def upgrade(conn: sqlite3.Connection) -> None:
         add_item_scratchpads(conn)
     if version < 9:
         execute_schema(conn, RESOURCE_SCHEMA)  # resources start empty
-    # Every upgradable version predates the person details and repository ties of v10.
-    add_person_details(conn)
+    if version < 10:
+        add_person_details(conn)
+    # Every upgradable version predates the search keys and receipt dates of v11.
+    add_search_keys_and_receipt_dates(conn)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 

@@ -222,10 +222,13 @@ def test_populated_current_main_upgrades_without_losing_records(tmp_path, operat
         assert after["credentials"] == [(*before["credentials"][0][:-1], 1)]
         after["settings"] = before["settings"]
         after["credentials"] = before["credentials"]
-    # The upgrade adds only an avatar, appended to each agent identity.
+    # The upgrade adds only an avatar, appended to each agent identity, and a date to each receipt.
     assert [row[:-1] for row in after["communication_agents"]] == before["communication_agents"]
     assert all(avatars.is_avatar(row[-1]) for row in after["communication_agents"])
     after["communication_agents"] = before["communication_agents"]
+    assert [row[:-1] for row in after["receipts"]] == before["receipts"]
+    assert all(row[-1] for row in after["receipts"])
+    after["receipts"] = before["receipts"]
     assert after == before
     recovery.validate_database(target)
     with Database(target).read() as conn:

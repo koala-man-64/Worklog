@@ -384,7 +384,10 @@ def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
         finished = threading.Event()
 
         def watch() -> None:
+            from worklog.maintenance import prune_receipts
+
             next_backup = time.monotonic() + 60
+            next_prune = time.monotonic() + 3600
             while not finished.wait(0.2):
                 request = _json_file(marker)
                 if request.get("instanceId") == instance_id and request.get("dataId") == data_id:
@@ -397,6 +400,14 @@ def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
                         # Preserve service availability but make a failed backup visible in server.log.
                         print(f"Automatic Worklog backup failed: {type(exc).__name__}", file=sys.stderr, flush=True)
                     next_backup = time.monotonic() + 60
+                if time.monotonic() >= next_prune:
+                    try:
+                        with app.state.db.transaction() as conn:
+                            prune_receipts(conn)
+                    except Exception as exc:
+                        # A busy database waits for the next hour; startup prunes as well.
+                        print(f"Pruning Worklog receipts failed: {type(exc).__name__}", file=sys.stderr, flush=True)
+                    next_prune = time.monotonic() + 3600
 
         watcher = threading.Thread(target=watch, daemon=True)
         watcher.start()

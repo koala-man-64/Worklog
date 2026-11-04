@@ -44,6 +44,7 @@ from .coordination_api import coordination_agent_route_allowed, install_coordina
 from .db import Database
 from .discussion_api import agent_route_allowed, install_discussion_routes
 from .discussions import bind_credential, communication_actor
+from .maintenance import prune_receipts
 from .plans import PlanService
 from .proposals import ProposalService, approval_required
 from .recovery import automatic_backup, backup_database, export_database, list_backups
@@ -171,6 +172,10 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             logger.warning("Automatic backup failed; see storage settings")
 
     auto_backup()
+    # Receipts only serve retries: each start drops those past the retention window, and the
+    # serve watcher repeats it hourly.
+    with db.transaction() as conn:
+        prune_receipts(conn)
 
     @app.exception_handler(AppError)
     async def on_domain_error(request: Request, exc: AppError) -> Response:
@@ -300,7 +305,8 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             result = fn(c, actor)
             if key and (receipt_if is None or receipt_if(result)):
                 stored = {**result, **dict.fromkeys(redact)}
-                c.execute("INSERT INTO receipts VALUES(?,?,?,?)", (receipt_actor, key, digest, json.dumps(stored)))
+                c.execute("INSERT INTO receipts(actor_id,key,request_hash,response_json,created_at) VALUES(?,?,?,?,?)",
+                          (receipt_actor, key, digest, json.dumps(stored), now()))
             return result
 
     def discussion_mutate(request: Request, payload: Any, fn: Callable, *, required_key: bool = True) -> dict:
