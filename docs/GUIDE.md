@@ -16,7 +16,7 @@ This guide shows how to use Worklog. You can read it here or on the **Guide** pa
 
 ### Open Worklog
 
-Worklog runs at http://127.0.0.1:8877. Start it from PowerShell in your Worklog folder with `./scripts/Worklog.ps1 start`; it opens the page for you. Everything stays on this machine: no account, no internet connection, nothing hosted.
+Worklog runs at `http://127.0.0.1:8877`. Start it from PowerShell in your Worklog folder with `./scripts/Worklog.ps1 start`; it opens the page for you. Everything stays on this machine: no account, no internet connection, nothing hosted.
 
 ### Your first day
 
@@ -115,7 +115,12 @@ They never change your work items, days, roadmaps, people or repositories direct
 4. Put the entries in order by dragging the grip, or with the up and down buttons.
 5. At the end of the day, write the "End-of-day reflection (Markdown)". The counts beside the day's work show how many you worked on, completed and blocked. "Continue your next open item" jumps to the next planned item that is still open.
 
-Each entry's title row collapses and expands; "Collapse all" and "Expand all" do every entry at once. "Scratchpad, links, files and repositories" under an entry opens the work item's own scratchpad, links and files, and links repositories to it.
+Each entry has tabs. "Outcome / next action" holds the day's note. "Tasks", "Scratchpad", "Links", "Files" and "Repositories" hold the work item's own records, so you can work on them without leaving the day.
+
+- Before you open the tabs, they show what they hold: tasks done out of all, how many links, files and repositories, and a dot when the scratchpad has text.
+- The arrow keys move between tabs.
+- The badge beside an entry's title is the item's stack rank.
+- Each entry's title row collapses and expands; "Collapse all" and "Expand all" do every entry at once.
 
 ### Move work to another day
 
@@ -133,7 +138,14 @@ The item is planned on the new day instead. Today keeps its entry, no longer pla
    - by person
    - by status: the Open, Doing, Blocked and Done buttons combine; with none pressed, every state shows.
 3. Switch "Work view" between "All work" and "Unscheduled backlog". The backlog holds items not done and not planned for today or later.
-4. Put the backlog in order with the up and down buttons on each row.
+4. Rank the work (below).
+
+Work is stack ranked:
+
+- Unfinished work is numbered from #1, the work that matters most, and lists show it in that order, done work after it. New work starts last.
+- The up and down buttons on a row move an item past the one shown beside it, so they work the same in a filtered list.
+- The rank button at the start of a row, or beside the status on an item's page, opens "Move to rank": type a rank and press "Move", or "Cancel" (or Escape).
+- Done and archived work leaves the ranking but keeps its place, so reopening or recovering an item puts it back where it was.
 
 The list shows 100 items at a time ("Previous work" and "Next work").
 
@@ -141,13 +153,14 @@ The list shows 100 items at a time ("Previous work" and "Next work").
 
 Open the item from **Work**. Its page holds, from top to bottom:
 
-- **"Title" and "Description (Markdown)"**, and the status menu.
+- **The header:** the title, the status menu, the stack rank, and "Archive" or "Recover".
+- **"Title" and "Description (Markdown)".**
 - **"Context"**:
   - the "Azure DevOps link", with "Open work item ↗" to follow it
+  - the repositories the work touches ("Link repository")
   - the "Roadmap" and "Roadmap step" the item belongs to
   - "Plan for day", with a "Schedule date"
-- **"Checklist"**: type in "New checklist task" and press "Add". Tick tasks when done; "Edit task" renames one.
-- **"Repositories"**: "Link repository" adds one.
+- **"Tasks"**: type a "New task" and press "Add task". Tick tasks when done, and done ones are struck through. "Edit task" renames one.
 - **"Scratchpad (Markdown)"**: one running note for the item. Notes archived earlier stay readable under "Archived notes".
 - **"People"**: choose someone in "Choose person" ("+ New person…" adds one), give a "Relationship or role", and press "Tie person".
 - **"Links"**: a "Link title", "Link URL" and "Link description", then "Add link".
@@ -273,7 +286,7 @@ To stop reviewing, clear "Require my approval for agent proposals" in Settings. 
    - "Show messages involving" narrows it to one agent.
    - "Show earlier messages" loads more, up to 2,000.
    - Worklog only reads these transcripts and never changes them.
-5. **Message the chat's agents.** Write in "Message this chat's agents" and press "Send".
+5. **Message the chat's agents.** Write in "Message this chat’s agents" and press "Send".
    - The message reaches every agent whose open run reported this chat; "Reaches" names them before you send.
    - Each agent picks the message up the next time it checks Worklog. Nothing wakes it.
    - A message nobody picks up within two hours expires.
@@ -317,9 +330,9 @@ Plan the day and record what you worked on.
 - **The header:** "Working day", the date this page shows.
 - **Adding work:** "New work item", "Capture mode" ("Plan work" or "Log work already performed") and "Add work".
 - **"The day’s work":**
-  - Each entry is numbered and collapses to its title row.
-  - Each has a drag grip, "Reschedule", "Planned", "Worked on", a status menu and "Outcome / next action".
-  - "Scratchpad, links, files and repositories" opens the work item's own records.
+  - Each entry is numbered, shows its item's stack rank, and collapses to its title row.
+  - Each has a drag grip, "Reschedule", "Planned", "Worked on" and a status menu.
+  - Its tabs hold "Outcome / next action" and the work item's own "Tasks", "Scratchpad", "Links", "Files" and "Repositories".
   - An archived item's entry stays readable but can't be changed.
 - **The day's counts and "Continue your next open item".**
 - **"Open work":** every open, doing and blocked item not yet on the day, with "Find open work…" and "Work on today".
@@ -332,7 +345,7 @@ Capture work once and keep each item's next action current.
 - **The list:**
   - "New work item" and "Add work".
   - The filters: text, repository, "Work view", "Show archive", the status buttons and "Filter by person".
-  - Each row shows the item's status, title, people, repositories and the start of its description, with "Archive" or "Recover".
+  - Each row shows the item's stack rank, status, title, people, repositories and the start of its description, with the up and down buttons and "Archive" or "Recover".
 - **An item's page:** see [Keep notes, checklists, links and files on a work item](#keep-notes-checklists-links-and-files-on-a-work-item). "All work" returns to the list.
 
 ### Tickets
@@ -411,7 +424,7 @@ The page only shows what agents reported; a fresh report does not prove an agent
 
 ### Chats
 
-The agent chats you track, and who is working on what. The left side lists the chats, with "Show archive" and "Show activity by". The right side, "Chat history", shows a chat's transcript and "Message this chat's agents" (see [Follow a chat and message its agents](#follow-a-chat-and-message-its-agents)). The most recently active chat opens first. Codex keeps most messages between its agents encrypted, so Chats labels those instead of showing them blank.
+The agent chats you track, and who is working on what. The left side lists the chats, with "Show archive" and "Show activity by". The right side, "Chat history", shows a chat's transcript and "Message this chat’s agents" (see [Follow a chat and message its agents](#follow-a-chat-and-message-its-agents)). The most recently active chat opens first. Codex keeps most messages between its agents encrypted, so Chats labels those instead of showing them blank.
 
 ### Discussions
 
@@ -468,7 +481,8 @@ This guide. "Contents" lists its sections; pick one to jump to it. A section has
 
 | Term | Meaning |
 |---|---|
-| Work item | A piece of work with a status, description, checklist, scratchpad, links and files |
+| Work item | A piece of work with a status, stack rank, description, tasks, scratchpad, links and files |
+| Stack rank | The order of unfinished work, from #1, the work that matters most |
 | Entry | A work item on a particular day: planned, worked on, and its outcome |
 | Backlog | Work that is not done and not planned for today or later |
 | Scratchpad | A work item's one running Markdown note |

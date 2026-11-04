@@ -517,7 +517,7 @@ class AgentClient:
         if method == "POST" or coordination_write:
             request_id = request_id or str(uuid.uuid4())
             if not 8 <= len(request_id) <= 200 or not request_id.isascii() or any(ord(c) < 33 or ord(c) > 126 for c in request_id):
-                raise ValueError("Request ID must contain 8–200 printable ASCII characters without spaces")
+                raise ValueError("Request ID must contain 8-200 printable ASCII characters without spaces")
             headers["Idempotency-Key"] = request_id
         discussion_write = method == "POST" and route.startswith(("/discussions", "/inbox"))
         retry_hint = (f"; result uncertain; retry the same command and payload with --request-id {request_id}"

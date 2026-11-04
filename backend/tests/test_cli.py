@@ -3,6 +3,7 @@ import json
 import threading
 import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
 from urllib.error import HTTPError
 
 import pytest
@@ -102,6 +103,12 @@ def test_agent_http_error_redacts_credential(requests, monkeypatch, capsys):
     result = capsys.readouterr()
     assert "test-sensitive-token" not in result.out + result.err
     assert "[redacted]" in result.err
+
+
+def test_cli_messages_are_ascii():
+    # Every message reaches an agent intact whatever code page its console or pipe uses.
+    source = Path(cli.__file__).read_bytes()
+    assert source.isascii(), [line for line in source.splitlines() if not line.isascii()]
 
 
 def _rejecting(status, body):

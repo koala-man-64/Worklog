@@ -42,7 +42,7 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 
 | Record | Identified by | States and key fields | Written by |
 |---|---|---|---|
-| Work item | UUID | `status` open, doing, blocked or done; `archived` | proposal (`item.*`) |
+| Work item | UUID | `status` open, doing, blocked or done; `rank`, the person's stack rank (1 matters most; null when done or archived); `archived` | proposal (`item.*`); only the person ranks |
 | Day entry | date and work item | `planned`, `worked`, `outcome` | proposal (`entry.upsert`) |
 | Scratchpad | note UUID | the one Markdown note of a work item | proposal (`note.create` adds a section) |
 | Note on a roadmap or step | UUID | `title`, `text` | proposal (`note.*`) |
@@ -652,7 +652,7 @@ Invoke-RestMethod -Uri 'http://127.0.0.1:8877/api/v1/work-items/ITEM_ID' -Header
 - **Roadmaps.** "Agents working here", agent chips beside each step, tracked chats, questions and decisions.
 - **Repositories.** Registered repositories; yours say "Registered by" your label and "unreviewed" until the person confirms them. A repository's page lists participants and recent updates. "Open agent runs" lets the person end a run you left open.
 - **Agents.** One entry per identity. It shows a status ("Reporting work", "Stale reports", "No current reports" or "Credential revoked"), your runs, messages, updates and the work you are tied to.
-- **Chats.** Tracked chats, shown as "Working" or "Idle", with their transcripts. "Message this chat's agents" writes to your inbox.
+- **Chats.** Tracked chats, shown as "Working" or "Idle", with their transcripts. The person writes to a chat's agents there, and you receive it in your inbox.
 - **Discussions.** Threads, acknowledgement requests and roles.
 - **Review.** Your submitted proposals, with "Approve proposal", "Return to draft" and "Reject proposal", each confirmed.
 - **Settings.**
@@ -684,4 +684,4 @@ Point the person to the page that matters:
 | role | `/discussions/roles` | "Discussion roles" |
 | acknowledgement request | a message's `request` | "Request acknowledgement (received and understood)" |
 | the person | `local-user`, labelled `You` | - |
-| inbox message | `/inbox/receive` | "Message this chat's agents" |
+| inbox message | `/inbox/receive` | the message box under a chat's history on the Chats page |

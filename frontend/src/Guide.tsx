@@ -12,6 +12,10 @@ for (const heading of headings(text)) {
   else if (heading.level === 3) sections.at(-1)?.children.push(heading);
 }
 function show(slug: string) {
+  // The contents follow along, so the marked entry is in view; then the section is.
+  document
+    .querySelector(`.guide-contents a[href="#guide/${slug}"]`)
+    ?.scrollIntoView({ block: "nearest" });
   document.getElementById("guide-" + slug)?.scrollIntoView({ block: "start" });
 }
 /** The person's guide to Worklog, beside a list of its sections; `#guide/<slug>` opens one. */
