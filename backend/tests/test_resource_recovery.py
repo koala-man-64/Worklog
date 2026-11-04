@@ -5,6 +5,7 @@ import json
 import sqlite3
 import zipfile
 from contextlib import closing
+from pathlib import Path
 
 import pytest
 from worklog import migrations, recovery, resources
@@ -100,6 +101,8 @@ def test_a_v8_shape_cannot_claim_version_9_and_a_v9_shape_cannot_claim_8(tmp_pat
 
 
 def test_the_documented_way_back_to_v8_drops_only_the_resources_and_upgrades_again(tmp_path):
+    # The SQL tested here is the SQL the README gives the person.
+    assert f"`{WAY_BACK}`" in (Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
     path = tmp_path / "worklog.sqlite3"
     v8_database(path)
     Database(path).initialize()

@@ -369,10 +369,15 @@ small {
   letter-spacing: 0;
   margin-top: 7px;
 }
+/* Every page link and a long roadmap tree can outgrow a short window: the links then scroll while the brand and the note stay. The padding, given back by the margin, keeps focus rings clear of the scroll edge. */
 .sidebar nav {
   display: grid;
+  align-content: start;
   gap: 2px;
-  margin-top: 26px;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 20px -6px 0;
+  padding: 6px;
 }
 .sidebar nav a {
   color: var(--muted);
@@ -3266,7 +3271,9 @@ code {
   .sidebar nav {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 2px;
-    margin-top: 18px;
+    margin: 18px 0 0;
+    padding: 0;
+    overflow: visible;
   }
   .sidebar nav a {
     font-size: 12px;

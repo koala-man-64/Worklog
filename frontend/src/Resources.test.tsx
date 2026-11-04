@@ -358,3 +358,101 @@ it("rewrites only links to the text's own headings, however they are encoded", (
     "#missing",
   );
 });
+
+it("takes headings from the parsed text: underlined ones count and code blocks never do", () => {
+  const { container } = render(
+    <Markdown
+      anchors="resources/page"
+      text={[
+        "Setup",
+        "=====",
+        "",
+        "~~~",
+        "# Notes",
+        "~~~",
+        "",
+        "# Notes",
+        "",
+        "# 🎉",
+        "",
+        "[Set up](#setup) [Read notes](#notes) [By reference][notes] [Empty](#)",
+        "",
+        "[notes]: #notes",
+      ].join("\n")}
+    />,
+  );
+  expect(
+    screen.getByRole("heading", { level: 1, name: "Setup" }),
+  ).toHaveAttribute("id", "resources/page-setup");
+  // The fenced line is code, so the real heading keeps the plain slug.
+  expect(
+    screen.getByRole("heading", { level: 1, name: "Notes" }),
+  ).toHaveAttribute("id", "resources/page-notes");
+  expect(screen.getByRole("heading", { name: "🎉" })).not.toHaveAttribute("id");
+  expect(screen.getByRole("link", { name: "Set up" })).toHaveAttribute(
+    "href",
+    "#resources/page/setup",
+  );
+  expect(screen.getByRole("link", { name: "Read notes" })).toHaveAttribute(
+    "href",
+    "#resources/page/notes",
+  );
+  expect(screen.getByRole("link", { name: "By reference" })).toHaveAttribute(
+    "href",
+    "#resources/page/notes",
+  );
+  // A heading with no letters has no slug, so an empty target stays as written.
+  expect(screen.getByRole("link", { name: "Empty" })).toHaveAttribute(
+    "href",
+    "#",
+  );
+  expect(container.querySelectorAll("[id]")).toHaveLength(2);
+});
+
+it("keeps the editor open when typing resumes after Done", async () => {
+  let saved = detail();
+  const bodies: unknown[] = [];
+  let open = () => {};
+  const held = new Promise<void>((resolve) => (open = resolve));
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const path = String(input).replace("/api/v1", "");
+    if ((init?.method ?? "GET") === "GET")
+      return json(
+        path.startsWith("/resources?")
+          ? { items: [resource()], total: 1 }
+          : saved,
+      );
+    const body = JSON.parse(String(init?.body));
+    bodies.push(body);
+    // The first save waits until the person has typed again.
+    if (bodies.length === 1) await held;
+    saved = { ...saved, ...body, revision: saved.revision + 1 };
+    return json(saved);
+  });
+  show(<Resources selected={ID} />);
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Edit page" }),
+  );
+  await userEvent.type(screen.getByRole("textbox", { name: "Summary" }), ".");
+  await userEvent.click(screen.getByRole("button", { name: "Done" }));
+  await waitFor(() => expect(bodies).toHaveLength(1));
+  await userEvent.type(screen.getByRole("textbox", { name: "Summary" }), "!");
+  open();
+  await waitFor(() =>
+    expect(saved.summary).toBe("Rules for every repository.!"),
+  );
+  const field = screen
+    .getByRole("textbox", { name: "Summary" })
+    .closest("section")!;
+  await waitFor(() =>
+    expect(within(field).getByRole("status")).toHaveTextContent("Saved"),
+  );
+  // Every draft is saved, yet the editor stays, because typing resumed after Done.
+  expect(screen.getByRole("textbox", { name: "Summary" })).toHaveValue(
+    "Rules for every repository.!",
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Done" }));
+  expect(
+    await screen.findByRole("button", { name: "Edit page" }),
+  ).toBeInTheDocument();
+});

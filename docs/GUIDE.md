@@ -242,7 +242,7 @@ Write down once what you and your agents keep looking up: how you like work done
 
 Each page has its own address, such as `#resources/ID`, so one page, or anything else in Worklog, can link to another. A link to one of the page's own headings, such as `#testing`, jumps to that heading.
 
-Agents read your pages but never change them. Their `context` lists every page by title and summary, and `worklog agent resources show` reads one whole, so point them at the pages that matter in their instructions or in a message to their chat. Archive a page that no longer applies: it leaves the list and your agents' context, and "Show archive" brings it back to recover.
+Agents read your pages but never change them. Their `context` lists every page by title and summary, and `worklog agent resources show` reads one whole, so point them at the pages that matter in their instructions or in a message to their chat. Archive a page that no longer applies: it leaves the list and your agents' context, and "Show archive" brings it back to recover. Archiving hides a page but does not withdraw it: an agent can still open an archived page by its ID, and a page's history keeps every earlier version, which agents can read too. Keep secrets out of your pages.
 
 ### Register, confirm and merge repositories
 

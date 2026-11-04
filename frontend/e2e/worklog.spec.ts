@@ -870,6 +870,34 @@ test("every page spends the whole window beside the sidebar", async ({
   });
   expect(fit.text).toBeCloseTo(fit.pane, 0);
 });
+test("every page stays reachable from the sidebar on a short window", async ({
+  page,
+}) => {
+  // The page links, the brand and the note outgrow 480px: the links scroll rather than fall off.
+  await page.setViewportSize({ width: 1280, height: 480 });
+  await page.goto("/");
+  const nav = page.getByRole("navigation", { name: "Main navigation" });
+  for (const name of [
+    "Guide",
+    "Settings",
+    "Review",
+    "Discussions",
+    "Chats",
+    "Agents",
+    "Resources",
+    "People",
+    "Repositories",
+    "Roadmaps",
+    "Tickets",
+    "Work",
+    "Today",
+  ]) {
+    await nav.getByRole("link", { name, exact: true }).click();
+    await expect(
+      page.getByRole("heading", { level: 1, name, exact: true }),
+    ).toBeVisible();
+  }
+});
 test("a roadmap's questions are answered and its decisions recorded", async ({
   page,
   baseURL,

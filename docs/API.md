@@ -131,7 +131,7 @@ Resources are reference pages the person writes for themselves and their agents.
 * `GET /resources?q=&archived=false&limit=50&offset=0` returns `{items,total,limit,offset}` (limit at most 200) by title, case-insensitive, without the pages' text. `q` matches words, as prefixes, in titles, summaries and text; `archived=true` lists archived pages only.
 * `GET /resources/{id}` returns the whole page and `history`, the latest 100 changes newest first as `{id,kind,actorId,actorLabel,actorKind,createdAt}`; `GET /history?entityId=` has each change's full before and after records.
 * `POST /resources {title,summary?,body?}` requires `Idempotency-Key`. `PATCH /resources/{id} {revision,title?,summary?,body?}` replaces the fields it supplies. An archived page refuses changes (`409 archived`) until recovered.
-* `POST /resources/{id}/archive|recover {revision}`. An archived page leaves default lists, `context` and search, and stays readable by ID.
+* `POST /resources/{id}/archive|recover {revision}`. An archived page leaves default lists, `context` and search; the person and agents can still read it by ID, and `GET /history?entityId=` keeps every earlier version of a page.
 * History records `resource.create`, `resource.update`, `resource.archive` and `resource.recover`. Search indexes each page as `resource`, its summary and text as the body, routing to `routeType:'resources'` and the page's ID.
 
 The CLI exposes `agent resources list|show`, read-only: `list` takes `--q`, `--archived`, `--limit` and `--offset`, and `show ID` reads one page. The agent client allowlist has no resource write route.

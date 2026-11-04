@@ -210,6 +210,7 @@ function NewResource({ created }: { created: (id: string) => void }) {
 /**
  * One page, to read or to edit. A page whose draft is not saved yet stays in its editor,
  * so "Done" closes the editor only once every field is saved, and a conflict stays in view.
+ * Typing again after "Done" keeps the editor open, so a later save never closes it mid-edit.
  */
 function PageView({
   id,
@@ -268,11 +269,12 @@ function PageView({
       {page.archived && (
         <p className="warning">
           Archived: this page is out of the list and out of your agents’
-          context. Recover it to change it.
+          context, but they can still open it by its ID. Recover it to change
+          it.
         </p>
       )}
       {editor ? (
-        <div className="resource-editor">
+        <div className="resource-editor" onInput={() => setEditing(true)}>
           <DraftField
             draftKey={draftKey("title", id)}
             label="Title"
