@@ -1,6 +1,6 @@
 # Worklog implementation contract
 
-The discussion API extends the original contract below. See [Discussions and responsibilities](DISCUSSIONS.md) for operating semantics and CLI examples. Generated request contracts are in `openapi.json`.
+The discussion API extends the original contract below. See the [agent guide](AGENT-GUIDE.md) (section 5.7) for operating semantics and CLI examples. Generated request contracts are in `openapi.json`.
 
 ## Discussions
 
@@ -90,7 +90,7 @@ Browser session only: an agent credential gets `403 agent_scope`, because an age
 
 ## Agent self-registration
 
-An agent credential registers a separate identity for the agent holding it; see the README for the CLI. The registering credential is the only authority, and the new identity gets the same agent scope, nothing more. Neither route writes an idempotency receipt, since a receipt's request hash would derive from the token.
+An agent credential registers a separate identity for the agent holding it; see the [agent guide](AGENT-GUIDE.md) for the CLI. The registering credential is the only authority, and the new identity gets the same agent scope, nothing more. Neither route writes an idempotency receipt, since a receipt's request hash would derive from the token.
 
 * `POST /agent-registrations {label,token,chatId,avatar?}` with an agent bearer creates a credential whose token is the caller-generated `token` and binds it to a new identity working in chat `chatId`: a Claude Code session ID, a Claude desktop `local_…` ID or a Codex thread ID, 1–500 bytes without spaces or control characters, trimmed. The `credential.register` event records it. The identity's runs report that chat unless they name another, and work they report tracks it (see participation above). The token is 43–200 characters of `A-Z`, `a-z`, `0-9`, `-`, `_`; generate it from at least 32 random bytes, for example with `secrets.token_urlsafe(32)`. A token with fewer than 10 distinct characters is refused as `422`. The label `You`, which names the person, is refused too. It returns `{id,agentId,label,avatar,chatId,registeredBy:{id,label}}`, never the token; `registeredBy` is the registering agent's identity. Only the token's SHA-256 is stored. The token is the idempotency key: repeating the request with an active registered token and the same `chatId` returns that registration unchanged, another `chatId` is `409 chat_mismatch` (an identity works in one chat; register another for another chat), a revoked token is `409 token_revoked`, and the token of a credential issued in Settings is `409 token_in_use`. `GET /settings` credentials carry `chatId` too. A person's session gets `403 agent_scope` and a taken avatar `409 avatar_in_use`. When 200 registered identities are active, or agents registered 200 since local midnight, the request gets `429 agent_limit`. Credentials issued in Settings never count.
 * `POST /agent-registrations/retire {}` with a registered credential's bearer revokes that credential, ends its open runs and releases their participation with reason `credential_retired`. It also revokes every identity it registered, as below. It returns `{id,agentId,retired:true,registeredRevoked}`. A credential issued in Settings, or a person's session, gets `403 agent_scope`; the retired token then gets `401`.

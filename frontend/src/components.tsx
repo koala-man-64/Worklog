@@ -1,6 +1,7 @@
 import {
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
   type ChangeEvent,
@@ -8,8 +9,9 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { headings as headingList } from "./guideAnchors";
 import { RepositoryBadges, RepositoryPicker } from "./RepositoryControls";
 import { download } from "./api";
 import { commands } from "./commands";
@@ -40,29 +42,56 @@ function resolveLink(url: string): URL | null {
 function isSameOrigin(url: string): boolean {
   return resolveLink(url)?.origin === window.location.origin;
 }
+const HEADINGS = ["h1", "h2", "h3", "h4", "h5", "h6"] as const;
 /**
  * `untrusted` is for text written elsewhere, such as an agent transcript: its links
  * may lead off this site but never to a page or download of Worklog itself.
+ *
+ * `anchors` names the page the text fills, such as `guide`: its headings get ids
+ * (`guide-<slug>`) and its `#slug` links become routes to them (`#guide/<slug>`),
+ * since the whole hash is the page route.
  */
 export function Markdown({
   text,
   untrusted = false,
+  anchors,
 }: {
   text: string;
   untrusted?: boolean;
+  anchors?: string;
 }) {
+  // Ids follow each heading's source line, so they match the page's outline however
+  // often React renders them.
+  const headings = useMemo(() => {
+    const components: Components = {};
+    if (!anchors) return components;
+    const slugs = new Map(headingList(text).map((h) => [h.line, h.slug]));
+    for (const Tag of HEADINGS)
+      components[Tag] = ({ node, children }) => {
+        const found = slugs.get(node?.position?.start.line ?? 0);
+        return (
+          <Tag id={found ? `${anchors}-${found}` : undefined}>{children}</Tag>
+        );
+      };
+    return components;
+  }, [text, anchors]);
   return (
     <div className="markdown">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         skipHtml
         components={{
+          ...headings,
           img: ({ alt }) => (
             <span className="image-reference">
               [Image: {alt || "image reference"}]
             </span>
           ),
-          a: ({ href, title, children }) => {
+          a: ({ href: given, title, children }) => {
+            const href =
+              anchors && given?.startsWith("#")
+                ? `#${anchors}/${given.slice(1)}`
+                : given;
             const external = href ? !isSameOrigin(href) : false;
             return (
               <a

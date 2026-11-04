@@ -55,6 +55,11 @@ TICKET_REF = re.compile(r"[Tt]-[1-9][0-9]{0,8}|[1-9][0-9]{0,8}|[0-9a-fA-F]{8}(?:
 TICKET_KINDS = ("bug", "incident", "task")
 TICKET_PRIORITIES = ("low", "normal", "high", "urgent")
 TICKET_STATUSES = ("open", "doing", "blocked", "done")
+# What agents read before their first command; `worklog agent guide` prints it. Resolved like the
+# frontend build in app.py, from this checkout.
+AGENT_GUIDE = Path(__file__).resolve().parents[2] / "docs" / "AGENT-GUIDE.md"
+ERROR_CODE = re.compile(r"[a-z][a-z0-9_]{0,63}")
+ERROR_FIELDS_LIMIT = 1000
 
 
 def resolve_port(value: int | None = None) -> int:
@@ -512,7 +517,7 @@ class AgentClient:
         if method == "POST" or coordination_write:
             request_id = request_id or str(uuid.uuid4())
             if not 8 <= len(request_id) <= 200 or not request_id.isascii() or any(ord(c) < 33 or ord(c) > 126 for c in request_id):
-                raise ValueError("Request ID must contain 8–200 printable ASCII characters without spaces")
+                raise ValueError("Request ID must contain 8-200 printable ASCII characters without spaces")
             headers["Idempotency-Key"] = request_id
         discussion_write = method == "POST" and route.startswith(("/discussions", "/inbox"))
         retry_hint = (f"; result uncertain; retry the same command and payload with --request-id {request_id}"
@@ -524,15 +529,19 @@ class AgentClient:
                 return _response_json(response, deadline)
         except HTTPError as exc:
             code = None
+            fields: Any = None
             try:
                 with exc:
                     error = _response_json(exc, deadline).get("error", {})
                 message = str(error.get("message", "Request rejected"))
                 code = error.get("code") if isinstance(error.get("code"), str) else None
+                fields = error.get("fields")
             except (ValueError, AttributeError, OSError, HTTPException):
                 message = "Request rejected"
+            # The code and fields tell an agent how to respond, such as a conflict's currentRevision.
             # Do not reflect arbitrary server content containing a credential.
-            detail = f"HTTP {exc.code}: " + message
+            named = f" {code}" if code and ERROR_CODE.fullmatch(code) else ""
+            detail = f"HTTP {exc.code}{named}: " + message + _error_fields(fields)
             if exc.code >= 500:
                 detail += retry_hint
             raise AgentRequestError(detail.replace(self.token, "[redacted]"), exc.code, code) from None
@@ -540,6 +549,17 @@ class AgentClient:
             raise AgentRequestError(("Cannot reach Worklog; run worklog check" + retry_hint).replace(self.token, "[redacted]")) from None
         except (ValueError, UnicodeError):
             raise AgentRequestError(("Invalid response from Worklog" + retry_hint).replace(self.token, "[redacted]")) from None
+
+
+def _error_fields(fields: Any) -> str:
+    """An error's field details as compact ASCII JSON, or a note when they are too long to show."""
+    if fields is None or fields == {} or fields == []:
+        return ""
+    try:
+        text = json.dumps(fields, sort_keys=True, separators=(",", ":"))
+    except (TypeError, ValueError):
+        return ""
+    return " " + text if len(text) <= ERROR_FIELDS_LIMIT else " (fields omitted)"
 
 
 def _payload(path: str) -> dict[str, Any]:
@@ -1172,13 +1192,16 @@ def parser() -> argparse.ArgumentParser:
             sub.add_argument("--port", type=int, default=argparse.SUPPRESS)
         if command in {"restore", "export"}:
             sub.add_argument("file")
-    agent = commands.add_parser("agent", help="Read context, register agents and propose reviewed changes")
+    agent = commands.add_parser(
+        "agent", help="Agent commands; start with `worklog agent guide`",
+        description="Commands for AI agents. `worklog agent guide` explains every one, with the rules agents follow.")
     agent.add_argument("--url", help="Agent base URL (default: the selected local port)")
     agent.add_argument("--port", type=int, default=argparse.SUPPRESS)
     agent.add_argument("--data-dir", default=argparse.SUPPRESS, help="Data directory, which keeps the tokens of registered agents")
     agent.add_argument("--as", dest="as_name", metavar="NAME",
                        help="Act as an agent registered here with `register` (default: WORKLOG_AGENT_TOKEN)")
     actions = agent.add_subparsers(dest="agent_action", required=True)
+    actions.add_parser("guide", help="Print the agent guide; needs no credential or running Worklog")
     register = actions.add_parser("register", help="Register a new agent identity for your chat; its token is generated and kept here, never printed")
     register.add_argument("--chat", required=True, metavar="CHAT_ID",
                           help="Your chat's ID: a Claude Code session ID, a Claude desktop local_ ID or a Codex thread ID. "
@@ -1260,6 +1283,11 @@ def main(argv: list[str] | None = None) -> int:
     # Every credential this command holds, including one generated or loaded on the way.
     redact = [os.environ.get("WORKLOG_AGENT_TOKEN", "")]
     try:
+        if args.command == "agent" and args.agent_action == "guide":
+            # Plain Markdown rather than JSON, readable before an agent has a credential. The guide is
+            # ASCII, so it reaches the reader intact whatever code page a pipe or console uses.
+            sys.stdout.write(AGENT_GUIDE.read_text(encoding="ascii"))
+            return 0
         if args.command == "agent":
             result = agent_command(args, resolve_port(args.port), redact)
         else:
