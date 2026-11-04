@@ -78,6 +78,8 @@ const writes = (network: MockInstance<typeof fetch>) =>
   network.mock.calls.filter(([, init]) => (init?.method ?? "GET") !== "GET");
 const openWork = () =>
   screen.getByRole("heading", { name: /^Open work/ }).closest("section")!;
+const entryOf = (title: string) =>
+  screen.getByRole("link", { name: title }).closest("article")!;
 
 beforeEach(() => {
   vi.restoreAllMocks();
@@ -290,4 +292,83 @@ it("moves an entry from the picker beside its title, or cancels", async () => {
     targetRevision: 0,
   });
   await waitFor(() => expect(picker()).toBeNull());
+});
+
+it("collapses an entry to its heading row and keeps it collapsed on any day", async () => {
+  state.day = day("2026-10-28", [
+    entry("release", "Ship the release", "doing"),
+    entry("runbook", "Write the runbook", "open"),
+  ]);
+  const first = render(view("2026-10-28", "2026-10-28"));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Collapse Ship the release" }),
+  );
+  const release = entryOf("Ship the release");
+  expect(
+    within(release).getByRole("button", { name: "Expand Ship the release" }),
+  ).toHaveAttribute("aria-expanded", "false");
+  // The heading row stays usable, its controls included; the outcome and
+  // details are hidden but still mounted.
+  expect(
+    within(release).getByRole("button", {
+      name: "Reschedule Ship the release",
+    }),
+  ).toBeVisible();
+  expect(
+    within(release).getByLabelText("Worked on", { exact: true }),
+  ).toBeVisible();
+  expect(
+    within(release).getByRole("combobox", { name: "Status" }),
+  ).toBeVisible();
+  expect(
+    within(release).getByLabelText("Outcome / next action"),
+  ).not.toBeVisible();
+  expect(
+    within(release).getByText("Scratchpad, links and files"),
+  ).not.toBeVisible();
+  expect(
+    within(entryOf("Write the runbook")).getByLabelText(
+      "Outcome / next action",
+    ),
+  ).toBeVisible();
+  // The same work item planned on another day opens collapsed too.
+  first.unmount();
+  state.day = day("2026-10-29", [
+    entry("release", "Ship the release", "doing", { id: "entry-release-29" }),
+  ]);
+  render(view("2026-10-28", "2026-10-29"));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Expand Ship the release" }),
+  );
+  expect(
+    screen.getByRole("button", { name: "Collapse Ship the release" }),
+  ).toHaveAttribute("aria-expanded", "true");
+  expect(screen.getByLabelText("Outcome / next action")).toBeVisible();
+});
+
+it("collapses and expands every entry of the day at once", async () => {
+  state.day = day("2026-10-28", [
+    entry("release", "Ship the release", "doing"),
+    entry("runbook", "Write the runbook", "open"),
+  ]);
+  render(view("2026-10-28", "2026-10-28"));
+  const expandAll = screen.getByRole("button", { name: "Expand all" });
+  const collapseAll = screen.getByRole("button", { name: "Collapse all" });
+  expect(expandAll).toBeDisabled();
+  await userEvent.click(collapseAll);
+  for (const title of ["Ship the release", "Write the runbook"])
+    expect(
+      screen.getByRole("button", { name: "Expand " + title }),
+    ).toHaveAttribute("aria-expanded", "false");
+  expect(collapseAll).toBeDisabled();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Expand Write the runbook" }),
+  );
+  expect(collapseAll).toBeEnabled();
+  await userEvent.click(expandAll);
+  for (const title of ["Ship the release", "Write the runbook"])
+    expect(
+      screen.getByRole("button", { name: "Collapse " + title }),
+    ).toHaveAttribute("aria-expanded", "true");
+  expect(expandAll).toBeDisabled();
 });

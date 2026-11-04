@@ -717,14 +717,14 @@ header {
   color: var(--muted);
 }
 /* The outcome starts at two lines and grows with what is written; an archived entry's reads like the field's own label. */
-.day-entry > .draft {
+.entry-body > .draft {
   margin: 0;
 }
-.day-entry > .draft > label {
+.entry-body > .draft > label {
   font-size: 12px;
   margin-bottom: 7px;
 }
-.day-entry > .draft textarea {
+.entry-body > .draft textarea {
   min-height: 62px;
   max-height: 50vh;
   field-sizing: content;
@@ -732,6 +732,23 @@ header {
 .day-entry.dragging {
   opacity: 0.55;
   border-top: 2px solid var(--teal);
+}
+/* Expand all and Collapse all follow the day's work heading; its counts stay on the right. */
+.day-heading > .toolbar {
+  margin: 0 auto 0 0;
+  gap: 4px;
+}
+/* The chevron leads the entry's heading row, its icon on the content edge. */
+.day-entry .tree-toggle {
+  vertical-align: middle;
+  margin-left: -9px;
+}
+/* A collapsed entry keeps only its heading row, and a Reschedule picker opened from it. */
+.day-entry.collapsed > .section-heading {
+  margin-bottom: 0;
+}
+.day-entry.collapsed > .reschedule-picker {
+  margin: 6px 0 0;
 }
 .drag-handle {
   display: inline-block;
