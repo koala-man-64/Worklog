@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import sqlite3
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 # Older versions that startup and offline restore upgrade in one transaction.
-UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6})
+UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7})
 
 COORDINATION_SCHEMA = """
 CREATE TABLE repositories(id TEXT PRIMARY KEY,name TEXT NOT NULL,url TEXT NOT NULL DEFAULT '',description TEXT NOT NULL DEFAULT '',archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
@@ -80,6 +80,60 @@ def add_repository_provenance(conn: sqlite3.Connection) -> None:
                  f"registered_by_agent=(SELECT a.id {identity})")
 
 
+# v8 gives each work item one scratchpad, its single active note, and the index allows no second.
+SCRATCHPAD_INDEX = ("CREATE UNIQUE INDEX notes_item_scratchpad ON notes(owner_id) "
+                    "WHERE owner_type='item' AND archived=0")
+
+
+def add_item_scratchpads(conn: sqlite3.Connection) -> None:
+    """Fold each work item's active notes into its oldest one, as sections, and archive the rest.
+
+    Each note's title becomes its section's heading, so a scratchpad, which shows no title,
+    hides none. The archived notes keep their text whole, so nothing is lost when a fold stops
+    short of the note size limit (see scratchpad.fold). A lone untitled note, archived notes and
+    other owners' notes stay as they are.
+    """
+    from .common import now
+    from .scratchpad import TITLE, UNTITLED, fold
+
+    items: dict[str, list[tuple[str, str, str]]] = {}
+    for identity, owner, title, text in conn.execute(
+            "SELECT id,owner_id,title,text FROM notes WHERE owner_type='item' AND archived=0 ORDER BY owner_id,created_at,id"):
+        items.setdefault(owner, []).append((identity, title, text))
+    stamp = now()
+    refiled: list[tuple[str, str, str, str, int]] = []
+    for owner, notes in items.items():
+        (keeper, kept_title, _), rest = notes[0], notes[1:]
+        if not rest and kept_title.strip() in UNTITLED:
+            continue
+        merged, titled = fold([(title, text) for _, title, text in notes])
+        if not rest and not titled:
+            continue  # a lone note whose heading would not fit stays as it was
+        title = TITLE if titled else kept_title
+        conn.execute("UPDATE notes SET title=?,text=?,revision=revision+1,updated_at=? WHERE id=?",
+                     (title, merged, stamp, keeper))
+        refiled.append((keeper, title, merged, owner, 0))
+        # Archived as the archive command does: the text stays whole and readable.
+        for identity, note_title, text in rest:
+            conn.execute("UPDATE notes SET archived=1,revision=revision+1 WHERE id=?", (identity,))
+            refiled.append((identity, note_title, text, owner, 1))
+    _refile_notes(conn, refiled)
+    conn.execute(SCRATCHPAD_INDEX)
+
+
+def _refile_notes(conn: sqlite3.Connection, notes: list[tuple[str, str, str, str, int]]) -> None:
+    """File notes in search as WorkService.index does, so search finds merged text and the archived rest.
+
+    search_index cannot look up entity_id directly, so every delete reads the whole table:
+    one delete per batch rather than per note keeps a large upgrade from stalling startup.
+    """
+    identities = [note[0] for note in notes]
+    for start in range(0, len(identities), 500):
+        batch = identities[start:start + 500]
+        conn.execute(f"DELETE FROM search_index WHERE entity_id IN ({','.join('?' for _ in batch)})", batch)
+    conn.executemany("INSERT INTO search_index(entity_id,type,title,body,owner_id,archived) VALUES(?,'note',?,?,?,?)", notes)
+
+
 def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
     """Unlike executescript, preserve the caller's transaction and rollback boundary."""
     for statement in filter(str.strip, schema.split(";")):
@@ -87,7 +141,7 @@ def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
 
 
 def upgrade(conn: sqlite3.Connection) -> None:
-    """Upgrade an accepted v1 to v6 shape atomically inside the caller's transaction.
+    """Upgrade an accepted older version to the current shape atomically inside the caller's transaction.
 
     Credential IDs, proposal authors, receipts, and legacy chat repository labels
     are deliberately unchanged. No repository names are guessed or imported.
@@ -115,8 +169,10 @@ def upgrade(conn: sqlite3.Connection) -> None:
         execute_schema(conn, TICKET_SCHEMA)
     if version < 6:
         add_remote_identity(conn)
-    # Every upgradable version predates repository provenance (v7).
-    add_repository_provenance(conn)
+    if version < 7:
+        add_repository_provenance(conn)
+    # Every upgradable version predates item scratchpads (v8).
+    add_item_scratchpads(conn)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 

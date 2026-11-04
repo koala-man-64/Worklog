@@ -302,6 +302,26 @@ it("lists attached copies and local paths together, oldest first", async () => {
   await user.click(within(files).getByRole("button", { name: "Copy path" }));
   expect(await navigator.clipboard.readText()).toBe("C:\\Projects\\spec.docx");
 });
+it("gives the work item one scratchpad instead of a list of notes", () => {
+  state.item = item({
+    notes: [
+      {
+        id: "pad",
+        revision: 2,
+        archived: false,
+        title: "Scratchpad",
+        text: "Running notes",
+        ownerType: "item",
+        ownerId: ID,
+      },
+    ],
+  });
+  render(view(newClient()));
+  expect(screen.getByLabelText("Scratchpad (Markdown)")).toHaveValue(
+    "Running notes",
+  );
+  expect(screen.queryByRole("button", { name: "Add note" })).toBeNull();
+});
 it("files no tickets for archived work", () => {
   state.item = item({ archived: true });
   render(view(newClient()));

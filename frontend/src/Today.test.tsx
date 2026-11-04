@@ -14,6 +14,7 @@ import { Today } from "./Today";
 const state = vi.hoisted(() => ({
   day: null as unknown,
   work: null as unknown,
+  detail: null as unknown,
   paths: [] as string[],
 }));
 vi.mock("./hooks", async (importOriginal) => ({
@@ -25,7 +26,9 @@ vi.mock("./hooks", async (importOriginal) => ({
         ? state.day
         : path.startsWith("/work-items?")
           ? state.work
-          : { items: [], total: 0 },
+          : path.startsWith("/work-items/")
+            ? state.detail
+            : { items: [], total: 0 },
     };
   },
 }));
@@ -111,6 +114,47 @@ it("uses historical API summary and makes archived actuals read only", () => {
   expect(
     screen.getByRole("button", { name: "Reschedule Archived work" }),
   ).toBeDisabled();
+  // An archived item's scratchpad, links and files stay on its own page.
+  expect(screen.queryByText("Scratchpad, links and files")).toBeNull();
+});
+
+it("reads an entry's scratchpad, links and files only once they are opened", async () => {
+  state.day = day("2026-10-28", [
+    entry("release", "Ship the release", "doing"),
+  ]);
+  state.detail = {
+    id: "release",
+    notes: [
+      {
+        id: "pad",
+        revision: 3,
+        archived: false,
+        title: "Scratchpad",
+        text: "Release notes",
+        ownerType: "item",
+        ownerId: "release",
+      },
+    ],
+    links: [],
+    attachments: [],
+    references: [],
+  };
+  render(view("2026-10-28", "2026-10-28"));
+  const details = screen
+    .getByText("Scratchpad, links and files")
+    .closest("details")!;
+  expect(state.paths).not.toContain("/work-items/release");
+  expect(screen.queryByLabelText("Scratchpad (Markdown)")).toBeNull();
+  details.open = true;
+  fireEvent(details, new Event("toggle"));
+  expect(await screen.findByLabelText("Scratchpad (Markdown)")).toHaveValue(
+    "Release notes",
+  );
+  expect(state.paths).toContain("/work-items/release");
+  expect(
+    within(details).getByRole("heading", { name: /^Links/ }),
+  ).toBeInTheDocument();
+  expect(within(details).getByLabelText("Attach a file")).toBeInTheDocument();
 });
 
 it("offers open work that is not on the day and plans it there", async () => {

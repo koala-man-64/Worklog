@@ -56,7 +56,7 @@ def _schema_digest(signature: dict[tuple[str, str], str]) -> str:
 def _expected_schema(*, discussions: bool = True, coordination: bool = True,
                      avatars: bool = True, chat_messages: bool = True,
                      tickets: bool = True, remote_identity: bool = True,
-                     provenance: bool = True) -> dict[tuple[str, str], str]:
+                     provenance: bool = True, scratchpads: bool = True) -> dict[tuple[str, str], str]:
     from worklog.db import SCHEMA
     from worklog.plans import SCHEMA as PLAN_SCHEMA
     from worklog.proposals import SCHEMA as PROPOSAL_SCHEMA
@@ -71,15 +71,19 @@ def _expected_schema(*, discussions: bool = True, coordination: bool = True,
         if coordination:
             from worklog.migrations import (
                 COORDINATION_SCHEMA,
+                add_item_scratchpads,
                 add_remote_identity,
                 add_repository_provenance,
             )
 
             conn.executescript(COORDINATION_SCHEMA)
+            # Each version's shape includes every earlier one's.
             if remote_identity:
                 add_remote_identity(conn)
                 if provenance:
                     add_repository_provenance(conn)
+                    if scratchpads:
+                        add_item_scratchpads(conn)
         if chat_messages:
             from worklog.chat_messages import SCHEMA as CHAT_MESSAGE_SCHEMA
 
@@ -214,6 +218,7 @@ def validate_database(path: Path | str, *, require_current: bool = True) -> None
                     raise ValueError("Database missing expected tables: " + ", ".join(sorted(missing)))
                 signature = _schema_signature(conn)
                 accepted = (signature == _expected_schema() if version == SCHEMA_VERSION
+                            else signature == _expected_schema(scratchpads=False) if version == 7
                             else signature == _expected_schema(provenance=False) if version == 6
                             else signature == _expected_schema(remote_identity=False) if version == 5
                             else signature == _expected_schema(tickets=False, remote_identity=False) if version == 4

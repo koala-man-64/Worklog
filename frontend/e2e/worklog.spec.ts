@@ -122,7 +122,7 @@ test("roadmap immutable revisions and mobile navigation", async ({ page }) => {
     page.getByRole("heading", { name: "Settings", exact: true }),
   ).toBeVisible();
 });
-test("notes, checklist, paths, attachments and archive recovery persist", async ({
+test("scratchpad, checklist, paths, attachments and archive recovery persist", async ({
   page,
 }) => {
   await page.goto("/#work");
@@ -146,13 +146,12 @@ test("notes, checklist, paths, attachments and archive recovery persist", async 
   await expect(
     page.getByText("C:\\Projects\\example.txt", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Add note", exact: true }).click();
-  await page
-    .getByRole("textbox", { name: "Markdown note", exact: true })
+  const scratchpad = page.locator(".scratchpad");
+  await scratchpad
+    .getByRole("textbox", { name: "Scratchpad (Markdown)", exact: true })
     .fill("## Durable context\n\n- [x] Captured");
-  const note = page.locator(".note");
-  await note.getByRole("button", { name: "Save now" }).last().click();
-  await expect(note.getByRole("status").last()).toHaveText("Saved");
+  await scratchpad.getByRole("button", { name: "Save now" }).click();
+  await expect(scratchpad.getByRole("status")).toHaveText("Saved");
   await page
     .getByRole("button", { name: "Attach a copy", exact: true })
     .click();
@@ -162,12 +161,12 @@ test("notes, checklist, paths, attachments and archive recovery persist", async 
     buffer: Buffer.from("Local evidence"),
   });
   await expect(page.getByRole("link", { name: "evidence.txt" })).toBeVisible();
-  await page.getByRole("button", { name: "Archive note", exact: true }).click();
-  await expect(note).toHaveCount(0);
-  await page.getByText(/Archived supporting records/).click();
-  await page.getByRole("button", { name: "Recover", exact: true }).click();
+  await page.reload();
   await expect(
-    page.getByRole("textbox", { name: "Markdown note", exact: true }),
+    scratchpad.getByRole("textbox", {
+      name: "Scratchpad (Markdown)",
+      exact: true,
+    }),
   ).toHaveValue("## Durable context\n\n- [x] Captured");
   await page
     .getByRole("button", { name: "Archive", exact: true })
@@ -389,6 +388,28 @@ test("native day drag reorders actual entries without losing an outcome", async 
       .filter({ has: page.getByRole("link", { name: second, exact: true }) })
       .getByLabel("Outcome / next action"),
   ).toHaveValue("Keep this outcome");
+});
+test("an entry's scratchpad on Today is its work item's own", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const title = "Scratchpad " + Date.now();
+  await page.getByRole("textbox", { name: "New work item" }).fill(title);
+  await page.getByRole("button", { name: "Add work", exact: true }).click();
+  const entry = page
+    .locator(".day-entry")
+    .filter({ has: page.getByRole("link", { name: title, exact: true }) });
+  await entry.getByText("Scratchpad, links and files").click();
+  await entry
+    .getByRole("textbox", { name: "Scratchpad (Markdown)", exact: true })
+    .fill("Written on Today");
+  const pad = entry.locator(".scratchpad");
+  await pad.getByRole("button", { name: "Save now" }).click();
+  await expect(pad.getByRole("status")).toHaveText("Saved");
+  await entry.getByRole("link", { name: title, exact: true }).click();
+  await expect(
+    page.getByRole("textbox", { name: "Scratchpad (Markdown)", exact: true }),
+  ).toHaveValue("Written on Today");
 });
 test("open work is planned for the day and rescheduled from beside its title", async ({
   page,

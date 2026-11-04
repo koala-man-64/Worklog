@@ -587,6 +587,21 @@ header {
 .reschedule-picker input {
   flex: 0 1 auto;
 }
+/* Today: an entry's scratchpad, links and files, opened on demand. */
+.entry-details {
+  margin-top: 14px;
+}
+.entry-details > summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--muted);
+}
+.entry-details[open] > summary {
+  margin-bottom: 12px;
+}
+.archived-notes {
+  margin-top: 12px;
+}
 .day-header {
   display: flex;
   flex-wrap: wrap;

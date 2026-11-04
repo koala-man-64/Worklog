@@ -553,6 +553,56 @@ export function Notes({
     </section>
   );
 }
+/**
+ * A work item's one note: free Markdown, created by its first save. Notes it replaced, and
+ * any archived before, stay readable below it.
+ */
+export function Scratchpad({
+  itemId,
+  notes,
+}: {
+  itemId: string;
+  notes: Note[];
+}) {
+  const pad = notes.find((n) => !n.archived);
+  const archived = notes.filter((n) => n.archived);
+  // The note the first save created, until the item's next load lists it.
+  const created = useRef<string | null>(null);
+  const save = async (text: string, revision: number) => {
+    const id = pad?.id ?? created.current;
+    if (id) return commands.updateNote(id, { revision, text });
+    const note = await commands.createNote({
+      ownerType: "item",
+      ownerId: itemId,
+      title: "Scratchpad",
+      text,
+    });
+    created.current = note.id;
+    return note;
+  };
+  return (
+    <section className="scratchpad">
+      <DraftField
+        draftKey={"scratchpad-" + itemId}
+        label="Scratchpad (Markdown)"
+        initial={pad?.text ?? ""}
+        revision={pad?.revision ?? 0}
+        save={save}
+      />
+      {archived.length > 0 && (
+        <details className="archived-notes">
+          <summary>Archived notes ({archived.length})</summary>
+          {archived.map((n) => (
+            <article className="note" key={n.id}>
+              {n.title && <h4>{n.title}</h4>}
+              <Markdown text={n.text} />
+            </article>
+          ))}
+        </details>
+      )}
+    </section>
+  );
+}
 export function formatBytes(value: number) {
   return value < 1024
     ? `${value} B`

@@ -6,14 +6,54 @@ import {
   DraftField,
   Empty,
   ErrorMessage,
+  Files,
+  LinksSection,
+  Scratchpad,
   StatusSelect,
   Markdown,
 } from "./components";
 import { CreateItem } from "./Work";
-import type { Day, Entry, Item, List, Status } from "./types";
+import type { Day, Detail, Entry, Item, List, Status } from "./types";
 import { Icon } from "./icons";
 // The work Today offers to plan: anything not finished.
 const OPEN_STATES: Status[] = ["open", "doing", "blocked"];
+// An entry's scratchpad, links and files, the work item page's own sections. The item is
+// read only once they are first opened, and they stay put after, drafts and all.
+function EntryDetails({ itemId }: { itemId: string }) {
+  const [opened, setOpened] = useState(false);
+  return (
+    <details
+      className="entry-details"
+      onToggle={(e) => {
+        if (e.currentTarget.open) setOpened(true);
+      }}
+    >
+      <summary>Scratchpad, links and files</summary>
+      {opened && <EntryDetailsBody itemId={itemId} />}
+    </details>
+  );
+}
+function EntryDetailsBody({ itemId }: { itemId: string }) {
+  const item = useData<Detail>("/work-items/" + itemId);
+  if (!item.data)
+    return item.error ? (
+      <ErrorMessage error={item.error} />
+    ) : (
+      <p className="muted">Loading…</p>
+    );
+  return (
+    <>
+      <Scratchpad itemId={itemId} notes={item.data.notes} />
+      <LinksSection ownerType="item" ownerId={itemId} links={item.data.links} />
+      <Files
+        ownerType="item"
+        ownerId={itemId}
+        files={item.data.attachments}
+        references={item.data.references ?? []}
+      />
+    </>
+  );
+}
 export function Today({
   today,
   initialDate,
@@ -365,6 +405,7 @@ export function Today({
                   }
                 />
               )}
+              {!entry.item.archived && <EntryDetails itemId={entry.itemId} />}
             </article>
           ))}
           <section className="open-work">

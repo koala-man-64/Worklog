@@ -12,10 +12,10 @@ import {
   GithubRefsSection,
   History,
   LinksSection,
-  Notes,
   PeopleLinks,
   PersonBadges,
   RecoverRecords,
+  Scratchpad,
   STATUSES,
   StatusSelect,
   statusLabel,
@@ -539,7 +539,7 @@ export function ItemDetail({ id }: { id: string }) {
         disabled={!!item.archived || action.isPending}
       />
       <Coordination key={id} itemId={id} />
-      <Notes ownerType="item" ownerId={id} notes={item.notes} />
+      <Scratchpad itemId={id} notes={item.notes} />
       <PeopleLinks targetType="item" targetId={id} people={item.people} />
       <LinksSection ownerType="item" ownerId={id} links={item.links} />
       <AgentChatsSection ownerType="item" ownerId={id} chats={item.chats} />
@@ -576,7 +576,7 @@ export function ItemDetail({ id }: { id: string }) {
       />
       <RecoverRecords
         groups={[
-          { label: "Notes", path: "notes", records: item.notes },
+          // Archived notes are read under the scratchpad: beside it, one could only be refused.
           { label: "Tasks", path: "tasks", records: item.tasks },
           { label: "Files", path: "attachments", records: item.attachments },
           { label: "Paths", path: "references", records: item.references },
