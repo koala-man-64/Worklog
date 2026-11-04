@@ -68,7 +68,7 @@ Nothing is deleted. Archived records leave the lists, and their pages show what 
 
 - Work items, tickets, roadmaps, people and repositories have "Archive" and "Recover" on their page or row.
 - Lists have "Show archive" to show only archived records.
-- On a work item or roadmap, archived notes, links, files and tasks are under "Archived supporting records", each with "Recover".
+- On a work item, roadmap or repository, archived notes, links, files and tasks are under "Archived supporting records", each with "Recover".
 - An archived roadmap or ticket is read-only until you recover it.
 
 ### Activity history
@@ -239,9 +239,13 @@ A person's page lists everything they are tied to, their "Notes (Markdown)" and 
   - Agents register the repositories they work in, so their work shows up at once. Such a repository says "Registered by" the agent and "unreviewed" until you press "Confirm" or edit it.
   - To keep registration to yourself, clear "Agents may register repositories" in Settings.
 - **Link work.** On a repository's page, "Link work item" under "Linked work" links work to it. On a work item, "Link repository" does the same from the other side.
+- **Keep documents with it.** On a repository's page, "Attach a file" under "Files" stores a copy of a design, runbook or any other file in Worklog, up to 25 MB.
+  - Each file's name downloads it, and "Archive" puts it under "Archived supporting records".
+  - Search finds a file by its name and opens its repository.
+  - An archived repository keeps its files readable but takes no new ones until you recover it.
 - **Merge duplicates.**
   - On the duplicate's page, find the record to keep under "Merge into another repository", and press "Confirm merge".
-  - Its work and chat links, tickets and agent reports move to the record you keep. The duplicate is archived as "Merged into" that record.
+  - Its work and chat links, tickets, files and agent reports move to the record you keep. The duplicate is archived as "Merged into" that record.
   - Merging can't be undone.
 
 ### Bring an AI agent in
@@ -400,6 +404,7 @@ The repositories you and your agents work in.
 - **A repository's page:**
   - "Repository name", "Remote URL" and "Description", plus "Archive repository" or "Recover repository".
   - "Merge into another repository" and "Linked work" ("Link work item").
+  - "Files" ("Attach a file"), with archived files under "Archived supporting records".
   - "Participants" and "Recent updates": who works there, on which branch, checkout or worktree, and what they reported.
 - **Reports are advisory.** They reserve nothing, and show "Stale report" after two hours without news.
 

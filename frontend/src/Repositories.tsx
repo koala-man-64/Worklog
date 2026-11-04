@@ -1,12 +1,19 @@
 import { useState } from "react";
 import { request } from "./api";
 import { useAction, useData } from "./hooks";
-import { DraftField, Empty, ErrorMessage, statusLabel } from "./components";
+import {
+  DraftField,
+  Empty,
+  ErrorMessage,
+  Files,
+  RecoverRecords,
+  statusLabel,
+} from "./components";
 import { Coordination, OpenRuns, Pages } from "./Coordination";
 import { LinkPicker } from "./LinkPicker";
 import { RepositoryName } from "./RepositoryControls";
 import type { Repository, RepositoryRegistration } from "./repositoryTypes";
-import type { Item, List } from "./types";
+import type { Attachment, Item, List } from "./types";
 
 export function Repositories({ selected }: { selected?: string }) {
   return selected ? (
@@ -237,9 +244,9 @@ function MergeInto({ source }: { source: Repository }) {
     <details open={!!source.duplicateOf}>
       <summary>Merge into another repository</summary>
       <p className="muted">
-        Merging moves this repository’s work and chat links, tickets, reported
-        activity and updates to the other record, archives this one as merged,
-        and makes its remote answer with the other. It cannot be undone.
+        Merging moves this repository’s work and chat links, tickets, files,
+        reported activity and updates to the other record, archives this one as
+        merged, and makes its remote answer with the other. It cannot be undone.
       </p>
       <input
         aria-label="Find a repository to merge into"
@@ -394,6 +401,42 @@ function LinkedWork({ repo }: { repo: Repository }) {
     </section>
   );
 }
+// Documents kept with the repository, such as designs and runbooks. As with links, only an
+// active record takes new ones; an archived record keeps its files readable.
+function RepositoryFiles({ repo }: { repo: Repository }) {
+  const owner = `/attachments?ownerType=repository&ownerId=${encodeURIComponent(repo.id)}`;
+  const active = useData<List<Attachment>>(owner);
+  const archived = useData<List<Attachment>>(owner + "&archived=true");
+  return (
+    <section>
+      <h2>Files</h2>
+      <ErrorMessage error={active.error || archived.error} />
+      {active.isPending ? (
+        <p>Loading files…</p>
+      ) : !active.error && !active.data?.items.length ? (
+        <Empty>No files attached to this repository.</Empty>
+      ) : null}
+      <Files
+        ownerType="repository"
+        ownerId={repo.id}
+        files={active.data?.items ?? []}
+        readOnly={repo.archived}
+        heading={false}
+      />
+      {!repo.archived && (
+        <RecoverRecords
+          groups={[
+            {
+              label: "Files",
+              path: "attachments",
+              records: archived.data?.items ?? [],
+            },
+          ]}
+        />
+      )}
+    </section>
+  );
+}
 function RepositoryDetail({ id }: { id: string }) {
   const query = useData<Repository>("/repositories/" + id);
   const action = useAction();
@@ -432,7 +475,8 @@ function RepositoryDetail({ id }: { id: string }) {
         <>
           {repo.archived && (
             <p>
-              Archived repository. Existing links and reports remain visible.
+              Archived repository. Existing links, files and reports remain
+              visible.
             </p>
           )}
           {repo.duplicateOf && <SameRemote id={repo.duplicateOf} />}
@@ -467,6 +511,8 @@ function RepositoryDetail({ id }: { id: string }) {
         </>
       )}
       <LinkedWork repo={repo} />
+      {/* A merge moves every file to the record that answers for this one. */}
+      {!repo.mergedInto && <RepositoryFiles repo={repo} />}
       <Coordination repositoryId={id} />
     </>
   );
