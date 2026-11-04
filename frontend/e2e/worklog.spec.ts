@@ -803,6 +803,7 @@ test("every page spends the whole window beside the sidebar", async ({
     discussions: "Discussions",
     review: "Review",
     settings: "Settings",
+    guide: "Guide",
   };
   for (const [route, heading] of Object.entries(pages)) {
     await page.goto("/#" + route);

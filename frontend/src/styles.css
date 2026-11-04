@@ -3385,7 +3385,8 @@ code {
   }
   .roadmap-split .panel-body,
   .chats-split .panel-body,
-  .discussions-split .panel-body {
+  .discussions-split .panel-body,
+  .guide-split .panel-body {
     max-height: 60dvh;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -3456,6 +3457,9 @@ code {
   .discussions-split {
     grid-template-columns: minmax(280px, 2fr) minmax(0, 3fr);
   }
+  .guide-split {
+    grid-template-columns: minmax(240px, 1fr) minmax(0, 3fr);
+  }
   .discussion-roles-panel[open] {
     flex: 1 1 auto;
     min-height: 0;
@@ -3502,6 +3506,37 @@ code {
       transform: none;
     }
   }
+}
+/* The guide's contents: its sections, with their subsections indented. */
+.guide-contents,
+.guide-contents ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.guide-contents {
+  padding: 8px 0;
+}
+.guide-contents ul {
+  padding-left: 14px;
+}
+.guide-contents a {
+  display: block;
+  padding: 4px 8px;
+  border-radius: 5px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.guide-contents a:hover {
+  background: var(--teal-wash);
+}
+.guide-contents a[aria-current] {
+  background: var(--teal-wash);
+  color: var(--teal);
+  font-weight: 600;
+}
+.guide .markdown h2:first-child {
+  margin-top: 0;
 }
 /* Linked repositories read as chips that unlink; "Link repository" searches for another. */
 .repository-picker {
