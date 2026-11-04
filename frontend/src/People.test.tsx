@@ -207,8 +207,15 @@ it("lists people with their title, team, description and how to reach them, and 
 
 it("dials a phone number's digits without its extension, and never text with too few", () => {
   expect(telephone("+1 (312) 555-0100 ext. 12")).toBe("tel:+13125550100");
+  expect(telephone("+1 312 555 0100 x12")).toBe("tel:+13125550100");
   expect(telephone("312.555.0100")).toBe("tel:3125550100");
   expect(telephone("+44 20 7946 0958")).toBe("tel:+442079460958");
+  // A trunk 0 written after the country code is not dialled from abroad; at home it is.
+  expect(telephone("+44 (0)20 7946 0958")).toBe("tel:+442079460958");
+  expect(telephone("(0)20 7946 0958")).toBe("tel:02079460958");
+  // Letters or words would only dial the digits before them.
+  expect(telephone("1-800-FLOWERS")).toBeNull();
+  expect(telephone("+1 312 555 0100 (mobile)")).toBeNull();
   expect(telephone("ext 12")).toBeNull();
   expect(telephone("12")).toBeNull();
 });
@@ -243,6 +250,148 @@ it("shows a person's fields and saves the one that changed", async () => {
       method: "PATCH",
       body: { revision: 3, email: "alice.rivera@contoso.com" },
     }),
+  );
+});
+
+it("saves two fields edited one after the other on consecutive revisions of the person", async () => {
+  let revision = 3;
+  const patches: unknown[] = [];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    if ((init?.method ?? "GET") === "GET")
+      return new Response(JSON.stringify({ ...detail, revision }), {
+        status: 200,
+      });
+    patches.push(JSON.parse(String(init?.body)));
+    revision += 1;
+    return new Response(JSON.stringify({ ...samplePerson, revision }), {
+      status: 200,
+    });
+  });
+  show(<PersonDetailView id={PERSON_ID} />);
+  const title = await screen.findByRole("textbox", { name: "Title" });
+  await userEvent.clear(title);
+  await userEvent.type(title, "Principal Engineer");
+  const email = screen.getByRole("textbox", { name: "Email" });
+  // Leaving Title for Email saves Title; leaving Email saves Email on the revision Title made.
+  await userEvent.click(email);
+  await userEvent.clear(email);
+  await userEvent.type(email, "alice@fabrikam.com");
+  await userEvent.tab();
+  await waitFor(() =>
+    expect(patches).toEqual([
+      { revision: 3, title: "Principal Engineer" },
+      { revision: 4, email: "alice@fabrikam.com" },
+    ]),
+  );
+});
+
+it("keeps a refused email as a draft and says why", async () => {
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) =>
+    (init?.method ?? "GET") === "GET"
+      ? new Response(JSON.stringify(detail), { status: 200 })
+      : new Response(
+          JSON.stringify({
+            error: {
+              code: "validation",
+              message: "Email must be an address such as name@example.com.",
+              fields: { email: "invalid" },
+            },
+          }),
+          { status: 422 },
+        ),
+  );
+  show(<PersonDetailView id={PERSON_ID} />);
+  const email = await screen.findByRole("textbox", { name: "Email" });
+  await userEvent.clear(email);
+  await userEvent.type(email, "alice");
+  await userEvent.tab();
+  expect(
+    await screen.findByText(
+      "Not saved: Email must be an address such as name@example.com. Draft kept.",
+    ),
+  ).toBeInTheDocument();
+  expect(email).toHaveValue("alice");
+});
+
+it("shows an archived person's ties without taking new ones, and still unlinks", async () => {
+  const calls = serve([
+    [`/people/${PERSON_ID}`, { ...detail, archived: true }],
+  ]);
+  show(<PersonDetailView id={PERSON_ID} />);
+  expect(
+    await screen.findByText(
+      "Archived person. Recover them to tie them to more work.",
+    ),
+  ).toBeInTheDocument();
+  for (const button of ["Tie work item", "Tie roadmap", "Tie repository"])
+    expect(screen.queryByRole("button", { name: button })).toBeNull();
+  expect(
+    screen.getByRole("textbox", { name: "Role on ingest" }),
+  ).toBeDisabled();
+  await userEvent.click(screen.getByRole("button", { name: "Unlink ingest" }));
+  await waitFor(() =>
+    expect(calls.at(-1)).toEqual({
+      url: "/api/v1/person-links/unlink",
+      method: "POST",
+      body: {
+        personId: PERSON_ID,
+        targetType: "repository",
+        targetId: REPO_ID,
+      },
+    }),
+  );
+});
+
+it("shows a number it cannot dial as text, and names a chat handle and a place", async () => {
+  serve([
+    [
+      "/people",
+      {
+        items: [{ ...samplePerson, email: "", phone: "1-800-FLOWERS" }],
+        total: 1,
+      },
+    ],
+  ]);
+  show(<People />);
+  const reach = await screen.findByRole("group", {
+    name: "How to reach Alice Rivera",
+  });
+  expect(within(reach).queryByRole("link")).toBeNull();
+  expect(within(reach).getByText("1-800-FLOWERS")).toBeInTheDocument();
+  expect(reach).toHaveTextContent(
+    "1-800-FLOWERSChat: @alice on SlackLocation: Chicago (US Central)",
+  );
+});
+
+it("saves a role edited just before Unlink, then unlinks, so the save cannot tie the person again", async () => {
+  const writes: { url: string; body: unknown }[] = [];
+  let finishSave = () => undefined as void;
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const url = String(input);
+    if ((init?.method ?? "GET") === "GET")
+      return new Response(JSON.stringify(detail), { status: 200 });
+    writes.push({ url, body: JSON.parse(String(init?.body)) });
+    // The role's save is still on its way when Unlink is pressed.
+    if (url.endsWith("/person-links"))
+      await new Promise<void>((resolve) => (finishSave = resolve));
+    return new Response(JSON.stringify({ ok: true }), { status: 200 });
+  });
+  show(<PersonDetailView id={PERSON_ID} />);
+  const role = await screen.findByRole("textbox", { name: "Role on ingest" });
+  await userEvent.clear(role);
+  await userEvent.type(role, "Owner");
+  await userEvent.click(screen.getByRole("button", { name: "Unlink ingest" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0].url).toBe("/api/v1/person-links");
+  // Nothing more goes out while the save is pending: the unlink waits for it.
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  expect(writes).toHaveLength(1);
+  finishSave();
+  await waitFor(() =>
+    expect(writes.map((w) => w.url)).toEqual([
+      "/api/v1/person-links",
+      "/api/v1/person-links/unlink",
+    ]),
   );
 });
 

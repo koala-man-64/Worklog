@@ -308,6 +308,7 @@ export function DraftField({
   maxLength,
   disabled = false,
   labelHidden = false,
+  preview: previewable = multiline,
 }: {
   draftKey: string;
   label: string;
@@ -320,6 +321,8 @@ export function DraftField({
   disabled?: boolean;
   /** For a field a tab already names: the label still names it for assistive technology. */
   labelHidden?: boolean;
+  /** False for plain text that is never shown as Markdown, such as a person's description. */
+  preview?: boolean;
 }) {
   const draft = useDraft(draftKey, initial, revision, save);
   const [preview, setPreview] = useState(false);
@@ -334,7 +337,7 @@ export function DraftField({
           {label}
         </label>
         <span role="status">{draft.state}</span>
-        {multiline && (
+        {multiline && previewable && (
           <button className="quiet" onClick={() => setPreview(!preview)}>
             {preview ? "Edit" : "Preview"}
           </button>
@@ -1035,6 +1038,76 @@ export function RecoverRecords({
 export function personLine(title: string, team: string) {
   return [title, team].filter(Boolean).join(" · ");
 }
+/**
+ * A tie's role, saved when its field loses focus, and the tie's Unlink. Pressing Unlink
+ * right after editing the role saves the role first: the press is not lost to a button
+ * disabled mid-click, and the save cannot land after the unlink and tie the person again.
+ */
+export function TieRole({
+  tie,
+  name,
+  unlinkName,
+  relationship,
+  disabled = false,
+  unlinkDisabled = false,
+  placeholder,
+}: {
+  tie: {
+    personId: string;
+    targetType: "item" | "roadmap" | "repository";
+    targetId: string;
+  };
+  /** The role field's accessible name, such as "Role on Define SLOs". */
+  name: string;
+  unlinkName: string;
+  relationship: string;
+  disabled?: boolean;
+  unlinkDisabled?: boolean;
+  placeholder: string;
+}) {
+  const action = useAction();
+  const saving = useRef<Promise<unknown>>(Promise.resolve());
+  const [unlinking, setUnlinking] = useState(false);
+  return (
+    <>
+      <input
+        aria-label={name}
+        defaultValue={relationship}
+        key={relationship}
+        disabled={disabled}
+        placeholder={placeholder}
+        onBlur={(e) => {
+          const next = e.target.value.trim();
+          if (next !== relationship)
+            saving.current = action
+              .mutateAsync({
+                path: "/person-links",
+                body: { ...tie, relationship: next },
+              })
+              .catch(() => undefined);
+        }}
+      />
+      <button
+        type="button"
+        className="quiet"
+        aria-label={unlinkName}
+        disabled={unlinkDisabled || unlinking}
+        onClick={() => {
+          setUnlinking(true);
+          void saving.current
+            .then(() =>
+              action.mutateAsync({ path: "/person-links/unlink", body: tie }),
+            )
+            .catch(() => undefined)
+            .finally(() => setUnlinking(false));
+        }}
+      >
+        Unlink
+      </button>
+      <ErrorMessage error={action.error} />
+    </>
+  );
+}
 export function PersonBadges({ people }: { people?: PersonAssignment[] }) {
   if (!people?.length) return null;
   return (
@@ -1088,41 +1161,15 @@ export function PeopleLinks({
           {personLine(p.personTitle, p.personTeam) && (
             <small>{personLine(p.personTitle, p.personTeam)}</small>
           )}
-          <input
-            aria-label={"Role for " + p.name}
-            defaultValue={p.relationship}
-            key={p.id + ":" + p.relationship}
+          <TieRole
+            tie={{ personId: p.personId, targetType, targetId }}
+            name={"Role for " + p.name}
+            unlinkName={"Unlink " + p.name}
+            relationship={p.relationship}
             disabled={disabled}
+            unlinkDisabled={disabled}
             placeholder="Role (e.g. Owner, Stakeholder)…"
-            onBlur={(e) => {
-              const next = e.target.value.trim();
-              if (next !== p.relationship) {
-                action.mutate({
-                  path: "/person-links",
-                  body: {
-                    personId: p.personId,
-                    targetType,
-                    targetId,
-                    relationship: next,
-                  },
-                });
-              }
-            }}
           />
-          <button
-            type="button"
-            className="quiet"
-            disabled={disabled}
-            aria-label={"Unlink " + p.name}
-            onClick={() =>
-              action.mutate({
-                path: "/person-links/unlink",
-                body: { personId: p.personId, targetType, targetId },
-              })
-            }
-          >
-            Unlink
-          </button>
         </div>
       ))}
       {canTie && (

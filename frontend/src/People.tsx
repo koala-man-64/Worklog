@@ -7,6 +7,7 @@ import {
   ErrorMessage,
   History,
   StatusSelect,
+  TieRole,
   personLine,
   statusLabel,
 } from "./components";
@@ -25,12 +26,19 @@ function plural(count: number, one: string, many: string) {
   return `${count} ${count === 1 ? one : many}`;
 }
 
-/** A phone number as a tel: address: its leading digits and +, never the extension text after them. */
+/**
+ * A phone number as a tel: address, or null when it would not dial the number as written.
+ * An extension after the number ("ext. 12", "x12") is left off, and so is a trunk 0 written
+ * after the country code ("+44 (0)20"), which is not dialled from abroad. Anything with
+ * letters in it, such as 1-800-FLOWERS, is shown but never dialled.
+ */
 export function telephone(phone: string) {
-  const number = (/^[\d\s+().-]+/.exec(phone)?.[0] ?? "")
-    .replace(/[^\d+]/g, "")
-    .replace(/(?!^)\+/g, "");
-  return (number.match(/\d/g)?.length ?? 0) >= 3 ? "tel:" + number : null;
+  const [number] = phone.trim().split(/\s*(?:ext\.?|extension|x)\s*\d+$/i);
+  if (!/^\+?[\d\s().\-/]+$/.test(number)) return null;
+  const digits = number
+    .replace(/^(\+\d{1,3})\s*\(0\)/, "$1")
+    .replace(/[^\d+]/g, "");
+  return (digits.match(/\d/g)?.length ?? 0) >= 3 ? "tel:" + digits : null;
 }
 
 /** How to reach someone: email and phone open the mail app and the dialer. */
@@ -53,9 +61,21 @@ export function Contact({ person }: { person: Person }) {
         <span key="phone">{person.phone}</span>
       ),
     );
-  if (person.chat) parts.push(<span key="chat">{person.chat}</span>);
+  // Addresses and numbers say what they are; a handle and a place get a name for screen readers.
+  if (person.chat)
+    parts.push(
+      <span key="chat">
+        <span className="visually-hidden">Chat: </span>
+        {person.chat}
+      </span>,
+    );
   if (person.location)
-    parts.push(<span key="location">{person.location}</span>);
+    parts.push(
+      <span key="location">
+        <span className="visually-hidden">Location: </span>
+        {person.location}
+      </span>,
+    );
   if (!parts.length) return null;
   return (
     <div
@@ -309,6 +329,7 @@ export function PersonDetailView({ id }: { id: string }) {
         revision={person.revision}
         placeholder="Who they are and what to go to them for…"
         maxLength={10000}
+        preview={false}
         save={save("description")}
       />
       <DraftField
@@ -339,13 +360,11 @@ export function PersonDetailView({ id }: { id: string }) {
                 })
               }
             />
-            <Role
-              personId={id}
-              targetType="item"
-              targetId={link.itemId}
-              title={link.item.title}
+            <TieRole
+              tie={{ personId: id, targetType: "item", targetId: link.itemId }}
+              name={"Role on " + link.item.title}
+              unlinkName={"Unlink " + link.item.title}
               relationship={link.relationship}
-              linkId={link.linkId}
               disabled={person.archived}
               placeholder="Role (e.g. Owner, Reviewer)…"
             />
@@ -384,13 +403,15 @@ export function PersonDetailView({ id }: { id: string }) {
               {link.roadmap.title}
             </a>
             {link.roadmap.archived && <small>Archived</small>}
-            <Role
-              personId={id}
-              targetType="roadmap"
-              targetId={link.roadmapId}
-              title={link.roadmap.title}
+            <TieRole
+              tie={{
+                personId: id,
+                targetType: "roadmap",
+                targetId: link.roadmapId,
+              }}
+              name={"Role on " + link.roadmap.title}
+              unlinkName={"Unlink " + link.roadmap.title}
               relationship={link.relationship}
-              linkId={link.linkId}
               disabled={person.archived}
               placeholder="Role (e.g. Owner, Stakeholder)…"
             />
@@ -428,13 +449,15 @@ export function PersonDetailView({ id }: { id: string }) {
               {link.repository.name}
             </a>
             {link.repository.archived && <small>Archived</small>}
-            <Role
-              personId={id}
-              targetType="repository"
-              targetId={link.repositoryId}
-              title={link.repository.name}
+            <TieRole
+              tie={{
+                personId: id,
+                targetType: "repository",
+                targetId: link.repositoryId,
+              }}
+              name={"Role on " + link.repository.name}
+              unlinkName={"Unlink " + link.repository.name}
               relationship={link.relationship}
-              linkId={link.linkId}
               disabled={person.archived}
               placeholder="Role (e.g. Maintainer, Reviewer)…"
             />
@@ -464,64 +487,6 @@ export function PersonDetailView({ id }: { id: string }) {
         )}
       </section>
       <History items={person.history} />
-    </>
-  );
-}
-
-/** A tie's role, saved when the field loses focus, and the tie's Unlink. */
-function Role({
-  personId,
-  targetType,
-  targetId,
-  title,
-  relationship,
-  linkId,
-  disabled = false,
-  placeholder,
-}: {
-  personId: string;
-  targetType: TargetType;
-  targetId: string;
-  title: string;
-  relationship: string;
-  linkId: string;
-  /** An archived person's roles stay as they are until the person is recovered. */
-  disabled?: boolean;
-  placeholder: string;
-}) {
-  const action = useAction();
-  return (
-    <>
-      <input
-        aria-label={"Role on " + title}
-        defaultValue={relationship}
-        key={linkId + ":" + relationship}
-        disabled={disabled}
-        placeholder={placeholder}
-        onBlur={(e) => {
-          const next = e.target.value.trim();
-          if (next !== relationship)
-            action.mutate({
-              path: "/person-links",
-              body: { personId, targetType, targetId, relationship: next },
-            });
-        }}
-      />
-      <button
-        type="button"
-        className="quiet"
-        aria-label={"Unlink " + title}
-        disabled={action.isPending}
-        onClick={() =>
-          action.mutate({
-            path: "/person-links/unlink",
-            body: { personId, targetType, targetId },
-          })
-        }
-      >
-        Unlink
-      </button>
-      <ErrorMessage error={action.error} />
     </>
   );
 }

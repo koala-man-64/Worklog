@@ -475,8 +475,9 @@ Any other field is refused. Proposals cannot archive or recover files, import pl
   - A person link's `targetType` is `item`, `roadmap` or `repository`. A new tie to a repository needs an active one (`archived`, `repository_merged`); an existing tie's `relationship` can still change.
 - **People.**
   - `team` is the field older Worklog versions called `role`; `role` is refused.
-  - `email` is empty or one address with a dotted domain, such as `name@example.com`, without spaces, `?`, `#`, `/`, `%`, `,` or `;`. `phone` is empty or a number as people write it, such as `+1 (312) 555-0100 ext. 12`, with at least one digit.
-  - `name`, `title`, `team`, `chat` and `location` are single lines of at most 500 bytes, `email` 320 and `phone` 100. `description` is a paragraph of at most 10,000 bytes. Single-line fields are trimmed.
+  - `email` is empty or one address with a dotted domain, such as `name@example.com`, without whitespace, control characters or any of `<>()[]\,;:"?#/%`. `phone` is empty or a number as people write it, such as `+1 (312) 555-0100 ext. 12`, with at least one digit and no control characters.
+  - `name`, `title`, `team`, `chat` and `location` are single lines of at most 500 bytes: a line break or other control character is refused. `email` takes at most 320 bytes and `phone` 100. `description` is a paragraph of at most 10,000 bytes. Single-line fields are trimmed.
+  - Assignments (`people` on a work item, roadmap or repository) carry `personTitle` and `personTeam`, where older versions had `personRole`.
 - **Statuses.**
   - `status` on `item.update` and `progress.set` is `open`, `doing`, `blocked` or `done`. `progress.set` takes leaf steps; a parent step's progress follows its children.
   - A question's `status` is `open` or `answered`.

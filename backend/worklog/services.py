@@ -7,6 +7,7 @@ import hashlib
 import json
 import re
 import sqlite3
+import unicodedata
 from pathlib import PureWindowsPath
 from typing import Any
 from urllib.parse import urlsplit
@@ -124,6 +125,9 @@ PERSON_FIELDS = tuple(PERSON_LIMITS)
 PERSON_TARGETS = {"item": "work_items", "roadmap": "roadmaps", "repository": "repositories"}
 # Besides whitespace and control characters: what a mailto: link would read as more than an address.
 EMAIL_FORBIDDEN = frozenset('<>()[]\\,;:"?#/%')
+# The single-line person fields, and what breaks a line: control characters and line or paragraph separators.
+PERSON_LINES = ("name", "title", "team", "chat", "location")
+LINE_BREAKS = frozenset({"Cc", "Zl", "Zp"})
 
 
 def person_record(r: Any) -> dict:
@@ -180,7 +184,8 @@ def person_email(raw: Any) -> str:
 def person_phone(raw: Any) -> str:
     """Empty, or a number as people write it, such as +1 (312) 555-0100 ext. 12."""
     value = text(raw, "phone", limit=PERSON_LIMITS["phone"]).strip()
-    if value and (not re.search("[0-9]", value) or not value.isprintable()):
+    # A digit in any script counts, such as the full-width ones some keyboards type.
+    if value and (not any(unicodedata.category(ch) == "Nd" for ch in value) or not value.isprintable()):
         raise AppError(422, "validation", "Phone must be a number such as +1 312 555 0100.", {"phone": "invalid"})
     return value
 
@@ -671,6 +676,10 @@ class WorkService:
             val["name"] = text(val["name"], "name", required=True, limit=PERSON_LIMITS["name"])
             for k in ("title", "team", "chat", "location"):
                 val[k] = text(val[k], k, limit=PERSON_LIMITS[k]).strip()
+            # Refused only as it is set: a break kept from before (v9 never refused one) blocks no other change.
+            for k in PERSON_LINES:
+                if p.get(k) is not None and any(unicodedata.category(ch) in LINE_BREAKS for ch in val[k]):
+                    raise AppError(422, "validation", f"{k.capitalize()} must be a single line.", {k: "invalid"})
             val["email"] = person_email(val["email"])
             val["phone"] = person_phone(val["phone"])
             val["description"] = text(val["description"], "description", limit=PERSON_LIMITS["description"])

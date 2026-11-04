@@ -82,6 +82,9 @@ def test_a_person_keeps_title_team_description_and_contact_details(client):
     ("email", "<dana@contoso.com>"), ("email", "d" * 310 + "@contoso.com"),
     ("phone", "call her"), ("phone", "312\t555 0100"), ("phone", "5" * 101),
     ("title", "t" * 501), ("description", "d" * 10_001),
+    # Single lines, as the page shows them: a line break or other control character is refused.
+    ("name", "Dana\nKim"), ("title", "Staff\nEngineer"), ("team", "Plat\rform"), ("chat", "@dana on Slack"),
+    ("location", "Chicago\t(US Central)"),
 ])
 def test_contact_details_are_checked_before_they_are_kept(client, field, value):
     refused = write(client, "POST", "/people", {"name": "Dana Kim", field: value})
@@ -93,6 +96,22 @@ def test_contact_details_are_checked_before_they_are_kept(client, field, value):
 @pytest.mark.parametrize("email", ["dana@contoso.com", "Dana.Kim+work@mail.contoso.co.uk", "o'brien@example.ie", "zoë@exämple.de"])
 def test_addresses_people_actually_have_are_kept(client, email):
     assert ok(write(client, "POST", "/people", {"name": "Dana Kim", "email": f"  {email} "}))["email"] == email
+
+
+@pytest.mark.parametrize("phone", ["+1 (312) 555-0100 ext. 12", "+44 (0)20 7946 0958", "1-800-FLOWERS", "０３-１２３４-５６７８"])
+def test_numbers_as_people_write_them_are_kept(client, phone):
+    assert ok(write(client, "POST", "/people", {"name": "Dana Kim", "phone": phone}))["phone"] == phone
+
+
+def test_a_line_break_kept_from_before_blocks_no_other_change_and_role_is_refused(client):
+    dana = ok(write(client, "POST", "/people", {"name": "Dana Kim", "team": "Platform"}))
+    # Version 9 kept whatever role it was given, line breaks included, and v10 keeps it as the team.
+    with client.app.state.db.transaction() as conn:
+        conn.execute("UPDATE people SET team='Platform\nIngest' WHERE id=?", (dana["id"],))
+    changed = ok(write(client, "PATCH", f"/people/{dana['id']}", {"revision": dana["revision"], "title": "SRE"}))
+    assert (changed["title"], changed["team"]) == ("SRE", "Platform\nIngest")
+    refused = write(client, "PATCH", f"/people/{dana['id']}", {"revision": changed["revision"], "role": "Platform"})
+    assert refused.status_code == 422 and refused.json()["error"]["fields"][0]["field"] == "body.role"
 
 
 def test_people_are_tied_to_repositories_from_either_side(client):
@@ -184,7 +203,12 @@ def test_agents_propose_person_details_and_repository_ties(client):
     # The old field name, and a contact detail that would not work, are refused before anything changes.
     old = write(client, "POST", "/proposals", {"title": "Old", "rationale": "", "operations": [
         {"action": "person.create", "payload": {"name": "Fay", "role": "Ops"}}]}, headers=agent)
-    assert old.status_code == 422 and "person.create" in old.json()["error"]["message"]
+    assert old.status_code == 422, old.text
+    assert old.json()["error"]["message"] == "Invalid fields for person.create: not accepted role (a person's role is now their team)"
+    assert old.json()["error"]["fields"] == {"missing": [], "unknown": ["role"]}
+    nameless = write(client, "POST", "/proposals", {"title": "Nameless", "rationale": "", "operations": [
+        {"action": "person.create", "payload": {"title": "Ops", "colour": "teal"}}]}, headers=agent)
+    assert nameless.json()["error"]["message"] == "Invalid fields for person.create: missing name; not accepted colour"
     draft = ok(write(client, "POST", "/proposals", {"title": "Bad email", "rationale": "", "operations": [
         {"action": "person.update", "payload": {"id": dana["id"], "revision": 2, "email": "dana"}}]}, headers=agent))
     submitted = ok(write(client, "POST", f"/proposals/{draft['id']}/submit", {"revision": draft["revision"]}, headers=agent))
@@ -200,3 +224,10 @@ def test_roadmaps_are_found_by_the_words_of_their_title(client):
     assert sorted(r["title"] for r in found["items"]) == ["Ingest reliability", "Reliability roadmap"] and found["total"] == 2
     assert [r["title"] for r in ok(client.get("/api/v1/roadmaps", params={"q": "ingest rel"}))["items"]] == ["Ingest reliability"]
     assert ok(client.get("/api/v1/roadmaps", params={"q": "  "}))["total"] == 3
+    # With a person, only their roadmaps whose title matches.
+    dana = ok(write(client, "POST", "/people", {"name": "Dana Kim"}))
+    tied = next(r for r in ok(client.get("/api/v1/roadmaps"))["items"] if r["title"] == "Ingest reliability")
+    ok(tie(client, dana, "roadmap", tied, "Owner"))
+    mine = ok(client.get("/api/v1/roadmaps", params={"q": "reliability", "personId": dana["id"]}))
+    assert [(r["title"], [p["relationship"] for p in r["people"]]) for r in mine["items"]] == [("Ingest reliability", ["Owner"])]
+    assert client.get("/api/v1/roadmaps", params={"q": "r" * 501}).status_code == 422

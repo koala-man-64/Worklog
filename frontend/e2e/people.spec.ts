@@ -141,6 +141,28 @@ test("a person keeps their details and how to reach them, and is tied to work, a
   await page.reload();
   await expect(role).toHaveValue("Maintainer");
 
+  // Unlink pressed straight after editing a role is not lost to the role's save,
+  // and that save, finishing first, does not tie them again.
+  const roadmapRole = page.getByRole("textbox", {
+    name: "Role on " + roadmapTitle,
+    exact: true,
+  });
+  await roadmapRole.fill("Sponsor");
+  // The save is slowed so it is still on its way when the press, held as a person
+  // holds one, is released.
+  await page.route("**/api/v1/person-links", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    await route.continue();
+  });
+  await page
+    .getByRole("button", { name: "Unlink " + roadmapTitle, exact: true })
+    .click({ delay: 150 });
+  await expect(roadmapRole).toHaveCount(0);
+  await page.unroute("**/api/v1/person-links");
+  await page.reload();
+  await expect(role).toHaveValue("Maintainer");
+  await expect(roadmapRole).toHaveCount(0);
+
   // The repository's page and the work item's page show them, with their title and team.
   await page.goto("/#repositories/" + repository.id);
   const people = section(page, /^People/);
@@ -168,7 +190,7 @@ test("a person keeps their details and how to reach them, and is tied to work, a
     .fill(suffix);
   await expect(
     row.getByText(
-      "Site Reliability Engineer · Platform · 1 work item · 1 roadmap · 0 repositories",
+      "Site Reliability Engineer · Platform · 1 work item · 0 roadmaps · 0 repositories",
     ),
   ).toBeVisible();
 });

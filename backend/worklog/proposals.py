@@ -100,7 +100,18 @@ def _operations(value):
             raise AppError(422, "validation", "Unsupported proposal action")
         required, allowed = FIELDS[action]
         if not required <= payload.keys() or not payload.keys() <= allowed:
-            raise AppError(422, "validation", f"Invalid fields for {action}")
+            # Name what is wrong, so an agent working from older instructions can correct it.
+            missing, unknown = sorted(required - payload.keys()), sorted(payload.keys() - allowed)
+            parts = []
+            if missing:
+                parts.append("missing " + ", ".join(missing))
+            if unknown:
+                parts.append("not accepted " + ", ".join(unknown))
+            detail = "; ".join(parts)
+            if action.startswith("person.") and "role" in unknown:
+                detail += " (a person's role is now their team)"
+            raise AppError(422, "validation", f"Invalid fields for {action}: {detail}",
+                           {"missing": missing, "unknown": unknown})
         if "revision" in required and (type(payload["revision"]) is not int or payload["revision"] < 0):
             raise AppError(422, "validation", "An existing target requires an integer revision")
     try:

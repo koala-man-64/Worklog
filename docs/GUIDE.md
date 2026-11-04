@@ -227,13 +227,13 @@ On a roadmap's overview:
 1. Open **People**, enter a "Person name", with a "Person title" and "Person team" if you like, and press "Add person".
 2. On their page, fill in what you know. Each field saves as you type:
    - "Title", "Team" and "Description": who they are and what to go to them for.
-   - "Email", "Phone", "Chat" and "Location or time zone". The list and their page show these under their name. The email address opens your mail app, and the phone number your phone app.
+   - "Email", "Phone", "Chat" and "Location or time zone". The list and their page show these under their name. The email address opens your mail app, and the phone number your phone app; a number written with letters, such as 1-800-FLOWERS, is shown but not dialled. An address or number Worklog could not use is "Not saved", with the reason beside the field.
    - "Notes (Markdown)" for everything else.
 3. Tie them to work, with their role each time:
    - From their page, "Tie work item", "Tie roadmap" and "Tie repository" each open a search. Pick a match to tie it, then type their role in its row ("Role on" it). "Unlink" removes a tie.
-   - From a work item, a roadmap or a repository, use "Tie person".
+   - From a work item, a roadmap or a repository, use "Tie person". "Choose person" lists only the people not tied there yet.
 
-Search finds a person by their name or any of their other fields. An archived person keeps their ties but takes no new ones until you recover them. So does an archived repository, and merging repositories moves the people tied to one to the record you keep.
+Search finds a person by their name or any of their other fields. Agents you give a credential read people's details, contact details included, as they read your other records; they change them only through proposals you approve. An archived person keeps their ties but takes no new ones until you recover them. So does an archived repository, and merging repositories moves the people tied to one to the record you keep.
 
 ### Keep reference pages for you and your agents
 
