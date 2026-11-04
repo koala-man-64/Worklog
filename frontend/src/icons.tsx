@@ -33,6 +33,12 @@ const shapes = {
       <path d="M3 20a6 6 0 0 1 12 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.4a6 6 0 0 1 3 5.6" />
     </>
   ),
+  resources: (
+    <>
+      <path d="M14 3.5H7.5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V8z" />
+      <path d="M14 3.5V8h4.5M9 12.5h6M9 16h4" />
+    </>
+  ),
   agents: (
     <>
       <rect x="4.5" y="8" width="15" height="11.5" rx="2.5" />
