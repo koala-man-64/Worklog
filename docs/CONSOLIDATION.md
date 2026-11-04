@@ -119,7 +119,7 @@ Fix: compare principals through `communication_credentials.agent_id`, with no sc
 
 #### 0.5 · Mark chat recipients the chat isn't bound to
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branch: `claude/chat-recipient-registration` · PR: [#93](https://github.com/koala-man-64/Worklog/pull/93)
 
 Delivery of the person's chat messages matches on the chat ID a run reports, and any credential can report any chat ID.
 

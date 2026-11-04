@@ -2265,6 +2265,12 @@ button.agent-chip.more {
 .chat-recipients small {
   color: var(--muted);
 }
+.chat-recipients li.unregistered {
+  border-color: var(--danger);
+}
+.chat-recipients .unregistered-note {
+  color: var(--danger);
+}
 .chat-deliveries li.delivered {
   border-color: var(--teal);
   background: var(--teal-wash);

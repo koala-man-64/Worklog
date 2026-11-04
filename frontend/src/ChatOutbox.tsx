@@ -158,10 +158,23 @@ export function ChatOutbox({
               <span className="muted">Reaches</span>
               <ul aria-label="Agents a message reaches">
                 {recipients.map((r) => (
-                  <li key={r.runId} title={`Run: ${r.runName}`}>
+                  <li
+                    key={r.runId}
+                    className={r.registered ? undefined : "unregistered"}
+                    title={
+                      r.registered
+                        ? `Run: ${r.runName}`
+                        : `Run: ${r.runName}. This run reports this chat's ID, but its agent didn't register with this chat. It still receives what you send.`
+                    }
+                  >
                     <Avatar name={r.avatar} size={18} />
                     {r.agentLabel}
                     <small>· {r.runName}</small>
+                    {!r.registered && (
+                      <small className="unregistered-note">
+                        not registered with this chat
+                      </small>
+                    )}
                   </li>
                 ))}
               </ul>
