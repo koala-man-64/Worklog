@@ -1227,8 +1227,11 @@ class WorkService:
 
     @staticmethod
     def index(c: sqlite3.Connection, identity: str, kind: str, title: str, body: str,
-              owner: str, archived: bool = False) -> None:
-        c.execute("DELETE FROM search_index WHERE entity_id=?", (identity,))
+              owner: str, archived: bool = False, *, replace: bool = True) -> None:
+        # entity_id is UNINDEXED in FTS5, so this delete reads the whole index. A caller that
+        # has already deleted the rows it rewrites passes replace=False.
+        if replace:
+            c.execute("DELETE FROM search_index WHERE entity_id=?", (identity,))
         c.execute("INSERT INTO search_index(entity_id,type,title,body,owner_id,archived) VALUES(?,?,?,?,?,?)", (identity, kind, title, body, owner, int(archived)))
 
     def refresh_plans(self, c: sqlite3.Connection, roadmap_id: str | None = None) -> None:
@@ -1238,13 +1241,16 @@ class WorkService:
             c.execute("DELETE FROM search_index WHERE type IN ('roadmap','step')")
         clause = " WHERE id=?" if roadmap_id else ""
         args = (roadmap_id,) if roadmap_id else ()
+        # The delete above removed every row rewritten below, so each insert skips its own scan.
         for r in c.execute("SELECT * FROM roadmaps" + clause, args).fetchall():
             keys = set(r.keys())
-            self.index(c, r["id"], "roadmap", r["title"], r["overview"] if "overview" in keys else "", r["id"], bool(r["archived"]))
+            self.index(c, r["id"], "roadmap", r["title"], r["overview"] if "overview" in keys else "", r["id"], bool(r["archived"]),
+                       replace=False)
         for r in c.execute("SELECT * FROM steps" + (" WHERE roadmap_id=?" if roadmap_id else ""), args).fetchall():
             keys = set(r.keys())
             parent = c.execute("SELECT archived FROM roadmaps WHERE id=?", (r["roadmap_id"],)).fetchone()
-            self.index(c, r["id"], "step", r["title"], r["description"], r["roadmap_id"], bool(parent[0] or (r["retired"] if "retired" in keys else False)))
+            self.index(c, r["id"], "step", r["title"], r["description"], r["roadmap_id"], bool(parent[0] or (r["retired"] if "retired" in keys else False)),
+                       replace=False)
 
     def search(self, query: str, archived: bool = False, limit: int = 50, offset: int = 0) -> dict:
         terms = re.findall(r"\w+", query, re.UNICODE)

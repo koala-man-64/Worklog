@@ -101,7 +101,7 @@ Add a spec-driven test that records, for every API operation, whether an agent c
 
 #### 0.3 · One search-index scan per roadmap save
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branch: `claude/roadmap-save-index` · PR: [#89](https://github.com/koala-man-64/Worklog/pull/89)
 
 The `search_index` columns `entity_id` and `owner_id` are FTS5 `UNINDEXED`, so `DELETE ... WHERE entity_id=?` scans the whole index. `refresh_plans` bulk-deletes and then runs that scan again for every step.
 
