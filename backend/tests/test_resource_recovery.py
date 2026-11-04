@@ -8,6 +8,7 @@ from contextlib import closing
 from pathlib import Path
 
 import pytest
+from test_people_recovery import to_v9
 from worklog import migrations, recovery, resources
 from worklog.db import Database
 
@@ -17,8 +18,9 @@ WAY_BACK = "DELETE FROM search_index WHERE type='resource'; DROP TABLE resources
 
 
 def v8_database(path):
-    """The shape main shipped as v8: the current one without resources, holding a work item."""
+    """The shape main shipped as v8: v9 without resources, holding a work item."""
     Database(path).initialize()
+    to_v9(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.execute("DROP TABLE resources")
         conn.execute("INSERT INTO work_items(id,title,backlog_order,created_at,updated_at) VALUES('item','Work',0,?,?)", (STAMP, STAMP))
@@ -49,7 +51,7 @@ def test_v8_upgrade_adds_empty_resources_after_a_snapshot_and_restores(tmp_path)
     before = {t: rows(path, t) for t in ("work_items", "notes", "settings")}
     Database(path).initialize()
     with Database(path).read() as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION == 9
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
         assert recovery._schema_signature(conn) == recovery._expected_schema()
         assert conn.execute("SELECT count(*) FROM resources").fetchone()[0] == 0
     assert {t: rows(path, t) for t in before} == before
@@ -93,6 +95,7 @@ def test_a_v8_shape_cannot_claim_version_9_and_a_v9_shape_cannot_claim_8(tmp_pat
     v8_database(older)
     current = tmp_path / "current.sqlite3"
     Database(current).initialize()
+    to_v9(current)
     for path, version in ((older, 9), (current, 8)):
         with closing(sqlite3.connect(path)) as conn:
             conn.execute(f"PRAGMA user_version={version}")
@@ -108,6 +111,7 @@ def test_the_documented_way_back_to_v8_drops_only_the_resources_and_upgrades_aga
     Database(path).initialize()
     add_page(path)
     kept = {t: rows(path, t) for t in ("work_items", "notes", "settings")}
+    to_v9(path)  # README: from version 10 to version 9 first
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK)
     recovery.validate_database(path)

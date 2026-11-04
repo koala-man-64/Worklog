@@ -535,9 +535,11 @@ def test_nested_roadmaps_over_http_and_agent_proposals(client):
 
 
 def test_people_directory_and_roadmap_work_item_links(client):
-    alice = write(client, "POST", "/people", {"name": "Alice Rivera", "role": "Staff Engineer", "notes": "Platform architecture lead"}).json()
-    bob = write(client, "POST", "/people", {"name": "Bob Chen", "role": "Product Manager"}).json()
-    assert alice["name"] == "Alice Rivera" and alice["role"] == "Staff Engineer"
+    alice = write(client, "POST", "/people", {"name": "Alice Rivera", "title": "Staff Engineer", "team": "Platform", "notes": "Platform architecture lead"}).json()
+    bob = write(client, "POST", "/people", {"name": "Bob Chen", "title": "Product Manager"}).json()
+    assert (alice["name"], alice["title"], alice["team"]) == ("Alice Rivera", "Staff Engineer", "Platform")
+    # The field v9 called role is the team now; the old name is refused rather than dropped.
+    assert write(client, "POST", "/people", {"name": "Old client", "role": "Platform"}).status_code == 422
 
     roadmap = write(client, "POST", "/roadmaps", {"title": "Reliability roadmap", "steps": [{"title": "SLO rollout"}]}).json()
     work_item = item(client, title="Define service SLOs", roadmapId=roadmap["id"])
@@ -557,6 +559,7 @@ def test_people_directory_and_roadmap_work_item_links(client):
     # Roadmap detail and Work item detail include linked people
     road_detail = client.get(f"/api/v1/roadmaps/{roadmap['id']}").json()
     assert [(p["name"], p["relationship"]) for p in road_detail["people"]] == [("Alice Rivera", "Owner"), ("Bob Chen", "Stakeholder")]
+    assert [(p["personTitle"], p["personTeam"]) for p in road_detail["people"]] == [("Staff Engineer", "Platform"), ("Product Manager", "")]
     assert [(p["name"], p["relationship"]) for p in road_detail["workItems"][0]["people"]] == [("Alice Rivera", "Owner"), ("Bob Chen", "Approver")]
 
     item_detail = client.get(f"/api/v1/work-items/{work_item['id']}").json()
@@ -579,8 +582,8 @@ def test_people_directory_and_roadmap_work_item_links(client):
     assert search_hit["type"] == "person" and search_hit["routeType"] == "people" and search_hit["routeId"] == alice["id"]
 
     # Update, archive, recover person, and unlink
-    patched = write(client, "PATCH", f"/people/{alice['id']}", {"revision": alice["revision"], "role": "Principal Engineer"}).json()
-    assert patched["role"] == "Principal Engineer"
+    patched = write(client, "PATCH", f"/people/{alice['id']}", {"revision": alice["revision"], "title": "Principal Engineer"}).json()
+    assert (patched["title"], patched["team"]) == ("Principal Engineer", "Platform")
     archived = write(client, "POST", f"/people/{alice['id']}/archive", {"revision": patched["revision"]}).json()
     assert archived["archived"] is True
     assert client.get("/api/v1/search?q=Rivera").json()["total"] == 0

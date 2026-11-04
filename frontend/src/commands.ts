@@ -38,8 +38,11 @@ export const commands = {
     request<Roadmap>("/roadmaps", "POST", body),
   reviseRoadmap: (id: string, body: Schema["RoadmapRevision"]) =>
     request<Roadmap>(`/roadmaps/${id}/revisions`, "POST", body),
-  createPerson: (body: Schema["PersonCreate"]) =>
-    request<Person>("/people", "POST", body),
+  /** Fields left out start empty. */
+  createPerson: (
+    body: Pick<Schema["PersonCreate"], "name"> &
+      Partial<Schema["PersonCreate"]>,
+  ) => request<Person>("/people", "POST", body),
   updatePerson: (id: string, body: Schema["PersonUpdate"]) =>
     request<Person>("/people/" + id, "PATCH", body),
   linkPerson: (body: Schema["PersonLinkCreate"]) =>

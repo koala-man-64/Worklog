@@ -172,6 +172,18 @@ def repository_takes_files(c: sqlite3.Connection, identity: str) -> None:
         raise AppError(409, "archived", f"Recover {row['name']} before attaching files to it", {"repositoryId": identity})
 
 
+def repository_takes_people(c: sqlite3.Connection, identity: str, *, new: bool) -> None:
+    """A person is tied to a repository that exists; a new tie, like a new file, needs an active record."""
+    row = c.execute("SELECT * FROM repositories WHERE id=?", (identity,)).fetchone()
+    if row is None:
+        raise AppError(404, "not_found", "Repository does not exist")
+    if not new:
+        return
+    _refuse_merged(c, row)
+    if row["archived"]:
+        raise AppError(409, "archived", f"Recover {row['name']} before tying people to it", {"repositoryId": identity})
+
+
 def repository_resolution(c: sqlite3.Connection, url: str) -> dict:
     """What registering this address would do: link to the record holding its remote, or add one."""
     address = _repository_url(url)
@@ -211,6 +223,12 @@ def repository_merge(c: sqlite3.Connection, actor: dict, identity: str, p: dict)
         moved[kind] = c.execute(f"SELECT count(*) FROM {table} WHERE repository_id=?", (source["id"],)).fetchone()[0]
         c.execute(f"UPDATE OR IGNORE {table} SET repository_id=? WHERE repository_id=?", (survivor["id"], source["id"]))
         c.execute(f"DELETE FROM {table} WHERE repository_id=?", (source["id"],))
+    # So do the people tied to it. One tied to both keeps the survivor's tie, with its role.
+    moved["people"] = c.execute("SELECT count(*) FROM person_links WHERE target_type='repository' AND target_id=?",
+                                (source["id"],)).fetchone()[0]
+    c.execute("UPDATE OR IGNORE person_links SET target_id=? WHERE target_type='repository' AND target_id=?",
+              (survivor["id"], source["id"]))
+    c.execute("DELETE FROM person_links WHERE target_type='repository' AND target_id=?", (source["id"],))
     # Attached files follow too, archived ones included, so none stay on a record that takes no changes.
     c.execute("UPDATE search_index SET owner_id=? WHERE type='attachment' AND entity_id IN "
               "(SELECT id FROM attachments WHERE owner_type='repository' AND owner_id=?)", (survivor["id"], source["id"]))

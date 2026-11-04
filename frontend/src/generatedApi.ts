@@ -2484,10 +2484,40 @@ export interface components {
             /** Name */
             name: string;
             /**
-             * Role
+             * Title
              * @default
              */
-            role: string;
+            title: string;
+            /**
+             * Team
+             * @default
+             */
+            team: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Email
+             * @default
+             */
+            email: string;
+            /**
+             * Phone
+             * @default
+             */
+            phone: string;
+            /**
+             * Chat
+             * @default
+             */
+            chat: string;
+            /**
+             * Location
+             * @default
+             */
+            location: string;
             /**
              * Notes
              * @default
@@ -2502,7 +2532,7 @@ export interface components {
              * Targettype
              * @enum {string}
              */
-            targetType: "item" | "roadmap";
+            targetType: "item" | "roadmap" | "repository";
             /** Targetid */
             targetId: string;
             /**
@@ -2519,7 +2549,7 @@ export interface components {
              * Targettype
              * @enum {string}
              */
-            targetType: "item" | "roadmap";
+            targetType: "item" | "roadmap" | "repository";
             /** Targetid */
             targetId: string;
         };
@@ -2529,8 +2559,20 @@ export interface components {
             revision: number;
             /** Name */
             name?: string | null;
-            /** Role */
-            role?: string | null;
+            /** Title */
+            title?: string | null;
+            /** Team */
+            team?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Email */
+            email?: string | null;
+            /** Phone */
+            phone?: string | null;
+            /** Chat */
+            chat?: string | null;
+            /** Location */
+            location?: string | null;
             /** Notes */
             notes?: string | null;
         };
@@ -4488,6 +4530,7 @@ export interface operations {
             query?: {
                 archived?: boolean;
                 personId?: string | null;
+                q?: string;
             };
             header?: never;
             path?: never;

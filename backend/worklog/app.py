@@ -570,9 +570,13 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             return download_response(row["content"], row["name"], row["mime"], inline)
 
     @app.get("/api/v1/roadmaps")
-    def roadmap_list(archived: bool = False, personId: str | None = None) -> dict:
+    def roadmap_list(archived: bool = False, personId: str | None = None, q: str = Query("", max_length=500)) -> dict:
         result = plans.list(archived)
         items_list = result["items"] if isinstance(result, dict) else result
+        # Roadmaps whose title holds every word, in any case: how a picker finds one to tie.
+        words = q.casefold().split()
+        if words:
+            items_list = [r for r in items_list if all(word in r["title"].casefold() for word in words)]
         with db.read() as c:
             if personId:
                 linked_ids = {r[0] for r in c.execute("SELECT target_id FROM person_links WHERE target_type='roadmap' AND person_id=?", (personId,))}

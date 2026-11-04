@@ -130,7 +130,8 @@ def test_a_proposal_attaches_only_live_evidence_of_its_own(client):
     smuggled = attach("item", item["id"], theirs["id"])
     smuggled["payload"]["proposalId"] = theirs["ownerId"]
     response = call(client, "POST", "/proposals", {"title": "Copy", "rationale": "", "operations": [smuggled]}, credential)
-    assert (response.status_code, response.json()["error"]["message"]) == (422, "Invalid fields for attachment.create")
+    assert (response.status_code, response.json()["error"]["message"]) == (
+        422, "Invalid fields for attachment.create: not accepted proposalId")
     # A file attaches to a record once; the draft refuses a repeat as soon as it is written.
     mine = ok(call(client, "GET", f"/proposals/{mine['id']}", agent=credential))
     file = evidence(client, credential, mine)

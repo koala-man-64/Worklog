@@ -7,6 +7,7 @@ from contextlib import closing
 import pytest
 from fastapi.testclient import TestClient
 from test_coordination_recovery import legacy_database
+from test_people_recovery import to_v9
 from worklog import migrations, recovery
 from worklog.app import create_app
 from worklog.common import NOTE_LIMIT, AppError
@@ -34,8 +35,9 @@ NOTES = [
 
 
 def v7_database(path, notes=NOTES):
-    """The v7 shape, the current one without resources (v9) or the scratchpad index (v8), holding notes as v7 kept them."""
+    """The v7 shape, v9 without resources (v9) or the scratchpad index (v8), holding notes as v7 kept them."""
     Database(path).initialize()
+    to_v9(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.execute("DROP TABLE resources")
         conn.execute("DROP INDEX notes_item_scratchpad")
@@ -174,7 +176,8 @@ def test_the_documented_way_back_to_v7_keeps_the_folded_notes_and_upgrades_again
     v7_database(path)
     Database(path).initialize()
     folded = notes(path)
-    # README: from version 9 to version 8, then from version 8 to version 7, with Worklog stopped.
+    # README: from version 10 to version 9, then to version 8, then to version 7, with Worklog stopped.
+    to_v9(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript("DELETE FROM search_index WHERE type='resource'; DROP TABLE resources; PRAGMA user_version=8;")
         conn.executescript("DROP INDEX notes_item_scratchpad; PRAGMA user_version=7;")
