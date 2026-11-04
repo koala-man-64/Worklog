@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { request, getDataContext } from "./api";
+import { contextStorageKey, request, getDataContext } from "./api";
 import { commands } from "./commands";
-import { useAction, useData } from "./hooks";
+import { useAction, useCollapsed, useData } from "./hooks";
 import {
   DraftField,
   Empty,
@@ -73,7 +73,13 @@ export function Today({
   const [target, setTarget] = useState("");
   const [rescheduleError, setRescheduleError] = useState<unknown>(null);
   const [dragged, setDragged] = useState<string | null>(null);
+  // Entries folded to their heading row, remembered per work item in this browser,
+  // so an item stays folded on any day it is planned.
+  const { collapsed, toggle, setClosed } = useCollapsed(
+    contextStorageKey("today-collapsed", "items"),
+  );
   const data = day.data;
+  const itemIds = data?.entries.map((e) => e.itemId) ?? [];
   const weekday = new Date(date + "T12:00:00").toLocaleDateString(undefined, {
     weekday: "long",
   });
@@ -169,9 +175,32 @@ export function Today({
               )}
             </p>
           </div>
-          <h2>
-            The day’s work <span className="count">{data.entries.length}</span>
-          </h2>
+          <div className="section-heading day-work-heading">
+            <h2>
+              The day’s work{" "}
+              <span className="count">{data.entries.length}</span>
+            </h2>
+            {data.entries.length > 0 && (
+              <div className="toolbar">
+                <button
+                  type="button"
+                  className="quiet"
+                  disabled={!itemIds.some((id) => collapsed.has(id))}
+                  onClick={() => setClosed(itemIds, false)}
+                >
+                  Expand all
+                </button>
+                <button
+                  type="button"
+                  className="quiet"
+                  disabled={itemIds.every((id) => collapsed.has(id))}
+                  onClick={() => setClosed(itemIds, true)}
+                >
+                  Collapse all
+                </button>
+              </div>
+            )}
+          </div>
           {!data.entries.length && (
             <Empty>
               No work planned yet. Add new work above or pick from open work
@@ -181,7 +210,9 @@ export function Today({
           {data.entries.map((entry, index) => (
             <article
               className={
-                "day-entry" + (dragged === entry.id ? " dragging" : "")
+                "day-entry" +
+                (dragged === entry.id ? " dragging" : "") +
+                (collapsed.has(entry.itemId) ? " collapsed" : "")
               }
               key={entry.id}
               onDragOver={(e) => {
@@ -230,6 +261,22 @@ export function Today({
             >
               <div className="section-heading">
                 <div>
+                  <button
+                    type="button"
+                    className="tree-toggle"
+                    aria-expanded={!collapsed.has(entry.itemId)}
+                    aria-controls={"entry-body-" + entry.id}
+                    aria-label={
+                      (collapsed.has(entry.itemId) ? "Expand " : "Collapse ") +
+                      entry.item.title
+                    }
+                    onClick={() => toggle(entry.itemId)}
+                  >
+                    <Icon
+                      name={collapsed.has(entry.itemId) ? "expand" : "collapse"}
+                      size={14}
+                    />
+                  </button>
                   <span className="ordinal">
                     {String(index + 1).padStart(2, "0")}
                   </span>
@@ -332,80 +379,88 @@ export function Today({
                   </button>
                 </form>
               )}
-              <div className="toolbar">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={entry.planned}
-                    disabled={entry.item.archived}
-                    onChange={(e) =>
-                      action.mutate({
-                        path: `/days/${date}/entries/${entry.itemId}`,
-                        method: "PUT",
-                        body: {
-                          revision: entry.revision,
-                          planned: e.target.checked,
-                        },
+              {/* Hidden rather than unmounted when collapsed, so a draft keeps
+                  saving and opened details keep their place. */}
+              <div
+                className="entry-body"
+                id={"entry-body-" + entry.id}
+                hidden={collapsed.has(entry.itemId)}
+              >
+                <div className="toolbar">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={entry.planned}
+                      disabled={entry.item.archived}
+                      onChange={(e) =>
+                        action.mutate({
+                          path: `/days/${date}/entries/${entry.itemId}`,
+                          method: "PUT",
+                          body: {
+                            revision: entry.revision,
+                            planned: e.target.checked,
+                          },
+                        })
+                      }
+                    />{" "}
+                    Planned
+                  </label>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={entry.worked}
+                      disabled={entry.item.archived}
+                      onChange={(e) =>
+                        action.mutate({
+                          path: `/days/${date}/entries/${entry.itemId}`,
+                          method: "PUT",
+                          body: {
+                            revision: entry.revision,
+                            worked: e.target.checked,
+                          },
+                        })
+                      }
+                    />{" "}
+                    Worked on
+                  </label>
+                  <button
+                    aria-label={"Move " + entry.item.title + " up"}
+                    disabled={index === 0 || entry.item.archived}
+                    onClick={() => move(index, -1)}
+                  >
+                    <Icon name="up" />
+                  </button>
+                  <button
+                    aria-label={"Move " + entry.item.title + " down"}
+                    disabled={
+                      index === data.entries.length - 1 || entry.item.archived
+                    }
+                    onClick={() => move(index, 1)}
+                  >
+                    <Icon name="down" />
+                  </button>
+                </div>
+                {entry.item.archived ? (
+                  <section className="draft">
+                    <label>Outcome / next action</label>
+                    <Markdown text={entry.outcome} />
+                  </section>
+                ) : (
+                  <DraftField
+                    draftKey={"entry-" + entry.id}
+                    label="Outcome / next action"
+                    initial={entry.outcome}
+                    revision={entry.revision}
+                    save={(outcome, revision) =>
+                      commands.upsertEntry(date, entry.itemId, {
+                        revision,
+                        outcome,
                       })
                     }
-                  />{" "}
-                  Planned
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={entry.worked}
-                    disabled={entry.item.archived}
-                    onChange={(e) =>
-                      action.mutate({
-                        path: `/days/${date}/entries/${entry.itemId}`,
-                        method: "PUT",
-                        body: {
-                          revision: entry.revision,
-                          worked: e.target.checked,
-                        },
-                      })
-                    }
-                  />{" "}
-                  Worked on
-                </label>
-                <button
-                  aria-label={"Move " + entry.item.title + " up"}
-                  disabled={index === 0 || entry.item.archived}
-                  onClick={() => move(index, -1)}
-                >
-                  <Icon name="up" />
-                </button>
-                <button
-                  aria-label={"Move " + entry.item.title + " down"}
-                  disabled={
-                    index === data.entries.length - 1 || entry.item.archived
-                  }
-                  onClick={() => move(index, 1)}
-                >
-                  <Icon name="down" />
-                </button>
+                  />
+                )}
+                {!entry.item.archived && <EntryDetails itemId={entry.itemId} />}
               </div>
-              {entry.item.archived ? (
-                <section className="draft">
-                  <label>Outcome / next action</label>
-                  <Markdown text={entry.outcome} />
-                </section>
-              ) : (
-                <DraftField
-                  draftKey={"entry-" + entry.id}
-                  label="Outcome / next action"
-                  initial={entry.outcome}
-                  revision={entry.revision}
-                  save={(outcome, revision) =>
-                    commands.upsertEntry(date, entry.itemId, {
-                      revision,
-                      outcome,
-                    })
-                  }
-                />
-              )}
-              {!entry.item.archived && <EntryDetails itemId={entry.itemId} />}
             </article>
           ))}
           <section className="open-work">

@@ -664,6 +664,34 @@ header {
   opacity: 0.55;
   border-top: 2px solid var(--teal);
 }
+/* Today: the day's work heading, with Expand all and Collapse all on its right,
+   also when a narrow window wraps them under the heading. */
+.day-work-heading {
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+.day-work-heading h2 {
+  margin: 0;
+}
+.day-work-heading .toolbar {
+  margin: 0 0 0 auto;
+  gap: 4px;
+}
+/* The chevron leads the entry's heading row, its icon on the content edge. */
+.day-entry .tree-toggle {
+  vertical-align: middle;
+  margin-left: -9px;
+}
+/* A collapsed entry keeps only its heading row, and a Reschedule picker opened from it. */
+.day-entry.collapsed {
+  padding: 12px 0;
+}
+.day-entry.collapsed > .section-heading {
+  margin-bottom: 0;
+}
+.day-entry.collapsed > .reschedule-picker {
+  margin: 12px 0 0;
+}
 .drag-handle {
   display: inline-block;
   padding: 4px 8px;
