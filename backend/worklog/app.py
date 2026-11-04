@@ -540,8 +540,8 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             if ownerType == "proposal":
                 proposals.detail(ownerId, request.state.actor)
             else:
-                work.owner(c, ownerType, ownerId)
-            records = [support_record(r) for r in c.execute("SELECT id,owner_type,owner_id,name,mime,size,sha256,archived,revision,created_at FROM attachments WHERE owner_type=? AND owner_id=? AND archived=?", (ownerType, ownerId, int(archived)))]
+                work.owner(c, ownerType, ownerId, files=True)
+            records = [support_record(r) for r in c.execute("SELECT id,owner_type,owner_id,name,mime,size,sha256,archived,revision,created_at FROM attachments WHERE owner_type=? AND owner_id=? AND archived=? ORDER BY created_at,id", (ownerType, ownerId, int(archived)))]
             return {"items": records, "total": len(records)}
 
     @app.post("/api/v1/attachments")
