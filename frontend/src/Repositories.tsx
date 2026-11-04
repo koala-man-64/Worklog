@@ -6,6 +6,7 @@ import {
   Empty,
   ErrorMessage,
   Files,
+  PeopleLinks,
   RecoverRecords,
   statusLabel,
 } from "./components";
@@ -244,9 +245,10 @@ function MergeInto({ source }: { source: Repository }) {
     <details open={!!source.duplicateOf}>
       <summary>Merge into another repository</summary>
       <p className="muted">
-        Merging moves this repository’s work and chat links, tickets, files,
-        reported activity and updates to the other record, archives this one as
-        merged, and makes its remote answer with the other. It cannot be undone.
+        Merging moves this repository’s work and chat links, people, tickets,
+        files, reported activity and updates to the other record, archives this
+        one as merged, and makes its remote answer with the other. It cannot be
+        undone.
       </p>
       <input
         aria-label="Find a repository to merge into"
@@ -509,7 +511,17 @@ function RepositoryDetail({ id }: { id: string }) {
         </>
       )}
       <LinkedWork repo={repo} />
-      {/* A merge moves every file to the record that answers for this one. */}
+      {/* A merge moves every tie and file to the record that answers for this one. An archived
+          record keeps its ties, and their roles, but takes no new one until it is recovered. */}
+      {!repo.mergedInto && (
+        <PeopleLinks
+          targetType="repository"
+          targetId={repo.id}
+          people={repo.people}
+          canTie={!repo.archived}
+          headingLevel={2}
+        />
+      )}
       {!repo.mergedInto && <RepositoryFiles repo={repo} />}
       <Coordination repositoryId={id} />
     </>

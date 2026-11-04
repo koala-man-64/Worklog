@@ -1,4 +1,4 @@
-import type { RecordBase } from "./types";
+import type { PersonAssignment, RecordBase } from "./types";
 
 export type Repository = RecordBase & {
   name: string;
@@ -18,6 +18,8 @@ export type Repository = RecordBase & {
   } | null;
   /** False until the person confirms or edits what an agent registered. */
   reviewed: boolean;
+  /** The people tied to it, on the repository's own read only. */
+  people?: PersonAssignment[];
 };
 /** Registering a remote that is already registered returns its record. */
 export type RepositoryRegistration = Repository & { created: boolean };

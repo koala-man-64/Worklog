@@ -119,7 +119,10 @@ export function useDraft(
     "record",
     key
       .replace(/^item-(title|description|ado)-/, "item-")
-      .replace(/^person-(name|role|notes)-/, "person-")
+      .replace(
+        /^person-(name|title|team|description|email|phone|chat|location|notes)-/,
+        "person-",
+      )
       .replace(/^repository-(name|url|description)-/, "repository-")
       .replace(/^ticket-(title|description|resolution)-/, "ticket-")
       .replace(/^resource-(title|summary|body)-/, "resource-")

@@ -757,6 +757,91 @@ it("keeps an archived repository's work links removable but takes no new ones", 
   expect(screen.queryByRole("button", { name: "Link work item" })).toBeNull();
 });
 
+it("shows the people tied to a repository, ties another, and keeps an archived one's ties without new ones", async () => {
+  const maintainer = {
+    id: "tie-1",
+    personId: "person-1",
+    name: "Dana Kim",
+    personTitle: "Site Reliability Engineer",
+    personTeam: "Platform",
+    relationship: "Maintainer",
+    archived: false,
+    createdAt: "2026-11-01T10:00:00Z",
+  };
+  let archived = false;
+  const writes: { path: string; body: unknown }[] = [];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const path = String(input);
+    if ((init?.method ?? "GET") !== "GET") {
+      writes.push({ path, body: JSON.parse(String(init?.body)) });
+      return json({ ...maintainer, id: "tie-2" });
+    }
+    if (path.endsWith("/repositories/repo-1"))
+      return json({ ...repo, archived, people: [maintainer] });
+    if (path.includes("/people?"))
+      return json({
+        items: [
+          {
+            id: "person-1",
+            name: "Dana Kim",
+            title: "",
+            team: "",
+            revision: 1,
+          },
+          {
+            id: "person-2",
+            name: "Eli Park",
+            title: "Engineer",
+            team: "",
+            revision: 1,
+          },
+        ],
+        total: 2,
+      });
+    return json({ items: [], total: 0 });
+  });
+  const { unmount } = show(<Repositories selected={repo.id} />);
+  expect(
+    await screen.findByRole("heading", { name: /People/ }),
+  ).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Dana Kim" })).toHaveAttribute(
+    "href",
+    "#people/person-1",
+  );
+  expect(
+    screen.getByText("Site Reliability Engineer · Platform"),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("textbox", { name: "Role for Dana Kim" }),
+  ).toHaveValue("Maintainer");
+  await userEvent.selectOptions(
+    await screen.findByRole("combobox", { name: "Choose person" }),
+    "person-2",
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Tie person" }));
+  await waitFor(() =>
+    expect(writes).toEqual([
+      {
+        path: "/api/v1/person-links",
+        body: {
+          personId: "person-2",
+          targetType: "repository",
+          targetId: repo.id,
+          relationship: "",
+        },
+      },
+    ]),
+  );
+  unmount();
+
+  archived = true;
+  show(<Repositories selected={repo.id} />);
+  expect(
+    await screen.findByRole("button", { name: "Unlink Dana Kim" }),
+  ).toBeEnabled();
+  expect(screen.queryByRole("button", { name: "Tie person" })).toBeNull();
+});
+
 it("shows immutable update context names and paths instead of the repository's current name", async () => {
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
     if (String(input).includes("/coordination-updates?"))

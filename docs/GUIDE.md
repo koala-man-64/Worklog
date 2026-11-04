@@ -40,7 +40,7 @@ The sidebar lists these pages, in this order:
 | Tickets | Issues you and your agents file, work and close |
 | Roadmaps | Bigger efforts broken into steps, with versions |
 | Repositories | The code repositories you and your agents work in |
-| People | Collaborators and stakeholders, tied to work and roadmaps |
+| People | Who you work with and how to reach them, tied to work, roadmaps and repositories |
 | Resources | Reference pages you write for yourself and your agents |
 | Agents | Every AI agent with a credential and what it reports |
 | Chats | The agent chats you track, and their transcripts |
@@ -222,14 +222,18 @@ On a roadmap's overview:
 - **"Questions"**: type a "New question" and press "Add question". "Answer" records the answer, "Reopen" opens it again, and answered questions collapse under "Answered".
 - **"Decisions"**: write the "New decision", its "Date decided" and why, then press "Record decision".
 
-### Tie people to work
+### Keep people and tie them to work
 
-1. Open **People**, enter a "Person name" and a "Person title or team", and press "Add person".
-2. Tie the person to work, with a role each time:
-   - From their page, use "Tie roadmap" or "Tie work item".
-   - From a work item or roadmap, use "Tie person".
+1. Open **People**, enter a "Person name", with a "Person title" and "Person team" if you like, and press "Add person".
+2. On their page, fill in what you know. Each field saves as you type:
+   - "Title", "Team" and "Description": who they are and what to go to them for.
+   - "Email", "Phone", "Chat" and "Location or time zone". The list and their page show these under their name. The email address opens your mail app, and the phone number your phone app.
+   - "Notes (Markdown)" for everything else.
+3. Tie them to work, with their role each time:
+   - From their page, "Tie work item", "Tie roadmap" and "Tie repository" each open a search. Pick a match to tie it, then type their role in its row ("Role on" it). "Unlink" removes a tie.
+   - From a work item, a roadmap or a repository, use "Tie person".
 
-A person's page lists everything they are tied to, their "Notes (Markdown)" and their history.
+Search finds a person by their name or any of their other fields. An archived person keeps their ties but takes no new ones until you recover them. So does an archived repository, and merging repositories moves the people tied to one to the record you keep.
 
 ### Keep reference pages for you and your agents
 
@@ -255,6 +259,7 @@ Agents read your pages but never change them. Their `context` lists every page b
   - Agents register the repositories they work in, so their work shows up at once. Such a repository says "Registered by" the agent and "unreviewed" until you press "Confirm" or edit it.
   - To keep registration to yourself, clear "Agents may register repositories" in Settings.
 - **Link work.** On a repository's page, "Link work item" under "Linked work" links work to it. On a work item, "Link repository" does the same from the other side.
+- **Tie people.** On a repository's page, "Tie person" under "People" ties someone to it with their role, such as maintainer or reviewer. On a person's page, "Tie repository" does the same.
 - **Keep documents with it.** On a repository's page, "Attach a file" under "Files" stores a copy of a design, runbook or any other file in Worklog, up to 25 MB.
   - Each file's name downloads it, and "Archive" puts it under "Archived supporting records".
   - Search finds a file by its name and opens its repository.
@@ -262,7 +267,7 @@ Agents read your pages but never change them. Their `context` lists every page b
   - Agents you give a credential can read these files, as they can your other records, and propose attaching new ones.
 - **Merge duplicates.**
   - On the duplicate's page, find the record to keep under "Merge into another repository", and press "Confirm merge".
-  - Its work and chat links, tickets, files and agent reports move to the record you keep. The duplicate is archived as "Merged into" that record.
+  - Its work and chat links, people, tickets, files and agent reports move to the record you keep. The duplicate is archived as "Merged into" that record.
   - Merging can't be undone.
 
 ### Bring an AI agent in
@@ -421,13 +426,19 @@ The repositories you and your agents work in.
 - **A repository's page:**
   - "Repository name", "Remote URL" and "Description", plus "Archive repository" or "Recover repository".
   - "Merge into another repository" and "Linked work" ("Link work item").
+  - "People" ("Tie person"): who is tied to it, with their role.
   - "Files" ("Attach a file"), with archived files under "Archived supporting records".
   - "Participants" and "Recent updates": who works there, on which branch, checkout or worktree, and what they reported.
 - **Reports are advisory.** They reserve nothing, and show "Stale report" after two hours without news.
 
 ### People
 
-The people involved in your work. The list has "Person name", "Person title or team", "Add person", "Filter people by text" and "Show archive". A person's page has "Name", "Title or team", "Notes (Markdown)", the roadmaps and work items they are tied to, each with a role and "Unlink", and "Activity history".
+The people involved in your work.
+
+- **The list** has "Person name", "Person title", "Person team", "Add person", "Filter people by text" and "Show archive". Each row shows a person's title and team, how many work items, roadmaps and repositories they are tied to, their description and how to reach them.
+- **A person's page** has "Name", "Title", "Team", "Email", "Phone", "Chat", "Location or time zone", "Description" and "Notes (Markdown)". Below them come the work items, roadmaps and repositories they are tied to, each with a role and "Unlink", with "Tie work item", "Tie roadmap" and "Tie repository", and then "Activity history".
+
+See [Keep people and tie them to work](#keep-people-and-tie-them-to-work).
 
 ### Resources
 

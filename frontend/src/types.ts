@@ -1,3 +1,5 @@
+import type { Repository } from "./repositoryTypes";
+
 export type Status = "open" | "doing" | "blocked" | "done";
 export type RecordBase = {
   id: string;
@@ -6,21 +8,33 @@ export type RecordBase = {
   createdAt?: string;
   updatedAt?: string;
 };
+/** A person's tie to a work item, roadmap or repository; relationship is their role there. */
 export type PersonAssignment = {
   id: string;
   personId: string;
   name: string;
-  personRole: string;
+  personTitle: string;
+  personTeam: string;
   relationship: string;
   archived: boolean;
   createdAt: string;
 };
 export type Person = RecordBase & {
   name: string;
-  role: string;
+  title: string;
+  team: string;
+  /** Who they are and what to go to them for, in a sentence or two. */
+  description: string;
+  email: string;
+  phone: string;
+  /** A chat handle, such as a Teams or Slack name. */
+  chat: string;
+  /** Where they are, or their time zone. */
+  location: string;
   notes: string;
   workItemCount?: number;
   roadmapCount?: number;
+  repositoryCount?: number;
 };
 export type PersonRoadmapLink = {
   linkId: string;
@@ -44,9 +58,18 @@ export type PersonWorkItemLink = {
   createdAt: string;
   item: Item;
 };
+export type PersonRepositoryLink = {
+  linkId: string;
+  personId: string;
+  repositoryId: string;
+  relationship: string;
+  createdAt: string;
+  repository: Repository;
+};
 export type PersonDetail = Person & {
   roadmaps: PersonRoadmapLink[];
   workItems: PersonWorkItemLink[];
+  repositories: PersonRepositoryLink[];
   history: unknown[];
 };
 export type Item = RecordBase & {

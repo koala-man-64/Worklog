@@ -1963,6 +1963,41 @@ button.agent-chip.more {
 .person-badge:hover {
   text-decoration: underline;
 }
+/* People: how to reach someone, on one wrapping row of addresses under their name. */
+.person-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.person-contact a {
+  color: var(--teal);
+}
+/* A person's description reads in two lines on their row; their page shows all of it. */
+.person-row .person-description {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  margin: 6px 0 0;
+  overflow-wrap: anywhere;
+}
+/* A person's single-line fields share the width in as many columns as it holds. */
+.person-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  column-gap: 24px;
+}
+.person-fields > .draft {
+  margin: 8px 0;
+}
+.person-tie {
+  margin-top: 10px;
+}
 /* An agent chat reads as who (title, provider and model), where (chat ID, repos), and what (steps). */
 .chat-summary {
   flex: 1;
