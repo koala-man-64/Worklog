@@ -17,6 +17,7 @@ STAMP = "2026-01-01T00:00:00+00:00"
 ORIGIN = "http://127.0.0.1:8877"
 # README: from version 10 to version 9, with Worklog stopped and after a manual backup.
 WAY_BACK = """\
+BEGIN;
 DELETE FROM person_links WHERE target_type='repository';
 ALTER TABLE person_links RENAME TO person_links_v10;
 CREATE TABLE person_links(id TEXT PRIMARY KEY,person_id TEXT NOT NULL REFERENCES people(id),target_type TEXT NOT NULL CHECK(target_type IN('item','roadmap')),target_id TEXT NOT NULL,relationship TEXT NOT NULL DEFAULT '',created_at TEXT NOT NULL,UNIQUE(person_id,target_type,target_id));
@@ -33,6 +34,7 @@ ALTER TABLE people DROP COLUMN location;
 ALTER TABLE people RENAME COLUMN team TO role;
 UPDATE search_index SET body=(SELECT role || char(10) || notes FROM people WHERE people.id=search_index.entity_id) WHERE type='person';
 PRAGMA user_version=9;
+COMMIT;
 """
 LINKS = [("ann-item", "ann", "item", "item", "Owner", STAMP), ("ann-road", "ann", "roadmap", "road", "Stakeholder", STAMP),
          ("bo-item", "bo", "item", "item", "", STAMP)]
@@ -193,12 +195,30 @@ def test_the_documented_way_back_to_v9_keeps_people_and_their_work_ties_and_upgr
         assert tuple(conn.execute("SELECT team,title,email FROM people WHERE id='ann'").fetchone()) == ("Platform", "", "")
 
 
+def test_a_way_back_that_fails_part_way_changes_nothing(tmp_path):
+    path = tmp_path / "worklog.sqlite3"
+    v9_database(path)
+    Database(path).initialize()
+    before = {t: rows(path, t) for t in ("people", "person_links", "search_index")}
+    # As SQLite before 3.35 refuses DROP COLUMN: the statement fails once the links are rebuilt.
+    broken = WAY_BACK.replace("DROP COLUMN title;", "DROP COLUMN no_such_column;")
+    with closing(sqlite3.connect(path)) as conn, pytest.raises(sqlite3.OperationalError):
+        conn.executescript(broken)
+    with closing(sqlite3.connect(path)) as conn:
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 10
+        assert recovery._schema_signature(conn) == recovery._expected_schema()
+    assert {t: rows(path, t) for t in before} == before
+    recovery.validate_database(path)
+
+
 def test_a_malformed_open_proposal_is_left_for_review_to_refuse(tmp_path):
     path = tmp_path / "worklog.sqlite3"
     v9_database(path)
     odd = ["not json", json.dumps({"action": "person.update"}), json.dumps([1, None]),
            json.dumps([{"action": ["person.update"], "payload": {"role": "x"}}]), json.dumps([{"action": "person.create", "payload": "role"}]),
-           json.dumps([{"action": "person.update", "payload": {"role": "x", "team": "y"}}])]
+           json.dumps([{"action": "person.update", "payload": {"role": "x", "team": "y"}}]),
+           # Proposals are written without NaN, so carrying it over would store what they refuse.
+           json.dumps([{"action": "person.update", "payload": {"id": "ann", "revision": 1, "role": float("nan")}}])]
     with closing(sqlite3.connect(path)) as conn:
         for number, operations in enumerate(odd):
             conn.execute("INSERT INTO proposals VALUES(?,'Odd','','draft',1,'credential','Agent','agent',?,NULL,?,?)",

@@ -186,7 +186,7 @@ def _propose_team(conn: sqlite3.Connection) -> None:
                                          OPEN_PROPOSALS).fetchall():
         try:
             operations = json.loads(stored)
-        except ValueError:
+        except (ValueError, RecursionError):
             continue
         changed = False
         for operation in operations if isinstance(operations, list) else []:
@@ -195,9 +195,15 @@ def _propose_team(conn: sqlite3.Connection) -> None:
                     and "role" in payload and "team" not in payload):
                 payload["team"] = payload.pop("role")
                 changed = True
-        if changed:
-            conn.execute("UPDATE proposals SET operations=?,revision=revision+1,updated_at=? WHERE id=?",
-                         (json.dumps(operations, allow_nan=False), stamp, identity))
+        if not changed:
+            continue
+        try:
+            # Encoded as proposals keep them; a value they could not hold, such as NaN, stays as stored.
+            rewritten = json.dumps(operations, allow_nan=False)
+        except (ValueError, RecursionError):
+            continue
+        conn.execute("UPDATE proposals SET operations=?,revision=revision+1,updated_at=? WHERE id=?",
+                     (rewritten, stamp, identity))
 
 
 def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
