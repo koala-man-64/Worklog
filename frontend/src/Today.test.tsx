@@ -407,7 +407,7 @@ it("collapses an entry to its heading row and keeps it collapsed on any day", as
     within(release).getByLabelText("Outcome / next action"),
   ).not.toBeVisible();
   expect(
-    within(release).getByText("Scratchpad, links and files"),
+    within(release).getByText("Scratchpad, links, files and repositories"),
   ).not.toBeVisible();
   expect(
     within(entryOf("Write the runbook")).getByLabelText(
