@@ -237,6 +237,7 @@ export function DraftField({
   placeholder,
   maxLength,
   disabled = false,
+  compact = false,
 }: {
   draftKey: string;
   label: string;
@@ -247,9 +248,16 @@ export function DraftField({
   placeholder?: string;
   maxLength?: number;
   disabled?: boolean;
+  /** Puts Save now in the heading row, so a field in a list takes one row less. */
+  compact?: boolean;
 }) {
   const draft = useDraft(draftKey, initial, revision, save);
   const [preview, setPreview] = useState(false);
+  const saveNow = (
+    <button className="quiet" onClick={draft.flush} disabled={disabled}>
+      Save now
+    </button>
+  );
   return (
     <section className="draft">
       <div className="field-heading">
@@ -260,6 +268,7 @@ export function DraftField({
             {preview ? "Edit" : "Preview"}
           </button>
         )}
+        {compact && saveNow}
       </div>
       {preview ? (
         <Markdown text={draft.value} />
@@ -284,9 +293,7 @@ export function DraftField({
           onBlur={draft.flush}
         />
       )}
-      <button className="quiet" onClick={draft.flush} disabled={disabled}>
-        Save now
-      </button>
+      {!compact && saveNow}
       {draft.storageWarning && (
         <p className="warning">
           Browser draft storage unavailable; keep this tab open until saved.
@@ -560,9 +567,12 @@ export function Notes({
 export function Scratchpad({
   itemId,
   notes,
+  compact = false,
 }: {
   itemId: string;
   notes: Note[];
+  /** Passed to its field: Save now in the heading row. */
+  compact?: boolean;
 }) {
   const pad = notes.find((n) => !n.archived);
   const archived = notes.filter((n) => n.archived);
@@ -588,6 +598,7 @@ export function Scratchpad({
         initial={pad?.text ?? ""}
         revision={pad?.revision ?? 0}
         save={save}
+        compact={compact}
       />
       {archived.length > 0 && (
         <details className="archived-notes">

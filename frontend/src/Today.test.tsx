@@ -120,6 +120,38 @@ it("uses historical API summary and makes archived actuals read only", () => {
   expect(screen.queryByText("Scratchpad, links and files")).toBeNull();
 });
 
+it("keeps an entry's controls on its title row and the day's counts beside its heading", () => {
+  state.day = day("2026-10-28", [
+    entry("release", "Ship the release", "doing"),
+  ]);
+  render(view("2026-10-28", "2026-10-28"));
+  const head = screen
+    .getByRole("link", { name: "Ship the release" })
+    .closest(".entry-head") as HTMLElement;
+  expect(within(head).getByLabelText("Planned")).toBeInTheDocument();
+  expect(within(head).getByLabelText("Worked on")).toBeInTheDocument();
+  expect(
+    within(head).getByRole("button", { name: "Move Ship the release down" }),
+  ).toBeInTheDocument();
+  expect(
+    within(head).getByRole("combobox", { name: "Status" }),
+  ).toBeInTheDocument();
+  // The outcome's Save now sits beside its label, not on a row of its own.
+  const outcome = screen
+    .getByRole("textbox", { name: "Outcome / next action" })
+    .closest(".draft") as HTMLElement;
+  expect(
+    within(outcome.querySelector(".field-heading") as HTMLElement).getByRole(
+      "button",
+      { name: "Save now" },
+    ),
+  ).toBeInTheDocument();
+  const heading = screen
+    .getByRole("heading", { name: /^The day’s work/ })
+    .closest(".day-heading") as HTMLElement;
+  expect(heading.querySelector(".day-summary")).not.toBeNull();
+});
+
 it("reads an entry's scratchpad, links and files only once they are opened", async () => {
   state.day = day("2026-10-28", [
     entry("release", "Ship the release", "doing"),
@@ -275,11 +307,15 @@ it("collapses an entry to its heading row and keeps it collapsed on any day", as
   expect(
     within(release).getByRole("button", { name: "Expand Ship the release" }),
   ).toHaveAttribute("aria-expanded", "false");
-  // The heading row stays usable; the rest is hidden but still mounted.
+  // The heading row stays usable, its controls included; the outcome and
+  // details are hidden but still mounted.
   expect(
     within(release).getByRole("button", {
       name: "Reschedule Ship the release",
     }),
+  ).toBeVisible();
+  expect(
+    within(release).getByLabelText("Worked on", { exact: true }),
   ).toBeVisible();
   expect(
     within(release).getByRole("combobox", { name: "Status" }),
@@ -288,7 +324,7 @@ it("collapses an entry to its heading row and keeps it collapsed on any day", as
     within(release).getByLabelText("Outcome / next action"),
   ).not.toBeVisible();
   expect(
-    within(release).getByLabelText("Worked on", { exact: true }),
+    within(release).getByText("Scratchpad, links and files"),
   ).not.toBeVisible();
   expect(
     within(entryOf("Write the runbook")).getByLabelText(

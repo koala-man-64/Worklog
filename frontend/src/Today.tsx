@@ -43,7 +43,7 @@ function EntryDetailsBody({ itemId }: { itemId: string }) {
     );
   return (
     <>
-      <Scratchpad itemId={itemId} notes={item.data.notes} />
+      <Scratchpad itemId={itemId} notes={item.data.notes} compact />
       <LinksSection ownerType="item" ownerId={itemId} links={item.data.links} />
       <Files
         ownerType="item"
@@ -152,30 +152,7 @@ export function Today({
       <ErrorMessage error={day.error || action.error || rescheduleError} />
       {data && (
         <>
-          <div className="day-summary">
-            <div>
-              <strong>{data.summary.worked.length}</strong>
-              <span>worked on</span>
-            </div>
-            <div>
-              <strong>{data.summary.completed.length}</strong>
-              <span>completed</span>
-            </div>
-            <div>
-              <strong>{data.summary.blocked.length}</strong>
-              <span>blocked</span>
-            </div>
-            <p>
-              {data.nextItemId ? (
-                <a href={"#work/" + data.nextItemId}>
-                  Continue your next open item
-                </a>
-              ) : (
-                "Nothing open to continue."
-              )}
-            </p>
-          </div>
-          <div className="section-heading day-work-heading">
+          <div className="section-heading day-heading">
             <h2>
               The day’s work{" "}
               <span className="count">{data.entries.length}</span>
@@ -200,6 +177,29 @@ export function Today({
                 </button>
               </div>
             )}
+            <div className="day-summary">
+              <div>
+                <strong>{data.summary.worked.length}</strong>
+                <span>worked on</span>
+              </div>
+              <div>
+                <strong>{data.summary.completed.length}</strong>
+                <span>completed</span>
+              </div>
+              <div>
+                <strong>{data.summary.blocked.length}</strong>
+                <span>blocked</span>
+              </div>
+              <p>
+                {data.nextItemId ? (
+                  <a href={"#work/" + data.nextItemId}>
+                    Continue your next open item
+                  </a>
+                ) : (
+                  "Nothing open to continue."
+                )}
+              </p>
+            </div>
           </div>
           {!data.entries.length && (
             <Empty>
@@ -259,92 +259,155 @@ export function Today({
                 }
               }}
             >
-              <div className="section-heading">
-                <div>
-                  <button
-                    type="button"
-                    className="tree-toggle"
-                    aria-expanded={!collapsed.has(entry.itemId)}
-                    aria-controls={"entry-body-" + entry.id}
-                    aria-label={
-                      (collapsed.has(entry.itemId) ? "Expand " : "Collapse ") +
-                      entry.item.title
-                    }
-                    onClick={() => toggle(entry.itemId)}
-                  >
-                    <Icon
-                      name={collapsed.has(entry.itemId) ? "expand" : "collapse"}
-                      size={14}
-                    />
-                  </button>
-                  <span className="ordinal">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <span
-                    className="drag-handle quiet"
-                    role="img"
-                    draggable={!entry.item.archived && !action.isPending}
-                    aria-disabled={entry.item.archived || action.isPending}
-                    aria-label={"Drag " + entry.item.title + " to reorder"}
-                    title="Drag to reorder; arrow buttons also work"
-                    onDragStart={(e) => {
-                      e.dataTransfer.effectAllowed = "move";
-                      e.dataTransfer.setData(
-                        "application/x-worklog-day-entry",
-                        JSON.stringify({
-                          entryId: entry.id,
-                          date,
-                          dataId: getDataContext(),
-                          revision: data.revision,
-                        }),
-                      );
-                      setDragged(entry.id);
-                    }}
-                    onDragEnd={() => setDragged(null)}
-                  >
-                    <Icon name="grip" />
-                  </span>
-                  <span
-                    className={"status-dot " + entry.item.status}
-                    aria-hidden="true"
-                  />
-                  <a className="item-title" href={"#work/" + entry.itemId}>
-                    {entry.item.title}
-                  </a>
-                  {entry.item.archived && (
-                    <span className="badge">
-                      Archived, recover in work details
-                    </span>
-                  )}
-                  <button
-                    className="quiet reschedule"
-                    aria-label={"Reschedule " + entry.item.title}
-                    aria-expanded={rescheduling === entry.id}
-                    disabled={entry.item.archived}
-                    onClick={() => {
-                      if (rescheduling === entry.id) {
-                        closeReschedule();
-                      } else {
-                        setRescheduleError(null);
-                        setTarget("");
-                        setRescheduling(entry.id);
+              <div className="section-heading entry-head">
+                <div className="entry-title">
+                  <span className="entry-mark">
+                    <button
+                      type="button"
+                      className="tree-toggle"
+                      aria-expanded={!collapsed.has(entry.itemId)}
+                      aria-controls={"entry-body-" + entry.id}
+                      aria-label={
+                        (collapsed.has(entry.itemId)
+                          ? "Expand "
+                          : "Collapse ") + entry.item.title
                       }
-                    }}
-                  >
-                    Reschedule
-                  </button>
+                      onClick={() => toggle(entry.itemId)}
+                    >
+                      <Icon
+                        name={
+                          collapsed.has(entry.itemId) ? "expand" : "collapse"
+                        }
+                        size={14}
+                      />
+                    </button>
+                    <span className="ordinal">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    <span
+                      className="drag-handle quiet"
+                      role="img"
+                      draggable={!entry.item.archived && !action.isPending}
+                      aria-disabled={entry.item.archived || action.isPending}
+                      aria-label={"Drag " + entry.item.title + " to reorder"}
+                      title="Drag to reorder; arrow buttons also work"
+                      onDragStart={(e) => {
+                        e.dataTransfer.effectAllowed = "move";
+                        e.dataTransfer.setData(
+                          "application/x-worklog-day-entry",
+                          JSON.stringify({
+                            entryId: entry.id,
+                            date,
+                            dataId: getDataContext(),
+                            revision: data.revision,
+                          }),
+                        );
+                        setDragged(entry.id);
+                      }}
+                      onDragEnd={() => setDragged(null)}
+                    >
+                      <Icon name="grip" />
+                    </span>
+                    <span
+                      className={"status-dot " + entry.item.status}
+                      aria-hidden="true"
+                    />
+                  </span>
+                  <span className="entry-name">
+                    <a className="item-title" href={"#work/" + entry.itemId}>
+                      {entry.item.title}
+                    </a>
+                    {entry.item.archived && (
+                      <span className="badge">
+                        Archived, recover in work details
+                      </span>
+                    )}
+                    <button
+                      className="quiet reschedule"
+                      aria-label={"Reschedule " + entry.item.title}
+                      aria-expanded={rescheduling === entry.id}
+                      disabled={entry.item.archived}
+                      onClick={() => {
+                        if (rescheduling === entry.id) {
+                          closeReschedule();
+                        } else {
+                          setRescheduleError(null);
+                          setTarget("");
+                          setRescheduling(entry.id);
+                        }
+                      }}
+                    >
+                      Reschedule
+                    </button>
+                  </span>
                 </div>
-                <StatusSelect
-                  disabled={entry.item.archived}
-                  value={entry.item.status}
-                  onChange={(status) =>
-                    action.mutate({
-                      path: "/work-items/" + entry.itemId,
-                      method: "PATCH",
-                      body: { revision: entry.item.revision, status },
-                    })
-                  }
-                />
+                <div className="entry-controls">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={entry.planned}
+                      disabled={entry.item.archived}
+                      onChange={(e) =>
+                        action.mutate({
+                          path: `/days/${date}/entries/${entry.itemId}`,
+                          method: "PUT",
+                          body: {
+                            revision: entry.revision,
+                            planned: e.target.checked,
+                          },
+                        })
+                      }
+                    />{" "}
+                    Planned
+                  </label>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={entry.worked}
+                      disabled={entry.item.archived}
+                      onChange={(e) =>
+                        action.mutate({
+                          path: `/days/${date}/entries/${entry.itemId}`,
+                          method: "PUT",
+                          body: {
+                            revision: entry.revision,
+                            worked: e.target.checked,
+                          },
+                        })
+                      }
+                    />{" "}
+                    Worked on
+                  </label>
+                  <div className="reorder">
+                    <button
+                      aria-label={"Move " + entry.item.title + " up"}
+                      disabled={index === 0 || entry.item.archived}
+                      onClick={() => move(index, -1)}
+                    >
+                      <Icon name="up" />
+                    </button>
+                    <button
+                      aria-label={"Move " + entry.item.title + " down"}
+                      disabled={
+                        index === data.entries.length - 1 || entry.item.archived
+                      }
+                      onClick={() => move(index, 1)}
+                    >
+                      <Icon name="down" />
+                    </button>
+                  </div>
+                  <StatusSelect
+                    disabled={entry.item.archived}
+                    value={entry.item.status}
+                    onChange={(status) =>
+                      action.mutate({
+                        path: "/work-items/" + entry.itemId,
+                        method: "PATCH",
+                        body: { revision: entry.item.revision, status },
+                      })
+                    }
+                  />
+                </div>
               </div>
               {rescheduling === entry.id && (
                 <form
@@ -386,60 +449,6 @@ export function Today({
                 id={"entry-body-" + entry.id}
                 hidden={collapsed.has(entry.itemId)}
               >
-                <div className="toolbar">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={entry.planned}
-                      disabled={entry.item.archived}
-                      onChange={(e) =>
-                        action.mutate({
-                          path: `/days/${date}/entries/${entry.itemId}`,
-                          method: "PUT",
-                          body: {
-                            revision: entry.revision,
-                            planned: e.target.checked,
-                          },
-                        })
-                      }
-                    />{" "}
-                    Planned
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={entry.worked}
-                      disabled={entry.item.archived}
-                      onChange={(e) =>
-                        action.mutate({
-                          path: `/days/${date}/entries/${entry.itemId}`,
-                          method: "PUT",
-                          body: {
-                            revision: entry.revision,
-                            worked: e.target.checked,
-                          },
-                        })
-                      }
-                    />{" "}
-                    Worked on
-                  </label>
-                  <button
-                    aria-label={"Move " + entry.item.title + " up"}
-                    disabled={index === 0 || entry.item.archived}
-                    onClick={() => move(index, -1)}
-                  >
-                    <Icon name="up" />
-                  </button>
-                  <button
-                    aria-label={"Move " + entry.item.title + " down"}
-                    disabled={
-                      index === data.entries.length - 1 || entry.item.archived
-                    }
-                    onClick={() => move(index, 1)}
-                  >
-                    <Icon name="down" />
-                  </button>
-                </div>
                 {entry.item.archived ? (
                   <section className="draft">
                     <label>Outcome / next action</label>
@@ -447,6 +456,7 @@ export function Today({
                   </section>
                 ) : (
                   <DraftField
+                    compact
                     draftKey={"entry-" + entry.id}
                     label="Outcome / next action"
                     initial={entry.outcome}
@@ -464,7 +474,7 @@ export function Today({
             </article>
           ))}
           <section className="open-work">
-            <div className="section-heading">
+            <div className="section-heading day-heading">
               <h2>
                 Open work <span className="count">{candidates.length}</span>
               </h2>
@@ -481,35 +491,40 @@ export function Today({
                 {workQuery ? "No open work matches." : "No other open work."}
               </p>
             )}
-            {candidates.map((item) => (
-              <div className="line" key={item.id}>
-                <span
-                  className={"status-dot " + item.status}
-                  aria-hidden="true"
-                />
-                <a className="item-title" href={"#work/" + item.id}>
-                  {item.title}
-                </a>
-                <button
-                  aria-label={planFor(item.title)}
-                  disabled={action.isPending}
-                  onClick={() =>
-                    action.mutate({
-                      path: `/days/${date}/entries/${item.id}`,
-                      method: "PUT",
-                      body: { revision: 0, planned: true },
-                    })
-                  }
-                >
-                  {planLabel}
-                </button>
+            {candidates.length > 0 && (
+              <div className="open-list">
+                {candidates.map((item) => (
+                  <div className="line" key={item.id}>
+                    <span
+                      className={"status-dot " + item.status}
+                      aria-hidden="true"
+                    />
+                    <a className="item-title" href={"#work/" + item.id}>
+                      {item.title}
+                    </a>
+                    <button
+                      aria-label={planFor(item.title)}
+                      disabled={action.isPending}
+                      onClick={() =>
+                        action.mutate({
+                          path: `/days/${date}/entries/${item.id}`,
+                          method: "PUT",
+                          body: { revision: 0, planned: true },
+                        })
+                      }
+                    >
+                      {planLabel}
+                    </button>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
             {(openWork.data?.total ?? 0) > 100 && (
               <small>Showing the first 100 matches. Refine your search.</small>
             )}
           </section>
           <DraftField
+            compact
             key={date}
             draftKey={"reflection-" + date}
             label="End-of-day reflection (Markdown)"
