@@ -101,7 +101,7 @@ Add a spec-driven test that records, for every API operation, whether an agent c
 
 #### 0.3 · One search-index scan per roadmap save
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branch: `claude/roadmap-save-index` · PR: [#89](https://github.com/koala-man-64/Worklog/pull/89)
 
 The `search_index` columns `entity_id` and `owner_id` are FTS5 `UNINDEXED`, so `DELETE ... WHERE entity_id=?` scans the whole index. `refresh_plans` bulk-deletes and then runs that scan again for every step.
 
@@ -111,7 +111,7 @@ Fix: insert directly after the bulk delete. Findings: B-01.
 
 #### 0.4 · Rotating a credential keeps the agent's drafts
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branch: `claude/rotation-keeps-drafts` · PR: [#90](https://github.com/koala-man-64/Worklog/pull/90)
 
 Rotation binds a new credential id to the same agent identity. Proposal ownership compares credential ids, so the agent can no longer see, edit or submit its own drafts.
 
