@@ -113,8 +113,11 @@ function WorkList() {
       },
     });
   };
+  const total = list.data?.total ?? 0;
+  // A sheet: one row per item, one column per fact. From 900px wide it fills the window,
+  // and its header row and title column stay put while the rows scroll under them.
   return (
-    <>
+    <div className="bounded-screen work-screen">
       <header>
         <h1>Work</h1>
         <p className="lede">
@@ -122,163 +125,227 @@ function WorkList() {
         </p>
       </header>
       <CreateItem />
-      <div className="toolbar">
-        <RepositoryFilter
-          value={repositoryId}
-          onChange={(id) => {
-            setRepositoryId(id);
-            setOffset(0);
-          }}
-        />
-        <input
-          aria-label="Filter work by text"
-          placeholder="Find in work…"
-          value={q}
-          onChange={(e) => {
-            setQ(e.target.value);
-            setOffset(0);
-          }}
-        />
-        <select
-          aria-label="Work view"
-          value={view}
-          onChange={(e) => {
-            setView(e.target.value);
-            setOffset(0);
-          }}
-        >
-          <option value="all">All work</option>
-          <option value="backlog">Unscheduled backlog</option>
-        </select>
-        <label>
-          <input
-            type="checkbox"
-            checked={archived}
-            onChange={(e) => {
-              setArchived(e.target.checked);
-              setOffset(0);
-            }}
-          />{" "}
-          Show archive
-        </label>
-        <div className="status-toggles" role="group" aria-label="Filter status">
-          {STATUSES.map((s) => (
-            <button
-              key={s}
-              type="button"
-              aria-pressed={statuses.includes(s)}
-              onClick={() => {
-                setStatuses(
-                  statuses.includes(s)
-                    ? statuses.filter((other) => other !== s)
-                    : [...statuses, s],
-                );
+      <ErrorMessage error={list.error || action.error} />
+      <div className="work-grid">
+        {/* Two groups that wrap as wholes: where and who, then which work and in what state. */}
+        <div className="toolbar work-filters">
+          <div className="work-filters-find">
+            <RepositoryFilter
+              value={repositoryId}
+              onChange={(id) => {
+                setRepositoryId(id);
+                setOffset(0);
+              }}
+            />
+            <input
+              aria-label="Filter work by text"
+              placeholder="Find in work…"
+              value={q}
+              onChange={(e) => {
+                setQ(e.target.value);
+                setOffset(0);
+              }}
+            />
+            <select
+              aria-label="Filter by person"
+              value={personId}
+              onChange={(e) => {
+                setPersonId(e.target.value);
                 setOffset(0);
               }}
             >
-              <span className={"status-dot " + s} aria-hidden="true" />
-              {statusLabel(s)}
-            </button>
-          ))}
-        </div>
-        <select
-          aria-label="Filter by person"
-          value={personId}
-          onChange={(e) => {
-            setPersonId(e.target.value);
-            setOffset(0);
-          }}
-        >
-          <option value="">All people</option>
-          {people.data?.items?.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-      </div>
-      <ErrorMessage error={list.error || action.error} />
-      {list.isPending ? (
-        <p>Loading work…</p>
-      ) : !list.data?.items.length ? (
-        <Empty>No work items yet. Add your first one above.</Empty>
-      ) : (
-        <div className="work-list">
-          {list.data.items.map((item) => (
-            <article className="work-row" key={item.id}>
-              <span className={"status-dot " + item.status} />
-              <div>
-                <a className="item-title" href={"#work/" + item.id}>
-                  {item.title}
-                </a>
-                <PersonBadges people={item.people} />
-                <RepositoryBadges ids={item.repositoryIds} />
-                <small>
-                  {item.description?.slice(0, 1000) || "Ready for a next step"}
-                </small>
-              </div>
-              <StatusSelect
-                value={item.status}
-                onChange={(status) =>
-                  action.mutate({
-                    path: `/work-items/${item.id}`,
-                    method: "PATCH",
-                    body: { revision: item.revision, status },
-                  })
-                }
-              />
-              <div className="reorder">
+              <option value="">All people</option>
+              {people.data?.items?.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="work-filters-state">
+            <select
+              aria-label="Work view"
+              value={view}
+              onChange={(e) => {
+                setView(e.target.value);
+                setOffset(0);
+              }}
+            >
+              <option value="all">All work</option>
+              <option value="backlog">Unscheduled backlog</option>
+            </select>
+            <label>
+              <input
+                type="checkbox"
+                checked={archived}
+                onChange={(e) => {
+                  setArchived(e.target.checked);
+                  setOffset(0);
+                }}
+              />{" "}
+              Show archive
+            </label>
+            <div
+              className="status-toggles"
+              role="group"
+              aria-label="Filter status"
+            >
+              {STATUSES.map((s) => (
                 <button
-                  aria-label={"Move " + item.title + " up"}
-                  onClick={() => move(item.id, -1)}
-                  disabled={archived || !item.isBacklog || action.isPending}
+                  key={s}
+                  type="button"
+                  aria-pressed={statuses.includes(s)}
+                  onClick={() => {
+                    setStatuses(
+                      statuses.includes(s)
+                        ? statuses.filter((other) => other !== s)
+                        : [...statuses, s],
+                    );
+                    setOffset(0);
+                  }}
                 >
-                  <Icon name="up" />
+                  <span className={"status-dot " + s} aria-hidden="true" />
+                  {statusLabel(s)}
                 </button>
-                <button
-                  aria-label={"Move " + item.title + " down"}
-                  onClick={() => move(item.id, 1)}
-                  disabled={archived || !item.isBacklog || action.isPending}
-                >
-                  <Icon name="down" />
-                </button>
-              </div>
-              <button
-                className="quiet"
-                onClick={() =>
-                  action.mutate({
-                    path: `/work-items/${item.id}/${archived ? "recover" : "archive"}`,
-                    body: { revision: item.revision },
-                  })
-                }
-              >
-                {archived ? "Recover" : "Archive"}
-              </button>
-            </article>
-          ))}
+              ))}
+            </div>
+          </div>
         </div>
-      )}
-      {(list.data?.total ?? 0) > 100 && (
-        <div className="toolbar">
-          <button
-            disabled={offset === 0}
-            onClick={() => setOffset(Math.max(0, offset - 100))}
-          >
-            Previous work
-          </button>
+        <div className="work-grid-body">
+          <table aria-label="Work items">
+            <colgroup>
+              <col className="col-title" />
+              <col className="col-status" />
+              <col />
+              <col className="col-people" />
+              <col className="col-repositories" />
+              <col className="col-order" />
+              <col className="col-archive" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th scope="col" className="cell-title">
+                  Title
+                </th>
+                <th scope="col">Status</th>
+                <th scope="col">Description</th>
+                <th scope="col">People</th>
+                <th scope="col">Repositories</th>
+                <th scope="col">Order</th>
+                {/* The column of Archive (or Recover) buttons is named for screen readers; its buttons say it. */}
+                <th scope="col" aria-label={archived ? "Recover" : "Archive"} />
+              </tr>
+            </thead>
+            <tbody>
+              {list.isPending ? (
+                <tr>
+                  <td colSpan={7}>Loading work…</td>
+                </tr>
+              ) : !list.data?.items.length ? (
+                <tr>
+                  <td colSpan={7}>
+                    <Empty>No work items yet. Add your first one above.</Empty>
+                  </td>
+                </tr>
+              ) : (
+                list.data.items.map((item) => (
+                  <tr className="work-row" key={item.id}>
+                    <th scope="row" className="cell-title">
+                      <a className="item-title" href={"#work/" + item.id}>
+                        {item.title}
+                      </a>
+                    </th>
+                    <td>
+                      <StatusSelect
+                        value={item.status}
+                        onChange={(status) =>
+                          action.mutate({
+                            path: `/work-items/${item.id}`,
+                            method: "PATCH",
+                            body: { revision: item.revision, status },
+                          })
+                        }
+                      />
+                    </td>
+                    <td className="cell-description">
+                      <span className={item.description ? undefined : "muted"}>
+                        {item.description?.slice(0, 1000) ||
+                          "Ready for a next step"}
+                      </span>
+                    </td>
+                    <td>
+                      <PersonBadges people={item.people} />
+                    </td>
+                    <td className="cell-repositories">
+                      <RepositoryBadges ids={item.repositoryIds} />
+                    </td>
+                    <td>
+                      <div className="reorder">
+                        <button
+                          aria-label={"Move " + item.title + " up"}
+                          onClick={() => move(item.id, -1)}
+                          disabled={
+                            archived || !item.isBacklog || action.isPending
+                          }
+                        >
+                          <Icon name="up" />
+                        </button>
+                        <button
+                          aria-label={"Move " + item.title + " down"}
+                          onClick={() => move(item.id, 1)}
+                          disabled={
+                            archived || !item.isBacklog || action.isPending
+                          }
+                        >
+                          <Icon name="down" />
+                        </button>
+                      </div>
+                    </td>
+                    <td>
+                      <button
+                        className="quiet"
+                        onClick={() =>
+                          action.mutate({
+                            path: `/work-items/${item.id}/${archived ? "recover" : "archive"}`,
+                            body: { revision: item.revision },
+                          })
+                        }
+                      >
+                        {archived ? "Recover" : "Archive"}
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div className="work-grid-foot">
           <span>
-            {offset + 1} to {Math.min(offset + 100, list.data?.total ?? 0)} of{" "}
-            {list.data?.total}
+            {list.data &&
+              (total > 100
+                ? `${offset + 1} to ${Math.min(offset + 100, total)} of ${total}`
+                : `${total} work ${total === 1 ? "item" : "items"}`)}
           </span>
-          <button
-            disabled={offset + 100 >= (list.data?.total ?? 0)}
-            onClick={() => setOffset(offset + 100)}
-          >
-            Next work
-          </button>
+          {total > 100 && (
+            <div className="work-pager">
+              <button
+                disabled={offset === 0}
+                onClick={() => setOffset(Math.max(0, offset - 100))}
+              >
+                Previous work
+              </button>
+              <button
+                disabled={offset + 100 >= total}
+                onClick={() => setOffset(offset + 100)}
+              >
+                Next work
+              </button>
+            </div>
+          )}
         </div>
-      )}
-    </>
+      </div>
+    </div>
   );
 }
 export function ItemDetail({ id }: { id: string }) {
