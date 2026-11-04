@@ -2126,6 +2126,17 @@
               ],
               "title": "Personid"
             }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 500,
+              "default": "",
+              "title": "Q"
+            }
           }
         ],
         "responses": {
@@ -8932,9 +8943,39 @@
             "type": "string",
             "title": "Name"
           },
-          "role": {
+          "title": {
             "type": "string",
-            "title": "Role",
+            "title": "Title",
+            "default": ""
+          },
+          "team": {
+            "type": "string",
+            "title": "Team",
+            "default": ""
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "email": {
+            "type": "string",
+            "title": "Email",
+            "default": ""
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone",
+            "default": ""
+          },
+          "chat": {
+            "type": "string",
+            "title": "Chat",
+            "default": ""
+          },
+          "location": {
+            "type": "string",
+            "title": "Location",
             "default": ""
           },
           "notes": {
@@ -8960,7 +9001,8 @@
             "type": "string",
             "enum": [
               "item",
-              "roadmap"
+              "roadmap",
+              "repository"
             ],
             "title": "Targettype"
           },
@@ -8993,7 +9035,8 @@
             "type": "string",
             "enum": [
               "item",
-              "roadmap"
+              "roadmap",
+              "repository"
             ],
             "title": "Targettype"
           },
@@ -9029,7 +9072,7 @@
             ],
             "title": "Name"
           },
-          "role": {
+          "title": {
             "anyOf": [
               {
                 "type": "string"
@@ -9038,7 +9081,73 @@
                 "type": "null"
               }
             ],
-            "title": "Role"
+            "title": "Title"
+          },
+          "team": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "chat": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chat"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
           },
           "notes": {
             "anyOf": [

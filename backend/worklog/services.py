@@ -14,6 +14,7 @@ from urllib.parse import urlsplit
 from . import scratchpad
 from .common import (
     FILE_LIMIT,
+    NOTE_LIMIT,
     AppError,
     event,
     now,
@@ -114,22 +115,74 @@ def infer_github_reference(kind: str, link: str) -> str:
     return ""
 
 
+# A person's own fields, each named as its column, and their limits in UTF-8 bytes. The
+# description is a paragraph and the notes Markdown; the others are single lines, trimmed.
+PERSON_LIMITS = {"name": 500, "title": 500, "team": 500, "description": 10_000, "email": 320,
+                 "phone": 100, "chat": 500, "location": 500, "notes": NOTE_LIMIT}
+PERSON_FIELDS = tuple(PERSON_LIMITS)
+# What a person can be tied to, by the table each lives in.
+PERSON_TARGETS = {"item": "work_items", "roadmap": "roadmaps", "repository": "repositories"}
+# Besides whitespace and control characters: what a mailto: link would read as more than an address.
+EMAIL_FORBIDDEN = frozenset('<>()[]\\,;:"?#/%')
+
+
 def person_record(r: Any) -> dict:
     keys = set(r.keys())
-    res = {"id": r["id"], "name": r["name"], "role": r["role"], "notes": r["notes"],
+    res = {"id": r["id"], **{field: r[field] for field in PERSON_FIELDS},
            "archived": bool(r["archived"]), "revision": r["revision"],
            "createdAt": r["created_at"], "updatedAt": r["updated_at"]}
-    if "work_item_count" in keys:
-        res["workItemCount"] = r["work_item_count"]
-    if "roadmap_count" in keys:
-        res["roadmapCount"] = r["roadmap_count"]
+    for column, field in (("work_item_count", "workItemCount"), ("roadmap_count", "roadmapCount"),
+                          ("repository_count", "repositoryCount")):
+        if column in keys:
+            res[field] = r[column]
     return res
 
 
 def person_assignment_record(r: Any) -> dict:
     return {"id": r["id"], "personId": r["person_id"], "name": r["name"],
-            "personRole": r["person_role"], "relationship": r["relationship"],
+            "personTitle": r["person_title"], "personTeam": r["person_team"], "relationship": r["relationship"],
             "archived": bool(r["archived"]), "createdAt": r["created_at"]}
+
+
+def people_on(c: sqlite3.Connection, target_type: str, target_ids: builtins.list[str]) -> dict[str, builtins.list[dict]]:
+    """The people tied to each of these work items, roadmaps or repositories, by name."""
+    if not target_ids:
+        return {}
+    placeholders = ",".join("?" for _ in target_ids)
+    rows = c.execute(
+        f"""SELECT pl.id, pl.person_id, pl.target_id, pl.relationship, pl.created_at,
+                   p.name, p.title AS person_title, p.team AS person_team, p.archived
+            FROM person_links pl
+            JOIN people p ON p.id = pl.person_id
+            WHERE pl.target_type = ? AND pl.target_id IN ({placeholders})
+            ORDER BY p.name COLLATE NOCASE, pl.created_at, pl.id""",
+        [target_type, *target_ids],
+    ).fetchall()
+    grouped: dict[str, builtins.list[dict]] = {tid: [] for tid in target_ids}
+    for r in rows:
+        grouped.setdefault(r["target_id"], []).append(person_assignment_record(r))
+    return grouped
+
+
+def person_email(raw: Any) -> str:
+    """Empty, or an address mail can be sent to: one @ before a dotted domain."""
+    value = text(raw, "email", limit=PERSON_LIMITS["email"]).strip()
+    if not value:
+        return ""
+    local, _, domain = value.rpartition("@")
+    labels = domain.split(".")
+    if (not local or "@" in local or len(labels) < 2 or not all(labels)
+            or any(ch.isspace() or not ch.isprintable() or ch in EMAIL_FORBIDDEN for ch in value)):
+        raise AppError(422, "validation", "Email must be an address such as name@example.com.", {"email": "invalid"})
+    return value
+
+
+def person_phone(raw: Any) -> str:
+    """Empty, or a number as people write it, such as +1 (312) 555-0100 ext. 12."""
+    value = text(raw, "phone", limit=PERSON_LIMITS["phone"]).strip()
+    if value and (not re.search("[0-9]", value) or not value.isprintable()):
+        raise AppError(422, "validation", "Phone must be a number such as +1 312 555 0100.", {"phone": "invalid"})
+    return value
 
 
 def boolean(value: Any, field: str) -> bool:
@@ -177,22 +230,7 @@ class WorkService:
         return row
 
     def target_people(self, c: sqlite3.Connection, target_type: str, target_ids: builtins.list[str]) -> dict[str, builtins.list[dict]]:
-        if not target_ids:
-            return {}
-        placeholders = ",".join("?" for _ in target_ids)
-        rows = c.execute(
-            f"""SELECT pl.id, pl.person_id, pl.target_id, pl.relationship, pl.created_at,
-                       p.name, p.role AS person_role, p.archived
-                FROM person_links pl
-                JOIN people p ON p.id = pl.person_id
-                WHERE pl.target_type = ? AND pl.target_id IN ({placeholders})
-                ORDER BY p.name COLLATE NOCASE, pl.created_at, pl.id""",
-            [target_type, *target_ids],
-        ).fetchall()
-        grouped: dict[str, builtins.list[dict]] = {tid: [] for tid in target_ids}
-        for r in rows:
-            grouped.setdefault(r["target_id"], []).append(person_assignment_record(r))
-        return grouped
+        return people_on(c, target_type, target_ids)
 
     def list(self, *, view: str = "all", archived: bool = False, states: builtins.list[str] | None = None,
              roadmap_id: str | None = None, person_id: str | None = None, repository_id: str | None = None,
@@ -338,7 +376,8 @@ class WorkService:
             rows = c.execute(
                 f"""SELECT p.*,
                     (SELECT count(*) FROM person_links pl JOIN work_items w ON w.id=pl.target_id WHERE pl.person_id=p.id AND pl.target_type='item' AND w.archived=0) AS work_item_count,
-                    (SELECT count(*) FROM person_links pl JOIN roadmaps r ON r.id=pl.target_id WHERE pl.person_id=p.id AND pl.target_type='roadmap' AND r.archived=0) AS roadmap_count
+                    (SELECT count(*) FROM person_links pl JOIN roadmaps r ON r.id=pl.target_id WHERE pl.person_id=p.id AND pl.target_type='roadmap' AND r.archived=0) AS roadmap_count,
+                    (SELECT count(*) FROM person_links pl JOIN repositories rp ON rp.id=pl.target_id WHERE pl.person_id=p.id AND pl.target_type='repository' AND rp.archived=0) AS repository_count
                     FROM people p WHERE {clause} ORDER BY p.name COLLATE NOCASE, p.id""",
                 args,
             ).fetchall()
@@ -395,8 +434,24 @@ class WorkService:
             repos = linked_repositories(c, "item", [link["itemId"] for link in work_items])
             for link in work_items:
                 link["item"]["repositoryIds"] = repos.get(link["itemId"], [])
+            from .coordination import repository_record
+
+            repositories = [
+                {"linkId": r["link_id"], "personId": r["person_id"], "repositoryId": r["repository_id"],
+                 "relationship": r["relationship"], "createdAt": r["link_created_at"], "repository": repository_record(r)}
+                for r in c.execute(
+                    """SELECT pl.id AS link_id, pl.person_id, pl.target_id AS repository_id, pl.relationship,
+                              pl.created_at AS link_created_at, rp.*
+                       FROM person_links pl
+                       JOIN repositories rp ON rp.id = pl.target_id
+                       WHERE pl.person_id = ? AND pl.target_type = 'repository'
+                       ORDER BY rp.archived, rp.name COLLATE NOCASE, rp.id""",
+                    (person_id,),
+                )
+            ]
             result["roadmaps"] = roadmaps
             result["workItems"] = work_items
+            result["repositories"] = repositories
             result["history"] = read_events(c, person_id)
             return result
 
@@ -526,20 +581,30 @@ class WorkService:
             return self._person_apply(c, actor, action, p)
         raise AppError(422, "operation", "Unsupported operation")
 
+    @staticmethod
+    def _person_target(p: dict) -> tuple[str, str, str]:
+        person_id = text(p.get("personId", ""), "personId", required=True, limit=200)
+        target_type = p.get("targetType", "")
+        if not isinstance(target_type, str) or target_type not in PERSON_TARGETS:
+            raise AppError(422, "validation", "Invalid targetType for person link")
+        return person_id, target_type, text(p.get("targetId", ""), "targetId", required=True, limit=200)
+
     def _person_apply(self, c: sqlite3.Connection, actor: dict, action: str, p: dict) -> dict:
         if action == "person.link":
-            person_id = text(p.get("personId", ""), "personId", required=True, limit=200)
-            target_type = p.get("targetType", "")
-            if target_type not in {"item", "roadmap"}:
-                raise AppError(422, "validation", "Invalid targetType for person link")
-            target_id = text(p.get("targetId", ""), "targetId", required=True, limit=200)
+            person_id, target_type, target_id = self._person_target(p)
             relationship = text(p.get("relationship", ""), "relationship", limit=200).strip()
             person_row = self.person(c, person_id, active=True)
-            self.owner(c, target_type, target_id)
             existing = c.execute(
                 "SELECT * FROM person_links WHERE person_id=? AND target_type=? AND target_id=?",
                 (person_id, target_type, target_id),
             ).fetchone()
+            if target_type == "repository":
+                from .coordination import repository_takes_people
+
+                # A new tie needs an active record, as other links do; an existing one keeps its role editable.
+                repository_takes_people(c, target_id, new=existing is None)
+            else:
+                self.owner(c, target_type, target_id)
             before = (
                 {"id": existing["id"], "personId": person_id, "targetType": target_type,
                  "targetId": target_id, "relationship": existing["relationship"], "createdAt": existing["created_at"]}
@@ -556,7 +621,8 @@ class WorkService:
                 "id": link_id,
                 "personId": person_id,
                 "name": person_row["name"],
-                "personRole": person_row["role"],
+                "personTitle": person_row["title"],
+                "personTeam": person_row["team"],
                 "targetType": target_type,
                 "targetId": target_id,
                 "relationship": relationship,
@@ -567,11 +633,7 @@ class WorkService:
             event(c, actor, "person.link", target_id, before, after)
             return after
         if action == "person.unlink":
-            person_id = text(p.get("personId", ""), "personId", required=True, limit=200)
-            target_type = p.get("targetType", "")
-            if target_type not in {"item", "roadmap"}:
-                raise AppError(422, "validation", "Invalid targetType for person link")
-            target_id = text(p.get("targetId", ""), "targetId", required=True, limit=200)
+            person_id, target_type, target_id = self._person_target(p)
             existing = c.execute(
                 "SELECT * FROM person_links WHERE person_id=? AND target_type=? AND target_id=?",
                 (person_id, target_type, target_id),
@@ -598,35 +660,36 @@ class WorkService:
         val: dict[str, Any] = (
             before.copy()
             if before
-            else {
-                "id": uid(),
-                "name": "",
-                "role": "",
-                "notes": "",
-                "archived": False,
-                "revision": 0,
-                "createdAt": now(),
-            }
+            else {"id": uid(), **dict.fromkeys(PERSON_FIELDS, ""), "archived": False, "revision": 0, "createdAt": now()}
         )
         if action in {"person.archive", "person.recover"}:
             val["archived"] = action == "person.archive"
         elif action in {"person.create", "person.update"}:
-            for k in ("name", "role", "notes"):
+            for k in PERSON_FIELDS:
                 if k in p and p[k] is not None:
                     val[k] = p[k]
-            val["name"] = text(val["name"], "name", required=True, limit=500)
-            val["role"] = text(val["role"], "role", limit=500).strip()
-            val["notes"] = text(val["notes"], "notes")
+            val["name"] = text(val["name"], "name", required=True, limit=PERSON_LIMITS["name"])
+            for k in ("title", "team", "chat", "location"):
+                val[k] = text(val[k], k, limit=PERSON_LIMITS[k]).strip()
+            val["email"] = person_email(val["email"])
+            val["phone"] = person_phone(val["phone"])
+            val["description"] = text(val["description"], "description", limit=PERSON_LIMITS["description"])
+            val["notes"] = text(val["notes"], "notes", limit=PERSON_LIMITS["notes"])
         else:
             raise AppError(422, "operation", "Unsupported person operation")
         val["revision"] += 1
         val["updatedAt"] = now()
+        columns = ",".join(PERSON_FIELDS)
+        changes = ",".join(f"{field}=excluded.{field}" for field in PERSON_FIELDS)
         c.execute(
-            """INSERT INTO people VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,role=excluded.role,notes=excluded.notes,archived=excluded.archived,revision=excluded.revision,updated_at=excluded.updated_at""",
-            (val["id"], val["name"], val["role"], val["notes"], int(val["archived"]), val["revision"], val["createdAt"], val["updatedAt"]),
+            f"INSERT INTO people(id,{columns},archived,revision,created_at,updated_at) VALUES({','.join('?' * (len(PERSON_FIELDS) + 5))}) "
+            f"ON CONFLICT(id) DO UPDATE SET {changes},archived=excluded.archived,revision=excluded.revision,updated_at=excluded.updated_at",
+            (val["id"], *(val[field] for field in PERSON_FIELDS), int(val["archived"]), val["revision"], val["createdAt"], val["updatedAt"]),
         )
         event(c, actor, action, val["id"], before, val)
-        self.index(c, val["id"], "person", val["name"], (val["role"] + "\n" + val["notes"]).strip(), val["id"], val["archived"])
+        # Search finds a person by any of their fields: a title, a team, an address or a word in their notes.
+        body = "\n".join(val[field] for field in PERSON_FIELDS[1:] if val[field].strip())
+        self.index(c, val["id"], "person", val["name"], body, val["id"], val["archived"])
         return val
 
     def _item_apply(self, c: sqlite3.Connection, actor: dict, action: str, p: dict) -> dict:

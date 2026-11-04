@@ -50,7 +50,7 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 | Roadmap | UUID | `title`, `overview`, `parentId` for nesting, immutable versions | proposal (`roadmap.*`) |
 | Step | UUID, stable across versions | progress open, doing, blocked or done on leaf steps (a parent's follows its children); `retired` | proposal (`roadmap.revise`, `progress.set`) |
 | Question, decision | UUID | a question is open or answered | proposal |
-| Person | UUID | `name`, `role`; tied to work items and roadmaps with a relationship | proposal (`person.*`) |
+| Person | UUID | `name`, `title`, `team`, `description`, contact details (`email`, `phone`, `chat`, `location`), `notes` (Markdown); tied to work items, roadmaps and repositories, each with a `relationship` (their role there) | proposal (`person.*`) |
 | Link, GitHub reference | UUID | `url`; a GitHub reference's `kind` is commit or pr | proposal |
 | File | UUID | `name`, `mime`, `size`, `sha256`, `archived`; `ownerType` item, roadmap, step, repository, or proposal for evidence | evidence: you, on your own draft; elsewhere: proposal (`attachment.create`) |
 | Tracked chat | Worklog's UUID, and `chatId`, the provider's ID | on a work item or roadmap; `stepIds`, `provider`, `model` | proposal (`chat.*`) |
@@ -435,8 +435,8 @@ A proposal is a JSON file with a title (up to 1,000 bytes), a rationale for the 
 | `roadmap.revise` | `id`, `revision`, `title`, `steps` | `overview`, `note` |
 | `roadmap.move` | `id`, `revision`, `parentId` | - |
 | `progress.set` | `id`, `revision`, `status` | - |
-| `person.create` | `name` | `role`, `notes` |
-| `person.update` | `id`, `revision` | `name`, `role`, `notes` |
+| `person.create` | `name` | `title`, `team`, `description`, `email`, `phone`, `chat`, `location`, `notes` |
+| `person.update` | `id`, `revision` | `name`, `title`, `team`, `description`, `email`, `phone`, `chat`, `location`, `notes` |
 | `person.archive` | `id`, `revision` | - |
 | `person.recover` | `id`, `revision` | - |
 | `person.link` | `personId`, `targetType`, `targetId` | `relationship` |
@@ -472,7 +472,11 @@ Any other field is refused. Proposals cannot archive or recover files, import pl
   - A note's `ownerType` is `item`, `roadmap` or `step`.
   - A link's, tracked chat's or GitHub reference's `ownerType` is `item` or `roadmap`.
   - A file's `ownerType` is `item`, `roadmap`, `step` or `repository`.
-  - `targetType` is `item` or `roadmap`.
+  - A person link's `targetType` is `item`, `roadmap` or `repository`. A new tie to a repository needs an active one (`archived`, `repository_merged`); an existing tie's `relationship` can still change.
+- **People.**
+  - `team` is the field older Worklog versions called `role`; `role` is refused.
+  - `email` is empty or one address with a dotted domain, such as `name@example.com`, without spaces, `?`, `#`, `/`, `%`, `,` or `;`. `phone` is empty or a number as people write it, such as `+1 (312) 555-0100 ext. 12`, with at least one digit.
+  - `name`, `title`, `team`, `chat` and `location` are single lines of at most 500 bytes, `email` 320 and `phone` 100. `description` is a paragraph of at most 10,000 bytes. Single-line fields are trimmed.
 - **Statuses.**
   - `status` on `item.update` and `progress.set` is `open`, `doing`, `blocked` or `done`. `progress.set` takes leaf steps; a parent step's progress follows its children.
   - A question's `status` is `open` or `answered`.

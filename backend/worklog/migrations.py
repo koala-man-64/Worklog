@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 # Older versions that startup and offline restore upgrade in one transaction.
-UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8})
+UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9})
 
 COORDINATION_SCHEMA = """
 CREATE TABLE repositories(id TEXT PRIMARY KEY,name TEXT NOT NULL,url TEXT NOT NULL DEFAULT '',description TEXT NOT NULL DEFAULT '',archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
@@ -134,6 +135,71 @@ def _refile_notes(conn: sqlite3.Connection, notes: list[tuple[str, str, str, str
     conn.executemany("INSERT INTO search_index(entity_id,type,title,body,owner_id,archived) VALUES(?,'note',?,?,?,?)", notes)
 
 
+# v10 gives each person a title, a description and contact details. The field v9 kept as
+# `role` ("Title or team") is their team now, and people can be tied to repositories too.
+PERSON_DETAIL_COLUMNS = (", title TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT ''"
+                         ", email TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT ''"
+                         ", chat TEXT NOT NULL DEFAULT '', location TEXT NOT NULL DEFAULT ''")
+PERSON_LINKS_TABLE = ("CREATE TABLE person_links(id TEXT PRIMARY KEY,person_id TEXT NOT NULL REFERENCES people(id),"
+                      "target_type TEXT NOT NULL CHECK(target_type IN('item','roadmap','repository')),target_id TEXT NOT NULL,"
+                      "relationship TEXT NOT NULL DEFAULT '',created_at TEXT NOT NULL,UNIQUE(person_id,target_type,target_id))")
+PERSON_LINKS_INDEXES = """
+CREATE INDEX person_links_target ON person_links(target_type,target_id);
+CREATE INDEX person_links_person ON person_links(person_id);
+"""
+# Proposals that can still be submitted or approved; reopening brings a withdrawn one back.
+OPEN_PROPOSALS = ("draft", "submitted", "withdrawn")
+
+
+def add_person_details(conn: sqlite3.Connection) -> None:
+    """Rename `role` to `team`, add the new person fields, and let links name repositories.
+
+    SQLite cannot widen a CHECK constraint, so the links move to a new table that admits
+    repositories. Nothing refers to person_links, so it is renamed aside, copied and dropped,
+    which leaves the new table's definition exactly as PERSON_LINKS_TABLE spells it.
+    """
+    conn.execute("ALTER TABLE people RENAME COLUMN role TO team")
+    for column in PERSON_DETAIL_COLUMNS.split(", ")[1:]:
+        conn.execute("ALTER TABLE people ADD COLUMN " + column)
+    conn.execute("ALTER TABLE person_links RENAME TO person_links_v9")
+    conn.execute(PERSON_LINKS_TABLE)
+    conn.execute("INSERT INTO person_links(id,person_id,target_type,target_id,relationship,created_at) "
+                 "SELECT id,person_id,target_type,target_id,relationship,created_at FROM person_links_v9")
+    conn.execute("DROP TABLE person_links_v9")  # and its indexes, whose names the new ones take
+    execute_schema(conn, PERSON_LINKS_INDEXES)
+    _propose_team(conn)
+
+
+def _propose_team(conn: sqlite3.Connection) -> None:
+    """An open proposal that sets a person's `role` sets their `team`: the same field, renamed.
+
+    Without this, approving it would be refused for a field that no longer exists. As other
+    upgrades do for the records they change, each rewritten proposal takes a new revision.
+    Approved and rejected proposals stay as they were made, and anything malformed is left
+    for review to refuse as it would have, so this step never fails startup.
+    """
+    from .common import now
+
+    stamp = now()
+    marks = ",".join("?" for _ in OPEN_PROPOSALS)
+    for identity, stored in conn.execute(f"SELECT id,operations FROM proposals WHERE status IN ({marks})",
+                                         OPEN_PROPOSALS).fetchall():
+        try:
+            operations = json.loads(stored)
+        except ValueError:
+            continue
+        changed = False
+        for operation in operations if isinstance(operations, list) else []:
+            payload = operation.get("payload") if isinstance(operation, dict) else None
+            if (isinstance(payload, dict) and operation.get("action") in ("person.create", "person.update")
+                    and "role" in payload and "team" not in payload):
+                payload["team"] = payload.pop("role")
+                changed = True
+        if changed:
+            conn.execute("UPDATE proposals SET operations=?,revision=revision+1,updated_at=? WHERE id=?",
+                         (json.dumps(operations, allow_nan=False), stamp, identity))
+
+
 def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
     """Unlike executescript, preserve the caller's transaction and rollback boundary."""
     for statement in filter(str.strip, schema.split(";")):
@@ -174,8 +240,10 @@ def upgrade(conn: sqlite3.Connection) -> None:
         add_repository_provenance(conn)
     if version < 8:
         add_item_scratchpads(conn)
-    # Every upgradable version predates resources (v9), which start empty.
-    execute_schema(conn, RESOURCE_SCHEMA)
+    if version < 9:
+        execute_schema(conn, RESOURCE_SCHEMA)  # resources start empty
+    # Every upgradable version predates the person details and repository ties of v10.
+    add_person_details(conn)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 

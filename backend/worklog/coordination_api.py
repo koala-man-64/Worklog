@@ -51,7 +51,11 @@ def install_coordination_routes(app: FastAPI, db: Database, mutate: Callable) ->
 
     @app.get("/api/v1/repositories/{identity}")
     def repository(identity: str) -> dict:
-        return read(lambda c: repository_record(_get(c, "repositories", identity)))
+        from .services import people_on
+
+        # As on a work item or roadmap, the people tied to it come with the record.
+        return read(lambda c: {**repository_record(_get(c, "repositories", identity)),
+                               "people": people_on(c, "repository", [identity])[identity]})
 
     @app.post("/api/v1/repositories")
     def repository_create(request: Request, body: m.RepositoryCreate) -> dict:

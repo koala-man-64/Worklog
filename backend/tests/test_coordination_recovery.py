@@ -98,7 +98,8 @@ def test_pre_migration_backup_failure_prevents_upgrade(tmp_path, monkeypatch):
         assert recovery._schema_signature(conn) == recovery._expected_schema(coordination=False, avatars=False, chat_messages=False, tickets=False)
 
 
-@pytest.mark.parametrize("current_shape,version", [(True, 1), (True, 2), (True, 3), (True, 4), (True, 5), (True, 6), (True, 7), (False, 2), (False, 3), (False, 4), (False, 5), (False, 6), (False, 7), (False, 8)])
+@pytest.mark.parametrize("current_shape,version", [(True, 1), (True, 2), (True, 3), (True, 4), (True, 5), (True, 6), (True, 7), (True, 8), (True, 9),
+                                                   (False, 2), (False, 3), (False, 4), (False, 5), (False, 6), (False, 7), (False, 8), (False, 9), (False, 10)])
 def test_schema_version_cannot_disguise_another_shape(tmp_path, current_shape, version):
     path = tmp_path / "worklog.sqlite3"
     if current_shape:

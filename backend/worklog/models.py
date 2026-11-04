@@ -246,26 +246,45 @@ class ResourceUpdate(Expected):
 
 class PersonCreate(Command):
     name: str
-    role: str = ""
+    title: str = ""
+    team: str = ""
+    # Who they are and what to go to them for, in a sentence or two; notes hold the rest.
+    description: str = ""
+    email: str = ""
+    phone: str = ""
+    # A chat handle, such as a Teams or Slack name.
+    chat: str = ""
+    # Where they are, or their time zone.
+    location: str = ""
     notes: str = ""
 
 
 class PersonUpdate(Expected):
     name: str | None = None
-    role: str | None = None
+    title: str | None = None
+    team: str | None = None
+    description: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    chat: str | None = None
+    location: str | None = None
     notes: str | None = None
+
+
+# What a person can be tied to; relationship is their role there, such as Owner or Reviewer.
+PersonTarget = Literal["item", "roadmap", "repository"]
 
 
 class PersonLinkCreate(Command):
     personId: str
-    targetType: Literal["item", "roadmap"]
+    targetType: PersonTarget
     targetId: str
     relationship: str = ""
 
 
 class PersonLinkRemove(Command):
     personId: str
-    targetType: Literal["item", "roadmap"]
+    targetType: PersonTarget
     targetId: str
 
 
