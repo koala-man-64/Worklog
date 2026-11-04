@@ -14,7 +14,6 @@ dev = ["pytest==9.2.0", "httpx==0.28.1", "ruff==0.17.3", "mypy==2.4.0"]
 
 [project.scripts]
 worklog = "worklog.cli:main"
-quota-burndown = "worklog.quota.cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "backend"}
@@ -39,7 +38,3 @@ python_version = "3.12"
 files = ["backend/worklog"]
 check_untyped_defs = true
 ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = ["worklog.quota", "worklog.quota.*"]
-ignore_errors = true
