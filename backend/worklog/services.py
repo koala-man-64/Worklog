@@ -11,6 +11,7 @@ from pathlib import PureWindowsPath
 from typing import Any
 from urllib.parse import urlsplit
 
+from . import scratchpad
 from .common import (
     FILE_LIMIT,
     AppError,
@@ -746,6 +747,10 @@ class WorkService:
         val: dict[str, Any]
         if verb in {"archive", "recover"}:
             assert row is not None
+            if kind == "note" and verb == "recover" and row["owner_type"] == "item":
+                pad = scratchpad.find(c, row["owner_id"])
+                if pad is not None and pad[0] != row["id"]:
+                    raise AppError(409, "conflict", "This work item already has a scratchpad; copy what you need from this note into it")
             c.execute(f"UPDATE {table} SET archived=?,revision=revision+1 WHERE id=?", (int(verb == "archive"), row["id"]))
             if kind == "chat" and verb == "archive":
                 from .chat_messages import expire_pending
@@ -760,8 +765,12 @@ class WorkService:
             for k in ("title", "text"):
                 if k in p:
                     val[k] = text(p[k], k, limit=2000 if k == "title" else 1_000_000)
-            if not val["title"].strip() and not val["text"].strip():
+            # A scratchpad may be emptied; other notes need something in them.
+            if val["ownerType"] != "item" and not val["title"].strip() and not val["text"].strip():
                 raise AppError(422, "validation", "A note needs a title or text")
+            # A work item has one scratchpad, its only active note (v8).
+            if creating and val["ownerType"] == "item" and scratchpad.find(c, val["ownerId"]):
+                raise AppError(409, "conflict", "This work item already has a scratchpad; edit it instead")
             c.execute("INSERT INTO notes VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,text=excluded.text,updated_at=excluded.updated_at,revision=excluded.revision",
                       (val["id"], val["ownerType"], val["ownerId"], val["title"], val["text"], 0, val["revision"] + 1, val["createdAt"], now()))
             p = {**p, "id": val["id"]}

@@ -69,6 +69,28 @@ it("does not look anything up for create operations", () => {
   expect(requestMock).not.toHaveBeenCalled();
   expect(screen.queryByText(/^Malformed target/)).toBeNull();
 });
+it.each([
+  [
+    true,
+    "This work item has a scratchpad: approval adds this note to its end.",
+  ],
+  [false, "Approval starts this work item's scratchpad with this note."],
+])(
+  "says where a note for a work item lands when a scratchpad exists: %s",
+  async (exists, message) => {
+    requestMock.mockResolvedValue({
+      id: ID,
+      notes: [{ id: OTHER_ID, revision: 1, archived: !exists }],
+    });
+    show("note.create", { ownerType: "item", ownerId: ID, text: "Found it" });
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(requestMock).toHaveBeenCalledWith(`/work-items/${ID}`);
+  },
+);
+it("looks up no work item for a note whose owner is malformed", () => {
+  show("note.create", { ownerType: "item", ownerId: "../export", text: "x" });
+  expect(requestMock).not.toHaveBeenCalled();
+});
 it("treats a missing step as new only when an earlier operation creates it", async () => {
   const roadmap = "6f1c0a52-3c4e-4b7a-9d1e-2a5b8c7d9e01";
   const existing = "1b2c3d4e-5f60-4718-8a9b-0c1d2e3f4a5b";

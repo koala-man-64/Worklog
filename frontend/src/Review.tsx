@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ApiError, request, getDataContext } from "./api";
 import { useAction, useData } from "./hooks";
 import { Empty, ErrorMessage, Files, Markdown } from "./components";
-import type { Day, List, Operation, Proposal, Settings } from "./types";
+import type { Day, Detail, List, Operation, Proposal, Settings } from "./types";
 import type { Repository, RepositoryResolution } from "./repositoryTypes";
 import { Icon } from "./icons";
 export function Review({ selectedId }: { selectedId?: string }) {
@@ -361,6 +361,20 @@ export function OperationDiff({
       ),
   });
   const holder = registration.data?.repository ?? null;
+  // A note for a work item lands in its one scratchpad, so say whether it starts or extends it.
+  const noteItem =
+    action === "note.create" &&
+    payload.ownerType === "item" &&
+    typeof payload.ownerId === "string" &&
+    UUID.test(payload.ownerId)
+      ? payload.ownerId
+      : "";
+  const noteOwner = useQuery({
+    queryKey: [getDataContext(), "proposal-note-owner", noteItem],
+    enabled: noteItem !== "",
+    queryFn: () =>
+      request<Detail>("/work-items/" + encodeURIComponent(noteItem)),
+  });
   const before =
     current.data ?? (holder as unknown as Record<string, unknown> | null);
   // Not found is expected only for a target that this proposal creates first;
@@ -388,6 +402,14 @@ export function OperationDiff({
       </h4>
       {holder && <Registered holder={holder} />}
       <ErrorMessage error={registration.error} />
+      {noteOwner.data && (
+        <p className="muted">
+          {noteOwner.data.notes.some((n) => !n.archived)
+            ? "This work item has a scratchpad: approval adds this note to its end."
+            : "Approval starts this work item's scratchpad with this note."}
+        </p>
+      )}
+      <ErrorMessage error={noteOwner.error} />
       {created ? (
         <p className="muted">
           An earlier change in this proposal creates this target, so it has no

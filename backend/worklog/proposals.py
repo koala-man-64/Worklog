@@ -5,7 +5,8 @@ from __future__ import annotations
 import json
 from contextlib import nullcontext
 
-from .common import AppError, event, now, require_revision, setting, uid
+from . import scratchpad
+from .common import NOTE_LIMIT, AppError, event, now, require_revision, setting, uid
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS proposals (
@@ -145,6 +146,30 @@ def _owner(row, actor):
         raise AppError(403, "forbidden", "Only the originating actor may edit or submit this proposal")
 
 
+def _scratchpad_landing(conn, action, payload):
+    """An approved note for a work item lands in its scratchpad, appended as a section or as the first.
+
+    A work item keeps one scratchpad (v8), so a second note there could only be refused. The
+    note's title becomes its section's heading. Anything malformed passes through unchanged,
+    for dispatch to refuse as it would have.
+    """
+    if action != "note.create" or payload.get("ownerType") != "item":
+        return action, payload
+    owner, title, text = payload.get("ownerId"), payload.get("title", ""), payload.get("text")
+    if not (isinstance(owner, str) and isinstance(title, str) and isinstance(text, str)):
+        return action, payload
+    addition = scratchpad.section(title, text)
+    pad = scratchpad.find(conn, owner)
+    if pad is None:
+        if scratchpad.size(addition) > NOTE_LIMIT:
+            return action, payload  # as proposed, its title kept, for dispatch to take or refuse by size
+        return action, {"ownerType": "item", "ownerId": owner, "title": scratchpad.TITLE, "text": addition}
+    merged = scratchpad.joined([pad[2], addition])
+    if scratchpad.size(merged) > NOTE_LIMIT:
+        raise AppError(422, "validation", f"This work item's scratchpad is full: adding this note would take it past {NOTE_LIMIT:,} bytes")
+    return "note.update", {"id": pad[0], "revision": pad[3], "text": merged}
+
+
 class ProposalService:
     def __init__(self, db, dispatch):
         self.db = db
@@ -262,7 +287,8 @@ class ProposalService:
         try:
             for number, operation in ordered:
                 try:
-                    self.dispatch(connection, proposer, operation["action"], operation["payload"])
+                    action, payload = _scratchpad_landing(connection, operation["action"], operation["payload"])
+                    self.dispatch(connection, proposer, action, payload)
                 except AppError as exc:
                     # Name the change as Review numbers it, so the person knows which one to fix.
                     raise AppError(exc.status, exc.code, f"Change {number} of {len(operations)}, {operation['action']}: {exc.message}",
