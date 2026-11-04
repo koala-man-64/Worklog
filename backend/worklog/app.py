@@ -173,9 +173,15 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
 
     auto_backup()
     # Receipts only serve retries: each start drops those past the retention window, and the
-    # serve watcher repeats it hourly.
-    with db.transaction() as conn:
-        prune_receipts(conn)
+    # serve watcher repeats it hourly. A busy database leaves them to the watcher rather than
+    # stopping the start.
+    try:
+        with db.transaction() as conn:
+            prune_receipts(conn)
+    except AppError as exc:
+        if exc.code != "database_busy":
+            raise
+        logger.warning("Receipts were not pruned at startup: the database was busy")
 
     @app.exception_handler(AppError)
     async def on_domain_error(request: Request, exc: AppError) -> Response:

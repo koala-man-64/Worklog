@@ -287,7 +287,14 @@ Add `worklog compact`, with K6's retention, the allowlist from *Rules*, a purge 
 
 Status: Not started · Branch: — · PR: —
 
-First a read-only `worklog doctor`: orphans, owner types, duplicate tracked chats and FTS integrity. Then v12 adds the missing CHECK and FK constraints to leaf tables only. Needs 2.2. Findings: B-09.
+First a read-only `worklog doctor`, checking:
+
+- orphans and owner types;
+- duplicate tracked chats;
+- FTS integrity;
+- search keys that disagree with their rows. Nothing in the schema ties `search_keys` to `search_index`, and restore checks only the schema (from the review of #96).
+
+Then a later schema version adds the missing CHECK and FK constraints to leaf tables only. Needs 2.2. Findings: B-09.
 
 ### Phase 5 · Product surface and agent contract v2
 

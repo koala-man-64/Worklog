@@ -161,6 +161,17 @@ def test_receipts_past_the_window_are_pruned(tmp_path):
         assert sorted(r[0] for r in conn.execute("SELECT key FROM receipts")) == ["edge", "fresh"]
 
 
+def test_a_busy_database_at_startup_leaves_receipts_for_the_watcher(tmp_path, monkeypatch):
+    from worklog import app as application
+    from worklog.common import AppError
+
+    def busy(conn):
+        raise AppError(503, "database_busy", "Database is busy; retry this change")
+
+    monkeypatch.setattr(application, "prune_receipts", busy)
+    assert create_app(tmp_path, testing=True) is not None
+
+
 def test_every_writer_keeps_keys_and_rows_in_step(client):
     item = populate(client)
     db = client.app.state.db
