@@ -87,15 +87,15 @@ No schema change. All steps are parallel.
 
 #### 0.1 · Tests stop reading the developer's environment
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branch: `claude/test-isolation` · PR: [#88](https://github.com/koala-man-64/Worklog/pull/88)
 
 `create_app` reads `WORKLOG_PORT` and `WORKLOG_DEV` even when testing (`app.py:155-161`). With `WORKLOG_PORT` set, as the README suggests before e2e runs, the backend suite fails with 221 errors.
 
-Fix: pass the port explicitly, and add a `conftest.py` that clears `WORKLOG_*` for every test. Findings: A-17.
+Fix: a `conftest.py` clears every `WORKLOG_*` variable for each test, and points `WORKLOG_DATA_DIR` at a temporary folder, so a default data directory never reaches real data. Findings: A-17.
 
 #### 0.2 · Pin the agent route matrix in a test
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branch: `claude/test-isolation` · PR: [#88](https://github.com/koala-man-64/Worklog/pull/88)
 
 Add a spec-driven test that records, for every API operation, whether an agent credential is allowed, refused or in need of its own check. It snapshots today's behaviour, changes none, and is the safety net for Phase 3. Findings: C-03.
 
