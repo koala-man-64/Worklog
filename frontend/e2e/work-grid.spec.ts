@@ -17,6 +17,13 @@ test("the work list is a sheet whose rows scroll under a frozen header row and t
   expect(boot.ok()).toBeTruthy();
   const { csrfToken } = await boot.json();
   const prefix = "Sheet" + Date.now();
+  // One title runs long, as real titles do.
+  const long =
+    prefix +
+    " 00 " +
+    "runs on past what two lines of the title column can hold, "
+      .repeat(4)
+      .trim();
   for (let i = 0; i < 30; i++) {
     const result = await page.request.post("/api/v1/work-items", {
       headers: {
@@ -24,7 +31,9 @@ test("the work list is a sheet whose rows scroll under a frozen header row and t
         "X-CSRF-Token": csrfToken,
         "Idempotency-Key": crypto.randomUUID(),
       },
-      data: { title: prefix + " " + String(i).padStart(2, "0") },
+      data: {
+        title: i === 0 ? long : prefix + " " + String(i).padStart(2, "0"),
+      },
     });
     expect(result.ok()).toBeTruthy();
   }
@@ -34,11 +43,18 @@ test("the work list is a sheet whose rows scroll under a frozen header row and t
   const rows = sheet.locator(".work-row");
   await expect(rows).toHaveCount(30);
   await expect(page.getByText("30 work items", { exact: true })).toBeVisible();
-  // A row is one line of controls tall, and the sheet scrolls rather than the page.
-  const rowHeight = await rows
-    .first()
-    .evaluate((row) => row.getBoundingClientRect().height);
-  expect(rowHeight).toBeLessThanOrEqual(48);
+  // A row is one line of controls tall (41px), or two lines of a long title (48.2px: two 14px lines
+  // at 1.4, its padding and gridline), and the sheet scrolls rather than the page. The long title is
+  // cut at two lines, and its link keeps it whole for hover.
+  const heights = await rows.evaluateAll((all) =>
+    all.map((row) => row.getBoundingClientRect().height),
+  );
+  expect(Math.max(...heights)).toBeLessThan(49);
+  const longTitle = sheet.getByRole("link", { name: long, exact: true });
+  await expect(longTitle).toHaveAttribute("title", long);
+  expect(
+    await longTitle.evaluate((link) => link.scrollHeight > link.clientHeight),
+  ).toBeTruthy();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollHeight <= innerHeight,
@@ -58,9 +74,11 @@ test("the work list is a sheet whose rows scroll under a frozen header row and t
   await body.evaluate((el) => el.scrollTo(el.scrollWidth, 0));
   expect(await body.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
   expect((await title.boundingBox())!.x).toBeCloseTo(left, 0);
-  // A phone restacks each row instead, and nothing runs past the screen.
+  // A phone restacks each row instead, and nothing runs past the screen. It has no hover, so the
+  // long title wraps in full there.
   await page.setViewportSize({ width: 375, height: 812 });
   await expect(rows.first()).toBeVisible();
+  expect((await longTitle.boundingBox())!.height).toBeGreaterThan(48);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,

@@ -222,6 +222,19 @@ class TicketCommentCreate(Command):
     text: str = Field(min_length=1, max_length=100_000)
 
 
+class ResourceCreate(Command):
+    title: str
+    # What the page is for, in a sentence: lists show it in place of the page's text.
+    summary: str = ""
+    body: str = ""
+
+
+class ResourceUpdate(Expected):
+    title: str | None = None
+    summary: str | None = None
+    body: str | None = None
+
+
 class PersonCreate(Command):
     name: str
     role: str = ""

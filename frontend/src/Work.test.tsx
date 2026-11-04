@@ -402,9 +402,10 @@ it("lays the work list out as a sheet, one row per item and one column per fact"
   expect(within(first).getByRole("rowheader")).toHaveTextContent(
     "Release checks",
   );
-  expect(
-    within(first).getByRole("link", { name: "Release checks" }),
-  ).toHaveAttribute("href", "#work/" + ID);
+  const title = within(first).getByRole("link", { name: "Release checks" });
+  expect(title).toHaveAttribute("href", "#work/" + ID);
+  // The sheet cuts a long title at two lines; the link keeps it whole and shows it on hover.
+  expect(title).toHaveAttribute("title", "Release checks");
   expect(within(first).getByRole("combobox", { name: "Status" })).toHaveValue(
     "doing",
   );

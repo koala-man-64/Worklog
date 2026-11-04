@@ -55,6 +55,8 @@ from .registration import (
 )
 from .registration import agent_route_allowed as registration_route_allowed
 from .registry_api import install_registry_routes
+from .resource_api import install_resource_routes
+from .resources import ResourceService
 from .services import WorkService, support_record
 from .ticket_api import install_ticket_routes, ticket_agent_route_allowed
 from .tickets import TicketService
@@ -531,8 +533,8 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             if ownerType == "proposal":
                 proposals.detail(ownerId, request.state.actor)
             else:
-                work.owner(c, ownerType, ownerId)
-            records = [support_record(r) for r in c.execute("SELECT id,owner_type,owner_id,name,mime,size,sha256,archived,revision,created_at FROM attachments WHERE owner_type=? AND owner_id=? AND archived=?", (ownerType, ownerId, int(archived)))]
+                work.owner(c, ownerType, ownerId, files=True)
+            records = [support_record(r) for r in c.execute("SELECT id,owner_type,owner_id,name,mime,size,sha256,archived,revision,created_at FROM attachments WHERE owner_type=? AND owner_id=? AND archived=? ORDER BY created_at,id", (ownerType, ownerId, int(archived)))]
             return {"items": records, "total": len(records)}
 
     @app.post("/api/v1/attachments")
@@ -687,7 +689,9 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                         "participations": coordination.participations(c, item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset),
                         "updates": coordination.updates(c, item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset),
                         # Open, doing and blocked tickets, so an agent sees known issues before it starts.
-                        "tickets": TicketService().list(c, item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset)}
+                        "tickets": TicketService().list(c, item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset),
+                        # The person's reference pages by title and summary; `resources show` reads one.
+                        "resources": ResourceService().list(c, limit=limit, offset=offset)}
         items_result = work.list(item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset)
         return {"day": work.day(date or current), "workItems": items_result,
                 "roadmaps": plans.list(), "people": work.people_list(), "proposals": proposals.list(request.state.actor),
@@ -850,6 +854,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     install_coordination_routes(app, db, mutate)
     install_chat_message_routes(app, db, mutate)
     install_ticket_routes(app, db, mutate)
+    install_resource_routes(app, db, mutate)
     install_discussion_routes(app, db, discussion_mutate)
     install_registration_routes(app, db, auto_backup)
     install_registry_routes(app, db, transcripts)

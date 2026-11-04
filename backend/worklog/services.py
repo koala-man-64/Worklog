@@ -138,13 +138,21 @@ def boolean(value: Any, field: str) -> bool:
     return value
 
 
+# The records that hold notes and files, by the table each lives in.
+SUPPORT_OWNERS = {"item": "work_items", "roadmap": "roadmaps", "step": "steps", "proposal": "proposals"}
+# A repository holds attached files and nothing else: no notes, links or chats of its own.
+FILE_OWNERS = {**SUPPORT_OWNERS, "repository": "repositories"}
+
+
 class WorkService:
     def __init__(self, db: Database, plans: Any, proposals: Any = None):
         self.db, self.plans, self.proposals = db, plans, proposals
 
     def owner(self, conn: sqlite3.Connection, owner_type: str, owner_id: str,
-              actor: dict | None = None) -> None:
-        table = {"item": "work_items", "roadmap": "roadmaps", "step": "steps", "proposal": "proposals"}.get(owner_type)
+              actor: dict | None = None, *, files: bool = False) -> None:
+        """Check that a supporting record's owner exists; `files` also admits repositories,
+        which hold attached files only."""
+        table = (FILE_OWNERS if files else SUPPORT_OWNERS).get(owner_type)
         if not table:
             raise AppError(422, "validation", "Invalid supporting-record owner")
         row = conn.execute(f"SELECT * FROM {table} WHERE id=?", (owner_id,)).fetchone()
@@ -1103,7 +1111,11 @@ class WorkService:
 
     def upload(self, c: sqlite3.Connection, actor: dict, owner_type: str, owner_id: str,
                name: str, mime: str, content: bytes) -> dict:
-        self.owner(c, owner_type, owner_id, actor)
+        self.owner(c, owner_type, owner_id, actor, files=True)
+        if owner_type == "repository":
+            from .coordination import repository_takes_files
+
+            repository_takes_files(c, owner_id)
         if not content or len(content) > FILE_LIMIT:
             raise AppError(413 if content else 422, "file_size", "Attach a nonempty file up to 25,000,000 bytes")
         name = PureWindowsPath(name.replace("/", "\\")).name
@@ -1171,16 +1183,18 @@ class WorkService:
                 WHEN rq.id IS NOT NULL THEN rq.roadmap_id WHEN rd.id IS NOT NULL THEN rd.roadmap_id
                 ELSE st.roadmap_id END
             LEFT JOIN people p ON p.id=CASE WHEN s.type='person' THEN s.entity_id END
+            LEFT JOIN repositories rp ON a.owner_type='repository' AND rp.id=a.owner_id
             LEFT JOIN discussions ds ON s.type IN ('discussion','discussion_message') AND ds.id=s.owner_id
             LEFT JOIN tickets tk ON s.type IN ('ticket','ticket_comment') AND tk.id=s.owner_id
             WHERE search_index MATCH ? AND
              (CAST(s.archived AS INTEGER)=1 OR coalesce(w.archived,0)=1
               OR coalesce(st.retired,0)=1 OR coalesce(rm.archived,0)=1 OR coalesce(p.archived,0)=1 OR coalesce(ds.archived,0)=1
-              OR coalesce(tk.archived,0)=1)=?"""
+              OR coalesce(tk.archived,0)=1 OR coalesce(rp.archived,0)=1)=?"""
         with self.db.read() as c:
+            # A resource is its own page and carries its own archive flag in the index.
             rows = c.execute("""SELECT s.entity_id,s.type,s.title,s.body,s.owner_id,
-                             CASE WHEN ds.id IS NOT NULL THEN 'discussions' WHEN tk.id IS NOT NULL THEN 'tickets' WHEN w.id IS NOT NULL THEN 'work' WHEN p.id IS NOT NULL THEN 'people' ELSE 'roadmaps' END AS route_type,
-                             coalesce(ds.id,tk.id,w.id,p.id,rm.id) AS route_id """ + source + " ORDER BY rank LIMIT ? OFFSET ?", (match, int(archived), limit, offset)).fetchall()
+                             CASE WHEN s.type='resource' THEN 'resources' WHEN ds.id IS NOT NULL THEN 'discussions' WHEN tk.id IS NOT NULL THEN 'tickets' WHEN w.id IS NOT NULL THEN 'work' WHEN p.id IS NOT NULL THEN 'people' WHEN rp.id IS NOT NULL THEN 'repositories' ELSE 'roadmaps' END AS route_type,
+                             CASE WHEN s.type='resource' THEN s.entity_id ELSE coalesce(ds.id,tk.id,w.id,p.id,rp.id,rm.id) END AS route_id """ + source + " ORDER BY rank LIMIT ? OFFSET ?", (match, int(archived), limit, offset)).fetchall()
             total = c.execute("SELECT count(*) " + source, (match, int(archived))).fetchone()[0]
             return {"items": [{"id": r[0], "type": r[1], "title": r[2], "snippet": r[3][:220], "ownerId": r[4],
                                "routeType": r["route_type"], "routeId": r["route_id"]} for r in rows], "total": total}

@@ -17,6 +17,7 @@ import { RoadmapNav } from "./RoadmapNav";
 import { Repositories } from "./Repositories";
 import { Tickets } from "./Tickets";
 import { People } from "./People";
+import { Resources } from "./Resources";
 import { Agents } from "./Agents";
 import { Chats } from "./Chats";
 import { Discussions } from "./Discussions";
@@ -108,48 +109,52 @@ export default function App() {
             worklog<small>A clear record of progress</small>
           </span>
         </a>
-        <nav aria-label="Main navigation">
-          {destinations.map(({ route, icon, label }) => (
-            <Fragment key={route}>
-              {route === "roadmaps" ? (
-                <div className="nav-row">
-                  {link(route, icon, label)}
-                  <button
-                    type="button"
-                    className="nav-toggle"
-                    aria-expanded={roadmapsOpen}
-                    aria-controls="roadmap-subnav"
-                    aria-label={
-                      roadmapsOpen ? "Collapse roadmaps" : "Expand roadmaps"
-                    }
-                    onClick={() => {
-                      localStore.write(
-                        "nav-roadmaps",
-                        roadmapsOpen ? "closed" : "open",
-                      );
-                      setRoadmapsOpen(!roadmapsOpen);
-                    }}
-                  >
-                    <Icon
-                      name={roadmapsOpen ? "collapse" : "expand"}
-                      size={14}
-                    />
-                  </button>
-                </div>
-              ) : (
-                link(route, icon, label)
-              )}
-              {route === "roadmaps" && session.data && (
-                <RoadmapNav
-                  key={session.data.dataId}
-                  open={roadmapsOpen}
-                  selected={page === "roadmaps" ? id : undefined}
-                />
-              )}
-            </Fragment>
-          ))}
-        </nav>
-        <div className="sidebar-note">On this machine. Private by default.</div>
+        <div className="sidebar-scroll">
+          <nav aria-label="Main navigation">
+            {destinations.map(({ route, icon, label }) => (
+              <Fragment key={route}>
+                {route === "roadmaps" ? (
+                  <div className="nav-row">
+                    {link(route, icon, label)}
+                    <button
+                      type="button"
+                      className="nav-toggle"
+                      aria-expanded={roadmapsOpen}
+                      aria-controls="roadmap-subnav"
+                      aria-label={
+                        roadmapsOpen ? "Collapse roadmaps" : "Expand roadmaps"
+                      }
+                      onClick={() => {
+                        localStore.write(
+                          "nav-roadmaps",
+                          roadmapsOpen ? "closed" : "open",
+                        );
+                        setRoadmapsOpen(!roadmapsOpen);
+                      }}
+                    >
+                      <Icon
+                        name={roadmapsOpen ? "collapse" : "expand"}
+                        size={14}
+                      />
+                    </button>
+                  </div>
+                ) : (
+                  link(route, icon, label)
+                )}
+                {route === "roadmaps" && session.data && (
+                  <RoadmapNav
+                    key={session.data.dataId}
+                    open={roadmapsOpen}
+                    selected={page === "roadmaps" ? id : undefined}
+                  />
+                )}
+              </Fragment>
+            ))}
+          </nav>
+          <div className="sidebar-note">
+            On this machine. Private by default.
+          </div>
+        </div>
         <ResizeHandle
           label="Resize sidebar"
           panel={sidebarRef}
@@ -202,6 +207,8 @@ export default function App() {
             <Repositories key={id ?? "list"} selected={id} />
           ) : page === "people" ? (
             <People key={id ?? "list"} selected={id} />
+          ) : page === "resources" ? (
+            <Resources selected={id} section={sub} />
           ) : page === "agents" ? (
             <Agents key={id ?? "list"} selected={id} />
           ) : page === "chats" ? (

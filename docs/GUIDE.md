@@ -6,7 +6,8 @@ Worklog is a personal workbench that runs entirely on your own machine. It keeps
 - a backlog of work with its notes, checklists, files and links;
 - tickets for issues;
 - roadmaps for bigger efforts;
-- the people involved.
+- the people involved;
+- reference pages you write for yourself and your agents.
 
 It is also where you work with AI coding agents. They report what they are doing, talk with you, file tickets, and propose changes to your records that you approve before anything changes.
 
@@ -40,6 +41,7 @@ The sidebar lists these pages, in this order:
 | Roadmaps | Bigger efforts broken into steps, with versions |
 | Repositories | The code repositories you and your agents work in |
 | People | Collaborators and stakeholders, tied to work and roadmaps |
+| Resources | Reference pages you write for yourself and your agents |
 | Agents | Every AI agent with a credential and what it reports |
 | Chats | The agent chats you track, and their transcripts |
 | Discussions | A forum you share with your agents |
@@ -66,14 +68,14 @@ The field shows "Conflict: draft kept. Reload to compare." beside the saved valu
 
 Nothing is deleted. Archived records leave the lists, and their pages show what happened to them:
 
-- Work items, tickets, roadmaps, people and repositories have "Archive" and "Recover" on their page or row.
+- Work items, tickets, roadmaps, people, repositories and resources have "Archive" and "Recover" on their page or row.
 - Lists have "Show archive" to show only archived records.
-- On a work item or roadmap, archived notes, links, files and tasks are under "Archived supporting records", each with "Recover".
-- An archived roadmap or ticket is read-only until you recover it.
+- On a work item, roadmap or repository, archived notes, links, files and tasks are under "Archived supporting records", each with "Recover".
+- An archived roadmap, ticket or resource is read-only until you recover it.
 
 ### Activity history
 
-Work items, roadmaps, people and tickets keep an "Activity history" at the bottom of their page. Every change is listed with who made it, including changes applied from an agent's proposal. Each entry is the raw record of the change.
+Work items, roadmaps, people, tickets and resources keep an "Activity history" at the bottom of their page. Every change is listed with who made it, including changes applied from an agent's proposal. Each entry is the raw record of the change.
 
 ### Search
 
@@ -81,6 +83,7 @@ The box at the top of every page ("Search your work…") searches:
 - work items, notes, file names, links and tracked agent chats
 - GitHub references, roadmaps and steps, questions and decisions
 - people, discussions, tickets and ticket comments
+- resources
 
 Tick "Search archived records" to search the archive instead. Agent proposals are not searched: find them on Review. Clearing the box returns you to the page you were on.
 
@@ -92,13 +95,13 @@ Everything lives in one database file, `worklog.sqlite3`, in your data folder: y
 
 Agents act with credentials you issue in Settings (see [Bring an AI agent in](#bring-an-ai-agent-in)). They can:
 
-- read your work and roadmaps
+- read your work, roadmaps and resources
 - report what they work on and where
 - talk in Discussions
 - file and work tickets
 - receive the messages you write into their chat
 
-They never change your work items, days, roadmaps, people or repositories directly. They propose those changes, and you approve or reject each proposal on Review. You can turn approval off in Settings; then a proposal applies as soon as its agent submits it.
+They never change your work items, days, roadmaps, people or repositories directly. They propose those changes, and you approve or reject each proposal on Review. You can turn approval off in Settings; then a proposal applies as soon as its agent submits it. Resources are yours alone: agents read them, but nothing they do changes one, not even a proposal.
 
 ## How to
 
@@ -228,6 +231,19 @@ On a roadmap's overview:
 
 A person's page lists everything they are tied to, their "Notes (Markdown)" and their history.
 
+### Keep reference pages for you and your agents
+
+Write down once what you and your agents keep looking up: how you like work done, conventions, runbooks, where things live.
+
+1. Open **Resources**, type a title into "New page title" and press "Add page". The page opens in its editor.
+2. Write its "Summary": what the page is for, in a sentence. The list and your agents see it before they open the page.
+3. Write the page in "Page (Markdown)": headings, lists, links, tables and code blocks. "Preview" shows it rendered.
+4. Press "Done" to read the page. "Edit page" opens it again.
+
+Each page has its own address, such as `#resources/ID`, so one page, or anything else in Worklog, can link to another. A link to one of the page's own headings, such as `#testing`, jumps to that heading.
+
+Agents read your pages but never change them. Their `context` lists every page by title and summary, and `worklog agent resources show` reads one whole, so point them at the pages that matter in their instructions or in a message to their chat. Archive a page that no longer applies: it leaves the list and your agents' context, and "Show archive" brings it back to recover. Archiving hides a page but does not withdraw it: an agent can still open an archived page by its ID, and a page's history keeps every earlier version, which agents can read too. Keep secrets out of your pages.
+
 ### Register, confirm and merge repositories
 
 - **Add one.** On **Repositories**, enter a "Repository name" and optional remote URL (`https://…`, `ssh://git@host/path` or `git@host:path`), then press "Add repository".
@@ -239,9 +255,14 @@ A person's page lists everything they are tied to, their "Notes (Markdown)" and 
   - Agents register the repositories they work in, so their work shows up at once. Such a repository says "Registered by" the agent and "unreviewed" until you press "Confirm" or edit it.
   - To keep registration to yourself, clear "Agents may register repositories" in Settings.
 - **Link work.** On a repository's page, "Link work item" under "Linked work" links work to it. On a work item, "Link repository" does the same from the other side.
+- **Keep documents with it.** On a repository's page, "Attach a file" under "Files" stores a copy of a design, runbook or any other file in Worklog, up to 25 MB.
+  - Each file's name downloads it, and "Archive" puts it under "Archived supporting records".
+  - Search finds a file by its name and opens its repository.
+  - An archived repository takes no new files until you recover it. You can still download, archive and recover the ones it has.
+  - Agents you give a credential can read these files, as they can your other records.
 - **Merge duplicates.**
   - On the duplicate's page, find the record to keep under "Merge into another repository", and press "Confirm merge".
-  - Its work and chat links, tickets and agent reports move to the record you keep. The duplicate is archived as "Merged into" that record.
+  - Its work and chat links, tickets, files and agent reports move to the record you keep. The duplicate is archived as "Merged into" that record.
   - Merging can't be undone.
 
 ### Bring an AI agent in
@@ -254,7 +275,7 @@ A person's page lists everything they are tied to, their "Notes (Markdown)" and 
    - Restart Claude Code, Codex or the terminal you run them from, so they see it.
 
    Setting it this way keeps the token out of your shell history. Never paste it into a chat, a file or a command.
-4. Tell your agents to run `worklog agent guide` before they use Worklog, for example in their instructions file. The command lives in your Worklog folder at `.venv/Scripts/worklog.exe`. The guide tells agents to register an identity of their own for each chat, with the chat's ID, report their work, and change your records only through proposals.
+4. Tell your agents to run `worklog agent guide` before they use Worklog, for example in their instructions file. The command lives in your Worklog folder at `.venv/Scripts/worklog.exe`. The guide tells agents to register an identity of their own for each chat, with the chat's ID, report their work, read your resources, and change your records only through proposals.
 5. Watch them on **Agents**, **Repositories** and **Chats**, and decide their proposals on **Review**.
 
 One credential can serve many agents: each registers its own identity from it, and Settings shows "Registered by" beside those, with the chat each one registered for. Revoking the credential revokes every identity registered from it.
@@ -400,12 +421,23 @@ The repositories you and your agents work in.
 - **A repository's page:**
   - "Repository name", "Remote URL" and "Description", plus "Archive repository" or "Recover repository".
   - "Merge into another repository" and "Linked work" ("Link work item").
+  - "Files" ("Attach a file"), with archived files under "Archived supporting records".
   - "Participants" and "Recent updates": who works there, on which branch, checkout or worktree, and what they reported.
 - **Reports are advisory.** They reserve nothing, and show "Stale report" after two hours without news.
 
 ### People
 
 The people involved in your work. The list has "Person name", "Person title or team", "Add person", "Filter people by text" and "Show archive". A person's page has "Name", "Title or team", "Notes (Markdown)", the roadmaps and work items they are tied to, each with a role and "Unlink", and "Activity history".
+
+### Resources
+
+Reference pages you write for yourself and your agents.
+
+- **"Pages"** lists them by title, each with its summary. It has "New page title" and "Add page", "Find pages", which also searches the pages' text, and "Show archive". The first page opens beside the list.
+- **A page** shows its title, summary and text, with "Edit page" ("Done" while editing) and "Archive" or "Recover", when it was last updated, and its "Activity history". Editing shows "Title", "Summary" and "Page (Markdown)", which save as you type.
+- **Addresses.** A page has its own address, such as `#resources/ID`, and so does each of its headings, such as `#resources/ID/testing`.
+
+See [Keep reference pages for you and your agents](#keep-reference-pages-for-you-and-your-agents).
 
 ### Agents
 
@@ -460,7 +492,7 @@ This guide. "Contents" lists its sections; pick one to jump to it. A section has
 - **The header** shows the day and the page, and holds the search box.
 - **On a narrow window:**
   - The sidebar becomes a block of links above the page, three to a row, without the roadmap tree.
-  - Split pages, such as a roadmap, Chats and Discussions, stack their two sides.
+  - Split pages, such as a roadmap, Chats, Discussions and Resources, stack their two sides.
 
 ## Troubleshooting
 
@@ -489,6 +521,7 @@ This guide. "Contents" lists its sections; pick one to jump to it. A section has
 | Roadmap | A plan of nested steps, saved as immutable versions |
 | Step | One part of a roadmap; leaf steps carry progress |
 | Ticket | An issue with a key such as T-12, closed with a resolution |
+| Resource | A reference page you write for yourself and your agents: a title, a summary and Markdown text |
 | Revision | A record's change counter; it lets Worklog refuse a stale save instead of overwriting |
 | Archive | Hiding a record without deleting it; you can recover it |
 | Credential | A token you issue in Settings that lets an agent use Worklog |

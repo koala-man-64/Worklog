@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import sqlite3
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 # Older versions that startup and offline restore upgrade in one transaction.
-UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7})
+UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8})
 
 COORDINATION_SCHEMA = """
 CREATE TABLE repositories(id TEXT PRIMARY KEY,name TEXT NOT NULL,url TEXT NOT NULL DEFAULT '',description TEXT NOT NULL DEFAULT '',archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
@@ -161,6 +161,7 @@ def upgrade(conn: sqlite3.Connection) -> None:
         _upgrade_v1(conn, tables)
     assign_missing_avatars(conn)
     from .chat_messages import SCHEMA as CHAT_MESSAGE_SCHEMA
+    from .resources import SCHEMA as RESOURCE_SCHEMA
     from .tickets import SCHEMA as TICKET_SCHEMA
 
     if version < 4:
@@ -171,8 +172,10 @@ def upgrade(conn: sqlite3.Connection) -> None:
         add_remote_identity(conn)
     if version < 7:
         add_repository_provenance(conn)
-    # Every upgradable version predates item scratchpads (v8).
-    add_item_scratchpads(conn)
+    if version < 8:
+        add_item_scratchpads(conn)
+    # Every upgradable version predates resources (v9), which start empty.
+    execute_schema(conn, RESOURCE_SCHEMA)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 

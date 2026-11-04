@@ -507,7 +507,7 @@ class AgentClient:
         # Explicit route allowlist makes canonical writes and approval unreachable from this client.
         route = path.split("?", 1)[0]
         segments = route.strip("/").split("/")
-        allowed = method == "GET" and route in {"/context", "/search", "/proposals"}
+        allowed = method == "GET" and route in {"/context", "/search", "/proposals", "/resources"}
         def valid_id(value: str) -> bool:
             try:
                 return str(uuid.UUID(value)) == value.lower()
@@ -518,7 +518,7 @@ class AgentClient:
             allowed = method in {"GET", "PATCH"} and valid_id(segments[1])
         if len(segments) == 3 and segments[0] == "proposals" and segments[2] in {"submit", "withdraw", "reopen"}:
             allowed = method == "POST" and valid_id(segments[1])
-        if len(segments) == 2 and segments[0] in {"roadmaps", "steps"}:
+        if len(segments) == 2 and segments[0] in {"roadmaps", "steps", "resources"}:
             allowed = method == "GET" and valid_id(segments[1])
         if route in {"/proposals", "/agent-registrations", "/agent-registrations/retire"} and method == "POST":
             allowed = True
@@ -713,6 +713,10 @@ def agent_command(args: argparse.Namespace, port: int, redact: list[str]) -> Any
         return coordination_command(client, args)
     if args.agent_action == "tickets":
         return ticket_command(client, args)
+    if args.agent_action == "resources":
+        if args.resource_action == "list":
+            return client.request("GET", "/resources" + _coordination_query(args, "q", "archived", "limit", "offset"))
+        return client.request("GET", "/resources/" + args.id)
     if args.agent_action == "inbox":
         return client.request("POST", "/inbox/receive", {"chatId": args.chat} if args.chat else {},
                               request_id=args.request_id)
@@ -1250,6 +1254,15 @@ def parser() -> argparse.ArgumentParser:
     search.add_argument("query")
     search.add_argument("--limit", type=int, default=50)
     search.add_argument("--archived", action="store_true")
+    # Read-only: the person writes resources, and the client has no route that changes one.
+    resources = actions.add_parser("resources", help="Read the reference pages the person keeps for you and themselves").add_subparsers(
+        dest="resource_action", required=True)
+    listing = resources.add_parser("list", help="Titles and summaries by title, without the pages' text")
+    listing.add_argument("--q", help="Words from a page's title, summary or text")
+    listing.add_argument("--archived", action="store_true", help="List archived pages")
+    listing.add_argument("--limit", type=int, default=50)
+    listing.add_argument("--offset", type=int, default=0)
+    resources.add_parser("show", help="One page with its full Markdown text").add_argument("id")
     # context lists roadmaps without their steps and search shows snippets; these read the whole text.
     roadmap = actions.add_parser("roadmap", help="Read a roadmap with the full text of every step")
     roadmap.add_subparsers(dest="roadmap_action", required=True).add_parser("show").add_argument("id")
