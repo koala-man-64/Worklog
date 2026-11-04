@@ -24,6 +24,7 @@ const settings: SettingsData = {
       createdAt: "2026-10-01T10:00:00Z",
       revoked: false,
       registeredBy: null,
+      chatId: null,
       registeredActive: 0,
     },
   ],
@@ -298,6 +299,7 @@ it("names the agent that registered a credential and what revoking takes with it
         createdAt: "2026-11-01T10:00:00Z",
         revoked: false,
         registeredBy: { id: "profile-alpha", label: "Agent Alpha profile" },
+        chatId: "7d3c1f2a-5b6e-4f10-9a8b-1c2d3e4f5a6b",
         registeredActive: 0,
       },
     ],
@@ -332,7 +334,7 @@ it("names the agent that registered a credential and what revoking takes with it
   });
   expect(registrar).toHaveAttribute("href", "#agents/profile-alpha");
   expect(registrar.parentElement).toHaveTextContent(
-    "Registered by Agent Alpha profile",
+    "Registered by Agent Alpha profile for chat 7d3c1f2a-5b6e-4f10-9a8b-1c2d3e4f5a6b",
   );
   // Only the registered credential names a registering agent.
   expect(screen.getAllByText(/^Registered by/)).toHaveLength(1);

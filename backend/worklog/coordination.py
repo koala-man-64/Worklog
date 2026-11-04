@@ -394,6 +394,11 @@ class CoordinationService:
         external = p.get("externalChatId")
         if external is not None:
             external = text(external, "externalChatId", required=True, limit=500)
+        else:
+            # A registered identity's runs report the chat it registered with unless they name another.
+            from .registration import identity_chat
+
+            external = identity_chat(c, principal["id"])
         c.execute("INSERT INTO agent_runs(id,agent_id,credential_id,client_run_key,display_name,provider,external_chat_id,revision,created_at,updated_at) VALUES(?,?,?,?,?,?,?,1,?,?)",
                   (identity, principal["id"], actor["id"], key, text(p["displayName"], "displayName", required=True, limit=200), text(p.get("provider", ""), "provider", limit=100), external, stamp, stamp))
         result = self.run_record(_get(c, "agent_runs", identity))
@@ -467,6 +472,31 @@ class CoordinationService:
             c.execute("INSERT INTO participation_contexts(participation_id,position,repository_id,checkout_path,worktree_path,branch) VALUES(?,?,?,?,?,?)",
                       (identity, position, context["repositoryId"], context["checkoutPath"], context["worktreePath"], context["branch"]))
 
+    def _track_chat(self, c, actor, run_id, item_id) -> None:
+        """Track a registered identity's chat on the work item its run reports, once, so the
+        agent's chat appears with its work without anyone tracking it by hand. The person asked
+        for this to happen without a proposal. Only the chat the identity registered with
+        counts: any other chat ID a run reports stays provenance, so an agent cannot fill work
+        with chats by naming them. A chat already tracked on that item, archived there
+        included, is left as the person keeps it."""
+        if item_id is None:
+            return
+        run = _get(c, "agent_runs", run_id)
+        chat_id = run["external_chat_id"]
+        if not chat_id:
+            return
+        from .registration import identity_chat
+
+        if identity_chat(c, run["agent_id"]) != chat_id:
+            return
+        if c.execute("SELECT 1 FROM agent_chats WHERE owner_type='item' AND owner_id=? AND chat_id=?", (item_id, chat_id)).fetchone():
+            return
+        from .services import WorkService
+
+        WorkService(self.db, None)._support_apply(c, actor, "chat.create", {
+            "ownerType": "item", "ownerId": item_id, "chatId": chat_id,
+            "title": run["display_name"], "provider": run["provider"]})
+
     def create_participation(self, c, actor, p) -> dict:
         self._own_run(c, actor, p["runId"])
         item_id = text(p["itemId"], "itemId", required=True, limit=200) if p.get("itemId") is not None else None
@@ -476,6 +506,7 @@ class CoordinationService:
         self._replace_contexts(c, identity, contexts)
         result = self.participation_record(c, _get(c, "participations", identity))
         event(c, actor, "participation.create", identity, None, result)
+        self._track_chat(c, actor, p["runId"], item_id)
         return result
 
     def change_participation(self, c, actor, identity, p, verb="update") -> dict:
@@ -499,6 +530,7 @@ class CoordinationService:
         self._replace_contexts(c, identity, contexts)
         result = self.participation_record(c, _get(c, "participations", identity))
         event(c, actor, "participation." + verb, identity, before, result)
+        self._track_chat(c, actor, row["run_id"], item_id)
         return result
 
     def participations(self, c, item_id=None, repository_id=None, run_id=None, include_released=False, limit=50, offset=0) -> dict:

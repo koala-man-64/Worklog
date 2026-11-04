@@ -50,9 +50,15 @@ def issue(c, label="Shared agents"):
     return response.json()
 
 
+def chat_of(token):
+    """A chat ID per token, so retrying a registration names the same chat."""
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, token))
+
+
 def register(c, sponsor_token, label="Parser fix", token=None, **extra):
     token = token or secrets.token_urlsafe(32)
-    return c.post("/api/v1/agent-registrations", json={"label": label, "token": token, **extra}, headers=bearer(sponsor_token)), token
+    payload = {"label": label, "token": token, "chatId": chat_of(token), **extra}
+    return c.post("/api/v1/agent-registrations", json=payload, headers=bearer(sponsor_token)), token
 
 
 def credential_count(c):
@@ -143,15 +149,16 @@ def test_registration_needs_an_active_agent_credential_and_a_valid_request(clien
     sponsor = issue(client)
     count = credential_count(client)
     token = secrets.token_urlsafe(32)
-    assert agent_http.post("/api/v1/agent-registrations", json={"label": "Nobody", "token": token}).status_code == 401
-    human = write(client, "POST", "/agent-registrations", {"label": "Person", "token": token})
+    chat = chat_of(token)
+    assert agent_http.post("/api/v1/agent-registrations", json={"label": "Nobody", "token": token, "chatId": chat}).status_code == 401
+    human = write(client, "POST", "/agent-registrations", {"label": "Person", "token": token, "chatId": chat})
     assert human.status_code == 403 and human.json()["error"]["code"] == "agent_scope"
     assert register(agent_http, secrets.token_urlsafe(32))[0].status_code == 401
-    assert agent_http.post("/api/v1/agent-registrations", json={"label": "Browser", "token": token},
+    assert agent_http.post("/api/v1/agent-registrations", json={"label": "Browser", "token": token, "chatId": chat},
                            headers={**bearer(sponsor["token"]), "Origin": "http://evil.example"}).status_code == 403
     for invalid in ({"token": "short"}, {"token": "a" * 42 + "!"}, {"token": "a" * 43 + "\n"}, {"token": "a" * 201}, {"label": "   "},
                     {"token": "a" * 43}, {"token": "abcdefghi" * 5}, {"label": " you "}, {"avatar": "not-an-avatar"}, {"extra": True}):
-        response = agent_http.post("/api/v1/agent-registrations", json={"label": "Invalid", "token": token, **invalid},
+        response = agent_http.post("/api/v1/agent-registrations", json={"label": "Invalid", "token": token, "chatId": chat_of(token), **invalid},
                                    headers=bearer(sponsor["token"]))
         assert response.status_code == 422, (invalid, response.text)
         assert token not in response.text

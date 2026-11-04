@@ -1995,6 +1995,8 @@ export interface components {
             label: string;
             /** Token */
             token: string;
+            /** Chatid */
+            chatId: string;
             /** Avatar */
             avatar?: string | null;
         };
