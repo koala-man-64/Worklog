@@ -119,7 +119,7 @@ Fix: compare principals through `communication_credentials.agent_id`, with no sc
 
 #### 0.5 · Mark chat recipients the chat isn't bound to
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branch: `claude/chat-recipient-registration` · PR: [#93](https://github.com/koala-man-64/Worklog/pull/93)
 
 Delivery of the person's chat messages matches on the chat ID a run reports, and any credential can report any chat ID.
 
@@ -127,7 +127,7 @@ Until 1.4 lands, the chat page marks every recipient whose identity didn't regis
 
 #### 0.6 · Settings lists backups without hashing them
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branch: `claude/settings-backup-hashes` · PR: [#92](https://github.com/koala-man-64/Worklog/pull/92)
 
 Every `GET /settings` hashes every backup file (`recovery.py`, `list_backups`), which takes seconds once backups total a few gigabytes. The page never shows the hashes.
 
@@ -135,7 +135,7 @@ Fix: list without hashes; the CLI `backups` command keeps them. Findings: B-05, 
 
 #### 0.7 · Header search clears when a result is chosen
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branch: `claude/search-clears-on-choice` · PR: [#94](https://github.com/koala-man-64/Worklog/pull/94)
 
 Search clears only on `hashchange` (`App.tsx`), so a result that points at the page already open leaves the results on screen.
 

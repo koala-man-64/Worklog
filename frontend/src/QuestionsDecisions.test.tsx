@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setDataContext } from "./api";
@@ -120,6 +120,7 @@ it("lists open questions, keeps answered ones with their answers, and asks a new
   await userEvent.click(
     within(questions).getByRole("button", { name: "Add question" }),
   );
+  await waitFor(() => expect(writes).toHaveLength(1));
   expect(writes).toEqual([
     {
       url: "/questions",
@@ -152,6 +153,7 @@ it("answers a question only with an answer, and reopens one without losing it", 
       name: "Reopen question Do we need sharding?",
     }),
   );
+  await waitFor(() => expect(writes).toHaveLength(2));
   expect(writes).toEqual([
     {
       url: "/questions/" + OPEN,
@@ -199,6 +201,7 @@ it("edits a question's text, and an answered question's answer with it", async (
   await userEvent.click(
     within(questions).getByRole("button", { name: "Save question" }),
   );
+  await waitFor(() => expect(writes).toHaveLength(2));
   expect(writes).toEqual([
     {
       url: "/questions/" + OPEN,
@@ -259,6 +262,7 @@ it("records decisions with an optional date and rationale, and edits them", asyn
   await userEvent.click(
     within(decisions).getByRole("button", { name: "Save decision" }),
   );
+  await waitFor(() => expect(writes).toHaveLength(3));
   expect(writes).toEqual([
     {
       url: "/decisions",
@@ -316,6 +320,7 @@ it("recovers archived questions and decisions", async () => {
   await userEvent.click(screen.getByText(/Archived supporting records \(/));
   const parked = screen.getByText("Parked decision").closest(".line")!;
   await userEvent.click(within(parked as HTMLElement).getByRole("button"));
+  await waitFor(() => expect(writes).toHaveLength(1));
   expect(writes).toEqual([
     {
       url: `/decisions/${DECISION}/recover`,

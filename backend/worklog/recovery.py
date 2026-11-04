@@ -265,11 +265,13 @@ def _snapshot(source: Path, destination: Path) -> None:
         os.fsync(stream.fileno())
 
 
-def _metadata(path: Path) -> dict[str, Any]:
+def _metadata(path: Path, *, hashed: bool = True) -> dict[str, Any]:
     stat = path.stat()
-    return {"name": path.name, "size": stat.st_size,
-            "createdAt": datetime.fromtimestamp(stat.st_mtime, UTC).isoformat(),
-            "sha256": _file_hash(path)}
+    record: dict[str, Any] = {"name": path.name, "size": stat.st_size,
+                              "createdAt": datetime.fromtimestamp(stat.st_mtime, UTC).isoformat()}
+    if hashed:
+        record["sha256"] = _file_hash(path)
+    return record
 
 
 def _file_hash(path: Path) -> str:
@@ -277,12 +279,17 @@ def _file_hash(path: Path) -> str:
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def list_backups(backup_dir: Path | str) -> list[dict[str, Any]]:
+def list_backups(backup_dir: Path | str, *, hashed: bool = True) -> list[dict[str, Any]]:
+    """Backups and raw recovery evidence, newest first.
+
+    With hashed=False the listing reads file metadata only: hashing reads every byte of
+    every file, which Settings would otherwise pay on each load. The CLI keeps the hashes.
+    """
     directory = Path(backup_dir)
     if not directory.exists():
         return []
     files = [*directory.glob("worklog-*.sqlite3"), *directory.glob("worklog-pre-restore-raw-*.zip")]
-    return [_metadata(path) for path in sorted(files, reverse=True)
+    return [_metadata(path, hashed=hashed) for path in sorted(files, reverse=True)
             if path.is_file()]
 
 
