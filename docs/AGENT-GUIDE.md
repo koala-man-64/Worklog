@@ -539,7 +539,7 @@ Uploading evidence leaves the proposal's revision alone. Before the update, `pro
 
 - **Request IDs.**
   - Every write carries an idempotency key: your `--request-id`, or a random one.
-  - Replaying the same key with the identical payload returns the first result and changes nothing.
+  - Replaying the same key with the identical payload within 14 days returns the first result and changes nothing. After 14 days the key is forgotten, so a replay runs the request again.
   - The same key with a different payload is `409 idempotency_conflict`.
   - Keys are 8-200 printable ASCII characters without spaces.
 - **Which writes take a request ID.**

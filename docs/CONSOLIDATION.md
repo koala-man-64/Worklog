@@ -141,9 +141,19 @@ Search clears only on `hashchange` (`App.tsx`), so a result that points at the p
 
 Fix: clear on result click. Findings: A-11.
 
-### Phase 1 · Schema v11, additive only
+### Phase 1 · Schemas v11 and v12, additive only
 
-One PR that owns `migrations.py`, `db.py` and `recovery.py`. Rollback drops the additions and sets `user_version` to 10. A deploy that runs the migration on real data waits for the person's go-ahead.
+v11 (steps 1.1 and 1.2, one PR) adds derived data only, and its documented way back drops it. v12 (steps 1.3 and 1.4) moves authorization state out of event JSON and binds chats. Because v12 changes how registration, proposals and chat delivery decide, it is a separate migration with its own independent review; the split was made on 2026-11-04, while building v11.
+
+Each migration's PR owns `migrations.py`, `db.py` and `recovery.py` while it is open. A deploy that runs a migration on real data waits for the person's go-ahead.
+
+#### 1.0 · One writer for the search index
+
+Status: Merged · Branch: `claude/one-search-writer` · PR: [#95](https://github.com/koala-man-64/Worklog/pull/95)
+
+This step was added on 2026-11-04 while preparing 1.1. Keyed search rows only work if every writer keeps the keys in step. Before this step, discussions, tickets, repository merges and `WorkService` all wrote `search_index` directly.
+
+`search.py` now owns every write, unchanged in behaviour. `test_search_writes.py` fails when another module writes the table; historic migrations are exempt. No schema change. Findings: B-13.
 
 #### 1.0 · One writer for the search index
 
@@ -155,27 +165,29 @@ This step was added on 2026-11-04 while preparing 1.1. Keyed search rows only wo
 
 #### 1.1 · Search keys and missing indexes
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branch: `claude/schema-v11` · PR: [#96](https://github.com/koala-man-64/Worklog/pull/96)
 
 Add a `search_keys(entity_id PRIMARY KEY, doc, type, owner_id)` table, so index writes delete by rowid. Add indexes on the hot foreign-key columns: `tasks.item_id`, `file_references.item_id`, `work_items.step_id`, `work_items.roadmap_id`, `github_refs.chat_id` and `steps.parent_id`. Findings: B-01, B-10.
 
 #### 1.2 · Dated, pruned receipts
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branch: `claude/schema-v11` · PR: [#96](https://github.com/koala-man-64/Worklog/pull/96)
 
-Add `receipts.created_at` with an index, a 14-day prune, and a cap on stored response size. Receipts currently keep full responses forever, including chat-message texts handed to agents. Findings: B-03, REM-16.
+Add `receipts.created_at` with an index, and prune receipts older than 14 days at startup and hourly. Receipts kept full responses forever, including chat-message texts handed to agents. Existing receipts take the upgrade's time, so a retry in flight keeps replaying for the whole window.
+
+A cap on stored response size is deferred. A capped receipt cannot replay its response, so revision-guarded writes should stop taking receipts first (REM-14). Findings: B-03, REM-16.
 
 #### 1.3 · State out of event JSON
 
 Status: Not started · Branch: — · PR: —
 
-Add two columns to `communication_credentials`, the registration sponsor and the registered chat, backfilled from `credential.register` events. Add a proposal `submitted_at` and a record of stale notices. Afterwards, no runtime path depends on event JSON for authorization. Findings: C-07, A-18, N-1.
+In v12, add two columns to `communication_credentials`, the registration sponsor and the registered chat, backfilled from `credential.register` events. Add a proposal `submitted_at` and a record of stale notices. Afterwards, no runtime path depends on event JSON for authorization. Findings: C-07, A-18, N-1.
 
 #### 1.4 · Chats bound to identities
 
 Status: Not started · Branch: — · PR: —
 
-Implements K3. A registered chat binds automatically; the person confirms any other binding on the chat page; deliveries go to bound identities only, and the inbox is keyed by identity. Needs 1.3. Findings: C-01.
+In v12. Implements K3. A registered chat binds automatically; the person confirms any other binding on the chat page; deliveries go to bound identities only, and the inbox is keyed by identity. Needs 1.3. Findings: C-01.
 
 ### Phase 2 · Registries and plumbing
 
@@ -283,7 +295,14 @@ Add `worklog compact`, with K6's retention, the allowlist from *Rules*, a purge 
 
 Status: Not started · Branch: — · PR: —
 
-First a read-only `worklog doctor`: orphans, owner types, duplicate tracked chats and FTS integrity. Then v12 adds the missing CHECK and FK constraints to leaf tables only. Needs 2.2. Findings: B-09.
+First a read-only `worklog doctor`, checking:
+
+- orphans and owner types;
+- duplicate tracked chats;
+- FTS integrity;
+- search keys that disagree with their rows. Nothing in the schema ties `search_keys` to `search_index`, and restore checks only the schema (from the review of #96).
+
+Then a later schema version adds the missing CHECK and FK constraints to leaf tables only. Needs 2.2. Findings: B-09.
 
 ### Phase 5 · Product surface and agent contract v2
 

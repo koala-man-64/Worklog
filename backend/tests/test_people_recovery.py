@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from test_search_keys_recovery import to_v10
 from worklog import migrations, recovery
 from worklog.app import create_app
 from worklog.db import Database
@@ -45,7 +46,9 @@ APPROVED_CREATE = [{"action": "person.create", "payload": {"name": "Di", "role":
 
 
 def to_v9(path):
-    """Take a current database back to the v9 shape the documented way, as older shapes' helpers do."""
+    """Take a current database back to the v9 shape the documented way, as older shapes' helpers do:
+    to version 10 first, then to version 9."""
+    to_v10(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK)
 
@@ -88,7 +91,7 @@ def test_v9_upgrade_makes_role_the_team_keeps_every_tie_and_restores(tmp_path):
     kept = {t: rows(path, t) for t in ("work_items", "roadmaps", "person_links", "search_index")}
     Database(path).initialize()
     with Database(path).read() as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION == 10
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
         assert recovery._schema_signature(conn) == recovery._expected_schema()
         people = {r["id"]: dict(r) for r in conn.execute("SELECT * FROM people")}
     assert {t: rows(path, t) for t in kept} == kept
@@ -199,6 +202,7 @@ def test_a_way_back_that_fails_part_way_changes_nothing(tmp_path):
     path = tmp_path / "worklog.sqlite3"
     v9_database(path)
     Database(path).initialize()
+    to_v10(path)  # README: from version 11 to version 10 first
     before = {t: rows(path, t) for t in ("people", "person_links", "search_index")}
     # As SQLite before 3.35 refuses DROP COLUMN: the statement fails once the links are rebuilt.
     broken = WAY_BACK.replace("DROP COLUMN title;", "DROP COLUMN no_such_column;")
@@ -206,7 +210,7 @@ def test_a_way_back_that_fails_part_way_changes_nothing(tmp_path):
         conn.executescript(broken)
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 10
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == recovery._expected_schema(search_keys=False)
     assert {t: rows(path, t) for t in before} == before
     recovery.validate_database(path)
 
