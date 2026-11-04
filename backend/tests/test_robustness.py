@@ -1,5 +1,6 @@
 """Malformed input must produce a 4xx error envelope, never an unhandled 5xx."""
 
+import json
 import uuid
 
 import pytest
@@ -7,7 +8,8 @@ from fastapi.testclient import TestClient
 from worklog.app import create_app
 
 ORIGIN = "http://127.0.0.1:8877"
-CONFUSED = [[], {}, 7, None, "éü中"]
+# The last two are lone UTF-16 surrogates: valid JSON escapes that name no character.
+CONFUSED = [[], {}, 7, None, "éü中", "a\ud800b", "\udfff"]
 
 
 @pytest.fixture
@@ -22,8 +24,10 @@ def client(tmp_path, monkeypatch):
 
 
 def send(c, method, path, body=None, **headers):
-    return c.request(method, "/api/v1" + path, json=body,
-                     headers={"Idempotency-Key": str(uuid.uuid4()), **headers})
+    # Escaped as browsers and the agent CLI send it, so a lone surrogate can be sent at all.
+    content = None if body is None else json.dumps(body)
+    return c.request(method, "/api/v1" + path, content=content,
+                     headers={"Idempotency-Key": str(uuid.uuid4()), "Content-Type": "application/json", **headers})
 
 
 def assert_handled(response, context):
@@ -135,3 +139,51 @@ def test_unexpected_failure_returns_envelope_with_security_headers(client, recor
     assert response.status_code == 500
     assert response.json()["error"]["code"] == "internal_error"
     assert "content-security-policy" in response.headers
+
+
+def test_a_lone_surrogate_is_refused_with_the_place_it_sits(client, records):
+    def refused(response):
+        assert response.status_code == 422, response.text
+        error = response.json()["error"]
+        assert error["code"] == "validation" and "lone UTF-16 surrogate" in error["message"]
+        return error["fields"]
+
+    assert refused(send(client, "POST", "/tickets", {"title": "Crash at \ud800"})) == {"title": "invalid"}
+    operations = [{"action": "item.create", "payload": {"title": "\udc00 broken"}}]
+    assert refused(send(client, "POST", "/proposals", {"title": "P", "rationale": "", "operations": operations})) == {
+        "operations.0.payload.title": "invalid"}
+    # A broken key names the object that holds it; the key itself could not be shown.
+    assert refused(send(client, "POST", "/resources", {"title": "Page", "\ud800": "x"})) == {"body": "invalid"}
+    # Raw surrogate bytes, which JSON parsing decodes to the same lone half.
+    raw = client.post("/api/v1/tickets", content=b'{"title": "a\xed\xa0\x80b"}',
+                      headers={"Idempotency-Key": str(uuid.uuid4()), "Content-Type": "application/json"})
+    assert refused(raw) == {"title": "invalid"}
+    assert client.get("/api/v1/tickets?status=all").json()["total"] == 0
+
+
+def test_a_surrogate_pair_is_an_ordinary_character(client):
+    # json.dumps escapes the rocket as \ud83d\ude80, as the agent CLI sends it.
+    created = send(client, "POST", "/tickets", {"title": "Ship it \U0001F680", "description": "\U0001F680" * 3})
+    assert created.status_code == 200, created.text
+    assert client.get(f"/api/v1/tickets/{created.json()['id']}").json()["title"] == "Ship it \U0001F680"
+
+
+@pytest.mark.parametrize("body,expected", [
+    (b'{"title": "plain"}', None),
+    (json.dumps({"title": "caf\u00e9 \U0001F680"}).encode(), None),
+    # Raw literals: each holds the JSON escapes as a client sends them.
+    # An escaped backslash before "ud800" is text, not an escape.
+    (rb'{"title": "C:\\ud800"}', None),
+    (rb'{"title": "a\ud800b"}', "title"),
+    (rb'{"steps": [{"title": "ok"}, {"title": "\udfff"}]}', "steps.1.title"),
+    (rb'["\ud800"]', "0"),
+    (rb'"\ud800"', "body"),
+    # Not JSON at all: the route refuses it as it always has.
+    (rb'{"title": "\ud800"', None),
+    (json.dumps({"note": "x"}).encode("utf-16"), None),
+    ('{"note": "\ud800"}'.encode("utf-16-le", "surrogatepass"), "note"),
+])
+def test_lone_surrogate_finds_the_first_broken_text(body, expected):
+    from worklog.common import lone_surrogate
+
+    assert lone_surrogate(body) == expected

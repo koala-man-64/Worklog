@@ -564,7 +564,7 @@ worklog check
 
 | Code | Status | Meaning | Do this |
 |---|---|---|---|
-| `validation` | 422 | A field is missing, malformed or too long; `fields` names it | Fix the input; do not retry unchanged |
+| `validation` | 422 | A field is missing, malformed or too long, or text holds a lone UTF-16 surrogate (half of a pair, which names no character); `fields` names it, with a dotted path such as `operations.0.payload.title` when it is nested | Fix the input; do not retry unchanged |
 | `not_found` | 404 | No such record, or not one you can see, such as another agent's draft | Check the ID with `search` or `context` |
 | `conflict` | 409 | A stale revision (`fields` `{expected,currentRevision}`), or a state that forbids the change, such as editing a submitted proposal | Read again; retry with the current revision only if the change is still right |
 | `operation` | 422 | An unsupported operation reached the server | Use an action from section 6.1 |
