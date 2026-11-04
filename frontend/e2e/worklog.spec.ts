@@ -411,6 +411,37 @@ test("an entry's scratchpad on Today is its work item's own", async ({
     page.getByRole("textbox", { name: "Scratchpad (Markdown)", exact: true }),
   ).toHaveValue("Written on Today");
 });
+test("a Today entry collapses to its heading row and stays collapsed after a reload", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const title = "Collapse " + Date.now();
+  await page.getByRole("textbox", { name: "New work item" }).fill(title);
+  await page.getByRole("button", { name: "Add work", exact: true }).click();
+  const entry = page
+    .locator(".day-entry")
+    .filter({ has: page.getByRole("link", { name: title, exact: true }) });
+  const outcome = entry.getByLabel("Outcome / next action");
+  await expect(outcome).toBeVisible();
+  await entry
+    .getByRole("button", { name: "Collapse " + title, exact: true })
+    .click();
+  // Hidden, not removed: the field is still there for its draft to save.
+  await expect(outcome).toBeAttached();
+  await expect(outcome).toBeHidden();
+  await expect(
+    entry.getByRole("button", { name: "Reschedule " + title, exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  const expand = entry.getByRole("button", {
+    name: "Expand " + title,
+    exact: true,
+  });
+  await expect(expand).toHaveAttribute("aria-expanded", "false");
+  await expect(outcome).toBeHidden();
+  await expand.click();
+  await expect(outcome).toBeVisible();
+});
 test("open work is planned for the day and rescheduled from beside its title", async ({
   page,
   baseURL,
