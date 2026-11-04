@@ -46,7 +46,7 @@ function EntryDetailsBody({ itemId }: { itemId: string }) {
   const detail = item.data;
   return (
     <>
-      <Scratchpad itemId={itemId} notes={item.data.notes} compact />
+      <Scratchpad itemId={itemId} notes={item.data.notes} />
       <LinksSection ownerType="item" ownerId={itemId} links={item.data.links} />
       <Files
         ownerType="item"
@@ -473,7 +473,6 @@ export function Today({
                   </section>
                 ) : (
                   <DraftField
-                    compact
                     draftKey={"entry-" + entry.id}
                     label="Outcome / next action"
                     initial={entry.outcome}
@@ -544,7 +543,6 @@ export function Today({
             )}
           </section>
           <DraftField
-            compact
             key={date}
             draftKey={"reflection-" + date}
             label="End-of-day reflection (Markdown)"

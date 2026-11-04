@@ -1066,7 +1066,7 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
             </Fragment>
           ))}
         </nav>
-        <div className="roadmap-title">
+        <div className="roadmap-title title-row">
           <h1>{road.title}</h1>
           <div className="toolbar">
             <button

@@ -367,7 +367,7 @@ function TicketView({ id }: { id: string }) {
         <Icon name="back" />
         All tickets
       </a>
-      <header>
+      <header className="title-row">
         <h1>
           <span className="ticket-key">{ticket.key}</span> {ticket.title}
         </h1>
