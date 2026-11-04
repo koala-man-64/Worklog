@@ -7,7 +7,7 @@ Worklog runs at **http://127.0.0.1:8877** from one local SQLite database. No hos
 ## What Worklog does
 
 - **Plan and record your days.** Plan what you will work on, mark what you actually worked on with an outcome and next action, and close the day with a reflection.
-- **Keep one backlog.** Work items carry a status, a Markdown description, checklist tasks, a scratchpad, files, links, local paths, an Azure DevOps link, GitHub pull requests and commits, people and repositories, along with their daily record and full history.
+- **Keep one backlog, stack ranked.** Work items carry a status, a stack rank, a Markdown description, tasks with checkboxes, a scratchpad, files, links, local paths, an Azure DevOps link, GitHub pull requests and commits, people and repositories, along with their daily record and full history.
 - **Track issues as tickets.** You and your agents file tickets for bugs, incidents and tasks, work them with a status, assignee and comments, and close them with a resolution. Closed tickets stay searchable, so the next agent finds what fixed an issue last time.
 - **Plan bigger efforts as roadmaps.** Roadmaps nest under each other and hold step trees with progress, immutable versions, questions and decisions. An HTML plan can be imported as steps.
 - **Know who is involved.** A people directory ties owners, collaborators and stakeholders to roadmaps and work items, each with a role.
@@ -99,7 +99,7 @@ Records are archived rather than deleted, and you recover them from the same pla
 
 - **Choose the day.** "Working day" picks the date, starting on today in your timezone.
 - **Add work.** "New work item" creates an item. "Plan work" plans it for the day; "Log work already performed" records it as worked without planning it. "Open work", below the day's work, lists every open, doing and blocked item not yet on the day; "Work on today" plans one for the day (on another day the button names that day), and "Find open work…" narrows the list.
-- **Record each entry.** An entry has its status, "Planned" and "Worked on" checkboxes, and an "Outcome / next action" in Markdown. Reorder by dragging the grip or with the up and down buttons. "Reschedule", beside the entry's title, opens a date picker: "Move" plans the item on that day instead, and this day keeps its entry, no longer planned, with anything recorded on it; "Cancel" or Escape closes the picker. "Scratchpad, links and files", under the entry, opens the work item's own scratchpad, links and files.
+- **Record each entry.** An entry has its status and "Planned" and "Worked on" checkboxes. Its tabs hold the day's "Outcome / next action" in Markdown and the work item's own tasks, scratchpad, links, files and repositories; the arrow keys move between them. Before you open them, the tabs say what they hold: how many tasks are done, how many links, files and repositories, and a dot when the scratchpad has text. The badge beside the title is the item's stack rank. Reorder by dragging the grip or with the up and down buttons. "Reschedule", beside the entry's title, opens a date picker: "Move" plans the item on that day instead, and this day keeps its entry, no longer planned, with anything recorded on it; "Cancel" or Escape closes the picker.
 - **Close the day.** Write an "End-of-day reflection". The summary lists what you worked on, completed and blocked that day, and "Continue your next open item" jumps to the next planned item still open.
 
 ### Work
@@ -107,8 +107,11 @@ Records are archived rather than deleted, and you recover them from the same pla
 - **Capture and find work.** Capture items with "New work item", optionally choosing repositories.
   - Filter the list by text, repository, status and person. The status buttons combine: pressing "Doing" and "Blocked" shows both, and with none pressed the list shows every state.
   - Switch between "All work" and the "Unscheduled backlog": items not done and not planned for today or later.
-  - "Show archive" shows archived items. The list pages at 100, and you reorder the backlog with the up and down buttons.
-- **A work item's page** has its title, Markdown description, status, Azure DevOps link, roadmap and step, and checklist tasks. It also holds a scratchpad, one Markdown note for the item (notes archived before stay readable under it), people with their roles, linked repositories, web links, tracked agent chats, GitHub pull requests and commits, and its tickets.
+  - "Show archive" shows archived items. The list pages at 100.
+- **Stack rank.** Unfinished, unarchived work is ranked from #1, the work that matters most, and lists show it in that order, done work after it. New work starts last.
+  - The up and down buttons move an item past the one shown beside it, so they work the same in a filtered list. The rank button at the start of a row, or beside the status on the item's page, opens "Move to rank": type a rank and press "Move", or Cancel or Escape.
+  - Done and archived work leaves the ranking but keeps its place in the order, so reopening or recovering it puts it back where it was.
+- **A work item's page** has its title, Markdown description, status, stack rank, Azure DevOps link, roadmap and step, and tasks with checkboxes (done ones are struck through). It also holds a scratchpad, one Markdown note for the item (notes archived before stay readable under it), people with their roles, linked repositories, web links, tracked agent chats, GitHub pull requests and commits, and its tickets.
   - Files can be up to 25 MB.
   - Local file paths are copied for you to open yourself; Worklog never opens them.
 - **Scheduling and history.** "Plan for day" puts the item on a day. The page also shows its daily record, what agents reported about it under "Agent coordination", its archived supporting records, and its activity history.

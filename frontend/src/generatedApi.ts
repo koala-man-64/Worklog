@@ -108,6 +108,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/work-items/{identity}/rank": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rank Item */
+        post: operations["rank_item_api_v1_work_items__identity__rank_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/work-items/{identity}/{verb}": {
         parameters: {
             query?: never;
@@ -2519,6 +2536,16 @@ export interface components {
             /** Status */
             status?: ("open" | "answered") | null;
         };
+        /**
+         * Rank
+         * @description revision is the item's own; a rank past the last moves the item last.
+         */
+        Rank: {
+            /** Revision */
+            revision: number;
+            /** Rank */
+            rank: number;
+        };
         /** ReferenceCreate */
         ReferenceCreate: {
             /** Itemid */
@@ -3084,6 +3111,43 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["Move"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rank_item_api_v1_work_items__identity__rank_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Rank"];
             };
         };
         responses: {

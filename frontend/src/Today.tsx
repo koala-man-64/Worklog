@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { contextStorageKey, request, getDataContext } from "./api";
 import { commands } from "./commands";
 import { useAction, useCollapsed, useData } from "./hooks";
 import {
+  Checklist,
   DraftField,
   Empty,
   ErrorMessage,
@@ -11,63 +12,180 @@ import {
   Scratchpad,
   StatusSelect,
   Markdown,
+  Tabs,
 } from "./components";
 import { CreateItem } from "./Work";
 import type { Day, Detail, Entry, Item, List, Status } from "./types";
 import { Icon } from "./icons";
+import { RankBadge } from "./StackRank";
 import { RepositoryBadges, RepositoryPicker } from "./RepositoryControls";
 // The work Today offers to plan: anything not finished.
 const OPEN_STATES: Status[] = ["open", "doing", "blocked"];
-// An entry's scratchpad, links and files, the work item page's own sections. The item is
-// read only once they are first opened, and they stay put after, drafts and all.
-function EntryDetails({ itemId }: { itemId: string }) {
-  const [opened, setOpened] = useState(false);
-  return (
-    <details
-      className="entry-details"
-      onToggle={(e) => {
-        if (e.currentTarget.open) setOpened(true);
-      }}
-    >
-      <summary>Scratchpad, links, files and repositories</summary>
-      {opened && <EntryDetailsBody itemId={itemId} />}
-    </details>
-  );
-}
-function EntryDetailsBody({ itemId }: { itemId: string }) {
+// A tab showing part of the work item. Every such tab shares one read of the item, made when
+// the first of them opens.
+function ItemPart({
+  itemId,
+  children,
+}: {
+  itemId: string;
+  children: (item: Detail) => ReactNode;
+}) {
   const item = useData<Detail>("/work-items/" + itemId);
-  const action = useAction();
   if (!item.data)
     return item.error ? (
       <ErrorMessage error={item.error} />
     ) : (
       <p className="muted">Loading…</p>
     );
-  const detail = item.data;
+  return <>{children(item.data)}</>;
+}
+// A tab title with a short count after it, such as "1/2", and its name in words for assistive
+// technology. Without a count the title is the name.
+function counted(title: string, shown: string | false, spoken: string) {
+  return shown === false
+    ? { label: title }
+    : {
+        label: (
+          <>
+            {title}
+            <span className="count">{shown}</span>
+          </>
+        ),
+        name: `${title}, ${spoken}`,
+      };
+}
+// The work item's repositories: linking or unlinking one replaces its set under the revision
+// the item was read at, so a change made elsewhere is refused, not lost.
+function ItemRepositories({ item }: { item: Detail }) {
+  const action = useAction();
   return (
     <>
-      <Scratchpad itemId={itemId} notes={item.data.notes} />
-      <LinksSection ownerType="item" ownerId={itemId} links={item.data.links} />
-      <Files
-        ownerType="item"
-        ownerId={itemId}
-        files={item.data.attachments}
-        references={item.data.references ?? []}
-      />
       <RepositoryPicker
-        heading="h3"
-        value={detail.repositoryIds ?? []}
+        labelHidden
+        value={item.repositoryIds ?? []}
         onChange={(repositoryIds) =>
           action.mutate({
-            path: "/work-items/" + itemId,
+            path: "/work-items/" + item.id,
             method: "PATCH",
-            body: { revision: detail.revision, repositoryIds },
+            body: { revision: item.revision, repositoryIds },
           })
         }
-        disabled={!!detail.archived || action.isPending}
+        disabled={!!item.archived || action.isPending}
       />
       <ErrorMessage error={action.error} />
     </>
+  );
+}
+// An entry's outcome for the day, and its work item's own tasks, scratchpad, links, files and
+// repositories. The tabs say what they hold from the day's counts, before the item is read.
+function EntryTabs({ entry, date }: { entry: Entry; date: string }) {
+  const counts = entry.counts;
+  const itemId = entry.itemId;
+  // The day's record of the item already lists its repositories.
+  const repositories = entry.item.repositoryIds?.length ?? 0;
+  return (
+    <Tabs
+      className="entry-tabs"
+      label={entry.item.title}
+      tabs={[
+        {
+          id: "outcome",
+          label: "Outcome / next action",
+          panel: () => (
+            <DraftField
+              draftKey={"entry-" + entry.id}
+              label="Outcome / next action"
+              labelHidden
+              initial={entry.outcome}
+              revision={entry.revision}
+              save={(outcome, revision) =>
+                commands.upsertEntry(date, itemId, { revision, outcome })
+              }
+            />
+          ),
+        },
+        {
+          id: "tasks",
+          ...counted(
+            "Tasks",
+            !!counts?.tasks && `${counts.tasksDone}/${counts.tasks}`,
+            `${counts?.tasksDone} of ${counts?.tasks} done`,
+          ),
+          panel: () => (
+            <ItemPart itemId={itemId}>
+              {(item) => (
+                <Checklist itemId={itemId} tasks={item.tasks} heading={false} />
+              )}
+            </ItemPart>
+          ),
+        },
+        {
+          id: "scratchpad",
+          ...counted("Scratchpad", !!counts?.scratchpad && "•", "has text"),
+          panel: () => (
+            <ItemPart itemId={itemId}>
+              {(item) => (
+                <Scratchpad itemId={itemId} notes={item.notes} labelHidden />
+              )}
+            </ItemPart>
+          ),
+        },
+        {
+          id: "links",
+          ...counted(
+            "Links",
+            !!counts?.links && String(counts.links),
+            String(counts?.links),
+          ),
+          panel: () => (
+            <ItemPart itemId={itemId}>
+              {(item) => (
+                <LinksSection
+                  ownerType="item"
+                  ownerId={itemId}
+                  links={item.links}
+                  heading={false}
+                />
+              )}
+            </ItemPart>
+          ),
+        },
+        {
+          id: "files",
+          ...counted(
+            "Files",
+            !!counts?.files && String(counts.files),
+            String(counts?.files),
+          ),
+          panel: () => (
+            <ItemPart itemId={itemId}>
+              {(item) => (
+                <Files
+                  ownerType="item"
+                  ownerId={itemId}
+                  files={item.attachments}
+                  references={item.references ?? []}
+                  heading={false}
+                />
+              )}
+            </ItemPart>
+          ),
+        },
+        {
+          id: "repositories",
+          ...counted(
+            "Repositories",
+            !!repositories && String(repositories),
+            String(repositories),
+          ),
+          panel: () => (
+            <ItemPart itemId={itemId}>
+              {(item) => <ItemRepositories item={item} />}
+            </ItemPart>
+          ),
+        },
+      ]}
+    />
   );
 }
 export function Today({
@@ -333,6 +451,7 @@ export function Today({
                     <a className="item-title" href={"#work/" + entry.itemId}>
                       {entry.item.title}
                     </a>
+                    <RankBadge rank={entry.item.rank} />
                     <RepositoryBadges ids={entry.item.repositoryIds} />
                     {entry.item.archived && (
                       <span className="badge">
@@ -460,7 +579,7 @@ export function Today({
                 </form>
               )}
               {/* Hidden rather than unmounted when collapsed, so a draft keeps
-                  saving and opened details keep their place. */}
+                  saving and opened tabs keep their place. */}
               <div
                 className="entry-body"
                 id={"entry-body-" + entry.id}
@@ -472,20 +591,8 @@ export function Today({
                     <Markdown text={entry.outcome} />
                   </section>
                 ) : (
-                  <DraftField
-                    draftKey={"entry-" + entry.id}
-                    label="Outcome / next action"
-                    initial={entry.outcome}
-                    revision={entry.revision}
-                    save={(outcome, revision) =>
-                      commands.upsertEntry(date, entry.itemId, {
-                        revision,
-                        outcome,
-                      })
-                    }
-                  />
+                  <EntryTabs entry={entry} date={date} />
                 )}
-                {!entry.item.archived && <EntryDetails itemId={entry.itemId} />}
               </div>
             </article>
           ))}
@@ -519,6 +626,7 @@ export function Today({
                       <a className="item-title" href={"#work/" + item.id}>
                         {item.title}
                       </a>
+                      <RankBadge rank={item.rank} />
                       <RepositoryBadges ids={item.repositoryIds} />
                     </span>
                     <button

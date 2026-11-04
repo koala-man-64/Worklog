@@ -662,18 +662,126 @@ form.field-action > label {
 .reschedule-picker input {
   flex: 0 1 auto;
 }
-/* Today: an entry's scratchpad, links and files, opened on demand under its outcome. */
-.entry-details {
+/* Tabs: a row of names over the one panel that shows. */
+.tab-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 14px;
+}
+.tab-list > [role="tab"] {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 5px 12px;
+  min-height: 34px;
+  margin-bottom: -1px;
+}
+.tab-list > [role="tab"]:hover {
+  background: transparent;
+  color: var(--ink);
+  border-bottom-color: var(--field-edge);
+}
+.tab-list > [role="tab"][aria-selected="true"] {
+  color: var(--ink);
+  border-bottom-color: var(--teal);
+}
+.tab-list > [role="tab"]:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: -2px;
+}
+.tab-list .count {
+  margin-left: 6px;
+}
+.tab-panel:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 4px;
+}
+/* A panel's section starts under the tabs, with no heading or gap of its own. */
+.tab-panel > section,
+.tab-panel > section > .draft:first-child {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+/* Today: an entry's outcome, and its work item's tasks, scratchpad, links and files. */
+.entry-tabs {
   margin-top: 4px;
 }
-.entry-details .draft {
+.entry-tabs .tab-list {
+  margin-bottom: 10px;
+}
+.checklist > .muted {
+  margin: 0 0 6px;
+  font-size: 12px;
+}
+/* Task text reads at body size wherever the list sits, level with its buttons. */
+.checklist .task > label {
+  font-size: inherit;
+  margin-bottom: 0;
+}
+.task.done > label {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+/* A task's edit field opens under it, without the rule and spacing other disclosures have. */
+.line > .task-edit {
+  border-top: 0;
+  padding: 0;
   margin: 0;
 }
-.entry-details section:not(.draft) {
-  margin-bottom: 16px;
+.line > .task-edit[open] {
+  flex-basis: 100%;
 }
-.entry-details section:not(.draft):last-child {
-  margin-bottom: 0;
+.task-edit > .draft {
+  margin: 8px 0 0;
+}
+/* Stack rank: a button on each Work row and on the item page, a badge on Today. */
+.rank-cell {
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+  min-width: 46px;
+}
+button.rank {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  padding: 3px 7px;
+  min-height: 28px;
+}
+button.rank:hover {
+  border-color: var(--line);
+}
+.rank-of {
+  color: var(--muted);
+  font-weight: 400;
+}
+.rank-badge {
+  display: inline-block;
+  margin-left: 9px;
+  padding: 0 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 18px;
+  vertical-align: middle;
+}
+.rank-picker {
+  margin-top: 10px;
+}
+.rank-picker > input {
+  flex: none;
+  width: 90px;
+  min-width: 0;
+}
+.rank-picker > .error {
+  flex-basis: 100%;
 }
 .archived-notes {
   margin-top: 12px;
@@ -775,7 +883,8 @@ form.field-action > label {
   font-size: 12px;
   margin-bottom: 7px;
 }
-.entry-body > .draft textarea {
+.entry-body > .draft textarea,
+.entry-tabs .draft textarea {
   min-height: 62px;
   max-height: 50vh;
 }
@@ -2823,11 +2932,15 @@ code {
   .work-row {
     flex-wrap: wrap;
   }
-  .work-row > div:nth-child(2) {
-    flex-basis: calc(100% - 30px);
+  /* The text takes the first line beside the rank and status dot; the controls wrap under it. */
+  .work-row > div:first-of-type {
+    flex-basis: calc(100% - 80px);
+  }
+  .work-row .rank-cell {
+    min-width: 36px;
   }
   .work-row select {
-    margin-left: 22px;
+    margin-left: 66px;
   }
   .quick-add {
     padding: 10px;

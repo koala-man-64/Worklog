@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type KeyboardEvent,
   type ReactNode,
   type RefObject,
 } from "react";
@@ -24,6 +25,7 @@ import type {
   Reference,
   Status,
   Step,
+  Task,
   WebLink,
 } from "./types";
 const ALLOWED_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
@@ -237,6 +239,7 @@ export function DraftField({
   placeholder,
   maxLength,
   disabled = false,
+  labelHidden = false,
 }: {
   draftKey: string;
   label: string;
@@ -247,6 +250,8 @@ export function DraftField({
   placeholder?: string;
   maxLength?: number;
   disabled?: boolean;
+  /** For a field a tab already names: the label still names it for assistive technology. */
+  labelHidden?: boolean;
 }) {
   const draft = useDraft(draftKey, initial, revision, save);
   const [preview, setPreview] = useState(false);
@@ -254,7 +259,12 @@ export function DraftField({
     <section className="draft">
       {/* The label, the save state and the field's own buttons share one row above it. */}
       <div className="field-heading">
-        <label htmlFor={draftKey}>{label}</label>
+        <label
+          htmlFor={draftKey}
+          className={labelHidden ? "visually-hidden" : undefined}
+        >
+          {label}
+        </label>
         <span role="status">{draft.state}</span>
         {multiline && (
           <button className="quiet" onClick={() => setPreview(!preview)}>
@@ -327,12 +337,15 @@ export function Files({
   files,
   references,
   readOnly = false,
+  heading = true,
 }: {
   ownerType: string;
   ownerId: string;
   files: Attachment[];
   references?: Reference[];
   readOnly?: boolean;
+  /** False where a tab already names the section. */
+  heading?: boolean;
 }) {
   const action = useAction();
   const [error, setError] = useState("");
@@ -366,8 +379,8 @@ export function Files({
       (a.record.createdAt ?? "").localeCompare(b.record.createdAt ?? ""),
     );
   return (
-    <section>
-      <h3>Files</h3>
+    <section className="files">
+      {heading && <h3>Files</h3>}
       {!readOnly && !references && (
         <label className="file-upload">
           Attach a file
@@ -561,9 +574,12 @@ export function Notes({
 export function Scratchpad({
   itemId,
   notes,
+  labelHidden = false,
 }: {
   itemId: string;
   notes: Note[];
+  /** Passed to its field, where a tab already names it. */
+  labelHidden?: boolean;
 }) {
   const pad = notes.find((n) => !n.archived);
   const archived = notes.filter((n) => n.archived);
@@ -586,6 +602,7 @@ export function Scratchpad({
       <DraftField
         draftKey={"scratchpad-" + itemId}
         label="Scratchpad (Markdown)"
+        labelHidden={labelHidden}
         initial={pad?.text ?? ""}
         revision={pad?.revision ?? 0}
         save={save}
@@ -602,6 +619,221 @@ export function Scratchpad({
         </details>
       )}
     </section>
+  );
+}
+/**
+ * A work item's tasks: tick them off, edit or archive them, and add more. Archived ones are
+ * recovered with the item's other archived records.
+ */
+export function Checklist({
+  itemId,
+  tasks,
+  heading = true,
+}: {
+  itemId: string;
+  tasks: Task[];
+  /** False where a tab already names the list. */
+  heading?: boolean;
+}) {
+  const action = useAction();
+  const [text, setText] = useState("");
+  // A tick shows at once and holds until the saved task comes back with a newer revision; a
+  // failed save drops it. Until then the box is disabled, so a second click can't race the first.
+  const [ticked, setTicked] = useState<
+    Record<string, { done: boolean; from: number }>
+  >({});
+  const saving = (t: Task) => ticked[t.id]?.from === t.revision;
+  const isDone = (t: Task) => (saving(t) ? ticked[t.id].done : t.done);
+  const active = tasks.filter((t) => !t.archived);
+  const done = active.filter(isDone).length;
+  return (
+    <section className="checklist">
+      {heading && (
+        <h3>
+          Tasks{" "}
+          {active.length > 0 && (
+            <span className="count">
+              {done} of {active.length} done
+            </span>
+          )}
+        </h3>
+      )}
+      {!active.length && <p className="muted">No tasks yet.</p>}
+      {active.map((t) => (
+        <div className={"line task" + (isDone(t) ? " done" : "")} key={t.id}>
+          <label>
+            <input
+              type="checkbox"
+              checked={isDone(t)}
+              disabled={saving(t)}
+              onChange={(e) => {
+                const next = e.target.checked;
+                setTicked((was) => ({
+                  ...was,
+                  [t.id]: { done: next, from: t.revision },
+                }));
+                action.mutate(
+                  {
+                    path: "/tasks/" + t.id,
+                    method: "PATCH",
+                    body: { revision: t.revision, done: next },
+                  },
+                  {
+                    onError: () =>
+                      setTicked((was) => {
+                        const rest = { ...was };
+                        delete rest[t.id];
+                        return rest;
+                      }),
+                  },
+                );
+              }}
+            />
+            {t.text}
+          </label>
+          <button
+            className="quiet"
+            aria-label={"Archive task " + t.text}
+            onClick={() =>
+              action.mutate({
+                path: `/tasks/${t.id}/archive`,
+                body: { revision: t.revision },
+              })
+            }
+          >
+            Archive
+          </button>
+          <details className="task-edit">
+            <summary>Edit task</summary>
+            <DraftField
+              draftKey={"task-" + t.id}
+              label="Task text"
+              initial={t.text}
+              revision={t.revision}
+              multiline={false}
+              save={(value, revision) =>
+                commands.updateTask(t.id, { text: value, revision })
+              }
+            />
+          </details>
+        </div>
+      ))}
+      <form
+        className="inline"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (!text.trim()) return;
+          await action
+            .mutateAsync({
+              path: "/tasks",
+              body: { itemId, text, done: false },
+            })
+            .then(() => setText(""))
+            .catch(() => undefined);
+        }}
+      >
+        <input
+          aria-label="New task"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Small next action"
+          required
+        />
+        <button disabled={action.isPending || !text.trim()}>Add task</button>
+      </form>
+      <ErrorMessage error={action.error} />
+    </section>
+  );
+}
+export type TabSpec = {
+  id: string;
+  label: ReactNode;
+  /** The tab's name in words, where its label shows something shorter, such as "1/2". */
+  name?: string;
+  /** Drawn when the tab first opens, then kept, hidden while another tab shows. */
+  panel: () => ReactNode;
+};
+/**
+ * Tabs in the WAI-ARIA pattern: the arrow keys, Home and End move between them and open the
+ * one reached. A panel is drawn the first time its tab opens and kept after, so its drafts
+ * and half-filled forms survive a switch, and a panel that reads data reads it only once opened.
+ */
+export function Tabs({
+  label,
+  tabs,
+  className,
+}: {
+  label: string;
+  tabs: TabSpec[];
+  className?: string;
+}) {
+  const base = useId();
+  const [selected, setSelected] = useState(tabs[0]?.id);
+  const [opened, setOpened] = useState(() => new Set([tabs[0]?.id]));
+  const buttons = useRef(new Map<string, HTMLButtonElement>());
+  const open = (id: string) => {
+    setSelected(id);
+    setOpened((was) => (was.has(id) ? was : new Set(was).add(id)));
+  };
+  const step = (e: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const last = tabs.length - 1;
+    const next =
+      e.key === "ArrowRight"
+        ? index === last
+          ? 0
+          : index + 1
+        : e.key === "ArrowLeft"
+          ? index === 0
+            ? last
+            : index - 1
+          : e.key === "Home"
+            ? 0
+            : e.key === "End"
+              ? last
+              : null;
+    if (next === null) return;
+    e.preventDefault();
+    open(tabs[next].id);
+    buttons.current.get(tabs[next].id)?.focus();
+  };
+  return (
+    <div className={"tabs" + (className ? " " + className : "")}>
+      <div className="tab-list" role="tablist" aria-label={label}>
+        {tabs.map((tab, index) => (
+          <button
+            key={tab.id}
+            ref={(node) => {
+              if (node) buttons.current.set(tab.id, node);
+              else buttons.current.delete(tab.id);
+            }}
+            type="button"
+            role="tab"
+            id={`${base}-tab-${tab.id}`}
+            aria-label={tab.name}
+            aria-selected={tab.id === selected}
+            aria-controls={`${base}-panel-${tab.id}`}
+            tabIndex={tab.id === selected ? 0 : -1}
+            onClick={() => open(tab.id)}
+            onKeyDown={(e) => step(e, index)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      {tabs.map((tab) => (
+        <div
+          key={tab.id}
+          className="tab-panel"
+          role="tabpanel"
+          id={`${base}-panel-${tab.id}`}
+          aria-labelledby={`${base}-tab-${tab.id}`}
+          hidden={tab.id !== selected}
+          tabIndex={0}
+        >
+          {opened.has(tab.id) && tab.panel()}
+        </div>
+      ))}
+    </div>
   );
 }
 export function formatBytes(value: number) {
@@ -862,11 +1094,14 @@ export function LinksSection({
   ownerId,
   links = [],
   disabled = false,
+  heading = true,
 }: {
   ownerType: "item" | "roadmap";
   ownerId: string;
   links?: WebLink[];
   disabled?: boolean;
+  /** False where a tab already names the section. */
+  heading?: boolean;
 }) {
   const action = useAction();
   const [title, setTitle] = useState("");
@@ -874,10 +1109,12 @@ export function LinksSection({
   const [description, setDescription] = useState("");
   const active = links.filter((l) => !l.archived);
   return (
-    <section>
-      <h3>
-        Links <span className="count">{active.length}</span>
-      </h3>
+    <section className="links">
+      {heading && (
+        <h3>
+          Links <span className="count">{active.length}</span>
+        </h3>
+      )}
       {active.map((l) => (
         <div className="line" key={l.id}>
           <div>

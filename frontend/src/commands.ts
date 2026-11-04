@@ -11,6 +11,7 @@ import type {
   WebLink,
   AgentChat,
   GithubRef,
+  RankResult,
 } from "./types";
 import type { Ticket, TicketComment } from "./ticketTypes";
 type Schema = components["schemas"];
@@ -20,6 +21,8 @@ export const commands = {
     request<Item>("/work-items", "POST", body),
   updateItem: (id: string, body: Schema["ItemUpdate"]) =>
     request<Item>("/work-items/" + id, "PATCH", body),
+  rankItem: (id: string, body: Schema["Rank"]) =>
+    request<RankResult>(`/work-items/${id}/rank`, "POST", body),
   upsertEntry: (date: string, id: string, body: Schema["EntryUpdate"]) =>
     request<Entry>(`/days/${date}/entries/${id}`, "PUT", body),
   createNote: (body: Schema["NoteCreate"]) =>

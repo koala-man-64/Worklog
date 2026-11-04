@@ -52,6 +52,9 @@ export type PersonDetail = Person & {
 export type Item = RecordBase & {
   repositoryIds?: string[];
   isBacklog?: boolean;
+  /** Stack rank, 1 first, among unfinished, unarchived work; null for done or archived work.
+   * Lists, details and Today's entries carry it. */
+  rank?: number | null;
   title: string;
   description: string;
   status: Status;
@@ -68,7 +71,18 @@ export type Entry = RecordBase & {
   outcome: string;
   position: number;
   item: Item;
+  // A day's entries only: what the work item's tabs hold, before the item is read.
+  counts?: TabCounts;
 };
+export type TabCounts = {
+  tasks: number;
+  tasksDone: number;
+  links: number;
+  files: number;
+  scratchpad: boolean;
+};
+/** POST /work-items/{id}/rank */
+export type RankResult = { id: string; rank: number; rankedCount: number };
 export type Day = {
   date: string;
   revision: number;
@@ -216,6 +230,8 @@ export type Detail = Item & {
   github?: GithubRef[];
   history: unknown[];
   dailyEntries: Entry[];
+  // How many items hold a stack rank.
+  rankedCount: number;
 };
 export type Step = RecordBase & {
   title: string;
@@ -293,4 +309,6 @@ export type List<T> = {
   items: T[];
   total: number;
   collectionRevision?: number;
+  // Work lists: how many items hold a stack rank, whatever the filters.
+  rankedCount?: number;
 };
