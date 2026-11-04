@@ -22,21 +22,10 @@ import { Chats } from "./Chats";
 import { Discussions } from "./Discussions";
 import { Review } from "./Review";
 import { Settings } from "./Settings";
+import { Guide } from "./Guide";
 import { Icon, type IconName } from "./icons";
+import { destinations } from "./navigation";
 import type { List } from "./types";
-const destinations: { route: string; icon: IconName; label: string }[] = [
-  { route: "today", icon: "today", label: "Today" },
-  { route: "work", icon: "work", label: "Work" },
-  { route: "tickets", icon: "tickets", label: "Tickets" },
-  { route: "roadmaps", icon: "roadmaps", label: "Roadmaps" },
-  { route: "repositories", icon: "work", label: "Repositories" },
-  { route: "people", icon: "people", label: "People" },
-  { route: "agents", icon: "agents", label: "Agents" },
-  { route: "chats", icon: "chats", label: "Chats" },
-  { route: "discussions", icon: "chats", label: "Discussions" },
-  { route: "review", icon: "review", label: "Review" },
-  { route: "settings", icon: "settings", label: "Settings" },
-];
 // The narrowest sidebar still fits the brand; the widest leaves the workspace room.
 const SIDEBAR_MIN = 190;
 const SIDEBAR_MAX = 420;
@@ -223,6 +212,8 @@ export default function App() {
             <Review key={id ?? "list"} selectedId={id} />
           ) : page === "settings" ? (
             <Settings />
+          ) : page === "guide" ? (
+            <Guide selected={id} />
           ) : (
             <>
               <h1>Page not found</h1>
