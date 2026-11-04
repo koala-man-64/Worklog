@@ -69,14 +69,13 @@ export function CreateItem({ day }: { day?: string }) {
           <option value="log">Log work already performed</option>
         </select>
       )}
-      {!day && (
-        <RepositoryPicker
-          label="New work repositories"
-          value={repositoryIds}
-          onChange={setRepositoryIds}
-          disabled={action.isPending}
-        />
-      )}
+      <RepositoryPicker
+        label="New work repositories"
+        folded
+        value={repositoryIds}
+        onChange={setRepositoryIds}
+        disabled={action.isPending}
+      />
       <button className="primary" disabled={action.isPending || !title.trim()}>
         Add work
       </button>
@@ -372,6 +371,11 @@ export function ItemDetail({ id }: { id: string }) {
               Open work item ↗
             </a>
           )}
+          <RepositoryPicker
+            value={item.repositoryIds ?? []}
+            onChange={(repositoryIds) => patch({ repositoryIds })}
+            disabled={!!item.archived || action.isPending}
+          />
           <label>
             Roadmap
             <select
@@ -533,11 +537,6 @@ export function ItemDetail({ id }: { id: string }) {
           </form>
         </section>
       </div>
-      <RepositoryPicker
-        value={item.repositoryIds ?? []}
-        onChange={(repositoryIds) => patch({ repositoryIds })}
-        disabled={!!item.archived || action.isPending}
-      />
       <Coordination key={id} itemId={id} />
       <Scratchpad itemId={id} notes={item.notes} />
       <PeopleLinks targetType="item" targetId={id} people={item.people} />

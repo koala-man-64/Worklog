@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { request } from "./api";
 import { useAction, useData } from "./hooks";
-import { DraftField, Empty, ErrorMessage } from "./components";
+import { DraftField, Empty, ErrorMessage, statusLabel } from "./components";
 import { Coordination, OpenRuns, Pages } from "./Coordination";
+import { LinkPicker } from "./LinkPicker";
 import { RepositoryName } from "./RepositoryControls";
 import type { Repository, RepositoryRegistration } from "./repositoryTypes";
 import type { Item, List } from "./types";
@@ -316,12 +317,83 @@ function MergeConfirm({
     <button onClick={() => setConfirm(true)}>Merge into {into.name}…</button>
   );
 }
-function RepositoryDetail({ id }: { id: string }) {
-  const query = useData<Repository>("/repositories/" + id);
+// A link lives on the work item, so linking from here replaces the item's own set under
+// the revision it was read at: a change made elsewhere meanwhile is refused, not lost.
+function LinkedWork({ repo }: { repo: Repository }) {
   const [offset, setOffset] = useState(0);
   const work = useData<List<Item>>(
-    `/work-items?repositoryId=${encodeURIComponent(id)}&limit=50&offset=${offset}`,
+    `/work-items?repositoryId=${encodeURIComponent(repo.id)}&limit=50&offset=${offset}`,
   );
+  const action = useAction();
+  const relink = (item: Item, repositoryIds: string[]) =>
+    action.mutate({
+      path: "/work-items/" + item.id,
+      method: "PATCH",
+      body: { revision: item.revision, repositoryIds },
+    });
+  return (
+    <section>
+      <h2>Linked work</h2>
+      <ErrorMessage error={work.error || action.error} />
+      {work.isPending ? (
+        <p>Loading linked work…</p>
+      ) : !work.error && !work.data?.items.length ? (
+        <Empty>No work linked to this repository.</Empty>
+      ) : null}
+      {(work.data?.items ?? []).map((item) => (
+        <p className="line" key={item.id}>
+          <span>
+            <a href={"#work/" + item.id}>{item.title}</a> · {item.status}
+          </span>
+          <button
+            className="quiet"
+            aria-label={"Unlink " + item.title}
+            disabled={action.isPending}
+            onClick={() =>
+              relink(
+                item,
+                (item.repositoryIds ?? []).filter((other) => other !== repo.id),
+              )
+            }
+          >
+            Unlink
+          </button>
+        </p>
+      ))}
+      <Pages
+        offset={offset}
+        total={work.data?.total ?? 0}
+        change={setOffset}
+        label="linked work"
+      />
+      {/* Only an active record takes new links; what it already has can still be unlinked. */}
+      {!repo.archived && (
+        <LinkPicker<Item>
+          action="Link work item"
+          label="Work to link"
+          placeholder="Find work…"
+          path={(q) =>
+            `/work-items?view=all&archived=false&limit=20&q=${encodeURIComponent(q)}`
+          }
+          linked={(item) => !!item.repositoryIds?.includes(repo.id)}
+          option={(item) => (
+            <>
+              <span>{item.title}</span>
+              <small>{statusLabel(item.status)}</small>
+            </>
+          )}
+          none="No work to link yet."
+          onPick={(item) =>
+            relink(item, [...(item.repositoryIds ?? []), repo.id])
+          }
+          disabled={action.isPending}
+        />
+      )}
+    </section>
+  );
+}
+function RepositoryDetail({ id }: { id: string }) {
+  const query = useData<Repository>("/repositories/" + id);
   const action = useAction();
   const repo = query.data;
   if (!repo)
@@ -392,26 +464,7 @@ function RepositoryDetail({ id }: { id: string }) {
           <MergeInto source={repo} />
         </>
       )}
-      <section>
-        <h2>Linked work</h2>
-        <ErrorMessage error={work.error} />
-        {work.isPending ? (
-          <p>Loading linked work…</p>
-        ) : !work.error && !work.data?.items.length ? (
-          <Empty>No work linked to this repository.</Empty>
-        ) : null}
-        {(work.data?.items ?? []).map((item) => (
-          <p key={item.id}>
-            <a href={"#work/" + item.id}>{item.title}</a> · {item.status}
-          </p>
-        ))}
-        <Pages
-          offset={offset}
-          total={work.data?.total ?? 0}
-          change={setOffset}
-          label="linked work"
-        />
-      </section>
+      <LinkedWork repo={repo} />
       <Coordination repositoryId={id} />
     </>
   );

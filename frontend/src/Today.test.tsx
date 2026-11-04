@@ -28,7 +28,9 @@ vi.mock("./hooks", async (importOriginal) => ({
           ? state.work
           : path.startsWith("/work-items/")
             ? state.detail
-            : { items: [], total: 0 },
+            : path.startsWith("/repositories/")
+              ? { id: path.split("/")[2], name: "Platform", archived: false }
+              : { items: [], total: 0 },
     };
   },
 }));
@@ -115,7 +117,9 @@ it("uses historical API summary and makes archived actuals read only", () => {
     screen.getByRole("button", { name: "Reschedule Archived work" }),
   ).toBeDisabled();
   // An archived item's scratchpad, links and files stay on its own page.
-  expect(screen.queryByText("Scratchpad, links and files")).toBeNull();
+  expect(
+    screen.queryByText("Scratchpad, links, files and repositories"),
+  ).toBeNull();
 });
 
 it("keeps an entry's controls on its title row and the day's counts beside its heading", () => {
@@ -173,7 +177,7 @@ it("reads an entry's scratchpad, links and files only once they are opened", asy
   };
   render(view("2026-10-28", "2026-10-28"));
   const details = screen
-    .getByText("Scratchpad, links and files")
+    .getByText("Scratchpad, links, files and repositories")
     .closest("details")!;
   expect(state.paths).not.toContain("/work-items/release");
   expect(screen.queryByLabelText("Scratchpad (Markdown)")).toBeNull();
@@ -187,6 +191,85 @@ it("reads an entry's scratchpad, links and files only once they are opened", asy
     within(details).getByRole("heading", { name: /^Links/ }),
   ).toBeInTheDocument();
   expect(within(details).getByLabelText("Attach a file")).toBeInTheDocument();
+});
+
+it("shows the repositories work links to, and links another from an entry's details", async () => {
+  state.day = day("2026-10-28", [
+    entry("release", "Ship the release", "doing", {
+      item: {
+        ...item("release", "Ship the release", "doing"),
+        repositoryIds: ["repo-a"],
+      },
+    }),
+  ]);
+  state.work = {
+    items: [
+      {
+        ...item("runbook", "Write the runbook", "open"),
+        repositoryIds: ["repo-a"],
+      },
+    ],
+    total: 1,
+  };
+  state.detail = {
+    ...item("release", "Ship the release", "doing"),
+    repositoryIds: ["repo-a"],
+    notes: [],
+    links: [],
+    attachments: [],
+    references: [],
+  };
+  const network = vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(async (_input, init) =>
+      (init?.method ?? "GET") === "GET"
+        ? new Response(
+            JSON.stringify({
+              items: [
+                { id: "repo-a", name: "Platform", url: "", archived: false },
+                { id: "repo-b", name: "Billing", url: "", archived: false },
+              ],
+              total: 2,
+            }),
+          )
+        : new Response("{}"),
+    );
+  render(view("2026-10-28", "2026-10-28"));
+  const day_ = screen
+    .getByRole("link", { name: "Ship the release" })
+    .closest("article")!;
+  expect(within(day_).getByRole("link", { name: "Platform" })).toHaveAttribute(
+    "href",
+    "#repositories/repo-a",
+  );
+  expect(
+    within(openWork()).getByRole("link", { name: "Platform" }),
+  ).toBeInTheDocument();
+  // Capturing from Today can link repositories too.
+  expect(
+    screen.getByRole("group", { name: "New work repositories" }),
+  ).toBeInTheDocument();
+  const details = within(day_)
+    .getByText("Scratchpad, links, files and repositories")
+    .closest("details")!;
+  details.open = true;
+  fireEvent(details, new Event("toggle"));
+  const repositories = await within(details).findByRole("group", {
+    name: "Repositories",
+  });
+  await userEvent.click(
+    within(repositories).getByRole("button", { name: "Link repository" }),
+  );
+  await userEvent.click(
+    await within(repositories).findByRole("button", { name: /Billing/ }),
+  );
+  await waitFor(() => expect(writes(network)).toHaveLength(1));
+  const [url, init] = writes(network)[0];
+  expect([url, init?.method]).toEqual(["/api/v1/work-items/release", "PATCH"]);
+  expect(JSON.parse(String(init?.body))).toEqual({
+    revision: 4,
+    repositoryIds: ["repo-a", "repo-b"],
+  });
 });
 
 it("offers open work that is not on the day and plans it there", async () => {

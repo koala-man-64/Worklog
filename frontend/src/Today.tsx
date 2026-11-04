@@ -15,6 +15,7 @@ import {
 import { CreateItem } from "./Work";
 import type { Day, Detail, Entry, Item, List, Status } from "./types";
 import { Icon } from "./icons";
+import { RepositoryBadges, RepositoryPicker } from "./RepositoryControls";
 // The work Today offers to plan: anything not finished.
 const OPEN_STATES: Status[] = ["open", "doing", "blocked"];
 // An entry's scratchpad, links and files, the work item page's own sections. The item is
@@ -28,19 +29,21 @@ function EntryDetails({ itemId }: { itemId: string }) {
         if (e.currentTarget.open) setOpened(true);
       }}
     >
-      <summary>Scratchpad, links and files</summary>
+      <summary>Scratchpad, links, files and repositories</summary>
       {opened && <EntryDetailsBody itemId={itemId} />}
     </details>
   );
 }
 function EntryDetailsBody({ itemId }: { itemId: string }) {
   const item = useData<Detail>("/work-items/" + itemId);
+  const action = useAction();
   if (!item.data)
     return item.error ? (
       <ErrorMessage error={item.error} />
     ) : (
       <p className="muted">Loading…</p>
     );
+  const detail = item.data;
   return (
     <>
       <Scratchpad itemId={itemId} notes={item.data.notes} compact />
@@ -51,6 +54,19 @@ function EntryDetailsBody({ itemId }: { itemId: string }) {
         files={item.data.attachments}
         references={item.data.references ?? []}
       />
+      <RepositoryPicker
+        heading="h3"
+        value={detail.repositoryIds ?? []}
+        onChange={(repositoryIds) =>
+          action.mutate({
+            path: "/work-items/" + itemId,
+            method: "PATCH",
+            body: { revision: detail.revision, repositoryIds },
+          })
+        }
+        disabled={!!detail.archived || action.isPending}
+      />
+      <ErrorMessage error={action.error} />
     </>
   );
 }
@@ -270,6 +286,7 @@ export function Today({
                     <a className="item-title" href={"#work/" + entry.itemId}>
                       {entry.item.title}
                     </a>
+                    <RepositoryBadges ids={entry.item.repositoryIds} />
                     {entry.item.archived && (
                       <span className="badge">
                         Archived, recover in work details
@@ -447,6 +464,7 @@ export function Today({
                     <a className="item-title" href={"#work/" + item.id}>
                       {item.title}
                     </a>
+                    <RepositoryBadges ids={item.repositoryIds} />
                     <button
                       aria-label={planFor(item.title)}
                       disabled={action.isPending}

@@ -399,7 +399,7 @@ test("an entry's scratchpad on Today is its work item's own", async ({
   const entry = page
     .locator(".day-entry")
     .filter({ has: page.getByRole("link", { name: title, exact: true }) });
-  await entry.getByText("Scratchpad, links and files").click();
+  await entry.getByText("Scratchpad, links, files and repositories").click();
   await entry
     .getByRole("textbox", { name: "Scratchpad (Markdown)", exact: true })
     .fill("Written on Today");

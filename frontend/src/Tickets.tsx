@@ -496,6 +496,7 @@ function TicketView({ id }: { id: string }) {
         onChange={(labels) => patch({ labels })}
       />
       <RepositoryPicker
+        heading="h2"
         value={ticket.repositoryIds}
         onChange={(repositoryIds) => patch({ repositoryIds })}
         disabled={locked}

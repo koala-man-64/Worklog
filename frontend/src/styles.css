@@ -301,6 +301,18 @@ small,
 .muted {
   color: var(--muted);
 }
+/* Read out, not shown: names a control whose purpose shows without it. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 small {
   font-size: 12px;
 }
@@ -2920,27 +2932,128 @@ code {
     }
   }
 }
+/* Linked repositories read as chips that unlink; "Link repository" searches for another. */
 .repository-picker {
-  min-width: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.65rem;
-  border: 1px solid var(--line);
-  border-radius: 0.5rem;
-  padding: 0.7rem;
-}
-.repository-picker label {
-  display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 6px;
+  min-width: 0;
 }
-.repository-picker small {
+.repository-picker > :is(h2, h3, .picker-label) {
+  flex-basis: 100%;
+}
+.repository-picker > .picker-label {
+  font-weight: 500;
+}
+.two-column .repository-picker {
+  margin-bottom: 16px;
+}
+.two-column .repository-picker > .picker-label {
+  font-size: 12px;
+}
+.repository-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding-left: 10px;
+  border-radius: 12px;
+  background: var(--teal-wash);
+  font-size: 12px;
+  font-weight: 500;
+}
+.repository-chip a {
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.repository-chip a:hover {
+  text-decoration: underline;
+}
+.repository-chip button {
+  min-height: 0;
+  padding: 1px 8px;
+  border-radius: 12px;
+  line-height: 1.5;
+  color: var(--teal);
+}
+.repository-chip button:hover:not(:disabled) {
+  border-color: var(--teal);
+  background: var(--paper);
+}
+/* The search a "Link …" button opens: on its own row under the button, or floating over
+   what follows the one-line form it sits in. That form anchors it. */
+.quick-add,
+.chat-form {
+  position: relative;
+}
+.link-search {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  flex-basis: 100%;
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--paper);
+}
+.repository-picker > .link-search:not(.floating) {
+  margin-top: 2px;
+}
+.link-search.floating {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  width: auto;
+  margin: 0;
+  box-shadow: 0 10px 28px rgb(0 0 0 / 0.18);
+}
+.link-search > p {
+  margin: 0;
+}
+.link-search ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+  max-height: 18rem;
+  overflow-y: auto;
+}
+.link-search li button {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 10px;
+  min-height: 32px;
+  padding: 5px 8px;
+  border-color: transparent;
+  background: transparent;
+  text-align: left;
+  white-space: normal;
+}
+.link-search li button:hover {
+  border-color: var(--teal);
+  background: var(--teal-wash);
+}
+.link-search li button:focus-visible {
+  outline-offset: -3px;
+}
+.link-search li small {
   overflow-wrap: anywhere;
 }
 .repository-badges {
   display: inline-flex;
   flex-wrap: wrap;
   gap: 0.35rem;
+  vertical-align: middle;
+}
+.item-title + .repository-badges,
+.person-badges + .repository-badges {
+  margin-left: 8px;
 }
 .coordination-report {
   margin-block: 1rem;
