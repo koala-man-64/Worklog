@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import uuid
 from datetime import UTC, date, datetime
@@ -94,3 +95,51 @@ def read_events(conn: sqlite3.Connection, entity_id: str, limit: int = 100) -> l
 
 def unpack(row: Any) -> dict | None:
     return dict(row) if row is not None else None
+
+
+# A JSON escape of a high or low surrogate. A valid pair, such as an emoji the agent CLI sends
+# as 🚀, matches too; only the parse below tells a pair from a lone half.
+_ESCAPED_SURROGATE = re.compile(rb"\\u[dD][89a-fA-F]")
+
+
+def lone_surrogate(body: bytes) -> str | None:
+    """Where a JSON body holds a lone UTF-16 surrogate, as a dotted path such as
+    `operations.0.payload.title`, or None when it holds none.
+
+    A lone surrogate is a valid JSON escape that names no character: Python decodes it, but no
+    validator can measure it and SQLite cannot bind it, so it must be refused where requests
+    enter. Only a body that could hold one is parsed: one with a surrogate escape, or one that
+    is not UTF-8 (raw surrogate bytes, or another encoding JSON allows).
+    """
+    try:
+        body.decode("utf-8")
+        if not _ESCAPED_SURROGATE.search(body):
+            return None
+    except UnicodeDecodeError:
+        pass
+    try:
+        # As the request will be read: bytes decode with surrogatepass, so raw halves arrive too.
+        document = json.loads(body)
+    except ValueError:
+        return None  # not JSON, which the route itself refuses
+
+    def whole(value: str) -> bool:
+        try:
+            value.encode("utf-8")
+            return True
+        except UnicodeEncodeError:
+            return False
+
+    pending: list[tuple[str, Any]] = [("", document)]
+    while pending:
+        path, value = pending.pop()
+        if isinstance(value, str) and not whole(value):
+            return path[:200] or "body"
+        if isinstance(value, dict):
+            for key, item in value.items():
+                if not whole(key):
+                    return path[:200] or "body"
+                pending.append((f"{path}.{key}" if path else key, item))
+        elif isinstance(value, list):
+            pending.extend((f"{path}.{index}" if path else str(index), item) for index, item in enumerate(value))
+    return None

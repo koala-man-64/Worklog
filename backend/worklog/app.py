@@ -31,6 +31,7 @@ from .common import (
     HTML_LIMIT,
     AppError,
     event,
+    lone_surrogate,
     now,
     read_events,
     setting,
@@ -248,6 +249,12 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                 # Bound JSON requests before FastAPI's body parser can allocate arbitrarily.
                 if method not in {"GET", "HEAD"} and not (path == "/api/v1/attachments" or path == "/api/v1/imports/preview"):
                     body = await bounded_body(request, 8_000_000)
+                    # Refused here, for every route and field at once: past this point a lone
+                    # surrogate fails deep in validation or in SQLite, as a 500.
+                    broken = lone_surrogate(body)
+                    if broken is not None:
+                        raise AppError(422, "validation", "The text holds a broken character, a lone UTF-16 surrogate; "
+                                       "remove it and retry", {broken: "invalid"})
                     request._body = body
             response = await call_next(request)
         except AppError as exc:
