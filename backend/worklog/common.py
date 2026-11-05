@@ -87,6 +87,19 @@ def status(value: Any) -> str:
     return str(value)
 
 
+def repository_labels(value: Any) -> list[str]:
+    if not isinstance(value, list) or len(value) > 20:
+        raise AppError(422, "validation", "repos must be a list of at most 20 repositories")
+    names = [text(name, "repository", required=True, limit=500) for name in value]
+    return list(dict.fromkeys(names))
+
+
+def boolean(value: Any, field: str) -> bool:
+    if not isinstance(value, bool):
+        raise AppError(422, "validation", f"{field} must be a boolean")
+    return value
+
+
 def setting(conn: sqlite3.Connection, key: str, default: Any = None) -> Any:
     row = conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
     return json.loads(row[0]) if row else default

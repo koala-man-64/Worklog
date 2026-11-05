@@ -204,7 +204,7 @@ def test_real_dispatch_stale_approval_keeps_source_and_search_unchanged(tmp_path
     with pytest.raises(AppError) as error:
         service.transition(proposal["id"], "approve", {"revision": proposal["revision"]}, HUMAN)
     assert error.value.status == 409
-    assert work.detail(item["id"])["title"] == "Human edit"
+    assert work.items.detail(item["id"])["title"] == "Human edit"
     assert plans.list()["total"] == 0
     with db.read() as conn:
         assert global_search(conn, "Uncommitted")["total"] == 0
@@ -227,7 +227,7 @@ def test_approved_item_completion_does_not_change_linked_step_progress(tmp_path)
     ]}, AGENT)
     proposal = service.transition(proposal["id"], "submit", {"revision": 1}, AGENT)
     service.transition(proposal["id"], "approve", {"revision": proposal["revision"]}, HUMAN)
-    assert work.detail(item["id"])["status"] == "done"
+    assert work.items.detail(item["id"])["status"] == "done"
     assert plans.detail(plan["id"])["steps"][0]["status"] == "open"
 
 
@@ -278,7 +278,7 @@ def test_github_ref_links_to_chat_by_external_chat_id_even_when_listed_before_ch
     proposal = service.transition(proposal["id"], "submit", {"revision": 1}, AGENT)
     approved = service.transition(proposal["id"], "approve", {"revision": proposal["revision"]}, HUMAN)
     assert approved["status"] == "approved"
-    detail = work.detail(item["id"])
+    detail = work.items.detail(item["id"])
     assert len(detail["chats"]) == 1
     assert len(detail["github"]) == 1
     assert detail["github"][0]["chatId"] == detail["chats"][0]["id"]

@@ -6,7 +6,9 @@ import json
 from contextlib import nullcontext
 
 from . import scratchpad
+from .chat_messages import BOUND, RECIPIENTS, ChatMessageService
 from .common import NOTE_LIMIT, AppError, event, now, require_revision, setting, uid
+from .discussions import DiscussionService
 from .migrations import AUTOMATIC_APPROVAL_ID, stale_signature
 from .operations import OPERATIONS, validate
 
@@ -477,9 +479,6 @@ class ProposalService:
                 f"Proposal **{row['title']}** (`{row['id']}`) has stale target revision(s) after a plan update: {summary}. "
                 "Reload the plan, reopen or supersede the proposal, and resubmit."
             )
-        from .chat_messages import BOUND, RECIPIENTS, ChatMessageService
-        from .discussions import DiscussionService
-
         notifier = {"id": "local-user", "label": "You", "kind": "human"}
         discussion = DiscussionService(self.db).create(
             conn,

@@ -19,10 +19,10 @@ from collections.abc import Callable, Iterable
 from fastapi import FastAPI, Request
 from pydantic import Field
 
-from .common import AppError, event, now, rows_in, setting, text, today, uid
+from .common import AppError, event, now, setting, text, today, uid
 from .coordination import close_credential_runs
 from .db import Database
-from .discussions import bind_credential, communication_actor
+from .discussions import bind_credential, communication_actor, registered_by, registered_chats
 from .models import Command
 
 # Stop a registration loop. Credentials issued in Settings neither count nor are refused.
@@ -47,28 +47,6 @@ class AgentRegistration(Command):
 
 def agent_route_allowed(method: str, path: str) -> bool:
     return method == "POST" and path.removeprefix("/api/v1") in _ROUTES
-
-
-def registered_by(c: sqlite3.Connection, credential_ids: Iterable[str]) -> dict[str, dict]:
-    """The registering agent of each credential; ones issued in Settings are absent."""
-    rows = rows_in(c, "SELECT credential_id,registered_by,registered_by_label FROM communication_credentials "
-                      "WHERE registered_by IS NOT NULL AND credential_id IN ({})", credential_ids)
-    return {row[0]: {"id": row[1], "label": row[2]} for row in rows}
-
-
-def registered_chats(c: sqlite3.Connection, credential_ids: Iterable[str]) -> dict[str, str]:
-    """The chat each registered credential's identity works in; ones issued in Settings, or
-    registered before registration named a chat, are absent."""
-    rows = rows_in(c, "SELECT credential_id,chat_id FROM communication_credentials "
-                      "WHERE chat_id IS NOT NULL AND credential_id IN ({})", credential_ids)
-    return {row[0]: row[1] for row in rows}
-
-
-def identity_chat(c: sqlite3.Connection, agent_id: str) -> str | None:
-    """The chat an identity registered with, whichever of its credentials registered it:
-    rotating the credential in Settings keeps the identity, and so its chat."""
-    credentials = [r[0] for r in c.execute("SELECT credential_id FROM communication_credentials WHERE agent_id=?", (agent_id,))]
-    return next(iter(registered_chats(c, credentials).values()), None)
 
 
 def _registered(c: sqlite3.Connection) -> Callable[[str], list[str]]:

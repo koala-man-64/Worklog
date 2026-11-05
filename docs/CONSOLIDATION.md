@@ -64,7 +64,7 @@ These come from the cross-examination. Each one overturned a first proposal.
   - Several features read event JSON at runtime:
     - registration sponsorship, the registered chat, registration limits and the revoke cascade (`registration.py`);
     - proposal visibility, submitted time, auto-approval and stale-notice de-duplication (`proposals.py`);
-    - Today's "completed" and "blocked as of" lists, which replay item events (`services.py`).
+    - Today's "completed" and "blocked as of" lists, which replay item events (`items.py`).
   - Move that state into columns (step 1.3) before any compaction.
   - Compaction thins only an allowlist of display-only kinds, and keeps `{id, title, status, _statusChanged}` on item events.
   - Never delete an event row: `discussion_changes.event_id` references it.
@@ -233,15 +233,31 @@ The person's own routes keep their own body models, and the prefix router stays,
 
 #### 2.4 · Global search in the search module, then the WorkService split
 
-Status: In progress · Branch: `claude/global-search` · PR: [#102](https://github.com/koala-man-64/Worklog/pull/102); the `WorkService` split follows in its own PR
+Status: Merged · Branches: `claude/global-search`, `claude/workservice-split` · PRs: [#102](https://github.com/koala-man-64/Worklog/pull/102), [#103](https://github.com/koala-man-64/Worklog/pull/103)
 
 Index writes moved to `search.py` in 1.0. Here the global search query, the 13-way join, moves there too. Then split `WorkService` into items, people, supporting records and search, with a layering test. Needs 1.1. Findings: B-13, A-04, A-06.
 
-Done so far: `search.global_search` runs the header's search, and `search.index_plans` indexes a roadmap and its steps again after a change, both moved unchanged. `test_global_search.py` pins what search finds before and after the move:
-- a record of every kind, under every owner it can have, and the page each result opens;
-- what each archived or retired parent hides, and what it leaves, such as work on an archived roadmap's step.
+What changed:
+- **Global search (#102).** `search.global_search` runs the header's search, and `search.index_plans` indexes a roadmap and its steps again after a change. Both moved unchanged. `test_global_search.py` pins:
+  - what search finds: a record of every kind under every owner it can have, and the page each result opens;
+  - what each archived or retired parent hides, and what it leaves, such as work on an archived roadmap's step.
 
-The test passed before the move, and it fails when the query loses any of five rules it depends on.
+  It passed before the move, and it fails when the query loses any of five rules it depends on.
+- **The split (#103).** `WorkService` held about a thousand lines across every domain. Now:
+  - `records.py` holds the record shapes and lookups the domains share, and the one map from each kind of owner to its table;
+  - `support.py` holds supporting records, `items.py` work items and their days, and `people.py` people;
+  - `WorkService` keeps only `apply`, which sends each command to the module that owns it.
+
+  An AST comparison shows each moved function unchanged apart from names.
+- **Layering (#103).** `test_layering.py` lists every module in one order. It fails on any import, at the top of a module or inside a function, of a module later in the order. Four imports still go up, each listed with its reason:
+  - three from `db`, which reaches migrations, proposals and recovery while it opens the file;
+  - one from `coordination`, which tracks a registered identity's chat as a supporting record.
+
+  To get there:
+  - registration's reads of who registered whom moved to `discussions.py`, which defines the identity tables;
+  - two value checks moved to `common.py`.
+
+  Function-local imports outside the schema modules and the CLI fell from 16 to 1.
 
 #### 2.5 · Baseline schema and sealed digests
 
