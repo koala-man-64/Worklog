@@ -24,21 +24,37 @@ REQUIRED_TABLES = frozenset(
      "receipts", "file_references", "search_index", "roadmap_versions", "plan_imports"}
 )
 
-# Sealed, normalized sqlite_master signatures for the nine supported v1 shapes.
-# They must not change when current feature schemas evolve. Hashes cover all
-# table definitions, constraints, indexes and FTS shadows, not database contents.
-V1_SCHEMA_DIGESTS = frozenset({
-    # Current main before coordination: discussions plus roadmap questions/decisions.
-    "c5ae7406cdd63ddfa0cd7f3a18f2cc74f898936ef42c3b72909424c2d2e5a272",
-    "23aab55b497a3d6534338da7887cb6a014169ecce1d2e0b91c229f42da8f9d2c",
-    "cd9f0804a6ceea36a375f52f9a00ad9ee9a593110a954d899e6ead5b8536370e",
-    "373ee0760a75eb3784e49fe21d65601c3b134bd8003445f07a962b8567a07f67",
-    "2ffa3142f4cabeb13fcf638c4def1b873dae12ee4b2ed4f4961e69241eba8bf6",
-    "f8dbb906b152ee449531b6cac6897802d3fd74fd860385cb992672760bde27bb",
-    "693ab61438716f2e5e834b78aa6ee418260b1d13be8558af771541b181c5d841",
-    "c73ee4b832defa66818053c6e16406268e70615ea7d5587d7857cb47bbdd3cb6",
-    "2f407e161a537b37236a95d1275b94566e9e4bdd35329462c5a7563950f15f11",
-})
+# Every released schema, sealed: the digest of each shape a version shipped in, over its normalized
+# sqlite_master. A digest covers table definitions, constraints, indexes and FTS shadows, never
+# contents, and never changes once released; only v1 shipped in more than one shape. Restore accepts
+# a database whose version and digest are listed here, and builds nothing from today's code to compare
+# it with. backend/tests/schemas holds the DDL of each shape, and test_sealed_schemas.py checks every
+# digest against it, so a schema change needs a new version, its upgrade and a new seal.
+SEALED_SCHEMAS: dict[int, frozenset[str]] = {
+    1: frozenset({
+        "c5ae7406cdd63ddfa0cd7f3a18f2cc74f898936ef42c3b72909424c2d2e5a272",  # discussions with roadmap questions and decisions, the last v1 shape
+        "23aab55b497a3d6534338da7887cb6a014169ecce1d2e0b91c229f42da8f9d2c",  # discussions, before roadmap questions and decisions
+        "cd9f0804a6ceea36a375f52f9a00ad9ee9a593110a954d899e6ead5b8536370e",  # before discussions
+        "373ee0760a75eb3784e49fe21d65601c3b134bd8003445f07a962b8567a07f67",  # before agent chats gained provider, model, repos and steps
+        "2ffa3142f4cabeb13fcf638c4def1b873dae12ee4b2ed4f4961e69241eba8bf6",  # the shape above, before roadmap nesting
+        "f8dbb906b152ee449531b6cac6897802d3fd74fd860385cb992672760bde27bb",  # also before links, agent chats and GitHub references
+        "693ab61438716f2e5e834b78aa6ee418260b1d13be8558af771541b181c5d841",  # also before people
+        "c73ee4b832defa66818053c6e16406268e70615ea7d5587d7857cb47bbdd3cb6",  # also before work items named a roadmap
+        "2f407e161a537b37236a95d1275b94566e9e4bdd35329462c5a7563950f15f11",  # before chat details, nesting and item roadmaps
+    }),
+    2: frozenset({"b19a19953ba14b1de01989a2c1a1544b6e8b3baeee215c210452280c783ff937"}),  # coordination
+    3: frozenset({"05c8e1e8be458c635a470066df5ef3da48cc6332364b190a918d12fd59a2b601"}),  # agent avatars
+    4: frozenset({"e3096421a06018257266a5be0850bb1b08c14cb94d54b6295e2489a0839be450"}),  # chat messages
+    5: frozenset({"c03c48ed6667dbfe6e552b57cbfa1bafd6eef04add43a084e0ccb3c502f26550"}),  # tickets
+    6: frozenset({"8ab1d329e87af88ea067538c3a874ceedb49286096e8d43741482d16c8347f68"}),  # repository remote identity
+    7: frozenset({"53fc2362c88e0b72ebc8e23397a51c88932e1e64b9d5c59114c032736542cd5d"}),  # repository provenance
+    8: frozenset({"bbf88ec85131d14c25589e950900f6e655e6394356494b92b049410cd02053b7"}),  # one scratchpad per work item
+    9: frozenset({"c5e5a29350ff20fc9e70aa3dbe213f594e14acddf4875cd19f5c740f73ecf0fd"}),  # resources
+    10: frozenset({"966e4e17996b20bf3a4c30a02cc062e9cf2a8b87ee68a698760e3169897e6e97"}),  # person details
+    11: frozenset({"c6661a470078d56e22c00f766d2dcd2d5eba4ab3d2f0f8eb3e3c89c6182ef13d"}),  # search keys and receipt dates
+    12: frozenset({"dda4bfa40d402e989a01567cde828e904c48ebc0425f40d088956ff72f9f9b75"}),  # decision state in columns
+    13: frozenset({"ed29b8f9cfc5e2b17578ab73f23020bf1a51c5ef0d5971ece2052d08f1ada692"}),  # chat confirmations
+}
 
 
 def _schema_signature(conn: sqlite3.Connection) -> dict[tuple[str, str], str]:
@@ -60,6 +76,8 @@ def _expected_schema(*, discussions: bool = True, coordination: bool = True,
                      resources: bool = True, people: bool = True,
                      search_keys: bool = True, decision_state: bool = True,
                      chat_confirmations: bool = True) -> dict[tuple[str, str], str]:
+    """A released shape built from today's code. Only tests build shapes this way: restore checks
+    SEALED_SCHEMAS, and test_sealed_schemas.py fails if a shape built here stops matching its seal."""
     from worklog.db import SCHEMA
     from worklog.plans import SCHEMA as PLAN_SCHEMA
     from worklog.proposals import SCHEMA as PROPOSAL_SCHEMA
@@ -244,21 +262,7 @@ def validate_database(path: Path | str, *, require_current: bool = True) -> None
                 missing = REQUIRED_TABLES - tables
                 if missing:
                     raise ValueError("Database missing expected tables: " + ", ".join(sorted(missing)))
-                signature = _schema_signature(conn)
-                accepted = (signature == _expected_schema() if version == SCHEMA_VERSION
-                            else signature == _expected_schema(chat_confirmations=False) if version == 12
-                            else signature == _expected_schema(decision_state=False) if version == 11
-                            else signature == _expected_schema(search_keys=False) if version == 10
-                            else signature == _expected_schema(people=False) if version == 9
-                            else signature == _expected_schema(resources=False) if version == 8
-                            else signature == _expected_schema(scratchpads=False) if version == 7
-                            else signature == _expected_schema(provenance=False) if version == 6
-                            else signature == _expected_schema(remote_identity=False) if version == 5
-                            else signature == _expected_schema(tickets=False, remote_identity=False) if version == 4
-                            else signature == _expected_schema(chat_messages=False, tickets=False, remote_identity=False) if version == 3
-                            else signature == _expected_schema(avatars=False, chat_messages=False, tickets=False, remote_identity=False) if version == 2
-                            else _schema_digest(signature) in V1_SCHEMA_DIGESTS)
-                if not accepted:
+                if _schema_digest(_schema_signature(conn)) not in SEALED_SCHEMAS.get(version, frozenset()):
                     raise ValueError("Database schema definitions do not match this Worklog version")
                 settings = {row[0]: row[1] for row in conn.execute(
                     "SELECT key,value FROM settings WHERE key IN ('dataId','timezone','backlogRevision')")}
