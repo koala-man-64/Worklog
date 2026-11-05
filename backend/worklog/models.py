@@ -5,7 +5,10 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt
 
 Revision = Annotated[StrictInt, Field(ge=0)]
+# A ticket's or a roadmap step's state.
 State = Literal["open", "doing", "blocked", "done"]
+# A work item's state, which can also be waiting on someone else (v15).
+ItemState = Literal["open", "doing", "waiting", "blocked", "done"]
 
 
 class Command(BaseModel):
@@ -31,7 +34,7 @@ class ItemUpdate(Expected):
     repositoryIds: list[str] = Field(default_factory=list, max_length=100)
     title: str | None = None
     description: str | None = None
-    status: State | None = None
+    status: ItemState | None = None
     adoUrl: str | None = None
     roadmapId: str | None = None
     stepId: str | None = None
@@ -87,6 +90,12 @@ class TaskCreate(Command):
 class TaskUpdate(Expected):
     text: str | None = None
     done: StrictBool | None = None
+
+
+class TaskMove(Expected):
+    """revision is the task's own; position is its new place among the work item's active tasks,
+    1 first, and a place past the last moves it last."""
+    position: Annotated[StrictInt, Field(ge=1)]
 
 
 class ReferenceCreate(Command):

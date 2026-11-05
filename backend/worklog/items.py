@@ -16,11 +16,11 @@ from .common import (
     AppError,
     boolean,
     event,
+    item_status,
     now,
     read_events,
     require_revision,
     setting,
-    status,
     text,
     today,
     uid,
@@ -69,7 +69,7 @@ class Items:
              roadmap_id: str | None = None, person_id: str | None = None, repository_id: str | None = None,
              limit: int = 100, offset: int = 0, q: str = "", item_id: str | None = None) -> dict:
         # Any of the given states matches; none, or only empty values, means every state.
-        chosen = sorted({status(value) for value in states or [] if value != ""})
+        chosen = sorted({item_status(value) for value in states or [] if value != ""})
         with self.db.read() as c:
             where = ["w.archived=?"]
             args: builtins.list[Any] = [int(archived)]
@@ -156,10 +156,14 @@ class Items:
             repos = linked_repositories(c, "item", ids)
             ranked = stack_ranks(c, ids)
             counts = self.tab_counts(c, ids)
+            states = self._states_as_of(c, date)
             for entry in entries:
                 entry["item"]["repositoryIds"] = repos.get(entry["itemId"], [])
                 entry["item"]["rank"] = ranked.get(entry["itemId"])
                 entry["counts"] = counts[entry["itemId"]]
+                # The status the item ended the day with, which groups the day's summary. Work
+                # logged after its day has no history by then, so it shows its status now.
+                entry["statusOnDay"] = states.get(entry["itemId"], entry["item"])["status"]
             # Completed titles are preserved from the actual completion event, not current item state.
             completed = []
             for r in c.execute("SELECT after_json FROM events WHERE local_date=? AND kind='item.update' ORDER BY created_at", (date,)):
@@ -170,7 +174,7 @@ class Items:
                     "reflection": day["reflection"] if day else "", "entries": entries,
                     "summary": {"worked": [{"id": e["itemId"], "title": e["item"]["title"], "outcome": e["outcome"]} for e in entries if e["worked"]],
                                 "completed": completed,
-                                "blocked": self._blocked_as_of(c, date)},
+                                "blocked": [{"id": k, "title": v["title"]} for k, v in states.items() if v["status"] == "blocked"]},
                     "nextItemId": next((e["itemId"] for e in entries if e["planned"] and not e["item"]["archived"] and e["item"]["status"] in {"open", "doing"}), None)}
 
     @staticmethod
@@ -198,17 +202,17 @@ class Items:
         return counts
 
     @staticmethod
-    def _blocked_as_of(c: sqlite3.Connection, date: str) -> builtins.list[dict]:
-        # Fold status events up to the selected day; later changes cannot alter old summaries.
+    def _states_as_of(c: sqlite3.Connection, date: str) -> dict[str, dict]:
+        """Each of the day's work items as its last change on or before that day left it, folded
+        from its events, so later changes cannot alter an old day's summary. An item with no
+        event by then is missing."""
         states: dict[str, dict] = {}
         for r in c.execute("""SELECT e.entity_id,e.after_json FROM events e
                             JOIN daily_entries d ON d.item_id=e.entity_id AND d.date=?
                             WHERE e.local_date<=? AND e.kind IN ('item.create','item.update')
                             ORDER BY e.created_at,e.id""", (date, date)):
-            value = json.loads(r["after_json"])
-            states[r["entity_id"]] = value
-        planned = {r[0] for r in c.execute("SELECT item_id FROM daily_entries WHERE date=?", (date,))}
-        return [{"id": k, "title": v["title"]} for k, v in states.items() if k in planned and v["status"] == "blocked"]
+            states[r["entity_id"]] = json.loads(r["after_json"])
+        return states
 
     @staticmethod
     def ensure_day(c: sqlite3.Connection, date: str) -> None:
@@ -241,7 +245,7 @@ class Items:
                     val[k] = p[k]
             val["title"] = text(val["title"], "title", required=True, limit=2000)
             val["description"] = text(val["description"], "description")
-            val["status"] = status(val["status"])
+            val["status"] = item_status(val["status"])
             if val["adoUrl"]:
                 link = text(val["adoUrl"], "adoUrl", limit=2048).strip()
                 url = urlsplit(link)
@@ -314,6 +318,37 @@ class Items:
         event(c, actor, "entry.upsert", item_id, before, val)
         return val
 
+    @staticmethod
+    def _day_entry(c: sqlite3.Connection, date: str, item_id: str, revision: Any) -> Any:
+        """An active work item's entry on a day, as of the revision the caller read it at.
+        An archived item's entries are read-only history."""
+        valid_date(date)
+        get_item(c, item_id, active=True)
+        row = c.execute("SELECT * FROM daily_entries WHERE date=? AND item_id=?", (date, item_id)).fetchone()
+        if row is None:
+            raise AppError(409, "conflict", "Entry does not exist; reload the day")
+        require_revision(row, revision)
+        return row
+
+    def _drop_entry(self, c: sqlite3.Connection, actor: dict, row: Any) -> None:
+        """Delete a day's entry, so neither the day nor the item's daily record lists it;
+        history keeps the entry as it was."""
+        c.execute("DELETE FROM daily_entries WHERE id=?", (row["id"],))
+        c.execute("UPDATE days SET revision=revision+1 WHERE date=?", (row["date"],))
+        # Planned work leaves the backlog; taken off its day, it may rejoin it.
+        self.bump_backlog(c)
+        event(c, actor, "entry.remove", row["item_id"], entry_record(row), None)
+
+    def remove_entry(self, c: sqlite3.Connection, actor: dict, date: str, item_id: str, p: dict) -> dict:
+        """Take a work item off a day: work planned but not reached, or put there by mistake.
+
+        The entry goes with what the day recorded for it (planned, worked on, its outcome); Today
+        asks the person first when that record holds work. The item and its other days stay as
+        they are.
+        """
+        self._drop_entry(c, actor, self._day_entry(c, date, item_id, p.get("revision")))
+        return {"ok": True}
+
     def reflection(self, c: sqlite3.Connection, actor: dict, date: str, p: dict) -> dict:
         valid_date(date)
         row = c.execute("SELECT * FROM days WHERE date=?", (date,)).fetchone()
@@ -352,11 +387,22 @@ class Items:
         return {"ok": True}
 
     def reschedule(self, c: sqlite3.Connection, actor: dict, date: str, p: dict) -> dict:
+        """Move a work item's plan from this day to another.
+
+        What this day recorded on the item, "Worked on" or an outcome, stays here, no longer
+        planned. An entry that only planned the item goes, so this day doesn't list work it never
+        got. The target day plans the item, in the entry it already has or a new one.
+        """
         target = valid_date(p.get("targetDate", ""))
         if target == date:
             raise AppError(422, "validation", "Choose a different date")
-        self.upsert_entry(c, actor, {"date": date, "itemId": p.get("itemId"), "revision": p.get("revision"), "planned": False})
-        return self.upsert_entry(c, actor, {"date": target, "itemId": p.get("itemId"), "revision": p.get("targetRevision", 0), "planned": True})
+        item_id = p.get("itemId", "")
+        row = self._day_entry(c, date, item_id, p.get("revision"))
+        if row["worked"] or row["outcome"].strip():
+            self.upsert_entry(c, actor, {"date": date, "itemId": item_id, "revision": row["revision"], "planned": False})
+        else:
+            self._drop_entry(c, actor, row)
+        return self.upsert_entry(c, actor, {"date": target, "itemId": item_id, "revision": p.get("targetRevision", 0), "planned": True})
 
     def move_backlog(self, c: sqlite3.Connection, actor: dict, identity: str, p: dict) -> dict:
         require_revision({"revision": setting(c, "backlogRevision", 1)}, p.get("revision"))

@@ -24,7 +24,7 @@ Worklog runs at `http://127.0.0.1:8877`. Start it from PowerShell in your Worklo
 1. On **Today**, type what you will work on into "New work item" and press "Add work". The item is planned for today.
 2. As you work, tick "Worked on" for the item.
 3. Write what happened, and what comes next, in "Outcome / next action".
-4. Set its status (Open, Doing, Blocked or Done) with the status menu.
+4. Set its status (Open, Doing, Waiting, Blocked or Done) with the status menu. Waiting is for work that waits on someone else, such as a review or a reply.
 5. Before you stop, write a few lines in "End-of-day reflection (Markdown)".
 
 You never press Save: Worklog saves as you type. Tomorrow, "Open work" on Today lists everything still open, ready to plan again.
@@ -116,11 +116,15 @@ They never change your work items, days, roadmaps, people or repositories direct
    - set its status
    - write an "Outcome / next action"
 4. Put the entries in order by dragging the grip, or with the up and down buttons.
-5. At the end of the day, write the "End-of-day reflection (Markdown)". The counts beside the day's work show how many you worked on, completed and blocked. "Continue your next open item" jumps to the next planned item that is still open.
+5. At the end of the day, write the "End-of-day reflection (Markdown)". The counts beside the day's work show how many you worked on, completed and blocked; waiting work doesn't count as blocked. "Continue your next open item" jumps to the next planned item that is open or doing, so it passes over waiting and blocked work.
+6. For your standup update, read "The day’s summary" below the day's work. It lists each entry ticked "Worked on" with its "Outcome / next action", under the status its item ended the day with: "Done", "Doing", "Open", "Waiting", then "Blocked". Press "Copy summary" and paste it into a chat, an email or a Markdown box; it keeps its headings and bullets.
+
+The summary keeps up as each outcome saves. A past day's summary keeps the status each item had that day, even after you change it later.
 
 Each entry has tabs. "Outcome / next action" holds the day's note. "Tasks", "Scratchpad", "Links", "Files" and "Repositories" hold the work item's own records, so you can work on them without leaving the day.
 
 - Before you open the tabs, they show what they hold: tasks done out of all, how many links, files and repositories, and a dot when the scratchpad has text.
+- "Tasks" is the item's own checklist: each task says when it was "Created" and last "Updated", and the grip and the up and down buttons put the tasks in order, as on the item's page.
 - The arrow keys move between tabs.
 - The badge beside an entry's title is the item's stack rank.
 - Each entry's title row collapses and expands; "Collapse all" and "Expand all" do every entry at once.
@@ -130,7 +134,16 @@ Each entry has tabs. "Outcome / next action" holds the day's note. "Tasks", "Scr
 1. On **Today**, press "Reschedule" beside the entry's title.
 2. Pick the new date and press "Move". "Cancel" or Escape closes the picker.
 
-The item is planned on the new day instead. Today keeps its entry, no longer planned, with anything you recorded on it.
+The item is planned on the new day instead. If you recorded nothing on it today, it leaves today. If you ticked "Worked on" or wrote an "Outcome / next action", today keeps its entry with what you recorded, no longer planned; to take that off today as well, see [Take work off a day](#take-work-off-a-day).
+
+### Take work off a day
+
+When you planned work and didn't get to it, take it off the day, so the day doesn't list it among its work. To plan it for another day instead, [move it](#move-work-to-another-day).
+
+1. On **Today**, press "Remove from today" beside the entry's title. On another day the button names that day.
+2. An entry that only plans the work comes off at once. If you ticked "Worked on" or wrote an "Outcome / next action" on it, Worklog asks first: "Confirm remove" discards them with the entry, and "Cancel" or Escape keeps it.
+
+The work item itself doesn't change. While it isn't done it is back under "Open work", ready for "Work on today" again. Its "Daily record" no longer lists the day, and its "Activity history" keeps the entry as it was. An archived item's entry can't be removed.
 
 ### Capture work and keep a backlog
 
@@ -139,7 +152,7 @@ The item is planned on the new day instead. Today keeps its entry, no longer pla
    - by text ("Find in work…")
    - by repository
    - by person
-   - by status: the Open, Doing, Blocked and Done buttons combine; with none pressed, every state shows.
+   - by status: the Open, Doing, Waiting, Blocked and Done buttons combine; with none pressed, every state shows.
 3. Switch "Work view" between "All work" and "Unscheduled backlog". The backlog holds items not done and not planned for today or later.
 4. Rank the work (below).
 
@@ -163,7 +176,7 @@ Open the item from **Work**. Its page holds, from top to bottom:
   - the repositories the work touches ("Link repository")
   - the "Roadmap" and "Roadmap step" the item belongs to
   - "Plan for day", with a "Schedule date"
-- **"Tasks"**: type a "New task" and press "Add task". Tick tasks when done, and done ones are struck through. "Edit task" renames one.
+- **"Tasks"**: type a "New task" and press "Add task". Tick tasks when done, and done ones are struck through. "Edit task" renames one. Under each task, "Created" and "Updated" say when it was added and when its text or tick last changed. Put the tasks in order by dragging the grip, or with the up and down buttons; a new task goes last.
 - **"Scratchpad (Markdown)"**: one running note for the item. Notes archived earlier stay readable under "Archived notes".
 - **"People"**: choose someone in "Choose person" ("+ New person…" adds one), give a "Relationship or role", and press "Tie person".
 - **"Links"**: a "Link title", "Link URL" and "Link description", then "Add link".
@@ -360,11 +373,12 @@ Plan the day and record what you worked on.
 - **Adding work:** "New work item", "Capture mode" ("Plan work" or "Log work already performed") and "Add work".
 - **"The day’s work":**
   - Each entry is numbered, shows its item's stack rank, and collapses to its title row.
-  - Each has a drag grip, "Reschedule", "Planned", "Worked on" and a status menu.
+  - Each has a drag grip, "Reschedule", "Remove from today", "Planned", "Worked on" and a status menu.
   - Its tabs hold "Outcome / next action" and the work item's own "Tasks", "Scratchpad", "Links", "Files" and "Repositories".
   - An archived item's entry stays readable but can't be changed.
 - **The day's counts and "Continue your next open item".**
-- **"Open work":** every open, doing and blocked item not yet on the day, with "Find open work…" and "Work on today".
+- **"The day’s summary":** each entry ticked "Worked on" with its outcome, under the status its item ended the day with, and "Copy summary".
+- **"Open work":** every open, doing, waiting and blocked item not yet on the day, with "Find open work…" and "Work on today".
 - **"End-of-day reflection (Markdown)".**
 
 ### Work

@@ -52,6 +52,9 @@
   --status-doing-ink: #783900;
   --status-doing-border: #d97706;
   --status-doing-ring: rgba(217, 119, 6, 0.18);
+  --status-waiting-bg: #e4ecf8;
+  --status-waiting-ink: #1e3f73;
+  --status-waiting-border: #4a72b0;
   --status-blocked-bg: #fde6e2;
   --status-blocked-ink: #8c2318;
   --status-blocked-border: #c0392b;
@@ -80,6 +83,9 @@
   --status-doing-ink: #fde68a;
   --status-doing-border: #f59e0b;
   --status-doing-ring: rgba(245, 158, 11, 0.24);
+  --status-waiting-bg: #1b2a43;
+  --status-waiting-ink: #bcd2f7;
+  --status-waiting-border: #7ea4e0;
   --status-blocked-bg: #481b16;
   --status-blocked-ink: #ffb4a6;
   --status-blocked-border: #e56b5b;
@@ -111,6 +117,9 @@
     --status-doing-ink: #fde68a;
     --status-doing-border: #f59e0b;
     --status-doing-ring: rgba(245, 158, 11, 0.24);
+    --status-waiting-bg: #1b2a43;
+    --status-waiting-ink: #bcd2f7;
+    --status-waiting-border: #7ea4e0;
     --status-blocked-bg: #481b16;
     --status-blocked-ink: #ffb4a6;
     --status-blocked-border: #e56b5b;
@@ -664,6 +673,27 @@ form.field-action > label {
 .open-work > .day-heading {
   margin-top: 0;
 }
+/* Today: the day's summary, between its work and the open work: each entry worked on, under the
+   status its item ended the day with, to read and to copy as a standup update. */
+.day-report {
+  margin-top: 30px;
+}
+.day-report > .day-heading {
+  margin-top: 0;
+}
+.day-report [role="status"] {
+  color: var(--muted);
+  font-size: 12px;
+}
+.day-report .markdown h3 {
+  margin: 20px 0 8px;
+}
+.day-report .markdown > ul > li {
+  margin: 0 0 10px;
+}
+.day-report .markdown li > p {
+  margin: 0 0 4px;
+}
 .open-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 480px), 1fr));
@@ -672,8 +702,10 @@ form.field-action > label {
 .open-list > .line {
   padding: 7px 0;
 }
-/* The date picker a day entry's Reschedule button opens under its title. */
-.reschedule-picker {
+/* The date picker a day entry's Reschedule button opens under its title, and the question its
+   Remove button asks there before discarding what the day recorded. */
+.reschedule-picker,
+.remove-confirm {
   margin: 0 0 10px;
 }
 .reschedule-picker input {
@@ -734,14 +766,39 @@ form.field-action > label {
   margin: 0 0 6px;
   font-size: 12px;
 }
-/* Task text reads at body size wherever the list sits, level with its buttons. */
-.checklist .task > label {
+/* A task's grip, then its text with when it was added and last changed, then its buttons. Task
+   text reads at body size wherever the list sits, and keeps 16rem: in a narrower list the
+   buttons wrap under it, on the right. */
+.line.task {
+  justify-content: flex-end;
+}
+.task > .drag-handle {
+  margin-right: 0;
+  padding: 4px;
+}
+.task-main {
+  flex: 1 1 16rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.checklist .task-main > label {
   font-size: inherit;
   margin-bottom: 0;
 }
-.task.done > label {
+.task.done .task-main > label {
   color: var(--muted);
   text-decoration: line-through;
+}
+/* Under the text, past the checkbox (15px and its 8px margin). */
+.task-times {
+  display: block;
+  margin-top: 2px;
+  padding-left: 23px;
+  color: var(--muted);
+}
+.line.task.dragging {
+  opacity: 0.55;
+  border-top: 2px solid var(--teal);
 }
 /* A task's edit field opens under it, without the rule and spacing other disclosures have. */
 .line > .task-edit {
@@ -919,11 +976,13 @@ button.rank:hover {
   vertical-align: middle;
   margin-left: -9px;
 }
-/* A collapsed entry keeps only its heading row, and a Reschedule picker opened from it. */
+/* A collapsed entry keeps only its heading row, and a Reschedule picker or Remove question
+   opened from it. */
 .day-entry.collapsed > .section-heading {
   margin-bottom: 0;
 }
-.day-entry.collapsed > .reschedule-picker {
+.day-entry.collapsed > .reschedule-picker,
+.day-entry.collapsed > .remove-confirm {
   margin: 6px 0 0;
 }
 .drag-handle {
@@ -1042,6 +1101,15 @@ button.rank:hover {
   background: var(--status-done-border);
   border-color: var(--status-done-border);
 }
+/* Half filled: started, and now waiting on someone else. */
+.status-dot.waiting {
+  background: linear-gradient(
+    90deg,
+    var(--status-waiting-border) 50%,
+    var(--status-waiting-bg) 50%
+  );
+  border-color: var(--status-waiting-border);
+}
 .status-dot.blocked {
   background: var(--status-blocked-border);
   border-color: var(--status-blocked-border);
@@ -1073,6 +1141,11 @@ select.status-select.done {
   background: var(--status-done-bg);
   color: var(--status-done-ink);
   border-color: var(--status-done-border);
+}
+select.status-select.waiting {
+  background: var(--status-waiting-bg);
+  color: var(--status-waiting-ink);
+  border-color: var(--status-waiting-border);
 }
 select.status-select.blocked {
   background: var(--status-blocked-bg);

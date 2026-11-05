@@ -230,6 +230,12 @@ it("changes fields on the ticket's revision, explains why Done needs a resolutio
     await screen.findByRole("heading", { name: "T-1 Backup holds a lock" }),
   ).toBeInTheDocument();
   expect(screen.getByText("nightly")).toBeInTheDocument();
+  // Only work items wait: a ticket keeps its four states.
+  expect(
+    within(screen.getByRole("combobox", { name: "Status" }))
+      .getAllByRole("option")
+      .map((option) => option.getAttribute("value")),
+  ).toEqual(["open", "doing", "blocked", "done"]);
   await userEvent.selectOptions(
     screen.getByRole("combobox", { name: "Status" }),
     "done",

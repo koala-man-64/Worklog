@@ -5,9 +5,9 @@ from __future__ import annotations
 import json
 import sqlite3
 
-SCHEMA_VERSION = 13
+SCHEMA_VERSION = 15
 # Older versions that startup and offline restore upgrade in one transaction.
-UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12})
+UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14})
 
 COORDINATION_SCHEMA = """
 CREATE TABLE repositories(id TEXT PRIMARY KEY,name TEXT NOT NULL,url TEXT NOT NULL DEFAULT '',description TEXT NOT NULL DEFAULT '',archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
@@ -319,6 +319,64 @@ def add_chat_confirmations(conn: sqlite3.Connection) -> None:
                  (stamp, stamp))
 
 
+# v14 lets the person order each work item's tasks. position orders all of an item's tasks,
+# archived ones included, so a recovered task comes back where it was; the item's active tasks
+# are listed by it, and ties, which only a writer that skipped the column could leave, by the
+# time each task was added.
+TASK_POSITION_COLUMN = "position INTEGER NOT NULL DEFAULT 0 CHECK(position>=0)"
+
+
+def add_task_positions(conn: sqlite3.Connection) -> None:
+    """Number each work item's tasks from 1 in the order version 13 listed them.
+
+    Version 13 read an item's tasks with the query below. Running it again keeps every list as
+    the person last saw it, tasks added in the same instant included. Only the order is new:
+    no task's revision or last-updated time changes.
+    """
+    conn.execute("ALTER TABLE tasks ADD COLUMN " + TASK_POSITION_COLUMN)
+    for (item,) in conn.execute("SELECT DISTINCT item_id FROM tasks").fetchall():
+        listed = conn.execute("SELECT * FROM tasks WHERE item_id=? ORDER BY created_at", (item,)).fetchall()
+        conn.executemany("UPDATE tasks SET position=? WHERE id=?",
+                         [(place, row[0]) for place, row in enumerate(listed, 1)])
+
+
+# v15 lets a work item wait on someone else. The table is v14's with one more status in its
+# CHECK, column for column, roadmap_id where ALTER TABLE ADD COLUMN placed it in v1.
+WORK_ITEMS_TABLE = ("CREATE TABLE work_items(id TEXT PRIMARY KEY,title TEXT NOT NULL,description TEXT NOT NULL DEFAULT '',"
+                    "status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','doing','waiting','blocked','done')),"
+                    "ado_url TEXT,step_id TEXT REFERENCES steps(id),backlog_order INTEGER NOT NULL,"
+                    "archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,"
+                    "created_at TEXT NOT NULL,updated_at TEXT NOT NULL, roadmap_id TEXT REFERENCES roadmaps(id))")
+WORK_ITEM_COLUMNS = "id,title,description,status,ado_url,step_id,backlog_order,archived,revision,created_at,updated_at,roadmap_id"
+WORK_ITEM_INDEXES = """
+CREATE INDEX work_items_step ON work_items(step_id);
+CREATE INDEX work_items_roadmap ON work_items(roadmap_id);
+"""
+
+
+def add_waiting_status(conn: sqlite3.Connection) -> None:
+    """Admit 'waiting' as a work item's status. No record changes: every row, rowid included, and
+    every reference to it is as it was.
+
+    SQLite cannot widen a CHECK constraint, so work_items is built again. Unlike person_links in
+    v10, the table is never renamed: a rename would rewrite the references other tables hold to it.
+    Its rows go aside into a temporary copy, and the table is dropped and created again under its
+    own name, so those references find it there. Dropping it deletes its rows first, which leaves
+    every reference dangling until they come back; defer_foreign_keys holds those checks until the
+    transaction commits, and the commit fails if any reference still dangles then. The setting
+    lasts until the caller's transaction ends: turning it off sooner would forget the dangling
+    references it is counting instead of checking them.
+    """
+    conn.execute("PRAGMA defer_foreign_keys=ON")
+    conn.execute(f"CREATE TEMP TABLE work_items_v14 AS SELECT rowid AS kept_rowid,{WORK_ITEM_COLUMNS} FROM work_items")
+    conn.execute("DROP TABLE work_items")  # and its indexes
+    conn.execute(WORK_ITEMS_TABLE)
+    conn.execute(f"INSERT INTO work_items(rowid,{WORK_ITEM_COLUMNS}) "
+                 f"SELECT kept_rowid,{WORK_ITEM_COLUMNS} FROM temp.work_items_v14 ORDER BY kept_rowid")
+    conn.execute("DROP TABLE temp.work_items_v14")
+    execute_schema(conn, WORK_ITEM_INDEXES)
+
+
 def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
     """Unlike executescript, preserve the caller's transaction and rollback boundary."""
     for statement in filter(str.strip, schema.split(";")):
@@ -331,7 +389,9 @@ def upgrade(conn: sqlite3.Connection) -> None:
     Credential IDs, proposal authors, receipts (beyond the date v11 gives them), and legacy
     chat repository labels are deliberately unchanged. No repository names are guessed or imported.
     The one record v13 changes is a chat message still waiting for an identity that isn't bound to
-    the chat: that delivery ends, with the reason 'unconfirmed'.
+    the chat: that delivery ends, with the reason 'unconfirmed'. v14 gives every task its place in
+    its work item's list, the one it was listed in, and changes nothing else about it. v15 lets a
+    work item wait and changes no record.
     """
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version == SCHEMA_VERSION:
@@ -369,8 +429,12 @@ def upgrade(conn: sqlite3.Connection) -> None:
         add_search_keys_and_receipt_dates(conn)
     if version < 12:
         add_decision_state(conn)
-    # Every upgradable version predates the chat bindings of v13.
-    add_chat_confirmations(conn)
+    if version < 13:
+        add_chat_confirmations(conn)
+    if version < 14:
+        add_task_positions(conn)
+    # Every upgradable version predates the waiting status of v15.
+    add_waiting_status(conn)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 

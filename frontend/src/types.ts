@@ -1,6 +1,9 @@
 import type { Repository } from "./repositoryTypes";
 
+/** A ticket's or a roadmap step's status. */
 export type Status = "open" | "doing" | "blocked" | "done";
+/** A work item's status, which can also be waiting on someone else. */
+export type ItemStatus = Status | "waiting";
 export type RecordBase = {
   id: string;
   revision: number;
@@ -80,7 +83,7 @@ export type Item = RecordBase & {
   rank?: number | null;
   title: string;
   description: string;
-  status: Status;
+  status: ItemStatus;
   adoUrl: string | null;
   roadmapId?: string | null;
   stepId: string | null;
@@ -96,6 +99,9 @@ export type Entry = RecordBase & {
   item: Item;
   // A day's entries only: what the work item's tabs hold, before the item is read.
   counts?: TabCounts;
+  /** A day's entries only: the status the work item ended that day with, from its history;
+   * work logged after its day has its status now. */
+  statusOnDay?: ItemStatus;
 };
 export type TabCounts = {
   tasks: number;
@@ -120,7 +126,14 @@ export type Note = RecordBase & {
   ownerType: string;
   ownerId: string;
 };
-export type Task = RecordBase & { text: string; done: boolean; itemId: string };
+/** A work item's tasks come in the person's order. updatedAt is when the text or tick last changed. */
+export type Task = RecordBase & {
+  text: string;
+  done: boolean;
+  itemId: string;
+  createdAt: string;
+  updatedAt: string;
+};
 export type Attachment = RecordBase & {
   name: string;
   mime: string;

@@ -472,6 +472,49 @@ test("an entry's tasks on Today are its work item's own", async ({ page }) => {
     page.getByRole("checkbox", { name: "Write the plan" }),
   ).toBeChecked();
 });
+test("an entry's tasks say when they were added and keep the order you give them", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const title = "Ordered tasks " + Date.now();
+  await page.getByRole("textbox", { name: "New work item" }).fill(title);
+  await page.getByRole("button", { name: "Add work", exact: true }).click();
+  const entry = page
+    .locator(".day-entry")
+    .filter({ has: page.getByRole("link", { name: title, exact: true }) });
+  await entry.getByRole("tab", { name: "Tasks", exact: true }).click();
+  const tasks = entry.getByRole("tabpanel", { name: "Tasks" });
+  for (const text of ["Draft", "Review", "Ship"]) {
+    await tasks.getByRole("textbox", { name: "New task" }).fill(text);
+    await tasks.getByRole("button", { name: "Add task", exact: true }).click();
+    await expect(tasks.getByRole("checkbox", { name: text })).toBeVisible();
+  }
+  const texts = tasks.locator(".task-main > label");
+  await expect(texts).toHaveText(["Draft", "Review", "Ship"]);
+  await expect(tasks.locator(".task-times").first()).toHaveText(
+    /^Created .+ · Updated .+$/,
+  );
+  await tasks.getByRole("button", { name: "Move task Ship up" }).click();
+  await expect(texts).toHaveText(["Draft", "Ship", "Review"]);
+  // The grips take a drag again once the move has settled, as the buttons do.
+  await expect(
+    tasks.getByRole("button", { name: "Move task Draft down" }),
+  ).toBeEnabled();
+  await tasks
+    .getByRole("img", { name: "Drag task Draft to reorder" })
+    .dragTo(tasks.locator(".task").filter({ hasText: "Review" }));
+  await expect(texts).toHaveText(["Ship", "Review", "Draft"]);
+  // The order is the work item's own: it stays after a reload, and its page shows it too.
+  await page.reload();
+  await entry.getByRole("tab", { name: "Tasks" }).click();
+  await expect(texts).toHaveText(["Ship", "Review", "Draft"]);
+  await entry.getByRole("link", { name: title, exact: true }).click();
+  await expect(page.locator(".checklist .task-main > label")).toHaveText([
+    "Ship",
+    "Review",
+    "Draft",
+  ]);
+});
 test("stack rank moves work from its row, its picker and its page", async ({
   page,
   baseURL,
@@ -521,6 +564,19 @@ test("stack rank moves work from its row, its picker and its page", async ({
     page.getByRole("button", {
       name: `Change stack rank of ${c}, now 1`,
       exact: true,
+    }),
+  ).toBeVisible();
+  // Waiting work is unfinished: it keeps its place in the ranking.
+  const waiting = page
+    .locator(".work-row")
+    .filter({ has: page.getByRole("link", { name: b, exact: true }) })
+    .getByRole("combobox", { name: "Status" });
+  await waiting.selectOption("waiting");
+  await expect(waiting).toHaveValue("waiting");
+  await expect(titles).toHaveText([c, b, a]);
+  await expect(
+    page.getByRole("button", {
+      name: new RegExp(`^Change stack rank of ${b}, now \\d+$`),
     }),
   ).toBeVisible();
   // Done work leaves the ranking and follows the ranked work.
@@ -587,17 +643,80 @@ test("open work is planned for the day and rescheduled from beside its title", a
     .click();
   await entry.getByLabel("New date for " + title).fill(next);
   await entry.getByRole("button", { name: "Move", exact: true }).click();
-  // The picker closes, and this day keeps its record of the entry, no longer planned.
+  // Nothing was recorded on it today, so it leaves today and waits in Open work.
+  await expect(entry).toHaveCount(0);
   await expect(
-    entry.getByRole("button", { name: "Move", exact: true }),
-  ).toHaveCount(0);
-  await expect(entry.getByLabel("Planned", { exact: true })).not.toBeChecked();
+    open.getByRole("button", { name: `Work on ${title} today`, exact: true }),
+  ).toBeVisible();
   await page.goto("/#today/" + next);
   const moved = page
     .locator(".day-entry")
     .filter({ has: page.getByRole("link", { name: title, exact: true }) });
   await expect(moved).toBeVisible();
   await expect(moved.getByLabel("Planned", { exact: true })).toBeChecked();
+});
+test("work not reached comes off the day and waits in Open work again", async ({
+  page,
+  baseURL,
+}) => {
+  const origin = new URL(baseURL!).origin;
+  const title = "Not reached " + Date.now();
+  const boot = await page.request.post("/api/v1/session/bootstrap", {
+    headers: { Origin: origin, "X-Worklog-Bootstrap": "1" },
+    data: {},
+  });
+  const { csrfToken } = await boot.json();
+  const created = await page.request.post("/api/v1/work-items", {
+    headers: {
+      Origin: origin,
+      "X-CSRF-Token": csrfToken,
+      "Idempotency-Key": crypto.randomUUID(),
+    },
+    data: { title },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { id } = await created.json();
+  await page.goto("/");
+  const open = page.locator("section.open-work");
+  await open.getByRole("textbox", { name: "Find open work" }).fill(title);
+  const plan = open.getByRole("button", {
+    name: `Work on ${title} today`,
+    exact: true,
+  });
+  await plan.click();
+  const entry = page
+    .locator(".day-entry")
+    .filter({ has: page.getByRole("link", { name: title, exact: true }) });
+  const remove = entry.getByRole("button", {
+    name: `Remove ${title} from today`,
+    exact: true,
+  });
+  // Only planned, it comes off at once and waits in Open work again.
+  await remove.click();
+  await expect(entry).toHaveCount(0);
+  await expect(plan).toBeVisible();
+  // Once the day records work on it, taking it off asks first.
+  await plan.click();
+  await entry.getByLabel("Worked on", { exact: true }).click();
+  await expect(entry.getByLabel("Worked on", { exact: true })).toBeChecked();
+  await remove.click();
+  const question = entry.getByRole("group", {
+    name: "It is marked “Worked on”. Remove it from today anyway?",
+  });
+  await question.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(question).toHaveCount(0);
+  await expect(entry).toBeVisible();
+  await remove.click();
+  await question
+    .getByRole("button", { name: "Confirm remove", exact: true })
+    .click();
+  await expect(entry).toHaveCount(0);
+  await expect(plan).toBeVisible();
+  // The item's own record no longer lists the day.
+  const detail = await page.request.get("/api/v1/work-items/" + id, {
+    headers: { Origin: origin },
+  });
+  expect((await detail.json()).dailyEntries).toEqual([]);
 });
 test("a link changed in another tab survives tabbing through a stale field", async ({
   context,

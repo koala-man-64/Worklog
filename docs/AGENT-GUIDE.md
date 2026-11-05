@@ -42,11 +42,11 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 
 | Record | Identified by | States and key fields | Written by |
 |---|---|---|---|
-| Work item | UUID | `status` open, doing, blocked or done; `rank`, the person's stack rank (1 matters most; null when done or archived); `archived` | proposal (`item.*`); only the person ranks |
+| Work item | UUID | `status` open, doing, waiting (on someone else), blocked or done; `rank`, the person's stack rank (1 matters most; null when done or archived); `archived` | proposal (`item.*`); only the person ranks |
 | Day entry | date and work item | `planned`, `worked`, `outcome` | proposal (`entry.upsert`) |
 | Scratchpad | note UUID | the one Markdown note of a work item | proposal (`note.create` adds a section) |
 | Note on a roadmap or step | UUID | `title`, `text` | proposal (`note.*`) |
-| Checklist task | UUID | `text`, `done` | proposal (`task.*`) |
+| Checklist task | UUID | `text`, `done`; a work item's tasks come in the person's order, a new one last | proposal (`task.*`); only the person reorders |
 | Roadmap | UUID | `title`, `overview`, `parentId` for nesting, immutable versions | proposal (`roadmap.*`) |
 | Step | UUID, stable across versions | progress open, doing, blocked or done on leaf steps (a parent's follows its children); `retired` | proposal (`roadmap.revise`, `progress.set`) |
 | Question, decision | UUID | a question is open or answered | proposal |
@@ -479,7 +479,8 @@ Any other field is refused. Proposals cannot archive or recover files, import pl
   - `name`, `title`, `team`, `chat` and `location` are single lines of at most 500 bytes: a line break or other control character is refused. `email` takes at most 320 bytes and `phone` 100. `description` is a paragraph of at most 10,000 bytes. Single-line fields are trimmed.
   - Assignments (`people` on a work item, roadmap or repository) carry `personTitle` and `personTeam`, where older versions had `personRole`.
 - **Statuses.**
-  - `status` on `item.update` and `progress.set` is `open`, `doing`, `blocked` or `done`. `progress.set` takes leaf steps; a parent step's progress follows its children.
+  - `status` on `item.update` is `open`, `doing`, `waiting`, `blocked` or `done`: `waiting` is work that waits on someone else, such as a review or a reply.
+  - `status` on `progress.set` is `open`, `doing`, `blocked` or `done`. `progress.set` takes leaf steps; a parent step's progress follows its children.
   - A question's `status` is `open` or `answered`.
 - **New work items.** On `item.create`, `day` (`YYYY-MM-DD`) plans the item on that day, and `worked: true` records it as worked.
 - **Scratchpads.** A work item has one scratchpad. `note.create` on an item adds its text to the scratchpad as a `## title` section, or starts it.

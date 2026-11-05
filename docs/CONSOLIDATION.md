@@ -64,7 +64,7 @@ These come from the cross-examination. Each one overturned a first proposal.
   - Several features read event JSON at runtime:
     - registration sponsorship, the registered chat, registration limits and the revoke cascade (`registration.py`);
     - proposal visibility, submitted time, auto-approval and stale-notice de-duplication (`proposals.py`);
-    - Today's "completed" and "blocked as of" lists, which replay item events (`items.py`).
+    - Today's "completed" and "blocked as of" lists, and each day entry's `statusOnDay`, which replay item events (`items.py`).
   - Move that state into columns (step 1.3) before any compaction.
   - Compaction thins only an allowlist of display-only kinds, and keeps `{id, title, status, _statusChanged}` on item events.
   - Never delete an event row: `discussion_changes.event_id` references it.
@@ -505,3 +505,5 @@ These look like consolidation candidates but stay:
 - 2026-11-04: Phase 1 split into v11 to v13 while building it, and step 1.0 added. v11 and v12 deployed together. K12 recorded from the security review of step 1.4.
 - 2026-11-04: Steps 2.1 to 2.3 deployed. Step 2.4 split into two PRs while building it: global search first, then the `WorkService` split.
 - 2026-11-04: Step 2.5 split into two PRs while building it: sealed digests first, then the baseline schema module.
+- 2026-11-05: Schema v14, an order for each work item's tasks, added outside the plan for a product request, with its seal and documented way back. Step 2.5's baseline schema module starts from v14.
+- 2026-11-05: Schema v15, a Waiting status for work items, added outside the plan for a product request, with its seal and documented way back. It rebuilds `work_items` to widen its status CHECK. Step 2.5's baseline schema module starts from v15.

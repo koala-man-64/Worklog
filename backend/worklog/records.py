@@ -32,8 +32,10 @@ def support_record(r: Any) -> dict:
             "chat_id": "chatId", "created_date": "createdDate", "chat_title": "chatTitle",
             "roadmap_id": "roadmapId", "decided_date": "decidedDate",
             "created_at": "createdAt", "updated_at": "updatedAt"}
+    # A file's bytes are read on their own. A task's position orders all of its work item's tasks,
+    # archived ones included, so it is not the place the task shows in: the list's order is.
     record = {keys.get(k, k): bool(v) if k in {"archived", "done"} else v
-              for k, v in dict(r).items() if k != "content"}
+              for k, v in dict(r).items() if k not in {"content", "position"}}
     if "repos" in record:
         record["repos"] = json.loads(r["repos"])
     return record

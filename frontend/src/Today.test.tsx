@@ -9,6 +9,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setDataContext } from "./api";
+import { formatDiscussionDate } from "./discussionFormatting";
 import { Today } from "./Today";
 
 const state = vi.hoisted(() => ({
@@ -111,13 +112,25 @@ it("uses historical API summary and makes archived actuals read only", () => {
   ).toEqual(["1", "0", "0"]);
   expect(screen.getByRole("combobox", { name: "Status" })).toBeDisabled();
   expect(screen.getByLabelText("Worked on", { exact: true })).toBeDisabled();
-  expect(screen.getByText("Recorded before archiving")).toBeInTheDocument();
+  expect(
+    within(entryOf("Archived work")).getByText("Recorded before archiving"),
+  ).toBeInTheDocument();
   expect(
     screen.queryByRole("textbox", { name: "Outcome / next action" }),
   ).toBeNull();
   expect(
     screen.getByRole("button", { name: "Reschedule Archived work" }),
   ).toBeDisabled();
+  // Its entry stays on the day it recorded, named for that day.
+  const weekday = new Date("2026-10-20T12:00:00").toLocaleDateString(
+    undefined,
+    { weekday: "long" },
+  );
+  const remove = screen.getByRole("button", {
+    name: `Remove Archived work from ${weekday}`,
+  });
+  expect(remove).toHaveTextContent(`Remove from ${weekday}`);
+  expect(remove).toBeDisabled();
   // An archived item's tasks, scratchpad, links and files stay on its own page.
   expect(screen.queryByRole("tablist")).toBeNull();
 });
@@ -154,6 +167,9 @@ it("keeps an entry's controls on its title row and the day's counts beside its h
   expect(heading.querySelector(".day-summary")).not.toBeNull();
 });
 
+// When the release's tasks were added, and when the first was ticked.
+const ADDED = "2026-10-26T15:04:00.123456+00:00";
+const TICKED = "2026-10-28T09:30:00+00:00";
 const release = () => ({
   id: "release",
   notes: [
@@ -175,6 +191,8 @@ const release = () => ({
       text: "Tag it",
       done: true,
       itemId: "release",
+      createdAt: ADDED,
+      updatedAt: TICKED,
     },
     {
       id: "t2",
@@ -183,6 +201,8 @@ const release = () => ({
       text: "Announce it",
       done: false,
       itemId: "release",
+      createdAt: ADDED,
+      updatedAt: ADDED,
     },
   ],
   links: [],
@@ -272,6 +292,120 @@ it("ticks an entry's tasks off and adds more from its Tasks tab", async () => {
       { itemId: "release", text: "Close the milestone", done: false },
     ],
   ]);
+});
+
+// A drag's data, as the browser carries it from the grip to the drop.
+function transfer() {
+  const data = new Map<string, string>();
+  return {
+    effectAllowed: "",
+    get types() {
+      return [...data.keys()];
+    },
+    setData: (type: string, value: string) => void data.set(type, value),
+    getData: (type: string) => data.get(type) ?? "",
+  };
+}
+const taskRow = (panel: HTMLElement, text: string) =>
+  within(panel)
+    .getByRole("checkbox", { name: text })
+    .closest(".task") as HTMLElement;
+
+it("says when each of an entry's tasks was added and last changed", async () => {
+  state.day = day("2026-10-28", [
+    entry("release", "Ship the release", "doing"),
+  ]);
+  state.detail = release();
+  render(view("2026-10-28", "2026-10-28"));
+  await userEvent.click(screen.getByRole("tab", { name: "Tasks" }));
+  const panel = screen.getByRole("tabpanel", { name: "Tasks" });
+  const times = (text: string) =>
+    taskRow(panel, text).querySelector(".task-times") as HTMLElement;
+  expect(times("Tag it")).toHaveTextContent(
+    `Created ${formatDiscussionDate(ADDED)} · Updated ${formatDiscussionDate(TICKED)}`,
+  );
+  expect(
+    [...times("Tag it").querySelectorAll("time")].map((t) => [
+      t.getAttribute("dateTime"),
+      t.getAttribute("title"),
+    ]),
+  ).toEqual([
+    [ADDED, new Date(ADDED).toLocaleString()],
+    [TICKED, new Date(TICKED).toLocaleString()],
+  ]);
+  expect(times("Announce it")).toHaveTextContent(
+    `Created ${formatDiscussionDate(ADDED)} · Updated ${formatDiscussionDate(ADDED)}`,
+  );
+  // The times sit beside the checkbox, not in its name.
+  expect(
+    within(panel).getByRole("checkbox", { name: "Tag it" }),
+  ).toBeInTheDocument();
+});
+
+it("moves an entry's tasks up and down with their buttons", async () => {
+  state.day = day("2026-10-28", [
+    entry("release", "Ship the release", "doing"),
+  ]);
+  state.detail = release();
+  const network = vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(async () => new Response("{}", { status: 200 }));
+  render(view("2026-10-28", "2026-10-28"));
+  await userEvent.click(screen.getByRole("tab", { name: "Tasks" }));
+  const panel = screen.getByRole("tabpanel", { name: "Tasks" });
+  const button = (name: string) => within(panel).getByRole("button", { name });
+  // The first task can't go up, nor the last down.
+  expect(button("Move task Tag it up")).toBeDisabled();
+  expect(button("Move task Announce it down")).toBeDisabled();
+  await userEvent.click(button("Move task Announce it up"));
+  await waitFor(() => expect(button("Move task Tag it down")).toBeEnabled());
+  await userEvent.click(button("Move task Tag it down"));
+  await waitFor(() => expect(writes(network)).toHaveLength(2));
+  // Each move names its task's revision and its new place, 1 first.
+  expect(
+    writes(network).map(([url, init]) => [url, JSON.parse(String(init?.body))]),
+  ).toEqual([
+    ["/api/v1/tasks/t2/move", { revision: 5, position: 1 }],
+    ["/api/v1/tasks/t1/move", { revision: 1, position: 2 }],
+  ]);
+});
+
+it("moves an entry's task by dragging its grip onto another, and only within its own list", async () => {
+  state.day = day("2026-10-28", [
+    entry("release", "Ship the release", "doing"),
+  ]);
+  state.detail = release();
+  const network = vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(async () => new Response("{}", { status: 200 }));
+  render(view("2026-10-28", "2026-10-28"));
+  await userEvent.click(screen.getByRole("tab", { name: "Tasks" }));
+  const panel = screen.getByRole("tabpanel", { name: "Tasks" });
+  // A task dragged from another work item's list is not this list's to move.
+  const elsewhere = transfer();
+  elsewhere.setData(
+    "application/x-worklog-task",
+    JSON.stringify({ taskId: "t2", itemId: "other", dataId: "x" }),
+  );
+  fireEvent.dragOver(taskRow(panel, "Tag it"), { dataTransfer: elsewhere });
+  fireEvent.drop(taskRow(panel, "Tag it"), { dataTransfer: elsewhere });
+  const dataTransfer = transfer();
+  fireEvent.dragStart(
+    within(panel).getByRole("img", {
+      name: "Drag task Announce it to reorder",
+    }),
+    { dataTransfer },
+  );
+  expect(taskRow(panel, "Announce it")).toHaveClass("dragging");
+  fireEvent.dragOver(taskRow(panel, "Tag it"), { dataTransfer });
+  fireEvent.drop(taskRow(panel, "Tag it"), { dataTransfer });
+  await waitFor(() => expect(writes(network)).toHaveLength(1));
+  expect(
+    writes(network).map(([url, init]) => [url, JSON.parse(String(init?.body))]),
+  ).toEqual([["/api/v1/tasks/t2/move", { revision: 5, position: 1 }]]);
+  expect(taskRow(panel, "Announce it")).not.toHaveClass("dragging");
+  // The drop is the list's alone: the day entry around it neither reorders nor reports an error.
+  expect(screen.queryByRole("alert")).toBeNull();
 });
 
 it("moves between an entry's tabs with the arrow keys, Home and End", async () => {
@@ -414,21 +548,22 @@ it("offers open work that is not on the day and plans it there", async () => {
     items: [
       item("planned", "Already planned", "open"),
       item("doing", "Write the runbook", "doing"),
+      item("waiting", "Hear back from review", "waiting"),
       item("blocked", "Fix the pipeline", "blocked"),
     ],
-    total: 3,
+    total: 4,
   };
   const network = vi
     .spyOn(globalThis, "fetch")
     .mockImplementation(async () => new Response("{}", { status: 200 }));
   render(view("2026-10-28", "2026-10-28"));
+  // Anything not finished, waiting work included.
   expect(state.paths).toContain(
-    "/work-items?view=all&archived=false&limit=100&status=open&status=doing&status=blocked&q=",
+    "/work-items?view=all&archived=false&limit=100&status=open&status=doing&status=waiting&status=blocked&q=",
   );
   expect(within(openWork()).queryByText("Already planned")).toBeNull();
-  expect(
-    within(openWork()).getByRole("link", { name: "Fix the pipeline" }),
-  ).toBeInTheDocument();
+  for (const name of ["Hear back from review", "Fix the pipeline"])
+    expect(within(openWork()).getByRole("link", { name })).toBeInTheDocument();
   await userEvent.click(
     within(openWork()).getByRole("button", {
       name: "Work on Write the runbook today",
@@ -445,7 +580,7 @@ it("offers open work that is not on the day and plans it there", async () => {
 });
 
 it("names the day it plans for when that day is not today", () => {
-  state.day = day("2026-10-30", []);
+  state.day = day("2026-10-30", [entry("draft", "Draft the plan", "open")]);
   state.work = { items: [item("review", "Review the plan", "open")], total: 1 };
   render(view("2026-10-28", "2026-10-30"));
   const weekday = new Date("2026-10-30T12:00:00").toLocaleDateString(
@@ -457,6 +592,12 @@ it("names the day it plans for when that day is not today", () => {
       name: `Work on Review the plan on ${weekday}`,
     }),
   ).toHaveTextContent(`Work on ${weekday}`);
+  // Taking work off the day names that day too.
+  expect(
+    screen.getByRole("button", {
+      name: `Remove Draft the plan from ${weekday}`,
+    }),
+  ).toHaveTextContent(`Remove from ${weekday}`);
 });
 
 it("says when no other open work is left", () => {
@@ -509,6 +650,152 @@ it("moves an entry from the picker beside its title, or cancels", async () => {
     targetRevision: 0,
   });
   await waitFor(() => expect(picker()).toBeNull());
+});
+
+it("takes an entry that only plans its work off the day at once", async () => {
+  state.day = day("2026-10-28", [
+    entry("release", "Ship the release", "doing"),
+  ]);
+  const network = vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(
+      async () => new Response('{"ok":true}', { status: 200 }),
+    );
+  render(view("2026-10-28", "2026-10-28"));
+  const remove = screen.getByRole("button", {
+    name: "Remove Ship the release from today",
+  });
+  expect(remove).toHaveTextContent("Remove from today");
+  // Nothing recorded to discard, so nothing to confirm.
+  await userEvent.click(remove);
+  expect(screen.queryByRole("group", { name: /anyway\?$/ })).toBeNull();
+  await waitFor(() => expect(writes(network)).toHaveLength(1));
+  const [url, init] = writes(network)[0];
+  expect([url, init?.method]).toEqual([
+    "/api/v1/days/2026-10-28/entries/release/remove",
+    "POST",
+  ]);
+  expect(JSON.parse(String(init?.body))).toEqual({ revision: 2 });
+});
+
+it("asks before taking off an entry the day records work on, and keeps it on Cancel", async () => {
+  state.day = day("2026-10-28", [
+    entry("release", "Ship the release", "doing", {
+      worked: true,
+      outcome: "Cut the branch",
+    }),
+    entry("runbook", "Write the runbook", "open", { outcome: "Outline only" }),
+  ]);
+  const network = vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(
+      async () => new Response('{"ok":true}', { status: 200 }),
+    );
+  render(view("2026-10-28", "2026-10-28"));
+  const question = () => screen.queryByRole("group", { name: /anyway\?$/ });
+  const remove = screen.getByRole("button", {
+    name: "Remove Ship the release from today",
+  });
+  await userEvent.click(remove);
+  expect(question()).toHaveAccessibleName(
+    "It is marked “Worked on” and has an outcome / next action. Remove it from today anyway?",
+  );
+  // Focus lands on the choice that keeps the record, and returns to the button after it.
+  const cancel = within(question()!).getByRole("button", { name: "Cancel" });
+  expect(cancel).toHaveFocus();
+  await userEvent.click(cancel);
+  expect(question()).toBeNull();
+  expect(remove).toHaveFocus();
+  // Escape closes the question too, and the reschedule picker replaces it.
+  await userEvent.click(remove);
+  await userEvent.keyboard("{Escape}");
+  expect(question()).toBeNull();
+  expect(remove).toHaveFocus();
+  await userEvent.click(remove);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Reschedule Ship the release" }),
+  );
+  expect(question()).toBeNull();
+  expect(
+    screen.getByLabelText("New date for Ship the release"),
+  ).toBeInTheDocument();
+  expect(writes(network)).toHaveLength(0);
+  // An outcome alone is asked about as well, and the question closes the picker.
+  await userEvent.click(
+    screen.getByRole("button", { name: "Remove Write the runbook from today" }),
+  );
+  expect(screen.queryByLabelText("New date for Ship the release")).toBeNull();
+  expect(question()).toHaveAccessibleName(
+    "It has an outcome / next action. Remove it from today anyway?",
+  );
+  await userEvent.click(
+    within(question()!).getByRole("button", { name: "Confirm remove" }),
+  );
+  await waitFor(() => expect(writes(network)).toHaveLength(1));
+  const [url, init] = writes(network)[0];
+  expect(url).toBe("/api/v1/days/2026-10-28/entries/runbook/remove");
+  expect(JSON.parse(String(init?.body))).toEqual({ revision: 2 });
+  await waitFor(() => expect(question()).toBeNull());
+});
+
+it("asks before discarding an outcome typed on the day and not saved yet", async () => {
+  state.day = day("2026-10-28", [
+    entry("release", "Ship the release", "doing"),
+  ]);
+  const network = vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(async () => new Response("{}", { status: 200 }));
+  render(view("2026-10-28", "2026-10-28"));
+  const removals = () =>
+    writes(network).filter(([url]) => String(url).endsWith("/remove"));
+  await userEvent.type(
+    screen.getByRole("textbox", { name: "Outcome / next action" }),
+    "Blocked on infra, retry Monday",
+  );
+  // The click that leaves the field starts its save; the day's copy still has no outcome.
+  await userEvent.click(
+    screen.getByRole("button", { name: "Remove Ship the release from today" }),
+  );
+  const question = screen.getByRole("group", { name: /anyway\?$/ });
+  expect(question).toHaveAccessibleName(
+    "It has an outcome / next action that isn't saved yet. Remove it from today anyway?",
+  );
+  expect(removals()).toHaveLength(0);
+  await userEvent.click(
+    within(question).getByRole("button", { name: "Confirm remove" }),
+  );
+  await waitFor(() => expect(removals()).toHaveLength(1));
+});
+
+it("keeps the question open and says why when the day refuses the removal", async () => {
+  state.day = day("2026-10-28", [
+    entry("release", "Ship the release", "doing", { worked: true }),
+  ]);
+  vi.spyOn(globalThis, "fetch").mockImplementation(
+    async () =>
+      new Response(
+        JSON.stringify({
+          error: {
+            code: "conflict",
+            message: "This record changed. Reload and review your draft.",
+          },
+        }),
+        { status: 409 },
+      ),
+  );
+  render(view("2026-10-28", "2026-10-28"));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Remove Ship the release from today" }),
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Confirm remove" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "This record changed. Reload and review your draft.",
+  );
+  expect(
+    screen.getByRole("group", {
+      name: "It is marked “Worked on”. Remove it from today anyway?",
+    }),
+  ).toBeInTheDocument();
 });
 
 it("collapses an entry to its heading row and keeps it collapsed on any day", async () => {
@@ -593,4 +880,40 @@ it("collapses and expands every entry of the day at once", async () => {
       screen.getByRole("button", { name: "Collapse " + title }),
     ).toHaveAttribute("aria-expanded", "true");
   expect(expandAll).toBeDisabled();
+});
+
+it("sums up the work done below the day's entries and above the open work", () => {
+  state.day = day("2026-10-28", [
+    entry("release", "Ship the release", "done", {
+      worked: true,
+      outcome: "Tagged the build",
+      statusOnDay: "doing",
+    }),
+    entry("runbook", "Write the runbook", "open", { outcome: "Not reached" }),
+  ]);
+  render(view("2026-10-28", "2026-10-28"));
+  const summary = screen.getByRole("region", { name: "The day’s summary" });
+  // The day the page shows groups it, not the item's status now.
+  expect(
+    within(summary).getByRole("heading", { name: "Doing" }),
+  ).toBeInTheDocument();
+  expect(summary).toHaveTextContent("Ship the release");
+  expect(summary).toHaveTextContent("Tagged the build");
+  expect(summary).not.toHaveTextContent("Write the runbook");
+  expect(
+    entryOf("Write the runbook").compareDocumentPosition(summary) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  expect(
+    summary.compareDocumentPosition(openWork()) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+});
+
+it("shows no summary on a day with no work", () => {
+  state.day = day("2026-10-28", []);
+  render(view("2026-10-28", "2026-10-28"));
+  expect(
+    screen.queryByRole("region", { name: "The day’s summary" }),
+  ).toBeNull();
 });

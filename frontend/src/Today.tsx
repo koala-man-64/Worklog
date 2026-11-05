@@ -1,13 +1,14 @@
 import { useState, type ReactNode } from "react";
 import { contextStorageKey, request, getDataContext } from "./api";
 import { commands } from "./commands";
-import { useAction, useCollapsed, useData } from "./hooks";
+import { unsavedDraft, useAction, useCollapsed, useData } from "./hooks";
 import {
   Checklist,
   DraftField,
   Empty,
   ErrorMessage,
   Files,
+  ITEM_STATUSES,
   LinksSection,
   Scratchpad,
   StatusSelect,
@@ -15,12 +16,28 @@ import {
   Tabs,
 } from "./components";
 import { CreateItem } from "./Work";
-import type { Day, Detail, Entry, Item, List, Status } from "./types";
+import { DaySummary } from "./DaySummary";
+import type { Day, Detail, Entry, Item, ItemStatus, List } from "./types";
 import { Icon } from "./icons";
 import { RankBadge } from "./StackRank";
 import { RepositoryBadges, RepositoryPicker } from "./RepositoryControls";
 // The work Today offers to plan: anything not finished.
-const OPEN_STATES: Status[] = ["open", "doing", "blocked"];
+const OPEN_STATES: ItemStatus[] = ["open", "doing", "waiting", "blocked"];
+// The key an entry's "Outcome / next action" field keeps its draft under.
+const outcomeDraftKey = (entry: Entry) => "entry-" + entry.id;
+// What the day records for an entry beyond its plan, counting an outcome typed here and not yet
+// saved. Taking the entry off the day discards it, so the person confirms that first; an entry
+// that only plans the work comes off at once.
+function recordedWork(entry: Entry): string | null {
+  const outcome = entry.outcome.trim() !== "";
+  if (entry.worked && outcome)
+    return "It is marked “Worked on” and has an outcome / next action.";
+  if (entry.worked) return "It is marked “Worked on”.";
+  if (outcome) return "It has an outcome / next action.";
+  if (unsavedDraft(outcomeDraftKey(entry))?.trim())
+    return "It has an outcome / next action that isn't saved yet.";
+  return null;
+}
 // A tab showing part of the work item. Every such tab shares one read of the item, made when
 // the first of them opens.
 function ItemPart({
@@ -93,7 +110,7 @@ function EntryTabs({ entry, date }: { entry: Entry; date: string }) {
           label: "Outcome / next action",
           panel: () => (
             <DraftField
-              draftKey={"entry-" + entry.id}
+              draftKey={outcomeDraftKey(entry)}
               label="Outcome / next action"
               labelHidden
               initial={entry.outcome}
@@ -206,6 +223,12 @@ export function Today({
   const [rescheduling, setRescheduling] = useState<string | null>(null);
   const [target, setTarget] = useState("");
   const [rescheduleError, setRescheduleError] = useState<unknown>(null);
+  // The entry whose removal waits for the person to confirm discarding what the day records on
+  // it, and what that was when they asked; the question stays until they answer it.
+  const [removing, setRemoving] = useState<{
+    id: string;
+    recorded: string;
+  } | null>(null);
   const [dragged, setDragged] = useState<string | null>(null);
   // Entries folded to their heading row, remembered per work item in this browser,
   // so an item stays folded on any day it is planned.
@@ -222,6 +245,10 @@ export function Today({
     date === today
       ? `Work on ${title} today`
       : `Work on ${title} on ${weekday}`;
+  const dayName = date === today ? "today" : weekday;
+  const removeLabel =
+    date === today ? "Remove from today" : "Remove from " + weekday;
+  const removeFrom = (title: string) => `Remove ${title} from ${dayName}`;
   const candidates =
     openWork.data?.items.filter(
       (i) => !data?.entries.some((e) => e.itemId === i.id),
@@ -240,6 +267,20 @@ export function Today({
   const closeReschedule = () => {
     setRescheduling(null);
     setTarget("");
+  };
+  // The item stays as it is; only this day's entry for it goes, and the item returns to Open work.
+  const remove = (entry: Entry) =>
+    action.mutate(
+      {
+        path: `/days/${date}/entries/${entry.itemId}/remove`,
+        body: { revision: entry.revision },
+      },
+      { onSuccess: () => setRemoving(null) },
+    );
+  // Keeping the entry closes the question and returns to the button that asked it.
+  const keep = (entry: Entry) => {
+    setRemoving(null);
+    document.getElementById("remove-" + entry.id)?.focus();
   };
   const reschedule = async (entry: Entry) => {
     if (!target || target === date) return;
@@ -469,11 +510,29 @@ export function Today({
                         } else {
                           setRescheduleError(null);
                           setTarget("");
+                          setRemoving(null);
                           setRescheduling(entry.id);
                         }
                       }}
                     >
                       Reschedule
+                    </button>
+                    <button
+                      id={"remove-" + entry.id}
+                      className="quiet remove-entry"
+                      aria-label={removeFrom(entry.item.title)}
+                      disabled={entry.item.archived || action.isPending}
+                      onClick={() => {
+                        const recorded = recordedWork(entry);
+                        if (!recorded) {
+                          remove(entry);
+                        } else {
+                          closeReschedule();
+                          setRemoving({ id: entry.id, recorded });
+                        }
+                      }}
+                    >
+                      {removeLabel}
                     </button>
                   </span>
                 </div>
@@ -535,6 +594,7 @@ export function Today({
                   <StatusSelect
                     disabled={entry.item.archived}
                     value={entry.item.status}
+                    options={ITEM_STATUSES}
                     onChange={(status) =>
                       action.mutate({
                         path: "/work-items/" + entry.itemId,
@@ -578,6 +638,35 @@ export function Today({
                   </button>
                 </form>
               )}
+              {removing?.id === entry.id && (
+                <div
+                  className="inline remove-confirm"
+                  role="group"
+                  aria-labelledby={"remove-question-" + entry.id}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") keep(entry);
+                  }}
+                >
+                  <span id={"remove-question-" + entry.id}>
+                    {removing.recorded} Remove it from {dayName} anyway?
+                  </span>
+                  <button
+                    disabled={action.isPending}
+                    onClick={() => remove(entry)}
+                  >
+                    Confirm remove
+                  </button>
+                  {/* Focus lands on the choice that keeps the record. */}
+                  <button
+                    type="button"
+                    className="quiet"
+                    onClick={() => keep(entry)}
+                    autoFocus
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
               {/* Hidden rather than unmounted when collapsed, so a draft keeps
                   saving and opened tabs keep their place. */}
               <div
@@ -596,6 +685,7 @@ export function Today({
               </div>
             </article>
           ))}
+          <DaySummary day={data} />
           <section className="open-work">
             <div className="section-heading day-heading">
               <h2>

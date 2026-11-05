@@ -6,6 +6,7 @@ import {
   Empty,
   ErrorMessage,
   History,
+  ITEM_STATUSES,
   StatusSelect,
   TieRole,
   personLine,
@@ -352,6 +353,7 @@ export function PersonDetailView({ id }: { id: string }) {
             <StatusSelect
               label={"Status for " + link.item.title}
               value={link.item.status}
+              options={ITEM_STATUSES}
               onChange={(status) =>
                 action.mutate({
                   path: "/work-items/" + link.itemId,

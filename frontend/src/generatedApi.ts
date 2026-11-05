@@ -176,6 +176,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/days/{date}/entries/{item_id}/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Remove Entry */
+        post: operations["remove_entry_api_v1_days__date__entries__item_id__remove_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/days/{date}/reflection": {
         parameters: {
             query?: never;
@@ -415,6 +432,23 @@ export interface paths {
         put?: never;
         /** Create Task */
         post: operations["create_task_api_v1_tasks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{identity}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Move Task */
+        post: operations["move_task_api_v1_tasks__identity__move_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2658,7 +2692,7 @@ export interface components {
             /** Description */
             description?: string | null;
             /** Status */
-            status?: ("open" | "doing" | "blocked" | "done") | null;
+            status?: ("open" | "doing" | "waiting" | "blocked" | "done") | null;
             /** Adourl */
             adoUrl?: string | null;
             /** Roadmapid */
@@ -3224,6 +3258,17 @@ export interface components {
              */
             done: boolean;
         };
+        /**
+         * TaskMove
+         * @description revision is the task's own; position is its new place among the work item's active tasks,
+         *     1 first, and a place past the last moves it last.
+         */
+        TaskMove: {
+            /** Revision */
+            revision: number;
+            /** Position */
+            position: number;
+        };
         /** TaskUpdate */
         TaskUpdate: {
             /** Revision */
@@ -3708,6 +3753,44 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["EntryUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_entry_api_v1_days__date__entries__item_id__remove_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                date: string;
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Expected"];
             };
         };
         responses: {
@@ -4446,6 +4529,43 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["TaskCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    move_task_api_v1_tasks__identity__move_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskMove"];
             };
         };
         responses: {

@@ -97,6 +97,12 @@ const queues = new Map<string, Promise<unknown>>();
 // Advance a draft only through revisions this tab actually acknowledged from its
 // own base. An unrelated newer field must never promote a recovered stale draft.
 const transitions = new Map<string, Map<number, number>>();
+/** The text a draft field keyed `key` holds that this browser hasn't saved yet, or null. A
+ * field keeps its draft from the first change until a save of that text succeeds. */
+export function unsavedDraft(key: string): string | null {
+  return localStore.read(contextStorageKey("draft", key, getDataContext()))
+    .value;
+}
 function acknowledgedRevision(recordKey: string, base: number) {
   const seen = new Set<number>();
   const chain = transitions.get(recordKey);

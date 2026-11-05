@@ -29,7 +29,10 @@ COMMIT;
 
 
 def to_v12(path):
-    """Take a current database back to the v12 shape the documented way."""
+    """Take a current database back to the v12 shape the documented way: to version 13 first."""
+    from test_task_order import to_v13
+
+    to_v13(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK)
 
@@ -342,7 +345,7 @@ def test_the_v13_upgrade_ends_what_waits_for_an_unbound_identity_and_keeps_the_r
     recovery.validate_database(path)
     Database(path).initialize()
     with Database(path).read() as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION == 13
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
         assert recovery._schema_signature(conn) == recovery._expected_schema()
     snapshots = list((tmp_path / "backups").glob("worklog-pre-migration-*.sqlite3"))
     assert len(snapshots) == 1
@@ -408,11 +411,15 @@ def test_the_documented_way_back_to_v12_gives_its_exact_shape_and_upgrades_again
 
 
 def test_a_v12_shape_cannot_claim_version_13_and_a_v13_shape_cannot_claim_12(tmp_path):
+    from test_task_order import to_v13
+
     older, current = tmp_path / "older.sqlite3", tmp_path / "current.sqlite3"
     Database(older).initialize()
     to_v12(older)
     recovery.validate_database(older)
     Database(current).initialize()
+    to_v13(current)
+    recovery.validate_database(current)
     for path, version in ((older, 13), (current, 12)):
         with closing(sqlite3.connect(path)) as conn:
             conn.execute(f"PRAGMA user_version={version}")
