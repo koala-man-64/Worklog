@@ -112,7 +112,9 @@ it("uses historical API summary and makes archived actuals read only", () => {
   ).toEqual(["1", "0", "0"]);
   expect(screen.getByRole("combobox", { name: "Status" })).toBeDisabled();
   expect(screen.getByLabelText("Worked on", { exact: true })).toBeDisabled();
-  expect(screen.getByText("Recorded before archiving")).toBeInTheDocument();
+  expect(
+    within(entryOf("Archived work")).getByText("Recorded before archiving"),
+  ).toBeInTheDocument();
   expect(
     screen.queryByRole("textbox", { name: "Outcome / next action" }),
   ).toBeNull();
@@ -877,4 +879,40 @@ it("collapses and expands every entry of the day at once", async () => {
       screen.getByRole("button", { name: "Collapse " + title }),
     ).toHaveAttribute("aria-expanded", "true");
   expect(expandAll).toBeDisabled();
+});
+
+it("sums up the work done below the day's entries and above the open work", () => {
+  state.day = day("2026-10-28", [
+    entry("release", "Ship the release", "done", {
+      worked: true,
+      outcome: "Tagged the build",
+      statusOnDay: "doing",
+    }),
+    entry("runbook", "Write the runbook", "open", { outcome: "Not reached" }),
+  ]);
+  render(view("2026-10-28", "2026-10-28"));
+  const summary = screen.getByRole("region", { name: "The day’s summary" });
+  // The day the page shows groups it, not the item's status now.
+  expect(
+    within(summary).getByRole("heading", { name: "Doing" }),
+  ).toBeInTheDocument();
+  expect(summary).toHaveTextContent("Ship the release");
+  expect(summary).toHaveTextContent("Tagged the build");
+  expect(summary).not.toHaveTextContent("Write the runbook");
+  expect(
+    entryOf("Write the runbook").compareDocumentPosition(summary) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  expect(
+    summary.compareDocumentPosition(openWork()) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+});
+
+it("shows no summary on a day with no work", () => {
+  state.day = day("2026-10-28", []);
+  render(view("2026-10-28", "2026-10-28"));
+  expect(
+    screen.queryByRole("region", { name: "The day’s summary" }),
+  ).toBeNull();
 });

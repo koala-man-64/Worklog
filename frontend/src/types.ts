@@ -96,6 +96,9 @@ export type Entry = RecordBase & {
   item: Item;
   // A day's entries only: what the work item's tabs hold, before the item is read.
   counts?: TabCounts;
+  /** A day's entries only: the status the work item ended that day with, from its history;
+   * work logged after its day has its status now. */
+  statusOnDay?: Status;
 };
 export type TabCounts = {
   tasks: number;

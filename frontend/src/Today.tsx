@@ -15,6 +15,7 @@ import {
   Tabs,
 } from "./components";
 import { CreateItem } from "./Work";
+import { DaySummary } from "./DaySummary";
 import type { Day, Detail, Entry, Item, List, Status } from "./types";
 import { Icon } from "./icons";
 import { RankBadge } from "./StackRank";
@@ -682,6 +683,7 @@ export function Today({
               </div>
             </article>
           ))}
+          <DaySummary day={data} />
           <section className="open-work">
             <div className="section-heading day-heading">
               <h2>
