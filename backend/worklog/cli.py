@@ -39,6 +39,10 @@ from worklog.recovery import (
 
 HOST = "127.0.0.1"
 DEFAULT_PORT = 8877
+# start waits START_WAIT_S for the server it launched to report ready, and stops waiting as soon as
+# that process exits. A cold start, the first after a machine sat idle, has taken 17.5 s where a warm
+# one takes about 1 s, so the wait leaves room for a slower one.
+START_WAIT_S = 60
 # stop waits STOP_WAIT_S for the server process to exit. Shutdown spends at most SHUTDOWN_GRACE_S
 # on requests still open, which leaves room to spare.
 STOP_WAIT_S = 15
@@ -320,7 +324,7 @@ def start(directory: Path, port: int = DEFAULT_PORT) -> dict[str, Any]:
         command = [sys.executable, "-m", "worklog.cli", "--data-dir", str(directory), "--port", str(port), "serve"]
         with (directory / "server.log").open("ab") as log:
             process, warning = _launch_server(command, log, environment)
-        deadline = time.monotonic() + 20
+        deadline = time.monotonic() + START_WAIT_S
         while time.monotonic() < deadline:
             if process.poll() is not None:
                 raise RuntimeError(f"Worklog startup failed; inspect {directory / 'server.log'}")
