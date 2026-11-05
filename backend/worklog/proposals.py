@@ -534,7 +534,7 @@ class ProposalService:
                 chat_service.post(conn, notifier, chat_id, {"text": body})
         if reason == "plan_changed":
             stamp = now()
-            conn.execute("INSERT OR IGNORE INTO proposal_stale_notices VALUES(?,?,?,?)",
+            conn.execute("INSERT OR IGNORE INTO proposal_stale_notices(proposal_id,proposal_revision,conflicts,created_at) VALUES(?,?,?,?)",
                          (row["id"], row["revision"], stale_signature(conflicts), stamp))
             event(conn, notifier, "proposal.stale", row["id"], None, {
                 "proposalRevision": row["revision"],

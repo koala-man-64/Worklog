@@ -291,7 +291,7 @@ def add_decision_state(conn: sqlite3.Connection) -> None:
     for proposal, after, at in conn.execute("SELECT entity_id,after_json,created_at FROM events WHERE kind='proposal.stale' "
                                             "ORDER BY created_at,id").fetchall():
         record = json.loads(after)
-        conn.execute("INSERT OR IGNORE INTO proposal_stale_notices VALUES(?,?,?,?)",
+        conn.execute("INSERT OR IGNORE INTO proposal_stale_notices(proposal_id,proposal_revision,conflicts,created_at) VALUES(?,?,?,?)",
                      (proposal, record.get("proposalRevision"), stale_signature(record.get("conflicts", [])), at))
 
 

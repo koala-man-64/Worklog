@@ -313,8 +313,9 @@ class DiscussionService:
         repos = repositories(p.get("repos", []))
         identity, at = uid(), now()
         c.execute("INSERT INTO discussions(id,title,created_at,updated_at) VALUES(?,?,?,?)", (identity, title, at, at))
-        c.executemany("INSERT INTO discussion_contexts VALUES(?,?,?)", [(identity, *scope) for scope in sorted(contexts)])
-        c.executemany("INSERT INTO discussion_repos VALUES(?,?)", [(identity, repo) for repo in repos])
+        c.executemany("INSERT INTO discussion_contexts(discussion_id,context_type,context_id) VALUES(?,?,?)",
+                      [(identity, *scope) for scope in sorted(contexts)])
+        c.executemany("INSERT INTO discussion_repos(discussion_id,repo) VALUES(?,?)", [(identity, repo) for repo in repos])
         search.put(c, identity, "discussion", title, "", identity, replace=False)
         message = self.post(c, actor, identity, p, first=True)
         return {"discussion": self.summary(c, identity), "message": message}
@@ -334,7 +335,8 @@ class DiscussionService:
                 raise AppError(403, "role_authority", "Only the current role owner may speak on its behalf")
             generation = role["generation"]
         identity, at = uid(), now()
-        c.execute("INSERT INTO discussion_messages VALUES(?,?,?,?,?,?,?,?,?,?)", (identity, discussion_id, body, actor["id"], actor["label"], actor["kind"], at, chat, role_id, generation))
+        c.execute("INSERT INTO discussion_messages(id,discussion_id,text,author_id,author_label,author_kind,created_at,chat_id,"
+                  "on_behalf_of_role_id,ownership_generation) VALUES(?,?,?,?,?,?,?,?,?,?)", (identity, discussion_id, body, actor["id"], actor["label"], actor["kind"], at, chat, role_id, generation))
         ack = p.get("acknowledgement")
         if ack is not None:
             self._create_request(c, identity, ack)
@@ -368,7 +370,8 @@ class DiscussionService:
                 raise AppError(422, "validation", "Unknown acknowledgement target")
             normalized.append((kind, recipient))
         c.execute("INSERT INTO discussion_requests(message_id,mode) VALUES(?,?)", (message_id, mode))
-        c.executemany("INSERT INTO discussion_targets VALUES(?,?,?,?)", [(uid(), message_id, kind, recipient) for kind, recipient in normalized])
+        c.executemany("INSERT INTO discussion_targets(id,message_id,kind,recipient_id) VALUES(?,?,?,?)",
+                      [(uid(), message_id, kind, recipient) for kind, recipient in normalized])
 
     @staticmethod
     def _receipt(r: sqlite3.Row) -> dict:
@@ -463,7 +466,8 @@ class DiscussionService:
             prepared.append((target, view))
         before = self.message(c, identity, actor)
         for target, view in prepared:
-            c.execute("INSERT INTO discussion_acknowledgements VALUES(?,?,?,?,?,?,?,?,?)", (uid(), target["id"], actor["id"], actor["label"], actor["kind"], target["recipient_id"] if target["kind"] == "role" else None, view["ownershipGeneration"], now(), int(request["state"] != "pending" or view["acknowledged"])))
+            c.execute("INSERT INTO discussion_acknowledgements(id,target_id,actor_id,actor_label,actor_kind,role_id,"
+                      "ownership_generation,created_at,late) VALUES(?,?,?,?,?,?,?,?,?)", (uid(), target["id"], actor["id"], actor["label"], actor["kind"], target["recipient_id"] if target["kind"] == "role" else None, view["ownershipGeneration"], now(), int(request["state"] != "pending" or view["acknowledged"])))
         count = c.execute("SELECT count(*) FROM discussion_targets t WHERE message_id=? AND EXISTS(SELECT 1 FROM discussion_acknowledgements a WHERE a.target_id=t.id)", (identity,)).fetchone()[0]
         satisfied = count == len(targets) if request["mode"] == "all" else count > 0
         if request["state"] == "pending" and satisfied:
@@ -593,7 +597,8 @@ class DiscussionService:
             related = c.execute("SELECT discussion_id FROM discussion_messages WHERE on_behalf_of_role_id=? UNION SELECT m.discussion_id FROM discussion_messages m JOIN discussion_targets t ON t.message_id=m.id WHERE t.kind='role' AND t.recipient_id=?", (role_id, role_id)).fetchall()
             for row in related:
                 scopes.update((ctx["type"], ctx["id"]) for ctx in self._contexts(c, row[0]))
-        c.executemany("INSERT INTO discussion_change_contexts VALUES(?,?,?)", [(change.lastrowid, *scope) for scope in sorted(scopes)])
+        c.executemany("INSERT INTO discussion_change_contexts(seq,context_type,context_id) VALUES(?,?,?)",
+                      [(change.lastrowid, *scope) for scope in sorted(scopes)])
 
     @staticmethod
     def _cursor(c: sqlite3.Connection, scope: tuple[str, str] | None, seq: int) -> str:

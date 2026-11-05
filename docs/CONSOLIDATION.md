@@ -152,7 +152,7 @@ Each of these is a separate migration with its own PR and its own independent re
 
 Each migration's PR owns `migrations.py`, `db.py` and `recovery.py` while it is open. A deploy that runs a migration on real data waits for the person's go-ahead.
 
-v11 and v12 went live together on 2026-11-04, after a dry run of the upgrade on a copy of the newest backup. v13 waits for its own go-ahead.
+v11 and v12 went live together on 2026-11-04, after a dry run of the upgrade on a copy of the newest backup. v13 went live the same evening, after its own dry run, and step 2.1 followed it.
 
 #### 1.0 · One writer for the search index
 
@@ -212,9 +212,9 @@ The generic `POST /{resource}/{identity}/{verb}` route, which was removed and re
 
 #### 2.2 · Named-column INSERTs
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branch: `claude/named-inserts` · PR: [#100](https://github.com/koala-man-64/Worklog/pull/100)
 
-Positional `INSERT ... VALUES` ties code to physical column order. Name the columns everywhere, enforced by a test. This is a prerequisite for 4.4. Findings: B-07.
+Positional `INSERT ... VALUES` ties code to physical column order. All 32 now name their columns, in the order their values already came. `test_named_inserts.py` fails on any INSERT without a column list. It reads every string in the backend, with implicit and `+` concatenation joined and f-string fields blanked, so a statement split across lines is still found. This is a prerequisite for 4.4. Findings: B-07.
 
 #### 2.3 · One operation registry
 

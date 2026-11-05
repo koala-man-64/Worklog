@@ -131,7 +131,7 @@ class Database:
                 conn.execute("PRAGMA journal_mode=DELETE")
                 conn.executescript("BEGIN IMMEDIATE;\n" + PLAN_SCHEMA + PROPOSAL_SCHEMA + SCHEMA)
                 for key, value in {"timezone": "America/Chicago", "dataId": uid(), "backlogRevision": 1}.items():
-                    conn.execute("INSERT INTO settings VALUES(?,?)", (key, json.dumps(value)))
+                    conn.execute("INSERT INTO settings(key,value) VALUES(?,?)", (key, json.dumps(value)))
                 conn.execute("PRAGMA user_version=1")
                 upgrade(conn)
                 conn.commit()

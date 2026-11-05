@@ -99,7 +99,8 @@ def event(conn: sqlite3.Connection, actor: dict, kind: str, entity_id: str,
               "actorLabel": actor["label"], "actorKind": actor["kind"], "createdAt": at or now(),
               "localDate": today(setting(conn, "timezone", "America/Chicago")),
               "before": before, "after": after}
-    conn.execute("""INSERT INTO events VALUES(?,?,?,?,?,?,?,?,?,?)""",
+    conn.execute("INSERT INTO events(id,entity_id,kind,actor_id,actor_label,actor_kind,created_at,local_date,before_json,after_json) "
+                 "VALUES(?,?,?,?,?,?,?,?,?,?)",
                  (result["id"], entity_id, kind, actor["id"], actor["label"], actor["kind"],
                   result["createdAt"], result["localDate"], json.dumps(before), json.dumps(after)))
     return result

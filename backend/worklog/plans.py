@@ -247,7 +247,7 @@ class PlanService:
                               (identifier,)).fetchone()[0]
         snapshot = {"title": row["title"], "overview": row["overview"],
                     "steps": _steps(conn, identifier)}
-        conn.execute("INSERT INTO roadmap_versions VALUES(?,?,?,?,?)",
+        conn.execute("INSERT INTO roadmap_versions(roadmap_id,number,created_at,note,snapshot) VALUES(?,?,?,?,?)",
                      (identifier, number, now(), note, json.dumps(snapshot)))
 
     def apply(self, conn, actor, action, payload):
@@ -332,7 +332,8 @@ class PlanService:
                 conn.execute("UPDATE steps SET title=?,description=?,parent_id=?,position=?,retired=0,revision=revision+1 WHERE id=?",
                              (step["title"], step["description"], step["parentId"], step["position"], step["id"]))
             else:
-                conn.execute("INSERT INTO steps VALUES(?,?,?,?,?,?,?,?,?)",
+                conn.execute("INSERT INTO steps(id,roadmap_id,title,description,parent_id,position,status,revision,retired) "
+                             "VALUES(?,?,?,?,?,?,?,?,?)",
                              (step["id"], identifier, step["title"], step["description"], step["parentId"], step["position"], "open", 1, 0))
             event(conn, actor, "step.restore" if old and old["retired"] else "step.revise" if old else "step.create",
                   step["id"], _step(old) if old else None, _step(self.get_step(conn, step["id"])))
@@ -413,7 +414,7 @@ class PlanService:
                   "sha256": hashlib.sha256(data).hexdigest()}
         safe_name = re.sub(r'[\x00-\x1f\x7f"]', "", name.replace("\\", "/").split("/")[-1])[:240] or "import.html"
         with self.db.transaction() as conn:
-            conn.execute("INSERT INTO plan_imports VALUES(?,?,?,?,?,?,?,NULL)",
+            conn.execute("INSERT INTO plan_imports(id,name,original,sha256,preview,actor_id,created_at,roadmap_id) VALUES(?,?,?,?,?,?,?,NULL)",
                          (identifier, safe_name, data, result["sha256"], json.dumps(result), actor["id"], now()))
             event(conn, actor, "import.preview", identifier, None, {"sha256": result["sha256"], "name": safe_name})
         return result
