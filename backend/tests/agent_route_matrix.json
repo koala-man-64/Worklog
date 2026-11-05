@@ -88,6 +88,7 @@
   "POST /api/v1/credentials": "refused",
   "POST /api/v1/credentials/{identity}/revoke": "refused",
   "POST /api/v1/credentials/{identity}/rotate": "refused",
+  "POST /api/v1/days/{date}/entries/{item_id}/remove": "refused",
   "POST /api/v1/days/{date}/reorder": "refused",
   "POST /api/v1/days/{date}/reschedule": "refused",
   "POST /api/v1/decisions": "refused",

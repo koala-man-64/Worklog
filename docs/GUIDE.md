@@ -131,7 +131,16 @@ Each entry has tabs. "Outcome / next action" holds the day's note. "Tasks", "Scr
 1. On **Today**, press "Reschedule" beside the entry's title.
 2. Pick the new date and press "Move". "Cancel" or Escape closes the picker.
 
-The item is planned on the new day instead. Today keeps its entry, no longer planned, with anything you recorded on it.
+The item is planned on the new day instead. Today keeps its entry, no longer planned, with anything you recorded on it. To take that entry off today as well, see [Take work off a day](#take-work-off-a-day).
+
+### Take work off a day
+
+When you planned work and didn't get to it, take it off the day, so the day doesn't list it among its work.
+
+1. On **Today**, press "Remove from today" beside the entry's title. On another day the button names that day.
+2. An entry that only plans the work comes off at once. If you ticked "Worked on" or wrote an "Outcome / next action" on it, Worklog asks first: "Confirm remove" discards them with the entry, and "Cancel" or Escape keeps it.
+
+The work item itself doesn't change. While it isn't done it is back under "Open work", ready for "Work on today" again. Its "Daily record" no longer lists the day, and its "Activity history" keeps the entry as it was. An archived item's entry can't be removed.
 
 ### Capture work and keep a backlog
 
@@ -361,7 +370,7 @@ Plan the day and record what you worked on.
 - **Adding work:** "New work item", "Capture mode" ("Plan work" or "Log work already performed") and "Add work".
 - **"The day’s work":**
   - Each entry is numbered, shows its item's stack rank, and collapses to its title row.
-  - Each has a drag grip, "Reschedule", "Planned", "Worked on" and a status menu.
+  - Each has a drag grip, "Reschedule", "Remove from today", "Planned", "Worked on" and a status menu.
   - Its tabs hold "Outcome / next action" and the work item's own "Tasks", "Scratchpad", "Links", "Files" and "Repositories".
   - An archived item's entry stays readable but can't be changed.
 - **The day's counts and "Continue your next open item".**

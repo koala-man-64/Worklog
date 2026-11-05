@@ -81,6 +81,68 @@ def test_read_day_never_writes_and_multiday_activity_survives_rescheduling(clien
     assert client.get(f"/api/v1/work-items/{w['id']}").json()["status"] == "open"
 
 
+def test_work_taken_off_its_day_leaves_no_entry_and_rejoins_the_backlog(client):
+    # Planned ahead, so the backlog leaves it out until it comes off that day.
+    date = "2099-01-01"
+    w = item(client, title="Not reached", day=date)
+
+    def backlog():
+        return [i["id"] for i in client.get("/api/v1/work-items?view=backlog").json()["items"]]
+
+    assert w["id"] not in backlog()
+    planned = client.get(f"/api/v1/days/{date}").json()
+    entry = planned["entries"][0]
+    path = f"/days/{date}/entries/{w['id']}/remove"
+    # A stale view of the entry can't take it off.
+    stale = write(client, "POST", path, {"revision": entry["revision"] + 1})
+    assert stale.status_code == 409 and stale.json()["error"]["code"] == "conflict"
+    for bad in (True, "1", -1):
+        assert write(client, "POST", path, {"revision": bad}).status_code == 422
+    removed = write(client, "POST", path, {"revision": entry["revision"]})
+    assert removed.status_code == 200, removed.text
+    assert removed.json() == {"ok": True}
+    after = client.get(f"/api/v1/days/{date}").json()
+    assert after["entries"] == [] and after["summary"]["worked"] == []
+    assert after["revision"] > planned["revision"]
+    assert client.get(f"/api/v1/work-items/{w['id']}").json()["dailyEntries"] == []
+    assert w["id"] in backlog()
+    # History keeps the entry as it was.
+    history = client.get(f"/api/v1/history?entityId={w['id']}").json()["items"]
+    removal = next(e for e in history if e["kind"] == "entry.remove")
+    assert removal["before"]["date"] == date and removal["before"]["planned"] is True
+    assert removal["after"] is None
+    # Once gone it can't be removed again, and planning it again starts a new entry.
+    assert write(client, "POST", path, {"revision": entry["revision"]}).status_code == 409
+    again = write(client, "PUT", f"/days/{date}/entries/{w['id']}", {"revision": 0, "planned": True})
+    assert again.status_code == 200, again.text
+    assert again.json()["id"] != entry["id"]
+
+
+def test_taking_work_off_one_day_keeps_its_other_days_and_archived_history(client):
+    w = item(client, title="Two days", day="2026-10-28")
+    first = client.get("/api/v1/days/2026-10-28").json()["entries"][0]
+    worked = write(client, "PUT", f"/days/2026-10-28/entries/{w['id']}",
+                   {"revision": first["revision"], "worked": True, "outcome": "Ticked by mistake"})
+    assert worked.status_code == 200, worked.text
+    assert write(client, "PUT", f"/days/2026-10-29/entries/{w['id']}", {"revision": 0, "planned": True}).status_code == 200
+    # An entry that records work comes off as well; Today asks the person first.
+    r = write(client, "POST", f"/days/2026-10-28/entries/{w['id']}/remove", {"revision": worked.json()["revision"]})
+    assert r.status_code == 200, r.text
+    assert client.get("/api/v1/days/2026-10-28").json()["entries"] == []
+    assert [e["date"] for e in client.get(f"/api/v1/work-items/{w['id']}").json()["dailyEntries"]] == ["2026-10-29"]
+    # An archived item's entry stays on its day as read-only history.
+    kept = item(client, title="Archived work", day="2026-10-28")
+    entry = client.get("/api/v1/days/2026-10-28").json()["entries"][0]
+    done = write(client, "PUT", f"/days/2026-10-28/entries/{kept['id']}", {"revision": entry["revision"], "worked": True})
+    assert write(client, "POST", f"/work-items/{kept['id']}/archive", {"revision": kept["revision"]}).status_code == 200
+    refused = write(client, "POST", f"/days/2026-10-28/entries/{kept['id']}/remove", {"revision": done.json()["revision"]})
+    assert refused.status_code == 404
+    assert [e["itemId"] for e in client.get("/api/v1/days/2026-10-28").json()["entries"]] == [kept["id"]]
+    # An unknown item or an impossible date is refused.
+    assert write(client, "POST", "/days/2026-10-28/entries/nothing/remove", {"revision": 1}).status_code == 404
+    assert write(client, "POST", f"/days/2026-02-30/entries/{w['id']}/remove", {"revision": 1}).status_code == 422
+
+
 def test_stale_edit_and_idempotent_creation(client):
     key = str(uuid.uuid4())
     first = write(client, "POST", "/work-items", {"title": "One identity"}, headers={"Idempotency-Key": key})

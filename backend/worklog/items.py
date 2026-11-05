@@ -314,6 +314,27 @@ class Items:
         event(c, actor, "entry.upsert", item_id, before, val)
         return val
 
+    def remove_entry(self, c: sqlite3.Connection, actor: dict, date: str, item_id: str, p: dict) -> dict:
+        """Take a work item off a day: work planned but not reached, or put there by mistake.
+
+        The entry goes, with what the day recorded for it (planned, worked on, its outcome), so
+        neither the day nor the item's daily record lists it; history keeps the entry as it was.
+        Today asks the person first when that record holds work. The item and its other days stay
+        as they are, and an archived item's entries are read-only.
+        """
+        valid_date(date)
+        get_item(c, item_id, active=True)
+        row = c.execute("SELECT * FROM daily_entries WHERE date=? AND item_id=?", (date, item_id)).fetchone()
+        if row is None:
+            raise AppError(409, "conflict", "Entry does not exist; reload the day")
+        require_revision(row, p.get("revision"))
+        c.execute("DELETE FROM daily_entries WHERE id=?", (row["id"],))
+        c.execute("UPDATE days SET revision=revision+1 WHERE date=?", (date,))
+        # Planned work leaves the backlog; taken off its day, it may rejoin it.
+        self.bump_backlog(c)
+        event(c, actor, "entry.remove", item_id, entry_record(row), None)
+        return {"ok": True}
+
     def reflection(self, c: sqlite3.Connection, actor: dict, date: str, p: dict) -> dict:
         valid_date(date)
         row = c.execute("SELECT * FROM days WHERE date=?", (date,)).fetchone()

@@ -119,6 +119,16 @@ it("uses historical API summary and makes archived actuals read only", () => {
   expect(
     screen.getByRole("button", { name: "Reschedule Archived work" }),
   ).toBeDisabled();
+  // Its entry stays on the day it recorded, named for that day.
+  const weekday = new Date("2026-10-20T12:00:00").toLocaleDateString(
+    undefined,
+    { weekday: "long" },
+  );
+  const remove = screen.getByRole("button", {
+    name: `Remove Archived work from ${weekday}`,
+  });
+  expect(remove).toHaveTextContent(`Remove from ${weekday}`);
+  expect(remove).toBeDisabled();
   // An archived item's tasks, scratchpad, links and files stay on its own page.
   expect(screen.queryByRole("tablist")).toBeNull();
 });
@@ -631,6 +641,91 @@ it("moves an entry from the picker beside its title, or cancels", async () => {
     targetRevision: 0,
   });
   await waitFor(() => expect(picker()).toBeNull());
+});
+
+it("takes an entry that only plans its work off the day at once", async () => {
+  state.day = day("2026-10-28", [
+    entry("release", "Ship the release", "doing"),
+  ]);
+  const network = vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(
+      async () => new Response('{"ok":true}', { status: 200 }),
+    );
+  render(view("2026-10-28", "2026-10-28"));
+  const remove = screen.getByRole("button", {
+    name: "Remove Ship the release from today",
+  });
+  expect(remove).toHaveTextContent("Remove from today");
+  // Nothing recorded to discard, so nothing to confirm.
+  expect(remove).not.toHaveAttribute("aria-expanded");
+  await userEvent.click(remove);
+  await waitFor(() => expect(writes(network)).toHaveLength(1));
+  const [url, init] = writes(network)[0];
+  expect([url, init?.method]).toEqual([
+    "/api/v1/days/2026-10-28/entries/release/remove",
+    "POST",
+  ]);
+  expect(JSON.parse(String(init?.body))).toEqual({ revision: 2 });
+});
+
+it("asks before taking off an entry the day records work on, and keeps it on Cancel", async () => {
+  state.day = day("2026-10-28", [
+    entry("release", "Ship the release", "doing", {
+      worked: true,
+      outcome: "Cut the branch",
+    }),
+    entry("runbook", "Write the runbook", "open", { outcome: "Outline only" }),
+  ]);
+  const network = vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(
+      async () => new Response('{"ok":true}', { status: 200 }),
+    );
+  render(view("2026-10-28", "2026-10-28"));
+  const question = () => screen.queryByRole("group", { name: /anyway\?$/ });
+  const remove = screen.getByRole("button", {
+    name: "Remove Ship the release from today",
+  });
+  await userEvent.click(remove);
+  expect(remove).toHaveAttribute("aria-expanded", "true");
+  expect(question()).toHaveAccessibleName(
+    "It is marked “Worked on” and has an outcome / next action. Remove it from today anyway?",
+  );
+  // Focus lands on the choice that keeps the record.
+  const cancel = within(question()!).getByRole("button", { name: "Cancel" });
+  expect(cancel).toHaveFocus();
+  await userEvent.click(cancel);
+  expect(question()).toBeNull();
+  // Escape closes the question too, and the reschedule picker replaces it.
+  await userEvent.click(remove);
+  await userEvent.keyboard("{Escape}");
+  expect(question()).toBeNull();
+  await userEvent.click(remove);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Reschedule Ship the release" }),
+  );
+  expect(question()).toBeNull();
+  expect(
+    screen.getByLabelText("New date for Ship the release"),
+  ).toBeInTheDocument();
+  expect(writes(network)).toHaveLength(0);
+  // An outcome alone is asked about as well, and the question closes the picker.
+  await userEvent.click(
+    screen.getByRole("button", { name: "Remove Write the runbook from today" }),
+  );
+  expect(screen.queryByLabelText("New date for Ship the release")).toBeNull();
+  expect(question()).toHaveAccessibleName(
+    "It has an outcome / next action. Remove it from today anyway?",
+  );
+  await userEvent.click(
+    within(question()!).getByRole("button", { name: "Confirm remove" }),
+  );
+  await waitFor(() => expect(writes(network)).toHaveLength(1));
+  const [url, init] = writes(network)[0];
+  expect(url).toBe("/api/v1/days/2026-10-28/entries/runbook/remove");
+  expect(JSON.parse(String(init?.body))).toEqual({ revision: 2 });
+  await waitFor(() => expect(question()).toBeNull());
 });
 
 it("collapses an entry to its heading row and keeps it collapsed on any day", async () => {
