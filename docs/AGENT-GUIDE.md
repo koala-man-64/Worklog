@@ -640,7 +640,7 @@ worklog check
 | `acknowledgement_authority` | 403 | You are not one of the requested targets | Acknowledge only the slots in `request.actionableTargetIds` |
 | `request_authority` | 403 | Only the request's manager may cancel it | Do not retry |
 | `chat_archived` | 409 | The chat is archived, so it takes no messages | The person's; not yours |
-| `no_recipients` | 409 | No open run reported the chat | The person's; not yours |
+| `no_recipients` | 409 | No open run of an agent bound to the chat reported it | The person's; not yours |
 | `ticket_archived` | 409 | The ticket is archived and read-only | Ask the person to recover it |
 | `assignee_unavailable` | 422 | The assignee is neither the person nor an identity with a live credential | Choose another assignee |
 
