@@ -248,7 +248,9 @@ What changed:
   - `support.py` holds supporting records, `items.py` work items and their days, and `people.py` people;
   - `WorkService` keeps only `apply`, which sends each command to the module that owns it.
 
-  An AST comparison shows each moved function unchanged apart from names.
+  An AST comparison shows each moved function unchanged apart from names, with two exceptions:
+  - the owner check lost a branch that did nothing;
+  - the proposal check it made for uploads moved into `upload`, at the same point in the order.
 - **Layering (#103).** `test_layering.py` lists every module in one order. It fails on any import, at the top of a module or inside a function, of a module later in the order. Four imports still go up, each listed with its reason:
   - three from `db`, which reaches migrations, proposals and recovery while it opens the file;
   - one from `coordination`, which tracks a registered identity's chat as a supporting record.
