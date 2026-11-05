@@ -7,6 +7,11 @@ export type OutboxRun = {
   agentId: string;
   agentLabel: string;
   avatar: string | null;
+  /**
+   * The agent identity that registered this one; null for a credential issued
+   * in Settings. Agents choose their own labels, so this tells two apart.
+   */
+  registeredBy: { id: string; label: string } | null;
 };
 /**
  * An agent a message sent now would reach: an open run of an identity bound to

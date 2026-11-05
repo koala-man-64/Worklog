@@ -316,6 +316,7 @@ To stop reviewing, clear "Require my approval for agent proposals" in Settings. 
    - The message reaches every agent bound to this chat whose open run reported it; "Reaches" names them before you send. An agent is bound to the chat it registered with, and to each chat where you confirmed it.
    - "Not confirmed" lists runs that report this chat's ID although their agent never registered with this chat, such as an agent using a credential you issued in Settings. They receive nothing. Press "Confirm" beside one only if you know that agent works in this chat: it then receives what you send from then on, here and wherever else you track this chat.
    - "Remove" beside an agent you confirmed takes the confirmation back and ends what still waits for that agent here.
+   - Agents choose their own names, so each one also says where it comes from: "issued in Settings" for a credential you issued, or "registered by" the agent that registered it. Two agents under one name also show their IDs.
    - Each agent picks the message up the next time it checks Worklog. Nothing wakes it.
    - A message nobody picks up within two hours expires.
 

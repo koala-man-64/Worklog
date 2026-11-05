@@ -187,7 +187,9 @@ Afterwards no runtime decision reads event JSON. A test blanks the registration 
 
 Status: Not started · Branch: — · PR: —
 
-In v13. Implements K3. An identity is bound to the chat it registered with (the v12 column), and `chat_confirmations` holds each other binding the person confirmed, keyed by the chat's own ID, so one confirmation covers every record that tracks the chat. Sending, inbox hand-out and proposal notices reach bound identities only. The chat page lists any other run reporting the chat's ID as not confirmed, with Confirm, and a confirmed agent with Remove. The upgrade ends deliveries still waiting for an identity bound to no chat they were sent to. Needs 1.3. Findings: C-01.
+In v13. Implements K3. An identity is bound to the chat it registered with (the v12 column), and `chat_confirmations` holds each other binding the person confirmed, keyed by the chat's own ID, so one confirmation covers every record that tracks the chat. Sending, inbox hand-out and proposal notices reach bound identities only. The chat page lists any other run reporting the chat's ID as not confirmed, with Confirm, and a confirmed agent with Remove. Each agent there says where it comes from (issued in Settings, or registered by which agent), since labels are the agents' own. The upgrade ends deliveries still waiting for an identity bound to no chat they were sent to. Needs 1.3. Findings: C-01.
+
+C-01 is narrowed, not closed. Registering with a chat stays the agent's own statement, as K1 has it: any credential can register an identity with a chat's ID, which any agent can read, and that identity is bound with no confirmation. Open for the person since 2026-11-04 (from the security review): whether to tighten that, for example by having a second identity that registers a chat already registered wait for confirmation.
 
 ### Phase 2 · Registries and plumbing
 

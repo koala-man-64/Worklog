@@ -111,10 +111,11 @@ For an upgrade, stop Worklog, make a manual backup with the installed version, u
 
 Keep the previous version and its manual backup until verification succeeds. To roll back, stop Worklog, switch to the previous version and run its setup, then use that version’s `restore` command with the pre-upgrade backup. Start and check Worklog again. Restoring returns the data to the time of the snapshot, creates a new data identity, and revokes the restored credentials.
 
-From version 13 to version 12, a way back drops only the agents you confirmed in chats. Version 12 has no confirmations: it delivers to every open run that reports a chat's ID. After upgrading again, confirm those agents on their chat pages. With Worklog stopped and after a manual backup, run this on the database, stopping at the first error (the `sqlite3` shell's `-bail`), then start the version 12 checkout:
+From version 13 to version 12, a way back drops only the agents you confirmed in chats. Version 12 has no confirmations: it delivers to every open run that reports a chat's ID. After upgrading again, confirm those agents on their chat pages. A message version 13 didn't deliver because its agent wasn't confirmed shows as plainly expired, since version 12 has no such reason. With Worklog stopped and after a manual backup, run this on the database, stopping at the first error (the `sqlite3` shell's `-bail`), then start the version 12 checkout:
 
 ```sql
 BEGIN;
+UPDATE chat_message_deliveries SET expire_reason=NULL WHERE expire_reason='unconfirmed';
 DROP TABLE chat_confirmations;
 PRAGMA user_version=12;
 COMMIT;

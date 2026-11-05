@@ -21,6 +21,7 @@ CHAT = "3f6b8d0a-2c4e-4a61-9b7d-5e8f0a1b2c3d"
 # README: from version 13 to version 12, with Worklog stopped and after a manual backup.
 WAY_BACK = """\
 BEGIN;
+UPDATE chat_message_deliveries SET expire_reason=NULL WHERE expire_reason='unconfirmed';
 DROP TABLE chat_confirmations;
 PRAGMA user_version=12;
 COMMIT;
@@ -152,6 +153,28 @@ def test_a_registered_identity_is_reached_and_a_claim_receives_nothing(client):
     assert "confirm" in refused["message"]
 
 
+def test_the_chat_page_says_where_each_identity_comes_from(client):
+    # Labels are each agent's own choice; who registered an identity is not.
+    sponsor = issue(client, "Shared agents")
+    child = register(client, sponsor, "Planner (Claude)")
+    elsewhere = register(client, sponsor, "Planner (Claude)", chat="another-chat")
+    claimant = issue(client, "Other agents")
+    chat = tracked_chat(client)
+    run(client, child)
+    run(client, elsewhere, CHAT)
+    run(client, claimant, CHAT)
+    view = ok(request(client, "GET", f"/chats/{chat['id']}/messages"))
+    by_sponsor = {"id": sponsor["agentId"], "label": "Shared agents"}
+    assert [(r["agentId"], r["registeredBy"]) for r in view["recipients"]] == [(child["agentId"], by_sponsor)]
+    assert [(r["agentId"], r["registeredBy"]) for r in view["unconfirmed"]] == [
+        (elsewhere["agentId"], by_sponsor), (claimant["agentId"], None)]
+    # Rotating a registered identity's credential in Settings keeps where it came from.
+    rotated = post(client, f"/credentials/{child['id']}/rotate")
+    run(client, rotated)
+    view = ok(request(client, "GET", f"/chats/{chat['id']}/messages"))
+    assert [(r["agentId"], r["registeredBy"]) for r in view["recipients"]] == [(child["agentId"], by_sponsor)]
+
+
 def test_confirming_a_claim_reaches_that_identity_from_then_on(client, tmp_path):
     sponsor = issue(client, "Shared agents")
     child = register(client, sponsor, "Planner (Claude)")
@@ -235,6 +258,23 @@ def test_a_delivery_left_waiting_for_an_unbound_identity_is_never_handed_out(cli
     assert statuses(client, chat) == [("Waiting", "Other agents", "pending", None)]
 
 
+def test_replaying_a_receive_after_its_confirmation_went_returns_only_what_it_received(client):
+    claimant = issue(client, "Other agents")
+    chat = tracked_chat(client)
+    run(client, claimant, CHAT)
+    confirm(client, chat, claimant)
+    send(client, chat, "First")
+    key = str(uuid.uuid4())
+    headers = {"Idempotency-Key": key, "Authorization": "Bearer " + claimant["token"]}
+    first = ok(client.post("/api/v1/inbox/receive", json={}, headers=headers))
+    assert [m["text"] for m in first["items"]] == ["First"]
+    send(client, chat, "Second")
+    unconfirm(client, chat, claimant)
+    # An uncertain receive may be retried under its key: that returns what it already handed out, nothing more.
+    assert ok(client.post("/api/v1/inbox/receive", json={}, headers=headers)) == first
+    assert receive(client, claimant) == []
+
+
 def test_only_the_person_confirms_and_only_for_a_tracked_chat_and_a_known_identity(client, tmp_path):
     sponsor = issue(client, "Shared agents")
     child = register(client, sponsor, "Planner (Claude)")
@@ -250,6 +290,11 @@ def test_only_the_person_confirms_and_only_for_a_tracked_chat_and_a_known_identi
     assert request(client, "POST", f"/chats/{chat['id']}/confirmations",
                    {"agentId": claimant["agentId"], "chatId": CHAT}).status_code == 422
     assert client.post(f"/api/v1/chats/{chat['id']}/confirmations", json={"agentId": claimant["agentId"]}).status_code == 428
+    # Another site's page, or one without this session's CSRF token, changes nothing.
+    for headers, code in (({"Origin": "http://elsewhere.example"}, "origin"), ({"X-CSRF-Token": "not-this-one"}, "csrf")):
+        for route in ("confirmations", "confirmations/remove"):
+            error(client.post(f"/api/v1/chats/{chat['id']}/{route}", json={"agentId": claimant["agentId"]},
+                              headers={"Idempotency-Key": str(uuid.uuid4()), **headers}), 403, code)
     post(client, f"/chats/{chat['id']}/archive", {"revision": chat["revision"]})
     for route in ("confirmations", "confirmations/remove"):
         error(request(client, "POST", f"/chats/{chat['id']}/{route}", {"agentId": claimant["agentId"]}), 409, "chat_archived")
@@ -313,6 +358,29 @@ def test_the_v13_upgrade_ends_what_waits_for_an_unbound_identity_and_keeps_the_r
         assert receive(c, child) == ["Waiting"]
 
 
+def test_an_upgrade_from_v11_binds_registered_identities_before_ending_unbound_deliveries(tmp_path):
+    from test_decision_state_recovery import to_v11
+
+    path = tmp_path / "worklog.sqlite3"
+    with person(tmp_path) as c:
+        sponsor = issue(c, "Shared agents")
+        child = register(c, sponsor, "Planner (Claude)")
+        claimant = issue(c, "Other agents")
+        chat = tracked_chat(c)
+        run(c, child)
+        run(c, claimant, CHAT)
+        confirm(c, chat, claimant)
+        send(c, chat, "Waiting")
+    # Version 11 keeps the registered chat only in its event; the upgrade reads it from there first.
+    to_v11(path)
+    Database(path).initialize()
+    with person(tmp_path) as c:
+        assert statuses(c, chat) == [("Waiting", "Planner (Claude)", "pending", None),
+                                     ("Waiting", "Other agents", "expired", "unconfirmed")]
+        assert receive(c, child) == ["Waiting"]
+        assert receive(c, claimant) == []
+
+
 def test_the_documented_way_back_to_v12_gives_its_exact_shape_and_upgrades_again(tmp_path):
     # The SQL tested here is the SQL the README gives the person.
     assert "```sql\n" + WAY_BACK + "```" in (Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
@@ -321,11 +389,16 @@ def test_the_documented_way_back_to_v12_gives_its_exact_shape_and_upgrades_again
         chat = tracked_chat(c)
         run(c, claimant, CHAT)
         confirm(c, chat, claimant)
+        send(c, chat, "Ended by removing the confirmation")
+        unconfirm(c, chat, claimant)
+        confirm(c, chat, claimant)
     path = tmp_path / "worklog.sqlite3"
     to_v12(path)
     recovery.validate_database(path)
     with Database(path).read() as conn:
         assert recovery._schema_signature(conn) == recovery._expected_schema(chat_confirmations=False)
+        # Version 12 has no 'unconfirmed' reason, so that delivery reads as plainly expired there.
+        assert [tuple(r) for r in conn.execute("SELECT status,expire_reason FROM chat_message_deliveries")] == [("expired", None)]
     Database(path).initialize()
     with Database(path).read() as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION

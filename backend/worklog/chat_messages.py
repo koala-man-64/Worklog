@@ -38,9 +38,13 @@ REGISTERED = ("EXISTS(SELECT 1 FROM communication_credentials cc WHERE cc.agent_
 CONFIRMED = ("EXISTS(SELECT 1 FROM chat_confirmations cf WHERE cf.agent_id=ar.agent_id "
              "AND cf.chat_id=ar.external_chat_id)")
 BOUND = f"({REGISTERED} OR {CONFIRMED})"
+# The identity that registered the run's identity; none for a credential issued in Settings. Labels
+# are each agent's own choice, so this is what tells the person where an identity comes from.
+SPONSOR = "(SELECT cc.{} FROM communication_credentials cc WHERE cc.agent_id=ar.agent_id AND cc.registered_by IS NOT NULL LIMIT 1)"
 # Open runs on live credentials that report the chat's ID, bound or not.
 CLAIMS = ("SELECT ar.id,ar.display_name,ar.provider,ar.created_at,a.id AS agent_id,a.label AS agent_label,a.avatar,"
-          f"{REGISTERED} AS registered,{CONFIRMED} AS confirmed "
+          f"{REGISTERED} AS registered,{CONFIRMED} AS confirmed,"
+          f"{SPONSOR.format('registered_by')} AS sponsor_id,{SPONSOR.format('registered_by_label')} AS sponsor_label "
           "FROM agent_runs ar JOIN communication_agents a ON a.id=ar.agent_id JOIN credentials cr ON cr.id=ar.credential_id "
           "WHERE ar.external_chat_id=? AND ar.ended_at IS NULL AND cr.revoked=0")
 # Who a message sent now reaches.
@@ -64,8 +68,10 @@ def expire_pending(c: sqlite3.Connection, reason: str, *, run_id: str | None = N
 
 
 def _recipient(r: sqlite3.Row) -> dict:
+    """A CLAIMS row as the chat page shows it."""
     return {"runId": r["id"], "runName": r["display_name"], "provider": r["provider"], "startedAt": r["created_at"],
-            "agentId": r["agent_id"], "agentLabel": r["agent_label"], "avatar": r["avatar"]}
+            "agentId": r["agent_id"], "agentLabel": r["agent_label"], "avatar": r["avatar"],
+            "registeredBy": {"id": r["sponsor_id"], "label": r["sponsor_label"]} if r["sponsor_id"] else None}
 
 
 def _audience(c: sqlite3.Connection, chat_id: str) -> tuple[list[dict], list[dict]]:

@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { contextStorageKey, setDataContext } from "./api";
 import { ChatOutbox, deliveryState } from "./ChatOutbox";
 import type {
+  DeliveryReason,
   Outbox,
   OutboxDelivery,
   OutboxMessage,
@@ -21,6 +22,7 @@ const implementer: OutboxRecipient = {
   agentId: "agent-1",
   agentLabel: "Implementer",
   avatar: null,
+  registeredBy: { id: "agent-0", label: "Shared agents" },
   binding: "registered",
 };
 // A run of another agent that reports this chat's ID without being bound to it.
@@ -32,6 +34,7 @@ const claimant: OutboxRun = {
   agentId: "agent-2",
   agentLabel: "Other agents",
   avatar: null,
+  registeredBy: null,
 };
 const pending: OutboxDelivery = {
   runId: "run-1",
@@ -221,6 +224,39 @@ it("removes a confirmation the person gave", async () => {
   );
 });
 
+it("says where each agent comes from, and tells two under one label apart", async () => {
+  // Labels are each agent's own choice; who issued or registered it is not.
+  const lookalike: OutboxRun = {
+    ...claimant,
+    runId: "run-3",
+    runName: "Parser fixes",
+    agentId: "agent-9",
+    agentLabel: "Implementer",
+    registeredBy: { id: "agent-7", label: "Helpers" },
+  };
+  serve(() =>
+    outbox({
+      recipients: [implementer, { ...claimant, binding: "confirmed" }],
+      unconfirmed: [lookalike],
+    }),
+  );
+  show();
+  const reaches = await screen.findByRole("list", {
+    name: "Agents a message reaches",
+  });
+  const [registered, confirmed] = within(reaches).getAllByRole("listitem");
+  expect(registered).toHaveTextContent("registered by Shared agents");
+  expect(registered).toHaveTextContent("id agent-1");
+  expect(confirmed).toHaveTextContent("issued in Settings");
+  expect(confirmed).toHaveTextContent("confirmed by you");
+  expect(confirmed).not.toHaveTextContent("id agent-2");
+  const waiting = screen.getByRole("list", {
+    name: "Agents waiting for your confirmation",
+  });
+  expect(waiting).toHaveTextContent("registered by Helpers");
+  expect(waiting).toHaveTextContent("id agent-9");
+});
+
 it("cannot send when the only runs on the chat are unconfirmed", async () => {
   serve(() => outbox({ recipients: [], unconfirmed: [claimant] }));
   show();
@@ -318,4 +354,15 @@ it("says what became of each delivery", () => {
     expect(deliveryState({ ...pending, status: "expired", reason }, time)).toBe(
       "Not delivered: " + text,
     );
+  // A reason from a newer version reads as plain expiry rather than "undefined".
+  expect(
+    deliveryState(
+      {
+        ...pending,
+        status: "expired",
+        reason: "from_a_newer_version" as DeliveryReason,
+      },
+      time,
+    ),
+  ).toBe("Not delivered: it expired");
 });

@@ -4,7 +4,13 @@ import { Avatar } from "./Avatar";
 import { ErrorMessage, Markdown } from "./components";
 import { useAction, useData } from "./hooks";
 import { localStore } from "./storage";
-import type { DeliveryReason, Outbox, OutboxDelivery } from "./outboxTypes";
+import type {
+  DeliveryReason,
+  Outbox,
+  OutboxDelivery,
+  OutboxRecipient,
+  OutboxRun,
+} from "./outboxTypes";
 
 const PAGE = 20;
 // The server's page limit: the most messages one request returns.
@@ -29,9 +35,32 @@ export function deliveryState(
   if (delivery.status === "delivered")
     return `Delivered ${time(delivery.deliveredAt)}`;
   if (delivery.status === "pending") return "Waiting for pickup";
+  // A reason this version doesn't know, from a newer one, reads as plain expiry.
   return (
     "Not delivered: " +
-    (delivery.reason ? REASONS[delivery.reason] : "it expired")
+    ((delivery.reason && REASONS[delivery.reason]) || "it expired")
+  );
+}
+
+/** Where an agent identity comes from, which its free-text label cannot show. */
+function origin(run: OutboxRun, binding?: OutboxRecipient["binding"]) {
+  if (run.registeredBy)
+    return `registered by ${run.registeredBy.label || "an agent"}`;
+  return binding === "registered"
+    ? "registered with this chat"
+    : "issued in Settings";
+}
+
+/** One run on the chat: its agent, the run, and where the agent comes from. */
+function RunName({ run, alike }: { run: OutboxRun; alike: boolean }) {
+  return (
+    <>
+      <Avatar name={run.avatar} size={18} />
+      {run.agentLabel}
+      {/* Two identities under one label: their IDs tell them apart. */}
+      {alike && <small>· id {run.agentId.slice(0, 8)}</small>}
+      <small>· {run.runName}</small>
+    </>
   );
 }
 
@@ -93,6 +122,15 @@ export function ChatOutbox({
   const data = outbox.data;
   const recipients = data?.recipients ?? [];
   const unconfirmed = data?.unconfirmed ?? [];
+  // Labels that more than one identity on this chat goes by.
+  const identities = new Map<string, Set<string>>();
+  for (const run of [...recipients, ...unconfirmed])
+    identities.set(
+      run.agentLabel,
+      (identities.get(run.agentLabel) ?? new Set()).add(run.agentId),
+    );
+  const alike = (run: OutboxRun) =>
+    (identities.get(run.agentLabel)?.size ?? 0) > 1;
   const canSend =
     !!draft.text.trim() && recipients.length > 0 && !send.isPending;
 
@@ -181,9 +219,8 @@ export function ChatOutbox({
                   <ul aria-label="Agents a message reaches">
                     {recipients.map((r) => (
                       <li key={r.runId} title={`Run: ${r.runName}`}>
-                        <Avatar name={r.avatar} size={18} />
-                        {r.agentLabel}
-                        <small>· {r.runName}</small>
+                        <RunName run={r} alike={alike(r)} />
+                        <small>· {origin(r, r.binding)}</small>
                         {r.binding === "confirmed" && (
                           <>
                             <small>· confirmed by you</small>
@@ -218,9 +255,8 @@ export function ChatOutbox({
                           className="unconfirmed"
                           title={`Run: ${r.runName}, started ${time(r.startedAt)}`}
                         >
-                          <Avatar name={r.avatar} size={18} />
-                          {r.agentLabel}
-                          <small>· {r.runName}</small>
+                          <RunName run={r} alike={alike(r)} />
+                          <small>· {origin(r)}</small>
                           <button
                             type="button"
                             aria-label={`Confirm ${r.agentLabel} works in this chat`}
