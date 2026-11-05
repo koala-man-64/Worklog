@@ -96,7 +96,8 @@ def unusual_free_port() -> int:
 
 
 def started(shell: subprocess.Popen, output: Path) -> dict:
-    deadline = time.monotonic() + 60
+    # Longer than start's own wait, so a server that never becomes ready fails with start's report.
+    deadline = time.monotonic() + cli.START_WAIT_S + 30
     while time.monotonic() < deadline:
         text = output.read_text(encoding="ascii", errors="replace")
         report, marker, code = text.partition("start exited")

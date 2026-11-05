@@ -329,6 +329,66 @@ def test_start_reports_any_other_launch_failure_without_a_second_attempt(tmp_pat
     assert not (tmp_path / "server.log").read_bytes()
 
 
+@pytest.fixture
+def slow_start(tmp_path, monkeypatch):
+    """start against a server that becomes ready, or exits, the given seconds after launch, on a clock
+    that moves only while start sleeps between probes, so no test waits for real."""
+    health = {"app": "worklog", "ready": True, "instanceId": "instance", "dataId": "data"}
+    process = {"created": 123, "executable": "python"}
+
+    class Server:
+        def __init__(self):
+            self.now, self.launched, self.ready_after, self.exits_after = 0.0, False, None, None
+
+        def monotonic(self):  # cli's time module
+            return self.now
+
+        def sleep(self, seconds):
+            self.now += seconds
+
+        def poll(self):  # the launched process
+            return 1 if self.exits_after is not None and self.now >= self.exits_after else None
+
+    server = Server()
+
+    def popen(args, **options):
+        server.launched = True
+        cli._write_json(tmp_path / "server-state.json",
+                        {**health, "dataDir": str(tmp_path.resolve()), "pid": 4321, "process": process})
+        return server
+
+    def health_now(port):
+        ready = server.launched and server.ready_after is not None and server.now >= server.ready_after
+        return health if ready else None
+
+    monkeypatch.setattr(cli, "time", server)
+    monkeypatch.setattr(cli.subprocess, "Popen", popen)
+    monkeypatch.setattr(cli, "_health", health_now)
+    monkeypatch.setattr(cli, "_port_busy", lambda port: False)
+    monkeypatch.setattr(cli, "_process_identity", lambda pid: process)
+    return server
+
+
+def test_start_waits_a_minute_for_the_server_to_become_ready(tmp_path, slow_start):
+    # A cold start has taken 17.5 s, close to the 20 s start used to wait; 59 s still counts.
+    slow_start.ready_after = 59
+    result = cli.start(tmp_path, 8878)
+    assert result["running"] is True and result["reused"] is False
+
+
+def test_start_reports_a_server_not_ready_a_minute_after_launch(tmp_path, slow_start):
+    with pytest.raises(RuntimeError, match=r"^Startup did not become ready; inspect .+server\.log and run check$"):
+        cli.start(tmp_path, 8878)
+    assert 60 <= slow_start.now < 60.2
+
+
+def test_start_stops_waiting_as_soon_as_the_launched_server_exits(tmp_path, slow_start):
+    slow_start.exits_after = 30
+    with pytest.raises(RuntimeError, match=r"^Worklog startup failed; inspect .+server\.log$"):
+        cli.start(tmp_path, 8878)
+    assert 30 <= slow_start.now < 30.2
+
+
 def _export_args(tmp_path, target):
     return ["--data-dir", str(tmp_path / "data"), "export", str(target)]
 
