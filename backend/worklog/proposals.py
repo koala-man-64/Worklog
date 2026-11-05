@@ -326,6 +326,8 @@ class ProposalService:
         the person reviews can fail only on what applying it finds: a stale revision, or a rule
         of the record itself."""
         operations = json.loads(row["operations"])
+        # A stored row changed behind Worklog's back is refused for its shape, as approve refuses it.
+        _operations(operations)
         for number, operation in enumerate(operations, 1):
             payload = operation["payload"]
             if operation["action"] == "attachment.create":

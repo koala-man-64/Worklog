@@ -6,6 +6,7 @@ import sqlite3
 import typing
 import uuid
 from contextlib import closing
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -58,9 +59,16 @@ def error(response, status):
     return response.json()["error"]
 
 
-def test_each_operation_is_defined_once_and_fields_follow_from_it():
-    assert list(FIELDS) == list(OPERATIONS)
-    assert {action: (set(s.required), set(s.allowed)) for action, s in OPERATIONS.items()} == FIELDS
+SNAPSHOT = Path(__file__).with_name("proposal_fields.json")
+
+
+def test_the_keys_a_proposal_takes_change_only_on_purpose():
+    # A field added to a person's route model would otherwise become proposable by agents unseen,
+    # and narrowing a key set would strand proposals already stored. Regenerate deliberately with
+    # `python backend/tests/test_operations.py`, and update the agent guide's table with it.
+    snapshot = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
+    assert list(FIELDS) == list(OPERATIONS) == list(snapshot)
+    assert {a: {"required": sorted(r), "allowed": sorted(al)} for a, (r, al) in FIELDS.items()} == snapshot
     # The three where a proposal's keys differ from the person's own route.
     assert "text" in FIELDS["note.create"][0] and not models.NoteCreate.model_fields["text"].is_required()
     assert "steps" in FIELDS["roadmap.revise"][0] and not models.RoadmapRevision.model_fields["steps"].is_required()
@@ -151,3 +159,42 @@ def test_evidence_with_its_own_proposal_submits_and_applies(client, agent):
     submitted = ok(submit(client, agent, updated))
     approved = ok(call(client, "POST", f"/proposals/{proposal['id']}/approve", {"revision": submitted["revision"]}))
     assert approved["status"] == "approved"
+
+
+def test_another_agents_draft_is_not_theirs_to_submit_whatever_its_values(client, agent):
+    proposal = ok(propose(client, agent, {"action": "item.update", "payload": {"id": "w", "revision": 1, "status": "finished"}}))
+    other = ok(call(client, "POST", "/credentials", {"label": "Someone else"}))
+    refused = call(client, "POST", f"/proposals/{proposal['id']}/submit", {"revision": proposal["revision"]}, other)
+    assert refused.status_code in {403, 404}, refused.text
+    assert "Change 1 of 1" not in refused.text
+
+
+def test_the_person_s_own_proposal_is_checked_at_submit_too(client):
+    proposal = ok(propose(client, None, {"action": "item.create", "payload": {"title": 42}}))
+    refused = error(call(client, "POST", f"/proposals/{proposal['id']}/submit", {"revision": proposal["revision"]}), 422)
+    assert refused["message"] == "Change 1 of 1, item.create: Invalid proposed operation"
+
+
+def test_with_approval_off_a_bad_value_is_refused_by_applying_as_before(client, agent):
+    ok(call(client, "PATCH", "/settings", {"requireProposalApproval": False}))
+    proposal = ok(propose(client, agent, {"action": "item.create", "payload": {"title": 42}}))
+    refused = error(submit(client, agent, proposal), 422)
+    assert refused["message"].startswith("Not submitted: ")
+    assert refused["message"].endswith("Change 1 of 1, item.create: Invalid proposed operation")
+    assert ok(call(client, "GET", f"/proposals/{proposal['id']}", agent=agent))["status"] == "draft"
+
+
+def test_a_stored_draft_changed_behind_worklogs_back_is_refused_at_submit_not_crashed(client, agent, tmp_path):
+    proposal = ok(propose(client, agent, {"action": "item.create", "payload": {"title": "Fine"}}))
+    with closing(sqlite3.connect(tmp_path / "worklog.sqlite3")) as conn:
+        conn.execute("UPDATE proposals SET operations=? WHERE id=?", (json.dumps([{"action": "item.create"}]), proposal["id"]))
+        conn.commit()
+    refused = error(submit(client, agent, proposal), 422)
+    assert refused["message"] == "Each operation requires action and payload"
+
+
+if __name__ == "__main__":
+    # Regenerate the key-set snapshot after a deliberate change to what a proposal takes.
+    SNAPSHOT.write_text(json.dumps({a: {"required": sorted(r), "allowed": sorted(al)} for a, (r, al) in FIELDS.items()},
+                                   indent=2) + "\n", encoding="utf-8", newline="\n")
+    print(f"Wrote {SNAPSHOT}")
