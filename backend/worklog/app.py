@@ -530,22 +530,19 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def update_decision(identity: str, request: Request, body: m.DecisionUpdate) -> dict:
         return apply(request, "decision.update", {**body.model_dump(exclude_unset=True), "id": identity})
 
-    @app.post("/api/v1/{resource}/{identity}/{verb}")
-    def support_archive(resource: str, identity: str, verb: str, request: Request, body: m.Expected) -> dict:
-        kind = {
-            "notes": "note",
-            "tasks": "task",
-            "references": "reference",
-            "attachments": "attachment",
-            "links": "link",
-            "chats": "chat",
-            "github": "github",
-            "questions": "question",
-            "decisions": "decision",
-        }.get(resource)
-        if not kind or verb not in {"archive", "recover"}:
-            raise AppError(404, "not_found", "Unknown supporting-record command")
-        return apply(request, kind + "." + verb, {"id": identity, **body.model_dump()})
+    def support_command(kind: str, verb: str) -> Callable:
+        def command(identity: str, request: Request, body: m.Expected) -> dict:
+            return apply(request, f"{kind}.{verb}", {"id": identity, **body.model_dump()})
+        return command
+
+    # Each supporting record archives and recovers by its own literal route, so no route has to be
+    # moved behind the others to keep from shadowing them.
+    for resource, kind in {"notes": "note", "tasks": "task", "references": "reference", "attachments": "attachment",
+                           "links": "link", "chats": "chat", "github": "github", "questions": "question",
+                           "decisions": "decision"}.items():
+        for verb in ("archive", "recover"):
+            app.add_api_route(f"/api/v1/{resource}/{{identity}}/{verb}", support_command(kind, verb),
+                              methods=["POST"], name=f"{kind}_{verb}")
 
     @app.get("/api/v1/attachments")
     def attachments(request: Request, ownerType: str, ownerId: str, archived: bool = False) -> dict:
@@ -630,7 +627,6 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def roadmap_move(identity: str, request: Request, body: m.RoadmapMove) -> dict:
         return apply(request, "roadmap.move", {"id": identity, **body.model_dump()})
 
-    # Explicit routes precede the generic support command in routing order below.
     @app.patch("/api/v1/steps/{identity}/progress")
     def progress(identity: str, request: Request, body: m.Progress) -> dict:
         return apply(request, "progress.set", {"id": identity, **body.model_dump()})
@@ -822,10 +818,6 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def export() -> Response:
         return download_response(export_database(db.path), "worklog-export.zip", "application/zip")
 
-    # Move broad command matcher behind all named routes to avoid shadowing them.
-    generic = next(r for r in app.router.routes if getattr(r, "name", "") == "support_archive")
-    app.router.routes.remove(generic)
-
     @app.get("/api/v1/people")
     def people_list(archived: bool = False, q: str = "") -> dict:
         return work.people_list(archived=archived, q=q)
@@ -883,7 +875,6 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     install_discussion_routes(app, db, discussion_mutate)
     install_registration_routes(app, db, auto_backup)
     install_registry_routes(app, db, transcripts)
-    app.router.routes.append(generic)
     dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
     if (dist / "assets").is_dir():
         app.mount("/assets", StaticFiles(directory=dist / "assets", follow_symlink=False), name="assets")

@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
+from typing import TypeVar
 
 from .common import AppError, uid
 
@@ -67,6 +68,8 @@ CREATE INDEX roadmap_decisions_roadmap ON roadmap_decisions(roadmap_id,archived)
 
 # Legacy v1 definitions include the questions and decisions shipped on main.
 SCHEMA = SCHEMA + PEOPLE_SCHEMA + LINKS_CHATS_GITHUB_SCHEMA + CHAT_STEPS_SCHEMA + QUESTIONS_DECISIONS_SCHEMA
+
+T = TypeVar("T")
 
 
 class Database:
@@ -143,6 +146,16 @@ class Database:
             yield conn
         finally:
             conn.close()
+
+    def snapshot(self, fn: Callable[[sqlite3.Connection], T]) -> T:
+        """Return fn's result, everything it read taken from one snapshot of the database.
+
+        A deferred BEGIN holds a shared lock until the connection closes, which ends the read
+        transaction with nothing committed: a write fn makes is discarded, so only reads belong here.
+        """
+        with self.read() as conn:
+            conn.execute("BEGIN")
+            return fn(conn)
 
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:

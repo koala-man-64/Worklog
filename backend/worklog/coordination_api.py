@@ -32,10 +32,7 @@ def coordination_agent_route_allowed(method: str, path: str) -> bool:
 def install_coordination_routes(app: FastAPI, db: Database, mutate: Callable) -> None:
     service = CoordinationService(db)
 
-    def read(fn: Callable) -> dict:
-        with db.read() as c:
-            c.execute("BEGIN")
-            return fn(c)
+    read = db.snapshot
 
     def write(request: Request, body, fn: Callable, *, required_key=True, exclude_unset=False) -> dict:
         return mutate(request, body.model_dump(exclude_unset=exclude_unset), fn, required_key=required_key)

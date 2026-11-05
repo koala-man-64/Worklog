@@ -10,11 +10,20 @@ from __future__ import annotations
 import builtins
 import re
 import sqlite3
-from collections.abc import Iterator
 from typing import Any
 
 from . import search
-from .common import AppError, event, now, read_events, require_revision, text, uid
+from .common import (
+    LIVE_AGENT,
+    AppError,
+    event,
+    now,
+    read_events,
+    require_revision,
+    rows_in,
+    text,
+    uid,
+)
 from .common import status as valid_status
 from .repository_links import linked_repositories, replace_repository_associations
 
@@ -41,20 +50,11 @@ MAX_LABELS = 20
 _LABEL = re.compile(r"[a-z0-9][a-z0-9._-]{0,49}")
 _NUMBER = re.compile(r"(?:T-)?([1-9][0-9]{0,8})", re.IGNORECASE)
 _PRIORITY_ORDER = "CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END"
-_LIVE_AGENT = ("EXISTS(SELECT 1 FROM communication_credentials cc JOIN credentials cr ON cr.id=cc.credential_id "
-               "WHERE cc.agent_id=a.id AND cr.revoked=0)")
 _PERSON = {"id": "local-user", "label": "You", "kind": "human", "avatar": None, "active": True}
 
 
 def key(number: int) -> str:
     return f"T-{number}"
-
-
-def _rows(c: sqlite3.Connection, sql: str, ids: list[str]) -> Iterator[sqlite3.Row]:
-    """Run sql, whose {} takes the placeholders, once per batch of ids SQLite can bind."""
-    for start in range(0, len(ids), 400):
-        batch = ids[start:start + 400]
-        yield from c.execute(sql.format(",".join("?" * len(batch))), batch)
 
 
 def _choice(value: Any, field: str, options: tuple[str, ...]) -> str:
@@ -91,18 +91,18 @@ class TicketService:
         """The person and the agent identities these ids name, as they stand now."""
         people = {"local-user": _PERSON}
         agents = sorted({i for i in ids if i and i != "local-user"})
-        for r in _rows(c, f"SELECT a.id,a.label,a.avatar,{_LIVE_AGENT} AS active FROM communication_agents a WHERE a.id IN ({{}})", agents):
+        for r in rows_in(c, f"SELECT a.id,a.label,a.avatar,{LIVE_AGENT} AS active FROM communication_agents a WHERE a.id IN ({{}})", agents):
             people[r["id"]] = {"id": r["id"], "label": r["label"], "kind": "agent", "avatar": r["avatar"], "active": bool(r["active"])}
         return people
 
     def records(self, c: sqlite3.Connection, rows: list[sqlite3.Row], *, full: bool = False) -> list[dict]:
         ids = [r["id"] for r in rows]
         labels: dict[str, list[str]] = {}
-        for r in _rows(c, "SELECT ticket_id,label FROM ticket_labels WHERE ticket_id IN ({}) ORDER BY label", ids):
+        for r in rows_in(c, "SELECT ticket_id,label FROM ticket_labels WHERE ticket_id IN ({}) ORDER BY label", ids):
             labels.setdefault(r["ticket_id"], []).append(r["label"])
-        counts = {r[0]: r[1] for r in _rows(c, "SELECT ticket_id,count(*) FROM ticket_comments WHERE ticket_id IN ({}) GROUP BY ticket_id", ids)}
+        counts = {r[0]: r[1] for r in rows_in(c, "SELECT ticket_id,count(*) FROM ticket_comments WHERE ticket_id IN ({}) GROUP BY ticket_id", ids)}
         items = {r["id"]: {"id": r["id"], "title": r["title"], "status": r["status"], "archived": bool(r["archived"])}
-                 for r in _rows(c, "SELECT id,title,status,archived FROM work_items WHERE id IN ({})", sorted({r["item_id"] for r in rows if r["item_id"]}))}
+                 for r in rows_in(c, "SELECT id,title,status,archived FROM work_items WHERE id IN ({})", sorted({r["item_id"] for r in rows if r["item_id"]}))}
         repositories = linked_repositories(c, "ticket", ids)
         people = self._people(c, [r["author_id"] for r in rows] + [r["assignee_id"] for r in rows])
         result = []
@@ -171,7 +171,7 @@ class TicketService:
             return None
         assignee_id = text(assignee_id, "assigneeId", required=True, limit=200)
         if assignee_id != "local-user" and not c.execute(
-                f"SELECT 1 FROM communication_agents a WHERE a.id=? AND {_LIVE_AGENT}", (assignee_id,)).fetchone():
+                f"SELECT 1 FROM communication_agents a WHERE a.id=? AND {LIVE_AGENT}", (assignee_id,)).fetchone():
             raise AppError(422, "assignee_unavailable", "Assign the person or an agent with a live credential", {"assigneeId": "invalid"})
         return assignee_id
 
@@ -297,10 +297,10 @@ class TicketService:
         elif assignee_id:
             clauses.append("t.assignee_id=?")
             args.append(assignee_id)
-        words = re.findall(r"\w+", text(q, "q", limit=2000), re.UNICODE)
-        if words:
+        match = search.prefix_match(text(q, "q", limit=2000))
+        if match:
             clauses.append("t.id IN(SELECT owner_id FROM search_index WHERE search_index MATCH ? AND type IN('ticket','ticket_comment'))")
-            args.append(" AND ".join('"' + word + '"*' for word in words[:30]))
+            args.append(match)
         order = {"priority": _PRIORITY_ORDER + ",t.last_activity_at DESC,t.id",
                  "recent": "t.last_activity_at DESC,t.id"}.get(sort)
         if order is None:

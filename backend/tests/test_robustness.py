@@ -53,8 +53,6 @@ def fill(template, records):
     ids = {"work-items": records["item"]["id"], "notes": records["note"]["id"],
            "tasks": records["task"]["id"], "roadmaps": records["roadmap"]["id"],
            "steps": records["roadmap"]["steps"][0]["id"], "proposals": records["proposal"]["id"]}
-    if template.startswith("/{resource}"):
-        return f"/notes/{records['note']['id']}/archive"
     resource = template.split("/")[1]
     verb = "submit" if resource == "proposals" else "archive"
     return (template.replace("{identity}", ids.get(resource, str(uuid.uuid4())))

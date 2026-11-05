@@ -17,10 +17,7 @@ from .resources import ResourceService
 def install_resource_routes(app: FastAPI, db: Database, mutate: Callable) -> None:
     service = ResourceService()
 
-    def read(fn: Callable) -> dict:
-        with db.read() as c:
-            c.execute("BEGIN")
-            return fn(c)
+    read = db.snapshot
 
     @app.get("/api/v1/resources")
     def resources(q: str = "", archived: bool = False,

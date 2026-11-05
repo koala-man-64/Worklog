@@ -14,7 +14,7 @@ from collections.abc import Callable, Iterable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from .common import AppError
+from .common import LIVE_AGENT, AppError, rows_in
 from .coordination import CoordinationService
 from .registration import registered_by, registered_chats
 
@@ -23,17 +23,6 @@ TIE_LIMIT = 200
 SNIPPET = 1000
 # How an agent came to be tied to a record, in display order.
 VIA = ("participation", "role", "update", "message", "run", "chat")
-ACTIVE = "EXISTS(SELECT 1 FROM communication_credentials cc JOIN credentials cr ON cr.id=cc.credential_id WHERE cc.agent_id=a.id AND cr.revoked=0)"
-
-
-def _rows(c: sqlite3.Connection, sql: str, ids: Iterable[str]) -> list[sqlite3.Row]:
-    """Run an `IN ({})` lookup in chunks that stay below SQLite's variable limit."""
-    ids = list(dict.fromkeys(ids))
-    result: list[sqlite3.Row] = []
-    for start in range(0, len(ids), 500):
-        chunk = ids[start:start + 500]
-        result.extend(c.execute(sql.format(",".join("?" * len(chunk))), chunk).fetchall())
-    return result
 
 
 def _latest(*values: str | None) -> str | None:
@@ -71,7 +60,7 @@ class _Ties:
 
 class AgentRegistry:
     def _agent(self, c: sqlite3.Connection, identity: str) -> sqlite3.Row:
-        row = c.execute(f"SELECT a.*,{ACTIVE} AS active FROM communication_agents a WHERE a.id=?", (identity,)).fetchone()
+        row = c.execute(f"SELECT a.*,{LIVE_AGENT} AS active FROM communication_agents a WHERE a.id=?", (identity,)).fetchone()
         if row is None:
             raise AppError(404, "not_found", "Agent not found")
         return row
@@ -79,18 +68,18 @@ class AgentRegistry:
     @staticmethod
     def _work_titles(c: sqlite3.Connection, ids: Iterable[str]) -> dict[str, dict]:
         # A step's roadmap wins over the item's own roadmap, as on the Chats page.
-        rows = _rows(c, "SELECT w.id,w.title,w.status,w.archived,COALESCE(s.roadmap_id,w.roadmap_id) AS roadmap_id FROM work_items w LEFT JOIN steps s ON s.id=w.step_id WHERE w.id IN ({})", ids)
+        rows = rows_in(c, "SELECT w.id,w.title,w.status,w.archived,COALESCE(s.roadmap_id,w.roadmap_id) AS roadmap_id FROM work_items w LEFT JOIN steps s ON s.id=w.step_id WHERE w.id IN ({})", ids)
         return {r["id"]: {"id": r["id"], "title": r["title"], "status": r["status"],
                           "archived": bool(r["archived"]), "roadmapId": r["roadmap_id"]} for r in rows}
 
     @staticmethod
     def _roadmap_titles(c: sqlite3.Connection, ids: Iterable[str]) -> dict[str, dict]:
-        rows = _rows(c, "SELECT id,title,archived FROM roadmaps WHERE id IN ({})", ids)
+        rows = rows_in(c, "SELECT id,title,archived FROM roadmaps WHERE id IN ({})", ids)
         return {r["id"]: {"id": r["id"], "title": r["title"], "archived": bool(r["archived"])} for r in rows}
 
     @staticmethod
     def _step_roadmaps(c: sqlite3.Connection, ids: Iterable[str]) -> dict[str, dict]:
-        rows = _rows(c, "SELECT id,title,roadmap_id FROM steps WHERE id IN ({})", ids)
+        rows = rows_in(c, "SELECT id,title,roadmap_id FROM steps WHERE id IN ({})", ids)
         return {r["id"]: {"title": r["title"], "roadmapId": r["roadmap_id"]} for r in rows}
 
     def _roles(self, c: sqlite3.Connection, owner_id: str | None) -> dict[str, list[dict]]:
@@ -159,7 +148,7 @@ class AgentRegistry:
 
     def agents(self, c: sqlite3.Connection, limit: int = 50, offset: int = 0) -> dict:
         """Agents with an active credential first, then the most recently active."""
-        rows = c.execute(f"SELECT a.*,{ACTIVE} AS active FROM communication_agents a").fetchall()
+        rows = c.execute(f"SELECT a.*,{LIVE_AGENT} AS active FROM communication_agents a").fetchall()
         summaries = self._summaries(c, rows) if rows else []
         summaries.sort(key=lambda s: (s["lastActivityAt"] or s["createdAt"], s["id"]), reverse=True)
         summaries.sort(key=lambda s: not s["active"])
@@ -167,7 +156,7 @@ class AgentRegistry:
 
     @staticmethod
     def _chats(c: sqlite3.Connection, chat_ids: Iterable[str]) -> list[sqlite3.Row]:
-        return _rows(c, "SELECT * FROM agent_chats WHERE chat_id IN ({})", chat_ids)
+        return rows_in(c, "SELECT * FROM agent_chats WHERE chat_id IN ({})", chat_ids)
 
     def agent(self, c: sqlite3.Connection, identity: str) -> dict:
         row = self._agent(c, identity)
@@ -197,7 +186,7 @@ class AgentRegistry:
             latest_by_discussion[r["discussion_id"]] = _latest(latest_by_discussion.get(r["discussion_id"]), r["created_at"]) or r["created_at"]
             if r["chat_id"]:
                 chat_refs.append((r["chat_id"], "message", r["created_at"], False))
-        for r in _rows(c, "SELECT * FROM discussion_contexts WHERE discussion_id IN ({})", latest_by_discussion):
+        for r in rows_in(c, "SELECT * FROM discussion_contexts WHERE discussion_id IN ({})", latest_by_discussion):
             posted = latest_by_discussion[r["discussion_id"]]
             if r["context_type"] == "step":
                 step_ties.append((r["context_id"], "message", posted, False))
@@ -220,7 +209,7 @@ class AgentRegistry:
         for chat_key, (at, current) in chat_ties.items():
             chat = tracked_by_id[chat_key]
             {"item": items, "roadmap": roadmaps}[chat["owner_type"]].add(chat["owner_id"], "chat", at, current)
-        for r in _rows(c, "SELECT chat_id,repository_id FROM chat_repositories WHERE chat_id IN ({})", chat_ties):
+        for r in rows_in(c, "SELECT chat_id,repository_id FROM chat_repositories WHERE chat_id IN ({})", chat_ties):
             repositories.add(r["repository_id"], "chat", *chat_ties[r["chat_id"]])
 
         steps = self._step_roadmaps(c, [s[0] for s in step_ties])
@@ -236,7 +225,7 @@ class AgentRegistry:
         for record in work.values():
             record["roadmap"] = roadmap_titles.get(record.pop("roadmapId") or "")
         repos = {r["id"]: {"id": r["id"], "name": r["name"], "archived": bool(r["archived"])}
-                 for r in _rows(c, "SELECT id,name,archived FROM repositories WHERE id IN ({})", repositories.entries)}
+                 for r in rows_in(c, "SELECT id,name,archived FROM repositories WHERE id IN ({})", repositories.entries)}
         # Every tracked chat's owner was tied above, so its title is already resolved.
         owner_titles = {**{k: v["title"] for k, v in work.items()}, **{k: v["title"] for k, v in roadmap_titles.items()}}
         chat_records = {chat["id"]: {"id": chat["id"], "chatId": chat["chat_id"], "title": chat["title"],
@@ -269,7 +258,7 @@ class AgentRegistry:
         """
         if c.execute("SELECT 1 FROM roadmaps WHERE id=?", (roadmap_id,)).fetchone() is None:
             raise AppError(404, "not_found", "Roadmap not found")
-        working = {r[0] for r in c.execute(f"SELECT DISTINCT ar.agent_id FROM agent_runs ar JOIN communication_agents a ON a.id=ar.agent_id WHERE ar.ended_at IS NULL AND {ACTIVE}")}
+        working = {r[0] for r in c.execute(f"SELECT DISTINCT ar.agent_id FROM agent_runs ar JOIN communication_agents a ON a.id=ar.agent_id WHERE ar.ended_at IS NULL AND {LIVE_AGENT}")}
         retired = {r["id"]: bool(r["retired"]) for r in c.execute("SELECT id,retired FROM steps WHERE roadmap_id=?", (roadmap_id,))}
         # A step's roadmap wins over the item's own, as on the Chats page.
         items = {r["id"]: r for r in c.execute("SELECT w.id,w.title,w.step_id FROM work_items w LEFT JOIN steps s ON s.id=w.step_id WHERE w.archived=0 AND COALESCE(s.roadmap_id,w.roadmap_id)=?", (roadmap_id,))}
@@ -296,7 +285,7 @@ class AgentRegistry:
             else:
                 prior["lastAt"], prior["stale"] = _latest(prior["lastAt"], at), prior["stale"] and stale
 
-        for r in _rows(c, "SELECT p.item_id,p.last_seen_at,ar.agent_id FROM participations p JOIN agent_runs ar ON ar.id=p.run_id WHERE p.released_at IS NULL AND p.item_id IN ({})", items):
+        for r in rows_in(c, "SELECT p.item_id,p.last_seen_at,ar.agent_id FROM participations p JOIN agent_runs ar ON ar.id=p.run_id WHERE p.released_at IS NULL AND p.item_id IN ({})", items):
             tie("agent", r["agent_id"], step(items[r["item_id"]]["step_id"]), "participation", r["last_seen_at"],
                 _stale(r["last_seen_at"]), item=titled(r["item_id"]))
         for r in c.execute("SELECT id,label,context_type,context_id,owner_id,updated_at FROM discussion_roles WHERE owner_id IS NOT NULL"):
@@ -312,15 +301,15 @@ class AgentRegistry:
             tie("agent", r["owner_id"], role_step, "role", r["updated_at"], role={"id": r["id"], "label": r["label"]})
 
         chats = {r["id"]: r for r in c.execute("SELECT * FROM agent_chats WHERE archived=0 AND owner_type='roadmap' AND owner_id=?", (roadmap_id,))}
-        chats.update((r["id"], r) for r in _rows(c, "SELECT * FROM agent_chats WHERE archived=0 AND owner_type='item' AND owner_id IN ({})", items))
+        chats.update((r["id"], r) for r in rows_in(c, "SELECT * FROM agent_chats WHERE archived=0 AND owner_type='item' AND owner_id IN ({})", items))
         chats = {key: r for key, r in chats.items() if not archived(r["chat_id"])}
         assigned: dict[str, list[tuple[str | None, str]]] = {}
-        for r in _rows(c, "SELECT chat_id,step_id,created_at FROM chat_steps WHERE chat_id IN ({})", chats):
+        for r in rows_in(c, "SELECT chat_id,step_id,created_at FROM chat_steps WHERE chat_id IN ({})", chats):
             if step(r["step_id"]):
                 assigned.setdefault(r["chat_id"], []).append((r["step_id"], r["created_at"]))
         # Every chat a run reported is noted; only open runs of agents at work carry it.
         carriers: dict[str, set[str]] = {}
-        for r in _rows(c, "SELECT external_chat_id,agent_id,ended_at FROM agent_runs WHERE external_chat_id IN ({})", [ch["chat_id"] for ch in chats.values()]):
+        for r in rows_in(c, "SELECT external_chat_id,agent_id,ended_at FROM agent_runs WHERE external_chat_id IN ({})", [ch["chat_id"] for ch in chats.values()]):
             carried = carriers.setdefault(r["external_chat_id"], set())
             if r["ended_at"] is None and r["agent_id"] in working:
                 carried.add(r["agent_id"])
@@ -335,7 +324,7 @@ class AgentRegistry:
                 for step_id, at in places:
                     tie(kind, identity, step_id, "chat", at, item=owner, chat=record)
 
-        agents = {r["id"]: r for r in _rows(c, "SELECT id,label,avatar FROM communication_agents WHERE id IN ({})", [i for kind, i in workers if kind == "agent"])}
+        agents = {r["id"]: r for r in rows_in(c, "SELECT id,label,avatar FROM communication_agents WHERE id IN ({})", [i for kind, i in workers if kind == "agent"])}
         result = []
         for (kind, identity), found in workers.items():
             if kind == "chat":
@@ -359,8 +348,8 @@ class AgentRegistry:
         union = "SELECT 'message' AS kind,id,created_at FROM discussion_messages WHERE author_id=? AND author_kind='agent' UNION ALL SELECT 'update',id,created_at FROM coordination_updates WHERE agent_id=?"
         total = c.execute("SELECT COUNT(*) FROM (" + union + ")", (identity, identity)).fetchone()[0]
         page = c.execute(union + " ORDER BY created_at DESC,id DESC LIMIT ? OFFSET ?", (identity, identity, limit, offset)).fetchall()
-        messages = {r["id"]: r for r in _rows(c, "SELECT m.*,d.title AS discussion_title FROM discussion_messages m JOIN discussions d ON d.id=m.discussion_id WHERE m.id IN ({})", [p["id"] for p in page if p["kind"] == "message"])}
-        updates = {r["id"]: r for r in _rows(c, "SELECT u.*,w.title AS item_title FROM coordination_updates u LEFT JOIN work_items w ON w.id=u.item_id WHERE u.id IN ({})", [p["id"] for p in page if p["kind"] == "update"])}
+        messages = {r["id"]: r for r in rows_in(c, "SELECT m.*,d.title AS discussion_title FROM discussion_messages m JOIN discussions d ON d.id=m.discussion_id WHERE m.id IN ({})", [p["id"] for p in page if p["kind"] == "message"])}
+        updates = {r["id"]: r for r in rows_in(c, "SELECT u.*,w.title AS item_title FROM coordination_updates u LEFT JOIN work_items w ON w.id=u.item_id WHERE u.id IN ({})", [p["id"] for p in page if p["kind"] == "update"])}
         tracked: dict[str, list[dict]] = {}
         for chat in self._chats(c, {m["chat_id"] for m in messages.values() if m["chat_id"]}):
             tracked.setdefault(chat["chat_id"], []).append({"id": chat["id"], "title": chat["title"]})

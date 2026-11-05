@@ -6,6 +6,7 @@ import json
 import re
 import sqlite3
 import uuid
+from collections.abc import Iterable
 from datetime import UTC, date, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -14,6 +15,27 @@ STATUSES = {"open", "doing", "blocked", "done"}
 NOTE_LIMIT = 1_000_000
 FILE_LIMIT = 25_000_000
 HTML_LIMIT = 5_000_000
+# Ids bound per statement by rows_in, well below SQLite's limit on variables.
+IN_BATCH = 400
+# Whether the agent identity aliased `a` has a credential that is not revoked. A query using it
+# names communication_agents `a` and uses neither `cc` nor `cr` itself. This is not the check for
+# one run's or one request's own credential, which a revoked credential must fail on its own.
+LIVE_AGENT = ("EXISTS(SELECT 1 FROM communication_credentials cc JOIN credentials cr ON cr.id=cc.credential_id "
+              "WHERE cc.agent_id=a.id AND cr.revoked=0)")
+
+
+def rows_in(c: sqlite3.Connection, sql: str, ids: Iterable[str], size: int = IN_BATCH) -> list[sqlite3.Row]:
+    """The rows of sql, whose `IN ({})` takes the ids, run in batches SQLite can bind.
+
+    Each id is looked up once, and rows come batch by batch, each in its statement's order, so
+    an ORDER BY holds among the rows of one id rather than across all of them.
+    """
+    unique = list(dict.fromkeys(ids))
+    rows: list[sqlite3.Row] = []
+    for start in range(0, len(unique), size):
+        batch = unique[start:start + size]
+        rows.extend(c.execute(sql.format(",".join("?" * len(batch))), batch).fetchall())
+    return rows
 
 
 class AppError(Exception):
