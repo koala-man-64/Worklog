@@ -185,6 +185,24 @@ def test_an_archived_task_keeps_its_place_and_comes_back_there(client):
     assert listed(client, item) == ["D", "B", "C", "A"]
 
 
+def test_tied_or_zero_positions_read_in_a_fixed_order_and_a_move_numbers_them_again(client, tmp_path):
+    # Only a writer that skipped the column leaves such positions. Ties read by when each task was
+    # added, and the first move gives every task of the item a place of its own.
+    item = work_item(client)
+    add(client, item, "A", "B", "C", "D")
+    with closing(sqlite3.connect(tmp_path / "worklog.sqlite3")) as conn:
+        conn.executemany("UPDATE tasks SET position=?,created_at=? WHERE text=?",
+                         [(0, "2026-11-01T00:00:01+00:00", "A"), (2, "2026-11-01T00:00:02+00:00", "B"),
+                          (0, "2026-11-01T00:00:03+00:00", "C"), (2, "2026-11-01T00:00:04+00:00", "D")])
+        conn.commit()
+    assert listed(client, item) == ["A", "C", "B", "D"]
+    assert ok(move(client, item, "D", 2))["position"] == 2
+    assert listed(client, item) == ["A", "D", "C", "B"]
+    with closing(sqlite3.connect(tmp_path / "worklog.sqlite3")) as conn:
+        assert [r[0] for r in conn.execute("SELECT text FROM tasks WHERE item_id=? ORDER BY position", (item,))] == ["A", "D", "C", "B"]
+        assert sorted(r[0] for r in conn.execute("SELECT position FROM tasks WHERE item_id=?", (item,))) == [1, 2, 3, 4]
+
+
 def test_a_move_needs_a_known_task_and_a_whole_place_from_one(client):
     item = work_item(client)
     (task,) = add(client, item, "A")

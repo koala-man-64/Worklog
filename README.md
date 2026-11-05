@@ -111,7 +111,7 @@ For an upgrade, stop Worklog, make a manual backup with the installed version, u
 
 Keep the previous version and its manual backup until verification succeeds. To roll back, stop Worklog, switch to the previous version and run its setup, then use that version’s `restore` command with the pre-upgrade backup. Start and check Worklog again. Restoring returns the data to the time of the snapshot, creates a new data identity, and revokes the restored credentials.
 
-From version 14 to version 13, a way back keeps everything but the order you gave each work item's tasks: version 13 lists them by when they were added. With Worklog stopped and after a manual backup, run this on the database with SQLite 3.35 or newer, stopping at the first error (the `sqlite3` shell's `-bail`), then start the version 13 checkout:
+From version 14 to version 13, a way back keeps everything but the order you gave each work item's tasks: version 13 lists them by when they were added, and each move stays in the activity records. With Worklog stopped and after a manual backup, run this on the database with SQLite 3.35 or newer, stopping at the first error (the `sqlite3` shell's `-bail`), then start the version 13 checkout:
 
 ```sql
 BEGIN;
