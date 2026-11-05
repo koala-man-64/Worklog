@@ -421,6 +421,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tasks/{identity}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Move Task */
+        post: operations["move_task_api_v1_tasks__identity__move_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/references": {
         parameters: {
             query?: never;
@@ -3224,6 +3241,17 @@ export interface components {
              */
             done: boolean;
         };
+        /**
+         * TaskMove
+         * @description revision is the task's own; position is its new place among the work item's active tasks,
+         *     1 first, and a place past the last moves it last.
+         */
+        TaskMove: {
+            /** Revision */
+            revision: number;
+            /** Position */
+            position: number;
+        };
         /** TaskUpdate */
         TaskUpdate: {
             /** Revision */
@@ -4446,6 +4474,43 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["TaskCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    move_task_api_v1_tasks__identity__move_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskMove"];
             };
         };
         responses: {

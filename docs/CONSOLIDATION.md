@@ -505,3 +505,4 @@ These look like consolidation candidates but stay:
 - 2026-11-04: Phase 1 split into v11 to v13 while building it, and step 1.0 added. v11 and v12 deployed together. K12 recorded from the security review of step 1.4.
 - 2026-11-04: Steps 2.1 to 2.3 deployed. Step 2.4 split into two PRs while building it: global search first, then the `WorkService` split.
 - 2026-11-04: Step 2.5 split into two PRs while building it: sealed digests first, then the baseline schema module.
+- 2026-11-05: Schema v14, an order for each work item's tasks, added outside the plan for a product request, with its seal and documented way back. Step 2.5's baseline schema module starts from v14.

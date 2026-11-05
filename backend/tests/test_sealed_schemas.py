@@ -22,7 +22,7 @@ from worklog.migrations import SCHEMA_VERSION, UPGRADABLE_VERSIONS
 DUMPS = Path(__file__).with_name("schemas")
 SETTINGS = {"dataId": "11111111-1111-4111-8111-111111111111", "timezone": "America/Chicago", "backlogRevision": 1}
 # How the tests' own builder, recovery._expected_schema, makes each version after v1.
-FLAGS = {13: {}, 12: {"chat_confirmations": False}, 11: {"decision_state": False}, 10: {"search_keys": False},
+FLAGS = {14: {}, 13: {"task_positions": False}, 12: {"chat_confirmations": False}, 11: {"decision_state": False}, 10: {"search_keys": False},
          9: {"people": False}, 8: {"resources": False}, 7: {"scratchpads": False}, 6: {"provenance": False},
          5: {"remote_identity": False}, 4: {"tickets": False, "remote_identity": False},
          3: {"chat_messages": False, "tickets": False, "remote_identity": False},
@@ -37,7 +37,9 @@ def dump(version):
     return [(shape["digest"], {(kind, name): sql for kind, name, sql in shape["schema"]}) for shape in data["shapes"]]
 
 
-SHAPES = [(version, digest, signature) for version in range(1, SCHEMA_VERSION + 1) for digest, signature in dump(version)]
+# Run as a script, this file writes the dump of a version that has none yet, so it reads none.
+SHAPES = [] if __name__ == "__main__" else [
+    (version, digest, signature) for version in range(1, SCHEMA_VERSION + 1) for digest, signature in dump(version)]
 
 
 def digest(conn):

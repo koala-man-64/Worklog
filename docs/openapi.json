@@ -1583,6 +1583,57 @@
         }
       }
     },
+    "/api/v1/tasks/{identity}/move": {
+      "post": {
+        "summary": "Move Task",
+        "operationId": "move_task_api_v1_tasks__identity__move_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskMove"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Move Task Api V1 Tasks  Identity  Move Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/references": {
       "post": {
         "summary": "Create Reference",
@@ -11028,6 +11079,28 @@
           "text"
         ],
         "title": "TaskCreate"
+      },
+      "TaskMove": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "position": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Position"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision",
+          "position"
+        ],
+        "title": "TaskMove",
+        "description": "revision is the task's own; position is its new place among the work item's active tasks,\n1 first, and a place past the last moves it last."
       },
       "TaskUpdate": {
         "properties": {

@@ -29,6 +29,11 @@ vi.mock("./hooks", async (importOriginal) => ({
 }));
 
 const ID = "11111111-1111-4111-8111-111111111111";
+// When a fixture's task was added and last changed.
+const STAMPS = {
+  createdAt: "2026-10-27T15:04:00+00:00",
+  updatedAt: "2026-10-27T15:04:00+00:00",
+};
 function item(fields: Partial<Detail>): Detail {
   return {
     id: ID,
@@ -261,6 +266,7 @@ it("keeps the item's tasks as a checklist that adds, ticks and marks done ones",
         text: "Draft notes",
         done: true,
         itemId: ID,
+        ...STAMPS,
       },
       {
         id: "t2",
@@ -269,6 +275,7 @@ it("keeps the item's tasks as a checklist that adds, ticks and marks done ones",
         text: "Ask review",
         done: false,
         itemId: ID,
+        ...STAMPS,
       },
       {
         id: "t3",
@@ -277,6 +284,7 @@ it("keeps the item's tasks as a checklist that adds, ticks and marks done ones",
         text: "Dropped",
         done: false,
         itemId: ID,
+        ...STAMPS,
       },
     ],
   });
@@ -316,6 +324,7 @@ it("ticks a task at once and takes the tick back when the save is refused", asyn
         text: "Ask review",
         done: false,
         itemId: ID,
+        ...STAMPS,
       },
     ],
   });
