@@ -630,11 +630,11 @@ test("open work is planned for the day and rescheduled from beside its title", a
     .click();
   await entry.getByLabel("New date for " + title).fill(next);
   await entry.getByRole("button", { name: "Move", exact: true }).click();
-  // The picker closes, and this day keeps its record of the entry, no longer planned.
+  // Nothing was recorded on it today, so it leaves today and waits in Open work.
+  await expect(entry).toHaveCount(0);
   await expect(
-    entry.getByRole("button", { name: "Move", exact: true }),
-  ).toHaveCount(0);
-  await expect(entry.getByLabel("Planned", { exact: true })).not.toBeChecked();
+    open.getByRole("button", { name: `Work on ${title} today`, exact: true }),
+  ).toBeVisible();
   await page.goto("/#today/" + next);
   const moved = page
     .locator(".day-entry")

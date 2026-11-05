@@ -131,11 +131,11 @@ Each entry has tabs. "Outcome / next action" holds the day's note. "Tasks", "Scr
 1. On **Today**, press "Reschedule" beside the entry's title.
 2. Pick the new date and press "Move". "Cancel" or Escape closes the picker.
 
-The item is planned on the new day instead. Today keeps its entry, no longer planned, with anything you recorded on it. To take that entry off today as well, see [Take work off a day](#take-work-off-a-day).
+The item is planned on the new day instead. If you recorded nothing on it today, it leaves today. If you ticked "Worked on" or wrote an "Outcome / next action", today keeps its entry with what you recorded, no longer planned; to take that off today as well, see [Take work off a day](#take-work-off-a-day).
 
 ### Take work off a day
 
-When you planned work and didn't get to it, take it off the day, so the day doesn't list it among its work.
+When you planned work and didn't get to it, take it off the day, so the day doesn't list it among its work. To plan it for another day instead, [move it](#move-work-to-another-day).
 
 1. On **Today**, press "Remove from today" beside the entry's title. On another day the button names that day.
 2. An entry that only plans the work comes off at once. If you ticked "Worked on" or wrote an "Outcome / next action" on it, Worklog asks first: "Confirm remove" discards them with the entry, and "Cancel" or Escape keeps it.

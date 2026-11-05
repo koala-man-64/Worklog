@@ -81,6 +81,40 @@ def test_read_day_never_writes_and_multiday_activity_survives_rescheduling(clien
     assert client.get(f"/api/v1/work-items/{w['id']}").json()["status"] == "open"
 
 
+def test_rescheduling_work_that_was_only_planned_takes_it_off_the_day_it_left(client):
+    w = item(client, title="Not reached", day="2026-10-28")
+    entry = client.get("/api/v1/days/2026-10-28").json()["entries"][0]
+
+    def move(revision, target="2026-10-29", target_revision=0, source="2026-10-28"):
+        return write(client, "POST", f"/days/{source}/reschedule",
+                     {"itemId": w["id"], "revision": revision, "targetDate": target, "targetRevision": target_revision})
+
+    # A stale view moves nothing.
+    assert move(entry["revision"] + 1).status_code == 409
+    assert client.get("/api/v1/days/2026-10-29").json()["entries"] == []
+    r = move(entry["revision"])
+    assert r.status_code == 200, r.text
+    assert client.get("/api/v1/days/2026-10-28").json()["entries"] == []
+    moved = client.get("/api/v1/days/2026-10-29").json()["entries"]
+    assert [(e["itemId"], e["planned"]) for e in moved] == [(w["id"], True)]
+    detail = client.get(f"/api/v1/work-items/{w['id']}").json()
+    assert [e["date"] for e in detail["dailyEntries"]] == ["2026-10-29"]
+    removals = [e["before"]["date"] for e in detail["history"] if e["kind"] == "entry.remove"]
+    assert removals == ["2026-10-28"]
+    # An outcome of blank space records nothing either; a day it isn't on has no entry to move.
+    blank = write(client, "PUT", f"/days/2026-10-29/entries/{w['id']}", {"revision": moved[0]["revision"], "outcome": " \n "})
+    assert move(blank.json()["revision"], target="2026-10-30", source="2026-10-29").status_code == 200
+    assert client.get("/api/v1/days/2026-10-29").json()["entries"] == []
+    assert move(1, target="2026-10-31", source="2026-10-29").status_code == 409
+    assert client.get("/api/v1/days/2026-10-29").json()["entries"] == []
+    # An outcome alone keeps the day's record, no longer planned.
+    there = client.get("/api/v1/days/2026-10-30").json()["entries"][0]
+    noted = write(client, "PUT", f"/days/2026-10-30/entries/{w['id']}", {"revision": there["revision"], "outcome": "Read the ticket"})
+    assert move(noted.json()["revision"], target="2026-10-31", source="2026-10-30").status_code == 200
+    kept = client.get("/api/v1/days/2026-10-30").json()["entries"]
+    assert [(e["planned"], e["outcome"]) for e in kept] == [(False, "Read the ticket")]
+
+
 def test_work_taken_off_its_day_leaves_no_entry_and_rejoins_the_backlog(client):
     # Planned ahead, so the backlog leaves it out until it comes off that day.
     date = "2099-01-01"
