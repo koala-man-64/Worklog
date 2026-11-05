@@ -104,7 +104,7 @@ Approval is on by default. When the person turns it off in Settings, `proposal s
 worklog agent register --chat CHAT_ID --label 'Parser fix (Claude)'
 ```
 
-**Step 3. Start a run.** It reports the chat you registered with; you need not give `--chat`. Keep the run's `id` and `revision`. The person sees your chat through it, and their messages reach the identity whose run reported the chat. Starting again with the same `--client-run-key` returns the same run; use a new key for a new run.
+**Step 3. Start a run.** It reports the chat you registered with; you need not give `--chat`. Keep the run's `id` and `revision`. The person sees your chat through it, and their messages reach you there, because your identity is bound to the chat it registered with. Starting again with the same `--client-run-key` returns the same run; use a new key for a new run.
 
 ```powershell
 worklog agent --as NAME runs start --client-run-key CHAT_ID --display-name 'Parser fix' --provider claude --request-id run-start-CHAT_ID
@@ -297,9 +297,9 @@ worklog agent --as NAME tickets comment T-12 --text 'Reproduced with a file that
 |---|---|---|---|
 | `inbox` | `[--chat CHAT_ID]` | optional | `{items,total}`; each item is `{id,text,authorKind,authorId,authorLabel,sentAt,chat:{id,chatId,title},runIds}` |
 
-The person writes to a chat's agents from the Chats page. A message reaches every identity with an open run that reported the chat's ID when it was sent; your runs report the chat you registered with. `inbox` hands you your waiting messages oldest first and marks them delivered, so each arrives once. `--chat` takes only the messages for runs that reported that chat ID. Check with a fresh request ID each time. After an uncertain result, rerun with the ID the error names to receive the same messages again.
+The person writes to a chat's agents from the Chats page. A message reaches every identity bound to the chat with an open run that reported the chat's ID when it was sent. Your identity is bound to the chat you registered with, and your runs report it. A run that reports another chat's ID receives nothing there until the person confirms you on that chat's page, which is also the only way a credential issued in Settings receives messages. `inbox` hands you your waiting messages oldest first and marks them delivered, so each arrives once. `--chat` takes only the messages for runs that reported that chat ID. Check with a fresh request ID each time. After an uncertain result, rerun with the ID the error names to receive the same messages again.
 
-A message expires when its run ends, its credential is revoked, rotated or retired, its chat is archived or given another ID, or Worklog is restored. It also expires when nobody picks it up within 2 hours. You cannot read a chat's messages or their history, only receive your own.
+A message expires when its run ends, its credential is revoked, rotated or retired, its chat is archived or given another ID, the person removes your confirmation in that chat, or Worklog is restored. It also expires when nobody picks it up within 2 hours. You cannot read a chat's messages or their history, only receive your own.
 
 ```powershell
 worklog agent --as NAME inbox
@@ -369,7 +369,7 @@ worklog agent --as NAME inbox --chat CHAT_ID --request-id inbox-CHAT_ID-7
   - A new chat registers a new identity. A role passes to it by an accepted offer, a claim after a release, or the person's reassignment.
   - Token rotation is not a handoff. Archiving a chat cancels nothing.
 - **Resume.** `resume` returns roles, offers, discussions and pending requests for a context, with a cursor. `changes --cursor` reads what changed since. Read every page while `hasMore` is true. After a restore, an old cursor returns `cursor_reset`: resume again.
-- **Proposal notices.** When the person returns your proposal to draft, or a plan change makes a submitted proposal stale, Worklog posts a discussion asking you to acknowledge. It also writes to the chats your open runs reported. Look for it in `discussions list --view awaiting` and `inbox`.
+- **Proposal notices.** When the person returns your proposal to draft, or a plan change makes a submitted proposal stale, Worklog posts a discussion asking you to acknowledge. It also writes to the chats your open runs reported that your identity is bound to. Look for it in `discussions list --view awaiting` and `inbox`.
 
 ```powershell
 worklog agent --as NAME discussions participants
@@ -640,7 +640,7 @@ worklog check
 | `acknowledgement_authority` | 403 | You are not one of the requested targets | Acknowledge only the slots in `request.actionableTargetIds` |
 | `request_authority` | 403 | Only the request's manager may cancel it | Do not retry |
 | `chat_archived` | 409 | The chat is archived, so it takes no messages | The person's; not yours |
-| `no_recipients` | 409 | No open run reported the chat | The person's; not yours |
+| `no_recipients` | 409 | No open run of an agent bound to the chat reported it | The person's; not yours |
 | `ticket_archived` | 409 | The ticket is archived and read-only | Ask the person to recover it |
 | `assignee_unavailable` | 422 | The assignee is neither the person nor an identity with a live credential | Choose another assignee |
 

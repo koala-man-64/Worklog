@@ -1387,6 +1387,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/chats/{identity}/confirmations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Chat Confirmation Create */
+        post: operations["chat_confirmation_create_api_v1_chats__identity__confirmations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chats/{identity}/confirmations/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Chat Confirmation Remove */
+        post: operations["chat_confirmation_remove_api_v1_chats__identity__confirmations_remove_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/inbox/receive": {
         parameters: {
             query?: never;
@@ -2064,6 +2098,11 @@ export interface components {
         AvatarChoice: {
             /** Avatar */
             avatar: string;
+        };
+        /** ChatConfirmation */
+        ChatConfirmation: {
+            /** Agentid */
+            agentId: string;
         };
         /** ChatCreate */
         ChatCreate: {
@@ -6553,6 +6592,80 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ChatMessageCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chat_confirmation_create_api_v1_chats__identity__confirmations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatConfirmation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chat_confirmation_remove_api_v1_chats__identity__confirmations_remove_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatConfirmation"];
             };
         };
         responses: {

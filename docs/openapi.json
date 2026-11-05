@@ -5048,6 +5048,108 @@
         }
       }
     },
+    "/api/v1/chats/{identity}/confirmations": {
+      "post": {
+        "summary": "Chat Confirmation Create",
+        "operationId": "chat_confirmation_create_api_v1_chats__identity__confirmations_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatConfirmation"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Chat Confirmation Create Api V1 Chats  Identity  Confirmations Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chats/{identity}/confirmations/remove": {
+      "post": {
+        "summary": "Chat Confirmation Remove",
+        "operationId": "chat_confirmation_remove_api_v1_chats__identity__confirmations_remove_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatConfirmation"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Chat Confirmation Remove Api V1 Chats  Identity  Confirmations Remove Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/inbox/receive": {
       "post": {
         "summary": "Inbox Receive",
@@ -7578,6 +7680,22 @@
           "avatar"
         ],
         "title": "AvatarChoice"
+      },
+      "ChatConfirmation": {
+        "properties": {
+          "agentId": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Agentid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "agentId"
+        ],
+        "title": "ChatConfirmation"
       },
       "ChatCreate": {
         "properties": {

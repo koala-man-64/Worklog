@@ -4,7 +4,13 @@ import { Avatar } from "./Avatar";
 import { ErrorMessage, Markdown } from "./components";
 import { useAction, useData } from "./hooks";
 import { localStore } from "./storage";
-import type { DeliveryReason, Outbox, OutboxDelivery } from "./outboxTypes";
+import type {
+  DeliveryReason,
+  Outbox,
+  OutboxDelivery,
+  OutboxRecipient,
+  OutboxRun,
+} from "./outboxTypes";
 
 const PAGE = 20;
 // The server's page limit: the most messages one request returns.
@@ -18,6 +24,7 @@ const REASONS: Record<DeliveryReason, string> = {
   chat_archived: "the chat was archived",
   chat_changed: "the chat's ID changed",
   restore: "Worklog was restored from a backup",
+  unconfirmed: "its agent isn't confirmed in this chat",
   not_picked_up: "not picked up within 2 hours",
 };
 
@@ -28,9 +35,32 @@ export function deliveryState(
   if (delivery.status === "delivered")
     return `Delivered ${time(delivery.deliveredAt)}`;
   if (delivery.status === "pending") return "Waiting for pickup";
+  // A reason this version doesn't know, from a newer one, reads as plain expiry.
   return (
     "Not delivered: " +
-    (delivery.reason ? REASONS[delivery.reason] : "it expired")
+    ((delivery.reason && REASONS[delivery.reason]) || "it expired")
+  );
+}
+
+/** Where an agent identity comes from, which its free-text label cannot show. */
+function origin(run: OutboxRun, binding?: OutboxRecipient["binding"]) {
+  if (run.registeredBy)
+    return `registered by ${run.registeredBy.label || "an agent"}`;
+  return binding === "registered"
+    ? "registered with this chat"
+    : "issued in Settings";
+}
+
+/** One run on the chat: its agent, the run, and where the agent comes from. */
+function RunName({ run, alike }: { run: OutboxRun; alike: boolean }) {
+  return (
+    <>
+      <Avatar name={run.avatar} size={18} />
+      {run.agentLabel}
+      {/* Two identities under one label: their IDs tell them apart. */}
+      {alike && <small>· id {run.agentId.slice(0, 8)}</small>}
+      <small>· {run.runName}</small>
+    </>
   );
 }
 
@@ -62,9 +92,12 @@ function useChatDraft(chatId: string) {
 }
 
 /**
- * Messages the person writes into a chat for the agents working in it. Agents
- * with an open run that reported this chat's ID receive each one once, through
- * `worklog agent inbox`; an archived chat receives nothing.
+ * Messages the person writes into a chat for the agents working in it. An agent
+ * bound to this chat, because it registered with it or the person confirmed it
+ * here, receives each one once through `worklog agent inbox` while it has an
+ * open run that reported this chat's ID. Any other run that reports the ID only
+ * claims the chat, and receives nothing until the person confirms its agent. An
+ * archived chat receives nothing.
  */
 export function ChatOutbox({
   chat,
@@ -81,13 +114,38 @@ export function ChatOutbox({
     refreshMs,
   );
   const send = useAction();
+  const binding = useAction();
   const draft = useChatDraft(chat.id);
   const [error, setError] = useState<unknown>(null);
+  const [bindingError, setBindingError] = useState<unknown>(null);
   const [notice, setNotice] = useState("");
   const data = outbox.data;
   const recipients = data?.recipients ?? [];
+  const unconfirmed = data?.unconfirmed ?? [];
+  // Labels that more than one identity on this chat goes by.
+  const identities = new Map<string, Set<string>>();
+  for (const run of [...recipients, ...unconfirmed])
+    identities.set(
+      run.agentLabel,
+      (identities.get(run.agentLabel) ?? new Set()).add(run.agentId),
+    );
+  const alike = (run: OutboxRun) =>
+    (identities.get(run.agentLabel)?.size ?? 0) > 1;
   const canSend =
     !!draft.text.trim() && recipients.length > 0 && !send.isPending;
+
+  /** Confirm that an agent works in this chat, or remove that confirmation. */
+  async function setConfirmation(agentId: string, confirmed: boolean) {
+    setBindingError(null);
+    try {
+      await binding.mutateAsync({
+        path: `/chats/${chat.id}/confirmations${confirmed ? "" : "/remove"}`,
+        body: { agentId },
+      });
+    } catch (failure) {
+      setBindingError(failure);
+    }
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -153,32 +211,73 @@ export function ChatOutbox({
             outbox.isPending && (
               <p className="muted">Checking who would receive it…</p>
             )
-          ) : recipients.length ? (
-            <div className="chat-recipients">
-              <span className="muted">Reaches</span>
-              <ul aria-label="Agents a message reaches">
-                {recipients.map((r) => (
-                  <li
-                    key={r.runId}
-                    className={r.registered ? undefined : "unregistered"}
-                    title={
-                      r.registered
-                        ? `Run: ${r.runName}`
-                        : `Run: ${r.runName}. This run reports this chat's ID, but its agent didn't register with this chat. It still receives what you send.`
-                    }
-                  >
-                    <Avatar name={r.avatar} size={18} />
-                    {r.agentLabel}
-                    <small>· {r.runName}</small>
-                    {!r.registered && (
-                      <small className="unregistered-note">
-                        not registered with this chat
-                      </small>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
+          ) : recipients.length || unconfirmed.length ? (
+            <>
+              {recipients.length ? (
+                <div className="chat-recipients">
+                  <span className="muted">Reaches</span>
+                  <ul aria-label="Agents a message reaches">
+                    {recipients.map((r) => (
+                      <li key={r.runId} title={`Run: ${r.runName}`}>
+                        <RunName run={r} alike={alike(r)} />
+                        <small>· {origin(r, r.binding)}</small>
+                        {r.binding === "confirmed" && (
+                          <>
+                            <small>· confirmed by you</small>
+                            <button
+                              type="button"
+                              aria-label={`Remove your confirmation of ${r.agentLabel}`}
+                              disabled={binding.isPending}
+                              onClick={() => setConfirmation(r.agentId, false)}
+                            >
+                              Remove
+                            </button>
+                          </>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p className="muted">
+                  No agent bound to this chat has an open run, so a message
+                  would reach no one yet.
+                </p>
+              )}
+              {unconfirmed.length > 0 && (
+                <>
+                  <div className="chat-recipients">
+                    <span className="muted">Not confirmed</span>
+                    <ul aria-label="Agents waiting for your confirmation">
+                      {unconfirmed.map((r) => (
+                        <li
+                          key={r.runId}
+                          className="unconfirmed"
+                          title={`Run: ${r.runName}, started ${time(r.startedAt)}`}
+                        >
+                          <RunName run={r} alike={alike(r)} />
+                          <small>· {origin(r)}</small>
+                          <button
+                            type="button"
+                            aria-label={`Confirm ${r.agentLabel} works in this chat`}
+                            disabled={binding.isPending}
+                            onClick={() => setConfirmation(r.agentId, true)}
+                          >
+                            Confirm
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <p className="muted">
+                    These runs report this chat's ID, but their agents didn't
+                    register with this chat, so they receive nothing. Confirm
+                    an agent only if you know it works here.
+                  </p>
+                </>
+              )}
+              <ErrorMessage error={bindingError} />
+            </>
           ) : (
             <p className="muted">
               No open agent run reports this chat's ID, so a message would reach

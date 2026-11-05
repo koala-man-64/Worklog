@@ -78,6 +78,8 @@
   "POST /api/v1/attachments?ownerType=proposal": "reaches handler",
   "POST /api/v1/backups": "refused",
   "POST /api/v1/chats": "refused",
+  "POST /api/v1/chats/{identity}/confirmations": "refused",
+  "POST /api/v1/chats/{identity}/confirmations/remove": "refused",
   "POST /api/v1/chats/{identity}/messages": "refused",
   "POST /api/v1/credentials": "refused",
   "POST /api/v1/credentials/{identity}/revoke": "refused",

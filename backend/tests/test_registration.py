@@ -274,8 +274,9 @@ def test_retiring_or_cascading_expires_messages_waiting_for_the_agents(client, a
     sponsor = issue(client)
     item = write(client, "POST", "/work-items", {"title": "Import format"}).json()
     chat = write(client, "POST", "/chats", {"ownerType": "item", "ownerId": item["id"], "chatId": "session-1", "title": "Parser work"}).json()
-    child, child_token = register(agent_http, sponsor["token"], "Parser fix")
-    _, grandchild_token = register(agent_http, child_token, "Parser subagent")
+    # Both register with the chat, so both are bound to it and receive what the person writes there.
+    child, child_token = register(agent_http, sponsor["token"], "Parser fix", chatId="session-1")
+    _, grandchild_token = register(agent_http, child_token, "Parser subagent", chatId="session-1")
     for token in (child_token, grandchild_token):
         started = write(agent_http, "POST", "/agent-runs", {"clientRunKey": str(uuid.uuid4()), "displayName": "Run", "externalChatId": "session-1"},
                         headers=bearer(token))

@@ -53,6 +53,7 @@ The order is fixed:
 | K9 | What happens to REMEDIATION.md? | It is superseded by this file and kept as the record of the 2026-10-28 audit. | 5.5a | 2026-11-04, Rudy |
 | K10 (D4) | What are the agent quotas? | Per agent: 50 open drafts, 100 submitted proposals awaiting review, and per proposal 20 evidence files and 100 MB | 3.4 | 2026-11-04, Rudy |
 | K11 (D7) | Which tool hash-locks Python dependencies? | pip-tools (`pip-compile --generate-hashes`), with separate runtime and dev lock files | 5.7 | 2026-11-04, Rudy |
+| K12 | Should registering with a chat also wait for the person's confirmation? (from the security review of 1.4) | No: K3 stays as it is. A registered identity is bound to its chat with no confirmation, since agents are cooperating (K1), and the chat page names who registered each one. C-01 stays narrowed, not closed. | 1.4 | 2026-11-04, Rudy |
 | D6 | Is a migration framework needed? | Closed as done: migrations v1 to v10 run in one transaction after a pre-migration backup. | — | 2026-11-04, Rudy |
 
 ## Rules the roundtable settled
@@ -151,13 +152,7 @@ Each of these is a separate migration with its own PR and its own independent re
 
 Each migration's PR owns `migrations.py`, `db.py` and `recovery.py` while it is open. A deploy that runs a migration on real data waits for the person's go-ahead.
 
-#### 1.0 · One writer for the search index
-
-Status: Merged · Branch: `claude/one-search-writer` · PR: [#95](https://github.com/koala-man-64/Worklog/pull/95)
-
-This step was added on 2026-11-04 while preparing 1.1. Keyed search rows only work if every writer keeps the keys in step. Before this step, discussions, tickets, repository merges and `WorkService` all wrote `search_index` directly.
-
-`search.py` now owns every write, unchanged in behaviour. `test_search_writes.py` fails when another module writes the table; historic migrations are exempt. No schema change. Findings: B-13.
+v11 and v12 went live together on 2026-11-04, after a dry run of the upgrade on a copy of the newest backup. v13 waits for its own go-ahead.
 
 #### 1.0 · One writer for the search index
 
@@ -191,9 +186,11 @@ Afterwards no runtime decision reads event JSON. A test blanks the registration 
 
 #### 1.4 · Chats bound to identities
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branch: `claude/schema-v13` · PR: [#98](https://github.com/koala-man-64/Worklog/pull/98)
 
-In v13. Implements K3. A registered chat binds automatically; the person confirms any other binding on the chat page; deliveries go to bound identities only. Needs 1.3. Findings: C-01.
+In v13. Implements K3. An identity is bound to the chat it registered with (the v12 column), and `chat_confirmations` holds each other binding the person confirmed, keyed by the chat's own ID, so one confirmation covers every record that tracks the chat. Sending, inbox hand-out and proposal notices reach bound identities only. The chat page lists any other run reporting the chat's ID as not confirmed, with Confirm, and a confirmed agent with Remove. Each agent there says where it comes from (issued in Settings, or registered by which agent), since labels are the agents' own. The upgrade ends deliveries still waiting for an identity bound to no chat they were sent to. Needs 1.3. Findings: C-01.
+
+C-01 is narrowed, not closed. Registering with a chat stays the agent's own statement, as K1 has it: any credential can register an identity with a chat's ID, which any agent can read, and that identity is bound with no confirmation. The person kept it that way on 2026-11-04 (K12).
 
 ### Phase 2 · Registries and plumbing
 
@@ -466,3 +463,4 @@ These look like consolidation candidates but stay:
 ## Change log
 
 - 2026-11-04: Plan created from the consolidation audit of `e4a1d14`; decisions K1 to K11 recorded; REMEDIATION.md superseded.
+- 2026-11-04: Phase 1 split into v11 to v13 while building it, and step 1.0 added. v11 and v12 deployed together. K12 recorded from the security review of step 1.4.

@@ -178,6 +178,7 @@ function transcript(fields: Partial<Transcript> = {}): Transcript {
 const noMessages: Outbox = {
   chat: { id: "release", chatId: "release-chat", archived: false },
   recipients: [],
+  unconfirmed: [],
   items: [],
   total: 0,
   limit: 20,
