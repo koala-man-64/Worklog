@@ -1,4 +1,4 @@
-import type { Status } from "./types";
+import type { ItemStatus, Status } from "./types";
 
 export type TicketKind = "bug" | "incident" | "task";
 export type TicketPriority = "low" | "normal" | "high" | "urgent";
@@ -26,7 +26,12 @@ export type Ticket = {
   labels: string[];
   repositoryIds: string[];
   itemId: string | null;
-  item: { id: string; title: string; status: Status; archived: boolean } | null;
+  item: {
+    id: string;
+    title: string;
+    status: ItemStatus;
+    archived: boolean;
+  } | null;
   assigneeId: string | null;
   assignee: (TicketPerson & { active: boolean }) | null;
   author: TicketPerson;

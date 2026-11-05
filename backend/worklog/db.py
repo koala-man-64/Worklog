@@ -11,6 +11,8 @@ from typing import TypeVar
 
 from .common import AppError, uid
 
+# The v1 definitions, never edited: every database, a new one included, reaches the current shape
+# through migrations.upgrade. migrations.add_waiting_status, for one, rebuilds work_items for v15.
 SCHEMA = """
 CREATE TABLE settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);
 CREATE TABLE credentials(id TEXT PRIMARY KEY,label TEXT NOT NULL,token_hash TEXT NOT NULL UNIQUE,created_at TEXT NOT NULL,revoked INTEGER NOT NULL DEFAULT 0);

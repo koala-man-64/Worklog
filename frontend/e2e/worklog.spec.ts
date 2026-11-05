@@ -566,6 +566,19 @@ test("stack rank moves work from its row, its picker and its page", async ({
       exact: true,
     }),
   ).toBeVisible();
+  // Waiting work is unfinished: it keeps its place in the ranking.
+  const waiting = page
+    .locator(".work-row")
+    .filter({ has: page.getByRole("link", { name: b, exact: true }) })
+    .getByRole("combobox", { name: "Status" });
+  await waiting.selectOption("waiting");
+  await expect(waiting).toHaveValue("waiting");
+  await expect(titles).toHaveText([c, b, a]);
+  await expect(
+    page.getByRole("button", {
+      name: new RegExp(`^Change stack rank of ${b}, now \\d+$`),
+    }),
+  ).toBeVisible();
   // Done work leaves the ranking and follows the ranked work.
   await page
     .locator(".work-row")

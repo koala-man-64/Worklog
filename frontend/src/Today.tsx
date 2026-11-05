@@ -8,6 +8,7 @@ import {
   Empty,
   ErrorMessage,
   Files,
+  ITEM_STATUSES,
   LinksSection,
   Scratchpad,
   StatusSelect,
@@ -15,12 +16,12 @@ import {
   Tabs,
 } from "./components";
 import { CreateItem } from "./Work";
-import type { Day, Detail, Entry, Item, List, Status } from "./types";
+import type { Day, Detail, Entry, Item, ItemStatus, List } from "./types";
 import { Icon } from "./icons";
 import { RankBadge } from "./StackRank";
 import { RepositoryBadges, RepositoryPicker } from "./RepositoryControls";
 // The work Today offers to plan: anything not finished.
-const OPEN_STATES: Status[] = ["open", "doing", "blocked"];
+const OPEN_STATES: ItemStatus[] = ["open", "doing", "waiting", "blocked"];
 // The key an entry's "Outcome / next action" field keeps its draft under.
 const outcomeDraftKey = (entry: Entry) => "entry-" + entry.id;
 // What the day records for an entry beyond its plan, counting an outcome typed here and not yet
@@ -592,6 +593,7 @@ export function Today({
                   <StatusSelect
                     disabled={entry.item.archived}
                     value={entry.item.status}
+                    options={ITEM_STATUSES}
                     onChange={(status) =>
                       action.mutate({
                         path: "/work-items/" + entry.itemId,

@@ -2692,7 +2692,7 @@ export interface components {
             /** Description */
             description?: string | null;
             /** Status */
-            status?: ("open" | "doing" | "blocked" | "done") | null;
+            status?: ("open" | "doing" | "waiting" | "blocked" | "done") | null;
             /** Adourl */
             adoUrl?: string | null;
             /** Roadmapid */

@@ -1,6 +1,9 @@
 import type { Repository } from "./repositoryTypes";
 
+/** A ticket's or a roadmap step's status. */
 export type Status = "open" | "doing" | "blocked" | "done";
+/** A work item's status, which can also be waiting on someone else. */
+export type ItemStatus = Status | "waiting";
 export type RecordBase = {
   id: string;
   revision: number;
@@ -80,7 +83,7 @@ export type Item = RecordBase & {
   rank?: number | null;
   title: string;
   description: string;
-  status: Status;
+  status: ItemStatus;
   adoUrl: string | null;
   roadmapId?: string | null;
   stepId: string | null;
