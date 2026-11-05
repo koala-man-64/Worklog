@@ -672,8 +672,10 @@ form.field-action > label {
 .open-list > .line {
   padding: 7px 0;
 }
-/* The date picker a day entry's Reschedule button opens under its title. */
-.reschedule-picker {
+/* The date picker a day entry's Reschedule button opens under its title, and the question its
+   Remove button asks there before discarding what the day recorded. */
+.reschedule-picker,
+.remove-confirm {
   margin: 0 0 10px;
 }
 .reschedule-picker input {
@@ -944,11 +946,13 @@ button.rank:hover {
   vertical-align: middle;
   margin-left: -9px;
 }
-/* A collapsed entry keeps only its heading row, and a Reschedule picker opened from it. */
+/* A collapsed entry keeps only its heading row, and a Reschedule picker or Remove question
+   opened from it. */
 .day-entry.collapsed > .section-heading {
   margin-bottom: 0;
 }
-.day-entry.collapsed > .reschedule-picker {
+.day-entry.collapsed > .reschedule-picker,
+.day-entry.collapsed > .remove-confirm {
   margin: 6px 0 0;
 }
 .drag-handle {

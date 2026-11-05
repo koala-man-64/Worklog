@@ -630,17 +630,80 @@ test("open work is planned for the day and rescheduled from beside its title", a
     .click();
   await entry.getByLabel("New date for " + title).fill(next);
   await entry.getByRole("button", { name: "Move", exact: true }).click();
-  // The picker closes, and this day keeps its record of the entry, no longer planned.
+  // Nothing was recorded on it today, so it leaves today and waits in Open work.
+  await expect(entry).toHaveCount(0);
   await expect(
-    entry.getByRole("button", { name: "Move", exact: true }),
-  ).toHaveCount(0);
-  await expect(entry.getByLabel("Planned", { exact: true })).not.toBeChecked();
+    open.getByRole("button", { name: `Work on ${title} today`, exact: true }),
+  ).toBeVisible();
   await page.goto("/#today/" + next);
   const moved = page
     .locator(".day-entry")
     .filter({ has: page.getByRole("link", { name: title, exact: true }) });
   await expect(moved).toBeVisible();
   await expect(moved.getByLabel("Planned", { exact: true })).toBeChecked();
+});
+test("work not reached comes off the day and waits in Open work again", async ({
+  page,
+  baseURL,
+}) => {
+  const origin = new URL(baseURL!).origin;
+  const title = "Not reached " + Date.now();
+  const boot = await page.request.post("/api/v1/session/bootstrap", {
+    headers: { Origin: origin, "X-Worklog-Bootstrap": "1" },
+    data: {},
+  });
+  const { csrfToken } = await boot.json();
+  const created = await page.request.post("/api/v1/work-items", {
+    headers: {
+      Origin: origin,
+      "X-CSRF-Token": csrfToken,
+      "Idempotency-Key": crypto.randomUUID(),
+    },
+    data: { title },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { id } = await created.json();
+  await page.goto("/");
+  const open = page.locator("section.open-work");
+  await open.getByRole("textbox", { name: "Find open work" }).fill(title);
+  const plan = open.getByRole("button", {
+    name: `Work on ${title} today`,
+    exact: true,
+  });
+  await plan.click();
+  const entry = page
+    .locator(".day-entry")
+    .filter({ has: page.getByRole("link", { name: title, exact: true }) });
+  const remove = entry.getByRole("button", {
+    name: `Remove ${title} from today`,
+    exact: true,
+  });
+  // Only planned, it comes off at once and waits in Open work again.
+  await remove.click();
+  await expect(entry).toHaveCount(0);
+  await expect(plan).toBeVisible();
+  // Once the day records work on it, taking it off asks first.
+  await plan.click();
+  await entry.getByLabel("Worked on", { exact: true }).click();
+  await expect(entry.getByLabel("Worked on", { exact: true })).toBeChecked();
+  await remove.click();
+  const question = entry.getByRole("group", {
+    name: "It is marked “Worked on”. Remove it from today anyway?",
+  });
+  await question.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(question).toHaveCount(0);
+  await expect(entry).toBeVisible();
+  await remove.click();
+  await question
+    .getByRole("button", { name: "Confirm remove", exact: true })
+    .click();
+  await expect(entry).toHaveCount(0);
+  await expect(plan).toBeVisible();
+  // The item's own record no longer lists the day.
+  const detail = await page.request.get("/api/v1/work-items/" + id, {
+    headers: { Origin: origin },
+  });
+  expect((await detail.json()).dailyEntries).toEqual([]);
 });
 test("a link changed in another tab survives tabbing through a stale field", async ({
   context,

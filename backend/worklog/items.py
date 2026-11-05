@@ -314,6 +314,37 @@ class Items:
         event(c, actor, "entry.upsert", item_id, before, val)
         return val
 
+    @staticmethod
+    def _day_entry(c: sqlite3.Connection, date: str, item_id: str, revision: Any) -> Any:
+        """An active work item's entry on a day, as of the revision the caller read it at.
+        An archived item's entries are read-only history."""
+        valid_date(date)
+        get_item(c, item_id, active=True)
+        row = c.execute("SELECT * FROM daily_entries WHERE date=? AND item_id=?", (date, item_id)).fetchone()
+        if row is None:
+            raise AppError(409, "conflict", "Entry does not exist; reload the day")
+        require_revision(row, revision)
+        return row
+
+    def _drop_entry(self, c: sqlite3.Connection, actor: dict, row: Any) -> None:
+        """Delete a day's entry, so neither the day nor the item's daily record lists it;
+        history keeps the entry as it was."""
+        c.execute("DELETE FROM daily_entries WHERE id=?", (row["id"],))
+        c.execute("UPDATE days SET revision=revision+1 WHERE date=?", (row["date"],))
+        # Planned work leaves the backlog; taken off its day, it may rejoin it.
+        self.bump_backlog(c)
+        event(c, actor, "entry.remove", row["item_id"], entry_record(row), None)
+
+    def remove_entry(self, c: sqlite3.Connection, actor: dict, date: str, item_id: str, p: dict) -> dict:
+        """Take a work item off a day: work planned but not reached, or put there by mistake.
+
+        The entry goes with what the day recorded for it (planned, worked on, its outcome); Today
+        asks the person first when that record holds work. The item and its other days stay as
+        they are.
+        """
+        self._drop_entry(c, actor, self._day_entry(c, date, item_id, p.get("revision")))
+        return {"ok": True}
+
     def reflection(self, c: sqlite3.Connection, actor: dict, date: str, p: dict) -> dict:
         valid_date(date)
         row = c.execute("SELECT * FROM days WHERE date=?", (date,)).fetchone()
@@ -352,11 +383,22 @@ class Items:
         return {"ok": True}
 
     def reschedule(self, c: sqlite3.Connection, actor: dict, date: str, p: dict) -> dict:
+        """Move a work item's plan from this day to another.
+
+        What this day recorded on the item, "Worked on" or an outcome, stays here, no longer
+        planned. An entry that only planned the item goes, so this day doesn't list work it never
+        got. The target day plans the item, in the entry it already has or a new one.
+        """
         target = valid_date(p.get("targetDate", ""))
         if target == date:
             raise AppError(422, "validation", "Choose a different date")
-        self.upsert_entry(c, actor, {"date": date, "itemId": p.get("itemId"), "revision": p.get("revision"), "planned": False})
-        return self.upsert_entry(c, actor, {"date": target, "itemId": p.get("itemId"), "revision": p.get("targetRevision", 0), "planned": True})
+        item_id = p.get("itemId", "")
+        row = self._day_entry(c, date, item_id, p.get("revision"))
+        if row["worked"] or row["outcome"].strip():
+            self.upsert_entry(c, actor, {"date": date, "itemId": item_id, "revision": row["revision"], "planned": False})
+        else:
+            self._drop_entry(c, actor, row)
+        return self.upsert_entry(c, actor, {"date": target, "itemId": item_id, "revision": p.get("targetRevision", 0), "planned": True})
 
     def move_backlog(self, c: sqlite3.Connection, actor: dict, identity: str, p: dict) -> dict:
         require_revision({"revision": setting(c, "backlogRevision", 1)}, p.get("revision"))

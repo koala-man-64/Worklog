@@ -363,6 +363,11 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def update_entry(date: str, item_id: str, request: Request, body: m.EntryUpdate) -> dict:
         return apply(request, "entry.upsert", {**body.model_dump(exclude_unset=True), "date": date, "itemId": item_id})
 
+    @app.post("/api/v1/days/{date}/entries/{item_id}/remove")
+    def remove_entry(date: str, item_id: str, request: Request, body: m.Expected) -> dict:
+        p = body.model_dump()
+        return mutate(request, p, lambda c, a: work.items.remove_entry(c, a, date, item_id, p))
+
     @app.put("/api/v1/days/{date}/reflection")
     def reflection(date: str, request: Request, body: m.Reflection) -> dict:
         p = body.model_dump()
