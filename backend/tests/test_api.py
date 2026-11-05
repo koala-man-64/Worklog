@@ -143,6 +143,18 @@ def test_taking_work_off_one_day_keeps_its_other_days_and_archived_history(clien
     assert write(client, "POST", f"/days/2026-02-30/entries/{w['id']}/remove", {"revision": 1}).status_code == 422
 
 
+def test_blocked_work_taken_off_its_day_leaves_the_days_blocked_count(client):
+    # A day from today on folds in the status change made today.
+    date = "2099-01-01"
+    w = item(client, title="Waiting on infra", day=date)
+    assert write(client, "PATCH", f"/work-items/{w['id']}", {"revision": 1, "status": "blocked"}).status_code == 200
+    day = client.get(f"/api/v1/days/{date}").json()
+    assert [b["id"] for b in day["summary"]["blocked"]] == [w["id"]]
+    removed = write(client, "POST", f"/days/{date}/entries/{w['id']}/remove", {"revision": day["entries"][0]["revision"]})
+    assert removed.status_code == 200, removed.text
+    assert client.get(f"/api/v1/days/{date}").json()["summary"]["blocked"] == []
+
+
 def test_stale_edit_and_idempotent_creation(client):
     key = str(uuid.uuid4())
     first = write(client, "POST", "/work-items", {"title": "One identity"}, headers={"Idempotency-Key": key})

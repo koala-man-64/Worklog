@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { contextStorageKey, request, getDataContext } from "./api";
 import { commands } from "./commands";
-import { useAction, useCollapsed, useData } from "./hooks";
+import { unsavedDraft, useAction, useCollapsed, useData } from "./hooks";
 import {
   Checklist,
   DraftField,
@@ -21,14 +21,19 @@ import { RankBadge } from "./StackRank";
 import { RepositoryBadges, RepositoryPicker } from "./RepositoryControls";
 // The work Today offers to plan: anything not finished.
 const OPEN_STATES: Status[] = ["open", "doing", "blocked"];
-// What the day records for an entry beyond its plan. Taking the entry off the day discards it,
-// so the person confirms that first; an entry that only plans the work comes off at once.
+// The key an entry's "Outcome / next action" field keeps its draft under.
+const outcomeDraftKey = (entry: Entry) => "entry-" + entry.id;
+// What the day records for an entry beyond its plan, counting an outcome typed here and not yet
+// saved. Taking the entry off the day discards it, so the person confirms that first; an entry
+// that only plans the work comes off at once.
 function recordedWork(entry: Entry): string | null {
   const outcome = entry.outcome.trim() !== "";
   if (entry.worked && outcome)
     return "It is marked “Worked on” and has an outcome / next action.";
   if (entry.worked) return "It is marked “Worked on”.";
   if (outcome) return "It has an outcome / next action.";
+  if (unsavedDraft(outcomeDraftKey(entry))?.trim())
+    return "It has an outcome / next action that isn't saved yet.";
   return null;
 }
 // A tab showing part of the work item. Every such tab shares one read of the item, made when
@@ -103,7 +108,7 @@ function EntryTabs({ entry, date }: { entry: Entry; date: string }) {
           label: "Outcome / next action",
           panel: () => (
             <DraftField
-              draftKey={"entry-" + entry.id}
+              draftKey={outcomeDraftKey(entry)}
               label="Outcome / next action"
               labelHidden
               initial={entry.outcome}
@@ -216,8 +221,12 @@ export function Today({
   const [rescheduling, setRescheduling] = useState<string | null>(null);
   const [target, setTarget] = useState("");
   const [rescheduleError, setRescheduleError] = useState<unknown>(null);
-  // The entry whose removal waits for the person to confirm discarding what the day recorded.
-  const [removing, setRemoving] = useState<string | null>(null);
+  // The entry whose removal waits for the person to confirm discarding what the day records on
+  // it, and what that was when they asked; the question stays until they answer it.
+  const [removing, setRemoving] = useState<{
+    id: string;
+    recorded: string;
+  } | null>(null);
   const [dragged, setDragged] = useState<string | null>(null);
   // Entries folded to their heading row, remembered per work item in this browser,
   // so an item stays folded on any day it is planned.
@@ -266,6 +275,11 @@ export function Today({
       },
       { onSuccess: () => setRemoving(null) },
     );
+  // Keeping the entry closes the question and returns to the button that asked it.
+  const keep = (entry: Entry) => {
+    setRemoving(null);
+    document.getElementById("remove-" + entry.id)?.focus();
+  };
   const reschedule = async (entry: Entry) => {
     if (!target || target === date) return;
     try {
@@ -502,20 +516,17 @@ export function Today({
                       Reschedule
                     </button>
                     <button
+                      id={"remove-" + entry.id}
                       className="quiet remove-entry"
                       aria-label={removeFrom(entry.item.title)}
-                      aria-expanded={
-                        recordedWork(entry) ? removing === entry.id : undefined
-                      }
                       disabled={entry.item.archived || action.isPending}
                       onClick={() => {
-                        if (!recordedWork(entry)) {
+                        const recorded = recordedWork(entry);
+                        if (!recorded) {
                           remove(entry);
-                        } else if (removing === entry.id) {
-                          setRemoving(null);
                         } else {
                           closeReschedule();
-                          setRemoving(entry.id);
+                          setRemoving({ id: entry.id, recorded });
                         }
                       }}
                     >
@@ -624,17 +635,17 @@ export function Today({
                   </button>
                 </form>
               )}
-              {removing === entry.id && recordedWork(entry) && (
+              {removing?.id === entry.id && (
                 <div
                   className="inline remove-confirm"
                   role="group"
                   aria-labelledby={"remove-question-" + entry.id}
                   onKeyDown={(e) => {
-                    if (e.key === "Escape") setRemoving(null);
+                    if (e.key === "Escape") keep(entry);
                   }}
                 >
                   <span id={"remove-question-" + entry.id}>
-                    {recordedWork(entry)} Remove it from {dayName} anyway?
+                    {removing.recorded} Remove it from {dayName} anyway?
                   </span>
                   <button
                     disabled={action.isPending}
@@ -646,7 +657,7 @@ export function Today({
                   <button
                     type="button"
                     className="quiet"
-                    onClick={() => setRemoving(null)}
+                    onClick={() => keep(entry)}
                     autoFocus
                   >
                     Cancel
