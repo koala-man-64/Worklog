@@ -156,10 +156,14 @@ class Items:
             repos = linked_repositories(c, "item", ids)
             ranked = stack_ranks(c, ids)
             counts = self.tab_counts(c, ids)
+            states = self._states_as_of(c, date)
             for entry in entries:
                 entry["item"]["repositoryIds"] = repos.get(entry["itemId"], [])
                 entry["item"]["rank"] = ranked.get(entry["itemId"])
                 entry["counts"] = counts[entry["itemId"]]
+                # The status the item ended the day with, which groups the day's summary. Work
+                # logged after its day has no history by then, so it shows its status now.
+                entry["statusOnDay"] = states.get(entry["itemId"], entry["item"])["status"]
             # Completed titles are preserved from the actual completion event, not current item state.
             completed = []
             for r in c.execute("SELECT after_json FROM events WHERE local_date=? AND kind='item.update' ORDER BY created_at", (date,)):
@@ -170,7 +174,7 @@ class Items:
                     "reflection": day["reflection"] if day else "", "entries": entries,
                     "summary": {"worked": [{"id": e["itemId"], "title": e["item"]["title"], "outcome": e["outcome"]} for e in entries if e["worked"]],
                                 "completed": completed,
-                                "blocked": self._blocked_as_of(c, date)},
+                                "blocked": [{"id": k, "title": v["title"]} for k, v in states.items() if v["status"] == "blocked"]},
                     "nextItemId": next((e["itemId"] for e in entries if e["planned"] and not e["item"]["archived"] and e["item"]["status"] in {"open", "doing"}), None)}
 
     @staticmethod
@@ -198,17 +202,17 @@ class Items:
         return counts
 
     @staticmethod
-    def _blocked_as_of(c: sqlite3.Connection, date: str) -> builtins.list[dict]:
-        # Fold status events up to the selected day; later changes cannot alter old summaries.
+    def _states_as_of(c: sqlite3.Connection, date: str) -> dict[str, dict]:
+        """Each of the day's work items as its last change on or before that day left it, folded
+        from its events, so later changes cannot alter an old day's summary. An item with no
+        event by then is missing."""
         states: dict[str, dict] = {}
         for r in c.execute("""SELECT e.entity_id,e.after_json FROM events e
                             JOIN daily_entries d ON d.item_id=e.entity_id AND d.date=?
                             WHERE e.local_date<=? AND e.kind IN ('item.create','item.update')
                             ORDER BY e.created_at,e.id""", (date, date)):
-            value = json.loads(r["after_json"])
-            states[r["entity_id"]] = value
-        planned = {r[0] for r in c.execute("SELECT item_id FROM daily_entries WHERE date=?", (date,))}
-        return [{"id": k, "title": v["title"]} for k, v in states.items() if k in planned and v["status"] == "blocked"]
+            states[r["entity_id"]] = json.loads(r["after_json"])
+        return states
 
     @staticmethod
     def ensure_day(c: sqlite3.Connection, date: str) -> None:

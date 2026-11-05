@@ -117,6 +117,9 @@ They never change your work items, days, roadmaps, people or repositories direct
    - write an "Outcome / next action"
 4. Put the entries in order by dragging the grip, or with the up and down buttons.
 5. At the end of the day, write the "End-of-day reflection (Markdown)". The counts beside the day's work show how many you worked on, completed and blocked; waiting work doesn't count as blocked. "Continue your next open item" jumps to the next planned item that is open or doing, so it passes over waiting and blocked work.
+6. For your standup update, read "The day’s summary" below the day's work. It lists each entry ticked "Worked on" with its "Outcome / next action", under the status its item ended the day with: "Done", "Doing", "Open", "Waiting", then "Blocked". Press "Copy summary" and paste it into a chat, an email or a Markdown box; it keeps its headings and bullets.
+
+The summary keeps up as each outcome saves. A past day's summary keeps the status each item had that day, even after you change it later.
 
 Each entry has tabs. "Outcome / next action" holds the day's note. "Tasks", "Scratchpad", "Links", "Files" and "Repositories" hold the work item's own records, so you can work on them without leaving the day.
 
@@ -374,6 +377,7 @@ Plan the day and record what you worked on.
   - Its tabs hold "Outcome / next action" and the work item's own "Tasks", "Scratchpad", "Links", "Files" and "Repositories".
   - An archived item's entry stays readable but can't be changed.
 - **The day's counts and "Continue your next open item".**
+- **"The day’s summary":** each entry ticked "Worked on" with its outcome, under the status its item ended the day with, and "Copy summary".
 - **"Open work":** every open, doing, waiting and blocked item not yet on the day, with "Find open work…" and "Work on today".
 - **"End-of-day reflection (Markdown)".**
 

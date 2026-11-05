@@ -673,6 +673,27 @@ form.field-action > label {
 .open-work > .day-heading {
   margin-top: 0;
 }
+/* Today: the day's summary, between its work and the open work: each entry worked on, under the
+   status its item ended the day with, to read and to copy as a standup update. */
+.day-report {
+  margin-top: 30px;
+}
+.day-report > .day-heading {
+  margin-top: 0;
+}
+.day-report [role="status"] {
+  color: var(--muted);
+  font-size: 12px;
+}
+.day-report .markdown h3 {
+  margin: 20px 0 8px;
+}
+.day-report .markdown > ul > li {
+  margin: 0 0 10px;
+}
+.day-report .markdown li > p {
+  margin: 0 0 4px;
+}
 .open-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 480px), 1fr));
