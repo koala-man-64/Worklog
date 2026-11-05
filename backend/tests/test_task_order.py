@@ -26,7 +26,10 @@ V13_ORDER = "SELECT id FROM tasks WHERE item_id=? ORDER BY created_at"
 
 
 def to_v13(path):
-    """Take a current database back to the v13 shape the documented way."""
+    """Take a current database back to the v13 shape the documented way: to version 14 first."""
+    from test_waiting_status import to_v14
+
+    to_v14(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK)
 
@@ -240,7 +243,7 @@ def test_the_v14_upgrade_keeps_every_list_as_version_13_showed_it(tmp_path):
     recovery.validate_database(path)
     Database(path).initialize()
     with Database(path).read() as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION == 14
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
         assert recovery._schema_signature(conn) == recovery._expected_schema()
         assert [tuple(r) for r in conn.execute("SELECT id,revision,updated_at,created_at,done,archived,text FROM tasks ORDER BY id")] == kept
         assert {item: [r[0] for r in conn.execute("SELECT id FROM tasks WHERE item_id=? ORDER BY position", (item,))]
@@ -281,11 +284,15 @@ def test_the_documented_way_back_to_v13_gives_its_exact_shape_and_upgrades_again
 
 
 def test_a_v13_shape_cannot_claim_version_14_and_a_v14_shape_cannot_claim_13(tmp_path):
+    from test_waiting_status import to_v14
+
     older, current = tmp_path / "older.sqlite3", tmp_path / "current.sqlite3"
     Database(older).initialize()
     to_v13(older)
     recovery.validate_database(older)
     Database(current).initialize()
+    to_v14(current)
+    recovery.validate_database(current)
     for path, version in ((older, 14), (current, 13)):
         with closing(sqlite3.connect(path)) as conn:
             conn.execute(f"PRAGMA user_version={version}")

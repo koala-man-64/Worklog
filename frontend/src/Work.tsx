@@ -12,16 +12,16 @@ import {
   Files,
   GithubRefsSection,
   History,
+  ITEM_STATUSES,
   LinksSection,
   PeopleLinks,
   PersonBadges,
   RecoverRecords,
   Scratchpad,
-  STATUSES,
   StatusSelect,
   statusLabel,
 } from "./components";
-import type { Detail, Item, List, Person, Roadmap, Status } from "./types";
+import type { Detail, Item, ItemStatus, List, Person, Roadmap } from "./types";
 import {
   RepositoryBadges,
   RepositoryPicker,
@@ -91,7 +91,7 @@ export function Work({ selected }: { selected?: string }) {
 function WorkList() {
   const [archived, setArchived] = useState(false);
   // Any pressed state matches; none pressed shows every state.
-  const [statuses, setStatuses] = useState<Status[]>([]);
+  const [statuses, setStatuses] = useState<ItemStatus[]>([]);
   const [repositoryId, setRepositoryId] = useState("");
   const [personId, setPersonId] = useState("");
   const [view, setView] = useState("all");
@@ -99,7 +99,7 @@ function WorkList() {
   const [q, setQ] = useState("");
   const people = useData<List<Person>>("/people?archived=false");
   // In a fixed order, so the same states always make the same query.
-  const statusQuery = STATUSES.filter((s) => statuses.includes(s))
+  const statusQuery = ITEM_STATUSES.filter((s) => statuses.includes(s))
     .map((s) => "&status=" + s)
     .join("");
   const page = (from: number, limit: number) =>
@@ -218,7 +218,7 @@ function WorkList() {
               role="group"
               aria-label="Filter status"
             >
-              {STATUSES.map((s) => (
+              {ITEM_STATUSES.map((s) => (
                 <button
                   key={s}
                   type="button"
@@ -305,6 +305,7 @@ function WorkList() {
                       <td>
                         <StatusSelect
                           value={item.status}
+                          options={ITEM_STATUSES}
                           onChange={(status) =>
                             action.mutate({
                               path: `/work-items/${item.id}`,
@@ -453,6 +454,7 @@ export function ItemDetail({ id }: { id: string }) {
           />
           <StatusSelect
             value={item.status}
+            options={ITEM_STATUSES}
             onChange={(status) => patch({ status })}
           />
           <button

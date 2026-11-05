@@ -147,6 +147,12 @@ it("applies prominent state classes to step containers, status dots, and status 
   const select = screen.getByRole("combobox", { name: "Progress for Solo" });
   expect(select).toHaveClass("status-select", "open");
   expect(select).toHaveAttribute("data-status", "open");
+  // Only work items wait: a step keeps its four states.
+  expect(
+    within(select)
+      .getAllByRole("option")
+      .map((option) => option.getAttribute("value")),
+  ).toEqual(["open", "doing", "blocked", "done"]);
   const soloStep = screen.getByText("Solo").closest(".step");
   expect(soloStep).toHaveClass("step", "status-open");
   expect(soloStep?.querySelector(".status-dot.open")).not.toBeNull();

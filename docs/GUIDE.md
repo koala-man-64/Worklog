@@ -24,7 +24,7 @@ Worklog runs at `http://127.0.0.1:8877`. Start it from PowerShell in your Worklo
 1. On **Today**, type what you will work on into "New work item" and press "Add work". The item is planned for today.
 2. As you work, tick "Worked on" for the item.
 3. Write what happened, and what comes next, in "Outcome / next action".
-4. Set its status (Open, Doing, Blocked or Done) with the status menu.
+4. Set its status (Open, Doing, Waiting, Blocked or Done) with the status menu. Waiting is for work that waits on someone else, such as a review or a reply.
 5. Before you stop, write a few lines in "End-of-day reflection (Markdown)".
 
 You never press Save: Worklog saves as you type. Tomorrow, "Open work" on Today lists everything still open, ready to plan again.
@@ -116,7 +116,7 @@ They never change your work items, days, roadmaps, people or repositories direct
    - set its status
    - write an "Outcome / next action"
 4. Put the entries in order by dragging the grip, or with the up and down buttons.
-5. At the end of the day, write the "End-of-day reflection (Markdown)". The counts beside the day's work show how many you worked on, completed and blocked. "Continue your next open item" jumps to the next planned item that is still open.
+5. At the end of the day, write the "End-of-day reflection (Markdown)". The counts beside the day's work show how many you worked on, completed and blocked; waiting work doesn't count as blocked. "Continue your next open item" jumps to the next planned item that is open or doing, so it passes over waiting and blocked work.
 
 Each entry has tabs. "Outcome / next action" holds the day's note. "Tasks", "Scratchpad", "Links", "Files" and "Repositories" hold the work item's own records, so you can work on them without leaving the day.
 
@@ -149,7 +149,7 @@ The work item itself doesn't change. While it isn't done it is back under "Open 
    - by text ("Find in work…")
    - by repository
    - by person
-   - by status: the Open, Doing, Blocked and Done buttons combine; with none pressed, every state shows.
+   - by status: the Open, Doing, Waiting, Blocked and Done buttons combine; with none pressed, every state shows.
 3. Switch "Work view" between "All work" and "Unscheduled backlog". The backlog holds items not done and not planned for today or later.
 4. Rank the work (below).
 
@@ -374,7 +374,7 @@ Plan the day and record what you worked on.
   - Its tabs hold "Outcome / next action" and the work item's own "Tasks", "Scratchpad", "Links", "Files" and "Repositories".
   - An archived item's entry stays readable but can't be changed.
 - **The day's counts and "Continue your next open item".**
-- **"Open work":** every open, doing and blocked item not yet on the day, with "Find open work…" and "Work on today".
+- **"Open work":** every open, doing, waiting and blocked item not yet on the day, with "Find open work…" and "Work on today".
 - **"End-of-day reflection (Markdown)".**
 
 ### Work

@@ -8,6 +8,7 @@ import {
   Empty,
   ErrorMessage,
   Markdown,
+  STATUSES,
   StatusSelect,
 } from "./components";
 import { Pages } from "./Coordination";
@@ -375,6 +376,7 @@ function TicketView({ id }: { id: string }) {
         <div className="toolbar">
           <StatusSelect
             value={ticket.status}
+            options={STATUSES}
             disabled={locked}
             onChange={(status) => patch({ status })}
           />

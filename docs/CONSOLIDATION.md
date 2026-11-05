@@ -506,3 +506,4 @@ These look like consolidation candidates but stay:
 - 2026-11-04: Steps 2.1 to 2.3 deployed. Step 2.4 split into two PRs while building it: global search first, then the `WorkService` split.
 - 2026-11-04: Step 2.5 split into two PRs while building it: sealed digests first, then the baseline schema module.
 - 2026-11-05: Schema v14, an order for each work item's tasks, added outside the plan for a product request, with its seal and documented way back. Step 2.5's baseline schema module starts from v14.
+- 2026-11-05: Schema v15, a Waiting status for work items, added outside the plan for a product request, with its seal and documented way back. It rebuilds `work_items` to widen its status CHECK. Step 2.5's baseline schema module starts from v15.

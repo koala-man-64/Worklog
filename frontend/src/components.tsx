@@ -25,6 +25,7 @@ import type {
   AgentChat,
   Attachment,
   GithubRef,
+  ItemStatus,
   List,
   Note,
   Person,
@@ -271,17 +272,29 @@ export function ResizeHandle({
     />
   );
 }
-export const STATUSES: Status[] = ["open", "doing", "blocked", "done"];
-export const statusLabel = (status: Status) =>
+/** A ticket's or a roadmap step's statuses, in the order menus list them. */
+export const STATUSES: readonly Status[] = ["open", "doing", "blocked", "done"];
+/** A work item's statuses: Waiting is work that waits on someone else. */
+export const ITEM_STATUSES: readonly ItemStatus[] = [
+  "open",
+  "doing",
+  "waiting",
+  "blocked",
+  "done",
+];
+export const statusLabel = (status: ItemStatus) =>
   status[0].toUpperCase() + status.slice(1);
-export function StatusSelect({
+/** A status menu over `options`: ITEM_STATUSES for work, STATUSES for tickets and steps. */
+export function StatusSelect<S extends ItemStatus>({
   value,
+  options,
   onChange,
   label = "Status",
   disabled = false,
 }: {
-  value: Status;
-  onChange: (value: Status) => void;
+  value: S;
+  options: readonly S[];
+  onChange: (value: S) => void;
   label?: string;
   disabled?: boolean;
 }) {
@@ -292,9 +305,9 @@ export function StatusSelect({
       disabled={disabled}
       aria-label={label}
       value={value}
-      onChange={(e) => onChange(e.target.value as Status)}
+      onChange={(e) => onChange(e.target.value as S)}
     >
-      {STATUSES.map((s) => (
+      {options.map((s) => (
         <option key={s} value={s}>
           {statusLabel(s)}
         </option>

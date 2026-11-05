@@ -24,6 +24,7 @@ import {
   Files,
   GithubRefsSection,
   History,
+  ITEM_STATUSES,
   LinksSection,
   Markdown,
   Notes,
@@ -31,6 +32,7 @@ import {
   PersonBadges,
   RecoverRecords,
   ResizeHandle,
+  STATUSES,
   StatusSelect,
   StepAgentChats,
 } from "./components";
@@ -504,6 +506,7 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
         disabled={road.archived}
         label={"Status for " + item.title}
         value={item.status}
+        options={ITEM_STATUSES}
         onChange={(status) =>
           action.mutate({
             path: "/work-items/" + item.id,
@@ -626,6 +629,7 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
                 disabled={road.archived || kids > 0}
                 label={"Progress for " + s.title}
                 value={s.status}
+                options={STATUSES}
                 onChange={(status) =>
                   action.mutate({
                     path: "/steps/" + s.id + "/progress",

@@ -55,6 +55,7 @@ SEALED_SCHEMAS: dict[int, frozenset[str]] = {
     12: frozenset({"dda4bfa40d402e989a01567cde828e904c48ebc0425f40d088956ff72f9f9b75"}),  # decision state in columns
     13: frozenset({"ed29b8f9cfc5e2b17578ab73f23020bf1a51c5ef0d5971ece2052d08f1ada692"}),  # chat confirmations
     14: frozenset({"134bc42f3ccc11c5c9dabe483ba5a6e1d8d766b21bc00a2b7720a374daf00e13"}),  # task order
+    15: frozenset({"7b1a1ec43f20cc2c3cf1d06d4b1956abd5c7c7bee6fcb2754add975fb7ef59fa"}),  # work items can wait
 }
 
 
@@ -76,7 +77,8 @@ def _expected_schema(*, discussions: bool = True, coordination: bool = True,
                      provenance: bool = True, scratchpads: bool = True,
                      resources: bool = True, people: bool = True,
                      search_keys: bool = True, decision_state: bool = True,
-                     chat_confirmations: bool = True, task_positions: bool = True) -> dict[tuple[str, str], str]:
+                     chat_confirmations: bool = True, task_positions: bool = True,
+                     waiting_status: bool = True) -> dict[tuple[str, str], str]:
     """A released shape built from today's code. Only tests build shapes this way: restore checks
     SEALED_SCHEMAS, and test_sealed_schemas.py fails if a shape built here stops matching its seal."""
     from worklog.db import SCHEMA
@@ -135,6 +137,12 @@ def _expected_schema(*, discussions: bool = True, coordination: bool = True,
                                                 from worklog.migrations import add_task_positions
 
                                                 add_task_positions(conn)
+                                                if waiting_status:
+                                                    from worklog.migrations import (
+                                                        add_waiting_status,
+                                                    )
+
+                                                    add_waiting_status(conn)
         if chat_messages:
             from worklog.chat_messages import SCHEMA as CHAT_MESSAGE_SCHEMA
 
