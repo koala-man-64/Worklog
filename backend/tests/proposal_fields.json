@@ -1,0 +1,552 @@
+{
+  "repository.create": {
+    "required": [
+      "name"
+    ],
+    "allowed": [
+      "description",
+      "name",
+      "url"
+    ]
+  },
+  "repository.update": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "description",
+      "id",
+      "name",
+      "revision",
+      "url"
+    ]
+  },
+  "repository.archive": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "revision"
+    ]
+  },
+  "repository.recover": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "revision"
+    ]
+  },
+  "item.create": {
+    "required": [
+      "title"
+    ],
+    "allowed": [
+      "adoUrl",
+      "day",
+      "description",
+      "repositoryIds",
+      "roadmapId",
+      "stepId",
+      "title",
+      "worked"
+    ]
+  },
+  "item.update": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "adoUrl",
+      "description",
+      "id",
+      "repositoryIds",
+      "revision",
+      "roadmapId",
+      "status",
+      "stepId",
+      "title"
+    ]
+  },
+  "item.archive": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "revision"
+    ]
+  },
+  "item.recover": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "revision"
+    ]
+  },
+  "entry.upsert": {
+    "required": [
+      "date",
+      "itemId",
+      "revision"
+    ],
+    "allowed": [
+      "date",
+      "itemId",
+      "outcome",
+      "planned",
+      "revision",
+      "worked"
+    ]
+  },
+  "note.create": {
+    "required": [
+      "ownerId",
+      "ownerType",
+      "text"
+    ],
+    "allowed": [
+      "ownerId",
+      "ownerType",
+      "text",
+      "title"
+    ]
+  },
+  "note.update": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "revision",
+      "text",
+      "title"
+    ]
+  },
+  "task.create": {
+    "required": [
+      "itemId",
+      "text"
+    ],
+    "allowed": [
+      "done",
+      "itemId",
+      "text"
+    ]
+  },
+  "task.update": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "done",
+      "id",
+      "revision",
+      "text"
+    ]
+  },
+  "roadmap.create": {
+    "required": [
+      "title"
+    ],
+    "allowed": [
+      "overview",
+      "parentId",
+      "steps",
+      "title"
+    ]
+  },
+  "roadmap.revise": {
+    "required": [
+      "id",
+      "revision",
+      "steps",
+      "title"
+    ],
+    "allowed": [
+      "id",
+      "note",
+      "overview",
+      "revision",
+      "steps",
+      "title"
+    ]
+  },
+  "roadmap.move": {
+    "required": [
+      "id",
+      "parentId",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "parentId",
+      "revision"
+    ]
+  },
+  "progress.set": {
+    "required": [
+      "id",
+      "revision",
+      "status"
+    ],
+    "allowed": [
+      "id",
+      "revision",
+      "status"
+    ]
+  },
+  "person.create": {
+    "required": [
+      "name"
+    ],
+    "allowed": [
+      "chat",
+      "description",
+      "email",
+      "location",
+      "name",
+      "notes",
+      "phone",
+      "team",
+      "title"
+    ]
+  },
+  "person.update": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "chat",
+      "description",
+      "email",
+      "id",
+      "location",
+      "name",
+      "notes",
+      "phone",
+      "revision",
+      "team",
+      "title"
+    ]
+  },
+  "person.archive": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "revision"
+    ]
+  },
+  "person.recover": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "revision"
+    ]
+  },
+  "person.link": {
+    "required": [
+      "personId",
+      "targetId",
+      "targetType"
+    ],
+    "allowed": [
+      "personId",
+      "relationship",
+      "targetId",
+      "targetType"
+    ]
+  },
+  "person.unlink": {
+    "required": [
+      "personId",
+      "targetId",
+      "targetType"
+    ],
+    "allowed": [
+      "personId",
+      "targetId",
+      "targetType"
+    ]
+  },
+  "link.create": {
+    "required": [
+      "ownerId",
+      "ownerType",
+      "url"
+    ],
+    "allowed": [
+      "description",
+      "ownerId",
+      "ownerType",
+      "title",
+      "url"
+    ]
+  },
+  "link.update": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "description",
+      "id",
+      "revision",
+      "title",
+      "url"
+    ]
+  },
+  "link.archive": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "revision"
+    ]
+  },
+  "link.recover": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "revision"
+    ]
+  },
+  "attachment.create": {
+    "required": [
+      "attachmentId",
+      "ownerId",
+      "ownerType"
+    ],
+    "allowed": [
+      "attachmentId",
+      "ownerId",
+      "ownerType"
+    ]
+  },
+  "chat.create": {
+    "required": [
+      "chatId",
+      "ownerId",
+      "ownerType",
+      "title"
+    ],
+    "allowed": [
+      "chatId",
+      "createdDate",
+      "model",
+      "ownerId",
+      "ownerType",
+      "provider",
+      "repos",
+      "repositoryIds",
+      "stepIds",
+      "title"
+    ]
+  },
+  "chat.update": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "chatId",
+      "createdDate",
+      "id",
+      "model",
+      "provider",
+      "repos",
+      "repositoryIds",
+      "revision",
+      "stepIds",
+      "title"
+    ]
+  },
+  "chat.archive": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "revision"
+    ]
+  },
+  "chat.recover": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "revision"
+    ]
+  },
+  "github.create": {
+    "required": [
+      "kind",
+      "ownerId",
+      "ownerType",
+      "url"
+    ],
+    "allowed": [
+      "chatId",
+      "description",
+      "kind",
+      "ownerId",
+      "ownerType",
+      "reference",
+      "title",
+      "url"
+    ]
+  },
+  "github.update": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "chatId",
+      "description",
+      "id",
+      "kind",
+      "reference",
+      "revision",
+      "title",
+      "url"
+    ]
+  },
+  "github.archive": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "revision"
+    ]
+  },
+  "github.recover": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "revision"
+    ]
+  },
+  "question.create": {
+    "required": [
+      "roadmapId",
+      "title"
+    ],
+    "allowed": [
+      "details",
+      "roadmapId",
+      "title"
+    ]
+  },
+  "question.update": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "answer",
+      "details",
+      "id",
+      "revision",
+      "status",
+      "title"
+    ]
+  },
+  "question.archive": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "revision"
+    ]
+  },
+  "question.recover": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "revision"
+    ]
+  },
+  "decision.create": {
+    "required": [
+      "roadmapId",
+      "title"
+    ],
+    "allowed": [
+      "decidedDate",
+      "rationale",
+      "roadmapId",
+      "title"
+    ]
+  },
+  "decision.update": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "decidedDate",
+      "id",
+      "rationale",
+      "revision",
+      "title"
+    ]
+  },
+  "decision.archive": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "revision"
+    ]
+  },
+  "decision.recover": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "revision"
+    ]
+  }
+}

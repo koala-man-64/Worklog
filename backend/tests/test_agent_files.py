@@ -161,10 +161,13 @@ def test_approval_refuses_a_file_its_record_cannot_take_and_applies_nothing(clie
         assert submit(client, credential, proposal, resolved).status_code == 200
         return proposal, file
 
-    # The person's own proposals hold evidence too, but no file lands on a proposal this way.
-    response = approve(client, proposed(attach("proposal", item["id"], ""))[0])
+    # The person's own proposals hold evidence too, but no file lands on a proposal this way. The
+    # operation's model refuses that owner, so submitting it is refused before anyone reviews it.
+    proposal = draft(client, credential)
+    response = submit(client, credential, proposal, [attach("proposal", item["id"], evidence(client, credential, proposal)["id"])])
     assert (response.status_code, response.json()["error"]["message"]) == (
         422, "Change 1 of 1, attachment.create: Invalid proposed operation")
+    assert ok(call(client, "GET", f"/proposals/{proposal['id']}", agent=credential))["status"] == "draft"
     archived = ok(call(client, "POST", f"/repositories/{repository['id']}/archive", {"revision": repository["revision"]}))
     response = approve(client, proposed(attach("repository", repository["id"], ""))[0])
     assert (response.status_code, response.json()["error"]["code"], response.json()["error"]["message"]) == (

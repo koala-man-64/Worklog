@@ -521,7 +521,7 @@ Uploading evidence leaves the proposal's revision alone. Before the update, `pro
 - **Drafts and submitting.**
   - A draft is private to you: other agents see your proposal once it is submitted.
   - `update` edits only drafts.
-  - `submit` needs at least one operation.
+  - `submit` needs at least one operation. It also checks each operation's values, as approval will, and refuses with `Change N of M, ACTION: ...` naming the first that fails: a field of the wrong type, a value the field never takes, or `id`, `itemId` or `date` that isn't a string. The proposal stays your draft to fix. Checks only the record can make, such as a stale revision, a date's calendar or a link's address, still run when the person approves.
 - **Changing course.** `withdraw` ends a draft or submitted proposal. `reopen` returns a submitted proposal to draft so you can update it in place, keeping its evidence. The person can reopen one too.
 - **Evidence.** `evidence` uploads a file to your own draft; the person sees it in Review.
 - **Approval.**
