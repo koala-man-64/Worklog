@@ -263,9 +263,16 @@ What changed:
 
 #### 2.5 · Baseline schema and sealed digests
 
-Status: Not started · Branch: — · PR: —
+Status: In progress · Branch: `claude/sealed-schemas` · PR: [#104](https://github.com/koala-man-64/Worklog/pull/104); the baseline schema module follows in its own PR
 
 Add one baseline schema module. Seal a digest for every released version, with DDL dumps as test fixtures, so restore stops rebuilding old shapes by running today's migration code. Restore keeps accepting v1 onward (K5). Findings: B-06, B-08, A-14.
+
+Done so far: `recovery.SEALED_SCHEMAS` seals each shape a version shipped in, nine for v1 and one each for v2 to v13. `backend/tests/schemas` holds each shape's DDL. Restore accepts a database whose version and digest are sealed, the same shapes it accepted before, and no longer builds v2 to v13 from today's migration code. `test_sealed_schemas.py` checks:
+- every digest against its dump, and that every version is sealed;
+- that a new database has the current sealed shape;
+- that each sealed shape, built from its dump, is accepted by restore and upgrades to the current one;
+- that a changed shape, or a sealed shape under another version, is refused;
+- that the shapes tests build from today's code are still the sealed ones, so an edit to a shipped migration fails.
 
 ### Phase 3 · One authorization policy
 
@@ -497,3 +504,4 @@ These look like consolidation candidates but stay:
 - 2026-11-04: Plan created from the consolidation audit of `e4a1d14`; decisions K1 to K11 recorded; REMEDIATION.md superseded.
 - 2026-11-04: Phase 1 split into v11 to v13 while building it, and step 1.0 added. v11 and v12 deployed together. K12 recorded from the security review of step 1.4.
 - 2026-11-04: Steps 2.1 to 2.3 deployed. Step 2.4 split into two PRs while building it: global search first, then the `WorkService` split.
+- 2026-11-04: Step 2.5 split into two PRs while building it: sealed digests first, then the baseline schema module.

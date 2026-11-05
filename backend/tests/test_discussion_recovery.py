@@ -19,7 +19,7 @@ LEGACY_SCHEMAS = recovery._compatible_schemas()[1:]
 
 def test_legacy_matrix_covers_every_sealed_v1_shape():
     assert len(LEGACY_SCHEMAS) == 9
-    assert {recovery._schema_digest(schema) for schema in LEGACY_SCHEMAS} == recovery.V1_SCHEMA_DIGESTS
+    assert {recovery._schema_digest(schema) for schema in LEGACY_SCHEMAS} == recovery.SEALED_SCHEMAS[1]
 
 
 def legacy_database(path, schema):
