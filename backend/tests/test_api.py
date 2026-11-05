@@ -259,11 +259,11 @@ def test_a_credential_revoked_while_its_submit_waits_applies_nothing(client, mon
 
 
 def test_injected_failure_rolls_back_item_and_event(client, monkeypatch):
-    import worklog.services as services
+    import worklog.items as items
     w = item(client)
     def fail(*args, **kwargs):
         raise sqlite3.OperationalError("injected storage failure")
-    monkeypatch.setattr(services, "event", fail)
+    monkeypatch.setattr(items, "event", fail)
     r = write(client, "PATCH", f"/work-items/{w['id']}", {"revision": 1, "status": "done"})
     assert r.status_code == 503
     actual = client.get(f"/api/v1/work-items/{w['id']}").json()

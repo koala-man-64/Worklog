@@ -21,7 +21,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
-from . import __version__, operations
+from . import __version__, operations, support
 from . import models as m
 from .chat_message_api import chat_message_agent_route_allowed, install_chat_message_routes
 from .common import (
@@ -41,16 +41,15 @@ from .coordination import CoordinationService, agents_may_register, close_creden
 from .coordination_api import coordination_agent_route_allowed, install_coordination_routes
 from .db import Database
 from .discussion_api import agent_route_allowed, install_discussion_routes
-from .discussions import bind_credential, communication_actor
+from .discussions import bind_credential, communication_actor, registered_by, registered_chats
 from .maintenance import prune_receipts
 from .plans import PlanService
 from .proposals import ProposalService, approval_required
+from .records import check_owner, people_on, support_record
 from .recovery import automatic_backup, backup_database, export_database, list_backups
 from .registration import (
     active_registrations,
     install_registration_routes,
-    registered_by,
-    registered_chats,
     revoke_registered,
 )
 from .registration import agent_route_allowed as registration_route_allowed
@@ -58,7 +57,7 @@ from .registry_api import install_registry_routes
 from .resource_api import install_resource_routes
 from .resources import ResourceService
 from .search import global_search, index_plans
-from .services import WorkService, support_record
+from .services import WorkService
 from .ticket_api import install_ticket_routes, ticket_agent_route_allowed
 from .tickets import TicketService
 from .transcripts import MESSAGE_LIMIT, TranscriptReader, TranscriptRoots
@@ -321,7 +320,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
               status: list[str] | None = Query(None, description="Repeat to match any of several states"),
               roadmapId: str | None = None, personId: str | None = None, q: str = "", repositoryId: str | None = None,
               limit: int = Query(100, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
-        return work.list(view=view, archived=archived, states=status, roadmap_id=roadmapId, person_id=personId, limit=limit, offset=offset, q=q, repository_id=repositoryId)
+        return work.items.list(view=view, archived=archived, states=status, roadmap_id=roadmapId, person_id=personId, limit=limit, offset=offset, q=q, repository_id=repositoryId)
 
     @app.post("/api/v1/work-items")
     def create_item(request: Request, body: m.ItemCreate) -> dict:
@@ -330,11 +329,11 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     @app.post("/api/v1/work-items/reorder")
     def reorder_items(request: Request, body: m.Reorder) -> dict:
         p = body.model_dump()
-        return mutate(request, p, lambda c, a: work.reorder(c, a, p))
+        return mutate(request, p, lambda c, a: work.items.reorder(c, a, p))
 
     @app.get("/api/v1/work-items/{identity}")
     def item_detail(identity: str) -> dict:
-        return work.detail(identity)
+        return work.items.detail(identity)
 
     @app.patch("/api/v1/work-items/{identity}")
     def update_item(identity: str, request: Request, body: m.ItemUpdate) -> dict:
@@ -343,12 +342,12 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     @app.post("/api/v1/work-items/{identity}/move")
     def move_item(identity: str, request: Request, body: m.Move) -> dict:
         p = body.model_dump()
-        return mutate(request, p, lambda c, a: work.move_backlog(c, a, identity, p))
+        return mutate(request, p, lambda c, a: work.items.move_backlog(c, a, identity, p))
 
     @app.post("/api/v1/work-items/{identity}/rank")
     def rank_item(identity: str, request: Request, body: m.Rank) -> dict:
         p = body.model_dump()
-        return mutate(request, p, lambda c, a: work.rank(c, a, identity, p))
+        return mutate(request, p, lambda c, a: work.items.rank(c, a, identity, p))
 
     @app.post("/api/v1/work-items/{identity}/{verb}")
     def archive_item(identity: str, verb: str, request: Request, body: m.Expected) -> dict:
@@ -358,7 +357,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
 
     @app.get("/api/v1/days/{date}")
     def day(date: str) -> dict:
-        return work.day(date)
+        return work.items.day(date)
 
     @app.put("/api/v1/days/{date}/entries/{item_id}")
     def update_entry(date: str, item_id: str, request: Request, body: m.EntryUpdate) -> dict:
@@ -367,17 +366,17 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     @app.put("/api/v1/days/{date}/reflection")
     def reflection(date: str, request: Request, body: m.Reflection) -> dict:
         p = body.model_dump()
-        return mutate(request, p, lambda c, a: work.reflection(c, a, date, p))
+        return mutate(request, p, lambda c, a: work.items.reflection(c, a, date, p))
 
     @app.post("/api/v1/days/{date}/reorder")
     def reorder_day(date: str, request: Request, body: m.Reorder) -> dict:
         p = body.model_dump()
-        return mutate(request, p, lambda c, a: work.reorder(c, a, p, date))
+        return mutate(request, p, lambda c, a: work.items.reorder(c, a, p, date))
 
     @app.post("/api/v1/days/{date}/reschedule")
     def reschedule(date: str, request: Request, body: m.Reschedule) -> dict:
         p = body.model_dump()
-        return mutate(request, p, lambda c, a: work.reschedule(c, a, date, p))
+        return mutate(request, p, lambda c, a: work.items.reschedule(c, a, date, p))
 
     def authorize_history(conn: sqlite3.Connection, identity: str, actor: dict) -> None:
         # A chat message's history holds its text and every recipient; agents receive only their own.
@@ -419,7 +418,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             row = c.execute(f"SELECT * FROM {table} WHERE id=?", (identity,)).fetchone()
             if row is None:
                 raise AppError(404, "not_found", "Supporting record not found")
-            return work.chats(c, [row])[0] if resource == "chats" else support_record(row)
+            return support.chat_records(c, [row])[0] if resource == "chats" else support_record(row)
 
     @app.post("/api/v1/notes")
     def create_note(request: Request, body: m.NoteCreate) -> dict:
@@ -452,7 +451,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     @app.get("/api/v1/chats")
     def chat_list(archived: bool = False) -> dict:
         with db.read() as c:
-            chats = work.chat_overview(c, archived)
+            chats = support.chat_overview(c, archived)
         return {"items": [{**chat, "transcript": transcripts.summary(chat["chatId"])} for chat in chats]}
 
     @app.get("/api/v1/chats/{identity}/transcript")
@@ -461,7 +460,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             row = c.execute("SELECT * FROM agent_chats WHERE id=?", (identity,)).fetchone()
             if row is None:
                 raise AppError(404, "not_found", "Agent chat not found")
-            chat = work.chats(c, [row])[0]
+            chat = support.chat_records(c, [row])[0]
             labels = {r["chat_id"].strip().lower(): r["title"] for r in c.execute("SELECT chat_id,title FROM agent_chats WHERE archived=0")}
         return {"chat": chat, **transcripts.messages(chat["chatId"], limit=limit, thread=thread, labels=labels)}
 
@@ -517,7 +516,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             if ownerType == "proposal":
                 proposals.detail(ownerId, request.state.actor)
             else:
-                work.owner(c, ownerType, ownerId, files=True)
+                check_owner(c, ownerType, ownerId, files=True)
             records = [support_record(r) for r in c.execute("SELECT id,owner_type,owner_id,name,mime,size,sha256,archived,revision,created_at FROM attachments WHERE owner_type=? AND owner_id=? AND archived=? ORDER BY created_at,id", (ownerType, ownerId, int(archived)))]
             return {"items": records, "total": len(records)}
 
@@ -526,7 +525,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         data = await bounded_body(request, FILE_LIMIT)
         payload = {"ownerType": ownerType, "ownerId": ownerId, "name": name, "sha256": hashlib.sha256(data).hexdigest()}
         return await run_in_threadpool(mutate, request, payload,
-                                      lambda c, a: work.upload(c, a, ownerType, ownerId, name, request.headers.get("content-type", "application/octet-stream"), data), required_key=True)
+                                      lambda c, a: support.upload(c, a, ownerType, ownerId, name, request.headers.get("content-type", "application/octet-stream"), data, proposals), required_key=True)
 
     def download_response(content: bytes, name: str, mime: str = "application/octet-stream", inline: bool = False) -> Response:
         safe = "".join(ch if 32 <= ord(ch) < 127 and ch not in {'"', "\\", "/"} else "_" for ch in name)
@@ -557,7 +556,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             if personId:
                 linked_ids = {r[0] for r in c.execute("SELECT target_id FROM person_links WHERE target_type='roadmap' AND person_id=?", (personId,))}
                 items_list = [r for r in items_list if r["id"] in linked_ids]
-            people_map = work.target_people(c, "roadmap", [r["id"] for r in items_list])
+            people_map = people_on(c, "roadmap", [r["id"] for r in items_list])
             enriched = [{**r, "people": people_map.get(r["id"], [])} for r in items_list]
         return {"items": enriched, "total": len(enriched)}
 
@@ -569,11 +568,11 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def roadmap_detail(identity: str) -> dict:
         result = plans.detail(identity)
         with db.read() as c:
-            result.update(work.support(c, "roadmap", identity))
+            result.update(support.for_owner(c, "roadmap", identity))
             for step in result["steps"]:
-                step.update(work.support(c, "step", step["id"]))
-            result["workItems"] = work.roadmap_items(c, identity)
-            result["people"] = work.target_people(c, "roadmap", [identity]).get(identity, [])
+                step.update(support.for_owner(c, "step", step["id"]))
+            result["workItems"] = work.items.roadmap_items(c, identity)
+            result["people"] = people_on(c, "roadmap", [identity]).get(identity, [])
             result["history"] = read_events(c, identity)
             result["imports"] = [{"id": r["id"], "name": r["name"], "sha256": r["sha256"], "createdAt": r["created_at"]} for r in c.execute("SELECT * FROM plan_imports WHERE roadmap_id=?", (identity,))]
         return result
@@ -606,7 +605,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             current = next((s for s in roadmap["steps"] if s["id"] == identity), None)
             if current is None:
                 current = {"id": row["id"], "title": row["title"], "description": row["description"], "parentId": row["parent_id"], "position": row["position"], "status": row["status"], "revision": row["revision"], "retired": True}
-            return {**current, "roadmapId": row["roadmap_id"], **work.support(c, "step", identity)}
+            return {**current, "roadmapId": row["roadmap_id"], **support.for_owner(c, "step", identity)}
 
     @app.get("/api/v1/steps/{identity}/history")
     def step_history(identity: str) -> dict:
@@ -640,7 +639,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def proposal_detail(identity: str, actor: dict) -> dict:
         result = proposals.detail(identity, actor)
         with db.read() as c:
-            result.update(work.support(c, "proposal", identity))
+            result.update(support.for_owner(c, "proposal", identity))
         return result
 
     @app.get("/api/v1/proposals")
@@ -680,9 +679,9 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                         "tickets": TicketService().list(c, item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset),
                         # The person's reference pages by title and summary; `resources show` reads one.
                         "resources": ResourceService().list(c, limit=limit, offset=offset)}
-        items_result = work.list(item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset)
-        return {"day": work.day(date or current), "workItems": items_result,
-                "roadmaps": plans.list(), "people": work.people_list(), "proposals": proposals.list(request.state.actor),
+        items_result = work.items.list(item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset)
+        return {"day": work.items.day(date or current), "workItems": items_result,
+                "roadmaps": plans.list(), "people": work.people.list(), "proposals": proposals.list(request.state.actor),
                 **activity}
 
     @app.get("/api/v1/settings")
@@ -790,7 +789,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
 
     @app.get("/api/v1/people")
     def people_list(archived: bool = False, q: str = "") -> dict:
-        return work.people_list(archived=archived, q=q)
+        return work.people.list(archived=archived, q=q)
 
     @app.post("/api/v1/people")
     def person_create(request: Request, body: m.PersonCreate) -> dict:
@@ -798,7 +797,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
 
     @app.get("/api/v1/people/{identity}")
     def person_detail(identity: str) -> dict:
-        return work.person_detail(identity)
+        return work.people.detail(identity)
 
     @app.patch("/api/v1/people/{identity}")
     def person_update(identity: str, request: Request, body: m.PersonUpdate) -> dict:

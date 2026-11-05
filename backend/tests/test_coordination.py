@@ -384,7 +384,7 @@ def test_context_preserves_work_default_and_uses_bounded_list_records(client, mo
     def no_detail(*args):
         pytest.fail("Context must not materialize work detail/history")
 
-    monkeypatch.setattr(client.app.state.work, "detail", no_detail)
+    monkeypatch.setattr(client.app.state.work.items, "detail", no_detail)
     selected = ok(request(client, "GET", f"/context?itemId={target}"))
     assert selected["workItems"]["items"] == [baseline["items"][0]]
     assert selected["workItems"]["total"] == 1

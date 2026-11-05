@@ -12,7 +12,7 @@ from urllib.parse import urlsplit, urlunsplit
 from . import search
 from .chat_messages import expire_pending
 from .common import AppError, event, now, require_revision, setting, text, uid
-from .discussions import communication_actor
+from .discussions import communication_actor, identity_chat
 
 
 def _get(c: sqlite3.Connection, table: str, identity: str) -> sqlite3.Row:
@@ -427,8 +427,6 @@ class CoordinationService:
             external = text(external, "externalChatId", required=True, limit=500)
         else:
             # A registered identity's runs report the chat it registered with unless they name another.
-            from .registration import identity_chat
-
             external = identity_chat(c, principal["id"])
         c.execute("INSERT INTO agent_runs(id,agent_id,credential_id,client_run_key,display_name,provider,external_chat_id,revision,created_at,updated_at) VALUES(?,?,?,?,?,?,?,1,?,?)",
                   (identity, principal["id"], actor["id"], key, text(p["displayName"], "displayName", required=True, limit=200), text(p.get("provider", ""), "provider", limit=100), external, stamp, stamp))
@@ -516,15 +514,15 @@ class CoordinationService:
         chat_id = run["external_chat_id"]
         if not chat_id:
             return
-        from .registration import identity_chat
-
         if identity_chat(c, run["agent_id"]) != chat_id:
             return
         if c.execute("SELECT 1 FROM agent_chats WHERE owner_type='item' AND owner_id=? AND chat_id=?", (item_id, chat_id)).fetchone():
             return
-        from .services import WorkService
+        # The one import up the layers (test_layering.py): supporting records check repositories
+        # with this module, and a tracked chat is a supporting record like any other.
+        from . import support
 
-        WorkService(self.db, None)._support_apply(c, actor, "chat.create", {
+        support.apply(c, actor, "chat.create", {
             "ownerType": "item", "ownerId": item_id, "chatId": chat_id,
             "title": run["display_name"], "provider": run["provider"]})
 

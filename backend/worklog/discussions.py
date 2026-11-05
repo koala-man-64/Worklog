@@ -12,12 +12,23 @@ import builtins
 import json
 import re
 import sqlite3
+from collections.abc import Iterable
 from typing import Any
 
 from . import search
 from .avatars import AVATARS, choose, is_avatar
-from .common import LIVE_AGENT, AppError, event, now, require_revision, setting, text, uid
-from .services import repositories
+from .common import (
+    LIVE_AGENT,
+    AppError,
+    event,
+    now,
+    repository_labels,
+    require_revision,
+    rows_in,
+    setting,
+    text,
+    uid,
+)
 
 # Added in schema v3. It sits exactly where ALTER TABLE ADD COLUMN places it, so
 # created and migrated databases share one definition for restore validation.
@@ -133,6 +144,28 @@ def communication_actor(conn: sqlite3.Connection, original_actor: dict) -> dict:
     if row is None:
         raise AppError(401, "authentication", "Credential is invalid or revoked")
     return {"id": row["id"], "label": row["label"], "kind": "agent"}
+
+
+def registered_by(c: sqlite3.Connection, credential_ids: Iterable[str]) -> dict[str, dict]:
+    """The registering agent of each credential; ones issued in Settings are absent."""
+    rows = rows_in(c, "SELECT credential_id,registered_by,registered_by_label FROM communication_credentials "
+                      "WHERE registered_by IS NOT NULL AND credential_id IN ({})", credential_ids)
+    return {row[0]: {"id": row[1], "label": row[2]} for row in rows}
+
+
+def registered_chats(c: sqlite3.Connection, credential_ids: Iterable[str]) -> dict[str, str]:
+    """The chat each registered credential's identity works in; ones issued in Settings, or
+    registered before registration named a chat, are absent."""
+    rows = rows_in(c, "SELECT credential_id,chat_id FROM communication_credentials "
+                      "WHERE chat_id IS NOT NULL AND credential_id IN ({})", credential_ids)
+    return {row[0]: row[1] for row in rows}
+
+
+def identity_chat(c: sqlite3.Connection, agent_id: str) -> str | None:
+    """The chat an identity registered with, whichever of its credentials registered it:
+    rotating the credential in Settings keeps the identity, and so its chat."""
+    credentials = [r[0] for r in c.execute("SELECT credential_id FROM communication_credentials WHERE agent_id=?", (agent_id,))]
+    return next(iter(registered_chats(c, credentials).values()), None)
 
 
 class DiscussionService:
@@ -310,7 +343,7 @@ class DiscussionService:
         contexts = {(ctx["type"], ctx["id"]) for ctx in p.get("contexts", [])}
         for context_type, context_id in contexts:
             self._context(c, context_type, context_id)
-        repos = repositories(p.get("repos", []))
+        repos = repository_labels(p.get("repos", []))
         identity, at = uid(), now()
         c.execute("INSERT INTO discussions(id,title,created_at,updated_at) VALUES(?,?,?,?)", (identity, title, at, at))
         c.executemany("INSERT INTO discussion_contexts(discussion_id,context_type,context_id) VALUES(?,?,?)",

@@ -123,7 +123,7 @@ def add_item_scratchpads(conn: sqlite3.Connection) -> None:
 
 
 def _refile_notes(conn: sqlite3.Connection, notes: list[tuple[str, str, str, str, int]]) -> None:
-    """File notes in search as WorkService.index does, so search finds merged text and the archived rest.
+    """File notes in search as search.put does, so search finds merged text and the archived rest.
 
     search_index cannot look up entity_id directly, so every delete reads the whole table:
     one delete per batch rather than per note keeps a large upgrade from stalling startup.

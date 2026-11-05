@@ -6,6 +6,7 @@ from collections.abc import Callable
 from fastapi import FastAPI, Query, Request
 
 from . import coordination_models as m
+from .common import AppError
 from .coordination import (
     CoordinationService,
     _get,
@@ -18,6 +19,7 @@ from .coordination import (
 )
 from .db import Database
 from .models import Expected
+from .records import people_on
 
 
 def coordination_agent_route_allowed(method: str, path: str) -> bool:
@@ -48,8 +50,6 @@ def install_coordination_routes(app: FastAPI, db: Database, mutate: Callable) ->
 
     @app.get("/api/v1/repositories/{identity}")
     def repository(identity: str) -> dict:
-        from .services import people_on
-
         # As on a work item or roadmap, the people tied to it come with the record.
         return read(lambda c: {**repository_record(_get(c, "repositories", identity)),
                                "people": people_on(c, "repository", [identity])[identity]})
@@ -78,7 +78,6 @@ def install_coordination_routes(app: FastAPI, db: Database, mutate: Callable) ->
 
     @app.post("/api/v1/repositories/{identity}/{verb}")
     def repository_archive(identity: str, verb: str, request: Request, body: Expected) -> dict:
-        from .common import AppError
         if verb not in {"archive", "recover"}:
             raise AppError(404, "not_found", "Unknown repository command")
         return write(request, body, lambda c, a: repository_apply(c, a, "repository." + verb, {"id": identity, **body.model_dump()}))

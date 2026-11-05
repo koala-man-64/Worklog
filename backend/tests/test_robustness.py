@@ -132,7 +132,7 @@ def test_non_ascii_csrf_token_is_rejected_with_security_headers(client, records)
 def test_unexpected_failure_returns_envelope_with_security_headers(client, records, monkeypatch):
     def broken(*args, **kwargs):
         raise RuntimeError("unexpected")
-    monkeypatch.setattr(client.app.state.work, "detail", broken)
+    monkeypatch.setattr(client.app.state.work.items, "detail", broken)
     response = client.get(f"/api/v1/work-items/{records['item']['id']}")
     assert response.status_code == 500
     assert response.json()["error"]["code"] == "internal_error"

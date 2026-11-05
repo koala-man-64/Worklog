@@ -16,7 +16,7 @@ from typing import Any
 
 from .common import LIVE_AGENT, AppError, rows_in
 from .coordination import CoordinationService
-from .registration import registered_by, registered_chats
+from .discussions import registered_by, registered_chats
 
 STALE_AFTER = timedelta(hours=2)
 TIE_LIMIT = 200
