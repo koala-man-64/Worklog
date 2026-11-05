@@ -101,7 +101,7 @@ export type Entry = RecordBase & {
   counts?: TabCounts;
   /** A day's entries only: the status the work item ended that day with, from its history;
    * work logged after its day has its status now. */
-  statusOnDay?: Status;
+  statusOnDay?: ItemStatus;
 };
 export type TabCounts = {
   tasks: number;

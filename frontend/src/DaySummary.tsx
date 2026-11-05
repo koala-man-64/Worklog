@@ -1,10 +1,19 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { ErrorMessage, Markdown, statusLabel } from "./components";
-import type { Day, Entry, Status } from "./types";
+import type { Day, Entry, ItemStatus } from "./types";
 
 // The day's summary groups what was worked on by the status each item ended the day with:
-// finished work first and blockers last, as a standup reads.
-const GROUPS: Status[] = ["done", "doing", "open", "blocked"];
+// finished work first, then what waits on others, and blockers last, as a standup reads.
+// Every status needs a place here, so a new one can't drop its work from the summary.
+const ORDER: Record<ItemStatus, number> = {
+  done: 0,
+  doing: 1,
+  open: 2,
+  waiting: 3,
+  blocked: 4,
+};
+const GROUP_LAST = Object.keys(ORDER).length;
+const statusOf = (entry: Entry) => entry.statusOnDay ?? entry.item.status;
 
 /** A title as plain text on one line: Markdown characters in it stay as typed. */
 function literal(title: string) {
@@ -46,16 +55,18 @@ export function summaryMarkdown(day: Day): string | null {
     day: "numeric",
   });
   const blocks = [`**${date}**`];
-  for (const status of GROUPS) {
-    const group = worked.filter(
-      (entry) => (entry.statusOnDay ?? entry.item.status) === status,
+  // The statuses the day's work ended in, in summary order; one this page doesn't know comes last.
+  const statuses = [...new Set(worked.map(statusOf))].sort(
+    (a, b) => (ORDER[a] ?? GROUP_LAST) - (ORDER[b] ?? GROUP_LAST),
+  );
+  for (const status of statuses)
+    blocks.push(
+      `### ${statusLabel(status)}`,
+      worked
+        .filter((entry) => statusOf(entry) === status)
+        .map(listItem)
+        .join("\n\n"),
     );
-    if (group.length)
-      blocks.push(
-        `### ${statusLabel(status)}`,
-        group.map(listItem).join("\n\n"),
-      );
-  }
   return blocks.join("\n\n") + "\n";
 }
 

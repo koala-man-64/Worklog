@@ -2,11 +2,11 @@ import { afterEach, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DaySummary, summaryMarkdown } from "./DaySummary";
-import type { Day, Entry, Status } from "./types";
+import type { Day, Entry, ItemStatus } from "./types";
 
 const entry = (
   title: string,
-  status: Status,
+  status: ItemStatus,
   fields: Partial<Entry> = {},
 ): Entry =>
   ({
@@ -65,6 +65,9 @@ it("groups the work done that day by the status each item ended it with, blocker
         }),
         entry("Update the README", "open"),
         entry("Second fix", "done", { outcome: " \n\t" }),
+        entry("Security review", "waiting", {
+          outcome: "With the security team.",
+        }),
       ]),
     ),
   ).toBe(
@@ -90,6 +93,12 @@ it("groups the work done that day by the status each item ended it with, blocker
       "",
       "- **Update the README**",
       "",
+      "### Waiting",
+      "",
+      "- **Security review**",
+      "",
+      "  With the security team.",
+      "",
       "### Blocked",
       "",
       "- **Vendor sync**",
@@ -111,6 +120,19 @@ it("groups by the status the day recorded, not the item's status now", () => {
   expect(markdown).toMatch(/### Doing\n\n- \*\*Finished later\*\*/);
   expect(markdown).toMatch(/### Blocked\n\n- \*\*Logged afterwards\*\*\n$/);
   expect(markdown).not.toContain("### Done");
+});
+
+it("never drops work whose status this page doesn't know; it comes last", () => {
+  expect(
+    summaryMarkdown(
+      day([
+        entry("Odd one", "open", { statusOnDay: "paused" as ItemStatus }),
+        entry("Usual one", "blocked"),
+      ]),
+    ),
+  ).toMatch(
+    /### Blocked\n\n- \*\*Usual one\*\*\n\n### Paused\n\n- \*\*Odd one\*\*\n$/,
+  );
 });
 
 it("keeps titles as typed and an outcome's own lists inside its item", () => {
