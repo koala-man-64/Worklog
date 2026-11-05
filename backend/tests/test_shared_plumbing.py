@@ -148,3 +148,47 @@ def test_a_snapshot_read_holds_one_transaction_and_keeps_nothing_it_writes(tmp_p
     assert db.snapshot(read_then_write) == 1
     with db.read() as conn:
         assert conn.execute("SELECT count(*) FROM settings WHERE key='snapshotProbe'").fetchone()[0] == 0
+
+
+def test_no_route_is_shadowed_by_one_registered_before_it(tmp_path):
+    # Literal routes replace a catch-all that had to come last; nothing now checks registration order but this.
+    import re
+
+    from fastapi.routing import APIRoute
+    from starlette.routing import Match
+
+    app = create_app(tmp_path, testing=True)
+    for route in [r for r in app.router.routes if isinstance(r, APIRoute)]:
+        path = re.sub(r"\{[^}]+\}", "placeholder", route.path)
+        for method in route.methods:
+            scope = {"type": "http", "path": path, "root_path": "", "method": method}
+            first = next(r for r in app.router.routes if r.matches(scope)[0] == Match.FULL)
+            assert first is route, f"{method} {route.path} is reached by {getattr(first, 'path', first)} first"
+
+
+def test_an_archive_route_needs_its_revision_replays_under_its_key_and_refuses_agents(client):
+    note = supporting_record(client, "notes")
+    assert write(client, "POST", f"/notes/{note['id']}/archive", {}).status_code == 422
+    key = str(uuid.uuid4())
+    first = ok(write(client, "POST", f"/notes/{note['id']}/archive", {"revision": note["revision"]}, headers={"Idempotency-Key": key}))
+    assert ok(write(client, "POST", f"/notes/{note['id']}/archive", {"revision": note["revision"]}, headers={"Idempotency-Key": key})) == first
+    agent = ok(write(client, "POST", "/credentials", {"label": "Agent"}))
+    refused = write(client, "POST", f"/notes/{note['id']}/recover", {"revision": first["revision"]},
+                    headers={"Authorization": "Bearer " + agent["token"]})
+    assert refused.status_code == 403 and refused.json()["error"]["code"] == "agent_scope"
+
+
+def test_a_discussion_read_refuses_a_credential_revoked_after_the_request_was_let_in(client, monkeypatch):
+    agent = ok(write(client, "POST", "/credentials", {"label": "Agent"}))
+    snapshot = Database.snapshot
+
+    def revoke_first(self, fn):
+        # The middleware has already accepted the credential; it goes before the read begins.
+        with self.transaction() as conn:
+            conn.execute("UPDATE credentials SET revoked=1 WHERE id=?", (agent["id"],))
+        return snapshot(self, fn)
+
+    monkeypatch.setattr(Database, "snapshot", revoke_first)
+    refused = client.get("/api/v1/discussions", headers={"Authorization": "Bearer " + agent["token"]})
+    assert refused.status_code == 401, refused.text
+    assert refused.json()["error"]["code"] == "authentication"

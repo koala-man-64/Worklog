@@ -90,7 +90,8 @@ def pick_avatar(conn: sqlite3.Connection, requested: str | None, *, agent_id: st
 def assign_missing_avatars(conn: sqlite3.Connection) -> None:
     """Upgrade backfill: active agents first, spread across every agent's history."""
     taken = [row[0] for row in conn.execute("SELECT avatar FROM communication_agents WHERE avatar IS NOT NULL")]
-    for row in conn.execute(f"SELECT a.id FROM communication_agents a WHERE a.avatar IS NULL ORDER BY {LIVE_AGENT} DESC,a.created_at,a.id").fetchall():
+    # Frozen: every upgrade runs this, so its rule stays the one it shipped with, not LIVE_AGENT's.
+    for row in conn.execute("SELECT a.id FROM communication_agents a WHERE a.avatar IS NULL ORDER BY EXISTS(SELECT 1 FROM communication_credentials cc JOIN credentials cr ON cr.id=cc.credential_id WHERE cc.agent_id=a.id AND cr.revoked=0) DESC,a.created_at,a.id").fetchall():
         avatar = choose(taken)
         conn.execute("UPDATE communication_agents SET avatar=? WHERE id=?", (avatar, row[0]))
         taken.append(avatar)

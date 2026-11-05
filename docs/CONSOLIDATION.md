@@ -205,10 +205,10 @@ The plumbing that was copied from module to module now has one home each. The co
 - **Snapshot read:** `Database.snapshot` replaces six of the seven copies. Discussions also check their caller's identity inside the snapshot. `/context` keeps its own reads, because one snapshot there would hold the lock longer (B-14).
 - **Search prefix builder:** `search.prefix_match` replaces all six copies. Tickets, resources and discussions keep refusing a query over 2,000 bytes; work, people and global search take any length.
 - **Chunked `IN`:** `common.rows_in` replaces five copies.
-- **Live-agent clause:** `common.LIVE_AGENT` replaces six copies. A run's or a request's own credential check is a different rule and stays separate.
+- **Live-agent clause:** `common.LIVE_AGENT` replaces five copies. The avatar backfill that runs inside every upgrade keeps its own frozen copy, so a later change to the rule cannot change old upgrades. A run's or a request's own credential check is a different rule and stays separate.
 - **Archive and recover guards:** the seven stay where they are. Each answers an unknown command with its own message, so a shared helper would only move two lines.
 
-The generic `POST /{resource}/{identity}/{verb}` route, which was removed and re-appended at startup so it would not shadow other routes, is replaced by 18 literal archive and recover routes. A request no route serves now gets the framework's plain 404, or 405 for a path another method serves, instead of Worklog's error envelope. No client sends one. No other request changes. Findings: A-05, A-07, B-14.
+The generic `POST /{resource}/{identity}/{verb}` route, which was removed and re-appended at startup so it would not shadow other routes, is replaced by 18 literal archive and recover routes. A request no route serves now gets the framework's plain 404, or 405 for a path another method serves, instead of Worklog's error envelope. No client sends one. No other request changes. A test now fails if any route is shadowed by one registered before it. Findings: A-05, A-07, B-14.
 
 #### 2.2 · Named-column INSERTs
 
