@@ -218,11 +218,18 @@ Positional `INSERT ... VALUES` ties code to physical column order. All 32 now na
 
 #### 2.3 · One operation registry
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branch: `claude/operation-registry` · PR: [#101](https://github.com/koala-man-64/Worklog/pull/101)
 
-One proposal operation is defined in four places: `proposals.FIELDS`, the `dispatch` contracts, the request models and the `WorkService.apply` prefix router.
+One proposal operation was defined in five places: `proposals.FIELDS`, the `dispatch` contracts, the `models.Operation` literal, the request models and the `WorkService.apply` prefix router. The inventory found that the five agreed on every action's keys except three, and each of those three was deliberate.
 
-Fix: one registry with `agent_proposable` and `server_only` markers, and payloads validated at submit as well as at approve. Findings: A-01, C-09, C-16, REM-23.
+What changed:
+- **One definition.** `operations.py` defines each proposable operation once, by the request model the person's own route takes, with its path keys and the three deliberate differences: `note.create` requires `text`, `roadmap.revise` requires `steps`, and only Worklog sets `attachment.create`'s `proposalId`.
+- **Derived from it.** `proposals.FIELDS` is derived from the registry with unchanged key sets, because approve re-checks stored proposals against them. Dispatch validates by the registry and refuses any action it doesn't define.
+- **Pinned to it.** A test pins the `Operation` literal to the registry.
+- **Server-only operations.** These are the archive and recover commands and `roadmap.restore`. They are listed as `SERVER_ONLY`, and no proposal can carry one.
+- **Submit checks values.** While approval is on, submit checks every operation's values as approve does, with the same numbered error. Checks only the record can make still wait for approve.
+
+The person's own routes keep their own body models, and the prefix router stays, since it copies nothing. Findings: A-01, C-09, C-16, REM-23.
 
 #### 2.4 · Global search in the search module, then the WorkService split
 

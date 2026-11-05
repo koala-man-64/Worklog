@@ -8,6 +8,7 @@ from contextlib import nullcontext
 from . import scratchpad
 from .common import NOTE_LIMIT, AppError, event, now, require_revision, setting, uid
 from .migrations import AUTOMATIC_APPROVAL_ID, stale_signature
+from .operations import OPERATIONS, validate
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS proposals (
@@ -20,54 +21,9 @@ CREATE TABLE IF NOT EXISTS proposals (
 CREATE INDEX IF NOT EXISTS proposals_status ON proposals(status,created_at);
 """
 
-# Explicit schemas prevent a proposal becoming an arbitrary operation transport.
-FIELDS = {
-    "repository.create": ({"name"}, {"name", "url", "description"}),
-    "repository.update": ({"id", "revision"}, {"id", "revision", "name", "url", "description"}),
-    "repository.archive": ({"id", "revision"}, {"id", "revision"}),
-    "repository.recover": ({"id", "revision"}, {"id", "revision"}),
-    "item.create": ({"title"}, {"title", "description", "adoUrl", "roadmapId", "stepId", "day", "worked", "repositoryIds"}),
-    "item.update": ({"id", "revision"}, {"id", "revision", "title", "description", "status", "adoUrl", "roadmapId", "stepId", "repositoryIds"}),
-    "item.archive": ({"id", "revision"}, {"id", "revision"}),
-    "item.recover": ({"id", "revision"}, {"id", "revision"}),
-    "entry.upsert": ({"date", "itemId", "revision"}, {"date", "itemId", "revision", "planned", "worked", "outcome"}),
-    "note.create": ({"ownerType", "ownerId", "text"}, {"ownerType", "ownerId", "title", "text"}),
-    "note.update": ({"id", "revision"}, {"id", "revision", "title", "text"}),
-    "task.create": ({"itemId", "text"}, {"itemId", "text", "done"}),
-    "task.update": ({"id", "revision"}, {"id", "revision", "text", "done"}),
-    "roadmap.create": ({"title"}, {"title", "overview", "steps", "parentId"}),
-    "roadmap.revise": ({"id", "revision", "title", "steps"}, {"id", "revision", "title", "overview", "steps", "note"}),
-    "roadmap.move": ({"id", "revision", "parentId"}, {"id", "revision", "parentId"}),
-    "progress.set": ({"id", "revision", "status"}, {"id", "revision", "status"}),
-    "person.create": ({"name"}, {"name", "title", "team", "description", "email", "phone", "chat", "location", "notes"}),
-    "person.update": ({"id", "revision"}, {"id", "revision", "name", "title", "team", "description", "email", "phone", "chat",
-                                           "location", "notes"}),
-    "person.archive": ({"id", "revision"}, {"id", "revision"}),
-    "person.recover": ({"id", "revision"}, {"id", "revision"}),
-    "person.link": ({"personId", "targetType", "targetId"}, {"personId", "targetType", "targetId", "relationship"}),
-    "person.unlink": ({"personId", "targetType", "targetId"}, {"personId", "targetType", "targetId"}),
-    "link.create": ({"ownerType", "ownerId", "url"}, {"ownerType", "ownerId", "url", "title", "description"}),
-    "link.update": ({"id", "revision"}, {"id", "revision", "url", "title", "description"}),
-    "link.archive": ({"id", "revision"}, {"id", "revision"}),
-    "link.recover": ({"id", "revision"}, {"id", "revision"}),
-    "attachment.create": ({"ownerType", "ownerId", "attachmentId"}, {"ownerType", "ownerId", "attachmentId"}),
-    "chat.create": ({"ownerType", "ownerId", "chatId", "title"}, {"ownerType", "ownerId", "chatId", "title", "createdDate", "provider", "model", "repos", "stepIds", "repositoryIds"}),
-    "chat.update": ({"id", "revision"}, {"id", "revision", "chatId", "title", "createdDate", "provider", "model", "repos", "stepIds", "repositoryIds"}),
-    "chat.archive": ({"id", "revision"}, {"id", "revision"}),
-    "chat.recover": ({"id", "revision"}, {"id", "revision"}),
-    "github.create": ({"ownerType", "ownerId", "kind", "url"}, {"ownerType", "ownerId", "kind", "url", "reference", "title", "description", "chatId"}),
-    "github.update": ({"id", "revision"}, {"id", "revision", "kind", "url", "reference", "title", "description", "chatId"}),
-    "github.archive": ({"id", "revision"}, {"id", "revision"}),
-    "github.recover": ({"id", "revision"}, {"id", "revision"}),
-    "question.create": ({"roadmapId", "title"}, {"roadmapId", "title", "details"}),
-    "question.update": ({"id", "revision"}, {"id", "revision", "title", "details", "answer", "status"}),
-    "question.archive": ({"id", "revision"}, {"id", "revision"}),
-    "question.recover": ({"id", "revision"}, {"id", "revision"}),
-    "decision.create": ({"roadmapId", "title"}, {"roadmapId", "title", "rationale", "decidedDate"}),
-    "decision.update": ({"id", "revision"}, {"id", "revision", "title", "rationale", "decidedDate"}),
-    "decision.archive": ({"id", "revision"}, {"id", "revision"}),
-    "decision.recover": ({"id", "revision"}, {"id", "revision"}),
-}
+# Explicit schemas prevent a proposal becoming an arbitrary operation transport. Each operation's
+# keys come from its one definition in operations.py: (required, allowed) per action.
+FIELDS = {action: (set(spec.required), set(spec.allowed)) for action, spec in OPERATIONS.items()}
 
 # Approves under the person's standing choice in Settings rather than a decision on one
 # proposal: the person's authority, recorded apart from the approvals they give in Review.
@@ -319,8 +275,9 @@ class ProposalService:
             if verb == "submit" and not before["operations"]:
                 raise AppError(422, "validation", "A submitted proposal needs at least one operation")
             if verb == "submit" and approval_required(connection):
-                # A file it cannot attach would only wait for the person to reject it. With
-                # approval off, applying it below makes the same check.
+                # A value its model refuses, or a file it cannot attach, would only wait for the
+                # person to reject it. With approval off, applying it below makes the same checks.
+                self._check_values(row)
                 self._check_files(connection, row)
             if verb == "approve":
                 self._apply(connection, row)
@@ -362,6 +319,21 @@ class ProposalService:
                     raise _numbered(exc, number, len(operations), operation["action"]) from exc
         finally:
             self._applying_id = previous
+
+    @staticmethod
+    def _check_values(row):
+        """Each operation's values pass the checks approve makes before applying it, so a proposal
+        the person reviews can fail only on what applying it finds: a stale revision, or a rule
+        of the record itself."""
+        operations = json.loads(row["operations"])
+        for number, operation in enumerate(operations, 1):
+            payload = operation["payload"]
+            if operation["action"] == "attachment.create":
+                payload = {**payload, "proposalId": row["id"]}
+            try:
+                validate(operation["action"], payload)
+            except AppError as exc:
+                raise _numbered(exc, number, len(operations), operation["action"]) from exc
 
     def _check_files(self, connection, row):
         operations = json.loads(row["operations"])

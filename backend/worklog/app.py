@@ -19,11 +19,9 @@ from fastapi import FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import ValidationError
 from starlette.concurrency import run_in_threadpool
 
-from . import __version__
-from . import coordination_models as cm
+from . import __version__, operations
 from . import models as m
 from .chat_message_api import chat_message_agent_route_allowed, install_chat_message_routes
 from .common import (
@@ -107,41 +105,9 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     transcripts = TranscriptReader(transcript_roots or (TranscriptRoots() if testing else TranscriptRoots.from_environment()))
 
     def dispatch(conn: sqlite3.Connection, actor: dict, action: str, payload: dict) -> dict:
-        # The proposal boundary shares these exact validators and domain mutations.
-        for field in ("id", "itemId", "date"):
-            if field in payload and not isinstance(payload[field], str):
-                raise AppError(422, "validation", f"{field} must be a string")
-        contracts: dict[str, type[m.Command]] = {
-            "item.create": m.ItemCreate, "item.update": m.ItemUpdate,
-            "item.archive": m.Expected, "item.recover": m.Expected,
-            "entry.upsert": m.EntryUpdate, "note.create": m.NoteCreate, "note.update": m.NoteUpdate,
-            "task.create": m.TaskCreate, "task.update": m.TaskUpdate,
-            "roadmap.create": m.RoadmapCreate, "roadmap.revise": m.RoadmapRevision,
-            "roadmap.move": m.RoadmapMove, "progress.set": m.Progress,
-            "person.create": m.PersonCreate, "person.update": m.PersonUpdate,
-            "person.archive": m.Expected, "person.recover": m.Expected,
-            "person.link": m.PersonLinkCreate, "person.unlink": m.PersonLinkRemove,
-            "link.create": m.LinkCreate, "link.update": m.LinkUpdate,
-            "link.archive": m.Expected, "link.recover": m.Expected,
-            "attachment.create": m.AttachmentCreate,
-            "chat.create": m.ChatCreate, "chat.update": m.ChatUpdate,
-            "chat.archive": m.Expected, "chat.recover": m.Expected,
-            "github.create": m.GithubRefCreate, "github.update": m.GithubRefUpdate,
-            "github.archive": m.Expected, "github.recover": m.Expected,
-            "question.create": m.QuestionCreate, "question.update": m.QuestionUpdate,
-            "question.archive": m.Expected, "question.recover": m.Expected,
-            "decision.create": m.DecisionCreate, "decision.update": m.DecisionUpdate,
-            "decision.archive": m.Expected, "decision.recover": m.Expected,
-            "repository.create": cm.RepositoryCreate, "repository.update": cm.RepositoryUpdate,
-            "repository.archive": m.Expected, "repository.recover": m.Expected,
-        }
-        model = contracts.get(action)
-        if model:
-            excluded = {"id", "date", "itemId"} if action == "entry.upsert" else {"id"}
-            try:
-                model.model_validate({k: v for k, v in payload.items() if k not in excluded})
-            except ValidationError as exc:
-                raise AppError(422, "validation", "Invalid proposed operation", exc.errors(include_input=False, include_context=False)) from None
+        # A proposal's operation passes the same request model the person's own route takes,
+        # then the same domain mutation; one that operations.py doesn't define never runs.
+        operations.validate(action, payload)
         return work.apply(conn, actor, action, payload)
 
     proposals = ProposalService(db, dispatch)
