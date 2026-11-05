@@ -46,7 +46,7 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 | Day entry | date and work item | `planned`, `worked`, `outcome` | proposal (`entry.upsert`) |
 | Scratchpad | note UUID | the one Markdown note of a work item | proposal (`note.create` adds a section) |
 | Note on a roadmap or step | UUID | `title`, `text` | proposal (`note.*`) |
-| Checklist task | UUID | `text`, `done` | proposal (`task.*`) |
+| Checklist task | UUID | `text`, `done`; a work item's tasks come in the person's order, a new one last | proposal (`task.*`); only the person reorders |
 | Roadmap | UUID | `title`, `overview`, `parentId` for nesting, immutable versions | proposal (`roadmap.*`) |
 | Step | UUID, stable across versions | progress open, doing, blocked or done on leaf steps (a parent's follows its children); `retired` | proposal (`roadmap.revise`, `progress.set`) |
 | Question, decision | UUID | a question is open or answered | proposal |

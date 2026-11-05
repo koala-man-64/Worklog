@@ -120,7 +120,14 @@ export type Note = RecordBase & {
   ownerType: string;
   ownerId: string;
 };
-export type Task = RecordBase & { text: string; done: boolean; itemId: string };
+/** A work item's tasks come in the person's order. updatedAt is when the text or tick last changed. */
+export type Task = RecordBase & {
+  text: string;
+  done: boolean;
+  itemId: string;
+  createdAt: string;
+  updatedAt: string;
+};
 export type Attachment = RecordBase & {
   name: string;
   mime: string;

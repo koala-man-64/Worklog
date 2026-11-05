@@ -121,6 +121,7 @@ They never change your work items, days, roadmaps, people or repositories direct
 Each entry has tabs. "Outcome / next action" holds the day's note. "Tasks", "Scratchpad", "Links", "Files" and "Repositories" hold the work item's own records, so you can work on them without leaving the day.
 
 - Before you open the tabs, they show what they hold: tasks done out of all, how many links, files and repositories, and a dot when the scratchpad has text.
+- "Tasks" is the item's own checklist: each task says when it was "Created" and last "Updated", and the grip and the up and down buttons put the tasks in order, as on the item's page.
 - The arrow keys move between tabs.
 - The badge beside an entry's title is the item's stack rank.
 - Each entry's title row collapses and expands; "Collapse all" and "Expand all" do every entry at once.
@@ -163,7 +164,7 @@ Open the item from **Work**. Its page holds, from top to bottom:
   - the repositories the work touches ("Link repository")
   - the "Roadmap" and "Roadmap step" the item belongs to
   - "Plan for day", with a "Schedule date"
-- **"Tasks"**: type a "New task" and press "Add task". Tick tasks when done, and done ones are struck through. "Edit task" renames one.
+- **"Tasks"**: type a "New task" and press "Add task". Tick tasks when done, and done ones are struck through. "Edit task" renames one. Under each task, "Created" and "Updated" say when it was added and when its text or tick last changed. Put the tasks in order by dragging the grip, or with the up and down buttons; a new task goes last.
 - **"Scratchpad (Markdown)"**: one running note for the item. Notes archived earlier stay readable under "Archived notes".
 - **"People"**: choose someone in "Choose person" ("+ New person…" adds one), give a "Relationship or role", and press "Tie person".
 - **"Links"**: a "Link title", "Link URL" and "Link description", then "Add link".

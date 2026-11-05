@@ -734,14 +734,39 @@ form.field-action > label {
   margin: 0 0 6px;
   font-size: 12px;
 }
-/* Task text reads at body size wherever the list sits, level with its buttons. */
-.checklist .task > label {
+/* A task's grip, then its text with when it was added and last changed, then its buttons. Task
+   text reads at body size wherever the list sits, and keeps 16rem: in a narrower list the
+   buttons wrap under it, on the right. */
+.line.task {
+  justify-content: flex-end;
+}
+.task > .drag-handle {
+  margin-right: 0;
+  padding: 4px;
+}
+.task-main {
+  flex: 1 1 16rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.checklist .task-main > label {
   font-size: inherit;
   margin-bottom: 0;
 }
-.task.done > label {
+.task.done .task-main > label {
   color: var(--muted);
   text-decoration: line-through;
+}
+/* Under the text, past the checkbox (15px and its 8px margin). */
+.task-times {
+  display: block;
+  margin-top: 2px;
+  padding-left: 23px;
+  color: var(--muted);
+}
+.line.task.dragging {
+  opacity: 0.55;
+  border-top: 2px solid var(--teal);
 }
 /* A task's edit field opens under it, without the rule and spacing other disclosures have. */
 .line > .task-edit {

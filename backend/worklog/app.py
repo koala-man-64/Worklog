@@ -436,6 +436,11 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def update_task(identity: str, request: Request, body: m.TaskUpdate) -> dict:
         return apply(request, "task.update", {**body.model_dump(exclude_unset=True), "id": identity})
 
+    @app.post("/api/v1/tasks/{identity}/move")
+    def move_task(identity: str, request: Request, body: m.TaskMove) -> dict:
+        p = body.model_dump()
+        return mutate(request, p, lambda c, a: support.move_task(c, a, identity, p))
+
     @app.post("/api/v1/references")
     def create_reference(request: Request, body: m.ReferenceCreate) -> dict:
         return apply(request, "reference.create", body.model_dump(), create=True)

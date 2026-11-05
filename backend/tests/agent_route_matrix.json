@@ -152,6 +152,7 @@
   "POST /api/v1/session/bootstrap": "refused by handler: bootstrap",
   "POST /api/v1/tasks": "refused",
   "POST /api/v1/tasks/{identity}/archive": "refused",
+  "POST /api/v1/tasks/{identity}/move": "refused",
   "POST /api/v1/tasks/{identity}/recover": "refused",
   "POST /api/v1/tickets": "reaches handler",
   "POST /api/v1/tickets/{ref}/comments": "reaches handler",

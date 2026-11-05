@@ -89,6 +89,12 @@ class TaskUpdate(Expected):
     done: StrictBool | None = None
 
 
+class TaskMove(Expected):
+    """revision is the task's own; position is its new place among the work item's active tasks,
+    1 first, and a place past the last moves it last."""
+    position: Annotated[StrictInt, Field(ge=1)]
+
+
 class ReferenceCreate(Command):
     itemId: str
     path: str

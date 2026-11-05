@@ -5,9 +5,9 @@ from __future__ import annotations
 import json
 import sqlite3
 
-SCHEMA_VERSION = 13
+SCHEMA_VERSION = 14
 # Older versions that startup and offline restore upgrade in one transaction.
-UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12})
+UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13})
 
 COORDINATION_SCHEMA = """
 CREATE TABLE repositories(id TEXT PRIMARY KEY,name TEXT NOT NULL,url TEXT NOT NULL DEFAULT '',description TEXT NOT NULL DEFAULT '',archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
@@ -319,6 +319,27 @@ def add_chat_confirmations(conn: sqlite3.Connection) -> None:
                  (stamp, stamp))
 
 
+# v14 lets the person order each work item's tasks. position orders all of an item's tasks,
+# archived ones included, so a recovered task comes back where it was; the item's active tasks
+# are listed by it, and ties, which only a writer that skipped the column could leave, by the
+# time each task was added.
+TASK_POSITION_COLUMN = "position INTEGER NOT NULL DEFAULT 0 CHECK(position>=0)"
+
+
+def add_task_positions(conn: sqlite3.Connection) -> None:
+    """Number each work item's tasks from 1 in the order version 13 listed them.
+
+    Version 13 read an item's tasks with the query below. Running it again keeps every list as
+    the person last saw it, tasks added in the same instant included. Only the order is new:
+    no task's revision or last-updated time changes.
+    """
+    conn.execute("ALTER TABLE tasks ADD COLUMN " + TASK_POSITION_COLUMN)
+    for (item,) in conn.execute("SELECT DISTINCT item_id FROM tasks").fetchall():
+        listed = conn.execute("SELECT * FROM tasks WHERE item_id=? ORDER BY created_at", (item,)).fetchall()
+        conn.executemany("UPDATE tasks SET position=? WHERE id=?",
+                         [(place, row[0]) for place, row in enumerate(listed, 1)])
+
+
 def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
     """Unlike executescript, preserve the caller's transaction and rollback boundary."""
     for statement in filter(str.strip, schema.split(";")):
@@ -331,7 +352,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
     Credential IDs, proposal authors, receipts (beyond the date v11 gives them), and legacy
     chat repository labels are deliberately unchanged. No repository names are guessed or imported.
     The one record v13 changes is a chat message still waiting for an identity that isn't bound to
-    the chat: that delivery ends, with the reason 'unconfirmed'.
+    the chat: that delivery ends, with the reason 'unconfirmed'. v14 gives every task its place in
+    its work item's list, the one it was listed in, and changes nothing else about it.
     """
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version == SCHEMA_VERSION:
@@ -369,8 +391,10 @@ def upgrade(conn: sqlite3.Connection) -> None:
         add_search_keys_and_receipt_dates(conn)
     if version < 12:
         add_decision_state(conn)
-    # Every upgradable version predates the chat bindings of v13.
-    add_chat_confirmations(conn)
+    if version < 13:
+        add_chat_confirmations(conn)
+    # Every upgradable version predates the task order of v14.
+    add_task_positions(conn)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 

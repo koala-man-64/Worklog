@@ -9,6 +9,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setDataContext } from "./api";
+import { formatDiscussionDate } from "./discussionFormatting";
 import { Today } from "./Today";
 
 const state = vi.hoisted(() => ({
@@ -154,6 +155,9 @@ it("keeps an entry's controls on its title row and the day's counts beside its h
   expect(heading.querySelector(".day-summary")).not.toBeNull();
 });
 
+// When the release's tasks were added, and when the first was ticked.
+const ADDED = "2026-10-26T15:04:00.123456+00:00";
+const TICKED = "2026-10-28T09:30:00+00:00";
 const release = () => ({
   id: "release",
   notes: [
@@ -175,6 +179,8 @@ const release = () => ({
       text: "Tag it",
       done: true,
       itemId: "release",
+      createdAt: ADDED,
+      updatedAt: TICKED,
     },
     {
       id: "t2",
@@ -183,6 +189,8 @@ const release = () => ({
       text: "Announce it",
       done: false,
       itemId: "release",
+      createdAt: ADDED,
+      updatedAt: ADDED,
     },
   ],
   links: [],
@@ -272,6 +280,120 @@ it("ticks an entry's tasks off and adds more from its Tasks tab", async () => {
       { itemId: "release", text: "Close the milestone", done: false },
     ],
   ]);
+});
+
+// A drag's data, as the browser carries it from the grip to the drop.
+function transfer() {
+  const data = new Map<string, string>();
+  return {
+    effectAllowed: "",
+    get types() {
+      return [...data.keys()];
+    },
+    setData: (type: string, value: string) => void data.set(type, value),
+    getData: (type: string) => data.get(type) ?? "",
+  };
+}
+const taskRow = (panel: HTMLElement, text: string) =>
+  within(panel)
+    .getByRole("checkbox", { name: text })
+    .closest(".task") as HTMLElement;
+
+it("says when each of an entry's tasks was added and last changed", async () => {
+  state.day = day("2026-10-28", [
+    entry("release", "Ship the release", "doing"),
+  ]);
+  state.detail = release();
+  render(view("2026-10-28", "2026-10-28"));
+  await userEvent.click(screen.getByRole("tab", { name: "Tasks" }));
+  const panel = screen.getByRole("tabpanel", { name: "Tasks" });
+  const times = (text: string) =>
+    taskRow(panel, text).querySelector(".task-times") as HTMLElement;
+  expect(times("Tag it")).toHaveTextContent(
+    `Created ${formatDiscussionDate(ADDED)} · Updated ${formatDiscussionDate(TICKED)}`,
+  );
+  expect(
+    [...times("Tag it").querySelectorAll("time")].map((t) => [
+      t.getAttribute("dateTime"),
+      t.getAttribute("title"),
+    ]),
+  ).toEqual([
+    [ADDED, new Date(ADDED).toLocaleString()],
+    [TICKED, new Date(TICKED).toLocaleString()],
+  ]);
+  expect(times("Announce it")).toHaveTextContent(
+    `Created ${formatDiscussionDate(ADDED)} · Updated ${formatDiscussionDate(ADDED)}`,
+  );
+  // The times sit beside the checkbox, not in its name.
+  expect(
+    within(panel).getByRole("checkbox", { name: "Tag it" }),
+  ).toBeInTheDocument();
+});
+
+it("moves an entry's tasks up and down with their buttons", async () => {
+  state.day = day("2026-10-28", [
+    entry("release", "Ship the release", "doing"),
+  ]);
+  state.detail = release();
+  const network = vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(async () => new Response("{}", { status: 200 }));
+  render(view("2026-10-28", "2026-10-28"));
+  await userEvent.click(screen.getByRole("tab", { name: "Tasks" }));
+  const panel = screen.getByRole("tabpanel", { name: "Tasks" });
+  const button = (name: string) => within(panel).getByRole("button", { name });
+  // The first task can't go up, nor the last down.
+  expect(button("Move task Tag it up")).toBeDisabled();
+  expect(button("Move task Announce it down")).toBeDisabled();
+  await userEvent.click(button("Move task Announce it up"));
+  await waitFor(() => expect(button("Move task Tag it down")).toBeEnabled());
+  await userEvent.click(button("Move task Tag it down"));
+  await waitFor(() => expect(writes(network)).toHaveLength(2));
+  // Each move names its task's revision and its new place, 1 first.
+  expect(
+    writes(network).map(([url, init]) => [url, JSON.parse(String(init?.body))]),
+  ).toEqual([
+    ["/api/v1/tasks/t2/move", { revision: 5, position: 1 }],
+    ["/api/v1/tasks/t1/move", { revision: 1, position: 2 }],
+  ]);
+});
+
+it("moves an entry's task by dragging its grip onto another, and only within its own list", async () => {
+  state.day = day("2026-10-28", [
+    entry("release", "Ship the release", "doing"),
+  ]);
+  state.detail = release();
+  const network = vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(async () => new Response("{}", { status: 200 }));
+  render(view("2026-10-28", "2026-10-28"));
+  await userEvent.click(screen.getByRole("tab", { name: "Tasks" }));
+  const panel = screen.getByRole("tabpanel", { name: "Tasks" });
+  // A task dragged from another work item's list is not this list's to move.
+  const elsewhere = transfer();
+  elsewhere.setData(
+    "application/x-worklog-task",
+    JSON.stringify({ taskId: "t2", itemId: "other", dataId: "x" }),
+  );
+  fireEvent.dragOver(taskRow(panel, "Tag it"), { dataTransfer: elsewhere });
+  fireEvent.drop(taskRow(panel, "Tag it"), { dataTransfer: elsewhere });
+  const dataTransfer = transfer();
+  fireEvent.dragStart(
+    within(panel).getByRole("img", {
+      name: "Drag task Announce it to reorder",
+    }),
+    { dataTransfer },
+  );
+  expect(taskRow(panel, "Announce it")).toHaveClass("dragging");
+  fireEvent.dragOver(taskRow(panel, "Tag it"), { dataTransfer });
+  fireEvent.drop(taskRow(panel, "Tag it"), { dataTransfer });
+  await waitFor(() => expect(writes(network)).toHaveLength(1));
+  expect(
+    writes(network).map(([url, init]) => [url, JSON.parse(String(init?.body))]),
+  ).toEqual([["/api/v1/tasks/t2/move", { revision: 5, position: 1 }]]);
+  expect(taskRow(panel, "Announce it")).not.toHaveClass("dragging");
+  // The drop is the list's alone: the day entry around it neither reorders nor reports an error.
+  expect(screen.queryByRole("alert")).toBeNull();
 });
 
 it("moves between an entry's tabs with the arrow keys, Home and End", async () => {
