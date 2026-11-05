@@ -6,15 +6,31 @@ maps each record to its row's rowid, with the record's type and owner indexed, s
 write here finds its rows through an index and changes them by rowid. Keys and rows stay
 in step only because every write goes through this module:
 backend/tests/test_search_writes.py fails when another module writes either table.
-Readers still query search_index with MATCH where they are.
+Readers still query search_index with MATCH where they are, with the expression prefix_match
+builds from what the person typed.
 """
 
 from __future__ import annotations
 
+import re
 import sqlite3
 from collections.abc import Sequence
 
 CHUNK = 500
+# The most words one search matches; the rest of a long query is ignored.
+MAX_TERMS = 30
+
+
+def prefix_match(query: str) -> str | None:
+    """The FTS5 MATCH expression for a search box: every word, each as a prefix, all required.
+
+    Punctuation only separates words, so no FTS5 syntax a person types gets through, and None
+    means nothing searchable is left. Each caller keeps its own limit on the query's length.
+    """
+    words = re.findall(r"\w+", query, re.UNICODE)[:MAX_TERMS]
+    if not words:
+        return None
+    return " AND ".join('"' + word.replace('"', '""') + '"*' for word in words)
 
 
 def put(c: sqlite3.Connection, identity: str, kind: str, title: str, body: str,

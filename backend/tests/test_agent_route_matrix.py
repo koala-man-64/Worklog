@@ -38,8 +38,6 @@ HARNESS_FAILURES = {"host", "origin", "authentication", "session", "csrf"}
 
 def concrete(template: str) -> str:
     """Placeholder values that pass every path check the middleware makes."""
-    if template.startswith("/api/v1/{resource}"):
-        return f"/api/v1/notes/{PLACEHOLDER}/archive"
     verb = "submit" if template.startswith("/api/v1/proposals") else "archive"
     return (template.replace("{identity}", PLACEHOLDER).replace("{item_id}", PLACEHOLDER)
             .replace("{ref}", "T-1").replace("{verb}", verb).replace("{date}", "2026-01-05")

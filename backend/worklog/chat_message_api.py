@@ -19,9 +19,7 @@ def install_chat_message_routes(app: FastAPI, db: Database, mutate: Callable) ->
 
     @app.get("/api/v1/chats/{identity}/messages")
     def chat_messages(identity: str, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
-        with db.read() as c:
-            c.execute("BEGIN")
-            return service.messages(c, identity, limit, offset)
+        return db.snapshot(lambda c: service.messages(c, identity, limit, offset))
 
     @app.post("/api/v1/chats/{identity}/messages")
     def chat_message_create(identity: str, request: Request, body: m.ChatMessageCreate) -> dict:

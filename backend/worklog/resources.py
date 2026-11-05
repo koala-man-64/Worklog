@@ -7,7 +7,6 @@ resources; agents read them, as the person does, and never change them, not even
 
 from __future__ import annotations
 
-import re
 import sqlite3
 from typing import Any
 
@@ -110,10 +109,10 @@ class ResourceService:
         """Titles and summaries by title, without the pages' text; q matches title, summary or text."""
         clauses: list[str] = ["r.archived=?"]
         args: list[Any] = [int(archived)]
-        words = re.findall(r"\w+", text(q, "q", limit=2000), re.UNICODE)
-        if words:
+        match = search.prefix_match(text(q, "q", limit=2000))
+        if match:
             clauses.append("r.id IN(SELECT entity_id FROM search_index WHERE search_index MATCH ? AND type='resource')")
-            args.append(" AND ".join('"' + word + '"*' for word in words[:30]))
+            args.append(match)
         where = " AND ".join(clauses)
         total = c.execute("SELECT count(*) FROM resources r WHERE " + where, args).fetchone()[0]
         rows = c.execute(f"SELECT {_LISTED} FROM resources r WHERE {where} ORDER BY r.title COLLATE NOCASE,r.id LIMIT ? OFFSET ?",

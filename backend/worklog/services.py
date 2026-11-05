@@ -265,10 +265,10 @@ class WorkService:
                 args.append(today(setting(c, "timezone", "America/Chicago")))
             elif view != "all":
                 raise AppError(422, "validation", "Unknown work view")
-            terms = re.findall(r"\w+", q, re.UNICODE)
-            if terms:
+            match = search.prefix_match(q)
+            if match:
                 where.append("w.id IN(SELECT entity_id FROM search_index WHERE search_index MATCH ? AND type='item')")
-                args.append(" AND ".join('"' + word + '"*' for word in terms[:30]))
+                args.append(match)
             clause = " AND ".join(where)
             total = c.execute(f"SELECT count(*) FROM work_items w WHERE {clause}", args).fetchone()[0]
             current = today(setting(c, "timezone", "America/Chicago"))
@@ -373,10 +373,10 @@ class WorkService:
         with self.db.read() as c:
             where = ["p.archived=?"]
             args: builtins.list[Any] = [int(archived)]
-            terms = re.findall(r"\w+", q, re.UNICODE)
-            if terms:
+            match = search.prefix_match(q)
+            if match:
                 where.append("p.id IN(SELECT entity_id FROM search_index WHERE search_index MATCH ? AND type='person')")
-                args.append(" AND ".join('"' + word + '"*' for word in terms[:30]))
+                args.append(match)
             clause = " AND ".join(where)
             rows = c.execute(
                 f"""SELECT p.*,
@@ -1245,10 +1245,9 @@ class WorkService:
                        replace=False)
 
     def search(self, query: str, archived: bool = False, limit: int = 50, offset: int = 0) -> dict:
-        terms = re.findall(r"\w+", query, re.UNICODE)
-        if not terms:
+        match = search.prefix_match(query)
+        if match is None:
             return {"items": [], "total": 0}
-        match = " AND ".join('"' + term.replace('"', '""') + '"*' for term in terms[:30])
         # Resolve ownership at query time so archiving a parent also hides its notes/files
         # without destroying each supporting record's independent archive flag.
         source = """FROM search_index s

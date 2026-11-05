@@ -23,10 +23,7 @@ def ticket_agent_route_allowed(method: str, path: str) -> bool:
 def install_ticket_routes(app: FastAPI, db: Database, mutate: Callable) -> None:
     service = TicketService()
 
-    def read(fn: Callable) -> dict:
-        with db.read() as c:
-            c.execute("BEGIN")
-            return fn(c)
+    read = db.snapshot
 
     def write(request: Request, payload: dict, fn: Callable, *, required_key: bool = True) -> dict:
         # The stable communication identity authors each change, and its retry receipts

@@ -35,11 +35,9 @@ def install_discussion_routes(app: FastAPI, db: Database, mutate: Callable) -> N
     service = DiscussionService(db)
 
     def read(request: Request, fn: Callable) -> dict:
-        with db.read() as c:
-            # BEGIN keeps role owners, receipts, content and feed high-water mark
-            # in one consistent snapshot. Closing ends the read transaction.
-            c.execute("BEGIN")
-            return fn(c, communication_actor(c, request.state.actor))
+        # One snapshot keeps role owners, receipts, content and the feed's high-water mark consistent,
+        # and a credential revoked since the middleware checked it is refused here, inside it.
+        return db.snapshot(lambda c: fn(c, communication_actor(c, request.state.actor)))
 
     def write(request: Request, body: m.Command, fn: Callable) -> dict:
         return mutate(request, body.model_dump(), fn, required_key=True)

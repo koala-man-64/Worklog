@@ -3,7 +3,7 @@
 import sqlite3
 from typing import Literal
 
-from .common import AppError, now
+from .common import AppError, now, rows_in
 
 Owner = Literal["item", "chat", "ticket"]
 _TABLES = {"item": ("item_repositories", "item_id"), "chat": ("chat_repositories", "chat_id"),
@@ -14,14 +14,9 @@ def linked_repositories(conn: sqlite3.Connection, owner: Owner,
                         ids: list[str]) -> dict[str, list[str]]:
     table, column = _TABLES[owner]
     result: dict[str, list[str]] = {}
-    for start in range(0, len(ids), 400):
-        batch = ids[start:start + 400]
-        placeholders = ",".join("?" for _ in batch)
-        rows = conn.execute(
-            f"SELECT {column},repository_id FROM {table} WHERE {column} IN ({placeholders}) "
-            "ORDER BY repository_id", batch)
-        for target, repository in rows:
-            result.setdefault(target, []).append(repository)
+    for target, repository in rows_in(conn, f"SELECT {column},repository_id FROM {table} WHERE {column} IN ({{}}) "
+                                            "ORDER BY repository_id", ids):
+        result.setdefault(target, []).append(repository)
     return result
 
 

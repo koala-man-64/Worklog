@@ -16,7 +16,7 @@ from typing import Any
 
 from . import search
 from .avatars import AVATARS, choose, is_avatar
-from .common import AppError, event, now, require_revision, setting, text, uid
+from .common import LIVE_AGENT, AppError, event, now, require_revision, setting, text, uid
 from .services import repositories
 
 # Added in schema v3. It sits exactly where ALTER TABLE ADD COLUMN places it, so
@@ -71,7 +71,7 @@ def migrate(conn: sqlite3.Connection) -> None:
 def avatars_in_use(conn: sqlite3.Connection, *, exclude: str | None = None) -> list[str]:
     """Avatars agents with a live credential show; a revoked agent's returns to the pool."""
     return [row[0] for row in conn.execute(
-        "SELECT a.avatar FROM communication_agents a WHERE a.avatar IS NOT NULL AND a.id IS NOT ? AND EXISTS(SELECT 1 FROM communication_credentials cc JOIN credentials cr ON cr.id=cc.credential_id WHERE cc.agent_id=a.id AND cr.revoked=0)",
+        f"SELECT a.avatar FROM communication_agents a WHERE a.avatar IS NOT NULL AND a.id IS NOT ? AND {LIVE_AGENT}",
         (exclude,))]
 
 
@@ -90,7 +90,7 @@ def pick_avatar(conn: sqlite3.Connection, requested: str | None, *, agent_id: st
 def assign_missing_avatars(conn: sqlite3.Connection) -> None:
     """Upgrade backfill: active agents first, spread across every agent's history."""
     taken = [row[0] for row in conn.execute("SELECT avatar FROM communication_agents WHERE avatar IS NOT NULL")]
-    for row in conn.execute("SELECT a.id FROM communication_agents a WHERE a.avatar IS NULL ORDER BY EXISTS(SELECT 1 FROM communication_credentials cc JOIN credentials cr ON cr.id=cc.credential_id WHERE cc.agent_id=a.id AND cr.revoked=0) DESC,a.created_at,a.id").fetchall():
+    for row in conn.execute(f"SELECT a.id FROM communication_agents a WHERE a.avatar IS NULL ORDER BY {LIVE_AGENT} DESC,a.created_at,a.id").fetchall():
         avatar = choose(taken)
         conn.execute("UPDATE communication_agents SET avatar=? WHERE id=?", (avatar, row[0]))
         taken.append(avatar)
@@ -162,13 +162,13 @@ class DiscussionService:
 
     @staticmethod
     def _agent(c: sqlite3.Connection, identity: str, *, active: bool = False) -> sqlite3.Row:
-        row = c.execute("SELECT a.*,EXISTS(SELECT 1 FROM communication_credentials cc JOIN credentials cr ON cr.id=cc.credential_id WHERE cc.agent_id=a.id AND cr.revoked=0) AS active FROM communication_agents a WHERE a.id=?", (identity,)).fetchone()
+        row = c.execute(f"SELECT a.*,{LIVE_AGENT} AS active FROM communication_agents a WHERE a.id=?", (identity,)).fetchone()
         if row is None or (active and not row["active"]):
             raise AppError(422, "validation", "Choose an enrolled agent with an active credential" if active else "Agent profile does not exist")
         return row
 
     def participants(self, c: sqlite3.Connection, actor: dict) -> dict:
-        rows = c.execute("SELECT a.id,a.label,a.avatar,EXISTS(SELECT 1 FROM communication_credentials cc JOIN credentials cr ON cr.id=cc.credential_id WHERE cc.agent_id=a.id AND cr.revoked=0) AS active FROM communication_agents a ORDER BY a.label COLLATE NOCASE,a.id").fetchall()
+        rows = c.execute(f"SELECT a.id,a.label,a.avatar,{LIVE_AGENT} AS active FROM communication_agents a ORDER BY a.label COLLATE NOCASE,a.id").fetchall()
         return {"items": [{"id": "local-user", "label": "You", "kind": "human", "active": True, "avatar": None},
                           *[{"id": r["id"], "label": r["label"], "kind": "agent", "active": bool(r["active"]), "avatar": r["avatar"]} for r in rows]], "self": actor}
 
@@ -556,10 +556,10 @@ class DiscussionService:
         if repo:
             clauses.append("EXISTS(SELECT 1 FROM discussion_repos dr WHERE dr.discussion_id=d.id AND dr.repo=?)")
             args.append(text(repo, "repo", required=True, limit=500))
-        words = re.findall(r"\w+", text(q, "q", limit=2000), re.UNICODE)
-        if words:
+        match = search.prefix_match(text(q, "q", limit=2000))
+        if match:
             clauses.append("d.id IN(SELECT owner_id FROM search_index WHERE search_index MATCH ? AND type IN('discussion','discussion_message'))")
-            args.append(" AND ".join('"' + word + '"*' for word in words[:30]))
+            args.append(match)
         clause = " AND ".join(clauses)
         total = c.execute("SELECT count(*) FROM discussions d WHERE " + clause, args).fetchone()[0]
         rows = c.execute("SELECT d.id FROM discussions d WHERE " + clause + " ORDER BY d.updated_at DESC,d.id LIMIT ? OFFSET ?", [*args, limit, offset]).fetchall()
