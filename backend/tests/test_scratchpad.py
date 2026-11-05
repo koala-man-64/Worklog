@@ -12,6 +12,7 @@ from worklog import migrations, recovery
 from worklog.app import create_app
 from worklog.common import NOTE_LIMIT, AppError
 from worklog.db import Database
+from worklog.search import global_search
 
 ORIGIN = "http://127.0.0.1:8877"
 HUMAN = {"id": "local-user", "label": "You", "kind": "human"}
@@ -91,10 +92,15 @@ def test_v8_folds_each_items_active_notes_into_its_oldest_and_archives_the_rest(
 def test_search_finds_folded_text_in_the_scratchpad_and_a_second_active_note_is_refused(tmp_path):
     path = tmp_path / "worklog.sqlite3"
     v7_database(path)
-    work = create_app(tmp_path, testing=True).state.work
-    assert [hit["id"] for hit in work.search("Loose")["items"]] == ["first"]
-    assert [hit["id"] for hit in work.search("Loose", archived=True)["items"]] == ["third"]
-    assert [hit["id"] for hit in work.search("Design")["items"]] == ["titled"]
+    db = create_app(tmp_path, testing=True).state.db
+
+    def found(query, archived=False):
+        with db.read() as c:
+            return [hit["id"] for hit in global_search(c, query, archived)["items"]]
+
+    assert found("Loose") == ["first"]
+    assert found("Loose", archived=True) == ["third"]
+    assert found("Design") == ["titled"]
     with closing(sqlite3.connect(path)) as conn, pytest.raises(sqlite3.IntegrityError):
         conn.execute("UPDATE notes SET archived=0 WHERE id='second'")
 

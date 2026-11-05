@@ -57,6 +57,7 @@ from .registration import agent_route_allowed as registration_route_allowed
 from .registry_api import install_registry_routes
 from .resource_api import install_resource_routes
 from .resources import ResourceService
+from .search import global_search, index_plans
 from .services import WorkService, support_record
 from .ticket_api import install_ticket_routes, ticket_agent_route_allowed
 from .tickets import TicketService
@@ -621,7 +622,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         payload = body.model_dump(exclude_none=True)
         def commit(c: sqlite3.Connection, actor: dict) -> dict:
             result = plans.import_commit(identity, payload, actor, conn=c)
-            work.refresh_plans(c, result["id"])
+            index_plans(c, result["id"])
             if payload.get("roadmapId"):
                 proposals.notify_stale_proposals(c, result["id"])
             return result
@@ -661,7 +662,8 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
 
     @app.get("/api/v1/search")
     def search(q: str, archived: bool = False, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
-        return work.search(q, archived, limit, offset)
+        with db.read() as c:
+            return global_search(c, q, archived, limit, offset)
 
     @app.get("/api/v1/context")
     def context(request: Request, date: str | None = None, itemId: str | None = None,
