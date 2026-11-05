@@ -152,7 +152,7 @@ Each of these is a separate migration with its own PR and its own independent re
 
 Each migration's PR owns `migrations.py`, `db.py` and `recovery.py` while it is open. A deploy that runs a migration on real data waits for the person's go-ahead.
 
-v11 and v12 went live together on 2026-11-04, after a dry run of the upgrade on a copy of the newest backup. v13 went live the same evening, after its own dry run, and step 2.1 followed it.
+v11 and v12 went live together on 2026-11-04, after a dry run of the upgrade on a copy of the newest backup. v13 went live the same evening, after its own dry run, and steps 2.1 to 2.3 followed it.
 
 #### 1.0 · One writer for the search index
 
@@ -194,7 +194,7 @@ C-01 is narrowed, not closed. Registering with a chat stays the agent's own stat
 
 ### Phase 2 · Registries and plumbing
 
-No wire change, guarded by 0.2. Step 2.1 goes first, then 2.3 and 2.5 can run in parallel.
+Guarded by 0.2. Nothing changes on the wire except what a step says: 2.1's plain 404 and 405 for requests no route serves, and 2.3's value check at submit. Step 2.1 goes first, then 2.3 and 2.5 can run in parallel.
 
 #### 2.1 · Shared HTTP and SQL plumbing
 
@@ -233,9 +233,15 @@ The person's own routes keep their own body models, and the prefix router stays,
 
 #### 2.4 · Global search in the search module, then the WorkService split
 
-Status: Not started · Branch: — · PR: —
+Status: In progress · Branch: `claude/global-search` · PR: [#102](https://github.com/koala-man-64/Worklog/pull/102); the `WorkService` split follows in its own PR
 
 Index writes moved to `search.py` in 1.0. Here the global search query, the 13-way join, moves there too. Then split `WorkService` into items, people, supporting records and search, with a layering test. Needs 1.1. Findings: B-13, A-04, A-06.
+
+Done so far: `search.global_search` runs the header's search, and `search.index_plans` indexes a roadmap and its steps again after a change, both moved unchanged. `test_global_search.py` pins what search finds before and after the move:
+- a record of every kind, under every owner it can have, and the page each result opens;
+- what each archived or retired parent hides, and what it leaves, such as work on an archived roadmap's step.
+
+The test passed before the move, and it fails when the query loses any of five rules it depends on.
 
 #### 2.5 · Baseline schema and sealed digests
 
@@ -472,3 +478,4 @@ These look like consolidation candidates but stay:
 
 - 2026-11-04: Plan created from the consolidation audit of `e4a1d14`; decisions K1 to K11 recorded; REMEDIATION.md superseded.
 - 2026-11-04: Phase 1 split into v11 to v13 while building it, and step 1.0 added. v11 and v12 deployed together. K12 recorded from the security review of step 1.4.
+- 2026-11-04: Steps 2.1 to 2.3 deployed. Step 2.4 split into two PRs while building it: global search first, then the `WorkService` split.

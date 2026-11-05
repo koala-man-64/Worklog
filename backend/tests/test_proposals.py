@@ -5,6 +5,7 @@ from worklog.common import AppError, event, require_revision
 from worklog.db import Database
 from worklog.plans import PlanService
 from worklog.proposals import ProposalService
+from worklog.search import global_search
 from worklog.services import WorkService
 
 HUMAN = {"id": "human", "label": "Rudy", "kind": "human"}
@@ -205,7 +206,8 @@ def test_real_dispatch_stale_approval_keeps_source_and_search_unchanged(tmp_path
     assert error.value.status == 409
     assert work.detail(item["id"])["title"] == "Human edit"
     assert plans.list()["total"] == 0
-    assert work.search("Uncommitted")["total"] == 0
+    with db.read() as conn:
+        assert global_search(conn, "Uncommitted")["total"] == 0
     assert service.detail(proposal["id"], HUMAN)["status"] == "submitted"
 
 

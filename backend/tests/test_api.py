@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi.testclient import TestClient
+from worklog import search
 from worklog.app import create_app
 
 ORIGIN = "http://127.0.0.1:8877"
@@ -324,15 +325,15 @@ def test_import_commit_and_search_are_one_idempotent_transaction(client, monkeyp
     original = b"<h2>Atomic imported work</h2><p>Preserve it</p>"
     preview = write(client, "POST", "/imports/preview?name=atomic.html", content=original).json()
     payload = {"title": preview["title"], "overview": preview["overview"], "steps": preview["steps"]}
-    refresh = client.app.state.work.refresh_plans
-    def fail(conn, *args):
+    put = search.put
+    def fail(conn, *args, **kwargs):
         raise sqlite3.OperationalError("injected search update failure")
-    monkeypatch.setattr(client.app.state.work, "refresh_plans", fail)
+    monkeypatch.setattr(search, "put", fail)
     key = str(uuid.uuid4())
     r = write(client, "POST", f"/imports/{preview['id']}/commit", payload, headers={"Idempotency-Key": key})
     assert r.status_code == 503
     assert client.get("/api/v1/roadmaps").json()["items"] == []
-    monkeypatch.setattr(client.app.state.work, "refresh_plans", refresh)
+    monkeypatch.setattr(search, "put", put)
     first = write(client, "POST", f"/imports/{preview['id']}/commit", payload, headers={"Idempotency-Key": key})
     second = write(client, "POST", f"/imports/{preview['id']}/commit", payload, headers={"Idempotency-Key": key})
     assert first.status_code == 200 and second.json() == first.json()

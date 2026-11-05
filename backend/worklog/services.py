@@ -577,7 +577,7 @@ class WorkService:
             result = self.plans.apply(c, actor, action, p)
             # Moving changes no indexed text or archive state.
             if action not in {"progress.set", "roadmap.move"}:
-                self.refresh_plans(c, result["id"])
+                search.index_plans(c, result["id"])
             if self.proposals is not None and action != "roadmap.create":
                 self.proposals.notify_stale_proposals(
                     c, result.get("roadmapId") if action == "progress.set" else result.get("id"))
@@ -1228,61 +1228,3 @@ class WorkService:
 
     # Every write to the search index goes through search.py; this name serves this module's callers.
     index = staticmethod(search.put)
-
-    def refresh_plans(self, c: sqlite3.Connection, roadmap_id: str | None = None) -> None:
-        search.remove_plans(c, roadmap_id)
-        clause = " WHERE id=?" if roadmap_id else ""
-        args = (roadmap_id,) if roadmap_id else ()
-        # The delete above removed every row rewritten below, so each insert skips its own scan.
-        for r in c.execute("SELECT * FROM roadmaps" + clause, args).fetchall():
-            keys = set(r.keys())
-            self.index(c, r["id"], "roadmap", r["title"], r["overview"] if "overview" in keys else "", r["id"], bool(r["archived"]),
-                       replace=False)
-        for r in c.execute("SELECT * FROM steps" + (" WHERE roadmap_id=?" if roadmap_id else ""), args).fetchall():
-            keys = set(r.keys())
-            parent = c.execute("SELECT archived FROM roadmaps WHERE id=?", (r["roadmap_id"],)).fetchone()
-            self.index(c, r["id"], "step", r["title"], r["description"], r["roadmap_id"], bool(parent[0] or (r["retired"] if "retired" in keys else False)),
-                       replace=False)
-
-    def search(self, query: str, archived: bool = False, limit: int = 50, offset: int = 0) -> dict:
-        match = search.prefix_match(query)
-        if match is None:
-            return {"items": [], "total": 0}
-        # Resolve ownership at query time so archiving a parent also hides its notes/files
-        # without destroying each supporting record's independent archive flag.
-        source = """FROM search_index s
-            LEFT JOIN notes n ON s.type='note' AND n.id=s.entity_id
-            LEFT JOIN attachments a ON s.type='attachment' AND a.id=s.entity_id
-            LEFT JOIN web_links wl ON s.type='link' AND wl.id=s.entity_id
-            LEFT JOIN agent_chats ac ON s.type='chat' AND ac.id=s.entity_id
-            LEFT JOIN github_refs gr ON s.type='github' AND gr.id=s.entity_id
-            LEFT JOIN roadmap_questions rq ON s.type='question' AND rq.id=s.entity_id
-            LEFT JOIN roadmap_decisions rd ON s.type='decision' AND rd.id=s.entity_id
-            LEFT JOIN work_items w ON w.id=CASE WHEN s.type='item' THEN s.entity_id
-                WHEN n.owner_type='item' THEN n.owner_id WHEN a.owner_type='item' THEN a.owner_id
-                WHEN wl.owner_type='item' THEN wl.owner_id WHEN ac.owner_type='item' THEN ac.owner_id
-                WHEN gr.owner_type='item' THEN gr.owner_id END
-            LEFT JOIN steps st ON st.id=CASE WHEN s.type='step' THEN s.entity_id
-                WHEN n.owner_type='step' THEN n.owner_id WHEN a.owner_type='step' THEN a.owner_id END
-            LEFT JOIN roadmaps rm ON rm.id=CASE WHEN s.type='roadmap' THEN s.entity_id
-                WHEN n.owner_type='roadmap' THEN n.owner_id WHEN a.owner_type='roadmap' THEN a.owner_id
-                WHEN wl.owner_type='roadmap' THEN wl.owner_id WHEN ac.owner_type='roadmap' THEN ac.owner_id
-                WHEN gr.owner_type='roadmap' THEN gr.owner_id
-                WHEN rq.id IS NOT NULL THEN rq.roadmap_id WHEN rd.id IS NOT NULL THEN rd.roadmap_id
-                ELSE st.roadmap_id END
-            LEFT JOIN people p ON p.id=CASE WHEN s.type='person' THEN s.entity_id END
-            LEFT JOIN repositories rp ON a.owner_type='repository' AND rp.id=a.owner_id
-            LEFT JOIN discussions ds ON s.type IN ('discussion','discussion_message') AND ds.id=s.owner_id
-            LEFT JOIN tickets tk ON s.type IN ('ticket','ticket_comment') AND tk.id=s.owner_id
-            WHERE search_index MATCH ? AND
-             (CAST(s.archived AS INTEGER)=1 OR coalesce(w.archived,0)=1
-              OR coalesce(st.retired,0)=1 OR coalesce(rm.archived,0)=1 OR coalesce(p.archived,0)=1 OR coalesce(ds.archived,0)=1
-              OR coalesce(tk.archived,0)=1 OR coalesce(rp.archived,0)=1)=?"""
-        with self.db.read() as c:
-            # A resource is its own page and carries its own archive flag in the index.
-            rows = c.execute("""SELECT s.entity_id,s.type,s.title,s.body,s.owner_id,
-                             CASE WHEN s.type='resource' THEN 'resources' WHEN ds.id IS NOT NULL THEN 'discussions' WHEN tk.id IS NOT NULL THEN 'tickets' WHEN w.id IS NOT NULL THEN 'work' WHEN p.id IS NOT NULL THEN 'people' WHEN rp.id IS NOT NULL THEN 'repositories' ELSE 'roadmaps' END AS route_type,
-                             CASE WHEN s.type='resource' THEN s.entity_id ELSE coalesce(ds.id,tk.id,w.id,p.id,rp.id,rm.id) END AS route_id """ + source + " ORDER BY rank LIMIT ? OFFSET ?", (match, int(archived), limit, offset)).fetchall()
-            total = c.execute("SELECT count(*) " + source, (match, int(archived))).fetchone()[0]
-            return {"items": [{"id": r[0], "type": r[1], "title": r[2], "snippet": r[3][:220], "ownerId": r[4],
-                               "routeType": r["route_type"], "routeId": r["route_id"]} for r in rows], "total": total}
