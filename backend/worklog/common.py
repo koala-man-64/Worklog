@@ -12,6 +12,8 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 STATUSES = {"open", "doing", "blocked", "done"}
+# A work item can also wait on someone else (v15); tickets keep the four above.
+ITEM_STATUSES = STATUSES | {"waiting"}
 NOTE_LIMIT = 1_000_000
 FILE_LIMIT = 25_000_000
 HTML_LIMIT = 5_000_000
@@ -82,8 +84,16 @@ def text(value: Any, field: str, *, required: bool = False, limit: int = NOTE_LI
 
 
 def status(value: Any) -> str:
+    """A ticket's status."""
     if not isinstance(value, str) or value not in STATUSES:
         raise AppError(422, "validation", "Choose Open, Doing, Blocked, or Done", {"status": "invalid"})
+    return str(value)
+
+
+def item_status(value: Any) -> str:
+    """A work item's status."""
+    if not isinstance(value, str) or value not in ITEM_STATUSES:
+        raise AppError(422, "validation", "Choose Open, Doing, Waiting, Blocked, or Done", {"status": "invalid"})
     return str(value)
 
 

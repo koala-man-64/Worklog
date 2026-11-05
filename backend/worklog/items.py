@@ -16,11 +16,11 @@ from .common import (
     AppError,
     boolean,
     event,
+    item_status,
     now,
     read_events,
     require_revision,
     setting,
-    status,
     text,
     today,
     uid,
@@ -69,7 +69,7 @@ class Items:
              roadmap_id: str | None = None, person_id: str | None = None, repository_id: str | None = None,
              limit: int = 100, offset: int = 0, q: str = "", item_id: str | None = None) -> dict:
         # Any of the given states matches; none, or only empty values, means every state.
-        chosen = sorted({status(value) for value in states or [] if value != ""})
+        chosen = sorted({item_status(value) for value in states or [] if value != ""})
         with self.db.read() as c:
             where = ["w.archived=?"]
             args: builtins.list[Any] = [int(archived)]
@@ -245,7 +245,7 @@ class Items:
                     val[k] = p[k]
             val["title"] = text(val["title"], "title", required=True, limit=2000)
             val["description"] = text(val["description"], "description")
-            val["status"] = status(val["status"])
+            val["status"] = item_status(val["status"])
             if val["adoUrl"]:
                 link = text(val["adoUrl"], "adoUrl", limit=2048).strip()
                 url = urlsplit(link)

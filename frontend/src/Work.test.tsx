@@ -416,9 +416,20 @@ it("lays the work list out as a sheet, one row per item and one column per fact"
   expect(title).toHaveAttribute("href", "#work/" + ID);
   // The sheet cuts a long title at two lines; the link keeps it whole and shows it on hover.
   expect(title).toHaveAttribute("title", "Release checks");
-  expect(within(first).getByRole("combobox", { name: "Status" })).toHaveValue(
-    "doing",
-  );
+  const status = within(first).getByRole("combobox", { name: "Status" });
+  expect(status).toHaveValue("doing");
+  // Work can also wait on someone else; tickets and roadmap steps can't.
+  expect(
+    within(status)
+      .getAllByRole("option")
+      .map((option) => [option.getAttribute("value"), option.textContent]),
+  ).toEqual([
+    ["open", "Open"],
+    ["doing", "Doing"],
+    ["waiting", "Waiting"],
+    ["blocked", "Blocked"],
+    ["done", "Done"],
+  ]);
   expect(within(first).getByText("Run the smoke suite")).toBeInTheDocument();
   expect(
     within(first).getByRole("link", { name: "Priya (owner)" }),
@@ -504,15 +515,21 @@ it("filters the work list by any of the pressed states", async () => {
       "button",
       { name },
     );
+  expect(
+    within(screen.getByRole("group", { name: "Filter status" }))
+      .getAllByRole("button")
+      .map((button) => button.textContent),
+  ).toEqual(["Open", "Doing", "Waiting", "Blocked", "Done"]);
   expect(states()).toEqual([]);
   await userEvent.click(toggle("Blocked"));
+  await userEvent.click(toggle("Waiting"));
   await userEvent.click(toggle("Doing"));
   expect(toggle("Doing")).toHaveAttribute("aria-pressed", "true");
   // The states keep one order whichever was pressed first, so the query stays the same.
-  expect(states()).toEqual(["doing", "blocked"]);
+  expect(states()).toEqual(["doing", "waiting", "blocked"]);
   await userEvent.click(toggle("Doing"));
   expect(toggle("Doing")).toHaveAttribute("aria-pressed", "false");
-  expect(states()).toEqual(["blocked"]);
+  expect(states()).toEqual(["waiting", "blocked"]);
 });
 it("shows a link that changed elsewhere while the page is open", () => {
   const client = newClient();

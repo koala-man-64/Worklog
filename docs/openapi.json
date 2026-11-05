@@ -9532,6 +9532,7 @@
                 "enum": [
                   "open",
                   "doing",
+                  "waiting",
                   "blocked",
                   "done"
                 ]

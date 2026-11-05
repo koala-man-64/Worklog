@@ -548,21 +548,22 @@ it("offers open work that is not on the day and plans it there", async () => {
     items: [
       item("planned", "Already planned", "open"),
       item("doing", "Write the runbook", "doing"),
+      item("waiting", "Hear back from review", "waiting"),
       item("blocked", "Fix the pipeline", "blocked"),
     ],
-    total: 3,
+    total: 4,
   };
   const network = vi
     .spyOn(globalThis, "fetch")
     .mockImplementation(async () => new Response("{}", { status: 200 }));
   render(view("2026-10-28", "2026-10-28"));
+  // Anything not finished, waiting work included.
   expect(state.paths).toContain(
-    "/work-items?view=all&archived=false&limit=100&status=open&status=doing&status=blocked&q=",
+    "/work-items?view=all&archived=false&limit=100&status=open&status=doing&status=waiting&status=blocked&q=",
   );
   expect(within(openWork()).queryByText("Already planned")).toBeNull();
-  expect(
-    within(openWork()).getByRole("link", { name: "Fix the pipeline" }),
-  ).toBeInTheDocument();
+  for (const name of ["Hear back from review", "Fix the pipeline"])
+    expect(within(openWork()).getByRole("link", { name })).toBeInTheDocument();
   await userEvent.click(
     within(openWork()).getByRole("button", {
       name: "Work on Write the runbook today",

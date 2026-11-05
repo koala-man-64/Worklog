@@ -52,6 +52,9 @@
   --status-doing-ink: #783900;
   --status-doing-border: #d97706;
   --status-doing-ring: rgba(217, 119, 6, 0.18);
+  --status-waiting-bg: #e4ecf8;
+  --status-waiting-ink: #1e3f73;
+  --status-waiting-border: #4a72b0;
   --status-blocked-bg: #fde6e2;
   --status-blocked-ink: #8c2318;
   --status-blocked-border: #c0392b;
@@ -80,6 +83,9 @@
   --status-doing-ink: #fde68a;
   --status-doing-border: #f59e0b;
   --status-doing-ring: rgba(245, 158, 11, 0.24);
+  --status-waiting-bg: #1b2a43;
+  --status-waiting-ink: #bcd2f7;
+  --status-waiting-border: #7ea4e0;
   --status-blocked-bg: #481b16;
   --status-blocked-ink: #ffb4a6;
   --status-blocked-border: #e56b5b;
@@ -111,6 +117,9 @@
     --status-doing-ink: #fde68a;
     --status-doing-border: #f59e0b;
     --status-doing-ring: rgba(245, 158, 11, 0.24);
+    --status-waiting-bg: #1b2a43;
+    --status-waiting-ink: #bcd2f7;
+    --status-waiting-border: #7ea4e0;
     --status-blocked-bg: #481b16;
     --status-blocked-ink: #ffb4a6;
     --status-blocked-border: #e56b5b;
@@ -1092,6 +1101,15 @@ button.rank:hover {
   background: var(--status-done-border);
   border-color: var(--status-done-border);
 }
+/* Half filled: started, and now waiting on someone else. */
+.status-dot.waiting {
+  background: linear-gradient(
+    90deg,
+    var(--status-waiting-border) 50%,
+    var(--status-waiting-bg) 50%
+  );
+  border-color: var(--status-waiting-border);
+}
 .status-dot.blocked {
   background: var(--status-blocked-border);
   border-color: var(--status-blocked-border);
@@ -1123,6 +1141,11 @@ select.status-select.done {
   background: var(--status-done-bg);
   color: var(--status-done-ink);
   border-color: var(--status-done-border);
+}
+select.status-select.waiting {
+  background: var(--status-waiting-bg);
+  color: var(--status-waiting-ink);
+  border-color: var(--status-waiting-border);
 }
 select.status-select.blocked {
   background: var(--status-blocked-bg);
