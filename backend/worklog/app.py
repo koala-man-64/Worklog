@@ -755,12 +755,12 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             if body.requireProposalApproval is not None:
                 # Agents never reach this route, so only the person can let their proposals skip review.
                 was = approval_required(c)
-                c.execute("INSERT INTO settings VALUES('requireProposalApproval',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                c.execute("INSERT INTO settings(key,value) VALUES('requireProposalApproval',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
                           (json.dumps(body.requireProposalApproval),))
                 event(c, request.state.actor, "settings.requireProposalApproval", "settings", was, body.requireProposalApproval)
             if body.agentRepositoryRegistration is not None:
                 was = agents_may_register(c)
-                c.execute("INSERT INTO settings VALUES('agentRepositoryRegistration',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                c.execute("INSERT INTO settings(key,value) VALUES('agentRepositoryRegistration',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
                           (json.dumps(body.agentRepositoryRegistration),))
                 event(c, request.state.actor, "settings.agentRepositoryRegistration", "settings", was, body.agentRepositoryRegistration)
         return settings()
@@ -769,7 +769,8 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def credential_create(request: Request, body: m.CredentialCreate) -> dict:
         def issue(c: sqlite3.Connection, actor: dict) -> dict:
             label, token, identity = text(body.label, "label", required=True, limit=200), secrets.token_urlsafe(32), uid()
-            c.execute("INSERT INTO credentials VALUES(?,?,?,?,0)", (identity, label, hashlib.sha256(token.encode()).hexdigest(), now()))
+            c.execute("INSERT INTO credentials(id,label,token_hash,created_at,revoked) VALUES(?,?,?,?,0)",
+                      (identity, label, hashlib.sha256(token.encode()).hexdigest(), now()))
             agent = bind_credential(c, identity, label, avatar=body.avatar)
             event(c, actor, "credential.issue", identity, None, {"label": label, "avatar": agent["avatar"]})
             return {"id": identity, "agentId": agent["id"], "label": label, "avatar": agent["avatar"], "token": token}
@@ -791,7 +792,8 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             for linked in c.execute("SELECT credential_id FROM communication_credentials WHERE agent_id=?", (binding["agent_id"],)).fetchall():
                 close_credential_runs(c, actor, linked["credential_id"], "credential_rotated")
             c.execute("UPDATE credentials SET revoked=1 WHERE id IN (SELECT credential_id FROM communication_credentials WHERE agent_id=?)", (binding["agent_id"],))
-            c.execute("INSERT INTO credentials VALUES(?,?,?,?,0)", (replacement, label, hashlib.sha256(token.encode()).hexdigest(), now()))
+            c.execute("INSERT INTO credentials(id,label,token_hash,created_at,revoked) VALUES(?,?,?,?,0)",
+                      (replacement, label, hashlib.sha256(token.encode()).hexdigest(), now()))
             agent = bind_credential(c, replacement, label, agent_id=binding["agent_id"])
             event(c, actor, "credential.rotate", replacement, {"credentialId": identity}, {"agentId": agent["id"], "label": label, "avatar": agent["avatar"]})
             return {"id": replacement, "agentId": agent["id"], "label": label, "token": token}

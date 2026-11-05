@@ -157,7 +157,7 @@ def register(c: sqlite3.Connection, actor: dict, p: dict) -> dict:
     if registered_today >= DAILY_LIMIT:
         raise AppError(429, "agent_limit", f"Agents registered {DAILY_LIMIT} identities today; registering resumes tomorrow")
     identity = uid()
-    c.execute("INSERT INTO credentials VALUES(?,?,?,?,0)", (identity, label, digest, now()))
+    c.execute("INSERT INTO credentials(id,label,token_hash,created_at,revoked) VALUES(?,?,?,?,0)", (identity, label, digest, now()))
     agent = bind_credential(c, identity, label, avatar=p["avatar"])
     c.execute("UPDATE communication_credentials SET registered_by=?,registered_by_label=?,chat_id=? WHERE credential_id=?",
               (sponsor["id"], sponsor["label"], chat, identity))

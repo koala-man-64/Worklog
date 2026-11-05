@@ -619,7 +619,7 @@ class WorkService:
             link_id = existing["id"] if existing else uid()
             created_at = existing["created_at"] if existing else now()
             c.execute(
-                "INSERT INTO person_links VALUES(?,?,?,?,?,?) ON CONFLICT(person_id,target_type,target_id) DO UPDATE SET relationship=excluded.relationship",
+                "INSERT INTO person_links(id,person_id,target_type,target_id,relationship,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT(person_id,target_type,target_id) DO UPDATE SET relationship=excluded.relationship",
                 (link_id, person_id, target_type, target_id, relationship, created_at),
             )
             after = {
@@ -754,7 +754,7 @@ class WorkService:
             raise AppError(422, "operation", "Unsupported work item operation")
         val["revision"] += 1
         val["updatedAt"] = now()
-        c.execute("""INSERT INTO work_items VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,description=excluded.description,status=excluded.status,ado_url=excluded.ado_url,step_id=excluded.step_id,archived=excluded.archived,revision=excluded.revision,updated_at=excluded.updated_at,roadmap_id=excluded.roadmap_id""",
+        c.execute("""INSERT INTO work_items(id,title,description,status,ado_url,step_id,backlog_order,archived,revision,created_at,updated_at,roadmap_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,description=excluded.description,status=excluded.status,ado_url=excluded.ado_url,step_id=excluded.step_id,archived=excluded.archived,revision=excluded.revision,updated_at=excluded.updated_at,roadmap_id=excluded.roadmap_id""",
                   (val["id"], val["title"], val["description"], val["status"], val["adoUrl"], val["stepId"], val["backlogOrder"], int(val["archived"]), val["revision"], val["createdAt"], val["updatedAt"], val["roadmapId"]))
         if "repositoryIds" in p:
             val["repositoryIds"] = replace_repository_associations(c, "item", val["id"], p["repositoryIds"])
@@ -790,7 +790,7 @@ class WorkService:
             val["outcome"] = text(p["outcome"], "outcome")
         val["revision"] += 1
         self.ensure_day(c, date)
-        c.execute("""INSERT INTO daily_entries VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(item_id,date) DO UPDATE SET planned=excluded.planned,worked=excluded.worked,outcome=excluded.outcome,revision=excluded.revision""",
+        c.execute("""INSERT INTO daily_entries(id,item_id,date,planned,worked,outcome,position,revision) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(item_id,date) DO UPDATE SET planned=excluded.planned,worked=excluded.worked,outcome=excluded.outcome,revision=excluded.revision""",
                   (val["id"], item_id, date, int(val["planned"]), int(val["worked"]), val["outcome"], val["position"], val["revision"]))
         c.execute("UPDATE days SET revision=revision+1 WHERE date=?", (date,))
         self.bump_backlog(c)
@@ -942,7 +942,7 @@ class WorkService:
             # A work item has one scratchpad, its only active note (v8).
             if creating and val["ownerType"] == "item" and scratchpad.find(c, val["ownerId"]):
                 raise AppError(409, "conflict", "This work item already has a scratchpad; edit it instead")
-            c.execute("INSERT INTO notes VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,text=excluded.text,updated_at=excluded.updated_at,revision=excluded.revision",
+            c.execute("INSERT INTO notes(id,owner_type,owner_id,title,text,archived,revision,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,text=excluded.text,updated_at=excluded.updated_at,revision=excluded.revision",
                       (val["id"], val["ownerType"], val["ownerId"], val["title"], val["text"], 0, val["revision"] + 1, val["createdAt"], now()))
             p = {**p, "id": val["id"]}
         elif kind == "link" and verb in {"create", "update"}:
@@ -957,7 +957,7 @@ class WorkService:
             val["title"] = text(val["title"], "title", limit=1000).strip()
             val["description"] = text(val["description"], "description", limit=100_000).strip()
             c.execute(
-                "INSERT INTO web_links VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET url=excluded.url,title=excluded.title,description=excluded.description,revision=excluded.revision,updated_at=excluded.updated_at",
+                "INSERT INTO web_links(id,owner_type,owner_id,url,title,description,archived,revision,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET url=excluded.url,title=excluded.title,description=excluded.description,revision=excluded.revision,updated_at=excluded.updated_at",
                 (val["id"], val["ownerType"], val["ownerId"], val["url"], val["title"], val["description"], 0, val["revision"] + 1, val["createdAt"], now()),
             )
             p = {**p, "id": val["id"]}
@@ -1013,7 +1013,7 @@ class WorkService:
             else:
                 val["chatId"] = None
             c.execute(
-                "INSERT INTO github_refs VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET kind=excluded.kind,url=excluded.url,reference=excluded.reference,title=excluded.title,description=excluded.description,chat_id=excluded.chat_id,revision=excluded.revision,updated_at=excluded.updated_at",
+                "INSERT INTO github_refs(id,owner_type,owner_id,kind,url,reference,title,description,chat_id,archived,revision,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET kind=excluded.kind,url=excluded.url,reference=excluded.reference,title=excluded.title,description=excluded.description,chat_id=excluded.chat_id,revision=excluded.revision,updated_at=excluded.updated_at",
                 (val["id"], val["ownerType"], val["ownerId"], val["kind"], val["url"], val["reference"], val["title"], val["description"], val["chatId"], 0, val["revision"] + 1, val["createdAt"], now()),
             )
             p = {**p, "id": val["id"]}
@@ -1032,7 +1032,7 @@ class WorkService:
             if val["status"] == "answered" and not val["answer"].strip():
                 raise AppError(422, "validation", "Write an answer before marking the question answered", {"answer": "required"})
             c.execute(
-                "INSERT INTO roadmap_questions VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,details=excluded.details,answer=excluded.answer,status=excluded.status,revision=excluded.revision,updated_at=excluded.updated_at",
+                "INSERT INTO roadmap_questions(id,roadmap_id,title,details,answer,status,archived,revision,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,details=excluded.details,answer=excluded.answer,status=excluded.status,revision=excluded.revision,updated_at=excluded.updated_at",
                 (val["id"], val["roadmapId"], val["title"], val["details"], val["answer"], val["status"], 0, val["revision"] + 1, val["createdAt"], now()),
             )
             p = {**p, "id": val["id"]}
@@ -1054,7 +1054,7 @@ class WorkService:
                 # A blank date must not quietly redate a decision recorded earlier.
                 raise AppError(422, "validation", "Give the date the decision was made", {"decidedDate": "required"})
             c.execute(
-                "INSERT INTO roadmap_decisions VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,rationale=excluded.rationale,decided_date=excluded.decided_date,revision=excluded.revision,updated_at=excluded.updated_at",
+                "INSERT INTO roadmap_decisions(id,roadmap_id,title,rationale,decided_date,archived,revision,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,rationale=excluded.rationale,decided_date=excluded.decided_date,revision=excluded.revision,updated_at=excluded.updated_at",
                 (val["id"], val["roadmapId"], val["title"], val["rationale"], val["decidedDate"], 0, val["revision"] + 1, val["createdAt"], now()),
             )
             p = {**p, "id": val["id"]}
@@ -1067,7 +1067,7 @@ class WorkService:
                 val["done"] = boolean(p["done"], "done")
             if not val["text"]:
                 raise AppError(422, "validation", "Checklist text is required")
-            c.execute("INSERT INTO tasks VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET text=excluded.text,done=excluded.done,revision=excluded.revision,updated_at=excluded.updated_at",
+            c.execute("INSERT INTO tasks(id,item_id,text,done,archived,revision,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET text=excluded.text,done=excluded.done,revision=excluded.revision,updated_at=excluded.updated_at",
                       (val["id"], val["itemId"], val["text"], int(val["done"]), 0, val["revision"] + 1, val["createdAt"], now()))
             p = {**p, "id": val["id"]}
         elif kind == "attachment" and creating:
@@ -1095,7 +1095,7 @@ class WorkService:
             value = text(p.get("path"), "path", required=True, limit=32768)
             if any(ord(ch) < 32 for ch in value):
                 raise AppError(422, "validation", "Path contains control characters")
-            c.execute("INSERT INTO file_references VALUES(?,?,?,?,?,?)", (identity, p["itemId"], value, 0, 1, now()))
+            c.execute("INSERT INTO file_references(id,item_id,path,archived,revision,created_at) VALUES(?,?,?,?,?,?)", (identity, p["itemId"], value, 0, 1, now()))
             p = {**p, "id": identity}
         else:
             raise AppError(422, "operation", "Unsupported supporting-record operation")
@@ -1198,7 +1198,7 @@ class WorkService:
         stamp = now()
         for step_id in assigned:
             if step_id not in previous:
-                c.execute("INSERT INTO chat_steps VALUES(?,?,?)", (chat["id"], step_id, stamp))
+                c.execute("INSERT INTO chat_steps(chat_id,step_id,created_at) VALUES(?,?,?)", (chat["id"], step_id, stamp))
                 event(c, actor, "chat.assign", step_id, None, summary)
 
     def upload(self, c: sqlite3.Connection, actor: dict, owner_type: str, owner_id: str,
@@ -1218,7 +1218,7 @@ class WorkService:
         if not re.fullmatch(r"[a-z0-9!#$&^_.+-]+/[a-z0-9!#$&^_.+-]+", mime):
             mime = "application/octet-stream"
         identity = uid()
-        c.execute("INSERT INTO attachments VALUES(?,?,?,?,?,?,?,?,?,?,?)", (identity, owner_type, owner_id, name, mime, len(content), hashlib.sha256(content).hexdigest(), content, 0, 1, now()))
+        c.execute("INSERT INTO attachments(id,owner_type,owner_id,name,mime,size,sha256,content,archived,revision,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)", (identity, owner_type, owner_id, name, mime, len(content), hashlib.sha256(content).hexdigest(), content, 0, 1, now()))
         after = support_record(c.execute("SELECT * FROM attachments WHERE id=?", (identity,)).fetchone())
         # Unapproved evidence must never appear in canonical global search.
         if owner_type != "proposal":

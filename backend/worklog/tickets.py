@@ -178,7 +178,7 @@ class TicketService:
     @staticmethod
     def _set_labels(c: sqlite3.Connection, identity: str, labels: list[str]) -> None:
         c.execute("DELETE FROM ticket_labels WHERE ticket_id=?", (identity,))
-        c.executemany("INSERT INTO ticket_labels VALUES(?,?)", [(identity, label) for label in labels])
+        c.executemany("INSERT INTO ticket_labels(ticket_id,label) VALUES(?,?)", [(identity, label) for label in labels])
 
     @staticmethod
     def _index(c: sqlite3.Connection, ticket: dict, *, retitle: bool = False) -> None:
@@ -247,7 +247,7 @@ class TicketService:
             raise AppError(409, "ticket_archived", "Recover the ticket before commenting")
         body = text(p.get("text"), "text", required=True, limit=100_000)
         identity, stamp = uid(), now()
-        c.execute("INSERT INTO ticket_comments VALUES(?,?,?,?,?,?,?)",
+        c.execute("INSERT INTO ticket_comments(id,ticket_id,text,author_id,author_label,author_kind,created_at) VALUES(?,?,?,?,?,?,?)",
                   (identity, row["id"], body, actor["id"], actor["label"], actor["kind"], stamp))
         # A comment changes none of the ticket's fields, so it can't make an edit conflict.
         c.execute("UPDATE tickets SET last_activity_at=? WHERE id=?", (stamp, row["id"]))
