@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("a message written into a chat reaches its open agent run once, and archiving ends what is still waiting", async ({
+test("a message written into a chat reaches a confirmed agent's open run once, and archiving ends what is still waiting", async ({
   page,
 }) => {
   const suffix = crypto.randomUUID();
@@ -59,9 +59,18 @@ test("a message written into a chat reaches its open agent run once, and archivi
 
   await page.goto("/" + chatHref);
   const history = page.getByRole("region", { name: "Chat history" });
+  // A credential issued in Settings only claims the chat until you confirm its agent here.
+  const waiting = history.getByRole("list", {
+    name: "Agents waiting for your confirmation",
+  });
+  await expect(waiting).toContainText(agentLabel);
+  await waiting
+    .getByRole("button", { name: `Confirm ${agentLabel} works in this chat` })
+    .click();
   await expect(
     history.getByRole("list", { name: "Agents a message reaches" }),
   ).toContainText(agentLabel);
+  await expect(waiting).toHaveCount(0);
   const box = history.getByRole("textbox", {
     name: "Message to this chat's agents",
   });

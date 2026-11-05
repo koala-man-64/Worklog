@@ -1,5 +1,5 @@
-/** An agent a message sent now would reach: an open run that reported the chat's ID. */
-export type OutboxRecipient = {
+/** An open agent run that reported the chat's ID. */
+export type OutboxRun = {
   runId: string;
   runName: string;
   provider: string;
@@ -7,8 +7,13 @@ export type OutboxRecipient = {
   agentId: string;
   agentLabel: string;
   avatar: string | null;
-  /** Whether the agent's identity registered with this chat; false when its run only reported the chat's ID. */
-  registered: boolean;
+};
+/**
+ * An agent a message sent now would reach: an open run of an identity bound to
+ * the chat, because it registered with the chat or the person confirmed it here.
+ */
+export type OutboxRecipient = OutboxRun & {
+  binding: "registered" | "confirmed";
 };
 /** Why a delivery ended without the agent receiving the message. */
 export type DeliveryReason =
@@ -20,6 +25,7 @@ export type DeliveryReason =
   | "chat_archived"
   | "chat_changed"
   | "restore"
+  | "unconfirmed"
   | "not_picked_up";
 /** One recipient's copy of a message, as it stands now. */
 export type OutboxDelivery = {
@@ -44,10 +50,15 @@ export type OutboxMessage = {
   createdAt: string;
   deliveries: OutboxDelivery[];
 };
-/** A chat's messages, newest first, with who a new message would reach. */
+/**
+ * A chat's messages, newest first, with who a new message would reach and the
+ * runs that only claim the chat: they receive nothing until the person confirms
+ * their agent.
+ */
 export type Outbox = {
   chat: { id: string; chatId: string; archived: boolean };
   recipients: OutboxRecipient[];
+  unconfirmed: OutboxRun[];
   items: OutboxMessage[];
   total: number;
   limit: number;

@@ -32,7 +32,10 @@ COMMIT;
 
 
 def to_v11(path):
-    """Take a current database back to the v11 shape the documented way."""
+    """Take a current database back to the v11 shape the documented way: to version 12 first."""
+    from test_chat_confirmations import to_v12
+
+    to_v12(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK)
 
@@ -119,7 +122,7 @@ def test_a_v11_database_upgrades_with_the_same_decisions(tmp_path):
         conn.commit()
     Database(path).initialize()
     with Database(path).read() as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION == 12
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
         assert recovery._schema_signature(conn) == recovery._expected_schema()
         assert [tuple(r) for r in conn.execute("SELECT proposal_id,proposal_revision,conflicts FROM proposal_stale_notices")] == [
             (seeded["submitted"], 2, "[[1,3]]")]
@@ -155,16 +158,19 @@ def test_the_documented_way_back_to_v11_gives_its_exact_shape_and_upgrades_again
     recovery.validate_database(path)
     Database(path).initialize()
     with Database(path).read() as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 12
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
         registered = conn.execute("SELECT count(*) FROM communication_credentials WHERE registered_by IS NOT NULL").fetchone()[0]
         assert registered == 1
 
 
 def test_a_v11_shape_cannot_claim_version_12_and_a_v12_shape_cannot_claim_11(tmp_path):
+    from test_chat_confirmations import to_v12
+
     older, current = tmp_path / "older.sqlite3", tmp_path / "current.sqlite3"
     Database(older).initialize()
     to_v11(older)
     Database(current).initialize()
+    to_v12(current)
     for path, version in ((older, 12), (current, 11)):
         with closing(sqlite3.connect(path)) as conn:
             conn.execute(f"PRAGMA user_version={version}")

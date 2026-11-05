@@ -313,8 +313,9 @@ To stop reviewing, clear "Require my approval for agent proposals" in Settings. 
    - "Show earlier messages" loads more, up to 2,000.
    - Worklog only reads these transcripts and never changes them.
 5. **Message the chat's agents.** Write in "Message this chat’s agents" and press "Send".
-   - The message reaches every agent whose open run reported this chat; "Reaches" names them before you send.
-   - "not registered with this chat" marks an agent whose run reported this chat's ID although the agent never registered with this chat. It still receives the message, so check it is an agent you mean to reach before you send.
+   - The message reaches every agent bound to this chat whose open run reported it; "Reaches" names them before you send. An agent is bound to the chat it registered with, and to each chat where you confirmed it.
+   - "Not confirmed" lists runs that report this chat's ID although their agent never registered with this chat, such as an agent using a credential you issued in Settings. They receive nothing. Press "Confirm" beside one only if you know that agent works in this chat: it then receives what you send from then on, here and wherever else you track this chat.
+   - "Remove" beside an agent you confirmed takes the confirmation back and ends what still waits for that agent here.
    - Each agent picks the message up the next time it checks Worklog. Nothing wakes it.
    - A message nobody picks up within two hours expires.
 

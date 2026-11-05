@@ -207,8 +207,8 @@ def test_a_repeated_report_under_its_key_tracks_the_chat_once(client, agent_http
     assert len(tracked(client, item["id"])) == 1
 
 
-def test_the_outbox_marks_recipients_that_only_claimed_the_chat(client, agent_http):
-    # Any credential's run can report any chat ID; only a registered identity works in the chat.
+def test_the_outbox_lists_runs_that_only_claim_the_chat_apart_from_its_recipients(client, agent_http):
+    # Any credential's run can report any chat ID; a registered identity is bound to its chat by itself.
     sponsor = issue(client)
     response, token = register(agent_http, sponsor["token"])
     ok(response)
@@ -219,5 +219,5 @@ def test_the_outbox_marks_recipients_that_only_claimed_the_chat(client, agent_ht
     chat = ok(write(client, "POST", "/chats", {"ownerType": "item", "ownerId": item["id"], "chatId": CHAT,
                                                "title": "Parser fix"}))
     outbox = ok(client.get(f"/api/v1/chats/{chat['id']}/messages"))
-    assert {r["agentLabel"]: r["registered"] for r in outbox["recipients"]} == {
-        "Parser fix (Claude)": True, "Other agents": False}
+    assert [(r["agentLabel"], r["binding"]) for r in outbox["recipients"]] == [("Parser fix (Claude)", "registered")]
+    assert [r["agentLabel"] for r in outbox["unconfirmed"]] == ["Other agents"]

@@ -9,6 +9,7 @@ import type {
   OutboxDelivery,
   OutboxMessage,
   OutboxRecipient,
+  OutboxRun,
 } from "./outboxTypes";
 
 const CHAT = { id: "chat-1", chatId: "session-1" };
@@ -20,7 +21,17 @@ const implementer: OutboxRecipient = {
   agentId: "agent-1",
   agentLabel: "Implementer",
   avatar: null,
-  registered: true,
+  binding: "registered",
+};
+// A run of another agent that reports this chat's ID without being bound to it.
+const claimant: OutboxRun = {
+  runId: "run-2",
+  runName: "Claims the chat",
+  provider: "claude",
+  startedAt: "2026-11-01T10:01:00+00:00",
+  agentId: "agent-2",
+  agentLabel: "Other agents",
+  avatar: null,
 };
 const pending: OutboxDelivery = {
   runId: "run-1",
@@ -52,6 +63,7 @@ function outbox(fields: Partial<Outbox> = {}): Outbox {
   return {
     chat: { ...CHAT, archived: false },
     recipients: [implementer],
+    unconfirmed: [],
     items: [],
     total: 0,
     limit: 20,
@@ -144,28 +156,82 @@ it("names who a message reaches, sends it once and clears the draft", async () =
   ).toBeNull();
 });
 
-it("marks a recipient whose agent only reported the chat's ID", async () => {
-  const claimant: OutboxRecipient = {
-    ...implementer,
-    runId: "run-2",
-    runName: "Claims the chat",
-    agentId: "agent-2",
-    agentLabel: "Other agents",
-    registered: false,
-  };
-  serve(() => outbox({ recipients: [implementer, claimant] }));
+it("lists a run that only claims the chat apart, and confirms its agent", async () => {
+  let current = outbox({ unconfirmed: [claimant] });
+  const calls = serve(
+    () => current,
+    () => {
+      current = outbox({
+        recipients: [implementer, { ...claimant, binding: "confirmed" }],
+      });
+      return new Response("{}", { status: 200 });
+    },
+  );
+  show();
+  const waiting = await screen.findByRole("list", {
+    name: "Agents waiting for your confirmation",
+  });
+  expect(waiting).toHaveTextContent("Other agents");
+  expect(
+    screen.getByRole("list", { name: "Agents a message reaches" }),
+  ).not.toHaveTextContent("Other agents");
+  expect(screen.getByText(/so they receive nothing/)).toBeInTheDocument();
+  await userEvent.click(
+    within(waiting).getByRole("button", {
+      name: "Confirm Other agents works in this chat",
+    }),
+  );
+  expect(calls.find((call) => call.method === "POST")).toEqual({
+    method: "POST",
+    path: "/chats/chat-1/confirmations",
+    body: { agentId: "agent-2" },
+  });
+  await waitFor(() =>
+    expect(
+      screen.getByRole("list", { name: "Agents a message reaches" }),
+    ).toHaveTextContent("Other agents"),
+  );
+  expect(
+    screen.getByRole("list", { name: "Agents a message reaches" }),
+  ).toHaveTextContent("confirmed by you");
+  expect(
+    screen.queryByRole("list", { name: "Agents waiting for your confirmation" }),
+  ).not.toBeInTheDocument();
+});
+
+it("removes a confirmation the person gave", async () => {
+  const calls = serve(() =>
+    outbox({ recipients: [implementer, { ...claimant, binding: "confirmed" }] }),
+  );
   show();
   const reaches = await screen.findByRole("list", {
     name: "Agents a message reaches",
   });
-  const [registered, unregistered] = within(reaches).getAllByRole("listitem");
-  expect(registered).not.toHaveTextContent("not registered with this chat");
-  expect(unregistered).toHaveTextContent("Other agents");
-  expect(unregistered).toHaveTextContent("not registered with this chat");
-  expect(unregistered).toHaveAttribute(
-    "title",
-    expect.stringContaining("It still receives what you send."),
+  // An agent bound by registering with the chat has no confirmation to remove.
+  expect(
+    within(reaches).getAllByRole("button").map((b) => b.getAttribute("aria-label")),
+  ).toEqual(["Remove your confirmation of Other agents"]);
+  await userEvent.click(within(reaches).getByRole("button"));
+  await waitFor(() =>
+    expect(calls.find((call) => call.method === "POST")).toEqual({
+      method: "POST",
+      path: "/chats/chat-1/confirmations/remove",
+      body: { agentId: "agent-2" },
+    }),
   );
+});
+
+it("cannot send when the only runs on the chat are unconfirmed", async () => {
+  serve(() => outbox({ recipients: [], unconfirmed: [claimant] }));
+  show();
+  expect(
+    await screen.findByText(/No agent bound to this chat has an open run/),
+  ).toBeInTheDocument();
+  await userEvent.type(
+    screen.getByRole("textbox", { name: "Message to this chat's agents" }),
+    "Anyone there?",
+  );
+  expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
 });
 
 it("cannot send when no open agent run reports the chat", async () => {
@@ -246,6 +312,7 @@ it("says what became of each delivery", () => {
     ["chat_archived", "the chat was archived"],
     ["chat_changed", "the chat's ID changed"],
     ["restore", "Worklog was restored from a backup"],
+    ["unconfirmed", "its agent isn't confirmed in this chat"],
     ["not_picked_up", "not picked up within 2 hours"],
   ] as const)
     expect(deliveryState({ ...pending, status: "expired", reason }, time)).toBe(

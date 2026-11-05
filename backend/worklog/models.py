@@ -149,6 +149,11 @@ class InboxReceive(Command):
     chatId: str | None = Field(default=None, min_length=1, max_length=500)
 
 
+class ChatConfirmation(Command):
+    # The identity, communication_agents.id, as the chat page's recipients and claims give it.
+    agentId: str = Field(min_length=1, max_length=200)
+
+
 class GithubRefCreate(Command):
     ownerType: Literal["item", "roadmap"]
     ownerId: str

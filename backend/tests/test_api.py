@@ -916,6 +916,9 @@ def test_plan_change_and_reopen_notify_submitting_agent_and_allow_in_place_rebas
         headers=agent,
     ).json()
     assert run["id"]
+    # A credential issued in Settings reaches a chat once the person confirms it there.
+    confirmed = write(client, "POST", f"/chats/{chat['id']}/confirmations", {"agentId": cred["agentId"]})
+    assert confirmed.json()["binding"] == "confirmed", confirmed.text
 
     proposal = write(
         client,

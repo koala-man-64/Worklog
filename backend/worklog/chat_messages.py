@@ -1,10 +1,14 @@
 """Messages the person writes into a tracked chat for the agents working in it.
 
-A message goes to each agent tied to the chat when it is sent: an open run that
-reported the chat's ID, on a credential that is still live (the agent registry's
-current tie). Agents take their messages with `worklog agent inbox`. Delivery never
-reopens a run, recovers a chat or touches a provider session: a pending delivery
-ends with its run, its credential or its chat, and expires if nobody picks it up.
+A message goes to each agent bound to the chat when it is sent: an open run that
+reported the chat's ID, on a credential that is still live, of an identity bound to
+that chat. Since v13 an identity is bound to the chat it registered with, and to each
+chat where the person confirmed it on the chat page. Any credential's run can report
+any chat ID, so a run of an identity bound to neither is only a claim: the chat page
+shows it, and it receives nothing. Agents take their messages with `worklog agent
+inbox`. Delivery never reopens a run, recovers a chat or touches a provider session:
+a pending delivery ends with its run, its credential, its chat or its confirmation,
+and expires if nobody picks it up.
 """
 
 from __future__ import annotations
@@ -27,9 +31,20 @@ CREATE TABLE chat_message_deliveries(message_id TEXT NOT NULL REFERENCES chat_me
 CREATE INDEX chat_message_deliveries_run ON chat_message_deliveries(run_id,status);
 """
 
-RECIPIENTS = ("SELECT ar.id,ar.display_name,ar.provider,ar.created_at,a.id AS agent_id,a.label AS agent_label,a.avatar "
-              "FROM agent_runs ar JOIN communication_agents a ON a.id=ar.agent_id JOIN credentials cr ON cr.id=ar.credential_id "
-              "WHERE ar.external_chat_id=? AND ar.ended_at IS NULL AND cr.revoked=0 ORDER BY ar.created_at,ar.id")
+# Whether the identity of the run `ar` is bound to the chat that run reports: it registered with
+# that chat, whichever of its credentials did, or the person confirmed it there.
+REGISTERED = ("EXISTS(SELECT 1 FROM communication_credentials cc WHERE cc.agent_id=ar.agent_id "
+              "AND cc.chat_id=ar.external_chat_id)")
+CONFIRMED = ("EXISTS(SELECT 1 FROM chat_confirmations cf WHERE cf.agent_id=ar.agent_id "
+             "AND cf.chat_id=ar.external_chat_id)")
+BOUND = f"({REGISTERED} OR {CONFIRMED})"
+# Open runs on live credentials that report the chat's ID, bound or not.
+CLAIMS = ("SELECT ar.id,ar.display_name,ar.provider,ar.created_at,a.id AS agent_id,a.label AS agent_label,a.avatar,"
+          f"{REGISTERED} AS registered,{CONFIRMED} AS confirmed "
+          "FROM agent_runs ar JOIN communication_agents a ON a.id=ar.agent_id JOIN credentials cr ON cr.id=ar.credential_id "
+          "WHERE ar.external_chat_id=? AND ar.ended_at IS NULL AND cr.revoked=0")
+# Who a message sent now reaches.
+RECIPIENTS = CLAIMS + f" AND {BOUND} ORDER BY ar.created_at,ar.id"
 
 
 def expire_pending(c: sqlite3.Connection, reason: str, *, run_id: str | None = None,
@@ -53,17 +68,25 @@ def _recipient(r: sqlite3.Row) -> dict:
             "agentId": r["agent_id"], "agentLabel": r["agent_label"], "avatar": r["avatar"]}
 
 
-def _recipients(c: sqlite3.Connection, chat_id: str) -> list[dict]:
-    """Who a message sent now would reach, each marked by whether its identity registered with this chat.
+def _audience(c: sqlite3.Connection, chat_id: str) -> tuple[list[dict], list[dict]]:
+    """Who a message sent now would reach, each with how it is bound, and the runs that only claim the chat."""
+    recipients: list[dict] = []
+    unconfirmed: list[dict] = []
+    for r in c.execute(CLAIMS + " ORDER BY ar.created_at,ar.id", (chat_id,)):
+        if r["registered"] or r["confirmed"]:
+            recipients.append({**_recipient(r), "binding": "registered" if r["registered"] else "confirmed"})
+        else:
+            unconfirmed.append(_recipient(r))
+    return recipients, unconfirmed
 
-    Any credential's run can report any chat ID, so a run's claim alone doesn't show that
-    the agent works in this chat. Until a chat is bound to identities, the person sees
-    which recipients only made that claim.
-    """
-    from .registration import identity_chat
 
-    rows = c.execute(RECIPIENTS, (chat_id,)).fetchall()
-    return [{**_recipient(r), "registered": identity_chat(c, r["agent_id"]) == chat_id} for r in rows]
+def chat_binding(c: sqlite3.Connection, chat_id: str, agent_id: str) -> str | None:
+    """How an identity is bound to a chat: 'registered', 'confirmed', or None for not at all."""
+    if c.execute("SELECT 1 FROM communication_credentials WHERE agent_id=? AND chat_id=?", (agent_id, chat_id)).fetchone():
+        return "registered"
+    if c.execute("SELECT 1 FROM chat_confirmations WHERE agent_id=? AND chat_id=?", (agent_id, chat_id)).fetchone():
+        return "confirmed"
+    return None
 
 
 class ChatMessageService:
@@ -103,9 +126,9 @@ class ChatMessageService:
         total = c.execute("SELECT COUNT(*) FROM chat_messages WHERE chat_id=?", (identity,)).fetchone()[0]
         rows = c.execute("SELECT * FROM chat_messages WHERE chat_id=? ORDER BY created_at DESC,id DESC LIMIT ? OFFSET ?",
                          (identity, limit, offset)).fetchall()
-        recipients = [] if chat["archived"] else _recipients(c, chat["chat_id"])
+        recipients, unconfirmed = ([], []) if chat["archived"] else _audience(c, chat["chat_id"])
         return {"chat": {"id": chat["id"], "chatId": chat["chat_id"], "archived": bool(chat["archived"])},
-                "recipients": recipients, "items": self._records(c, rows),
+                "recipients": recipients, "unconfirmed": unconfirmed, "items": self._records(c, rows),
                 "total": total, "limit": limit, "offset": offset}
 
     def post(self, c: sqlite3.Connection, actor: dict, identity: str, p: dict) -> dict:
@@ -117,6 +140,9 @@ class ChatMessageService:
         body = text(p["text"], "text", required=True)
         runs = c.execute(RECIPIENTS, (chat["chat_id"],)).fetchall()
         if not runs:
+            if c.execute(CLAIMS + " LIMIT 1", (chat["chat_id"],)).fetchone():
+                raise AppError(409, "no_recipients", "No agent bound to this chat has an open run, so the message would reach no one; "
+                               "confirm an agent on the chat page to reach it")
             raise AppError(409, "no_recipients", "No open agent run reports this chat's ID, so the message would reach no one")
         message_id, stamp = uid(), now()
         expires = (datetime.fromisoformat(stamp) + PICKUP_WINDOW).isoformat()
@@ -143,9 +169,10 @@ class ChatMessageService:
             "SELECT d.message_id,d.run_id,m.text,m.author_id,m.author_label,m.created_at,ch.id AS tracked_id,ch.chat_id,ch.title "
             "FROM chat_message_deliveries d JOIN agent_runs ar ON ar.id=d.run_id JOIN chat_messages m ON m.id=d.message_id "
             "JOIN agent_chats ch ON ch.id=m.chat_id "
-            # The run must still be tied to the chat, as well as open, when the message is handed out.
+            # The run must still be tied to the chat, and its identity bound to it, as well as open,
+            # when the message is handed out.
             "WHERE ar.credential_id=? AND ar.ended_at IS NULL AND ar.external_chat_id=ch.chat_id AND ch.archived=0 "
-            "AND d.status='pending' AND d.expires_at>?" + clause +
+            f"AND {BOUND} AND d.status='pending' AND d.expires_at>?" + clause +
             " ORDER BY m.created_at,m.id,d.run_id", args).fetchall()
         c.executemany("UPDATE chat_message_deliveries SET status='delivered',delivered_at=? WHERE message_id=? AND run_id=? AND status='pending'",
                       [(stamp, r["message_id"], r["run_id"]) for r in rows])
@@ -160,3 +187,45 @@ class ChatMessageService:
         for item in items.values():
             event(c, actor, "chat.message.deliver", item["id"], None, {"runIds": item["runIds"], "deliveredAt": stamp})
         return {"items": list(items.values()), "total": len(items)}
+
+    def _confirmable(self, c: sqlite3.Connection, actor: dict, identity: str, p: dict) -> tuple[sqlite3.Row, str]:
+        if actor["kind"] != "human":
+            raise AppError(403, "agent_scope", "Only the person confirms who works in a chat")
+        chat = self._chat(c, identity)
+        if chat["archived"]:
+            raise AppError(409, "chat_archived", "Archived chats don't receive messages; recover the chat to change who it reaches")
+        agent_id = text(p["agentId"], "agentId", required=True, limit=200)
+        if c.execute("SELECT 1 FROM communication_agents WHERE id=?", (agent_id,)).fetchone() is None:
+            raise AppError(404, "not_found", "Agent not found")
+        return chat, agent_id
+
+    @staticmethod
+    def _binding_record(c: sqlite3.Connection, chat: sqlite3.Row, agent_id: str) -> dict:
+        return {"chat": {"id": chat["id"], "chatId": chat["chat_id"]}, "agentId": agent_id,
+                "binding": chat_binding(c, chat["chat_id"], agent_id)}
+
+    def confirm(self, c: sqlite3.Connection, actor: dict, identity: str, p: dict) -> dict:
+        """The person confirms that an identity works in this chat: what they write here from now on
+        reaches its open runs on the chat, on any record that tracks it. Messages sent before stay
+        as they were. An identity already bound stays as it is."""
+        chat, agent_id = self._confirmable(c, actor, identity, p)
+        if chat_binding(c, chat["chat_id"], agent_id) is None:
+            c.execute("INSERT INTO chat_confirmations(chat_id,agent_id,confirmed_by,confirmed_by_label,created_at) VALUES(?,?,?,?,?)",
+                      (chat["chat_id"], agent_id, actor["id"], actor["label"], now()))
+            event(c, actor, "chat.confirm", chat["id"], None, {"chatId": chat["chat_id"], "agentId": agent_id})
+        return self._binding_record(c, chat, agent_id)
+
+    def unconfirm(self, c: sqlite3.Connection, actor: dict, identity: str, p: dict) -> dict:
+        """The person removes their confirmation: the identity receives nothing more in this chat,
+        and what still waits for it here ends. The chat an identity registered with stays bound."""
+        chat, agent_id = self._confirmable(c, actor, identity, p)
+        removed = c.execute("DELETE FROM chat_confirmations WHERE chat_id=? AND agent_id=?", (chat["chat_id"], agent_id)).rowcount
+        if removed and chat_binding(c, chat["chat_id"], agent_id) is None:
+            stamp = now()
+            # A run keeps the chat ID it started with, so these are all its deliveries for this chat.
+            c.execute("UPDATE chat_message_deliveries SET status='expired',expired_at=?,expire_reason='unconfirmed' "
+                      "WHERE status='pending' AND expires_at>? AND run_id IN (SELECT id FROM agent_runs WHERE agent_id=? AND external_chat_id=?)",
+                      (stamp, stamp, agent_id, chat["chat_id"]))
+        if removed:
+            event(c, actor, "chat.unconfirm", chat["id"], {"chatId": chat["chat_id"], "agentId": agent_id}, None)
+        return self._binding_record(c, chat, agent_id)

@@ -151,13 +151,7 @@ Each of these is a separate migration with its own PR and its own independent re
 
 Each migration's PR owns `migrations.py`, `db.py` and `recovery.py` while it is open. A deploy that runs a migration on real data waits for the person's go-ahead.
 
-#### 1.0 · One writer for the search index
-
-Status: Merged · Branch: `claude/one-search-writer` · PR: [#95](https://github.com/koala-man-64/Worklog/pull/95)
-
-This step was added on 2026-11-04 while preparing 1.1. Keyed search rows only work if every writer keeps the keys in step. Before this step, discussions, tickets, repository merges and `WorkService` all wrote `search_index` directly.
-
-`search.py` now owns every write, unchanged in behaviour. `test_search_writes.py` fails when another module writes the table; historic migrations are exempt. No schema change. Findings: B-13.
+v11 and v12 went live together on 2026-11-04, after a dry run of the upgrade on a copy of the newest backup. v13 waits for its own go-ahead.
 
 #### 1.0 · One writer for the search index
 
@@ -193,7 +187,7 @@ Afterwards no runtime decision reads event JSON. A test blanks the registration 
 
 Status: Not started · Branch: — · PR: —
 
-In v13. Implements K3. A registered chat binds automatically; the person confirms any other binding on the chat page; deliveries go to bound identities only. Needs 1.3. Findings: C-01.
+In v13. Implements K3. An identity is bound to the chat it registered with (the v12 column), and `chat_confirmations` holds each other binding the person confirmed, keyed by the chat's own ID, so one confirmation covers every record that tracks the chat. Sending, inbox hand-out and proposal notices reach bound identities only. The chat page lists any other run reporting the chat's ID as not confirmed, with Confirm, and a confirmed agent with Remove. The upgrade ends deliveries still waiting for an identity bound to no chat they were sent to. Needs 1.3. Findings: C-01.
 
 ### Phase 2 · Registries and plumbing
 

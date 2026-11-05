@@ -5,9 +5,9 @@ from __future__ import annotations
 import json
 import sqlite3
 
-SCHEMA_VERSION = 12
+SCHEMA_VERSION = 13
 # Older versions that startup and offline restore upgrade in one transaction.
-UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11})
+UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12})
 
 COORDINATION_SCHEMA = """
 CREATE TABLE repositories(id TEXT PRIMARY KEY,name TEXT NOT NULL,url TEXT NOT NULL DEFAULT '',description TEXT NOT NULL DEFAULT '',archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
@@ -295,6 +295,30 @@ def add_decision_state(conn: sqlite3.Connection) -> None:
                      (proposal, record.get("proposalRevision"), stale_signature(record.get("conflicts", [])), at))
 
 
+# v13 binds chats to identities (K3). An identity is bound to the chat it registered with
+# (communication_credentials.chat_id, since v12) with no row here; this table holds the other
+# bindings, each one the person confirmed on the chat page. chat_id is the chat's own ID, as runs
+# report it and tracked chats hold it, so one confirmation covers every record that tracks the chat.
+CHAT_CONFIRMATIONS_SCHEMA = """
+CREATE TABLE chat_confirmations(chat_id TEXT NOT NULL,agent_id TEXT NOT NULL REFERENCES communication_agents(id),confirmed_by TEXT NOT NULL,confirmed_by_label TEXT NOT NULL,created_at TEXT NOT NULL,PRIMARY KEY(chat_id,agent_id));
+"""
+
+
+def add_chat_confirmations(conn: sqlite3.Connection) -> None:
+    """Bind chats to identities. A delivery still waiting for an identity bound to no chat it was
+    sent to ends now, as one would after the person removed its confirmation."""
+    from .common import now
+
+    execute_schema(conn, CHAT_CONFIRMATIONS_SCHEMA)
+    # Nothing is confirmed yet, so an identity is bound only to the chat it registered with. A run
+    # keeps the chat ID it started with, so its deliveries are all for that chat.
+    stamp = now()
+    conn.execute("UPDATE chat_message_deliveries SET status='expired',expired_at=?,expire_reason='unconfirmed' "
+                 "WHERE status='pending' AND expires_at>? AND run_id IN (SELECT ar.id FROM agent_runs ar WHERE NOT EXISTS("
+                 "SELECT 1 FROM communication_credentials cc WHERE cc.agent_id=ar.agent_id AND cc.chat_id=ar.external_chat_id))",
+                 (stamp, stamp))
+
+
 def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
     """Unlike executescript, preserve the caller's transaction and rollback boundary."""
     for statement in filter(str.strip, schema.split(";")):
@@ -306,6 +330,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
 
     Credential IDs, proposal authors, receipts (beyond the date v11 gives them), and legacy
     chat repository labels are deliberately unchanged. No repository names are guessed or imported.
+    The one record v13 changes is a chat message still waiting for an identity that isn't bound to
+    the chat: that delivery ends, with the reason 'unconfirmed'.
     """
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version == SCHEMA_VERSION:
@@ -341,8 +367,10 @@ def upgrade(conn: sqlite3.Connection) -> None:
         add_person_details(conn)
     if version < 11:
         add_search_keys_and_receipt_dates(conn)
-    # Every upgradable version predates the decision state of v12.
-    add_decision_state(conn)
+    if version < 12:
+        add_decision_state(conn)
+    # Every upgradable version predates the chat bindings of v13.
+    add_chat_confirmations(conn)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 
