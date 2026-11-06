@@ -10,66 +10,7 @@ from pathlib import Path
 from typing import TypeVar
 
 from .common import AppError, uid
-
-# The v1 definitions, never edited: every database, a new one included, reaches the current shape
-# through migrations.upgrade. migrations.add_waiting_status, for one, rebuilds work_items for v15.
-SCHEMA = """
-CREATE TABLE settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);
-CREATE TABLE credentials(id TEXT PRIMARY KEY,label TEXT NOT NULL,token_hash TEXT NOT NULL UNIQUE,created_at TEXT NOT NULL,revoked INTEGER NOT NULL DEFAULT 0);
-CREATE TABLE work_items(id TEXT PRIMARY KEY,title TEXT NOT NULL,description TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','doing','blocked','done')),ado_url TEXT,step_id TEXT REFERENCES steps(id),backlog_order INTEGER NOT NULL,archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL, roadmap_id TEXT REFERENCES roadmaps(id));
-CREATE TABLE days(date TEXT PRIMARY KEY,reflection TEXT NOT NULL DEFAULT '',revision INTEGER NOT NULL DEFAULT 1);
-CREATE TABLE daily_entries(id TEXT PRIMARY KEY,item_id TEXT NOT NULL REFERENCES work_items(id),date TEXT NOT NULL REFERENCES days(date),planned INTEGER NOT NULL DEFAULT 1 CHECK(planned IN(0,1)),worked INTEGER NOT NULL DEFAULT 0 CHECK(worked IN(0,1)),outcome TEXT NOT NULL DEFAULT '',position INTEGER NOT NULL,revision INTEGER NOT NULL DEFAULT 1,UNIQUE(item_id,date));
-CREATE INDEX daily_by_date ON daily_entries(date,position);
-CREATE TABLE notes(id TEXT PRIMARY KEY,owner_type TEXT NOT NULL,owner_id TEXT NOT NULL,title TEXT NOT NULL,text TEXT NOT NULL,archived INTEGER NOT NULL DEFAULT 0,revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
-CREATE TABLE tasks(id TEXT PRIMARY KEY,item_id TEXT NOT NULL REFERENCES work_items(id),text TEXT NOT NULL,done INTEGER NOT NULL DEFAULT 0 CHECK(done IN(0,1)),archived INTEGER NOT NULL DEFAULT 0,revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
-CREATE TABLE file_references(id TEXT PRIMARY KEY,item_id TEXT NOT NULL REFERENCES work_items(id),path TEXT NOT NULL,archived INTEGER NOT NULL DEFAULT 0,revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL);
-CREATE TABLE attachments(id TEXT PRIMARY KEY,owner_type TEXT NOT NULL,owner_id TEXT NOT NULL,name TEXT NOT NULL,mime TEXT NOT NULL,size INTEGER NOT NULL,sha256 TEXT NOT NULL,content BLOB NOT NULL,archived INTEGER NOT NULL DEFAULT 0,revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL);
-CREATE INDEX notes_owner ON notes(owner_type,owner_id,archived);
-CREATE INDEX files_owner ON attachments(owner_type,owner_id,archived);
-CREATE TABLE events(id TEXT PRIMARY KEY,entity_id TEXT NOT NULL,kind TEXT NOT NULL,actor_id TEXT NOT NULL,actor_label TEXT NOT NULL,actor_kind TEXT NOT NULL,created_at TEXT NOT NULL,local_date TEXT NOT NULL,before_json TEXT NOT NULL,after_json TEXT NOT NULL);
-CREATE INDEX event_entity ON events(entity_id,created_at);
-CREATE INDEX event_day ON events(local_date,kind);
-CREATE TABLE receipts(actor_id TEXT NOT NULL,key TEXT NOT NULL,request_hash TEXT NOT NULL,response_json TEXT NOT NULL,PRIMARY KEY(actor_id,key));
-CREATE VIRTUAL TABLE search_index USING fts5(entity_id UNINDEXED,type UNINDEXED,title,body,owner_id UNINDEXED,archived UNINDEXED,tokenize='unicode61');
-"""
-
-# The v1 definitions: migrations.add_person_details gives every database the v10 shape.
-PEOPLE_SCHEMA = """
-CREATE TABLE people(id TEXT PRIMARY KEY,name TEXT NOT NULL,role TEXT NOT NULL DEFAULT '',notes TEXT NOT NULL DEFAULT '',archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
-CREATE TABLE person_links(id TEXT PRIMARY KEY,person_id TEXT NOT NULL REFERENCES people(id),target_type TEXT NOT NULL CHECK(target_type IN('item','roadmap')),target_id TEXT NOT NULL,relationship TEXT NOT NULL DEFAULT '',created_at TEXT NOT NULL,UNIQUE(person_id,target_type,target_id));
-CREATE INDEX person_links_target ON person_links(target_type,target_id);
-CREATE INDEX person_links_person ON person_links(person_id);
-"""
-
-# Columns that tell who is working: they sit exactly where ALTER TABLE ADD COLUMN places
-# them, so created and migrated databases share one definition for restore validation.
-AGENT_CHAT_COLUMNS = ", provider TEXT NOT NULL DEFAULT '', model TEXT NOT NULL DEFAULT '', repos TEXT NOT NULL DEFAULT '[]'"
-
-LINKS_CHATS_GITHUB_SCHEMA = """
-CREATE TABLE web_links(id TEXT PRIMARY KEY,owner_type TEXT NOT NULL CHECK(owner_type IN('item','roadmap')),owner_id TEXT NOT NULL,url TEXT NOT NULL,title TEXT NOT NULL DEFAULT '',description TEXT NOT NULL DEFAULT '',archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
-CREATE INDEX web_links_owner ON web_links(owner_type,owner_id,archived);
-CREATE TABLE agent_chats(id TEXT PRIMARY KEY,owner_type TEXT NOT NULL CHECK(owner_type IN('item','roadmap')),owner_id TEXT NOT NULL,chat_id TEXT NOT NULL,title TEXT NOT NULL,created_date TEXT NOT NULL,archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL""" + AGENT_CHAT_COLUMNS + """);
-CREATE INDEX agent_chats_owner ON agent_chats(owner_type,owner_id,archived);
-CREATE TABLE github_refs(id TEXT PRIMARY KEY,owner_type TEXT NOT NULL CHECK(owner_type IN('item','roadmap')),owner_id TEXT NOT NULL,kind TEXT NOT NULL CHECK(kind IN('commit','pr')),url TEXT NOT NULL,reference TEXT NOT NULL DEFAULT '',title TEXT NOT NULL DEFAULT '',description TEXT NOT NULL DEFAULT '',chat_id TEXT REFERENCES agent_chats(id),archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
-CREATE INDEX github_refs_owner ON github_refs(owner_type,owner_id,archived);
-"""
-
-# A roadmap's agent chats name the steps they work on.
-CHAT_STEPS_SCHEMA = """
-CREATE TABLE chat_steps(chat_id TEXT NOT NULL REFERENCES agent_chats(id),step_id TEXT NOT NULL REFERENCES steps(id),created_at TEXT NOT NULL,PRIMARY KEY(chat_id,step_id));
-CREATE INDEX chat_steps_step ON chat_steps(step_id);
-"""
-
-# A roadmap's questions with their answers, and the decisions made along the way.
-QUESTIONS_DECISIONS_SCHEMA = """
-CREATE TABLE roadmap_questions(id TEXT PRIMARY KEY,roadmap_id TEXT NOT NULL REFERENCES roadmaps(id),title TEXT NOT NULL,details TEXT NOT NULL DEFAULT '',answer TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT 'open' CHECK(status IN('open','answered')),archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
-CREATE INDEX roadmap_questions_roadmap ON roadmap_questions(roadmap_id,archived);
-CREATE TABLE roadmap_decisions(id TEXT PRIMARY KEY,roadmap_id TEXT NOT NULL REFERENCES roadmaps(id),title TEXT NOT NULL,rationale TEXT NOT NULL DEFAULT '',decided_date TEXT NOT NULL,archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
-CREATE INDEX roadmap_decisions_roadmap ON roadmap_decisions(roadmap_id,archived);
-"""
-
-# Legacy v1 definitions include the questions and decisions shipped on main.
-SCHEMA = SCHEMA + PEOPLE_SCHEMA + LINKS_CHATS_GITHUB_SCHEMA + CHAT_STEPS_SCHEMA + QUESTIONS_DECISIONS_SCHEMA
+from .schema import BASELINE
 
 T = TypeVar("T")
 
@@ -86,9 +27,9 @@ class Database:
         return conn
 
     def initialize(self) -> None:
+        """Open the file, creating a new one at the current version from schema.BASELINE. An existing
+        file is checked first, and one at an older version is backed up and upgraded in one transaction."""
         from .migrations import SCHEMA_VERSION, UPGRADABLE_VERSIONS, upgrade
-        from .plans import SCHEMA as PLAN_SCHEMA
-        from .proposals import SCHEMA as PROPOSAL_SCHEMA
 
         self.path.parent.mkdir(parents=True, exist_ok=True)
         if (self.path.parent / ".restore-in-progress.json").exists():
@@ -131,11 +72,10 @@ class Database:
                 return
             try:
                 conn.execute("PRAGMA journal_mode=DELETE")
-                conn.executescript("BEGIN IMMEDIATE;\n" + PLAN_SCHEMA + PROPOSAL_SCHEMA + SCHEMA)
+                conn.executescript("BEGIN IMMEDIATE;\n" + BASELINE)
                 for key, value in {"timezone": "America/Chicago", "dataId": uid(), "backlogRevision": 1}.items():
                     conn.execute("INSERT INTO settings(key,value) VALUES(?,?)", (key, json.dumps(value)))
-                conn.execute("PRAGMA user_version=1")
-                upgrade(conn)
+                conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
                 conn.commit()
             except Exception:
                 conn.rollback()

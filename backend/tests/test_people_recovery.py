@@ -8,6 +8,7 @@ from contextlib import closing
 from pathlib import Path
 
 import pytest
+import sealed
 from fastapi.testclient import TestClient
 from test_search_keys_recovery import to_v10
 from worklog import migrations, recovery
@@ -92,7 +93,7 @@ def test_v9_upgrade_makes_role_the_team_keeps_every_tie_and_restores(tmp_path):
     Database(path).initialize()
     with Database(path).read() as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
         people = {r["id"]: dict(r) for r in conn.execute("SELECT * FROM people")}
     assert {t: rows(path, t) for t in kept} == kept
     assert people["ann"] == {"id": "ann", "name": "Ann Lee", "team": "Platform", "notes": "Kafka lead", "archived": 0,
@@ -107,14 +108,14 @@ def test_v9_upgrade_makes_role_the_team_keeps_every_tie_and_restores(tmp_path):
     snapshot, = (path.parent / "backups").glob("worklog-pre-migration-*.sqlite3")
     with closing(sqlite3.connect(snapshot)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 9
-        assert recovery._schema_signature(conn) == recovery._expected_schema(people=False)
+        assert recovery._schema_signature(conn) == sealed.shape(9)
     # A second start finds nothing to upgrade and takes no second snapshot.
     Database(path).initialize()
     assert len(list((path.parent / "backups").glob("worklog-pre-migration-*.sqlite3"))) == 1
     restored = tmp_path / "restored" / "worklog.sqlite3"
     recovery.restore_database(restored, snapshot, tmp_path / "restore-backups")
     with Database(restored).read() as conn:
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
         assert conn.execute("SELECT team FROM people WHERE id='ann'").fetchone()[0] == "Platform"
         assert conn.execute("SELECT count(*) FROM person_links").fetchone()[0] == len(LINKS)
 
@@ -153,7 +154,7 @@ def test_a_failed_person_upgrade_leaves_the_v9_database_as_it_was(tmp_path, monk
         Database(path).initialize()
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 9
-        assert recovery._schema_signature(conn) == recovery._expected_schema(people=False)
+        assert recovery._schema_signature(conn) == sealed.shape(9)
     assert {t: rows(path, t) for t in before} == before
     recovery.validate_database(path)
 
@@ -186,7 +187,7 @@ def test_the_documented_way_back_to_v9_keeps_people_and_their_work_ties_and_upgr
     to_v9(path)
     recovery.validate_database(path)
     with closing(sqlite3.connect(path)) as conn:
-        assert recovery._schema_signature(conn) == recovery._expected_schema(people=False)
+        assert recovery._schema_signature(conn) == sealed.shape(9)
         assert conn.execute("SELECT role,notes FROM people WHERE id='ann'").fetchone() == ("Platform", "Kafka lead")
         # Version 9's search finds a person by what version 9 shows of them, and nothing it dropped.
         assert conn.execute("SELECT body FROM search_index WHERE entity_id='ann'").fetchone()[0] == "Platform\nKafka lead"
@@ -210,7 +211,7 @@ def test_a_way_back_that_fails_part_way_changes_nothing(tmp_path):
         conn.executescript(broken)
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 10
-        assert recovery._schema_signature(conn) == recovery._expected_schema(search_keys=False)
+        assert recovery._schema_signature(conn) == sealed.shape(10)
     assert {t: rows(path, t) for t in before} == before
     recovery.validate_database(path)
 

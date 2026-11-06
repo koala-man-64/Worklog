@@ -30,54 +30,6 @@ from .common import (
     uid,
 )
 
-# Added in schema v3. It sits exactly where ALTER TABLE ADD COLUMN places it, so
-# created and migrated databases share one definition for restore validation.
-AGENT_AVATAR_COLUMN = ", avatar TEXT"
-
-SCHEMA = """
-CREATE TABLE communication_agents(id TEXT PRIMARY KEY,label TEXT NOT NULL,created_at TEXT NOT NULL""" + AGENT_AVATAR_COLUMN + """);
-CREATE TABLE communication_credentials(credential_id TEXT PRIMARY KEY REFERENCES credentials(id),agent_id TEXT NOT NULL REFERENCES communication_agents(id));
-CREATE INDEX communication_credentials_agent ON communication_credentials(agent_id);
-CREATE TABLE discussions(id TEXT PRIMARY KEY,title TEXT NOT NULL,archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
-CREATE INDEX discussions_updated ON discussions(archived,updated_at,id);
-CREATE TABLE discussion_contexts(discussion_id TEXT NOT NULL REFERENCES discussions(id),context_type TEXT NOT NULL CHECK(context_type IN('item','roadmap','step')),context_id TEXT NOT NULL,PRIMARY KEY(discussion_id,context_type,context_id));
-CREATE INDEX discussion_contexts_context ON discussion_contexts(context_type,context_id,discussion_id);
-CREATE TABLE discussion_repos(discussion_id TEXT NOT NULL REFERENCES discussions(id),repo TEXT NOT NULL,PRIMARY KEY(discussion_id,repo));
-CREATE INDEX discussion_repos_repo ON discussion_repos(repo,discussion_id);
-CREATE TABLE discussion_roles(id TEXT PRIMARY KEY,context_type TEXT NOT NULL CHECK(context_type IN('item','roadmap','step')),context_id TEXT NOT NULL,label TEXT NOT NULL,label_key TEXT NOT NULL,owner_id TEXT REFERENCES communication_agents(id),revision INTEGER NOT NULL DEFAULT 1,generation INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,UNIQUE(context_type,context_id,label_key));
-CREATE INDEX discussion_roles_owner ON discussion_roles(owner_id,context_type,context_id);
-CREATE TABLE discussion_role_offers(id TEXT PRIMARY KEY,role_id TEXT NOT NULL REFERENCES discussion_roles(id),from_id TEXT NOT NULL REFERENCES communication_agents(id),to_id TEXT NOT NULL REFERENCES communication_agents(id),generation INTEGER NOT NULL,note TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN('pending','accepted','declined','withdrawn','invalidated')),created_at TEXT NOT NULL,ended_at TEXT);
-CREATE UNIQUE INDEX discussion_role_pending_offer ON discussion_role_offers(role_id) WHERE state='pending';
-CREATE TABLE discussion_messages(id TEXT PRIMARY KEY,discussion_id TEXT NOT NULL REFERENCES discussions(id),text TEXT NOT NULL,author_id TEXT NOT NULL,author_label TEXT NOT NULL,author_kind TEXT NOT NULL CHECK(author_kind IN('agent','human')),created_at TEXT NOT NULL,chat_id TEXT,on_behalf_of_role_id TEXT REFERENCES discussion_roles(id),ownership_generation INTEGER);
-CREATE INDEX discussion_messages_discussion ON discussion_messages(discussion_id,created_at,id);
-CREATE TABLE discussion_requests(message_id TEXT PRIMARY KEY REFERENCES discussion_messages(id),mode TEXT NOT NULL CHECK(mode IN('all','any','any_agent','anyone')),state TEXT NOT NULL DEFAULT 'pending' CHECK(state IN('pending','satisfied','released_by_human','cancelled')),terminal_at TEXT,terminal_actor_id TEXT,terminal_actor_label TEXT,terminal_actor_kind TEXT,reason TEXT,authority_role_id TEXT REFERENCES discussion_roles(id),authority_generation INTEGER);
-CREATE TABLE discussion_targets(id TEXT PRIMARY KEY,message_id TEXT NOT NULL REFERENCES discussion_requests(message_id),kind TEXT NOT NULL CHECK(kind IN('agent','human','role','open_agent','open_any')),recipient_id TEXT NOT NULL,UNIQUE(message_id,kind,recipient_id));
-CREATE INDEX discussion_targets_recipient ON discussion_targets(kind,recipient_id,message_id);
-CREATE TABLE discussion_acknowledgements(id TEXT PRIMARY KEY,target_id TEXT NOT NULL REFERENCES discussion_targets(id),actor_id TEXT NOT NULL,actor_label TEXT NOT NULL,actor_kind TEXT NOT NULL CHECK(actor_kind IN('agent','human')),role_id TEXT REFERENCES discussion_roles(id),ownership_generation INTEGER,created_at TEXT NOT NULL,late INTEGER NOT NULL CHECK(late IN(0,1)),UNIQUE(target_id,actor_id));
-CREATE TABLE discussion_changes(seq INTEGER PRIMARY KEY AUTOINCREMENT,event_id TEXT NOT NULL UNIQUE REFERENCES events(id),kind TEXT NOT NULL,discussion_id TEXT REFERENCES discussions(id),message_id TEXT REFERENCES discussion_messages(id),role_id TEXT REFERENCES discussion_roles(id),created_at TEXT NOT NULL);
-CREATE TABLE discussion_change_contexts(seq INTEGER NOT NULL REFERENCES discussion_changes(seq),context_type TEXT NOT NULL CHECK(context_type IN('item','roadmap','step')),context_id TEXT NOT NULL,PRIMARY KEY(seq,context_type,context_id));
-CREATE INDEX discussion_change_contexts_context ON discussion_change_contexts(context_type,context_id,seq);
-"""
-
-
-def migrate(conn: sqlite3.Connection) -> None:
-    """Add the whole schema atomically inside the caller's migration transaction."""
-    statements = list(filter(str.strip, SCHEMA.split(";")))
-    expected = {}
-    for statement in statements:
-        match = re.match(r"\s*CREATE (?:UNIQUE )?(?:TABLE|INDEX) (\w+)", statement)
-        assert match is not None
-        expected[match.group(1)] = " ".join(statement.split())
-    existing = {row[0]: " ".join((row[1] or "").split()) for row in conn.execute("SELECT name,sql FROM sqlite_master WHERE name LIKE 'discussion%' OR name LIKE 'communication%'")}
-    if existing and existing != expected:
-        raise AppError(503, "database_invalid", "Communication schema is incomplete or changed; restore a verified backup")
-    # Each statement is executed separately: executescript would commit the caller.
-    if not existing:
-        for statement in statements:
-            conn.execute(statement)
-    for row in conn.execute("SELECT id,label FROM credentials WHERE id NOT IN(SELECT credential_id FROM communication_credentials)").fetchall():
-        bind_credential(conn, row[0], row[1])
-
 
 def avatars_in_use(conn: sqlite3.Connection, *, exclude: str | None = None) -> list[str]:
     """Avatars agents with a live credential show; a revoked agent's returns to the pool."""

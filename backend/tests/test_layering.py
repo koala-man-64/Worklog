@@ -13,8 +13,8 @@ from pathlib import Path
 PACKAGE = Path(__file__).resolve().parents[1] / "worklog"
 
 ORDER = [
-    # Nothing of Worklog's below them.
-    "__init__", "common", "models", "avatars", "transcripts", "maintenance",
+    # Nothing of Worklog's below them, the current schema among them.
+    "__init__", "common", "models", "avatars", "transcripts", "maintenance", "schema",
     # Search, scratchpads, repository links, request shapes and the operation registry.
     "search", "scratchpad", "repository_links", "coordination_models", "discussion_models", "operations",
     # Roadmaps, then the database, which opens, upgrades and validates the file.
@@ -35,8 +35,6 @@ ORDER = [
 
 EXCEPTIONS = {
     ("db", "migrations"): "Database.initialize upgrades an older file with migrations.upgrade.",
-    ("db", "proposals"): "Database.initialize creates the proposal tables from proposals.SCHEMA. "
-                         "Step 2.5 gives the schema one baseline module.",
     ("db", "recovery"): "Database.initialize validates an existing file, and backs it up before upgrading it.",
     ("coordination", "support"): "A registered identity's chat is tracked on the work its run reports through the "
                                  "supporting-record command, so it is checked, indexed and recorded like any other.",

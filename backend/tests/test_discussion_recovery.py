@@ -8,13 +8,14 @@ import zipfile
 from contextlib import closing
 
 import pytest
+import sealed
 from fastapi.testclient import TestClient
-from worklog import avatars, discussions, recovery
+from worklog import avatars, migrations, recovery
 from worklog.app import create_app
 from worklog.db import Database
 
 ORIGIN = "http://127.0.0.1:8877"
-LEGACY_SCHEMAS = recovery._compatible_schemas()[1:]
+LEGACY_SCHEMAS = [signature for _, _, signature in sealed.dump(1)]
 
 
 def test_legacy_matrix_covers_every_sealed_v1_shape():
@@ -23,17 +24,9 @@ def test_legacy_matrix_covers_every_sealed_v1_shape():
 
 
 def legacy_database(path, schema):
+    sealed.build(path, 1, schema)
     with closing(sqlite3.connect(path)) as conn:
-        for (kind, name), sql in schema.items():
-            if kind == "table" and not name.startswith("search_index_"):
-                conn.execute(sql)
-        for (kind, _name), sql in schema.items():
-            if kind == "index":
-                conn.execute(sql)
-        for key, value in {"dataId": str(uuid.uuid4()), "timezone": "America/Chicago", "backlogRevision": 1}.items():
-            conn.execute("INSERT INTO settings VALUES(?,?)", (key, json.dumps(value)))
         conn.execute("INSERT INTO credentials VALUES ('old-agent','Existing agent','unchanged-token-hash','2026-01-01',0)")
-        conn.execute("PRAGMA user_version=1")
         conn.commit()
     recovery.validate_database(path)
 
@@ -47,7 +40,7 @@ def test_every_supported_legacy_schema_upgrades_and_restores(tmp_path, schema):
     db.initialize()
     recovery.validate_database(path)
     with db.read() as conn:
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
         credential = conn.execute("SELECT token_hash,revoked FROM credentials WHERE id='old-agent'").fetchone()
         assert tuple(credential) == ("unchanged-token-hash", 0)
         agent_id = conn.execute("SELECT agent_id FROM communication_credentials WHERE credential_id='old-agent'").fetchone()[0]
@@ -62,7 +55,7 @@ def test_every_supported_legacy_schema_upgrades_and_restores(tmp_path, schema):
     restored = tmp_path / "restored" / "worklog.sqlite3"
     recovery.restore_database(restored, snapshots[0], tmp_path / "restore-backups")
     with Database(restored).read() as conn:
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
         assert conn.execute("SELECT revoked FROM credentials").fetchone()[0] == 1
         assert conn.execute("SELECT count(*) FROM communication_credentials").fetchone()[0] == 1
 
@@ -71,13 +64,13 @@ def test_every_supported_legacy_schema_upgrades_and_restores(tmp_path, schema):
 def test_failed_discussion_migration_rolls_back_and_preserves_snapshot(tmp_path, monkeypatch, schema):
     path = tmp_path / "worklog.sqlite3"
     legacy_database(path, schema)
-    original_migrate = discussions.migrate
+    original_migrate = migrations.add_discussions
 
     def fail_after_schema(conn):
         original_migrate(conn)
         raise RuntimeError("Synthetic migration failure")
 
-    monkeypatch.setattr(discussions, "migrate", fail_after_schema)
+    monkeypatch.setattr(migrations, "add_discussions", fail_after_schema)
     with pytest.raises(RuntimeError, match="Synthetic"):
         Database(path).initialize()
     with closing(sqlite3.connect(path)) as conn:

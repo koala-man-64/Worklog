@@ -8,8 +8,9 @@ from contextlib import closing
 from pathlib import Path
 
 import pytest
+import sealed
 from test_people_recovery import to_v9
-from worklog import migrations, recovery, resources
+from worklog import migrations, recovery
 from worklog.db import Database
 
 STAMP = "2026-01-01T00:00:00+00:00"
@@ -52,14 +53,14 @@ def test_v8_upgrade_adds_empty_resources_after_a_snapshot_and_restores(tmp_path)
     Database(path).initialize()
     with Database(path).read() as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
         assert conn.execute("SELECT count(*) FROM resources").fetchone()[0] == 0
     assert {t: rows(path, t) for t in before} == before
     snapshots = list((path.parent / "backups").glob("worklog-pre-migration-*.sqlite3"))
     assert len(snapshots) == 1
     with closing(sqlite3.connect(snapshots[0])) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 8
-        assert recovery._schema_signature(conn) == recovery._expected_schema(resources=False)
+        assert recovery._schema_signature(conn) == sealed.shape(8)
     # A second start finds nothing to upgrade and takes no second snapshot.
     Database(path).initialize()
     assert len(list((path.parent / "backups").glob("worklog-pre-migration-*.sqlite3"))) == 1
@@ -67,7 +68,7 @@ def test_v8_upgrade_adds_empty_resources_after_a_snapshot_and_restores(tmp_path)
     recovery.restore_database(restored, snapshots[0], tmp_path / "restore-backups")
     with Database(restored).read() as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
         assert conn.execute("SELECT title FROM work_items").fetchone()[0] == "Work"
 
 
@@ -78,7 +79,7 @@ def test_a_failed_resource_schema_rolls_back_the_v8_upgrade(tmp_path, monkeypatc
 
     def fail_after_resources(conn, schema):
         execute(conn, schema)
-        if schema == resources.SCHEMA:
+        if schema == migrations.RESOURCE_SCHEMA:
             raise RuntimeError("Injected resource schema failure")
 
     monkeypatch.setattr(migrations, "execute_schema", fail_after_resources)
@@ -86,7 +87,7 @@ def test_a_failed_resource_schema_rolls_back_the_v8_upgrade(tmp_path, monkeypatc
         Database(path).initialize()
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 8
-        assert recovery._schema_signature(conn) == recovery._expected_schema(resources=False)
+        assert recovery._schema_signature(conn) == sealed.shape(8)
     recovery.validate_database(path)
 
 
@@ -116,7 +117,7 @@ def test_the_documented_way_back_to_v8_drops_only_the_resources_and_upgrades_aga
         conn.executescript(WAY_BACK)
     recovery.validate_database(path)
     with closing(sqlite3.connect(path)) as conn:
-        assert recovery._schema_signature(conn) == recovery._expected_schema(resources=False)
+        assert recovery._schema_signature(conn) == sealed.shape(8)
         # Version 8's search shows no page it cannot open.
         assert conn.execute("SELECT count(*) FROM search_index WHERE type='resource'").fetchone()[0] == 0
         assert conn.execute("SELECT count(*) FROM search_index WHERE type='item'").fetchone()[0] == 1

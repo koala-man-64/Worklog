@@ -10,6 +10,7 @@ from contextlib import closing
 from pathlib import Path
 
 import pytest
+import sealed
 from fastapi.testclient import TestClient
 from worklog import migrations, recovery
 from worklog.app import create_app
@@ -113,7 +114,7 @@ def test_a_v11_database_upgrades_with_the_same_decisions(tmp_path):
     to_v11(path)
     recovery.validate_database(path)
     with closing(sqlite3.connect(path)) as conn:
-        assert recovery._schema_signature(conn) == recovery._expected_schema(decision_state=False)
+        assert recovery._schema_signature(conn) == sealed.shape(11)
         # A notice sent before v12, held only in its event.
         conn.execute("INSERT INTO events(id,entity_id,kind,actor_id,actor_label,actor_kind,created_at,local_date,before_json,after_json)"
                      " VALUES(?,?,'proposal.stale','local-user','You','human','2026-11-01T00:00:00+00:00','2026-10-31','null',?)",
@@ -123,7 +124,7 @@ def test_a_v11_database_upgrades_with_the_same_decisions(tmp_path):
     Database(path).initialize()
     with Database(path).read() as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
         assert [tuple(r) for r in conn.execute("SELECT proposal_id,proposal_revision,conflicts FROM proposal_stale_notices")] == [
             (seeded["submitted"], 2, "[[1,3]]")]
     with Instance(tmp_path) as i:
