@@ -100,7 +100,7 @@ Everything lives in one database file, `worklog.sqlite3`, in your data folder: y
 Agents act with credentials you issue in Settings (see [Bring an AI agent in](#bring-an-ai-agent-in)). They can:
 
 - read your work, roadmaps and resources
-- report what they work on and where
+- report what they work on and where, and put their own chat on that work
 - talk in Discussions
 - file and work tickets
 - tie themselves to the records they work on, with their role there, and change or remove the ties they set
@@ -334,7 +334,10 @@ To stop reviewing, clear "Require my approval for agent proposals" in Settings. 
    - its chat ID: a Claude Code session ID, a Claude desktop `local_…` ID or a Codex thread ID
    - its provider, model and repositories
 
-   An agent can propose the same for its own chat. An agent that registered with its chat ID needs no proposal: when it reports work on a work item, Worklog tracks its chat there, titled after its run, once. Archive it if you don't want it there; it stays archived.
+   An agent can propose a chat to track. Its own chat needs no proposal once it registered with that chat's ID:
+   - It tracks the chat itself on a work item, or on a roadmap and the steps it works on, titled with its label unless it gives a title. It can add steps later, but changes nothing else.
+   - When it reports work on a work item, Worklog tracks its chat there too, titled after its run, once.
+   - Archive a chat you don't want there; it stays archived. "Unassign" on a step keeps the agent's chat off that step: the agent can't assign it again, though you can.
 2. **Or tie a session running on this machine.** On **Chats**, "Running on this machine" lists the Claude Code sessions running now that no work item or roadmap tracks.
    - Each says what it is doing (working, waiting for you, or idle), where it runs (the Claude desktop app, a terminal or an editor), its folder, and the agents already tied to it.
    - "Tie work item" or "Tie roadmap" tracks it there, titled after the session, and opens it among your chats. It is tracked by the chat ID its agents use, else by the one an earlier chat for it used, else by its Claude Code session ID.

@@ -1764,6 +1764,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/chats/track": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Chat Track */
+        post: operations["chat_track_api_v1_chats_track_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/coordination-updates": {
         parameters: {
             query?: never;
@@ -2643,6 +2660,34 @@ export interface components {
         ChatMessageCreate: {
             /** Text */
             text: string;
+        };
+        /**
+         * ChatTrack
+         * @description Track the chat the calling agent registered with on a work item or roadmap, and on steps
+         *     of that roadmap. Worklog takes the chat's ID from the identity, never from the request.
+         */
+        ChatTrack: {
+            /**
+             * Ownertype
+             * @enum {string}
+             */
+            ownerType: "item" | "roadmap";
+            /** Ownerid */
+            ownerId: string;
+            /** Stepids */
+            stepIds?: string[];
+            /** Title */
+            title?: string | null;
+            /**
+             * Provider
+             * @default
+             */
+            provider: string;
+            /**
+             * Model
+             * @default
+             */
+            model: string;
         };
         /** ChatUpdate */
         ChatUpdate: {
@@ -7868,6 +7913,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CoordinationUpdateCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chat_track_api_v1_chats_track_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatTrack"];
             };
         };
         responses: {

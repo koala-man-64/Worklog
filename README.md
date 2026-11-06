@@ -83,7 +83,7 @@ Only one managed server or offline restore can own a data directory. OS locks re
 
 ## Working with agents
 
-Create a labeled credential in Settings and give its one-time token to your agents through the `WORKLOG_AGENT_TOKEN` environment variable, never in a command argument, file, log or shell history. Then tell each agent to run `worklog agent guide` before it uses Worklog. Agents register an identity of their own for each chat, report their runs and repository activity, write tickets and discussions, and change your work, days, roadmaps, people, repositories and resources only through proposals you approve on Review, unless you turn approval off. The guide's *Bring an AI agent in* walks through it. Revoke a credential in Settings when its agents no longer need access.
+Create a labeled credential in Settings and give its one-time token to your agents through the `WORKLOG_AGENT_TOKEN` environment variable, never in a command argument, file, log or shell history. Then tell each agent to run `worklog agent guide` before it uses Worklog. Agents register an identity of their own for each chat, report their runs and repository activity, put their own chat on the work they do, write tickets and discussions, and change your work, days, roadmaps, people, repositories and resources only through proposals you approve on Review, unless you turn approval off. The guide's *Bring an AI agent in* walks through it. Revoke a credential in Settings when its agents no longer need access.
 
 ## Backup, export, restore, and upgrade
 

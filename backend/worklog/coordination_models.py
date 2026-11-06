@@ -64,3 +64,15 @@ class ParticipationUpdate(Expected):
 class CoordinationUpdateCreate(Command):
     kind: Literal["update", "blocker", "handoff"] = "update"
     text: str
+
+
+class ChatTrack(Command):
+    """Track the chat the calling agent registered with on a work item or roadmap, and on steps
+    of that roadmap. Worklog takes the chat's ID from the identity, never from the request."""
+    ownerType: Literal["item", "roadmap"]
+    ownerId: str
+    stepIds: list[str] = Field(default_factory=list, max_length=500)
+    # A new tracked chat's title: the identity's label unless given.
+    title: str | None = None
+    provider: str = ""
+    model: str = ""

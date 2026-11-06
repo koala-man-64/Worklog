@@ -471,7 +471,8 @@ def _coordination_route_allowed(method: str, route: str) -> bool:
     """Coordination writes are self-attributed; catalog edits remain reviewed."""
     if not route.startswith("/") or route.endswith("/"):
         return False
-    if route == "/repositories/ensure":
+    # Tracking your own chat on the work you do; the person's chat commands stay out of reach.
+    if route in {"/repositories/ensure", "/chats/track"}:
         return method == "POST"
     if route in {"/repositories", "/agent-runs", "/participations", "/coordination-updates"}:
         return method == "GET" or (method == "POST" and route in {"/agent-runs", "/participations"})
@@ -563,7 +564,8 @@ class AgentClient:
         elif payload is not None:
             data = json.dumps(payload).encode("utf-8")
             headers["Content-Type"] = "application/json"
-        coordination_write = method in {"POST", "PATCH"} and route.startswith(("/repositories", "/agent-runs", "/participations", "/tickets"))
+        coordination_write = method in {"POST", "PATCH"} and route.startswith(("/repositories", "/agent-runs", "/participations",
+                                                                               "/tickets", "/chats/track"))
         if method == "POST" or coordination_write:
             request_id = request_id or str(uuid.uuid4())
             if not 8 <= len(request_id) <= 200 or not request_id.isascii() or any(ord(c) < 33 or ord(c) > 126 for c in request_id):
@@ -733,7 +735,7 @@ def agent_command(args: argparse.Namespace, port: int, redact: list[str]) -> Any
         return retire_command(client, args)
     if args.agent_action == "discussions":
         return discussion_command(client, args)
-    if args.agent_action in {"repositories", "runs", "participation", "updates"}:
+    if args.agent_action in {"repositories", "runs", "participation", "updates", "chats"}:
         return coordination_command(client, args)
     if args.agent_action == "tickets":
         return ticket_command(client, args)
@@ -816,8 +818,8 @@ def _checkout_context(path: str) -> dict[str, str]:
 def coordination_command(client: AgentClient, args: argparse.Namespace) -> Any:
     action = args.coordination_action
     group = args.agent_action
-    base = {"repositories": "/repositories", "runs": "/agent-runs",
-            "participation": "/participations", "updates": "/coordination-updates"}[group]
+    base = {"repositories": "/repositories", "runs": "/agent-runs", "participation": "/participations",
+            "updates": "/coordination-updates", "chats": "/chats"}[group]
     if action == "list":
         return client.request("GET", base + _coordination_query(
             args, "repositoryId", "itemId", "runId", "participationId", "q", "archived", "includeEnded", "includeReleased", "limit", "offset"))
@@ -847,6 +849,16 @@ def coordination_command(client: AgentClient, args: argparse.Namespace) -> Any:
             payload["itemId"] = args.item
         if args.description is not None:
             payload["description"] = args.description
+    elif group == "chats":
+        # Worklog takes the chat's ID from your identity; the request names only the work.
+        route = "/chats/track"
+        payload = ({"ownerType": "item", "ownerId": args.item} if args.item is not None
+                   else {"ownerType": "roadmap", "ownerId": args.roadmap})
+        if args.step:
+            payload["stepIds"] = args.step
+        for flag in ("title", "provider", "model"):
+            if getattr(args, flag) is not None:
+                payload[flag] = getattr(args, flag)
     elif group == "updates":
         route = "/participations/" + args.participation + "/updates"
         if args.text is not None:
@@ -945,6 +957,18 @@ def _coordination_parser(actions: Any) -> None:
     source.add_argument("--text")
     source.add_argument("--file", help="JSON {kind,text}; - reads standard input")
     write(post)
+    chats = actions.add_parser("chats", help="Track your own chat on the work you do, without a proposal").add_subparsers(
+        dest="coordination_action", required=True)
+    track = chats.add_parser("track", help="Track the chat you registered with on a work item, or on a roadmap and its steps; "
+                                           "where it is tracked already, add steps")
+    owner = track.add_mutually_exclusive_group(required=True)
+    owner.add_argument("--item", help="Work item ID")
+    owner.add_argument("--roadmap", help="Roadmap ID")
+    track.add_argument("--step", action="append", help="With --roadmap: a step you work on; repeat for several")
+    track.add_argument("--title", help="A new tracked chat's title (default: your identity's label)")
+    track.add_argument("--provider", help="Your provider, such as claude or codex")
+    track.add_argument("--model", help="Your model")
+    write(track)
 
 
 def _self_id(client: AgentClient) -> str:

@@ -6,6 +6,7 @@ from collections.abc import Callable
 from fastapi import FastAPI, Query, Request
 
 from . import coordination_models as m
+from . import support
 from .common import AppError
 from .coordination import (
     CoordinationService,
@@ -25,7 +26,7 @@ from .records import people_on
 def coordination_agent_route_allowed(method: str, path: str) -> bool:
     suffix = path.removeprefix("/api/v1")
     if method == "POST":
-        return (suffix in {"/agent-runs", "/participations", "/repositories/ensure"}
+        return (suffix in {"/agent-runs", "/participations", "/repositories/ensure", "/chats/track"}
                 or re.fullmatch(r"/agent-runs/[^/]+/end", suffix) is not None
                 or re.fullmatch(r"/participations/[^/]+/(?:release|rejoin|check-in|updates)", suffix) is not None)
     return method == "PATCH" and re.fullmatch(r"/participations/[^/]+", suffix) is not None
@@ -132,6 +133,12 @@ def install_coordination_routes(app: FastAPI, db: Database, mutate: Callable) ->
     @app.post("/api/v1/participations/{identity}/updates")
     def post_update(identity: str, request: Request, body: m.CoordinationUpdateCreate) -> dict:
         return write(request, body, lambda c, a: service.post_update(c, a, identity, body.model_dump()))
+
+    # An agent tracks its own chat on the work it does, as its reported work does; the person adds
+    # any chat with POST /chats.
+    @app.post("/api/v1/chats/track")
+    def chat_track(request: Request, body: m.ChatTrack) -> dict:
+        return write(request, body, lambda c, a: support.track_own_chat(c, a, body.model_dump()))
 
     @app.get("/api/v1/coordination-updates")
     def updates(participationId: str | None = None, itemId: str | None = None,

@@ -32,6 +32,7 @@ from .common import (
     valid_date,
 )
 from .coordination import repository_takes_files
+from .discussions import communication_actor, identity_chat
 from .proposals import evidence_file
 from .records import FILE_OWNERS, check_owner, get_item, support_record
 from .repository_links import linked_repositories, replace_repository_associations
@@ -516,6 +517,62 @@ def _assign_steps(c: sqlite3.Connection, actor: dict, chat: dict,
         if step_id not in previous:
             c.execute("INSERT INTO chat_steps(chat_id,step_id,created_at) VALUES(?,?,?)", (chat["id"], step_id, stamp))
             event(c, actor, "chat.assign", step_id, None, summary)
+
+
+# The work an agent tracks its own chat on, by the table each lives in.
+CHAT_OWNERS = {"item": ("work_items", "work item"), "roadmap": ("roadmaps", "roadmap")}
+
+
+def track_own_chat(c: sqlite3.Connection, actor: dict, p: dict) -> dict:
+    """An agent tracks the chat it registered with on a work item or roadmap, and on steps of that
+    roadmap, without a proposal: the person asked for agents to do this themselves.
+
+    Only the identity's registered chat counts, as when its reported work tracks it
+    (coordination._track_chat), so an agent cannot fill work with chats by naming them. Where that
+    chat is tracked already, it takes on the steps named and nothing else changes. What the person
+    decided stays: a chat they archived there stays archived, and a step it was taken off, by them
+    or by a proposal they let apply, is not assigned again. Returns the chat with `created`."""
+    if actor["kind"] != "agent":
+        raise AppError(403, "forbidden", "Agents track their own chats here; add a chat under Agent chats")
+    agent = communication_actor(c, actor)
+    chat_id = identity_chat(c, agent["id"])
+    if chat_id is None:
+        raise AppError(403, "agent_scope", "Only an identity registered with its chat tracks it this way; register one "
+                       "for your chat, or propose chat.create")
+    table, kind = CHAT_OWNERS[p["ownerType"]]
+    owner_id = text(p["ownerId"], "ownerId", required=True, limit=200)
+    owner = c.execute(f"SELECT archived FROM {table} WHERE id=?", (owner_id,)).fetchone()
+    if owner is None:
+        raise AppError(404, "not_found", "Owner does not exist")
+    if owner["archived"]:
+        raise AppError(409, "archived", f"This {kind} is archived and takes no new chats")
+    step_ids = list(dict.fromkeys(p.get("stepIds") or []))
+    # An active record before an archived one: the person may have tracked the chat there twice.
+    row = c.execute("SELECT * FROM agent_chats WHERE owner_type=? AND owner_id=? AND chat_id=? ORDER BY archived,created_at,id",
+                    (p["ownerType"], owner_id, chat_id)).fetchone()
+    if row is None:
+        title = agent["label"] if p.get("title") is None else p["title"]
+        tracked = apply(c, actor, "chat.create", {"ownerType": p["ownerType"], "ownerId": owner_id, "chatId": chat_id,
+                                                  "title": title, "provider": p.get("provider", ""),
+                                                  "model": p.get("model", ""), "stepIds": step_ids})
+        return {**tracked, "created": True}
+    if row["archived"]:
+        raise AppError(409, "archived", f"The person archived your chat on this {kind}; it stays archived unless they recover it",
+                       {"id": row["id"]})
+    current = chat_steps(c, [row["id"]])[row["id"]]
+    added = [step_id for step_id in step_ids if step_id not in current]
+    # Only an update to the chat takes it off a step, the person's own or a proposal they let apply
+    # (_assign_steps), and each records chat.unassign in the step's history.
+    taken_off = [step_id for step_id in added if c.execute(
+        "SELECT 1 FROM events WHERE entity_id=? AND kind='chat.unassign' AND json_extract(before_json,'$.id')=?",
+        (step_id, row["id"])).fetchone()]
+    if taken_off:
+        raise AppError(403, "forbidden", "Your chat was taken off that step; ask the person to assign it again",
+                       {"stepIds": taken_off})
+    if not added:
+        return {**chat_records(c, [row])[0], "created": False}
+    tracked = apply(c, actor, "chat.update", {"id": row["id"], "revision": row["revision"], "stepIds": [*current, *added]})
+    return {**tracked, "created": False}
 
 
 def upload(c: sqlite3.Connection, actor: dict, owner_type: str, owner_id: str,

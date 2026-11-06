@@ -59,6 +59,11 @@ def test_filtered_reads(requests, arguments, route, query):
     (["updates", "post", "--participation", ID, "--text", "Ready"], f"/participations/{ID}/updates", {"kind": "update", "text": "Ready"}),
     (["updates", "post", "--participation", ID, "--kind", "blocker", "--text", "Awaiting review"],
      f"/participations/{ID}/updates", {"kind": "blocker", "text": "Awaiting review"}),
+    # The chat's ID comes from the identity, so the command names only the work.
+    (["chats", "track", "--item", ID], "/chats/track", {"ownerType": "item", "ownerId": ID}),
+    (["chats", "track", "--roadmap", ID, "--step", ID, "--step", KEY, "--title", "Parser", "--provider", "claude", "--model", "opus"],
+     "/chats/track", {"ownerType": "roadmap", "ownerId": ID, "stepIds": [ID, KEY], "title": "Parser", "provider": "claude",
+                      "model": "opus"}),
 ])
 def test_writes_preserve_explicit_operation_key(requests, arguments, route, payload):
     assert cli.main(["agent", *arguments, "--request-id", KEY]) == 0
@@ -99,12 +104,28 @@ def test_new_writes_require_stable_key_before_transport(requests):
     assert not requests
 
 
+@pytest.mark.parametrize("arguments", [
+    ["chats", "track", "--item", ID],
+    ["chats", "track", "--request-id", KEY],
+    ["chats", "track", "--item", ID, "--roadmap", ID, "--request-id", KEY],
+    ["chats", "track", "--item", ID, "--chat", ID, "--request-id", KEY],
+])
+def test_chats_track_names_one_piece_of_work_and_a_key_but_never_a_chat(requests, arguments):
+    with pytest.raises(SystemExit):
+        cli.main(["agent", *arguments])
+    assert not requests
+
+
 @pytest.mark.parametrize("method,path", [
     ("POST", "/repositories"), ("PATCH", f"/repositories/{ID}"),
     ("POST", f"/repositories/{ID}/archive"), ("POST", f"/repositories/{ID}/recover"),
     ("POST", f"/repositories/{ID}/confirm"), ("POST", f"/repositories/{ID}/merge"), ("GET", "/repositories/ensure"),
     ("DELETE", f"/participations/{ID}"), ("POST", f"/participations/{ID}/reassign"),
     ("POST", "/participations/%2e%2e/updates"), ("POST", f"/participations/{ID}/release/"),
+    # Tracking your own chat is the one chat write: the person's chat commands stay out of reach.
+    ("POST", "/chats"), ("GET", "/chats"), ("PATCH", f"/chats/{ID}"), ("POST", f"/chats/{ID}/archive"),
+    ("POST", f"/chats/{ID}/recover"), ("POST", f"/chats/{ID}/confirmations"), ("GET", "/chats/track"),
+    ("PATCH", "/chats/track"), ("POST", "/chats/track/"),
 ])
 def test_catalog_and_unrecognized_actions_stay_unreachable(requests, method, path):
     with pytest.raises(ValueError, match="outside"):
