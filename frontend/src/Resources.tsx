@@ -72,7 +72,8 @@ export function Resources({
         <h1>Resources</h1>
         <p className="lede">
           Reference pages you write for yourself and your agents. Agents read
-          them with <code>worklog agent resources</code>; only you change them.
+          them with <code>worklog agent resources</code> and change them only
+          through proposals.
         </p>
       </header>
       <ErrorMessage error={list.error} />

@@ -130,7 +130,7 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
         <p>Loading proposal…</p>
       </>
     );
-  const declared = proposedSteps(p.operations);
+  const declared = declaredTargets(p.operations);
   const staleList = Object.entries(staleByOp)
     .filter(([key]) => key.startsWith(scope + ":"))
     .sort(([a], [b]) => Number(a.split(":").pop()) - Number(b.split(":").pop()))
@@ -157,6 +157,10 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
           payload={op.payload}
           files={p.attachments ?? []}
           proposedEarlier={(target) => (declared.get(target) ?? index) < index}
+          createdBy={(name) => {
+            const at = declared.get(name);
+            return at !== undefined && at < index ? at + 1 : undefined;
+          }}
           onStale={reportStale}
         />
       ))}
@@ -265,12 +269,37 @@ function Dates({
     </p>
   );
 }
-// Agents choose step IDs in roadmap.create and roadmap.revise, so a later
-// operation may target a step that exists only once the proposal is approved.
-// Maps each listed step ID to the first operation that lists it.
-function proposedSteps(operations: Operation[]) {
+// A name a create gives its new record, such as @jane, which later changes in
+// the same proposal use in place of its ID until approval gives it one. The
+// server's rule (operations.NAME); it refuses a name nothing earlier declares.
+const NAME = /^@[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
+// The fields where a name can stand for a record's ID, as the server reads them.
+const NAME_FIELDS = new Set([
+  "id",
+  "itemId",
+  "roadmapId",
+  "parentId",
+  "personId",
+  "ownerId",
+  "targetId",
+  "repositoryIds",
+]);
+function namesIn(key: string, value: unknown): string[] {
+  if (!NAME_FIELDS.has(key)) return [];
+  return (Array.isArray(value) ? value : [value]).filter(
+    (v): v is string => typeof v === "string" && NAME.test(v),
+  );
+}
+// What a later operation may target before approval makes it: a step whose ID
+// roadmap.create or roadmap.revise chooses, or a record a create names. Maps
+// each to the first operation that declares it.
+function declaredTargets(operations: Operation[]) {
   const first = new Map<string, number>();
   operations.forEach(({ action, payload }, index) => {
+    if (action.endsWith(".create") && namesIn("id", payload.id).length) {
+      const name = payload.id as string;
+      if (!first.has(name)) first.set(name, index);
+    }
     if (action !== "roadmap.create" && action !== "roadmap.revise") return;
     if (!Array.isArray(payload.steps)) return;
     for (const step of payload.steps as unknown[]) {
@@ -282,6 +311,8 @@ function proposedSteps(operations: Operation[]) {
 }
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
+// A ticket is named by its UUID, its key (T-12) or its number.
+const TICKET = /^(T-)?[1-9][0-9]{0,8}$/i;
 // Proposal payloads are agent-controlled, so only well-formed IDs and dates may
 // become URL path segments. Returns null when the target cannot be fetched safely.
 function currentPath(
@@ -289,6 +320,10 @@ function currentPath(
   payload: Record<string, unknown>,
   target: string,
 ): string | null {
+  if (action.startsWith("ticket."))
+    return UUID.test(target) || TICKET.test(target)
+      ? "/tickets/" + encodeURIComponent(target)
+      : null;
   if (!UUID.test(target)) return null;
   const id = encodeURIComponent(target);
   if (action === "entry.upsert") {
@@ -301,21 +336,23 @@ function currentPath(
     ? "roadmaps"
     : action.startsWith("person.")
       ? "people"
-      : action.startsWith("note.")
-        ? "notes"
-        : action.startsWith("task.")
-          ? "tasks"
-          : action.startsWith("link.")
-            ? "links"
-            : action.startsWith("chat.")
-              ? "chats"
-              : action.startsWith("github.")
-                ? "github"
-                : action.startsWith("question.")
-                  ? "questions"
-                  : action.startsWith("decision.")
-                    ? "decisions"
-                    : "work-items";
+      : action.startsWith("resource.")
+        ? "resources"
+        : action.startsWith("note.")
+          ? "notes"
+          : action.startsWith("task.")
+            ? "tasks"
+            : action.startsWith("link.")
+              ? "links"
+              : action.startsWith("chat.")
+                ? "chats"
+                : action.startsWith("github.")
+                  ? "github"
+                  : action.startsWith("question.")
+                    ? "questions"
+                    : action.startsWith("decision.")
+                      ? "decisions"
+                      : "work-items";
   return "/" + collection + "/" + id;
 }
 export function OperationDiff({
@@ -324,6 +361,7 @@ export function OperationDiff({
   payload,
   files,
   proposedEarlier,
+  createdBy,
   onStale,
 }: {
   // The change's place in the proposal, as a failed approval names it.
@@ -334,12 +372,18 @@ export function OperationDiff({
   files?: Attachment[];
   // True when an earlier operation in the same proposal creates the target.
   proposedEarlier?: (target: string) => boolean;
+  // The number of the earlier change that creates the record a name stands
+  // for, or undefined when none does.
+  createdBy?: (name: string) => number | undefined;
   onStale?: (number: number, detail: string | null) => void;
 }) {
   const target = String(
     payload.id ?? payload.itemId ?? payload.roadmapId ?? payload.stepId ?? "",
   );
-  const lookup = !!target && !action.endsWith(".create");
+  const creating = action.endsWith(".create");
+  // A name has no record to load yet: an earlier change creates it.
+  const named = !creating && namesIn("id", target).length > 0;
+  const lookup = !!target && !creating && !named;
   const path = lookup ? currentPath(action, payload, target) : null;
   const current = useQuery({
     queryKey: [
@@ -398,13 +442,13 @@ export function OperationDiff({
   // Not found is expected only for a target that this proposal creates first;
   // any other missing target stays an error, since approval would fail on it.
   const created =
-    current.error instanceof ApiError &&
-    current.error.status === 404 &&
+    (named ||
+      (current.error instanceof ApiError && current.error.status === 404)) &&
     !!proposedEarlier?.(target);
   const loading = current.isFetching || registration.isFetching;
   // Nothing exists yet to compare with: a create with no registered record, or a target an
   // earlier change creates.
-  const isNew = !before && !loading && (action.endsWith(".create") || created);
+  const isNew = !before && !loading && (creating || created);
   const staleDetail =
     before &&
     payload.revision !== undefined &&
@@ -422,7 +466,9 @@ export function OperationDiff({
         {number ? `Change ${number}: ` : ""}
         <span>{action}</span>
       </h4>
-      {holder && <Registered holder={holder} />}
+      {holder && (
+        <Registered holder={holder} name={namesIn("id", payload.id)[0] ?? ""} />
+      )}
       <ErrorMessage error={registration.error} />
       {noteOwner.data && (
         <p className="muted">
@@ -443,6 +489,7 @@ export function OperationDiff({
           current value until approval.
         </p>
       ) : (
+        // A name nothing earlier creates is the id row's to warn about.
         <ErrorMessage error={current.error} />
       )}
       {lookup && path === null && (
@@ -480,11 +527,48 @@ export function OperationDiff({
           <div className="diff-after">
             <small>Proposed</small>
             <pre>{display(value)}</pre>
+            <NameNotes
+              names={namesIn(key, value)}
+              declares={creating && key === "id"}
+              createdBy={createdBy}
+            />
           </div>
         </div>
       ))}
     </article>
   );
+}
+// A name stands for a record the same proposal creates, so say which change
+// creates it, or, on the create itself, what the name is for.
+function NameNotes({
+  names,
+  declares,
+  createdBy,
+}: {
+  names: string[];
+  declares: boolean;
+  createdBy?: (name: string) => number | undefined;
+}) {
+  if (declares)
+    return names.map((name) => (
+      <p className="muted" key={name}>
+        {name} names this new record for later changes in this proposal.
+      </p>
+    ));
+  if (!createdBy) return null;
+  return names.map((name) => {
+    const by = createdBy(name);
+    return by ? (
+      <p className="muted" key={name}>
+        {name}: created by change {by}
+      </p>
+    ) : (
+      <p className="warning" key={name}>
+        {name}: no earlier change in this proposal creates it, so approval
+        fails.
+      </p>
+    );
+  });
 }
 // The file a change attaches is a copy of one of the proposal's own files, so name it.
 function EvidenceFile({ file }: { file?: Attachment }) {
@@ -508,8 +592,9 @@ function EvidenceFile({ file }: { file?: Attachment }) {
     </p>
   );
 }
-// Registering a remote that is already registered links to its record, so say which.
-function Registered({ holder }: { holder: Repository }) {
+// Registering a remote that is already registered links to its record, so say
+// which, and that a name the registration gives stands for that record.
+function Registered({ holder, name }: { holder: Repository; name: string }) {
   const link = <a href={"#repositories/" + holder.id}>{holder.name}</a>;
   return holder.archived ? (
     <p className="warning">
@@ -517,7 +602,8 @@ function Registered({ holder }: { holder: Repository }) {
     </p>
   ) : (
     <p className="muted">
-      Already registered as {link}: approval links to it and adds nothing.
+      Already registered as {link}: approval links to it and adds nothing
+      {name && <>, so {name} stands for it in later changes</>}.
     </p>
   );
 }

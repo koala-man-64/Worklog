@@ -55,8 +55,8 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 | File | UUID | `name`, `mime`, `size`, `sha256`, `archived`; `ownerType` item, roadmap, step, repository, or proposal for evidence | evidence: you, on your own draft; elsewhere: proposal (`attachment.create`) |
 | Tracked chat | Worklog's UUID, and `chatId`, the provider's ID | on a work item or roadmap; `stepIds`, `provider`, `model` | proposal (`chat.*`) |
 | Repository | UUID; one record per remote | `registeredBy`, `reviewed`, `duplicateOf`, `mergedInto` | you register; edits by proposal |
-| Ticket | `T-12`, `12` or UUID | `kind` bug, incident or task; `priority` low, normal, high or urgent; `status` open, doing, blocked or done; `resolution` | you, directly |
-| Resource | UUID | `title`, `summary` (what the page is for), `body` (Markdown); `archived` | the person only; you read |
+| Ticket | `T-12`, `12` or UUID | `kind` bug, incident or task; `priority` low, normal, high or urgent; `status` open, doing, blocked or done; `resolution` | you, directly, or by proposal (`ticket.create`, `ticket.update`) |
+| Resource | UUID | `title`, `summary` (what the page is for), `body` (Markdown); `archived` | the person; you by proposal (`resource.*`) |
 | Proposal | UUID | draft, submitted, approved, rejected or withdrawn; `autoApproved` | you draft; the person decides |
 | Identity, credential | `agentId`; a credential `id` | active or revoked | the person issues; you register and retire your own |
 | Run | UUID; `--client-run-key` is unique per credential | open or ended | you, directly |
@@ -78,9 +78,10 @@ Records are archived, never deleted, and only the person archives or recovers th
 | Register a repository | yes | yes, unless the person turned it off | yes |
 | Edit, archive or recover a repository | yes | no | yes |
 | Confirm or merge repositories | yes | no | no |
-| File, change, comment on and close tickets | yes | yes | - |
+| File, change and close tickets | yes | yes | yes |
+| Comment on tickets | yes | yes | no |
 | Archive or recover tickets | yes | no | no |
-| Write, archive or recover resources | yes | no | no |
+| Write, archive or recover resources | yes | no | yes |
 | Post, reply, acknowledge, cancel your own requests, act on roles | yes | yes | - |
 | Archive a discussion, release a wait, reassign a role | yes | no | - |
 | Start and end runs; report participation and updates | - | yes, your own | - |
@@ -405,65 +406,71 @@ A proposal is a JSON file with a title (up to 1,000 bytes), a rationale for the 
   "title": "Capture the parser follow-up",
   "rationale": "The review found a concrete next action.",
   "operations": [
-    {"action": "item.create", "payload": {"title": "Verify the parser on large imports", "description": "Run the 10 MB fixture."}},
-    {"action": "note.create", "payload": {"ownerType": "item", "ownerId": "ITEM_ID", "title": "Parser notes", "text": "The last row was dropped before EOF."}}
+    {"action": "item.create", "payload": {"id": "@followup", "title": "Verify the parser on large imports", "description": "Run the 10 MB fixture."}},
+    {"action": "note.create", "payload": {"ownerType": "item", "ownerId": "@followup", "title": "Parser notes", "text": "The last row was dropped before EOF."}}
   ],
   "supersedesId": "PROPOSAL_ID"
 }
 ```
 
-`supersedesId` is optional; it names a rejected or withdrawn proposal of yours that this one replaces.
+`supersedesId` is optional; it names a rejected or withdrawn proposal of yours that this one replaces. `@followup` names the work item the first change creates, so the second can add a note to it (section 6.2, names).
 
 ### 6.1 Operations
 
 | Action | Required fields | Optional fields |
 |---|---|---|
-| `repository.create` | `name` | `url`, `description` |
+| `repository.create` | `name` | `id`, `url`, `description` |
 | `repository.update` | `id`, `revision` | `name`, `url`, `description` |
 | `repository.archive` | `id`, `revision` | - |
 | `repository.recover` | `id`, `revision` | - |
-| `item.create` | `title` | `description`, `adoUrl`, `roadmapId`, `stepId`, `day`, `worked`, `repositoryIds` |
+| `item.create` | `title` | `id`, `description`, `adoUrl`, `roadmapId`, `stepId`, `day`, `worked`, `repositoryIds` |
 | `item.update` | `id`, `revision` | `title`, `description`, `status`, `adoUrl`, `roadmapId`, `stepId`, `repositoryIds` |
 | `item.archive` | `id`, `revision` | - |
 | `item.recover` | `id`, `revision` | - |
 | `entry.upsert` | `date`, `itemId`, `revision` | `planned`, `worked`, `outcome` |
-| `note.create` | `ownerType`, `ownerId`, `text` | `title` |
+| `note.create` | `ownerType`, `ownerId`, `text` | `id`, `title` |
 | `note.update` | `id`, `revision` | `title`, `text` |
-| `task.create` | `itemId`, `text` | `done` |
+| `task.create` | `itemId`, `text` | `id`, `done` |
 | `task.update` | `id`, `revision` | `text`, `done` |
-| `roadmap.create` | `title` | `overview`, `steps`, `parentId` |
+| `roadmap.create` | `title` | `id`, `overview`, `steps`, `parentId` |
 | `roadmap.revise` | `id`, `revision`, `title`, `steps` | `overview`, `note` |
 | `roadmap.move` | `id`, `revision`, `parentId` | - |
 | `progress.set` | `id`, `revision`, `status` | - |
-| `person.create` | `name` | `title`, `team`, `description`, `email`, `phone`, `chat`, `location`, `notes` |
+| `person.create` | `name` | `id`, `title`, `team`, `description`, `email`, `phone`, `chat`, `location`, `notes` |
 | `person.update` | `id`, `revision` | `name`, `title`, `team`, `description`, `email`, `phone`, `chat`, `location`, `notes` |
 | `person.archive` | `id`, `revision` | - |
 | `person.recover` | `id`, `revision` | - |
 | `person.link` | `personId`, `targetType`, `targetId` | `relationship` |
 | `person.unlink` | `personId`, `targetType`, `targetId` | - |
-| `link.create` | `ownerType`, `ownerId`, `url` | `title`, `description` |
+| `link.create` | `ownerType`, `ownerId`, `url` | `id`, `title`, `description` |
 | `link.update` | `id`, `revision` | `url`, `title`, `description` |
 | `link.archive` | `id`, `revision` | - |
 | `link.recover` | `id`, `revision` | - |
 | `attachment.create` | `ownerType`, `ownerId`, `attachmentId` | - |
-| `chat.create` | `ownerType`, `ownerId`, `chatId`, `title` | `createdDate`, `provider`, `model`, `repos`, `stepIds`, `repositoryIds` |
+| `chat.create` | `ownerType`, `ownerId`, `chatId`, `title` | `id`, `createdDate`, `provider`, `model`, `repos`, `stepIds`, `repositoryIds` |
 | `chat.update` | `id`, `revision` | `chatId`, `title`, `createdDate`, `provider`, `model`, `repos`, `stepIds`, `repositoryIds` |
 | `chat.archive` | `id`, `revision` | - |
 | `chat.recover` | `id`, `revision` | - |
-| `github.create` | `ownerType`, `ownerId`, `kind`, `url` | `reference`, `title`, `description`, `chatId` |
+| `github.create` | `ownerType`, `ownerId`, `kind`, `url` | `id`, `reference`, `title`, `description`, `chatId` |
 | `github.update` | `id`, `revision` | `kind`, `url`, `reference`, `title`, `description`, `chatId` |
 | `github.archive` | `id`, `revision` | - |
 | `github.recover` | `id`, `revision` | - |
-| `question.create` | `roadmapId`, `title` | `details` |
+| `question.create` | `roadmapId`, `title` | `id`, `details` |
 | `question.update` | `id`, `revision` | `title`, `details`, `answer`, `status` |
 | `question.archive` | `id`, `revision` | - |
 | `question.recover` | `id`, `revision` | - |
-| `decision.create` | `roadmapId`, `title` | `rationale`, `decidedDate` |
+| `decision.create` | `roadmapId`, `title` | `id`, `rationale`, `decidedDate` |
 | `decision.update` | `id`, `revision` | `title`, `rationale`, `decidedDate` |
 | `decision.archive` | `id`, `revision` | - |
 | `decision.recover` | `id`, `revision` | - |
+| `resource.create` | `title` | `id`, `summary`, `body` |
+| `resource.update` | `id`, `revision` | `title`, `summary`, `body` |
+| `resource.archive` | `id`, `revision` | - |
+| `resource.recover` | `id`, `revision` | - |
+| `ticket.create` | `title` | `id`, `description`, `kind`, `priority`, `status`, `resolution`, `labels`, `repositoryIds`, `itemId`, `assigneeId` |
+| `ticket.update` | `id`, `revision` | `title`, `description`, `kind`, `priority`, `status`, `resolution`, `labels`, `repositoryIds`, `itemId`, `assigneeId` |
 
-Any other field is refused. Proposals cannot archive or recover files, import plans, reorder, archive or restore roadmaps, or touch tickets.
+Any other field is refused. On a create, `id` is not an ID but a name for the new record (section 6.2, names). Proposals cannot archive or recover files or tickets, comment on tickets, import plans, reorder, or archive or restore roadmaps.
 
 ### 6.2 Field rules
 
@@ -495,6 +502,15 @@ Any other field is refused. Proposals cannot archive or recover files, import pl
   - `repos` holds free-text labels, at most 20. `repositoryIds` holds catalog IDs, at most 100.
 - **GitHub references.** `kind` is `commit` or `pr`. `chatId` names a tracked chat on the same work item or roadmap, or on its linked work: by its Worklog ID or its provider ID.
 - **Existing repositories.** A `repository.create` for a remote that is already registered links to that record instead of failing.
+- **Names for new records.** Worklog gives a new record its ID when the change that creates it applies, so a later change in the same proposal can't give that ID. Name the record instead:
+  - On any create but `attachment.create`, `id` is a name, such as `@jane`: `@` and up to 100 letters, digits, `.`, `_` or `-`, starting with a letter or digit. It is never an ID; Worklog chooses that.
+  - A later change gives the name wherever it would give the record's ID: in `id`, `itemId`, `roadmapId`, `parentId`, `personId`, `ownerId`, `targetId`, and in `repositoryIds`. The record must be the kind the field takes: a person for `personId`, a repository in `repositoryIds`, and for `ownerId` and `targetId` the kind `ownerType` or `targetType` names.
+  - Declare each name once, before the changes that use it. A step can't be named: it keeps the ID you give it in `roadmap.create` or `roadmap.revise`. A GitHub reference names a chat the same proposal tracks by its `chatId`.
+  - `draft` and `update` refuse a name nothing earlier declares, one declared twice and one of the wrong kind, with `422 validation` naming the change.
+  - A name on a `repository.create` for a remote already registered stands for that repository.
+  - The proposal keeps its names. The person sees in Review which change creates each named record.
+- **Tickets.** File, change, close and comment on tickets directly (section 5.5). Propose `ticket.create` or `ticket.update` when the ticket belongs with what the same proposal creates, such as a ticket on a new work item or repository. A proposed ticket or change is written as your identity, as one you file yourself is. `id` on `ticket.update` is the ticket's key, number or ID, and `itemId: null` unlinks its work item.
+- **Resources.** `resource.*` creates, edits, archives and recovers the person's reference pages. Every agent reads them as the person's guidance, so say in the rationale why a page should change. The page's history keeps every earlier version and who changed it.
 - **Files.** You attach a file to the person's records with a copy of evidence uploaded to the same proposal:
   1. Draft the proposal; its operations may be empty for now.
   2. Upload the file to the draft with `proposal evidence`. It prints the file's record; keep its `id`.
@@ -692,7 +708,7 @@ Invoke-RestMethod -Uri 'http://127.0.0.1:8877/api/v1/work-items/ITEM_ID' -Header
 - **Today.** Their plan for the day. It has nothing of yours unless a proposal planned an item.
 - **Work, and a work item's page.** Your participation under "Participants" and "Recent updates", and tracked chats under "Agent chats". Also the item's tickets, "GitHub commits & PRs", and under "Applied proposals" every proposal applied to it, with the changes each made there.
 - **Tickets.** Every ticket, with its author, assignee and comments.
-- **Resources.** The reference pages the person writes for you and for themselves. Only the person writes, archives and recovers them.
+- **Resources.** The reference pages the person writes for you and for themselves. You change them only by proposal.
 - **Roadmaps.** "Agents working here", agent chips beside each step, tracked chats, questions and decisions, and "Applied proposals".
 - **Repositories.** Registered repositories; yours say "Registered by" your label and "unreviewed" until the person confirms them. A repository's page lists participants and recent updates. "Open agent runs" lets the person end a run you left open.
 - **Agents.** One entry per identity. It shows a status ("Reporting work", "Stale reports", "No current reports" or "Credential revoked"), your runs, messages, updates, the work you are tied to, and under "Proposals" every proposal you made, with where each got to.

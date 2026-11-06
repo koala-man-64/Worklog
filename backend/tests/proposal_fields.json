@@ -5,6 +5,7 @@
     ],
     "allowed": [
       "description",
+      "id",
       "name",
       "url"
     ]
@@ -50,6 +51,7 @@
       "adoUrl",
       "day",
       "description",
+      "id",
       "repositoryIds",
       "roadmapId",
       "stepId",
@@ -116,6 +118,7 @@
       "text"
     ],
     "allowed": [
+      "id",
       "ownerId",
       "ownerType",
       "text",
@@ -141,6 +144,7 @@
     ],
     "allowed": [
       "done",
+      "id",
       "itemId",
       "text"
     ]
@@ -162,6 +166,7 @@
       "title"
     ],
     "allowed": [
+      "id",
       "overview",
       "parentId",
       "steps",
@@ -216,6 +221,7 @@
       "chat",
       "description",
       "email",
+      "id",
       "location",
       "name",
       "notes",
@@ -296,6 +302,7 @@
     ],
     "allowed": [
       "description",
+      "id",
       "ownerId",
       "ownerType",
       "title",
@@ -357,6 +364,7 @@
     "allowed": [
       "chatId",
       "createdDate",
+      "id",
       "model",
       "ownerId",
       "ownerType",
@@ -415,6 +423,7 @@
     "allowed": [
       "chatId",
       "description",
+      "id",
       "kind",
       "ownerId",
       "ownerType",
@@ -466,6 +475,7 @@
     ],
     "allowed": [
       "details",
+      "id",
       "roadmapId",
       "title"
     ]
@@ -511,6 +521,7 @@
     ],
     "allowed": [
       "decidedDate",
+      "id",
       "rationale",
       "roadmapId",
       "title"
@@ -547,6 +558,88 @@
     "allowed": [
       "id",
       "revision"
+    ]
+  },
+  "resource.create": {
+    "required": [
+      "title"
+    ],
+    "allowed": [
+      "body",
+      "id",
+      "summary",
+      "title"
+    ]
+  },
+  "resource.update": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "body",
+      "id",
+      "revision",
+      "summary",
+      "title"
+    ]
+  },
+  "resource.archive": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "revision"
+    ]
+  },
+  "resource.recover": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "revision"
+    ]
+  },
+  "ticket.create": {
+    "required": [
+      "title"
+    ],
+    "allowed": [
+      "assigneeId",
+      "description",
+      "id",
+      "itemId",
+      "kind",
+      "labels",
+      "priority",
+      "repositoryIds",
+      "resolution",
+      "status",
+      "title"
+    ]
+  },
+  "ticket.update": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "assigneeId",
+      "description",
+      "id",
+      "itemId",
+      "kind",
+      "labels",
+      "priority",
+      "repositoryIds",
+      "resolution",
+      "revision",
+      "status",
+      "title"
     ]
   }
 }
