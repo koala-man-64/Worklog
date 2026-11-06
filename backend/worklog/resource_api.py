@@ -1,7 +1,8 @@
 """HTTP surface for resources: the person writes them, and agents read them like the person.
 
 No agent write route is allowed for resources, so the middleware refuses an agent's write
-with 403 agent_scope before it reaches these handlers.
+with 403 agent_scope before it reaches these handlers. Agents change resources by proposal,
+which WorkService applies once the person approves it.
 """
 
 from collections.abc import Callable

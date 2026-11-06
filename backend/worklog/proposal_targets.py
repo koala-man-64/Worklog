@@ -10,8 +10,10 @@ A change counts toward:
   scratchpad, links, files, agent chats, GitHub references, day entries and people; a roadmap's
   steps and their progress, notes and files, its questions, decisions, notes, links, files, agent
   chats, GitHub references and people;
-- the roadmap it puts a work item or a sub-roadmap on.
-A person or a repository is neither, so a change to one alone counts toward nothing here.
+- the roadmap it puts a work item or a sub-roadmap on;
+- the work item a ticket it creates or changes is linked to once the change is made.
+A person, a repository or a resource is neither, so a change to one alone counts toward nothing
+here. A change counts as applied: a name it gave a new record (proposal_names) is already its ID.
 """
 
 from __future__ import annotations
@@ -66,12 +68,13 @@ def _holder(conn: sqlite3.Connection, owner_type: Any, owner_id: Any) -> tuple[s
     return None  # a repository's file, or a proposal's own evidence
 
 
-def targets(conn: sqlite3.Connection, action: Any, payload: Any, created: str | None = None) -> set[tuple[str, str]]:
+def targets(conn: sqlite3.Connection, action: Any, payload: Any, applied: str | None = None) -> set[tuple[str, str]]:
     """The ("item" or "roadmap", id) of each record one applied change was made to.
 
-    `created` is the id Worklog gave the work item or roadmap an item.create or roadmap.create
-    made, which its payload cannot name. Anything malformed counts toward nothing: approval
-    refused such a change, so it was never applied.
+    `applied` is the ID of the record applying the change made or found: the work item or roadmap
+    an item.create or roadmap.create made, which its payload cannot name, or the ticket a ticket
+    change was made to, which its payload may name by key. Anything malformed counts toward
+    nothing: approval refused such a change, so it was never applied.
     """
     if _named(action) is None or not isinstance(payload, dict):
         return set()
@@ -83,11 +86,11 @@ def targets(conn: sqlite3.Connection, action: Any, payload: Any, created: str | 
             found.add((target_type, identity))
 
     if kind == "item":
-        add("item", created if verb == "create" else payload.get("id"))
+        add("item", applied if verb == "create" else payload.get("id"))
         add("roadmap", payload.get("roadmapId"))
         add("roadmap", _step_roadmap(conn, payload.get("stepId")))
     elif kind == "roadmap":
-        add("roadmap", created if verb == "create" else payload.get("id"))
+        add("roadmap", applied if verb == "create" else payload.get("id"))
         if verb in {"create", "move"}:
             add("roadmap", payload.get("parentId"))
     elif action == "progress.set":
@@ -98,6 +101,11 @@ def targets(conn: sqlite3.Connection, action: Any, payload: Any, created: str | 
         holder = _holder(conn, payload.get("targetType"), payload.get("targetId"))
         if holder:
             add(*holder)
+    elif kind == "ticket":
+        ticket = _named(applied)
+        row = conn.execute("SELECT item_id FROM tickets WHERE id=?", (ticket,)).fetchone() if ticket else None
+        if row:
+            add("item", row[0])
     elif kind in _HELD:
         table, type_column, id_column = _HELD[kind]
         if verb == "create":
@@ -118,7 +126,7 @@ def targets(conn: sqlite3.Connection, action: Any, payload: Any, created: str | 
 
 
 def record(conn: sqlite3.Connection, proposal_id: str, number: int, action: Any, payload: Any,
-           created: str | None = None) -> None:
+           applied: str | None = None) -> None:
     """Record what change `number` of an applied proposal was made to."""
     conn.executemany(INSERT, [(proposal_id, number, action, target_type, identity)
-                              for target_type, identity in sorted(targets(conn, action, payload, created))])
+                              for target_type, identity in sorted(targets(conn, action, payload, applied))])

@@ -11,10 +11,14 @@ person's route also takes, so its keys and its values are checked by the same ru
 
 proposals.FIELDS is the key sets derived from this, in this order, and the agent guide's table
 must match it. The key sets must not narrow: approve checks stored proposals against them again.
+
+A create may also give `id`: not an ID, which Worklog chooses, but a name such as `@jane` for the
+record it makes, so later changes in the same proposal can use it (proposal_names).
 """
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 from pydantic import ValidationError
@@ -99,6 +103,13 @@ OPERATIONS: dict[str, Spec] = {
     "decision.update": _existing(m.DecisionUpdate),
     "decision.archive": _existing(m.Expected),
     "decision.recover": _existing(m.Expected),
+    "resource.create": _new(m.ResourceCreate),
+    "resource.update": _existing(m.ResourceUpdate),
+    "resource.archive": _existing(m.Expected),
+    "resource.recover": _existing(m.Expected),
+    # A ticket's id is its UUID, its key (T-12) or its number, as the person's route takes it.
+    "ticket.create": _new(m.TicketCreate),
+    "ticket.update": _existing(m.TicketUpdate),
 }
 
 # Operations only the person's own routes run. A proposal can't carry one: they are absent above,
@@ -108,7 +119,28 @@ SERVER_ONLY = frozenset({
     "attachment.archive", "attachment.recover",
     "note.archive", "note.recover", "task.archive", "task.recover",
     "roadmap.restore", "roadmap.archive", "roadmap.recover",
+    "ticket.archive", "ticket.recover",
 })
+
+# The creates that may name the record they make: every one but a file's, a copy of the proposal's
+# own evidence that no later change can name. A person link is a tie, not a record a change names.
+NAMED = frozenset(action for action in OPERATIONS if action.endswith(".create") and action != "attachment.create")
+# A name: "@" and up to 100 letters, digits, '.', '_' or '-', the first a letter or digit. No ID
+# starts with "@", so a name can't be mistaken for one.
+NAME = re.compile(r"@[A-Za-z0-9][A-Za-z0-9._-]{0,99}")
+NAME_RULE = "use @ and up to 100 letters, digits, '.', '_' or '-', starting with a letter or digit"
+CREATE_ID = ("On a create, id names the new record for later changes in this proposal, such as @jane: "
+             f"{NAME_RULE}. Worklog chooses its ID")
+
+
+def is_name(value: object) -> bool:
+    return isinstance(value, str) and NAME.fullmatch(value) is not None
+
+
+def keys(action: str) -> tuple[frozenset[str], frozenset[str]]:
+    """The keys a proposed change must give, and the keys it may give: a create's name among them."""
+    spec = OPERATIONS[action]
+    return spec.required, spec.allowed | (frozenset({"id"}) if action in NAMED else frozenset())
 
 
 def validate(action: str, payload: dict) -> None:
@@ -118,11 +150,17 @@ def validate(action: str, payload: dict) -> None:
     spec = OPERATIONS.get(action)
     if spec is None:
         raise AppError(422, "validation", "Unsupported proposal action")
-    for name in ("id", "itemId", "date"):
+    # The model checks every other key: these come from the person's route path, not its body. A
+    # ticket's itemId is in its body, where null unlinks the work item.
+    for name in sorted(spec.path_keys):
         if name in payload and not isinstance(payload[name], str):
             raise AppError(422, "validation", f"{name} must be a string")
+    named = action in NAMED and "id" in payload
+    if named and not is_name(payload["id"]):
+        raise AppError(422, "validation", CREATE_ID, {"id": "not_a_name"})
     try:
-        spec.model.model_validate({k: v for k, v in payload.items() if k not in spec.path_keys})
+        spec.model.model_validate({k: v for k, v in payload.items()
+                                   if k not in spec.path_keys and not (named and k == "id")})
     except ValidationError as exc:
         raise AppError(422, "validation", "Invalid proposed operation",
                        exc.errors(include_input=False, include_context=False)) from None

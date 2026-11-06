@@ -5,16 +5,16 @@ from __future__ import annotations
 import json
 from contextlib import nullcontext
 
-from . import proposal_targets, scratchpad
+from . import proposal_names, proposal_targets, scratchpad
 from .chat_messages import BOUND, RECIPIENTS, ChatMessageService
 from .common import NOTE_LIMIT, AppError, event, now, require_revision, setting, uid
 from .discussions import DiscussionService
 from .migrations import AUTOMATIC_APPROVAL_ID, stale_signature
-from .operations import OPERATIONS, validate
+from .operations import OPERATIONS, keys, validate
 
 # Explicit schemas prevent a proposal becoming an arbitrary operation transport. Each operation's
 # keys come from its one definition in operations.py: (required, allowed) per action.
-FIELDS = {action: (set(spec.required), set(spec.allowed)) for action, spec in OPERATIONS.items()}
+FIELDS = {action: tuple(set(names) for names in keys(action)) for action in OPERATIONS}
 
 # Approves under the person's standing choice in Settings rather than a decision on one
 # proposal: the person's authority, recorded apart from the approvals they give in Review.
@@ -22,8 +22,9 @@ AUTOMATIC = {"id": AUTOMATIC_APPROVAL_ID, "label": "Automatic approval", "kind":
 # Since v12 a proposal's row says when it was last submitted and whether automatic approval
 # applied it; before, both were read from its events.
 SELECT = "SELECT p.* FROM proposals p"
-# Changes whose record's id Worklog chooses while applying them; proposal_targets needs that id.
-CREATES = frozenset({"item.create", "roadmap.create"})
+# Changes whose record proposal_targets reads from applying them: the work item or roadmap a create
+# made, whose ID Worklog chooses, and the ticket a change was made to, which may be named by its key.
+APPLIED_TO_RECORD = frozenset({"item.create", "roadmap.create", "ticket.create", "ticket.update"})
 # A proposal as a history lists it, without its operations: their number is enough there. A
 # history holds the latest first, each numbered by its place in the sequence. An approved
 # proposal is final, so it was last updated when it was applied.
@@ -97,6 +98,11 @@ def _operations(value):
                 raise _numbered(AppError(422, "validation", f"Change {attached[key]} already attaches this file to this record",
                                          {"attachmentId": "duplicate"}), number, len(value), "attachment.create")
             attached[key] = number
+    # A name a change uses must name a record an earlier change creates, of the kind it takes.
+    problem = proposal_names.first_problem(value)
+    if problem is not None:
+        number, action, exc = problem
+        raise _numbered(exc, number, len(value), action)
     return encoded
 
 
@@ -352,20 +358,28 @@ class ProposalService:
         ordered = sorted(enumerate(operations, 1), key=lambda pair: pair[1]["action"].startswith("github."))
         previous = self._applying_id
         self._applying_id = row["id"]
+        # The records this proposal's changes have made so far, by the names it gave them. A name is
+        # used only after the change declaring it, and moving GitHub references last keeps that
+        # order: only another GitHub reference's change can name one, and it moves with them.
+        names: dict[str, str] = {}
         try:
             for number, operation in ordered:
                 try:
-                    action, payload = _scratchpad_landing(connection, operation["action"], operation["payload"])
+                    resolved, name = proposal_names.resolve(operation["action"], operation["payload"], names)
+                    action, payload = _scratchpad_landing(connection, operation["action"], resolved)
                     if action == "attachment.create":
                         # The file is this proposal's own evidence, which only Worklog names.
                         payload = {**payload, "proposalId": row["id"]}
                     result = self.dispatch(connection, proposer, action, payload)
                 except AppError as exc:
                     raise _numbered(exc, number, len(operations), operation["action"]) from exc
-                # Read from the change as proposed, as the v16 upgrade reads it: a note that landed
-                # in a scratchpad counts toward its work item either way.
-                created = result.get("id") if operation["action"] in CREATES and isinstance(result, dict) else None
-                proposal_targets.record(connection, row["id"], number, operation["action"], operation["payload"], created)
+                made = result.get("id") if isinstance(result, dict) else None
+                if name is not None and isinstance(made, str):
+                    names[name] = made
+                # Read from the change as proposed, as the v16 upgrade reads it, with its names
+                # resolved: a note that landed in a scratchpad counts toward its work item either way.
+                record_id = made if operation["action"] in APPLIED_TO_RECORD else None
+                proposal_targets.record(connection, row["id"], number, operation["action"], resolved, record_id)
         finally:
             self._applying_id = previous
 

@@ -136,7 +136,7 @@ def test_search_and_the_list_filter_find_pages_by_their_words(client):
     assert titles(ok(request(client, "GET", "/resources?archived=true&q=region"))) == ["Deploys"]
 
 
-def test_agents_read_pages_and_see_them_in_context_but_never_write_them(client):
+def test_agents_read_pages_and_see_them_in_context_but_never_write_them_directly(client):
     page = create(client, "Coding standards", summary="Rules for every repository", body="Type everything.")
     agent = ok(request(client, "POST", "/credentials", {"label": "Implementer"}))
     assert titles(ok(request(client, "GET", "/resources", agent=agent))) == ["Coding standards"]
@@ -164,6 +164,41 @@ def test_the_service_refuses_an_agent_actor_however_it_is_reached(tmp_path):
         with pytest.raises(AppError) as refused, app.state.db.transaction() as c:
             write(c)
         assert (refused.value.status, refused.value.code) == (403, "agent_scope")
+
+
+def test_only_an_approved_proposal_s_change_reaches_a_resource_through_the_work_service(tmp_path):
+    app = create_app(tmp_path, testing=True)
+    work, agent = app.state.work, {"id": "agent", "label": "Agent", "kind": "agent"}
+    person = {"id": "local-user", "label": "You", "kind": "human"}
+    # The person's routes write resources and tickets directly, so nothing else sends them here.
+    for actor, action, payload in ((person, "resource.create", {"title": "Mine"}), (agent, "resource.create", {"title": "Mine"}),
+                                   (agent, "ticket.create", {"title": "Mine"})):
+        with pytest.raises(AppError) as refused, app.state.db.transaction() as c:
+            work.apply(c, actor, action, payload)
+        assert (refused.value.status, refused.value.code) == (422, "operation")
+    with app.state.db.transaction() as c:
+        page = work.apply(c, agent, "resource.create", {"title": "Proposed"}, proposed=True)
+    with app.state.db.read() as c:
+        assert [e["actorId"] for e in resources.ResourceService().detail(c, page["id"])["history"]] == ["agent"]
+
+
+def test_an_agent_s_proposal_writes_archives_and_recovers_a_page_once_the_person_approves(client):
+    page = create(client, "Coding standards", body="Type everything.")
+    agent = ok(request(client, "POST", "/credentials", {"label": "Implementer"}))
+    revision = 1
+    for action, change in (("resource.update", {"body": "Type everything, tests too."}), ("resource.archive", {}),
+                           ("resource.recover", {})):
+        drafted = ok(request(client, "POST", "/proposals", {"title": action, "rationale": "", "operations": [
+            {"action": action, "payload": {"id": page["id"], "revision": revision, **change}}]}, agent=agent))
+        sent = ok(request(client, "POST", f"/proposals/{drafted['id']}/submit", {"revision": drafted["revision"]}, agent=agent))
+        # Waiting for the person, the page is as it was.
+        assert ok(request(client, "GET", f"/resources/{page['id']}"))["revision"] == revision
+        ok(request(client, "POST", f"/proposals/{drafted['id']}/approve", {"revision": sent["revision"]}))
+        revision += 1
+    current = ok(request(client, "GET", f"/resources/{page['id']}"))
+    assert (current["body"], current["archived"], current["revision"]) == ("Type everything, tests too.", False, 4)
+    assert [(e["kind"], e["actorKind"]) for e in current["history"]] == [
+        ("resource.recover", "agent"), ("resource.archive", "agent"), ("resource.update", "agent"), ("resource.create", "human")]
 
 
 @pytest.fixture
