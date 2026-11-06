@@ -14,10 +14,11 @@ and expires if nobody picks it up.
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Iterable
 from datetime import datetime, timedelta
 from typing import Any
 
-from .common import AppError, event, now, text, uid
+from .common import LIVE_AGENT, AppError, event, now, rows_in, text, uid
 from .discussions import communication_actor
 
 # A delivery expires this long after its message is sent. One still pending at expires_at stays
@@ -87,6 +88,44 @@ def chat_binding(c: sqlite3.Connection, chat_id: str, agent_id: str) -> str | No
     if c.execute("SELECT 1 FROM chat_confirmations WHERE agent_id=? AND chat_id=?", (agent_id, chat_id)).fetchone():
         return "confirmed"
     return None
+
+
+# The identities tied to chat IDs, closest tie first, with the column each tie keeps its chat ID in.
+TIES = (
+    ("registered", "SELECT reg.chat_id AS chat_id,reg.agent_id AS ref FROM communication_credentials reg WHERE {}", "reg.chat_id"),
+    ("confirmed", "SELECT cf.chat_id AS chat_id,cf.agent_id AS ref FROM chat_confirmations cf WHERE {}", "cf.chat_id"),
+    ("run", "SELECT ar.external_chat_id AS chat_id,ar.agent_id AS ref FROM agent_runs ar JOIN credentials cred ON cred.id=ar.credential_id "
+            "WHERE ar.ended_at IS NULL AND cred.revoked=0 AND {}", "ar.external_chat_id"),
+)
+
+
+def chat_agents(c: sqlite3.Connection, chat_ids: Iterable[str], *, exact: bool) -> dict[str, list[dict]]:
+    """The agent identities tied to each chat ID.
+
+    An identity is tied to the chat it registered with, to each chat where the person confirmed
+    it, and, as only a claim, to the chat an open run on a live credential reports. Each comes
+    once per chat, with its closest tie as `binding`, and `chatId` as that tie stored it. `exact`
+    compares chat IDs as delivery does, character for character, and keys the result by them;
+    otherwise they are compared and keyed without case or surrounding space, which finds every
+    tie to a session that goes by more than one ID, though delivery reaches only the exact ones."""
+    def key(value: str) -> str:
+        return value if exact else value.strip().lower()
+
+    keys = list({key(i) for i in chat_ids if i and i.strip()})
+    ties: dict[str, dict[str, tuple[str, str]]] = {}
+    for binding, sql, column in TIES:
+        match = f"{column} IN ({{}})" if exact else f"lower(trim({column})) IN ({{}})"
+        for r in rows_in(c, sql.format(match), keys):
+            ties.setdefault(key(r["chat_id"]), {}).setdefault(r["ref"], (binding, r["chat_id"]))
+    agents = {r["id"]: r for r in rows_in(c, f"SELECT a.id,a.label,a.avatar,{LIVE_AGENT} AS active FROM communication_agents a WHERE a.id IN ({{}})",
+                                          {ref for found in ties.values() for ref in found})}
+    order = {tie[0]: place for place, tie in enumerate(TIES)}
+    result: dict[str, list[dict]] = {}
+    for chat_id, found in ties.items():
+        listed = [{"id": ref, "label": agents[ref]["label"], "avatar": agents[ref]["avatar"], "active": bool(agents[ref]["active"]),
+                   "binding": binding, "chatId": stored} for ref, (binding, stored) in found.items() if ref in agents]
+        result[chat_id] = sorted(listed, key=lambda a: (order[a["binding"]], a["label"].casefold(), a["id"]))
+    return result
 
 
 class ChatMessageService:
@@ -188,16 +227,43 @@ class ChatMessageService:
             event(c, actor, "chat.message.deliver", item["id"], None, {"runIds": item["runIds"], "deliveredAt": stamp})
         return {"items": list(items.values()), "total": len(items)}
 
-    def _confirmable(self, c: sqlite3.Connection, actor: dict, identity: str, p: dict) -> tuple[sqlite3.Row, str]:
+    @staticmethod
+    def _person(actor: dict) -> None:
         if actor["kind"] != "human":
             raise AppError(403, "agent_scope", "Only the person confirms who works in a chat")
-        chat = self._chat(c, identity)
-        if chat["archived"]:
-            raise AppError(409, "chat_archived", "Archived chats don't receive messages; recover the chat to change who it reaches")
+
+    @staticmethod
+    def _agent_id(c: sqlite3.Connection, p: dict) -> str:
         agent_id = text(p["agentId"], "agentId", required=True, limit=200)
         if c.execute("SELECT 1 FROM communication_agents WHERE id=?", (agent_id,)).fetchone() is None:
             raise AppError(404, "not_found", "Agent not found")
-        return chat, agent_id
+        return agent_id
+
+    def _confirmable(self, c: sqlite3.Connection, actor: dict, identity: str, p: dict) -> tuple[sqlite3.Row, str]:
+        self._person(actor)
+        chat = self._chat(c, identity)
+        if chat["archived"]:
+            raise AppError(409, "chat_archived", "Archived chats don't receive messages; recover the chat to change who it reaches")
+        return chat, self._agent_id(c, p)
+
+    @staticmethod
+    def _confirm(c: sqlite3.Connection, actor: dict, chat_id: str, agent_id: str, entity: str) -> None:
+        if chat_binding(c, chat_id, agent_id) is None:
+            c.execute("INSERT INTO chat_confirmations(chat_id,agent_id,confirmed_by,confirmed_by_label,created_at) VALUES(?,?,?,?,?)",
+                      (chat_id, agent_id, actor["id"], actor["label"], now()))
+            event(c, actor, "chat.confirm", entity, None, {"chatId": chat_id, "agentId": agent_id})
+
+    @staticmethod
+    def _unconfirm(c: sqlite3.Connection, actor: dict, chat_id: str, agent_id: str, entity: str) -> None:
+        removed = c.execute("DELETE FROM chat_confirmations WHERE chat_id=? AND agent_id=?", (chat_id, agent_id)).rowcount
+        if removed and chat_binding(c, chat_id, agent_id) is None:
+            stamp = now()
+            # A run keeps the chat ID it started with, so these are all its deliveries for this chat.
+            c.execute("UPDATE chat_message_deliveries SET status='expired',expired_at=?,expire_reason='unconfirmed' "
+                      "WHERE status='pending' AND expires_at>? AND run_id IN (SELECT id FROM agent_runs WHERE agent_id=? AND external_chat_id=?)",
+                      (stamp, stamp, agent_id, chat_id))
+        if removed:
+            event(c, actor, "chat.unconfirm", entity, {"chatId": chat_id, "agentId": agent_id}, None)
 
     @staticmethod
     def _binding_record(c: sqlite3.Connection, chat: sqlite3.Row, agent_id: str) -> dict:
@@ -209,23 +275,24 @@ class ChatMessageService:
         reaches its open runs on the chat, on any record that tracks it. Messages sent before stay
         as they were. An identity already bound stays as it is."""
         chat, agent_id = self._confirmable(c, actor, identity, p)
-        if chat_binding(c, chat["chat_id"], agent_id) is None:
-            c.execute("INSERT INTO chat_confirmations(chat_id,agent_id,confirmed_by,confirmed_by_label,created_at) VALUES(?,?,?,?,?)",
-                      (chat["chat_id"], agent_id, actor["id"], actor["label"], now()))
-            event(c, actor, "chat.confirm", chat["id"], None, {"chatId": chat["chat_id"], "agentId": agent_id})
+        self._confirm(c, actor, chat["chat_id"], agent_id, chat["id"])
         return self._binding_record(c, chat, agent_id)
 
     def unconfirm(self, c: sqlite3.Connection, actor: dict, identity: str, p: dict) -> dict:
         """The person removes their confirmation: the identity receives nothing more in this chat,
         and what still waits for it here ends. The chat an identity registered with stays bound."""
         chat, agent_id = self._confirmable(c, actor, identity, p)
-        removed = c.execute("DELETE FROM chat_confirmations WHERE chat_id=? AND agent_id=?", (chat["chat_id"], agent_id)).rowcount
-        if removed and chat_binding(c, chat["chat_id"], agent_id) is None:
-            stamp = now()
-            # A run keeps the chat ID it started with, so these are all its deliveries for this chat.
-            c.execute("UPDATE chat_message_deliveries SET status='expired',expired_at=?,expire_reason='unconfirmed' "
-                      "WHERE status='pending' AND expires_at>? AND run_id IN (SELECT id FROM agent_runs WHERE agent_id=? AND external_chat_id=?)",
-                      (stamp, stamp, agent_id, chat["chat_id"]))
-        if removed:
-            event(c, actor, "chat.unconfirm", chat["id"], {"chatId": chat["chat_id"], "agentId": agent_id}, None)
+        self._unconfirm(c, actor, chat["chat_id"], agent_id, chat["id"])
         return self._binding_record(c, chat, agent_id)
+
+    def confirm_chat_id(self, c: sqlite3.Connection, actor: dict, p: dict, *, confirmed: bool) -> dict:
+        """Confirm an identity in a chat, or take that back, by the chat's ID, whether or not a
+        record tracks the chat yet, such as a Claude Code session running on this machine. It
+        binds the identity as `confirm` does, wherever the chat is tracked now or later. With no
+        tracked chat to hold it, the identity's own history records the change. Delivery matches
+        the ID exactly, so give it as the identity's runs report it."""
+        self._person(actor)
+        agent_id = self._agent_id(c, p)
+        chat_id = text(p["chatId"], "chatId", required=True, limit=500)
+        (self._confirm if confirmed else self._unconfirm)(c, actor, chat_id, agent_id, agent_id)
+        return {"chatId": chat_id, "agentId": agent_id, "binding": chat_binding(c, chat_id, agent_id)}

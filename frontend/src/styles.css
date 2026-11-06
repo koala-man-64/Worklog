@@ -2232,6 +2232,76 @@ button.agent-chip.more {
 .chat-group > .chat-list > li {
   padding-right: 0;
 }
+/* Chats: the Claude Code sessions running on this machine that nothing tracks yet, above the chats. */
+.running-sessions {
+  display: grid;
+  gap: 4px;
+  padding: 10px 8px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.running-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 10px;
+}
+.running-head h3 {
+  flex: 1;
+  margin: 0;
+  font-size: 15px;
+}
+/* The count goes under the title, which shares its row only with the toggle. */
+.running-head small {
+  order: 1;
+  flex-basis: 100%;
+  color: var(--muted);
+}
+.running-head > .tree-toggle {
+  margin: -4px -6px -4px 0;
+}
+.running-sessions > .chat-list > li {
+  padding-inline: 0;
+}
+.running-sessions > button.quiet {
+  justify-self: start;
+  min-height: 28px;
+  font-size: 12px;
+}
+.chat-list > li.hidden-session {
+  opacity: 0.7;
+}
+/* A running session's ties, on one wrapping row under it. A search opens below all of them,
+   so the other buttons stay where they were. */
+.chat-ties {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.chat-ties > .link-search,
+.chat-agents > .link-search {
+  order: 1;
+  margin-top: 2px;
+}
+.chat-ties > button {
+  min-height: 28px;
+  padding: 2px 10px;
+  font-size: 12px;
+}
+/* The agents tied to a chat, as pills like the recipients of its messages; each name opens its agent.
+   In a narrow list a pill wraps between its parts rather than inside a name. */
+.chat-agents li {
+  flex-wrap: wrap;
+  border-radius: 14px;
+}
+.chat-agents li a {
+  color: inherit;
+}
+.chat-agents > button {
+  min-height: 24px;
+  padding: 0 9px;
+  font-size: 12px;
+}
 .status-dot.missing {
   background: transparent;
   border-style: dashed;

@@ -5,6 +5,7 @@ import { useCollapsed, useData } from "./hooks";
 import { RepositoryBadges } from "./RepositoryControls";
 import { NamedRuns } from "./Coordination";
 import { ChatOutbox } from "./ChatOutbox";
+import { ChatAgents, RunningSessions } from "./ChatTies";
 import { Empty, ErrorMessage, Markdown } from "./components";
 import { Icon, type IconName } from "./icons";
 import { localStore } from "./storage";
@@ -24,6 +25,8 @@ const PAGE = 200;
 const MOST = 2_000;
 const SOURCES = { claude: "Claude Code session", codex: "Codex thread" };
 const TOOLS = { claude: "Claude", codex: "Codex" };
+// The collapsed key of the sessions running on this machine, beside the groups' own.
+const RUNNING = "running";
 
 const relative = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
 const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
@@ -382,6 +385,14 @@ export function Chats({ selected }: { selected?: string }) {
             )}
           </div>
           <div className="panel-body">
+            {!archived && (
+              <RunningSessions
+                refreshMs={LIST_REFRESH_MS}
+                ago={ago}
+                closed={collapsed.has(RUNNING)}
+                toggle={() => toggle(RUNNING)}
+              />
+            )}
             {list.isPending ? (
               <p>Loading chats…</p>
             ) : !chats.length ? (
@@ -591,6 +602,7 @@ function ChatHistory({ chat }: { chat: ChatOverview }) {
             </small>
           )}
         </div>
+        <ChatAgents chat={chat} />
         {threads.length > 1 && (
           <div
             className="thread-filter"

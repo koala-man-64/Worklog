@@ -23,6 +23,7 @@ const reasons: Record<TieReason, string> = {
   update: "Status update",
   message: "Discussion",
   run: "Run",
+  confirmed: "Confirmed by you",
   chat: "Tracked chat",
 };
 function timestamp(value: string) {

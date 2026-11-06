@@ -163,6 +163,11 @@ class ChatConfirmation(Command):
     agentId: str = Field(min_length=1, max_length=200)
 
 
+class ChatIdConfirmation(ChatConfirmation):
+    # The chat's ID as its runs report it, tracked on a record or not.
+    chatId: str = Field(min_length=1, max_length=500)
+
+
 class GithubRefCreate(Command):
     ownerType: Literal["item", "roadmap"]
     ownerId: str

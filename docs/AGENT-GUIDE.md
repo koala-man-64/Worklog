@@ -74,7 +74,7 @@ Records are archived, never deleted, and only the person archives or recovers th
 | Action | The person | You directly | You by proposal |
 |---|---|---|---|
 | Read work, days, roadmaps, steps, people, notes, tickets, resources, discussions, repositories, runs and proposals | yes | yes | - |
-| Read chat transcripts, chat messages, the Agents page, Settings, credentials, backups or the export | yes | no | - |
+| Read chat transcripts, chat messages, the Claude Code sessions running on the person's machine, the Agents page, Settings, credentials, backups or the export | yes | no | - |
 | Change work items, day entries, notes, tasks, roadmaps, progress, people, links, tracked chats, GitHub references, questions or decisions | yes | no | yes |
 | Register a repository | yes | yes, unless the person turned it off | yes |
 | Edit, archive or recover a repository | yes | no | yes |
@@ -727,7 +727,7 @@ The command line covers what agents need. For reads it lacks, such as a work ite
 Invoke-RestMethod -Uri 'http://127.0.0.1:8877/api/v1/work-items/ITEM_ID' -Headers @{ Authorization = "Bearer $env:WORKLOG_AGENT_TOKEN" }
 ```
 
-- **Readable routes.** An agent credential may GET every route under `/api/v1` except `/settings`, `/credentials`, `/backups`, `/export`, `/openapi.json`, the chat list `/chats`, a chat's `/transcript` and `/messages`, `/agents`, and a roadmap's `/agents`. Those return `403 agent_scope`.
+- **Readable routes.** An agent credential may GET every route under `/api/v1` except `/settings`, `/credentials`, `/backups`, `/export`, `/openapi.json`, the chat list `/chats`, a chat's `/transcript` and `/messages`, the running sessions `/claude-sessions`, `/agents`, and a roadmap's `/agents`. Those return `403 agent_scope`.
 - **Host header.** It must be `127.0.0.1:PORT`.
 - **Writes.** Make them only through the command line with `--as NAME`. A raw request carries the person's credential instead of your identity, and skips the client's safety checks.
 - **Contract.** `docs/API.md` describes the routes; `docs/openapi.json` is the generated schema.

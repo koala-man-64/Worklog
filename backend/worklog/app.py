@@ -6,6 +6,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import secrets
 import sqlite3
 import time
@@ -23,6 +24,7 @@ from starlette.concurrency import run_in_threadpool
 
 from . import __version__, operations, support
 from . import models as m
+from .active_sessions import running_sessions
 from .agent_link_api import agent_link_route_allowed, install_agent_link_routes
 from .agent_links import ties_of_agent, visible_history
 from .chat_message_api import chat_message_agent_route_allowed, install_chat_message_routes
@@ -197,11 +199,12 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                     # Transcripts hold whole conversations, tool output included; only the person reads them,
                     # and a chat's messages are the person's prompts to it. Agents take theirs from the inbox.
                     # The agent registry joins tracked chats into every agent's record, so it is theirs too,
-                    # as is a roadmap's view of it.
+                    # as is a roadmap's view of it. So are the person's sessions running on this machine.
                     # A trailing slash would only redirect, but it is refused here rather than there.
                     chats = suffix.rstrip("/")
                     forbidden = (suffix.startswith(("/settings", "/credentials", "/backups", "/export", "/openapi")) or
-                                 chats == "/chats" or (chats.startswith("/chats/") and chats.endswith(("/transcript", "/messages"))) or
+                                 chats in {"/chats", "/claude-sessions"} or
+                                 (chats.startswith("/chats/") and chats.endswith(("/transcript", "/messages"))) or
                                  chats == "/agents" or chats.startswith("/agents/") or
                                  (chats.startswith("/roadmaps/") and chats.endswith("/agents")))
                     agent_write = ((suffix == "/proposals" and method == "POST") or
@@ -467,6 +470,22 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         with db.read() as c:
             chats = support.chat_overview(c, archived)
         return {"items": [{**chat, "transcript": transcripts.summary(chat["chatId"])} for chat in chats]}
+
+    @app.get("/api/v1/claude-sessions")
+    def claude_sessions() -> dict:
+        """The Claude Code sessions running on this machine, each with the chats tracking it and
+        the agents tied to it, so Chats can suggest the ones nothing tracks yet."""
+        found = running_sessions(transcripts.roots.claude_sessions)
+        with db.read() as c:
+            sessions = support.session_ties(c, found)
+        items = []
+        for session in sessions:
+            title, model = transcripts.headline(session["sessionId"])
+            # A session Claude Code has not named yet goes by its title, its desktop session's, or its folder.
+            name = (session["name"] or title or transcripts.label(session["hostSessionId"] or "")
+                    or re.split(r"[\\/]", session["cwd"].rstrip("\\/"))[-1])
+            items.append({**session, "name": name, "model": model})
+        return {"items": items}
 
     @app.get("/api/v1/chats/{identity}/transcript")
     def chat_transcript(identity: str, limit: int = Query(200, ge=1, le=MESSAGE_LIMIT), thread: str | None = None) -> dict:
