@@ -34,7 +34,7 @@ PUBLIC = "public"  # needs no credential: the session bootstrap, which checks it
 READ = "agent:read"  # what agents read (K2)
 PROPOSE = "agent:propose"  # drafts and their evidence, which the person approves or rejects
 DISCUSS = "agent:discuss"  # discussion threads, requests and roles
-COORDINATE = "agent:coordinate"  # an agent's own runs and participations, and the repositories they name
+COORDINATE = "agent:coordinate"  # an agent's own runs, participations and chat, and the repositories they name
 TICKET = "agent:ticket"  # filing, changing and commenting on tickets
 REGISTER = "agent:register"  # registering and retiring agent identities
 INBOX = "agent:inbox"  # taking the messages the person writes into an agent's chats
@@ -81,6 +81,7 @@ ROUTES: dict[str, dict[str, str | Only]] = {
     "/chat-confirmations/remove": {"POST": HUMAN},
 
     "/chats": {"GET": HUMAN, "POST": HUMAN},
+    "/chats/track": {"POST": COORDINATE},
     "/chats/{identity}": {"GET": READ, "PATCH": HUMAN},
     "/chats/{identity}/archive": {"POST": HUMAN},
     "/chats/{identity}/confirmations": {"POST": HUMAN},
