@@ -1,4 +1,7 @@
-/** What an agent can be tied to, in the order lists show them (backend agent_links.TYPES). */
+/**
+ * What an agent can be tied to, in the order lists show them (backend agent_links.TYPES). A
+ * tracked chat is not: its agents are the ones bound to it, which its own page ties.
+ */
 export const TIE_TYPES = [
   "item",
   "roadmap",
@@ -7,7 +10,6 @@ export const TIE_TYPES = [
   "person",
   "resource",
   "discussion",
-  "chat",
   "proposal",
   "ticket",
   "agent",
@@ -29,8 +31,6 @@ export type TieTarget = {
   roadmapId?: string;
   roadmapTitle?: string;
   number?: number;
-  ownerType?: string;
-  ownerId?: string;
   mergedInto?: string | null;
   avatar?: string | null;
 };
@@ -61,7 +61,6 @@ export const TIE_LABELS: Record<TieType, { one: string; many: string }> = {
   person: { one: "Person", many: "People" },
   resource: { one: "Resource", many: "Resources" },
   discussion: { one: "Discussion", many: "Discussions" },
-  chat: { one: "Tracked chat", many: "Tracked chats" },
   proposal: { one: "Proposal", many: "Proposals" },
   ticket: { one: "Ticket", many: "Tickets" },
   agent: { one: "Agent", many: "Agents" },
@@ -96,8 +95,6 @@ export function tieHref(
       return "#resources/" + id;
     case "discussion":
       return "#discussions/" + id;
-    case "chat":
-      return "#chats/" + id;
     case "proposal":
       return "#review/" + id;
     case "ticket":
@@ -141,7 +138,6 @@ const SEARCHED: Partial<Record<TieType, true>> = {
   question: true,
   decision: true,
   discussion: true,
-  chat: true,
 };
 /** Where a picker reads the records of one type that match what was typed. */
 export function pickerPath(type: TieType, q: string): string {

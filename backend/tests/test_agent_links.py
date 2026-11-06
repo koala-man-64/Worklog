@@ -110,8 +110,6 @@ def records(c, reviewer):
         "person": ok(write(c, "POST", "/people", {"name": "Ada"})),
         "resource": ok(write(c, "POST", "/resources", {"title": "How we release", "summary": "The steps"})),
         "discussion": discussion,
-        "chat": ok(write(c, "POST", "/chats", {"ownerType": "item", "ownerId": work["id"], "chatId": str(uuid.uuid4()),
-                                               "title": "Parser chat"})),
         "proposal": ok(write(c, "POST", "/proposals", {"title": "Plan the retro", "rationale": "", "operations": []})),
         "ticket": ok(write(c, "POST", "/tickets", {"title": "Flaky import"})),
         "question": ok(write(c, "POST", "/questions", {"roadmapId": roadmap["id"], "title": "Which build?"})),
@@ -147,7 +145,6 @@ def test_the_person_ties_an_agent_to_a_record_of_every_type_and_both_sides_read_
     assert (target["step"]["roadmapId"], target["step"]["roadmapTitle"]) == (roadmap_id, "Release")
     assert target["question"]["roadmapId"] == target["decision"]["roadmapId"] == roadmap_id
     assert (target["ticket"]["number"], target["ticket"]["status"]) == (1, "open")
-    assert (target["chat"]["ownerType"], target["chat"]["ownerId"]) == ("item", made["item"][0])
     assert target["proposal"] == {"id": made["proposal"][0], "title": "Plan the retro", "archived": False, "status": "draft"}
     assert target["agent"]["avatar"] == reviewer["avatar"] and target["agent"]["archived"] is False
 
@@ -177,6 +174,8 @@ def test_a_new_tie_needs_an_agent_and_a_record_that_takes_one(client):
     error(tie(client, builder["agentId"], "item", str(uuid.uuid4())), 404, "not_found")
     error(tie(client, str(uuid.uuid4()), "item", work["id"]), 404, "not_found")
     error(tie(client, builder["agentId"], "day", "2026-01-05"), 422, "validation")
+    # A chat's agents are those bound to it, by registration or the person's confirmation, never ties.
+    error(tie(client, builder["agentId"], "chat", str(uuid.uuid4())), 422, "validation")
     error(tie(client, builder["agentId"], "agent", builder["agentId"]), 422, "validation")
     error(tie(client, builder["agentId"], "item", work["id"], "x" * 201), 422, "validation")
     error(write(client, "POST", "/agent-links", {"targetType": "item", "targetId": work["id"]}), 422, "validation")

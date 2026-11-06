@@ -22,7 +22,9 @@ from .coordination import repository_takes_people
 from .proposals import can_see
 from .tickets import TicketService
 
-# What an agent can be tied to, in the order a list shows them. Each type's summary query gives its
+# What an agent can be tied to, in the order a list shows them. A tracked chat is not among them: an
+# agent is bound to a chat by registering with it, or by the person confirming it there (v13), which
+# also brings it the chat's messages. Each type's summary query gives its
 # id, title and archived state, and what a page needs to link to it: a step, question or decision
 # opens on its roadmap, and a ticket shows its key. A step that is retired, a repository that is
 # merged and an agent whose credentials are all revoked count as archived.
@@ -36,7 +38,6 @@ SUMMARIES: dict[str, str] = {
     "person": "SELECT id,name AS title,archived FROM people WHERE id IN ({})",
     "resource": "SELECT id,title,archived FROM resources WHERE id IN ({})",
     "discussion": "SELECT id,title,archived FROM discussions WHERE id IN ({})",
-    "chat": "SELECT id,title,archived,owner_type AS ownerType,owner_id AS ownerId FROM agent_chats WHERE id IN ({})",
     # A proposal is never archived; its status says where it got to. actor_id and submitted_at decide
     # who may see it, and are left out of the summary.
     "proposal": "SELECT id,title,0 AS archived,status,actor_id,submitted_at FROM proposals WHERE id IN ({})",

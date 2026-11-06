@@ -227,9 +227,9 @@ function AgentView({ id }: { id: string }) {
       </header>
       <AgentFacts agent={agent} />
       <p className="muted">
-        Apart from its ties, everything here comes from what this agent
-        reported. Reports are not proof that a process is alive and become stale
-        after two hours.
+        Apart from its ties and the chats you confirmed it in, everything here
+        comes from what this agent reported. Reports are not proof that a
+        process is alive and become stale after two hours.
       </p>
       <section>
         <h2>Working now</h2>
@@ -255,10 +255,10 @@ function AgentView({ id }: { id: string }) {
         headingLevel={2}
       />
       <section>
-        <h2>From its reports</h2>
+        <h2>From its work</h2>
         <p className="muted">
-          The work its runs, participation, messages, roles and tracked chats
-          tie it to.
+          What its runs, participation, messages and roles tie it to, and the
+          chats you confirmed it in.
         </p>
         <TieList
           title="Work items"

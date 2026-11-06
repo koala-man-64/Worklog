@@ -308,8 +308,8 @@ class PersonLinkRemove(Command):
 
 
 # What an agent can be tied to (v17), in agent_links.SUMMARIES' order; relationship is its role there.
-AgentTieTarget = Literal["item", "roadmap", "step", "repository", "person", "resource", "discussion", "chat",
-                         "proposal", "ticket", "agent", "question", "decision"]
+AgentTieTarget = Literal["item", "roadmap", "step", "repository", "person", "resource", "discussion", "proposal",
+                         "ticket", "agent", "question", "decision"]
 
 
 class AgentLinkSet(Command):

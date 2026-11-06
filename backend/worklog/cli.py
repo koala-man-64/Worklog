@@ -57,8 +57,8 @@ RESERVED_NAMES = frozenset({"con", "prn", "aux", "nul", *(f"{d}{n}" for d in ("c
 # A ticket's key (T-12), number or ID, the only forms a ticket route may carry.
 TICKET_REF = re.compile(r"[Tt]-[1-9][0-9]{0,8}|[1-9][0-9]{0,8}|[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}")
 # What an agent can be tied to, as agent_links.TYPES lists them; test_agent_links.py keeps them equal.
-TIE_TYPES = ("item", "roadmap", "step", "repository", "person", "resource", "discussion", "chat", "proposal",
-             "ticket", "agent", "question", "decision")
+TIE_TYPES = ("item", "roadmap", "step", "repository", "person", "resource", "discussion", "proposal", "ticket",
+             "agent", "question", "decision")
 TICKET_KINDS = ("bug", "incident", "task")
 TICKET_PRIORITIES = ("low", "normal", "high", "urgent")
 TICKET_STATUSES = ("open", "doing", "blocked", "done")

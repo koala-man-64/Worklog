@@ -51,13 +51,10 @@ export function AgentTies({
   canTie = true,
   disabled = false,
   layout = "section",
-  note,
 }: {
   targetType: TieType;
   targetId: string;
   heading?: string;
-  /** A sentence on what a tie here does not do, such as on a chat, which ties never deliver to. */
-  note?: string;
   /** 2 where the page's other sections are h2, as on a repository's page. */
   headingLevel?: 2 | 3;
   /** False keeps the ties' roles editable and their Unlink, but takes no new tie, as on an archived repository. */
@@ -80,7 +77,6 @@ export function AgentTies({
   );
   const body = (
     <>
-      {note && <p className="muted">{note}</p>}
       <ErrorMessage error={query.error} />
       <TieRows ties={ties} disabled={disabled} loaded={!!query.data} />
       {canTie && (

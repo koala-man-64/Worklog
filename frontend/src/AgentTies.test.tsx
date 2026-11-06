@@ -255,19 +255,15 @@ it("never offers an agent a tie to itself, and an archived record takes no new t
 it("folds a page's ties until they are opened, with their count in view", async () => {
   serve([
     [
-      "/agent-links?targetType=chat",
-      { items: [tie(BUILDER, "Builder", { targetType: "chat" })], total: 1 },
+      "/agent-links?targetType=discussion",
+      {
+        items: [tie(BUILDER, "Builder", { targetType: "discussion" })],
+        total: 1,
+      },
     ],
     ["/discussions/participants", participants],
   ]);
-  show(
-    <AgentTies
-      targetType="chat"
-      targetId={ITEM_ID}
-      layout="fold"
-      note="A tie doesn't bring an agent your messages: they reach only the agents bound to this chat."
-    />,
-  );
+  show(<AgentTies targetType="discussion" targetId={ITEM_ID} layout="fold" />);
   const summary = await screen.findByText("Agents");
   await waitFor(() =>
     expect(summary.parentElement).toHaveTextContent("Agents 1"),
@@ -276,9 +272,6 @@ it("folds a page's ties until they are opened, with their count in view", async 
   await userEvent.click(summary);
   expect(
     await screen.findByRole("link", { name: "Builder" }),
-  ).toBeInTheDocument();
-  expect(
-    screen.getByText(/they reach only the agents bound to this chat/),
   ).toBeInTheDocument();
 });
 
@@ -440,7 +433,6 @@ it("knows where each type of record opens and where its picker searches", () => 
     person: "#people/x",
     resource: "#resources/x",
     discussion: "#discussions/x",
-    chat: "#chats/x",
     proposal: "#review/x",
     ticket: "#tickets/x",
     agent: "#agents/x",

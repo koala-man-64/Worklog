@@ -2548,7 +2548,7 @@ export interface components {
              * Targettype
              * @enum {string}
              */
-            targetType: "item" | "roadmap" | "step" | "repository" | "person" | "resource" | "discussion" | "chat" | "proposal" | "ticket" | "agent" | "question" | "decision";
+            targetType: "item" | "roadmap" | "step" | "repository" | "person" | "resource" | "discussion" | "proposal" | "ticket" | "agent" | "question" | "decision";
             /** Targetid */
             targetId: string;
         };
@@ -2563,7 +2563,7 @@ export interface components {
              * Targettype
              * @enum {string}
              */
-            targetType: "item" | "roadmap" | "step" | "repository" | "person" | "resource" | "discussion" | "chat" | "proposal" | "ticket" | "agent" | "question" | "decision";
+            targetType: "item" | "roadmap" | "step" | "repository" | "person" | "resource" | "discussion" | "proposal" | "ticket" | "agent" | "question" | "decision";
             /** Targetid */
             targetId: string;
             /**
@@ -8412,7 +8412,7 @@ export interface operations {
         parameters: {
             query?: {
                 agentId?: string | null;
-                targetType?: ("item" | "roadmap" | "step" | "repository" | "person" | "resource" | "discussion" | "chat" | "proposal" | "ticket" | "agent" | "question" | "decision") | null;
+                targetType?: ("item" | "roadmap" | "step" | "repository" | "person" | "resource" | "discussion" | "proposal" | "ticket" | "agent" | "question" | "decision") | null;
                 targetId?: string[];
             };
             header?: never;
