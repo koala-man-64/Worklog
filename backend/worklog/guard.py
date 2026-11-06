@@ -61,12 +61,22 @@ def route_path(scope: Scope) -> str:
     return path[len(root):] if path[len(root)] == "/" else path
 
 
+def cookies(headers: Headers) -> dict[str, str]:
+    """The request's cookies as Starlette's Request.cookies reads them: from every Cookie header, a
+    later one winning."""
+    found: dict[str, str] = {}
+    for header in headers.getlist("cookie"):
+        found.update(cookie_parser(header))
+    return found
+
+
 class Disconnected(Exception):
     """The client left before its body arrived, so nothing is answered."""
 
 
 async def read_body(receive: Receive, headers: Headers, maximum: int) -> bytes:
-    """A request's whole body, refused with 413 as soon as it passes maximum, before the rest is read."""
+    """A request's whole body, refused with 413 as soon as it passes maximum, before the rest is read.
+    As in Starlette's Request.stream, a message that is neither body nor disconnect is passed over."""
     length = headers.get("content-length")
     if length:
         try:
@@ -81,6 +91,8 @@ async def read_body(receive: Receive, headers: Headers, maximum: int) -> bytes:
         message = await receive()
         if message["type"] == "http.disconnect":
             raise Disconnected
+        if message["type"] != "http.request":
+            continue
         chunk = message.get("body", b"")
         size += len(chunk)
         if size > maximum:
@@ -158,7 +170,8 @@ class RequestGuard:
             raise AppError(403, "origin", "Foreign browser origins are not allowed")
         if not path.startswith("/api/") or path == BOOTSTRAP:
             return receive
-        # Request.state reads this: the actor every handler acts as, and an agent's scope for mutate().
+        # Request.state reads this. The guard sets both on every API call: the actor every handler acts
+        # as, and the agent scope mutate() reads, None for the person.
         state = scope.setdefault("state", {})
         authorization = headers.get("authorization", "")
         if authorization:
@@ -180,10 +193,11 @@ class RequestGuard:
                                "file tickets, report their own work and take their inbox")
             state["agent_scope"] = granted
         else:
-            session = self.owner.state.sessions.get(cookie_parser(headers.get("cookie", "")).get("worklog_session", ""))
+            session = self.owner.state.sessions.get(cookies(headers).get("worklog_session", ""))
             if not session or session["expires"] < time.time():
                 raise AppError(401, "session", "Open Worklog to establish a local session")
             actor = {"id": "local-user", "label": "You", "kind": "human"}
+            state["agent_scope"] = None
             if method not in {"GET", "HEAD"}:
                 # Compare bytes: compare_digest rejects non-ASCII str input with a TypeError.
                 if supplied_origin not in self.origins or not secrets.compare_digest(

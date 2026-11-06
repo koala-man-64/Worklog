@@ -313,9 +313,11 @@ What changed:
   - It checks the table against the route matrix, the CLI against the table, and every route for a scope.
   - A new test pins the recheck: a retry in the coordination or inbox scope, by a credential revoked after the middleware let it in, gets 401 rather than its earlier receipt, which for the inbox holds the person's messages.
 - **No live observation.** The table decides from a call's method, path and query alone, and the tests cover every shape of call a route serves. A log of live calls would add no case.
-- **The guard in pure ASGI (#122).** `guard.RequestGuard` replaces the `BaseHTTPMiddleware` that handed a JSON body on through Starlette's private `request._body`. It makes the same checks in the same order and answers as before, except in two cases:
+- **The guard in pure ASGI (#122).** `guard.RequestGuard` replaces the `BaseHTTPMiddleware` that handed a JSON body on through Starlette's private `request._body`. It makes the same checks in the same order and answers as before, except in four cases. In none of them does a call get further than before:
   - **The path checked** is the one the router matches, without the app's `root_path`. Behind a `root_path`, the old check read the full path and let API requests past unauthenticated, as the security review of #113 found. No `root_path` is configured.
+  - **A path that holds a tab, CR or LF**, sent percent-encoded, is checked as the router matches it. The old check read `request.url.path`, which drops those characters. So `/api/v1/session/bootstrap%0A` skipped the check, as the bootstrap does, and the router still took it to the bootstrap. It now needs a caller, like any other API call.
   - **A client that leaves before its body arrives** is answered nothing. The old check logged it as an unhandled failure and answered with a 500 that no one received.
+  - **A failure after a response has started** is left to the server, which closes the connection, so the client sees the response cut short. The old check ended it as if it were complete.
 
   How it works: a JSON body is read from `receive` to the same 8,000,000-byte limit, refused with 413 once it passes it, and replayed to the route. Uploads, HTML imports and the session bootstrap read their own bodies with the same reader, each to its own limit. The security headers are set as each response starts, so every response still carries them, a 500 included. `test_guard.py` pins each of these. Findings C-14, REM-22.
 

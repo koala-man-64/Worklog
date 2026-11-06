@@ -24,7 +24,7 @@ def started(tmp_path):
     return app, person, token
 
 
-def call(app, method, path, headers, receive, root_path="", query=b""):
+def call(app, method, path, headers, receive, root_path="", query=b"", state=None):
     """One request straight into the app as ASGI: what it sent back, as a status, headers and body."""
     sent = []
 
@@ -34,6 +34,8 @@ def call(app, method, path, headers, receive, root_path="", query=b""):
     scope = {"type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1", "method": method, "scheme": "http",
              "path": path, "raw_path": path.encode(), "root_path": root_path, "query_string": query,
              "headers": [(b"host", b"127.0.0.1:8877"), *headers], "client": ("127.0.0.1", 50000), "server": ("127.0.0.1", 8877)}
+    if state is not None:
+        scope["state"] = state
     asyncio.run(app(scope, receive, send))
     if not sent:
         return None
@@ -83,6 +85,56 @@ def test_a_client_that_leaves_before_its_body_arrives_is_answered_nothing(tmp_pa
     # An upload reads its own body, past the guard, and is answered nothing either, not a 500.
     assert call(app, "POST", "/api/v1/attachments", agent, receive,
                 query=b"ownerType=proposal&ownerId=missing&name=evidence.txt") is None
+
+
+def test_a_message_that_is_neither_body_nor_disconnect_is_passed_over(tmp_path):
+    app, _, token = started(tmp_path)
+    # The body holds a lone surrogate, so the guard's own 422 shows that it read the real body.
+    messages = [{"type": "http.unknown"},
+                {"type": "http.request", "body": json.dumps({"title": "\ud800"}).encode(), "more_body": False}]
+
+    async def receive():
+        return messages.pop(0) if messages else {"type": "http.disconnect"}
+
+    status, _, body = call(app, "POST", "/api/v1/proposals", [(b"authorization", b"Bearer " + token.encode()),
+                                                              (b"content-type", b"application/json")], receive)
+    assert status == 422 and "surrogate" in json.loads(body)["error"]["message"], body
+
+
+def test_cookies_come_from_every_cookie_header_a_later_one_winning(tmp_path):
+    # As Starlette's Request.cookies reads them, and so the session bootstrap.
+    app, person, _ = started(tmp_path)
+    valid = b"worklog_session=" + person.cookies["worklog_session"].encode()
+
+    async def receive():
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    def status(*cookies):
+        return call(app, "GET", "/api/v1/settings", [(b"cookie", cookie) for cookie in cookies], receive)[0]
+
+    assert (status(b"worklog_session=stale", valid), status(valid, b"worklog_session=stale"),
+            status(b"theme=dark", valid)) == (200, 401, 200)
+
+
+def test_the_guard_sets_the_actor_and_the_agent_scope_on_every_api_call(tmp_path):
+    # Whatever the request's state held before, as a lifespan's state could.
+    app, person, token = started(tmp_path)
+    seen = []
+
+    async def route(scope, receive, send):
+        seen.append({"kind": scope["state"]["actor"]["kind"], "scope": scope["state"]["agent_scope"]})
+        await send({"type": "http.response.start", "status": 204, "headers": []})
+        await send({"type": "http.response.body", "body": b""})
+
+    async def receive():
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    guarded = guard.RequestGuard(route, owner=app, db=app.state.db, hosts={"127.0.0.1:8877"}, origins={ORIGIN})
+    for credentials in ([(b"cookie", b"worklog_session=" + person.cookies["worklog_session"].encode())],
+                        [(b"authorization", b"Bearer " + token.encode())]):
+        call(guarded, "GET", "/api/v1/context", credentials, receive,
+             state={"actor": {"id": "x", "label": "x", "kind": "agent"}, "agent_scope": "agent:propose"})
+    assert seen == [{"kind": "human", "scope": None}, {"kind": "agent", "scope": "agent:read"}]
 
 
 def test_uploads_and_imports_keep_their_own_limits(tmp_path):
