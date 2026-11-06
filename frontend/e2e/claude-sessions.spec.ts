@@ -46,7 +46,19 @@ test("a Claude Code session running on this machine is offered on Chats until it
     await page.getByRole("button", { name: "Add work", exact: true }).click();
     expect((await created).ok()).toBe(true);
 
+    // The section shows nothing until the list of running sessions arrives, which a busy parallel
+    // run can hold up: wait for the server's answer that names this session, then for the page.
+    const listed = page.waitForResponse(
+      async (r) =>
+        new URL(r.url()).pathname === "/api/v1/claude-sessions" &&
+        r.ok() &&
+        ((await r.json()) as { items: { sessionId: string }[] }).items.some(
+          (s) => s.sessionId === sessionId,
+        ),
+      { timeout: 20_000 },
+    );
     await page.goto("/#chats");
+    await listed;
     const running = page.getByRole("region", {
       name: "Running on this machine",
     });

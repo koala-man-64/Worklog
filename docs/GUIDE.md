@@ -326,7 +326,7 @@ To stop reviewing, clear "Require my approval for agent proposals" in Settings. 
    An agent can propose the same for its own chat. An agent that registered with its chat ID needs no proposal: when it reports work on a work item, Worklog tracks its chat there, titled after its run, once. Archive it if you don't want it there; it stays archived.
 2. **Or tie a session running on this machine.** On **Chats**, "Running on this machine" lists the Claude Code sessions running now that no work item or roadmap tracks.
    - Each says what it is doing (working, waiting for you, or idle), where it runs (the Claude desktop app, a terminal or an editor), its folder, and the agents already tied to it.
-   - "Tie work item" or "Tie roadmap" tracks it there, titled after the session, and opens it among your chats. It is tracked by the chat ID its agents use, or else by its Claude Code session ID.
+   - "Tie work item" or "Tie roadmap" tracks it there, titled after the session, and opens it among your chats. It is tracked by the chat ID its agents use, else by the one an earlier chat for it used, else by its Claude Code session ID.
    - "Tie agent" confirms that an agent works in it, even before you track it, under the ID the agent's runs report. "Confirm" does the same for an agent whose run reports the session, and "Untie" takes a confirmation back.
    - A session goes by two IDs when the Claude desktop app runs it. An agent marked "under another ID" works under the one the session isn't tracked by, so what you write into the tracked chat won't reach it.
    - "Hide" keeps a session out of the list in this browser while it runs; "Unhide" brings it back.
