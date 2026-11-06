@@ -288,7 +288,7 @@ The table observes first and enforces afterwards. Every read agents have today s
 
 #### 3.1 · Policy table on the routes
 
-Status: In progress · Branches: `claude/route-policy`, `claude/route-policy-enforce` · PRs: [#112](https://github.com/koala-man-64/Worklog/pull/112), PR_LINK; the request guard moves to pure ASGI in its own PR
+Status: In progress · Branches: `claude/route-policy`, `claude/route-policy-enforce` · PRs: [#112](https://github.com/koala-man-64/Worklog/pull/112), [#113](https://github.com/koala-man-64/Worklog/pull/113); the request guard moves to pure ASGI in its own PR
 
 Each route declares its scope. The table drives the middleware decision and checks the CLI allowlist, and replaces the seven predicate sites. Move the request guard to pure ASGI. Needs 0.2 and 2.1. Findings: C-03, A-02, C-14, REM-21, REM-22.
 
@@ -302,7 +302,7 @@ Done so far:
   - a roadmap revision numbered `agents`
 
   The old checks matched words in the path, so these read as the person's pages of those names. In fact each names a record no one has.
-- **The table decides (PR_NUMBER).** The middleware authenticates, then lets an agent's call through to a handler only in an agent scope, and the seven checks are gone. A write in the coordination or inbox scope still rechecks for a revoked credential before it replays a receipt, now chosen by its scope. What agents see changes in three places, and no route's decision changes:
+- **The table decides (#113).** The middleware authenticates, then lets an agent's call through to a handler only in an agent scope, and the seven checks are gone. A write in the coordination or inbox scope still rechecks for a revoked credential before it replays a receipt, now chosen by its scope. What agents see changes in three places, and no route's decision changes:
   - the four calls above reach their handlers, which find no such record and answer 404, or 422 for the revision number;
   - a read no route serves goes on to the router's 404, or to its redirect unless that leads to the person's page, which refuses it at once as before; a roadmap ID named `agents` with a trailing slash now redirects to its handler's 404;
   - any other call no route serves is refused, including proposal writes the old checks let through to a 404 or 405.
