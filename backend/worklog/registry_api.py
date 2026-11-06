@@ -12,8 +12,9 @@ def install_registry_routes(app: FastAPI, db: Database, transcripts: TranscriptR
     read = db.snapshot
 
     @app.get("/api/v1/agents")
-    def agents(limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
-        return read(lambda c: registry.agents(c, limit, offset))
+    def agents(limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0),
+               q: str = Query("", max_length=200)) -> dict:
+        return read(lambda c: registry.agents(c, limit, offset, q))
 
     @app.get("/api/v1/agents/{identity}")
     def agent(identity: str) -> dict:

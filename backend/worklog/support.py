@@ -15,7 +15,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from . import scratchpad, search
-from .chat_messages import expire_pending
+from .chat_messages import chat_agents, expire_pending
 from .common import (
     FILE_LIMIT,
     AppError,
@@ -24,6 +24,7 @@ from .common import (
     now,
     repository_labels,
     require_revision,
+    rows_in,
     setting,
     text,
     today,
@@ -111,8 +112,48 @@ def chat_overview(c: sqlite3.Connection, archived: bool = False) -> builtins.lis
             [ch["id"] for ch in chats],
         ):
             steps[r["chat_id"]].append({"id": r["id"], "title": r["title"], "status": r["status"], "retired": bool(r["retired"])})
+    # A tracked chat names only the agents its own chat ID reaches, compared as delivery compares it.
+    agents = chat_agents(c, [ch["chatId"] for ch in chats], exact=True)
     return [{**ch, "owner": owners.get((ch["ownerType"], ch["ownerId"]), {"type": ch["ownerType"], "id": ch["ownerId"], "title": "", "archived": False}),
-             "roadmaps": path(within.get((ch["ownerType"], ch["ownerId"]))), "steps": steps[ch["id"]]} for ch in chats]
+             "roadmaps": path(within.get((ch["ownerType"], ch["ownerId"]))), "steps": steps[ch["id"]],
+             "agents": agents.get(ch["chatId"], [])} for ch in chats]
+
+
+def session_ties(c: sqlite3.Connection, sessions: builtins.list[dict]) -> builtins.list[dict]:
+    """Running sessions with the chats that track them, the agents tied to them, and the chat ID
+    to track them by.
+
+    A session goes by its own ID and, when the Claude desktop app runs it, by the desktop
+    session's local_ ID too; either ties it, compared without case. A session is tracked by the ID
+    its agents registered with, were confirmed under or report, closest tie first, since delivery
+    matches that ID exactly; failing those, by the ID a record already tracks it under, and
+    otherwise by its own."""
+    ids = {s["sessionId"]: [i for i in (s["sessionId"], s["hostSessionId"]) if i] for s in sessions}
+    keys = {i for found in ids.values() for i in found}
+    agents = chat_agents(c, keys, exact=False)
+    chats = rows_in(c, "SELECT * FROM agent_chats WHERE lower(trim(chat_id)) IN ({})", keys)
+    chats.sort(key=lambda ch: (ch["archived"], ch["created_at"], ch["id"]))
+    owners = {("item", r["id"]): r for r in rows_in(c, "SELECT id,title FROM work_items WHERE id IN ({})",
+                                                     [ch["owner_id"] for ch in chats if ch["owner_type"] == "item"])}
+    owners.update((("roadmap", r["id"]), r) for r in rows_in(c, "SELECT id,title FROM roadmaps WHERE id IN ({})",
+                                                             [ch["owner_id"] for ch in chats if ch["owner_type"] == "roadmap"]))
+    order = {"registered": 0, "confirmed": 1, "run": 2}
+    result = []
+    for s in sessions:
+        own = ids[s["sessionId"]]
+        tied: dict[str, dict] = {}
+        for agent in (a for key in own for a in agents.get(key, [])):
+            if agent["id"] not in tied or order[agent["binding"]] < order[tied[agent["id"]]["binding"]]:
+                tied[agent["id"]] = agent
+        listed = sorted(tied.values(), key=lambda a: (order[a["binding"]], a["label"].casefold(), a["id"]))
+        tracked = [ch for ch in chats if ch["chat_id"].strip().lower() in own]
+        references = [a["chatId"] for a in listed] + [ch["chat_id"].strip() for ch in tracked]
+        result.append({**s, "chatId": references[0] if references else s["sessionId"], "agents": listed,
+                       "tracked": [{"id": ch["id"], "title": ch["title"], "archived": bool(ch["archived"]),
+                                    "ownerType": ch["owner_type"], "ownerId": ch["owner_id"],
+                                    "ownerTitle": owners[(ch["owner_type"], ch["owner_id"])]["title"]
+                                    if (ch["owner_type"], ch["owner_id"]) in owners else ""} for ch in tracked]})
+    return result
 
 
 def for_owner(c: sqlite3.Connection, owner_type: str, owner_id: str) -> dict:

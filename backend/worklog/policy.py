@@ -10,10 +10,11 @@ the redirect leads to the person's page or to a path that serves no read, and re
 (passes_unserved).
 
 Agents read what they read before this table (K2), apart from the person's own pages: settings, export
-and the API document, the agent registry, the list of tracked chats, and each chat's messages and
-transcript. A transcript holds a whole conversation, tool output included, and a chat's messages are
-the person's prompts to it: agents take theirs from the inbox. The agent registry joins tracked chats
-into every agent's record, as a roadmap's view of its agents does.
+and the API document, the agent registry, the list of tracked chats, each chat's messages and
+transcript, and the Claude Code sessions running on the person's machine. A transcript holds a whole
+conversation, tool output included, and a chat's messages are the person's prompts to it: agents take
+theirs from the inbox. The agent registry joins tracked chats into every agent's record, as a
+roadmap's view of its agents does.
 """
 
 from __future__ import annotations
@@ -72,6 +73,9 @@ ROUTES: dict[str, dict[str, str | Only]] = {
 
     "/backups": {"POST": HUMAN},
 
+    "/chat-confirmations": {"POST": HUMAN},
+    "/chat-confirmations/remove": {"POST": HUMAN},
+
     "/chats": {"GET": HUMAN, "POST": HUMAN},
     "/chats/{identity}": {"GET": READ, "PATCH": HUMAN},
     "/chats/{identity}/archive": {"POST": HUMAN},
@@ -80,6 +84,8 @@ ROUTES: dict[str, dict[str, str | Only]] = {
     "/chats/{identity}/messages": {"GET": HUMAN, "POST": HUMAN},
     "/chats/{identity}/recover": {"POST": HUMAN},
     "/chats/{identity}/transcript": {"GET": HUMAN},
+
+    "/claude-sessions": {"GET": HUMAN},
 
     "/context": {"GET": READ},
 

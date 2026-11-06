@@ -10,7 +10,12 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setDataContext } from "./api";
 import { Chats, ago, tallyText, toolText } from "./Chats";
-import type { ChatOverview, ChatThread, Transcript } from "./types";
+import type {
+  ChatOverview,
+  ChatThread,
+  RunningSession,
+  Transcript,
+} from "./types";
 import type { Outbox } from "./outboxTypes";
 
 const ROADMAP_ID = "22222222-2222-4222-8222-222222222222";
@@ -64,6 +69,7 @@ function overview(
     },
     roadmaps: [PLATFORM],
     steps: [],
+    agents: [],
     transcript: {
       found: true,
       source: "codex",
@@ -190,15 +196,18 @@ function serve(
       ? transcript()
       : { items: [docs, lost, release] },
   selected?: string,
+  running: RunningSession[] = [],
 ) {
   const urls: string[] = [];
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
     const url = String(input);
     urls.push(url);
-    // An open chat also asks who a message to it would reach.
+    // An open chat also asks who a message to it would reach, and the list what runs untracked.
     const body = /\/chats\/[^/]+\/messages/.test(url)
       ? noMessages
-      : respond(url);
+      : url.includes("/claude-sessions")
+        ? { items: running }
+        : respond(url);
     return new Response(JSON.stringify(body), { status: 200 });
   });
   render(
@@ -598,4 +607,74 @@ it("sums up a group's chats in words", () => {
   expect(tally(2, 0, 2, null)).toBe("2 chats");
   expect(tally(1, 0, 0, null)).toBe("1 chat, no transcript on this machine");
   expect(tally(3, 0, 0, null)).toBe("3 chats, no transcripts on this machine");
+});
+
+it("offers the sessions running untracked above the chats, and names each chat's agents", async () => {
+  const user = userEvent.setup();
+  const running: RunningSession = {
+    sessionId: "session-parser",
+    hostSessionId: null,
+    chatId: "session-parser",
+    name: "Parser fix",
+    cwd: "C:\Projects\worklog",
+    entrypoint: "cli",
+    kind: "interactive",
+    status: "working",
+    waitingFor: "",
+    startedAt: minutesAgo(30),
+    statusAt: minutesAgo(1),
+    version: "2.1.317",
+    model: "",
+    tracked: [],
+    agents: [],
+  };
+  const tied = {
+    ...release,
+    agents: [
+      {
+        id: "agent-1",
+        label: "Release agent",
+        avatar: null,
+        active: true,
+        binding: "registered" as const,
+        chatId: "release-chat",
+      },
+    ],
+  };
+  serve(
+    (url) =>
+      url.includes("/transcript")
+        ? transcript()
+        : { items: [docs, lost, tied] },
+    undefined,
+    [running],
+  );
+  const list = await screen.findByRole("region", {
+    name: "Who is working on what",
+  });
+  const offered = await within(list).findByRole("region", {
+    name: "Running on this machine",
+  });
+  expect(offered).toHaveTextContent("Parser fix");
+  const first = within(list)
+    .getAllByRole("link")
+    .find((a) => a.getAttribute("href") === "#chats/release");
+  expect(first).toBeDefined();
+  expect(
+    offered.compareDocumentPosition(first!) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  // The open chat names the agents tied to it.
+  const agents = await screen.findByRole("list", {
+    name: "Agents tied to this chat",
+  });
+  expect(agents).toHaveTextContent("Release agent· registered with this chat");
+  // The archive is for chats; running sessions stay with the current list.
+  await user.click(
+    within(list).getByRole("checkbox", { name: "Show archive" }),
+  );
+  await waitFor(() =>
+    expect(
+      within(list).queryByRole("region", { name: "Running on this machine" }),
+    ).toBeNull(),
+  );
 });

@@ -6,6 +6,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import secrets
 import sqlite3
 import time
@@ -23,6 +24,7 @@ from starlette.concurrency import run_in_threadpool
 
 from . import __version__, operations, policy, support
 from . import models as m
+from .active_sessions import running_sessions
 from .chat_message_api import install_chat_message_routes
 from .common import (
     FILE_LIMIT,
@@ -448,6 +450,22 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         with db.read() as c:
             chats = support.chat_overview(c, archived)
         return {"items": [{**chat, "transcript": transcripts.summary(chat["chatId"])} for chat in chats]}
+
+    @app.get("/api/v1/claude-sessions")
+    def claude_sessions() -> dict:
+        """The Claude Code sessions running on this machine, each with the chats tracking it and
+        the agents tied to it, so Chats can suggest the ones nothing tracks yet."""
+        found = running_sessions(transcripts.roots.claude_sessions)
+        with db.read() as c:
+            sessions = support.session_ties(c, found)
+        items = []
+        for session in sessions:
+            title, model = transcripts.headline(session["sessionId"])
+            # A session Claude Code has not named yet goes by its title, its desktop session's, or its folder.
+            name = (session["name"] or title or transcripts.label(session["hostSessionId"] or "")
+                    or re.split(r"[\\/]", session["cwd"].rstrip("\\/"))[-1])
+            items.append({**session, "name": name, "model": model})
+        return {"items": items}
 
     @app.get("/api/v1/chats/{identity}/transcript")
     def chat_transcript(identity: str, limit: int = Query(200, ge=1, le=MESSAGE_LIMIT), thread: str | None = None) -> dict:

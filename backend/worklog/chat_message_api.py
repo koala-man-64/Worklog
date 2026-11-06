@@ -30,6 +30,17 @@ def install_chat_message_routes(app: FastAPI, db: Database, mutate: Callable) ->
     def chat_confirmation_remove(identity: str, request: Request, body: m.ChatConfirmation) -> dict:
         return mutate(request, body.model_dump(), lambda c, a: service.unconfirm(c, a, identity, body.model_dump()), required_key=True)
 
+    # The same by a chat's ID, for a chat no record tracks yet, such as a session running on this machine.
+    @app.post("/api/v1/chat-confirmations")
+    def chat_id_confirmation_create(request: Request, body: m.ChatIdConfirmation) -> dict:
+        return mutate(request, body.model_dump(), lambda c, a: service.confirm_chat_id(c, a, body.model_dump(), confirmed=True),
+                      required_key=True)
+
+    @app.post("/api/v1/chat-confirmations/remove")
+    def chat_id_confirmation_remove(request: Request, body: m.ChatIdConfirmation) -> dict:
+        return mutate(request, body.model_dump(), lambda c, a: service.confirm_chat_id(c, a, body.model_dump(), confirmed=False),
+                      required_key=True)
+
     @app.post("/api/v1/inbox/receive")
     def inbox_receive(request: Request, body: m.InboxReceive) -> dict:
         # An empty receive changes nothing, so polling leaves no receipts behind.
