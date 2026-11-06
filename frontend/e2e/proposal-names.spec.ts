@@ -11,7 +11,9 @@ test("one agent proposal brings in a person, a repository, work, a ticket and a 
   const work = `Fix settlement rounding ${suffix}`;
   const ticket = `Settlement rounds half-cents down ${suffix}`;
   const runbook = `Settlement runbook ${suffix}`;
-  await page.goto("/");
+  // The credential comes before any page opens: the app bootstraps its own
+  // session on load, and a cookie from it landing after this one would leave
+  // this token stale.
   const boot = await page.request.post("/api/v1/session/bootstrap", {
     headers: { Origin: origin, "X-Worklog-Bootstrap": "1" },
     data: {},
@@ -25,7 +27,7 @@ test("one agent proposal brings in a person, a repository, work, a ticket and a 
     },
     data: { label: `Onboarder ${suffix}` },
   });
-  expect(issued.ok()).toBeTruthy();
+  expect(issued.ok(), await issued.text()).toBeTruthy();
   const agent = (await issued.json()) as { token: string };
   const headers = () => ({
     Authorization: "Bearer " + agent.token,

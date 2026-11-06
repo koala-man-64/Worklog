@@ -10,7 +10,8 @@ that holds it.
 A name stands only in the fields that name one record by ID, for a record of the kind the field
 takes, and only after the change that declares it, so each is known by the time its change
 applies. Steps keep the IDs agents choose for them, and a GitHub reference names a chat the same
-proposal tracks by its provider ID, so neither needs a name.
+proposal tracks by its provider ID, so neither needs a name. A note on a work item takes none: it
+joins the item's one scratchpad (proposals._scratchpad_landing), which other notes change too.
 """
 
 from __future__ import annotations
@@ -69,7 +70,8 @@ def first_problem(operations: list[dict]) -> tuple[int, str, AppError] | None:
             if not is_name(value):
                 return number, action, AppError(422, "validation", f"{field} {value!r} is not a name: {NAME_RULE}",
                                                 {field: "invalid_name"})
-            if kind not in NAMEABLE:
+            # ownerType and targetType are unchecked here, so they may be any JSON value.
+            if not isinstance(kind, str) or kind not in NAMEABLE:
                 hint = (": give the step's own ID, which roadmap.create and roadmap.revise take" if kind == "step" else "")
                 return number, action, AppError(
                     422, "validation", f"{field} names {value}, but a {_label(kind)} can't be named{hint}",
@@ -88,6 +90,10 @@ def first_problem(operations: list[dict]) -> tuple[int, str, AppError] | None:
             name = payload["id"]
             if not is_name(name):
                 return number, action, AppError(422, "validation", CREATE_ID, {"id": "not_a_name"})
+            if action == "note.create" and payload.get("ownerType") == "item":
+                return number, action, AppError(
+                    422, "validation", "A note on a work item joins its one scratchpad rather than making a record "
+                    "of its own, so it can't be named", {"id": "not_nameable"})
             if name in declared:
                 return number, action, AppError(
                     422, "validation",

@@ -131,6 +131,21 @@ REFUSED = [
                             {"action": "link.create", "payload": {"ownerType": "item", "ownerId": "@plan", "url": "https://example.com"}}],
      "Change 2 of 2, link.create: ownerId names @plan, which change 1 creates as a roadmap, not a work item",
      {"ownerId": "wrong_kind"}),
+    # The owner's or target's type is checked only when the change applies, so it may be any JSON value here.
+    ("a list as the owner's type", [{"action": "person.create", "payload": {"id": "@jane", "name": "Jane Doe"}},
+                                    {"action": "link.create", "payload": {"ownerType": ["item"], "ownerId": "@jane",
+                                                                          "url": "https://example.com"}}],
+     "Change 2 of 2, link.create: ownerId names @jane, but a record of that type can't be named", {"ownerId": "wrong_kind"}),
+    ("an object as the target's type", [{"action": "person.create", "payload": {"id": "@jane", "name": "Jane Doe"}},
+                                        {"action": "person.link", "payload": {"personId": ITEM, "targetType": {"kind": "item"},
+                                                                              "targetId": "@jane"}}],
+     "Change 2 of 2, person.link: targetId names @jane, but a record of that type can't be named", {"targetId": "wrong_kind"}),
+    # It lands in the scratchpad, so a name would stand for the scratchpad, which other notes change too.
+    ("a note on a work item", [{"action": "item.create", "payload": {"id": "@fix", "title": "Fix"}},
+                               {"action": "note.create", "payload": {"id": "@note", "ownerType": "item", "ownerId": "@fix",
+                                                                     "text": "Found it"}}],
+     "Change 2 of 2, note.create: A note on a work item joins its one scratchpad rather than making a record of its own, "
+     "so it can't be named", {"id": "not_nameable"}),
     ("a step", [{"action": "roadmap.create", "payload": {"id": "@plan", "title": "Plan"}},
                 {"action": "note.create", "payload": {"ownerType": "step", "ownerId": "@plan", "text": "x"}}],
      "Change 2 of 2, note.create: ownerId names @plan, but a step can't be named: give the step's own ID, which "
@@ -163,6 +178,39 @@ def test_a_name_is_declared_once_before_it_is_used_and_names_the_kind_the_field_
     error = refused(call(client, "PATCH", f"/proposals/{proposal['id']}", {"revision": proposal["revision"],
                                                                            "operations": operations}, agent))
     assert error["message"] == message
+
+
+def test_later_changes_change_what_earlier_ones_created_and_github_references_still_apply_last(client, agent):
+    proposal = submitted(
+        client, agent,
+        {"action": "item.create", "payload": {"id": "@fix", "title": "Fix settlement rounding"}},
+        # Listed second, applied last, as every GitHub reference's change is; its name is known by then.
+        {"action": "github.create", "payload": {"ownerType": "item", "ownerId": "@fix", "kind": "pr",
+                                                "url": "https://github.com/acme/payments-api/pull/7"}},
+        {"action": "ticket.create", "payload": {"id": "@bug", "title": "Rounding", "itemId": "@fix"}},
+        {"action": "ticket.update", "payload": {"id": "@bug", "revision": 1, "status": "doing"}},
+        {"action": "task.create", "payload": {"itemId": "@fix", "text": "Add a test"}},
+    )
+    ok(approve(client, proposal))
+    (item,) = ok(call(client, "GET", "/work-items"))["items"]
+    work = ok(call(client, "GET", f"/work-items/{item['id']}"))
+    assert [g["url"] for g in work["github"]] == ["https://github.com/acme/payments-api/pull/7"]
+    assert [t["text"] for t in work["tasks"]] == ["Add a test"]
+    (ticket,) = ok(call(client, "GET", "/tickets"))["items"]
+    assert (ticket["itemId"], ticket["status"], ticket["revision"]) == (item["id"], "doing", 2)
+
+
+def test_the_person_s_own_proposal_files_tickets_and_writes_pages_as_the_person(client):
+    proposal = submitted(
+        client, None,
+        {"action": "ticket.create", "payload": {"title": "Mine"}},
+        {"action": "resource.create", "payload": {"title": "My page"}},
+    )
+    ok(approve(client, proposal))
+    (ticket,) = ok(call(client, "GET", "/tickets"))["items"]
+    assert (ticket["author"]["id"], ticket["author"]["kind"]) == ("local-user", "human")
+    (page,) = ok(call(client, "GET", "/resources"))["items"]
+    assert [e["actorKind"] for e in ok(call(client, "GET", f"/resources/{page['id']}"))["history"]] == ["human"]
 
 
 def test_a_name_on_a_registered_remote_points_at_the_repository_already_there(client, agent):

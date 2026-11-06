@@ -134,6 +134,15 @@ def test_a_proposed_ticket_is_filed_and_changed_as_its_agent_even_after_a_rotati
     assert get(client, "/tickets/T-1")["status"] == "doing"
 
 
+def test_a_ticket_proposed_before_its_credential_was_revoked_is_still_filed_as_its_agent(client):
+    agent = credential(client, "Short-lived")
+    filing = propose(client, agent, {"action": "ticket.create", "payload": {"title": "Seen once"}})
+    ok(request(client, "POST", f"/credentials/{agent['id']}/revoke", {}))
+    ok(approve(client, filing))
+    (ticket,) = get(client, "/tickets")["items"]
+    assert (ticket["author"]["id"], ticket["author"]["label"]) == (agent["agentId"], "Short-lived")
+
+
 def test_done_needs_a_resolution_and_reopening_keeps_it(client):
     ticket = create(client)
     failure = error(request(client, "PATCH", f"/tickets/{ticket['id']}", {"revision": ticket["revision"], "status": "done"}), 422, "validation")
