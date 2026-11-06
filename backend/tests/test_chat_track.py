@@ -228,23 +228,22 @@ def test_a_retry_under_its_key_returns_the_first_result_and_a_revoked_identity_i
 
 
 def test_a_credential_revoked_while_the_call_waits_gets_nothing_not_even_a_replay(client, agent_http, monkeypatch):
-    import worklog.app as app_module
+    from worklog import guard
     _, identity, token = enroll(client, agent_http)
     item = ok(write(client, "POST", "/work-items", {"title": "Parser fix"}))
     ok(track(agent_http, token, key="track-before-revoke", ownerType="item", ownerId=item["id"]))
-    read_body = app_module.bounded_body
+    read_body = guard.read_body
 
-    async def revoke_after_authentication(request, maximum):
-        # The person's revoke commits after the middleware accepted the token.
+    async def revoke_after_authentication(receive, headers, maximum):
+        # The person's revoke commits after the guard accepted the token.
         with client.app.state.db.transaction() as conn:
             conn.execute("UPDATE credentials SET revoked=1 WHERE id=?", (identity["id"],))
-        return await read_body(request, maximum)
+        return await read_body(receive, headers, maximum)
 
     # Only the recheck inside the write lock stops a replay: the receipt would answer before any
     # tracking code runs.
-    monkeypatch.setattr(app_module, "bounded_body", revoke_after_authentication)
+    monkeypatch.setattr(guard, "read_body", revoke_after_authentication)
     replay = track(agent_http, token, key="track-before-revoke", ownerType="item", ownerId=item["id"])
-    monkeypatch.setattr(app_module, "bounded_body", read_body)
     refused(replay, 401, "authentication")
     assert len(chats_on(client, "item", item["id"])) == 1
 
