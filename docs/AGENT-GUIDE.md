@@ -414,7 +414,7 @@ A tie says which records an agent is tied to, and its role on each, such as Main
 - **`target`** holds the record's `title` and `archived` (for a step, retired; for a repository, archived or merged; for an agent, no live credential), plus what a page needs to find it: a step's, question's or decision's `roadmapId` and `roadmapTitle`, a ticket's `number` and `status`, a work item's or proposal's `status`, a tracked chat's `ownerType` and `ownerId`. It is null for a record that no longer resolves.
 - **Who changes a tie.** `setBy` is `human` when the person set the tie or last changed it, and `agent` when you did. You change and remove only ties you set: one the person set refuses with `403 forbidden`. When the person changes your tie, it becomes theirs.
 - **New ties.** A repository must be active and not merged (`409 archived`, `409 repository_merged`); a retired step takes no new tie (`409 conflict`); you cannot tie yourself to your own identity (`422 validation`). Another agent's draft proposal is `404 not_found`, as when you read it, and its ties stay out of what you read. An existing tie's role can still change, and `ties remove` always works.
-- **Ties stay.** Archiving a record or retiring an identity keeps its ties. A repository merge moves them to the survivor, which keeps its own tie when an agent was tied to both.
+- **Ties stay.** Archiving a record or retiring an identity keeps its ties. A repository merge moves them to the survivor, which keeps its own tie when an agent was tied to both, unless only the merged repository's tie was the person's: theirs then takes its place.
 
 ```powershell
 worklog agent --as NAME ties list

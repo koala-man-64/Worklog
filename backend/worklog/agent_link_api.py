@@ -48,5 +48,5 @@ def install_agent_link_routes(app: FastAPI, db: Database, mutate: Callable) -> N
 
     @app.post("/api/v1/agent-links/unlink")
     def agent_link_remove(request: Request, body: m.AgentLinkRemove) -> dict:
-        p = body.model_dump()
-        return write(request, p, lambda c, actor: remove_tie(c, actor, p))
+        p, reader = body.model_dump(), request.state.actor
+        return write(request, p, lambda c, actor: remove_tie(c, actor, p, reader=reader))

@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { setDataContext } from "./api";
-import { AgentTieFold, AgentTiedTo, AgentTies } from "./AgentTies";
+import { AgentTieFold, AgentTiedTo, AgentTies, useTiesOn } from "./AgentTies";
 import { TIE_TYPES, pickerFilter, pickerPath, tieHref } from "./agentTieTypes";
 import type { AgentTie, TieType } from "./agentTieTypes";
 
@@ -405,6 +405,29 @@ it("lists everything an agent is tied to by type, and ties it to a record found 
       c.url.includes("/search?archived=false&limit=20&type=question&q=build"),
     ),
   ).toBe(true);
+});
+
+function TiedCount({ ids }: { ids: string[] }) {
+  const ties = useTiesOn("question", ids);
+  return <p>{ids.filter((id) => ties.has(id)).length} tied</p>;
+}
+
+it("reads the ties on more than 200 records 200 at a time", async () => {
+  const ids = Array.from({ length: 201 }, (_, n) => `q-${n}`);
+  const on = (targetId: string) => ({
+    items: [tie(BUILDER, "Builder", { targetType: "question", targetId })],
+    total: 1,
+  });
+  const calls = serve([
+    ["targetId=q-200", on("q-200")],
+    ["targetId=q-0&", on("q-0")],
+  ]);
+  show(<TiedCount ids={ids} />);
+  expect(await screen.findByText("2 tied")).toBeInTheDocument();
+  const reads = calls.filter((c) => c.url.includes("/agent-links?"));
+  expect(reads.map((c) => c.url.split("&targetId=").length - 1)).toEqual([
+    200, 1,
+  ]);
 });
 
 it("knows where each type of record opens and where its picker searches", () => {

@@ -17,7 +17,7 @@ import sqlite3
 from collections.abc import Iterable
 from typing import Any
 
-from .common import LIVE_AGENT, AppError, event, now, rows_in, text, uid
+from .common import LIVE_AGENT, AppError, event, now, read_events, rows_in, text, uid
 from .coordination import repository_takes_people
 from .proposals import can_see
 from .tickets import TicketService
@@ -174,14 +174,17 @@ def set_tie(c: sqlite3.Connection, actor: dict, p: dict, *, reader: dict) -> dic
     return after
 
 
-def remove_tie(c: sqlite3.Connection, actor: dict, p: dict) -> dict:
-    """Untie an agent from a record. An agent removes only the ties it set; the record need not be one it can see."""
+def remove_tie(c: sqlite3.Connection, actor: dict, p: dict, *, reader: dict) -> dict:
+    """Untie an agent from a record. An agent removes only the ties it set, even to a record it can no
+    longer see; a tie the person set to a draft it may not see answers as if there were none."""
     agent_id = _agent_id(actor, p.get("agentId"))
     target_type = _target_type(p.get("targetType"))
     target_id = _target_id(c, target_type, p.get("targetId"))
     existing = c.execute("SELECT * FROM agent_links WHERE agent_id=? AND target_type=? AND target_id=?",
                          (agent_id, target_type, target_id)).fetchone()
-    if existing is None:
+    hidden = (existing is not None and actor["kind"] == "agent" and existing["set_by"] == "human"
+              and target_type == "proposal" and not summaries(c, "proposal", [target_id], reader))
+    if existing is None or hidden:
         raise AppError(404, "not_found", "That agent is not tied to that record")
     if actor["kind"] == "agent" and existing["set_by"] == "human":
         raise AppError(403, "forbidden", "The person set this tie; only they change or remove it", {"tieId": existing["id"]})
@@ -235,6 +238,18 @@ def visible_events(c: sqlite3.Connection, events: list[dict], reader: dict) -> l
     named = {identity for identity in map(proposal, events) if identity}
     seen = set(summaries(c, "proposal", named, reader)) if named else set()
     return [entry for entry in events if (identity := proposal(entry)) is None or identity in seen]
+
+
+def visible_history(c: sqlite3.Connection, entity_id: str, limit: int, reader: dict) -> list[dict]:
+    """A record's latest history entries the reader may see, `limit` of them where it has that many: the
+    page fills up past entries left out, so its length says nothing about them."""
+    window = limit
+    while True:
+        entries = read_events(c, entity_id, window)
+        shown = visible_events(c, entries, reader)
+        if len(shown) >= limit or len(entries) < window:
+            return shown[:limit]
+        window *= 2
 
 
 def ties_of_agent(c: sqlite3.Connection, agent_id: str, reader: dict | None) -> dict:

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries } from "@tanstack/react-query";
 import { getDataContext, request } from "./api";
 import { Avatar } from "./Avatar";
 import { ErrorMessage, TieRole } from "./components";
@@ -245,19 +245,22 @@ function TieAgentForm({
   );
 }
 
-/** The ties on some records of one type, read at once, such as a roadmap's questions. */
+/** The ties on some records of one type, such as a roadmap's questions: one read per 200 of them. */
 export function useTiesOn(type: TieType, ids: string[]) {
-  const asked = ids.slice(0, BATCH);
-  const path = tiesOn(type, asked);
-  const query = useQuery({
-    queryKey: [getDataContext(), path],
-    queryFn: () => request<List<AgentTie>>(path),
-    enabled: asked.length > 0,
-    refetchInterval: REFRESH,
+  const paths: string[] = [];
+  for (let start = 0; start < ids.length; start += BATCH)
+    paths.push(tiesOn(type, ids.slice(start, start + BATCH)));
+  const queries = useQueries({
+    queries: paths.map((path) => ({
+      queryKey: [getDataContext(), path],
+      queryFn: () => request<List<AgentTie>>(path),
+      refetchInterval: REFRESH,
+    })),
   });
   const byTarget = new Map<string, AgentTie[]>();
-  for (const tie of query.data?.items ?? [])
-    byTarget.set(tie.targetId, [...(byTarget.get(tie.targetId) ?? []), tie]);
+  for (const query of queries)
+    for (const tie of query.data?.items ?? [])
+      byTarget.set(tie.targetId, [...(byTarget.get(tie.targetId) ?? []), tie]);
   return byTarget;
 }
 

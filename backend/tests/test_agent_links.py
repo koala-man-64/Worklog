@@ -276,6 +276,37 @@ def test_another_agents_draft_proposal_takes_no_tie_and_shows_in_no_read_until_s
     assert "agent.link" in [e["kind"] for e in read(client, f"/history?entityId={author['agentId']}", other)["items"]]
 
 
+def test_a_tie_the_person_set_to_a_draft_an_agent_cannot_see_answers_as_if_there_were_none(client):
+    author, other = credential(client, "Author"), credential(client, "Other")
+    operations = [{"action": "item.create", "payload": {"title": "Later"}}]
+    draft = ok(write(client, "POST", "/proposals", {"title": "Secret plan", "rationale": "", "operations": operations}, author))
+    ok(tie(client, other["agentId"], "proposal", draft["id"], "Reviews it"))
+    # Removing it would say the tie exists, so it answers as a missing tie does; so does setting it.
+    for response in (untie(client, None, "proposal", draft["id"], other), tie(client, None, "proposal", draft["id"], "Mine", other)):
+        assert error(response, 404, "not_found")["message"] in {"That agent is not tied to that record", "The record to tie does not exist"}
+    assert ties(client, "", other) == {"items": [], "total": 0}
+    # A tie the agent set itself it still removes after the proposal goes back to draft.
+    submitted = ok(write(client, "POST", f"/proposals/{draft['id']}/submit", {"revision": draft["revision"]}, author))
+    ok(untie(client, other["agentId"], "proposal", draft["id"]))
+    ok(tie(client, None, "proposal", draft["id"], "Watching", other))
+    ok(write(client, "POST", f"/proposals/{draft['id']}/reopen", {"revision": submitted["revision"]}, author))
+    assert ok(untie(client, None, "proposal", draft["id"], other))["targetId"] == draft["id"]
+
+
+def test_an_agents_history_page_fills_up_past_entries_it_may_not_see(client):
+    author, other = credential(client, "Author"), credential(client, "Other")
+    operations = [{"action": "item.create", "payload": {"title": "Later"}}]
+    draft = ok(write(client, "POST", "/proposals", {"title": "Secret plan", "rationale": "", "operations": operations}, author))
+    work = item(client)
+    ok(tie(client, author["agentId"], "item", work["id"], "One"))
+    ok(tie(client, author["agentId"], "proposal", draft["id"], "Hidden"))
+    ok(tie(client, author["agentId"], "item", work["id"], "Three"))
+    page = read(client, f"/history?entityId={author['agentId']}&limit=2", other)["items"]
+    assert [e["after"]["relationship"] for e in page] == ["Three", "One"]
+    assert [e["after"]["relationship"] for e in read(client, f"/history?entityId={author['agentId']}&limit=2")["items"]] == [
+        "Three", "Hidden"]
+
+
 def test_an_agent_finds_its_ties_in_its_context_and_reads_several_records_ties_at_once(client):
     builder = credential(client)
     ticket = ok(write(client, "POST", "/tickets", {"title": "Flaky import"}))
@@ -299,21 +330,24 @@ def test_an_agent_finds_its_ties_in_its_context_and_reads_several_records_ties_a
 
 
 def test_a_repository_merge_moves_its_agent_ties_to_the_survivor(client):
-    builder, other = credential(client, "Builder"), credential(client, "Other")
+    builder, other, helper = credential(client, "Builder"), credential(client, "Other"), credential(client, "Helper")
     source = ok(write(client, "POST", "/repositories", {"name": "old", "url": "https://example.com/acme/old"}))
     survivor = ok(write(client, "POST", "/repositories", {"name": "new", "url": "https://example.com/acme/new"}))
     ok(tie(client, builder["agentId"], "repository", source["id"], "Maintainer"))
     ok(tie(client, builder["agentId"], "repository", survivor["id"], "Reviewer"))
     ok(tie(client, None, "repository", source["id"], "Owner", other))
+    ok(tie(client, helper["agentId"], "repository", source["id"], "Lead"))
+    ok(tie(client, None, "repository", survivor["id"], "Helps", helper))
     ok(write(client, "POST", f"/repositories/{source['id']}/merge",
              {"intoId": survivor["id"], "revision": source["revision"], "intoRevision": survivor["revision"]}))
-    # One tied to both keeps the survivor's tie, with its role.
+    # One tied to both keeps the survivor's tie, with its role, unless only the merged one was the
+    # person's: the person's tie stays theirs, in place of the one the agent set itself.
     moved = ties(client, f"targetType=repository&targetId={survivor['id']}")
     assert {(t["agentId"], t["relationship"], t["setBy"]) for t in moved["items"]} == {
-        (builder["agentId"], "Reviewer", "human"), (other["agentId"], "Owner", "agent")}
+        (builder["agentId"], "Reviewer", "human"), (other["agentId"], "Owner", "agent"), (helper["agentId"], "Lead", "human")}
     assert ties(client, f"targetType=repository&targetId={source['id']}")["total"] == 0
     merge = [e for e in read(client, f"/history?entityId={survivor['id']}")["items"] if e["kind"] == "repository.merge"]
-    assert merge[0]["after"]["moved"]["agents"] == 2
+    assert merge[0]["after"]["moved"]["agents"] == 3
     error(tie(client, builder["agentId"], "repository", source["id"]), 409, "repository_merged")
 
 

@@ -24,7 +24,7 @@ from starlette.concurrency import run_in_threadpool
 from . import __version__, operations, support
 from . import models as m
 from .agent_link_api import agent_link_route_allowed, install_agent_link_routes
-from .agent_links import ties_of_agent, visible_events
+from .agent_links import ties_of_agent, visible_history
 from .chat_message_api import chat_message_agent_route_allowed, install_chat_message_routes
 from .common import (
     FILE_LIMIT,
@@ -401,7 +401,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def history(request: Request, entityId: str, limit: int = Query(100, ge=1, le=200)) -> dict:
         with db.read() as c:
             authorize_history(c, entityId, request.state.actor)
-            return {"items": visible_events(c, read_events(c, entityId, limit), request.state.actor)}
+            return {"items": visible_history(c, entityId, limit, request.state.actor)}
 
     @app.get("/api/v1/notes/{identity}")
     @app.get("/api/v1/tasks/{identity}")

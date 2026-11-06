@@ -231,9 +231,14 @@ def repository_merge(c: sqlite3.Connection, actor: dict, identity: str, p: dict)
     c.execute("UPDATE OR IGNORE person_links SET target_id=? WHERE target_type='repository' AND target_id=?",
               (survivor["id"], source["id"]))
     c.execute("DELETE FROM person_links WHERE target_type='repository' AND target_id=?", (source["id"],))
-    # And the agents tied to it, the same way: one tied to both keeps the survivor's tie, with its role.
+    # And the agents tied to it, the same way: one tied to both keeps the survivor's tie, with its role,
+    # unless only the source's tie is the person's. A tie the person set stays theirs, so it takes the place
+    # of the one the agent set itself.
     moved["agents"] = c.execute("SELECT count(*) FROM agent_links WHERE target_type='repository' AND target_id=?",
                                 (source["id"],)).fetchone()[0]
+    c.execute("DELETE FROM agent_links WHERE target_type='repository' AND target_id=? AND set_by='agent' AND agent_id IN "
+              "(SELECT agent_id FROM agent_links WHERE target_type='repository' AND target_id=? AND set_by='human')",
+              (survivor["id"], source["id"]))
     c.execute("UPDATE OR IGNORE agent_links SET target_id=? WHERE target_type='repository' AND target_id=?",
               (survivor["id"], source["id"]))
     c.execute("DELETE FROM agent_links WHERE target_type='repository' AND target_id=?", (source["id"],))
