@@ -13,8 +13,8 @@ from pathlib import Path
 PACKAGE = Path(__file__).resolve().parents[1] / "worklog"
 
 ORDER = [
-    # Nothing of Worklog's below them, the current schema among them.
-    "__init__", "common", "models", "avatars", "transcripts", "maintenance", "schema",
+    # Nothing of Worklog's below them, the current schema and the route policy among them.
+    "__init__", "common", "models", "avatars", "transcripts", "maintenance", "schema", "policy",
     # Search, scratchpads, repository links, request shapes, the operation registry, and what an
     # applied change counts toward.
     "search", "scratchpad", "repository_links", "coordination_models", "discussion_models", "operations",
