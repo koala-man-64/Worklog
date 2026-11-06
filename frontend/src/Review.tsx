@@ -346,6 +346,8 @@ function currentPath(
   }
   if (action === "progress.set") return "/steps/" + id;
   if (action.startsWith("repository.")) return "/repositories/" + id;
+  if (action.startsWith("release.")) return "/releases/" + id;
+  if (action.startsWith("check.")) return "/release-checks/" + id;
   const collection = action.startsWith("roadmap.")
     ? "roadmaps"
     : action.startsWith("person.")

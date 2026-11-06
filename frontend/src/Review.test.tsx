@@ -59,6 +59,8 @@ it.each([
   ["roadmap.update", { roadmapId: ID }, `/roadmaps/${ID}`],
   ["progress.set", { stepId: ID }, `/steps/${ID}`],
   ["resource.update", { id: ID }, `/resources/${ID}`],
+  ["release.update", { id: ID }, `/releases/${ID}`],
+  ["check.update", { id: ID }, `/release-checks/${ID}`],
   // A ticket is named by its key or number as well as its ID.
   ["ticket.update", { id: "T-12" }, "/tickets/T-12"],
   ["ticket.update", { id: "12" }, "/tickets/12"],

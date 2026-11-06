@@ -24,13 +24,14 @@ from .operations import CREATE_ID, NAME_RULE, NAMED, is_name
 
 # The fields that name one record, by the kind of record each takes. ownerId and targetId take the
 # kind their payload's ownerType or targetType gives, and an existing record's change its own `id`.
-KINDS = {"itemId": "item", "roadmapId": "roadmap", "parentId": "roadmap", "personId": "person"}
+KINDS = {"itemId": "item", "roadmapId": "roadmap", "parentId": "roadmap", "personId": "person",
+         "releaseId": "release"}
 TYPED = {"ownerId": "ownerType", "targetId": "targetType"}
 LISTS = {"repositoryIds": "repository"}
 # The kind of record a change names by `id`, where it isn't the one its action starts with.
 OWN = {"progress": "step"}
 NAMEABLE = frozenset(action.partition(".")[0] for action in NAMED)
-LABELS = {"item": "work item", "chat": "tracked chat", "github": "GitHub reference"}
+LABELS = {"item": "work item", "chat": "tracked chat", "github": "GitHub reference", "check": "release check"}
 
 
 def _label(kind: Any) -> str:
