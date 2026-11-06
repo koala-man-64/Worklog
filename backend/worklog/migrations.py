@@ -5,9 +5,9 @@ from __future__ import annotations
 import json
 import sqlite3
 
-SCHEMA_VERSION = 15
+SCHEMA_VERSION = 16
 # Older versions that startup and offline restore upgrade in one transaction.
-UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14})
+UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})
 
 COORDINATION_SCHEMA = """
 CREATE TABLE repositories(id TEXT PRIMARY KEY,name TEXT NOT NULL,url TEXT NOT NULL DEFAULT '',description TEXT NOT NULL DEFAULT '',archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
@@ -377,6 +377,64 @@ def add_waiting_status(conn: sqlite3.Connection) -> None:
     execute_schema(conn, WORK_ITEM_INDEXES)
 
 
+# v16 records which work items and roadmaps each change of an applied proposal was made to, by
+# the rules in proposal_targets.py, so a record's page lists the proposals applied to it in order.
+# operation is the change's number as Review shows it, and action its operation, so the list names
+# the changes without reading the proposal's operations. Only approval writes rows, and an approved
+# proposal is final, so a proposal's rows never change once written.
+PROPOSAL_TARGETS_SCHEMA = """
+CREATE TABLE proposal_targets(proposal_id TEXT NOT NULL REFERENCES proposals(id),operation INTEGER NOT NULL CHECK(operation>=1),action TEXT NOT NULL,target_type TEXT NOT NULL CHECK(target_type IN('item','roadmap')),target_id TEXT NOT NULL,PRIMARY KEY(proposal_id,operation,target_type,target_id));
+CREATE INDEX proposal_targets_target ON proposal_targets(target_type,target_id);
+"""
+
+
+def add_proposal_targets(conn: sqlite3.Connection) -> None:
+    """Record what each proposal approved before v16 was applied to, as approval now records it.
+
+    A change names the records it was made to, except the work item or roadmap it created, whose
+    id Worklog chose while applying it. That creation is in the record's history, under the
+    proposal's agent, and belongs to the first approval at or after it: an approval applies every
+    change in the transaction that records it, and an agent creates work items and roadmaps only
+    through proposals. Where a proposal's creations don't pair one for one with its creating
+    changes, or the person wrote the proposal, it keeps the targets its changes name. Nothing here
+    fails startup: a change that can't be read counts toward nothing, as approval refused it.
+    """
+    from bisect import bisect_left
+
+    from .proposal_targets import record
+
+    execute_schema(conn, PROPOSAL_TARGETS_SCHEMA)
+    # An approved proposal is final, so it was last updated when it was approved.
+    approved = conn.execute("SELECT id,actor_id,operations,updated_at FROM proposals "
+                            "WHERE status='approved' ORDER BY updated_at,id").fetchall()
+    approvals = [row[3] for row in approved]
+    # Only an agent's creations: the person also creates work items and roadmaps directly.
+    made: dict[str, dict[str, list[str]]] = {}
+    for kind, identity, actor, at in conn.execute(
+            "SELECT kind,entity_id,actor_id,created_at FROM events WHERE kind IN ('item.create','roadmap.create') "
+            "AND actor_kind='agent' ORDER BY created_at,id").fetchall():
+        place = bisect_left(approvals, at)
+        if place < len(approved) and approved[place][1] == actor:
+            made.setdefault(approved[place][0], {}).setdefault(kind, []).append(identity)
+    for proposal, _, stored, _ in approved:
+        try:
+            operations = json.loads(stored)
+        except (ValueError, RecursionError):
+            continue
+        if not isinstance(operations, list):
+            continue
+        numbered = [(number, operation.get("action"), operation.get("payload"))
+                    for number, operation in enumerate(operations, 1) if isinstance(operation, dict)]
+        created: dict[int, str] = {}
+        for kind, identities in made.get(proposal, {}).items():
+            # Changes apply in their order, so the nth creation is the nth change that creates.
+            creating = [number for number, action, _ in numbered if action == kind]
+            if len(creating) == len(identities):
+                created.update(zip(creating, identities, strict=True))
+        for number, action, payload in numbered:
+            record(conn, proposal, number, action, payload, created.get(number))
+
+
 def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
     """Unlike executescript, preserve the caller's transaction and rollback boundary."""
     for statement in filter(str.strip, schema.split(";")):
@@ -391,7 +449,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
     The one record v13 changes is a chat message still waiting for an identity that isn't bound to
     the chat: that delivery ends, with the reason 'unconfirmed'. v14 gives every task its place in
     its work item's list, the one it was listed in, and changes nothing else about it. v15 lets a
-    work item wait and changes no record.
+    work item wait and changes no record. v16 records what each approved proposal was applied to
+    and changes no record either.
     """
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version == SCHEMA_VERSION:
@@ -433,8 +492,10 @@ def upgrade(conn: sqlite3.Connection) -> None:
         add_chat_confirmations(conn)
     if version < 14:
         add_task_positions(conn)
-    # Every upgradable version predates the waiting status of v15.
-    add_waiting_status(conn)
+    if version < 15:
+        add_waiting_status(conn)
+    # Every upgradable version predates the proposal targets of v16.
+    add_proposal_targets(conn)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 

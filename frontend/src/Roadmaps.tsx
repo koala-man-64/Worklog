@@ -38,6 +38,7 @@ import {
 } from "./components";
 import { DecisionsSection, QuestionsSection } from "./QuestionsDecisions";
 import { AgentChips, workersOn } from "./RoadmapAgents";
+import { AppliedProposals } from "./ProposalHistory";
 import type { RoadmapWorker } from "./agentTypes";
 import type { Item, List, Person, Roadmap, Step } from "./types";
 import { Icon } from "./icons";
@@ -979,6 +980,7 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
           },
         ]}
       />
+      <AppliedProposals path={"/roadmaps/" + id} noun="roadmap" />
       <History items={road.history} />
     </>
   );

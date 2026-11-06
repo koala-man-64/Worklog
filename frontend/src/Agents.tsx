@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { useData } from "./hooks";
 import { Empty, ErrorMessage } from "./components";
 import { EndRun, Pages } from "./Coordination";
+import { AgentProposals } from "./ProposalHistory";
 import type { List } from "./types";
 import type {
   AgentActivity,
@@ -328,6 +329,7 @@ function AgentView({ id }: { id: string }) {
         )}
       </section>
       <Activity id={id} />
+      <AgentProposals id={id} />
       <section>
         <h2>Credentials</h2>
         {agent.credentials.map((credential) => (

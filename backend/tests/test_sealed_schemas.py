@@ -22,7 +22,8 @@ from worklog.migrations import SCHEMA_VERSION, UPGRADABLE_VERSIONS
 DUMPS = Path(__file__).with_name("schemas")
 SETTINGS = {"dataId": "11111111-1111-4111-8111-111111111111", "timezone": "America/Chicago", "backlogRevision": 1}
 # How the tests' own builder, recovery._expected_schema, makes each version after v1.
-FLAGS = {15: {}, 14: {"waiting_status": False}, 13: {"task_positions": False}, 12: {"chat_confirmations": False},
+FLAGS = {16: {}, 15: {"proposal_targets": False}, 14: {"waiting_status": False}, 13: {"task_positions": False},
+         12: {"chat_confirmations": False},
          11: {"decision_state": False}, 10: {"search_keys": False},
          9: {"people": False}, 8: {"resources": False}, 7: {"scratchpads": False}, 6: {"provenance": False},
          5: {"remote_identity": False}, 4: {"tickets": False, "remote_identity": False},

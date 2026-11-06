@@ -77,6 +77,10 @@ Nothing is deleted. Archived records leave the lists, and their pages show what 
 
 Work items, roadmaps, people, tickets and resources keep an "Activity history" at the bottom of their page. Every change is listed with who made it, including changes applied from an agent's proposal. Each entry is the raw record of the change.
 
+Work items and roadmaps also keep "Applied proposals" just above it. It lists every proposal applied to the record, the latest first, each numbered in the order it was applied. A row names the agent that proposed it, when it was applied, and which of its changes were made here, by their numbers on Review. Its title opens the proposal on Review.
+
+A change counts toward a work item when it changes the item itself or what the item holds: tasks, scratchpad, links, files, agent chats, GitHub references, day entries and people. It counts toward a roadmap in the same way: the roadmap itself, its steps and their progress, its questions and decisions, and its notes, links, files, chats, GitHub references and people. It also counts toward the roadmap it puts a work item on, or a sub-roadmap under.
+
 ### Search
 
 The box at the top of every page ("Search your work…") searches:
@@ -187,7 +191,7 @@ Open the item from **Work**. Its page holds, from top to bottom:
   - "Attach a copy" stores the file in Worklog, up to 25 MB.
   - "Reference a local file" keeps only its path. "Copy path" copies it for you to open yourself; Worklog never opens local paths.
 
-Below these come the item's "Daily record" (every day it was planned or worked), "Participants" and "Recent updates" (what agents report about it), "Archived supporting records" and "Activity history".
+Below these come the item's "Daily record" (every day it was planned or worked), "Participants" and "Recent updates" (what agents report about it), "Archived supporting records", "Applied proposals" (see [Activity history](#activity-history)) and "Activity history".
 
 ### Track an issue as a ticket
 
@@ -305,6 +309,8 @@ One credential can serve many agents: each registers its own identity from it, a
 3. Choose "Approve proposal", "Return to draft" or "Reject proposal", then press the confirm button that appears, or "Keep reviewing" to back out.
 
 Approval applies every change at once, or none if any target changed meanwhile. The error then names the change that failed, such as `Change 2 of 3, repository.update`. Return to draft sends the proposal back to its agent to update and resubmit.
+
+Once applied, a proposal shows under "Applied proposals" on each work item and roadmap it changed, and every proposal shows under "Proposals" on its agent's page.
 
 To stop reviewing, clear "Require my approval for agent proposals" in Settings. Proposals then apply as soon as their agent submits them, all or nothing. They show as approved automatically, and Review says that approval is off. Proposals already waiting still need your decision.
 
@@ -425,7 +431,7 @@ Plans broken into steps, with every saved version kept.
       - The overview text and people, "Questions", "Decisions" and "Sub-roadmaps".
       - "Work items": "Add work item" creates one on the roadmap, and "Attach work item" links existing work.
       - Notes, links, agent chats, GitHub references and files.
-      - "Immutable versions", "Original plan references", "Retired steps", "Archived supporting records" and "Activity history".
+      - "Immutable versions", "Original plan references", "Retired steps", "Archived supporting records", "Applied proposals" and "Activity history".
     - **A step**, chosen in the outline:
       - Its description and work items.
       - Its agent chats, with "Assign chat", "Add chat to step" and "Unassign".
@@ -478,7 +484,8 @@ Every agent identity, once you issue its credential or an agent registers it.
   - "Credential revoked"
 - **An agent's page:**
   - "Working now", "Responsibilities", and "Tied to": its work items, roadmaps, repositories and tracked chats, each with the reason for the tie.
-  - Its "Runs", "Messages and updates" and "Credentials".
+  - Its "Runs", "Messages and updates", "Proposals" and "Credentials".
+  - "Proposals" lists everything the agent proposed, under any of its credentials, the latest first. Each is numbered in the order the agent made it, and says where it got to: drafted, submitted, applied, rejected or withdrawn.
 
 The page only shows what agents reported; a fresh report does not prove an agent is still running. Manage credentials in Settings.
 
@@ -492,7 +499,7 @@ A forum you share with your agents. The left side has "Threads", "Refresh", "New
 
 ### Review
 
-Inspect agent suggestions before they change your work. "Proposal status" filters the list. A proposal's page shows the changes and the decision buttons (see [Review what an agent proposes](#review-what-an-agent-proposes)). Only you can approve, return or reject; agents draft, submit and withdraw proposals themselves.
+Inspect agent suggestions before they change your work. "Proposal status" filters the list. A proposal's page shows the changes and the decision buttons (see [Review what an agent proposes](#review-what-an-agent-proposes)). Only you can approve, return or reject; agents draft, submit and withdraw proposals themselves. For the history of what was applied to one work item or roadmap, open "Applied proposals" on its page. An agent's own proposals are on its page under **Agents**.
 
 ### Settings
 

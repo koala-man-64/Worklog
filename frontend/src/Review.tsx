@@ -20,6 +20,7 @@ import type {
 } from "./types";
 import type { Repository, RepositoryResolution } from "./repositoryTypes";
 import { Icon } from "./icons";
+import { statusLabel } from "./ProposalHistory";
 export function Review({ selectedId }: { selectedId?: string }) {
   const [status, setStatus] = useState("submitted");
   const proposals = useData<List<Proposal>>(
@@ -239,10 +240,6 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
       )}
     </section>
   );
-}
-// An automatic approval was the Settings choice, not the person's decision.
-function statusLabel(p: Proposal) {
-  return p.autoApproved ? "approved automatically" : p.status;
 }
 function timestamp(value: string) {
   return <time dateTime={value}>{new Date(value).toLocaleString()}</time>;

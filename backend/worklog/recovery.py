@@ -56,6 +56,7 @@ SEALED_SCHEMAS: dict[int, frozenset[str]] = {
     13: frozenset({"ed29b8f9cfc5e2b17578ab73f23020bf1a51c5ef0d5971ece2052d08f1ada692"}),  # chat confirmations
     14: frozenset({"134bc42f3ccc11c5c9dabe483ba5a6e1d8d766b21bc00a2b7720a374daf00e13"}),  # task order
     15: frozenset({"7b1a1ec43f20cc2c3cf1d06d4b1956abd5c7c7bee6fcb2754add975fb7ef59fa"}),  # work items can wait
+    16: frozenset({"50d1aa8a96cab827efcdc66625b82a7dc0d67f1c4aaaf84df7eb3eb82a00e79d"}),  # what each approved proposal was applied to
 }
 
 
@@ -78,7 +79,7 @@ def _expected_schema(*, discussions: bool = True, coordination: bool = True,
                      resources: bool = True, people: bool = True,
                      search_keys: bool = True, decision_state: bool = True,
                      chat_confirmations: bool = True, task_positions: bool = True,
-                     waiting_status: bool = True) -> dict[tuple[str, str], str]:
+                     waiting_status: bool = True, proposal_targets: bool = True) -> dict[tuple[str, str], str]:
     """A released shape built from today's code. Only tests build shapes this way: restore checks
     SEALED_SCHEMAS, and test_sealed_schemas.py fails if a shape built here stops matching its seal."""
     from worklog.db import SCHEMA
@@ -143,6 +144,12 @@ def _expected_schema(*, discussions: bool = True, coordination: bool = True,
                                                     )
 
                                                     add_waiting_status(conn)
+                                                    if proposal_targets:
+                                                        from worklog.migrations import (
+                                                            add_proposal_targets,
+                                                        )
+
+                                                        add_proposal_targets(conn)
         if chat_messages:
             from worklog.chat_messages import SCHEMA as CHAT_MESSAGE_SCHEMA
 
