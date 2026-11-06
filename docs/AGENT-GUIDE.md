@@ -32,7 +32,7 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 3. **Act as yourself.** Every later command MUST give `--as NAME` before the group. Your runs, reports, messages, tickets and proposals then carry your own identity.
 4. **One request ID per write.** Give each write a stable `--request-id`: 8-200 printable ASCII characters without spaces. After an uncertain result, rerun with the same ID and the identical payload; it cannot apply twice. A new operation MUST get a new ID. Proposal commands take none (section 7).
 5. **Current revisions.** A revision-checked command MUST carry the revision from your latest read. On `409 conflict`, read the record again and decide afresh; never reapply blindly.
-6. **Proposals for the person's records.** Work items, day entries, scratchpads and notes, checklist tasks, roadmaps and step progress, people, links, tracked chats, GitHub references, questions, decisions, repository edits, resources (the person's reference pages) and the files attached to the person's records change only through a proposal the person approves (section 6). You write tickets, discussions, your own runs, participation, updates and ties, repository registrations and your inbox directly, and you track your own chat on the work you do (section 5.4); a proposal can also file or change a ticket that belongs with what it creates. Releases, the person's plans of what ships together, are read-only to you: no command and no proposal changes one. Read them to learn which release your work is in, and what has to be tested and prepared for it.
+6. **Proposals for the person's records.** Work items, day entries, scratchpads and notes, checklist tasks, roadmaps and step progress, people, links, tracked chats, GitHub references, questions, decisions, repository edits, resources (the person's reference pages) and the files attached to the person's records change only through a proposal the person approves (section 6). You write tickets, discussions, your own runs, participation, updates and ties, repository registrations and your inbox directly, and you track your own chat on the work you do (section 5.4); a proposal can also file or change a ticket that belongs with what it creates. Releases, the person's plans of what ships together, and their checks change only by proposal too: read them to learn which release your work is in and what it needs, and propose a check when your change needs a test, a configuration change or a request made before it ships.
 7. **Advisory, not authority.** Participation, ticket assignment, roles and ties reserve nothing and lock nothing, and a fresh report does not prove an agent is running. An acknowledgement means "received and understood", never approval.
 8. **Search first.** Before you investigate a failure, search past tickets, closed ones included: `tickets list --status all --q 'WORDS'`. File a ticket for an issue worth tracking, comment as you learn, and close it with a resolution that says what fixed it.
 9. **Never work around a refusal.** `401` means your identity was revoked: by the person, by the retirement of the agent that registered you, or by a restore. Stop, tell the person, and register again only if they agree. `403 agent_scope` is outside agent authority: propose the change or ask. `429 agent_limit`: report it and do not retry. `403 repository_registration_off`: propose `repository.create`. Section 8 lists every code.
@@ -57,8 +57,8 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 | Repository | UUID; one record per remote | `registeredBy`, `reviewed`, `duplicateOf`, `mergedInto` | you register; edits by proposal |
 | Ticket | `T-12`, `12` or UUID | `kind` bug, incident or task; `priority` low, normal, high or urgent; `status` open, doing, blocked or done; `resolution` | you, directly, or by proposal (`ticket.create`, `ticket.update`) |
 | Resource | UUID | `title`, `summary` (what the page is for), `body` (Markdown); `archived` | the person; you by proposal (`resource.*`) |
-| Release | UUID | `title`, `description` (Markdown), `releaseDate` (a YYYY-MM-DD day, or null while not dated), `status` planned, released or cancelled; `archived`. It holds work items, roadmaps, steps and GitHub references, and its `changes` are the GitHub references it holds with those on its work items and roadmaps | the person only; you read |
-| Release check | UUID | `kind` notify (who needs to know), test (what to test) or prepare (what to prepare first); `text`, `details` (Markdown), `personId`, `dueDate`; `status` open, doing, waiting, blocked or done | the person only; you read |
+| Release | UUID | `title`, `description` (Markdown), `releaseDate` (a YYYY-MM-DD day, or null while not dated), `status` planned, released or cancelled; `archived`. It holds work items, roadmaps, steps and GitHub references, and its `changes` are the GitHub references it holds with those on its work items and roadmaps | the person; you by proposal (`release.*`) |
+| Release check | UUID | `kind` notify (who needs to know), test (what to test) or prepare (what to prepare first); `text`, `details` (Markdown), `personId`, `dueDate`; `status` open, doing, waiting, blocked or done | the person; you by proposal (`check.*`) |
 | Proposal | UUID | draft, submitted, approved, rejected or withdrawn; `autoApproved` | you draft; the person decides |
 | Identity, credential | `agentId`; a credential `id` | active or revoked | the person issues; you register and retire your own |
 | Run | UUID; `--client-run-key` is unique per credential | open or ended | you, directly |
@@ -86,7 +86,8 @@ Records are archived, never deleted, and only the person archives or recovers th
 | Comment on tickets | yes | yes | no |
 | Archive or recover tickets | yes | no | no |
 | Write, archive or recover resources | yes | no | yes |
-| Change, archive or recover releases and their checks | yes | no | no |
+| Change releases and their checks | yes | no | yes |
+| Archive or recover releases and their checks | yes | no | no |
 | Post, reply, acknowledge, cancel your own requests, act on roles | yes | yes | - |
 | Tie yourself to a record, change your role there, untie yourself | yes | yes, ties you set | - |
 | Tie another agent; change or remove a tie the person set | yes | no | no |
@@ -519,8 +520,14 @@ A proposal is a JSON file with a title (up to 1,000 bytes), a rationale for the 
 | `resource.recover` | `id`, `revision` | - |
 | `ticket.create` | `title` | `id`, `description`, `kind`, `priority`, `status`, `resolution`, `labels`, `repositoryIds`, `itemId`, `assigneeId` |
 | `ticket.update` | `id`, `revision` | `title`, `description`, `kind`, `priority`, `status`, `resolution`, `labels`, `repositoryIds`, `itemId`, `assigneeId` |
+| `release.create` | `title` | `id`, `description`, `releaseDate`, `status` |
+| `release.update` | `id`, `revision` | `title`, `description`, `releaseDate`, `status` |
+| `release.add` | `releaseId`, `targetType`, `targetId` | - |
+| `release.remove` | `releaseId`, `targetType`, `targetId` | - |
+| `check.create` | `releaseId`, `kind`, `text` | `id`, `details`, `personId`, `dueDate`, `status` |
+| `check.update` | `id`, `revision` | `kind`, `text`, `details`, `personId`, `dueDate`, `status` |
 
-Any other field is refused. On a create, `id` is not an ID but a name for the new record (section 6.2, names). Proposals cannot archive or recover files or tickets, comment on tickets, import plans, reorder, or archive or restore roadmaps.
+Any other field is refused. On a create, `id` is not an ID but a name for the new record (section 6.2, names). Proposals cannot archive or recover files, tickets, releases or release checks, comment on tickets, import plans, reorder, or archive or restore roadmaps.
 
 ### 6.2 Field rules
 
@@ -554,13 +561,20 @@ Any other field is refused. On a create, `id` is not an ID but a name for the ne
 - **Existing repositories.** A `repository.create` for a remote that is already registered links to that record instead of failing.
 - **Names for new records.** Worklog gives a new record its ID when the change that creates it applies, so a later change in the same proposal can't give that ID. Name the record instead:
   - On any create but `attachment.create`, and `note.create` on a work item (it joins the item's one scratchpad), `id` is a name, such as `@jane`: `@` and up to 100 letters, digits, `.`, `_` or `-`, starting with a letter or digit. It is never an ID; Worklog chooses that.
-  - A later change gives the name wherever it would give the record's ID: in `id`, `itemId`, `roadmapId`, `parentId`, `personId`, `ownerId`, `targetId`, and in `repositoryIds`. The record must be the kind the field takes: a person for `personId`, a repository in `repositoryIds`, and for `ownerId` and `targetId` the kind `ownerType` or `targetType` names.
+  - A later change gives the name wherever it would give the record's ID: in `id`, `itemId`, `roadmapId`, `parentId`, `personId`, `releaseId`, `ownerId`, `targetId`, and in `repositoryIds`. The record must be the kind the field takes: a person for `personId`, a release for `releaseId`, a repository in `repositoryIds`, and for `ownerId` and `targetId` the kind `ownerType` or `targetType` names.
   - Declare each name once, before the changes that use it. A step can't be named: it keeps the ID you give it in `roadmap.create` or `roadmap.revise`. A GitHub reference names a chat the same proposal tracks by its `chatId`.
   - `draft` and `update` refuse a name nothing earlier declares, one declared twice and one of the wrong kind, with `422 validation` naming the change.
   - A name on a `repository.create` for a remote already registered stands for that repository.
   - The proposal keeps its names. The person sees in Review which change creates each named record.
 - **Tickets.** File, change, close and comment on tickets directly (section 5.5). Propose `ticket.create` or `ticket.update` when the ticket belongs with what the same proposal creates, such as a ticket on a new work item or repository. A proposed ticket or change is written as your identity, as one you file yourself is. `id` on `ticket.update` is the ticket's key, number or ID, and `itemId: null` unlinks its work item.
 - **Resources.** `resource.*` creates, edits, archives and recovers the person's reference pages. Every agent reads them as the person's guidance, so say in the rationale why a page should change. The page's history keeps every earlier version and who changed it.
+- **Releases.** `release.*` and `check.*` change a release, what it holds and its checks; archiving and recovering either stays the person's.
+  - `releaseDate` and `dueDate` are `YYYY-MM-DD` days. `null` makes a release not dated, or clears a check's due date or `personId`; a field you leave out keeps its value.
+  - A release's `status` is `planned`, `released` or `cancelled`. A check's `kind` is `notify` (who needs to know), `test` (what to test) or `prepare` (what to prepare first), and its `status` is a work item's.
+  - `release.add` and `release.remove` take a `targetType` of `item`, `roadmap`, `step` or `github` (a GitHub reference) and its `targetId`. Holding a record twice, or removing one not held, changes nothing; a release takes no archived record, retired step, or GitHub reference on archived work.
+  - A `personId` newly named must be an active person.
+  - Dates, people and the records a change names by ID are checked when it applies, as every record's own rules are, so a bad date or an archived person fails the person's approval: check them before you submit.
+  - When your change needs something before it ships, such as a configuration change, a request to another team or a test, propose a check on the release that holds your work: `releases list --item ITEM_ID` finds it, and `releases show` gives each check's `revision`.
 - **Files.** You attach a file to the person's records with a copy of evidence uploaded to the same proposal:
   1. Draft the proposal; its operations may be empty for now.
   2. Upload the file to the draft with `proposal evidence`. It prints the file's record; keep its `id`.
@@ -761,7 +775,7 @@ Invoke-RestMethod -Uri 'http://127.0.0.1:8877/api/v1/work-items/ITEM_ID' -Header
 - **Work, and a work item's page.** Your participation under "Participants" and "Recent updates", and tracked chats under "Agent chats". Also the item's tickets, "GitHub commits & PRs", and under "Applied proposals" every proposal applied to it, with the changes each made there.
 - **Tickets.** Every ticket, with its author, assignee and comments.
 - **Resources.** The reference pages the person writes for you and for themselves. You change them only by proposal.
-- **Releases.** What ships together and when: each release's work items, roadmaps and steps, its "Changes" (the PRs and commits on them, with "Made in" and the tracked chat that made each), and "Who needs to know", "What to test" and "Before release". Only the person changes them.
+- **Releases.** What ships together and when: each release's work items, roadmaps and steps, its "Changes" (the PRs and commits on them, with "Made in" and the tracked chat that made each), and "Who needs to know", "What to test" and "Before release". You change them only by proposal.
 - **Roadmaps.** "Agents working here", agent chips beside each step, tracked chats, questions and decisions, and "Applied proposals".
 - **Repositories.** Registered repositories; yours say "Registered by" your label and "unreviewed" until the person confirms them. A repository's page lists participants and recent updates. "Open agent runs" lets the person end a run you left open.
 - **Agents.** One entry per identity. It shows a status ("Reporting work", "Stale reports", "No current reports" or "Credential revoked"), your runs, messages and updates, under "Tied to" every record you are tied to with your role there, under "From its work" the work your runs, messages and updates tie you to, and the chats the person confirmed you in, and under "Proposals" every proposal you made, with where each got to.

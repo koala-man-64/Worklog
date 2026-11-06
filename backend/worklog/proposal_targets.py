@@ -12,8 +12,10 @@ A change counts toward:
   chats, GitHub references and people;
 - the roadmap it puts a work item or a sub-roadmap on;
 - the work item a ticket it creates or changes is linked to once the change is made.
-A person, a repository or a resource is neither, so a change to one alone counts toward nothing
-here. A change counts as applied: a name it gave a new record (proposal_names) is already its ID.
+A person, a repository, a resource or a release is neither, so a change to one alone counts toward
+nothing here: a release that holds a work item or roadmap doesn't change it. A release's history
+names the agent behind each change applied to it. A change counts as applied: a name it gave a new
+record (proposal_names) is already its ID.
 """
 
 from __future__ import annotations

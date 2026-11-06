@@ -59,6 +59,8 @@ it.each([
   ["roadmap.update", { roadmapId: ID }, `/roadmaps/${ID}`],
   ["progress.set", { stepId: ID }, `/steps/${ID}`],
   ["resource.update", { id: ID }, `/resources/${ID}`],
+  ["release.update", { id: ID }, `/releases/${ID}`],
+  ["check.update", { id: ID }, `/release-checks/${ID}`],
   // A ticket is named by its key or number as well as its ID.
   ["ticket.update", { id: "T-12" }, "/tickets/T-12"],
   ["ticket.update", { id: "12" }, "/tickets/12"],
@@ -158,6 +160,54 @@ it("treats a missing step as new only when an earlier operation creates it", asy
   );
   expect(screen.getAllByText(CREATED_NOTE)).toHaveLength(1);
   expect(screen.getByText("open")).toBeInTheDocument();
+});
+it("says which change creates the release a release change names", async () => {
+  const proposal = {
+    id: ID,
+    title: "November release",
+    rationale: "",
+    status: "submitted",
+    revision: 2,
+    actorLabel: "Implementer",
+    attachments: [],
+    operations: [
+      {
+        action: "release.create",
+        payload: { id: "@nov", title: "November release" },
+      },
+      {
+        action: "check.create",
+        payload: { releaseId: "@nov", kind: "test", text: "Smoke test" },
+      },
+      {
+        action: "release.add",
+        payload: { releaseId: "@nov", targetType: "item", targetId: OTHER_ID },
+      },
+      // The server refuses a name nothing earlier creates; Review still says so.
+      {
+        action: "check.create",
+        payload: { releaseId: "@dec", kind: "test", text: "Too soon" },
+      },
+    ],
+  };
+  requestMock.mockImplementation(async (path: string) => {
+    if (path === `/proposals/${ID}`) return proposal;
+    if (path === "/settings") return { requireProposalApproval: true };
+    return { items: [], total: 0 };
+  });
+  renderWithClient(<Review selectedId={ID} />);
+  expect(
+    await screen.findByText(
+      "@nov names this new record for later changes in this proposal.",
+    ),
+  ).toBeInTheDocument();
+  expect(screen.getAllByText("@nov: created by change 1")).toHaveLength(2);
+  expect(
+    screen.getByText(
+      "@dec: no earlier change in this proposal creates it, so approval fails.",
+    ),
+  ).toHaveClass("warning");
+  expect(requestMock).not.toHaveBeenCalledWith(expect.stringContaining("@"));
 });
 it("shows a record a name stands for as one an earlier change creates", async () => {
   const proposal = {

@@ -110,6 +110,14 @@ OPERATIONS: dict[str, Spec] = {
     # A ticket's id is its UUID, its key (T-12) or its number, as the person's route takes it.
     "ticket.create": _new(m.TicketCreate),
     "ticket.update": _existing(m.TicketUpdate),
+    # A release, what it holds and its checks. Holding a record is a tie, as person.link is, so
+    # release.add and release.remove create nothing a later change could name.
+    "release.create": _new(m.ReleaseCreate),
+    "release.update": _existing(m.ReleaseUpdate),
+    "release.add": _new(m.ReleaseContentChange),
+    "release.remove": _new(m.ReleaseContentChange),
+    "check.create": _new(m.ReleaseCheckCreate),
+    "check.update": _existing(m.ReleaseCheckUpdate),
 }
 
 # Operations only the person's own routes run. A proposal can't carry one: they are absent above,
@@ -120,6 +128,7 @@ SERVER_ONLY = frozenset({
     "note.archive", "note.recover", "task.archive", "task.recover",
     "roadmap.restore", "roadmap.archive", "roadmap.recover",
     "ticket.archive", "ticket.recover",
+    "release.archive", "release.recover", "check.archive", "check.recover",
 })
 
 # The creates that may name the record they make: every one but a file's, a copy of the proposal's
