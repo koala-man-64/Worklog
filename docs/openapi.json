@@ -10353,7 +10353,13 @@
               "decision.create",
               "decision.update",
               "decision.archive",
-              "decision.recover"
+              "decision.recover",
+              "resource.create",
+              "resource.update",
+              "resource.archive",
+              "resource.recover",
+              "ticket.create",
+              "ticket.update"
             ],
             "title": "Action"
           },

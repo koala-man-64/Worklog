@@ -15,10 +15,10 @@ PACKAGE = Path(__file__).resolve().parents[1] / "worklog"
 ORDER = [
     # Nothing of Worklog's below them, the current schema and the route policy among them.
     "__init__", "common", "models", "avatars", "transcripts", "maintenance", "schema", "policy",
-    # Search, scratchpads, repository links, request shapes, the operation registry, and what an
-    # applied change counts toward.
+    # Search, scratchpads, repository links, request shapes, the operation registry, the names a
+    # proposal gives its new records, and what an applied change counts toward.
     "search", "scratchpad", "repository_links", "coordination_models", "discussion_models", "operations",
-    "proposal_targets",
+    "proposal_names", "proposal_targets",
     # Roadmaps, then the database, which opens, upgrades and validates the file.
     "plans", "db",
     # Records that stand on their own, and the agent identities that discussions and chats share.

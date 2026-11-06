@@ -367,7 +367,9 @@ class Operation(Command):
                     "chat.create", "chat.update", "chat.archive", "chat.recover",
                     "github.create", "github.update", "github.archive", "github.recover",
                     "question.create", "question.update", "question.archive", "question.recover",
-                    "decision.create", "decision.update", "decision.archive", "decision.recover"]
+                    "decision.create", "decision.update", "decision.archive", "decision.recover",
+                    "resource.create", "resource.update", "resource.archive", "resource.recover",
+                    "ticket.create", "ticket.update"]
     payload: dict[str, Any]
 
 

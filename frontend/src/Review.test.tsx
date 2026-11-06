@@ -43,6 +43,8 @@ it.each([
   ["progress.set", { stepId: "..%2Fexport" }],
   ["roadmap.update", { roadmapId: "export" }],
   ["entry.upsert", { itemId: "../export", date: "2026-10-28" }],
+  ["resource.update", { id: "T-12" }],
+  ["ticket.update", { id: "T-12/../export" }],
 ])("sends no request for a malformed %s target", async (action, payload) => {
   show(action, payload);
   expect(await screen.findByText(/^Malformed target/)).toBeInTheDocument();
@@ -56,6 +58,11 @@ it.each([
   ["work-item.update", { id: ID }, `/work-items/${ID}`],
   ["roadmap.update", { roadmapId: ID }, `/roadmaps/${ID}`],
   ["progress.set", { stepId: ID }, `/steps/${ID}`],
+  ["resource.update", { id: ID }, `/resources/${ID}`],
+  // A ticket is named by its key or number as well as its ID.
+  ["ticket.update", { id: "T-12" }, "/tickets/T-12"],
+  ["ticket.update", { id: "12" }, "/tickets/12"],
+  ["ticket.update", { id: ID }, `/tickets/${ID}`],
 ])(
   "fetches the encoded path for a valid %s payload",
   async (action, payload, path) => {
@@ -151,6 +158,98 @@ it("treats a missing step as new only when an earlier operation creates it", asy
   );
   expect(screen.getAllByText(CREATED_NOTE)).toHaveLength(1);
   expect(screen.getByText("open")).toBeInTheDocument();
+});
+it("shows a record a name stands for as one an earlier change creates", async () => {
+  const proposal = {
+    id: ID,
+    title: "Bring in payments",
+    rationale: "",
+    status: "submitted",
+    revision: 2,
+    actorLabel: "Onboarder",
+    attachments: [],
+    operations: [
+      { action: "person.create", payload: { id: "@jane", name: "Jane Doe" } },
+      {
+        action: "repository.create",
+        payload: { id: "@api", name: "payments-api" },
+      },
+      {
+        action: "person.link",
+        payload: {
+          personId: "@jane",
+          targetType: "repository",
+          targetId: "@api",
+        },
+      },
+      {
+        action: "person.update",
+        payload: { id: "@jane", revision: 1, team: "Payments" },
+      },
+      {
+        action: "ticket.create",
+        payload: { title: "Rounding", repositoryIds: ["@api", OTHER_ID] },
+      },
+      // The server refuses a name nothing earlier creates; Review still says so.
+      { action: "item.update", payload: { id: "@fix", revision: 1 } },
+    ],
+  };
+  requestMock.mockImplementation(async (path: string) => {
+    if (path === `/proposals/${ID}`) return proposal;
+    if (path === "/settings") return { requireProposalApproval: true };
+    return { items: [], total: 0 };
+  });
+  renderWithClient(<Review selectedId={ID} />);
+  expect(
+    await screen.findByText(
+      "@jane names this new record for later changes in this proposal.",
+    ),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(
+      "@api names this new record for later changes in this proposal.",
+    ),
+  ).toBeInTheDocument();
+  expect(screen.getAllByText("@jane: created by change 1")).toHaveLength(2);
+  expect(screen.getAllByText("@api: created by change 2")).toHaveLength(2);
+  // Change 4 changes the person change 1 adds, so there is nothing to load.
+  const update = screen
+    .getByRole("heading", { name: "Change 4: person.update" })
+    .closest("article") as HTMLElement;
+  expect(within(update).getByText(CREATED_NOTE)).toBeInTheDocument();
+  expect(within(update).queryByText("Current")).toBeNull();
+  expect(
+    screen.getByText(
+      "@fix: no earlier change in this proposal creates it, so approval fails.",
+    ),
+  ).toHaveClass("warning");
+  expect(screen.queryByText(/^Malformed target/)).toBeNull();
+  expect(requestMock).not.toHaveBeenCalledWith(expect.stringContaining("@"));
+});
+it("says a name on a registered remote stands for the repository already there", async () => {
+  requestMock.mockResolvedValue({
+    url: "https://github.com/a/service",
+    remoteIdentity: "github.com/a/service",
+    repository: {
+      id: ID,
+      name: "Service",
+      url: "https://github.com/a/service",
+      remoteIdentity: "github.com/a/service",
+      duplicateOf: null,
+      mergedInto: null,
+      description: "",
+      revision: 1,
+      archived: false,
+    },
+  });
+  show("repository.create", {
+    id: "@api",
+    name: "Service",
+    url: "https://github.com/a/service",
+  });
+  expect(await screen.findByText(/^Already registered as/)).toHaveTextContent(
+    "Already registered as Service: approval links to it and adds nothing, so @api stands for it in later changes.",
+  );
 });
 it("names the file a change attaches, from the proposal's own files", async () => {
   const evidence = "7a8b9c0d-1e2f-4a3b-8c4d-5e6f7a8b9c0d";

@@ -108,9 +108,10 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
 
     def dispatch(conn: sqlite3.Connection, actor: dict, action: str, payload: dict) -> dict:
         # A proposal's operation passes the same request model the person's own route takes,
-        # then the same domain mutation; one that operations.py doesn't define never runs.
+        # then the same domain mutation; one that operations.py doesn't define never runs. Only
+        # an approved proposal's change comes this way, which is what lets it write a resource.
         operations.validate(action, payload)
-        return work.apply(conn, actor, action, payload)
+        return work.apply(conn, actor, action, payload, proposed=True)
 
     proposals = ProposalService(db, dispatch)
     work.proposals = proposals

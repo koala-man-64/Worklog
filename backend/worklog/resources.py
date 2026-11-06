@@ -1,8 +1,10 @@
 """Resources: reference pages the person writes for themselves and their agents to read.
 
 A resource is one Markdown page with a title and a one-line summary, so a list can say what
-each page is for without its text. Only the person creates, edits, archives and recovers
-resources; agents read them, as the person does, and never change them, not even by proposal.
+each page is for without its text. The person creates, edits, archives and recovers resources.
+Agents read them, as the person does, and change them only by proposal: once the person approves
+it, or as it is submitted when they turned approval off. Each such change is made as the agent
+that proposed it, so the page's history says who changed what.
 """
 
 from __future__ import annotations
@@ -42,7 +44,7 @@ class ResourceService:
     def _person(actor: dict) -> None:
         # The HTTP layer already refuses agents' writes; this keeps any other caller to the rule.
         if actor["kind"] != "human":
-            raise AppError(403, "agent_scope", "Only the person writes resources; agents read them")
+            raise AppError(403, "agent_scope", "Only the person writes resources; agents propose changes to them")
 
     @staticmethod
     def _fields(current: dict, p: dict) -> dict:
@@ -60,8 +62,34 @@ class ResourceService:
         body = "\n\n".join(part for part in (resource["summary"].strip(), resource["body"]) if part.strip())
         search.put(c, resource["id"], "resource", resource["title"], body, resource["id"], resource["archived"])
 
+    def apply(self, c: sqlite3.Connection, actor: dict, action: str, p: dict) -> dict:
+        """An applied proposal's change, made as the agent (or the person) that proposed it.
+
+        Only the change an approved proposal makes reaches here (WorkService.apply), so the
+        person decided it, in Review or by turning approval off; their routes call the methods
+        below, which refuse anyone else.
+        """
+        if action == "resource.create":
+            return self._create(c, actor, p)
+        if action == "resource.update":
+            return self._update(c, actor, p["id"], p)
+        if action in {"resource.archive", "resource.recover"}:
+            return self._set_archived(c, actor, p["id"], p, action == "resource.archive")
+        raise AppError(422, "operation", "Unsupported resource operation")
+
     def create(self, c: sqlite3.Connection, actor: dict, p: dict) -> dict:
         self._person(actor)
+        return self._create(c, actor, p)
+
+    def update(self, c: sqlite3.Connection, actor: dict, identity: str, p: dict) -> dict:
+        self._person(actor)
+        return self._update(c, actor, identity, p)
+
+    def set_archived(self, c: sqlite3.Connection, actor: dict, identity: str, p: dict, archived: bool) -> dict:
+        self._person(actor)
+        return self._set_archived(c, actor, identity, p, archived)
+
+    def _create(self, c: sqlite3.Connection, actor: dict, p: dict) -> dict:
         values = self._fields({"title": "", "summary": "", "body": ""}, p)
         identity, stamp = uid(), now()
         c.execute("INSERT INTO resources(id,title,summary,archived,revision,created_at,updated_at,body) VALUES(?,?,?,0,1,?,?,?)",
@@ -71,8 +99,7 @@ class ResourceService:
         event(c, actor, "resource.create", identity, None, after)
         return after
 
-    def update(self, c: sqlite3.Connection, actor: dict, identity: str, p: dict) -> dict:
-        self._person(actor)
+    def _update(self, c: sqlite3.Connection, actor: dict, identity: str, p: dict) -> dict:
         row = self.row(c, identity)
         require_revision(row, p.get("revision"))
         if row["archived"]:
@@ -86,8 +113,7 @@ class ResourceService:
         event(c, actor, "resource.update", row["id"], before, after)
         return after
 
-    def set_archived(self, c: sqlite3.Connection, actor: dict, identity: str, p: dict, archived: bool) -> dict:
-        self._person(actor)
+    def _set_archived(self, c: sqlite3.Connection, actor: dict, identity: str, p: dict, archived: bool) -> dict:
         row = self.row(c, identity)
         require_revision(row, p.get("revision"))
         before = record(row, full=True)
