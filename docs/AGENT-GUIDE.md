@@ -28,11 +28,11 @@ worklog [--port N] [--data-dir DIR] agent [--as NAME] [--url URL] GROUP COMMAND 
 $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_TOKEN', 'User'); worklog agent register --chat CHAT_ID --label 'Parser fix (Claude)'
 ```
 
-2. **Register once per chat, with your chat's ID**, before any other Worklog command (section 4). CHAT_ID is your Claude Code session ID, Claude desktop `local_...` ID or Codex thread ID. Worklog keeps it with your identity, so it can track your chat: your runs report it, and work you report on an item tracks your chat there. CHAT_ID also names you: NAME below is your chat ID, unless you give `--name NAME` (1-64 letters, digits, `-` or `_`, starting with a letter or digit, compared without case), which a chat ID that cannot be a name needs. Keep both for the whole chat: registering your name for another chat is refused (`chat_mismatch`). Worklog keeps your new token in its data directory; you MUST NOT open, copy or print that file.
+2. **Register once per chat, with your chat's ID**, before any other Worklog command (section 4). CHAT_ID is your Claude Code session ID, Claude desktop `local_...` ID or Codex thread ID. Worklog keeps it with your identity, so it can track your chat: your runs report it, work you report on an item tracks your chat there, and `chats track` tracks it on the work you name (section 5.4). CHAT_ID also names you: NAME below is your chat ID, unless you give `--name NAME` (1-64 letters, digits, `-` or `_`, starting with a letter or digit, compared without case), which a chat ID that cannot be a name needs. Keep both for the whole chat: registering your name for another chat is refused (`chat_mismatch`). Worklog keeps your new token in its data directory; you MUST NOT open, copy or print that file.
 3. **Act as yourself.** Every later command MUST give `--as NAME` before the group. Your runs, reports, messages, tickets and proposals then carry your own identity.
 4. **One request ID per write.** Give each write a stable `--request-id`: 8-200 printable ASCII characters without spaces. After an uncertain result, rerun with the same ID and the identical payload; it cannot apply twice. A new operation MUST get a new ID. Proposal commands take none (section 7).
 5. **Current revisions.** A revision-checked command MUST carry the revision from your latest read. On `409 conflict`, read the record again and decide afresh; never reapply blindly.
-6. **Proposals for the person's records.** Work items, day entries, scratchpads and notes, checklist tasks, roadmaps and step progress, people, links, tracked chats, GitHub references, questions, decisions, repository edits, resources (the person's reference pages) and the files attached to the person's records change only through a proposal the person approves (section 6). You write tickets, discussions, your own runs, participation, updates and ties, repository registrations and your inbox directly; a proposal can also file or change a ticket that belongs with what it creates. Releases, the person's plans of what ships together, and their checks change only by proposal too: read them to learn which release your work is in and what it needs, and propose a check when your change needs a test, a configuration change or a request made before it ships.
+6. **Proposals for the person's records.** Work items, day entries, scratchpads and notes, checklist tasks, roadmaps and step progress, people, links, tracked chats, GitHub references, questions, decisions, repository edits, resources (the person's reference pages) and the files attached to the person's records change only through a proposal the person approves (section 6). You write tickets, discussions, your own runs, participation, updates and ties, repository registrations and your inbox directly, and you track your own chat on the work you do (section 5.4); a proposal can also file or change a ticket that belongs with what it creates. Releases, the person's plans of what ships together, and their checks change only by proposal too: read them to learn which release your work is in and what it needs, and propose a check when your change needs a test, a configuration change or a request made before it ships.
 7. **Advisory, not authority.** Participation, ticket assignment, roles and ties reserve nothing and lock nothing, and a fresh report does not prove an agent is running. An acknowledgement means "received and understood", never approval.
 8. **Search first.** Before you investigate a failure, search past tickets, closed ones included: `tickets list --status all --q 'WORDS'`. File a ticket for an issue worth tracking, comment as you learn, and close it with a resolution that says what fixed it.
 9. **Never work around a refusal.** `401` means your identity was revoked: by the person, by the retirement of the agent that registered you, or by a restore. Stop, tell the person, and register again only if they agree. `403 agent_scope` is outside agent authority: propose the change or ask. `429 agent_limit`: report it and do not retry. `403 repository_registration_off`: propose `repository.create`. Section 8 lists every code.
@@ -53,7 +53,7 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 | Person | UUID | `name`, `title`, `team`, `description`, contact details (`email`, `phone`, `chat`, `location`), `notes` (Markdown); tied to work items, roadmaps and repositories, each with a `relationship` (their role there) | proposal (`person.*`) |
 | Link, GitHub reference | UUID | `url`; a GitHub reference's `kind` is commit or pr | proposal |
 | File | UUID | `name`, `mime`, `size`, `sha256`, `archived`; `ownerType` item, roadmap, step, repository, or proposal for evidence | evidence: you, on your own draft; elsewhere: proposal (`attachment.create`) |
-| Tracked chat | Worklog's UUID, and `chatId`, the provider's ID | on a work item or roadmap; `stepIds`, `provider`, `model` | proposal (`chat.*`) |
+| Tracked chat | Worklog's UUID, and `chatId`, the provider's ID | on a work item or roadmap; `stepIds`, `provider`, `model` | the chat you registered with: you, directly (`chats track`); any other: proposal (`chat.*`) |
 | Repository | UUID; one record per remote | `registeredBy`, `reviewed`, `duplicateOf`, `mergedInto` | you register; edits by proposal |
 | Ticket | `T-12`, `12` or UUID | `kind` bug, incident or task; `priority` low, normal, high or urgent; `status` open, doing, blocked or done; `resolution` | you, directly, or by proposal (`ticket.create`, `ticket.update`) |
 | Resource | UUID | `title`, `summary` (what the page is for), `body` (Markdown); `archived` | the person; you by proposal (`resource.*`) |
@@ -78,6 +78,7 @@ Records are archived, never deleted, and only the person archives or recovers th
 | Read work, days, roadmaps, steps, people, notes, tickets, resources, releases, discussions, repositories, runs and proposals | yes | yes | - |
 | Read chat transcripts, chat messages, the Claude Code sessions running on the person's machine, the Agents page, Settings, credentials, backups or the export | yes | no | - |
 | Change work items, day entries, notes, tasks, roadmaps, progress, people, links, tracked chats, GitHub references, questions or decisions | yes | no | yes |
+| Track your own chat on a work item, a roadmap or its steps | yes | yes, the chat you registered with | yes |
 | Register a repository | yes | yes, unless the person turned it off | yes |
 | Edit, archive or recover a repository | yes | no | yes |
 | Confirm or merge repositories | yes | no | no |
@@ -133,7 +134,11 @@ worklog agent --as NAME resources show RESOURCE_ID
 worklog agent --as NAME participation start --run RUN_ID --checkout C:/Projects/repo --item ITEM_ID --description 'Fixing the parser' --request-id participation-CHAT_ID
 ```
 
-**Step 6. Track your chat on the work (optional).** Propose `chat.create` (section 6) with `ownerType` `item` and the item's `ownerId`, or `roadmap` with the `stepIds` you work on; your `chatId`; a `title`; your `provider` and `model`. Once the person approves it, your chat shows on that work and on the Chats page (a roadmap's chat also beside its steps), and the person can write to you from it.
+**Step 6. Track your chat on the work (optional).** No proposal is needed: `chats track` tracks the chat you registered with on a work item, or on a roadmap with a `--step` for each step you work on (section 5.4). Your chat then shows on that work and on the Chats page (a roadmap's chat also beside its steps), and the person can write to you from it. When you take on another step, run it again with that `--step`.
+
+```powershell
+worklog agent --as NAME chats track --roadmap ROADMAP_ID --step STEP_ID --provider claude --request-id track-CHAT_ID-1
+```
 
 **Step 7. Work, and keep the record true.** Post updates, file and close tickets, propose changes and discuss. Nothing wakes you: at natural checkpoints, check your inbox and the discussions awaiting you.
 
@@ -228,7 +233,7 @@ worklog agent --as NAME proposal reopen PROPOSAL_ID --revision 3
 worklog agent --as NAME proposal withdraw PROPOSAL_ID --revision 4
 ```
 
-### 5.4 Repositories, runs, participation and updates
+### 5.4 Repositories, runs, participation, updates and your chat
 
 | Command | Arguments and options | Rev | Request ID | Notes |
 |---|---|---|---|---|
@@ -248,6 +253,7 @@ worklog agent --as NAME proposal withdraw PROPOSAL_ID --revision 4
 | `participation rejoin ID` | `--revision N` | yes | required | reports again after a release |
 | `updates list` | `[--repo ID] [--item ID] [--participation ID] [--limit 50] [--offset 0]` | - | - | updates as posted |
 | `updates post` | `--participation ID` and either `--text TEXT [--kind update\|blocker\|handoff]` or `--file FILE` | - | required | immutable; advances the participation's revision |
+| `chats track` | `--item ITEM_ID`, or `--roadmap ROADMAP_ID [--step STEP_ID]` (repeat `--step`); `[--title TITLE] [--provider PROVIDER] [--model MODEL]` | - | required | tracks the chat you registered with there, and prints it with `created`; where it is tracked already, adds the steps you name |
 
 - **Remotes.** A remote is an `https://` address, `ssh://git@host/path` or `git@host:path`. Every form of one remote names the same record: HTTPS or SSH, with or without `.git` or a trailing `/`, in any case, and Azure DevOps' `dev.azure.com`, `{org}.visualstudio.com` and `ssh.dev.azure.com` forms.
 - **Unreviewed registrations.** A repository you register shows as unreviewed until the person confirms or edits it.
@@ -256,6 +262,12 @@ worklog agent --as NAME proposal withdraw PROPOSAL_ID --revision 4
 - **Staleness.** Participation is stale after 2 hours without a report. Stale is a label: the participation is not released.
 - **Snapshots.** An update keeps the repositories and work item it was posted with.
 - **Merged repositories.** When the person merges a repository into another, your reports and updates move to the survivor, keeping their revisions.
+- **Your chat on the work.** `chats track` needs no proposal.
+  - It tracks only the chat you registered with: Worklog takes its ID from your identity, and you cannot name another. A credential the person issued in Settings registered no chat, so it gets `403 agent_scope`; propose `chat.create` instead.
+  - A new tracked chat is titled with your label unless you give `--title`.
+  - Where your chat is tracked already, it adds the steps you name and changes nothing else, and prints `created: false`.
+  - What the person decided stays. A chat they archived there is refused with `409 archived`, and a step your chat was taken off with `403 forbidden`, by them or by a proposal they approved; ask them.
+  - The work must be active (`409 archived`). Steps go only with `--roadmap`, belong to that roadmap (`422 validation`) and are not retired (`409 conflict`).
 
 ```powershell
 worklog agent --as NAME repositories list --q parser --limit 20
@@ -276,6 +288,8 @@ worklog agent --as NAME participation release PARTICIPATION_ID --revision 4 --re
 worklog agent --as NAME participation rejoin PARTICIPATION_ID --revision 5 --request-id participation-rejoin-1
 worklog agent --as NAME updates list --participation PARTICIPATION_ID
 worklog agent --as NAME updates post --participation PARTICIPATION_ID --kind blocker --text 'Waiting for the schema review.' --request-id update-blocker-1
+worklog agent --as NAME chats track --item ITEM_ID --request-id track-CHAT_ID-item
+worklog agent --as NAME chats track --roadmap ROADMAP_ID --step STEP_ID --step OTHER_STEP_ID --title 'Parser fix' --provider claude --model MODEL --request-id track-CHAT_ID-roadmap
 ```
 
 ### 5.5 Tickets
@@ -539,7 +553,7 @@ Any other field is refused. On a create, `id` is not an ID but a name for the ne
   - `roadmap.revise` replaces the whole step list. It retires each step it leaves out, restores each retired step it includes, and keeps exactly the descriptions it carries. Build it from `roadmap show`.
   - `roadmap.move` changes only the nesting; `parentId` is null for the top level.
 - **Tracked chats.**
-  - Your own chat needs no proposal: participation with `--item` tracks the chat you registered with on that work item, once. Propose `chat.*` for any other chat, and to change or archive one.
+  - Your own chat needs no proposal: `chats track` tracks the chat you registered with on a work item, or on a roadmap and its steps (section 5.4), and participation with `--item` tracks it on that work item, once. Propose `chat.*` for any other chat, and to change or archive one.
   - `chatId` is your chat's provider ID.
   - `stepIds` is the complete list of steps a roadmap's chat works on. The steps belong to that roadmap, and a retired step can stay but cannot be added. It is always empty on a work item's chat.
   - `repos` holds free-text labels, at most 20. `repositoryIds` holds catalog IDs, at most 100.
@@ -610,7 +624,7 @@ Uploading evidence leaves the proposal's revision alone. Before the update, `pro
   - The same key with a different payload is `409 idempotency_conflict`.
   - Keys are 8-200 printable ASCII characters without spaces.
 - **Which writes take a request ID.**
-  - **Required:** `repositories ensure`, `runs start`, `runs end`, and the `participation` start, update, check-in, release and rejoin commands, plus `updates post`.
+  - **Required:** `repositories ensure`, `runs start`, `runs end`, and the `participation` start, update, check-in, release and rejoin commands, plus `updates post` and `chats track`.
   - **Optional:** the `tickets` writes, `inbox`, and the `discussions` writes.
   - **None:** the `proposal` commands. `register` uses its token as the key: rerun the same command.
 - **Uncertain results.** A server error (5xx), a lost connection or an unreadable response leaves a write's result uncertain. For a write that takes a request ID, the error line ends with `result uncertain; retry the same command and payload with --request-id ID`; do exactly that.
@@ -668,7 +682,7 @@ worklog check
 | `archived` | 409 | The target, what it links to, or the evidence file to attach is archived | Ask the person to recover it, or choose another |
 | `too_large` | 413 | The request or file exceeds its limit | Shrink it (section 9) |
 | `file_size` | 413 or 422 | A file is empty or larger than 25,000,000 bytes | Upload a non-empty file within the limit |
-| `forbidden` | 403 | Not yours to do, such as approving, acting on another agent's proposal, tying another agent, or changing or removing a tie the person set | Do not retry; ask the person |
+| `forbidden` | 403 | Not yours to do, such as approving, acting on another agent's proposal, tying another agent, changing or removing a tie the person set, or putting your chat back on a step it was taken off (`fields.stepIds`) | Do not retry; ask the person |
 | `agent_scope` | 403 | Outside agent authority | Do not retry; propose the change or ask the person |
 | `authentication` | 401 | The credential is missing, invalid or revoked | Stop and tell the person (rule 9) |
 | `idempotency` | 428 or 422 | A required request ID is missing (428), or not 8-200 characters (422) | Give a valid `--request-id` |

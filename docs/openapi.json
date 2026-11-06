@@ -6107,6 +6107,46 @@
         }
       }
     },
+    "/api/v1/chats/track": {
+      "post": {
+        "summary": "Chat Track",
+        "operationId": "chat_track_api_v1_chats_track_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatTrack"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Chat Track Api V1 Chats Track Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/coordination-updates": {
       "get": {
         "summary": "Updates",
@@ -10047,6 +10087,59 @@
           "text"
         ],
         "title": "ChatMessageCreate"
+      },
+      "ChatTrack": {
+        "properties": {
+          "ownerType": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap"
+            ],
+            "title": "Ownertype"
+          },
+          "ownerId": {
+            "type": "string",
+            "title": "Ownerid"
+          },
+          "stepIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "title": "Stepids"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "default": ""
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ownerType",
+          "ownerId"
+        ],
+        "title": "ChatTrack",
+        "description": "Track the chat the calling agent registered with on a work item or roadmap, and on steps\nof that roadmap. Worklog takes the chat's ID from the identity, never from the request."
       },
       "ChatUpdate": {
         "properties": {
