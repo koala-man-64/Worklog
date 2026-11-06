@@ -36,6 +36,7 @@ import {
   StatusSelect,
   StepAgentChats,
 } from "./components";
+import { AgentTies } from "./AgentTies";
 import { DecisionsSection, QuestionsSection } from "./QuestionsDecisions";
 import { AgentChips, workersOn } from "./RoadmapAgents";
 import { AppliedProposals } from "./ProposalHistory";
@@ -663,6 +664,7 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
         people={road.people}
         disabled={road.archived}
       />
+      <AgentTies targetType="roadmap" targetId={id} disabled={road.archived} />
       <QuestionsSection
         roadmapId={id}
         questions={road.questions}
@@ -1029,6 +1031,12 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
         step={selected}
         steps={active}
         chats={roadChats}
+        disabled={road.archived}
+      />
+      <AgentTies
+        targetType="step"
+        targetId={selected.id}
+        canTie={!selected.retired}
         disabled={road.archived}
       />
       <Notes

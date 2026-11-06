@@ -173,8 +173,9 @@ def repository_takes_files(c: sqlite3.Connection, identity: str) -> None:
         raise AppError(409, "archived", f"Recover {row['name']} before attaching files to it", {"repositoryId": identity})
 
 
-def repository_takes_people(c: sqlite3.Connection, identity: str, *, new: bool) -> None:
-    """A person is tied to a repository that exists; a new tie, like a new file, needs an active record."""
+def repository_takes_people(c: sqlite3.Connection, identity: str, *, new: bool, who: str = "people") -> None:
+    """A person or an agent is tied to a repository that exists; a new tie, like a new file, needs an
+    active record. `who` names them in the refusal."""
     row = c.execute("SELECT * FROM repositories WHERE id=?", (identity,)).fetchone()
     if row is None:
         raise AppError(404, "not_found", "Repository does not exist")
@@ -182,7 +183,7 @@ def repository_takes_people(c: sqlite3.Connection, identity: str, *, new: bool) 
         return
     _refuse_merged(c, row)
     if row["archived"]:
-        raise AppError(409, "archived", f"Recover {row['name']} before tying people to it", {"repositoryId": identity})
+        raise AppError(409, "archived", f"Recover {row['name']} before tying {who} to it", {"repositoryId": identity})
 
 
 def repository_resolution(c: sqlite3.Connection, url: str) -> dict:
@@ -230,6 +231,17 @@ def repository_merge(c: sqlite3.Connection, actor: dict, identity: str, p: dict)
     c.execute("UPDATE OR IGNORE person_links SET target_id=? WHERE target_type='repository' AND target_id=?",
               (survivor["id"], source["id"]))
     c.execute("DELETE FROM person_links WHERE target_type='repository' AND target_id=?", (source["id"],))
+    # And the agents tied to it, the same way: one tied to both keeps the survivor's tie, with its role,
+    # unless only the source's tie is the person's. A tie the person set stays theirs, so it takes the place
+    # of the one the agent set itself.
+    moved["agents"] = c.execute("SELECT count(*) FROM agent_links WHERE target_type='repository' AND target_id=?",
+                                (source["id"],)).fetchone()[0]
+    c.execute("DELETE FROM agent_links WHERE target_type='repository' AND target_id=? AND set_by='agent' AND agent_id IN "
+              "(SELECT agent_id FROM agent_links WHERE target_type='repository' AND target_id=? AND set_by='human')",
+              (survivor["id"], source["id"]))
+    c.execute("UPDATE OR IGNORE agent_links SET target_id=? WHERE target_type='repository' AND target_id=?",
+              (survivor["id"], source["id"]))
+    c.execute("DELETE FROM agent_links WHERE target_type='repository' AND target_id=?", (source["id"],))
     # Attached files follow too, archived ones included, so none stay on a record that takes no changes.
     search.move_repository_files(c, source["id"], survivor["id"])
     moved["attachments"] = c.execute("UPDATE attachments SET owner_id=? WHERE owner_type='repository' AND owner_id=?",

@@ -31,7 +31,10 @@ COMMIT;
 
 
 def to_v15(path):
-    """Take a current database back to the v15 shape the documented way."""
+    """Take a current database back to the v15 shape the documented way: to version 16 first."""
+    from test_agent_links import to_v16
+
+    to_v16(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK)
 

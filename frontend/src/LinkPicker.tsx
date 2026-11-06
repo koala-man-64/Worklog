@@ -19,6 +19,8 @@ type LinkPickerProps<T extends { id: string }> = {
   placeholder: string;
   /** Where the matches for a search are read. */
   path: (q: string) => string;
+  /** Matches what was typed here, for a route that returns its whole list rather than searching. */
+  filter?: (record: T, q: string) => boolean;
   /** Records already linked are not offered again. */
   linked: (record: T) => boolean;
   option: (record: T) => ReactNode;
@@ -114,6 +116,7 @@ function LinkSearch<T extends { id: string }>({
   label,
   placeholder,
   path,
+  filter,
   linked,
   option,
   none,
@@ -134,9 +137,10 @@ function LinkSearch<T extends { id: string }>({
     queryFn: () => request<List<T>>(source),
     placeholderData: keepPreviousData,
   });
-  const items = query.data?.items ?? [];
+  const all = query.data?.items ?? [];
+  const items = filter ? all.filter((record) => filter(record, q.trim())) : all;
   const offered = items.filter((record) => !linked(record));
-  const total = query.data?.total ?? 0;
+  const total = filter ? items.length : (query.data?.total ?? 0);
   return (
     <div
       className={"link-search" + (floating ? " floating" : "")}

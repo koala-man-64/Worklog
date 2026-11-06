@@ -4013,6 +4013,21 @@ code {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+/* A tie you or an agent set: the agent or record with its avatar or context, who set it, then its role and Unlink. */
+.agent-tie-row .agent-tie {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+/* A question's or decision's tied agents: their chips, then a fold that ties, re-roles and unties. */
+.agent-tie-fold .person-badges {
+  margin-left: 0;
+}
+.agent-tie-fold > details > summary,
+.agent-ties-fold > summary {
+  font-size: 12px;
+}
 .agent-activity p {
   flex-basis: 100%;
   margin: 0;

@@ -25,6 +25,8 @@ from starlette.concurrency import run_in_threadpool
 from . import __version__, operations, support
 from . import models as m
 from .active_sessions import running_sessions
+from .agent_link_api import agent_link_route_allowed, install_agent_link_routes
+from .agent_links import ties_of_agent, visible_history
 from .chat_message_api import chat_message_agent_route_allowed, install_chat_message_routes
 from .common import (
     FILE_LIMIT,
@@ -58,7 +60,7 @@ from .registration import agent_route_allowed as registration_route_allowed
 from .registry_api import install_registry_routes
 from .resource_api import install_resource_routes
 from .resources import ResourceService
-from .search import global_search, index_plans
+from .search import SearchType, global_search, index_plans
 from .services import WorkService
 from .ticket_api import install_ticket_routes, ticket_agent_route_allowed
 from .tickets import TicketService
@@ -215,7 +217,8 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                     elif forbidden or (method != "GET" and not agent_write and not coordination_agent_route_allowed(method, suffix)
                                        and not chat_message_agent_route_allowed(method, suffix)
                                        and not registration_route_allowed(method, suffix)
-                                       and not ticket_agent_route_allowed(method, suffix)):
+                                       and not ticket_agent_route_allowed(method, suffix)
+                                       and not agent_link_route_allowed(method, suffix)):
                         raise AppError(403, "agent_scope", "Agents may read context, participate in discussions, file tickets, and submit proposals")
                 else:
                     session_id = request.cookies.get("worklog_session", "")
@@ -401,7 +404,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def history(request: Request, entityId: str, limit: int = Query(100, ge=1, le=200)) -> dict:
         with db.read() as c:
             authorize_history(c, entityId, request.state.actor)
-            return {"items": read_events(c, entityId, limit)}
+            return {"items": visible_history(c, entityId, limit, request.state.actor)}
 
     @app.get("/api/v1/notes/{identity}")
     @app.get("/api/v1/tasks/{identity}")
@@ -704,19 +707,24 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         return proposals.update(identity, body.model_dump(exclude_unset=True), request.state.actor)
 
     @app.get("/api/v1/search")
-    def search(q: str, archived: bool = False, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
+    def search(q: str, archived: bool = False, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0),
+               types: list[SearchType] = Query([], alias="type")) -> dict:
         with db.read() as c:
-            return global_search(c, q, archived, limit, offset)
+            return global_search(c, q, archived, limit, offset, types)
 
     @app.get("/api/v1/context")
     def context(request: Request, date: str | None = None, itemId: str | None = None,
                 repositoryId: str | None = None, limit: int = Query(100, ge=1, le=200),
                 offset: int = Query(0, ge=0)) -> dict:
         coordination = CoordinationService(db)
+        actor = request.state.actor
         with db.read() as c:
             c.execute("BEGIN")
             current = today(setting(c, "timezone", "America/Chicago"))
             activity = {**coordination.context_summaries(c, item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset),
+                        # What the calling agent is tied to, and its role on each; the person has no ties.
+                        "ties": (ties_of_agent(c, communication_actor(c, actor)["id"], actor) if actor["kind"] == "agent"
+                                 else {"items": [], "total": 0}),
                         "participations": coordination.participations(c, item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset),
                         "updates": coordination.updates(c, item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset),
                         # Open, doing and blocked tickets, so an agent sees known issues before it starts.
@@ -884,6 +892,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     install_coordination_routes(app, db, mutate)
     install_chat_message_routes(app, db, mutate)
     install_ticket_routes(app, db, mutate)
+    install_agent_link_routes(app, db, mutate)
     install_resource_routes(app, db, mutate)
     install_discussion_routes(app, db, discussion_mutate)
     install_registration_routes(app, db, auto_backup)

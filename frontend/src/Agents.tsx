@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { AgentTiedTo, AgentTies } from "./AgentTies";
 import { useData } from "./hooks";
 import { Empty, ErrorMessage } from "./components";
 import { EndRun, Pages } from "./Coordination";
@@ -226,8 +227,9 @@ function AgentView({ id }: { id: string }) {
       </header>
       <AgentFacts agent={agent} />
       <p className="muted">
-        Everything here comes from what this agent reported. Reports are not
-        proof that a process is alive and become stale after two hours.
+        Apart from its ties and the chats you confirmed it in, everything here
+        comes from what this agent reported. Reports are not proof that a
+        process is alive and become stale after two hours.
       </p>
       <section>
         <h2>Working now</h2>
@@ -245,8 +247,19 @@ function AgentView({ id }: { id: string }) {
           <p className="muted">No responsibility roles owned.</p>
         )}
       </section>
+      <AgentTiedTo agentId={id} />
+      <AgentTies
+        targetType="agent"
+        targetId={id}
+        heading="Agents tied to this agent"
+        headingLevel={2}
+      />
       <section>
-        <h2>Tied to</h2>
+        <h2>From its work</h2>
+        <p className="muted">
+          What its runs, participation, messages and roles tie it to, and the
+          chats you confirmed it in.
+        </p>
         <TieList
           title="Work items"
           ties={agent.workItems}

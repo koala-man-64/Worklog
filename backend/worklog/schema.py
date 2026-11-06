@@ -150,4 +150,8 @@ CREATE INDEX ticket_comments_ticket ON ticket_comments(ticket_id,created_at,id);
 
 -- Resources. The page's text is the last column, so listing titles need not read through a long page's overflow pages.
 CREATE TABLE resources(id TEXT PRIMARY KEY,title TEXT NOT NULL,summary TEXT NOT NULL DEFAULT '',archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL,body TEXT NOT NULL DEFAULT '');
+
+-- Agent ties: the records each agent identity is tied to, its role on each, and who set the tie.
+CREATE TABLE agent_links(id TEXT PRIMARY KEY,agent_id TEXT NOT NULL REFERENCES communication_agents(id),target_type TEXT NOT NULL CHECK(target_type IN('item','roadmap','step','repository','person','resource','discussion','proposal','ticket','agent','question','decision')),target_id TEXT NOT NULL,relationship TEXT NOT NULL DEFAULT '',set_by TEXT NOT NULL CHECK(set_by IN('human','agent')),created_at TEXT NOT NULL,UNIQUE(agent_id,target_type,target_id));
+CREATE INDEX agent_links_target ON agent_links(target_type,target_id);
 """
