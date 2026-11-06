@@ -13,6 +13,7 @@ from contextlib import closing, contextmanager
 from pathlib import Path
 
 import pytest
+import sealed
 from fastapi.testclient import TestClient
 from worklog import migrations, recovery
 from worklog.app import create_app
@@ -288,7 +289,7 @@ def test_the_v16_upgrade_fills_in_what_each_approved_proposal_was_applied_to(tmp
     Database(path).initialize()
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
         assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
     # The upgrade finds what approval recorded, the work items and roadmaps the changes created
     # included, and attributes none of the person's own to a proposal.
@@ -401,11 +402,11 @@ def test_the_documented_way_back_to_v15_gives_its_exact_shape_and_upgrades_again
     recovery.validate_database(path)
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 15
-        assert recovery._schema_signature(conn) == recovery._expected_schema(proposal_targets=False)
+        assert recovery._schema_signature(conn) == sealed.shape(15)
     Database(path).initialize()
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
     assert recorded(path) == kept
 
 
@@ -419,7 +420,7 @@ def test_restoring_a_v15_backup_upgrades_it_and_fills_in_its_history(tmp_path):
     recovery.restore_database(target, source, tmp_path / "restore-backups")
     with closing(sqlite3.connect(target)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
     assert recorded(target) == kept
 
 

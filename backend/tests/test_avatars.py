@@ -1,6 +1,5 @@
 """Agent avatars: drawn at registration, chosen by agents, recycled after revocation."""
 
-import json
 import random
 import re
 import sqlite3
@@ -9,16 +8,12 @@ from contextlib import closing
 from pathlib import Path
 
 import pytest
+import sealed
 from fastapi.testclient import TestClient
 from worklog import avatars, discussions, migrations, recovery
 from worklog.app import create_app
-from worklog.db import SCHEMA, Database
+from worklog.db import Database
 from worklog.discussion_api import agent_route_allowed
-from worklog.discussions import AGENT_AVATAR_COLUMN
-from worklog.discussions import SCHEMA as DISCUSSION_SCHEMA
-from worklog.migrations import COORDINATION_SCHEMA
-from worklog.plans import SCHEMA as PLAN_SCHEMA
-from worklog.proposals import SCHEMA as PROPOSAL_SCHEMA
 
 ORIGIN = "http://127.0.0.1:8877"
 STAMP = "2026-01-01T00:00:00+00:00"
@@ -140,15 +135,12 @@ def test_reissuing_a_revoked_agent_redraws_an_avatar_someone_took_meanwhile(clie
 
 def v2_database(path):
     """The shape main shipped as v2: coordination, but no avatars."""
+    sealed.build(path, 2)
     with closing(sqlite3.connect(path)) as conn:
-        conn.executescript(PLAN_SCHEMA + PROPOSAL_SCHEMA + SCHEMA + DISCUSSION_SCHEMA.replace(AGENT_AVATAR_COLUMN, "") + COORDINATION_SCHEMA)
-        for key, value in {"dataId": "11111111-1111-4111-8111-111111111111", "timezone": "America/Chicago", "backlogRevision": 1}.items():
-            conn.execute("INSERT INTO settings VALUES(?,?)", (key, json.dumps(value)))
         for identity, label, revoked in (("live", "Live agent", 0), ("retired", "Retired agent", 1), ("second", "Second agent", 0)):
             conn.execute("INSERT INTO credentials VALUES(?,?,?,?,?)", (identity, label, "hash-" + identity, STAMP, revoked))
             conn.execute("INSERT INTO communication_agents(id,label,created_at) VALUES(?,?,?)", (identity, label, STAMP))
             conn.execute("INSERT INTO communication_credentials VALUES(?,?)", (identity, identity))
-        conn.execute("PRAGMA user_version=2")
         conn.commit()
     recovery.validate_database(path)
 
@@ -160,7 +152,7 @@ def test_v2_upgrade_snapshots_then_gives_every_agent_a_distinct_avatar_and_resto
     Database(path).initialize()
     with Database(path).read() as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
         assigned = dict(conn.execute("SELECT id,avatar FROM communication_agents").fetchall())
         assert tuple(conn.execute("SELECT token_hash,revoked FROM credentials WHERE id='live'").fetchone()) == ("hash-live", 0)
     assert all(avatars.is_avatar(name) for name in assigned.values())
@@ -169,13 +161,13 @@ def test_v2_upgrade_snapshots_then_gives_every_agent_a_distinct_avatar_and_resto
     assert len(snapshots) == 1
     with closing(sqlite3.connect(snapshots[0])) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
-        assert recovery._schema_signature(conn) == recovery._expected_schema(avatars=False, chat_messages=False, tickets=False, remote_identity=False)
+        assert recovery._schema_signature(conn) == sealed.shape(2)
     Database(path).initialize()
     assert len(list((path.parent / "backups").glob("worklog-pre-migration-*.sqlite3"))) == 1
     restored = tmp_path / "restored" / "worklog.sqlite3"
     recovery.restore_database(restored, snapshots[0], tmp_path / "restore-backups")
     with Database(restored).read() as conn:
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
         assert all(avatars.is_avatar(row[0]) for row in conn.execute("SELECT avatar FROM communication_agents"))
         assert conn.execute("SELECT count(*) FROM credentials WHERE revoked=0").fetchone()[0] == 0
 
@@ -192,7 +184,7 @@ def test_failed_avatar_backfill_rolls_back_the_column_and_version(tmp_path, monk
         Database(path).initialize()
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
-        assert recovery._schema_signature(conn) == recovery._expected_schema(avatars=False, chat_messages=False, tickets=False, remote_identity=False)
+        assert recovery._schema_signature(conn) == sealed.shape(2)
     recovery.validate_database(path)
 
 

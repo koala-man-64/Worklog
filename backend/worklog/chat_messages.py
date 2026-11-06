@@ -20,16 +20,10 @@ from typing import Any
 from .common import AppError, event, now, text, uid
 from .discussions import communication_actor
 
+# A delivery expires this long after its message is sent. One still pending at expires_at stays
+# 'pending' in the table: it reads as expired (not_picked_up) and is never handed out, so no
+# background job is needed.
 PICKUP_WINDOW = timedelta(hours=2)
-
-# A delivery still pending at expires_at stays 'pending' in the table: it reads as
-# expired (not_picked_up) and is never handed out, so no background job is needed.
-SCHEMA = """
-CREATE TABLE chat_messages(id TEXT PRIMARY KEY,chat_id TEXT NOT NULL REFERENCES agent_chats(id),text TEXT NOT NULL,author_id TEXT NOT NULL,author_label TEXT NOT NULL,created_at TEXT NOT NULL);
-CREATE INDEX chat_messages_chat ON chat_messages(chat_id,created_at,id);
-CREATE TABLE chat_message_deliveries(message_id TEXT NOT NULL REFERENCES chat_messages(id),run_id TEXT NOT NULL REFERENCES agent_runs(id),status TEXT NOT NULL CHECK(status IN('pending','delivered','expired')),expires_at TEXT NOT NULL,delivered_at TEXT,expired_at TEXT,expire_reason TEXT,PRIMARY KEY(message_id,run_id));
-CREATE INDEX chat_message_deliveries_run ON chat_message_deliveries(run_id,status);
-"""
 
 # Whether the identity of the run `ar` is bound to the chat that run reports: it registered with
 # that chat, whichever of its credentials did, or the person confirmed it there.

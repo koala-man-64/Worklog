@@ -8,32 +8,24 @@ import zipfile
 from contextlib import closing
 
 import pytest
+import sealed
 from worklog import avatars, migrations, recovery
-from worklog.chat_messages import SCHEMA as CHAT_MESSAGE_SCHEMA
-from worklog.db import SCHEMA, Database
-from worklog.discussions import AGENT_AVATAR_COLUMN, bind_credential
-from worklog.discussions import SCHEMA as DISCUSSION_SCHEMA
-from worklog.migrations import COORDINATION_SCHEMA
-from worklog.plans import SCHEMA as PLAN_SCHEMA
-from worklog.proposals import SCHEMA as PROPOSAL_SCHEMA
-from worklog.tickets import SCHEMA as TICKET_SCHEMA
+from worklog.db import Database
+from worklog.discussions import bind_credential
 
 STAMP = "2026-01-01T00:00:00+00:00"
 
 
 def legacy_database(path):
+    # The last v1 shape, whose discussions predate agent avatars.
+    sealed.build(path, 1)
     with closing(sqlite3.connect(path)) as conn:
-        # v1 discussions predate agent avatars.
-        conn.executescript(PLAN_SCHEMA + PROPOSAL_SCHEMA + SCHEMA + DISCUSSION_SCHEMA.replace(AGENT_AVATAR_COLUMN, ""))
-        for key, value in {"dataId": "11111111-1111-4111-8111-111111111111", "timezone": "America/Chicago", "backlogRevision": 1}.items():
-            conn.execute("INSERT INTO settings VALUES(?,?)", (key, json.dumps(value)))
         conn.execute("INSERT INTO credentials VALUES('credential','Existing','unchanged-hash',?,0)", (STAMP,))
         conn.execute("INSERT INTO work_items(id,title,backlog_order,created_at,updated_at) VALUES('item','Work',0,?,?)", (STAMP, STAMP))
         conn.execute("INSERT INTO proposals(id,title,rationale,status,revision,actor_id,actor_label,actor_kind,operations,created_at,updated_at) VALUES('proposal','Draft','','draft',1,'credential','Existing','agent','[]',?,?)", (STAMP, STAMP))
         conn.execute("INSERT INTO receipts VALUES('credential','retry-key','request-hash','{\"unchanged\": true}')")
         conn.execute("INSERT INTO events VALUES('event','item','item.create','credential','Existing','agent',?,'2026-01-01','null','{}')", (STAMP,))
         conn.execute("INSERT INTO agent_chats(id,owner_type,owner_id,chat_id,title,created_date,created_at,updated_at,repos) VALUES('chat','item','item','external','Chat','2026-01-01',?,?,?)", (STAMP, STAMP, '["Ambiguous repo"]'))
-        conn.execute("PRAGMA user_version=1")
         conn.commit()
     recovery.validate_database(path)
 
@@ -44,7 +36,7 @@ def test_v1_upgrade_preserves_actor_receipts_legacy_names_and_pre_upgrade_snapsh
     Database(path).initialize()
     with Database(path).read() as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
         assert tuple(conn.execute("SELECT id,token_hash,revoked FROM credentials").fetchone()) == ("credential", "unchanged-hash", 0)
         assert tuple(conn.execute("SELECT actor_id,status FROM proposals").fetchone()) == ("credential", "draft")
         assert tuple(conn.execute("SELECT actor_id,key,request_hash,response_json FROM receipts").fetchone()) == ("credential", "retry-key", "request-hash", '{"unchanged": true}')
@@ -58,7 +50,7 @@ def test_v1_upgrade_preserves_actor_receipts_legacy_names_and_pre_upgrade_snapsh
         assert json.loads(archive.read("manifest.json"))["schemaVersion"] == 1
     with closing(sqlite3.connect(snapshots[0])) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 1
-        assert recovery._schema_signature(conn) == recovery._expected_schema(coordination=False, avatars=False, chat_messages=False, tickets=False)
+        assert recovery._schema_signature(conn) == sealed.shape(1)
     Database(path).initialize()
     assert len(list((tmp_path / "backups").glob("worklog-pre-migration-*.sqlite3"))) == 1
 
@@ -78,7 +70,7 @@ def test_coordination_migration_failure_rolls_back_all_tables_and_version(tmp_pa
         Database(path).initialize()
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 1
-        assert recovery._schema_signature(conn) == recovery._expected_schema(coordination=False, avatars=False, chat_messages=False, tickets=False)
+        assert recovery._schema_signature(conn) == sealed.shape(1)
         assert conn.execute("SELECT count(*) FROM communication_credentials").fetchone()[0] == 0
     assert len(list((tmp_path / "backups").glob("worklog-pre-migration-*.sqlite3"))) == 1
 
@@ -95,7 +87,7 @@ def test_pre_migration_backup_failure_prevents_upgrade(tmp_path, monkeypatch):
         Database(path).initialize()
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 1
-        assert recovery._schema_signature(conn) == recovery._expected_schema(coordination=False, avatars=False, chat_messages=False, tickets=False)
+        assert recovery._schema_signature(conn) == sealed.shape(1)
 
 
 @pytest.mark.parametrize("current_shape,version", [(True, 1), (True, 2), (True, 3), (True, 4), (True, 5), (True, 6), (True, 7), (True, 8), (True, 9),
@@ -271,15 +263,12 @@ def test_failed_restore_upgrade_preserves_candidate_and_active_database(tmp_path
 
 def v5_database(path, repositories):
     """The shape main shipped as v5, where repositories were unique by address text only."""
+    sealed.build(path, 5)
     with closing(sqlite3.connect(path)) as conn:
-        conn.executescript(PLAN_SCHEMA + PROPOSAL_SCHEMA + SCHEMA + DISCUSSION_SCHEMA + COORDINATION_SCHEMA + CHAT_MESSAGE_SCHEMA + TICKET_SCHEMA)
-        for key, value in {"dataId": "11111111-1111-4111-8111-111111111111", "timezone": "America/Chicago", "backlogRevision": 1}.items():
-            conn.execute("INSERT INTO settings VALUES(?,?)", (key, json.dumps(value)))
         for identity, url, archived, day in repositories:
             stamp = f"2026-01-0{day}T00:00:00+00:00"
             conn.execute("INSERT INTO repositories(id,name,url,archived,revision,created_at,updated_at) VALUES(?,?,?,?,3,?,?)",
                          (identity, identity.title(), url, archived, stamp, stamp))
-        conn.execute("PRAGMA user_version=5")
         conn.commit()
     recovery.validate_database(path)
 
@@ -303,7 +292,7 @@ def test_v6_upgrade_keys_repositories_by_remote_and_flags_records_that_share_one
     recovery.validate_database(target)
     with Database(target).read() as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
         keys = {row["id"]: (row["remote_identity"], row["duplicate_of"]) for row in conn.execute("SELECT * FROM repositories")}
         # Records keep everything they had; the upgrades only append their key, any flag, an empty merge
         # pointer and, with no creation events to read, an unknown registrant.
@@ -318,7 +307,7 @@ def test_v6_upgrade_keys_repositories_by_remote_and_flags_records_that_share_one
         snapshot, = (source.parent / "backups").glob("worklog-pre-migration-*.sqlite3")
         with closing(sqlite3.connect(snapshot)) as conn:
             assert conn.execute("PRAGMA user_version").fetchone()[0] == 5
-            assert recovery._schema_signature(conn) == recovery._expected_schema(remote_identity=False)
+            assert recovery._schema_signature(conn) == sealed.shape(5)
 
 
 def test_v7_upgrade_takes_each_registrant_from_its_creation_event(tmp_path):
@@ -338,7 +327,7 @@ def test_v7_upgrade_takes_each_registrant_from_its_creation_event(tmp_path):
     recovery.validate_database(path)
     Database(path).initialize()
     with Database(path).read() as conn:
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
         rows = {row[0]: tuple(row)[1:] for row in conn.execute(
             "SELECT id,registered_by_kind,registered_by_label,registered_by_agent,reviewed FROM repositories")}
     # The revoked credential still names the agent identity that proposed the repository.
@@ -346,4 +335,4 @@ def test_v7_upgrade_takes_each_registrant_from_its_creation_event(tmp_path):
                     "unknown": ("", "", None, 1)}
     snapshot, = (tmp_path / "backups").glob("worklog-pre-migration-*.sqlite3")
     with closing(sqlite3.connect(snapshot)) as conn:
-        assert recovery._schema_signature(conn) == recovery._expected_schema(provenance=False)
+        assert recovery._schema_signature(conn) == sealed.shape(6)

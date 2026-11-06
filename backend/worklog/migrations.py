@@ -1,14 +1,113 @@
-"""Shared, transaction-owned upgrades for startup and offline restoration."""
+"""Shared, transaction-owned upgrades for startup and offline restoration.
+
+Each step keeps the DDL its version shipped with, and that DDL never changes: an older database
+holds what those statements made, and each later step builds on it. A new database starts from
+schema.BASELINE instead, the current shape, so a schema change is a new step here and the same
+change there.
+"""
 
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 
 SCHEMA_VERSION = 16
 # Older versions that startup and offline restore upgrade in one transaction.
 UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})
 
+# v1 grew in place before versions were counted: _upgrade_v1 adds whichever of these a v1 database
+# lacks. People as v1 had them; v10 renames role to team, adds person details and lets links name
+# repositories.
+PEOPLE_SCHEMA = """
+CREATE TABLE people(id TEXT PRIMARY KEY,name TEXT NOT NULL,role TEXT NOT NULL DEFAULT '',notes TEXT NOT NULL DEFAULT '',archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+CREATE TABLE person_links(id TEXT PRIMARY KEY,person_id TEXT NOT NULL REFERENCES people(id),target_type TEXT NOT NULL CHECK(target_type IN('item','roadmap')),target_id TEXT NOT NULL,relationship TEXT NOT NULL DEFAULT '',created_at TEXT NOT NULL,UNIQUE(person_id,target_type,target_id));
+CREATE INDEX person_links_target ON person_links(target_type,target_id);
+CREATE INDEX person_links_person ON person_links(person_id);
+"""
+
+# Columns that tell who is working: they sit exactly where ALTER TABLE ADD COLUMN places
+# them, so a v1 database whose agent chats gain them and one that gains agent chats agree.
+AGENT_CHAT_COLUMNS = ", provider TEXT NOT NULL DEFAULT '', model TEXT NOT NULL DEFAULT '', repos TEXT NOT NULL DEFAULT '[]'"
+
+LINKS_CHATS_GITHUB_SCHEMA = """
+CREATE TABLE web_links(id TEXT PRIMARY KEY,owner_type TEXT NOT NULL CHECK(owner_type IN('item','roadmap')),owner_id TEXT NOT NULL,url TEXT NOT NULL,title TEXT NOT NULL DEFAULT '',description TEXT NOT NULL DEFAULT '',archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+CREATE INDEX web_links_owner ON web_links(owner_type,owner_id,archived);
+CREATE TABLE agent_chats(id TEXT PRIMARY KEY,owner_type TEXT NOT NULL CHECK(owner_type IN('item','roadmap')),owner_id TEXT NOT NULL,chat_id TEXT NOT NULL,title TEXT NOT NULL,created_date TEXT NOT NULL,archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL""" + AGENT_CHAT_COLUMNS + """);
+CREATE INDEX agent_chats_owner ON agent_chats(owner_type,owner_id,archived);
+CREATE TABLE github_refs(id TEXT PRIMARY KEY,owner_type TEXT NOT NULL CHECK(owner_type IN('item','roadmap')),owner_id TEXT NOT NULL,kind TEXT NOT NULL CHECK(kind IN('commit','pr')),url TEXT NOT NULL,reference TEXT NOT NULL DEFAULT '',title TEXT NOT NULL DEFAULT '',description TEXT NOT NULL DEFAULT '',chat_id TEXT REFERENCES agent_chats(id),archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+CREATE INDEX github_refs_owner ON github_refs(owner_type,owner_id,archived);
+"""
+
+# A roadmap's agent chats name the steps they work on.
+CHAT_STEPS_SCHEMA = """
+CREATE TABLE chat_steps(chat_id TEXT NOT NULL REFERENCES agent_chats(id),step_id TEXT NOT NULL REFERENCES steps(id),created_at TEXT NOT NULL,PRIMARY KEY(chat_id,step_id));
+CREATE INDEX chat_steps_step ON chat_steps(step_id);
+"""
+
+# A roadmap's questions with their answers, and the decisions made along the way.
+QUESTIONS_DECISIONS_SCHEMA = """
+CREATE TABLE roadmap_questions(id TEXT PRIMARY KEY,roadmap_id TEXT NOT NULL REFERENCES roadmaps(id),title TEXT NOT NULL,details TEXT NOT NULL DEFAULT '',answer TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT 'open' CHECK(status IN('open','answered')),archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+CREATE INDEX roadmap_questions_roadmap ON roadmap_questions(roadmap_id,archived);
+CREATE TABLE roadmap_decisions(id TEXT PRIMARY KEY,roadmap_id TEXT NOT NULL REFERENCES roadmaps(id),title TEXT NOT NULL,rationale TEXT NOT NULL DEFAULT '',decided_date TEXT NOT NULL,archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+CREATE INDEX roadmap_decisions_roadmap ON roadmap_decisions(roadmap_id,archived);
+"""
+
+# v1's discussions and the agent identities they share, with v3's avatar column. The upgrade adds
+# that column to identities that predate it before add_discussions compares their tables, and it
+# sits exactly where ALTER TABLE ADD COLUMN places it.
+AGENT_AVATAR_COLUMN = ", avatar TEXT"
+
+DISCUSSION_SCHEMA = """
+CREATE TABLE communication_agents(id TEXT PRIMARY KEY,label TEXT NOT NULL,created_at TEXT NOT NULL""" + AGENT_AVATAR_COLUMN + """);
+CREATE TABLE communication_credentials(credential_id TEXT PRIMARY KEY REFERENCES credentials(id),agent_id TEXT NOT NULL REFERENCES communication_agents(id));
+CREATE INDEX communication_credentials_agent ON communication_credentials(agent_id);
+CREATE TABLE discussions(id TEXT PRIMARY KEY,title TEXT NOT NULL,archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+CREATE INDEX discussions_updated ON discussions(archived,updated_at,id);
+CREATE TABLE discussion_contexts(discussion_id TEXT NOT NULL REFERENCES discussions(id),context_type TEXT NOT NULL CHECK(context_type IN('item','roadmap','step')),context_id TEXT NOT NULL,PRIMARY KEY(discussion_id,context_type,context_id));
+CREATE INDEX discussion_contexts_context ON discussion_contexts(context_type,context_id,discussion_id);
+CREATE TABLE discussion_repos(discussion_id TEXT NOT NULL REFERENCES discussions(id),repo TEXT NOT NULL,PRIMARY KEY(discussion_id,repo));
+CREATE INDEX discussion_repos_repo ON discussion_repos(repo,discussion_id);
+CREATE TABLE discussion_roles(id TEXT PRIMARY KEY,context_type TEXT NOT NULL CHECK(context_type IN('item','roadmap','step')),context_id TEXT NOT NULL,label TEXT NOT NULL,label_key TEXT NOT NULL,owner_id TEXT REFERENCES communication_agents(id),revision INTEGER NOT NULL DEFAULT 1,generation INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,UNIQUE(context_type,context_id,label_key));
+CREATE INDEX discussion_roles_owner ON discussion_roles(owner_id,context_type,context_id);
+CREATE TABLE discussion_role_offers(id TEXT PRIMARY KEY,role_id TEXT NOT NULL REFERENCES discussion_roles(id),from_id TEXT NOT NULL REFERENCES communication_agents(id),to_id TEXT NOT NULL REFERENCES communication_agents(id),generation INTEGER NOT NULL,note TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN('pending','accepted','declined','withdrawn','invalidated')),created_at TEXT NOT NULL,ended_at TEXT);
+CREATE UNIQUE INDEX discussion_role_pending_offer ON discussion_role_offers(role_id) WHERE state='pending';
+CREATE TABLE discussion_messages(id TEXT PRIMARY KEY,discussion_id TEXT NOT NULL REFERENCES discussions(id),text TEXT NOT NULL,author_id TEXT NOT NULL,author_label TEXT NOT NULL,author_kind TEXT NOT NULL CHECK(author_kind IN('agent','human')),created_at TEXT NOT NULL,chat_id TEXT,on_behalf_of_role_id TEXT REFERENCES discussion_roles(id),ownership_generation INTEGER);
+CREATE INDEX discussion_messages_discussion ON discussion_messages(discussion_id,created_at,id);
+CREATE TABLE discussion_requests(message_id TEXT PRIMARY KEY REFERENCES discussion_messages(id),mode TEXT NOT NULL CHECK(mode IN('all','any','any_agent','anyone')),state TEXT NOT NULL DEFAULT 'pending' CHECK(state IN('pending','satisfied','released_by_human','cancelled')),terminal_at TEXT,terminal_actor_id TEXT,terminal_actor_label TEXT,terminal_actor_kind TEXT,reason TEXT,authority_role_id TEXT REFERENCES discussion_roles(id),authority_generation INTEGER);
+CREATE TABLE discussion_targets(id TEXT PRIMARY KEY,message_id TEXT NOT NULL REFERENCES discussion_requests(message_id),kind TEXT NOT NULL CHECK(kind IN('agent','human','role','open_agent','open_any')),recipient_id TEXT NOT NULL,UNIQUE(message_id,kind,recipient_id));
+CREATE INDEX discussion_targets_recipient ON discussion_targets(kind,recipient_id,message_id);
+CREATE TABLE discussion_acknowledgements(id TEXT PRIMARY KEY,target_id TEXT NOT NULL REFERENCES discussion_targets(id),actor_id TEXT NOT NULL,actor_label TEXT NOT NULL,actor_kind TEXT NOT NULL CHECK(actor_kind IN('agent','human')),role_id TEXT REFERENCES discussion_roles(id),ownership_generation INTEGER,created_at TEXT NOT NULL,late INTEGER NOT NULL CHECK(late IN(0,1)),UNIQUE(target_id,actor_id));
+CREATE TABLE discussion_changes(seq INTEGER PRIMARY KEY AUTOINCREMENT,event_id TEXT NOT NULL UNIQUE REFERENCES events(id),kind TEXT NOT NULL,discussion_id TEXT REFERENCES discussions(id),message_id TEXT REFERENCES discussion_messages(id),role_id TEXT REFERENCES discussion_roles(id),created_at TEXT NOT NULL);
+CREATE TABLE discussion_change_contexts(seq INTEGER NOT NULL REFERENCES discussion_changes(seq),context_type TEXT NOT NULL CHECK(context_type IN('item','roadmap','step')),context_id TEXT NOT NULL,PRIMARY KEY(seq,context_type,context_id));
+CREATE INDEX discussion_change_contexts_context ON discussion_change_contexts(context_type,context_id,seq);
+"""
+
+
+def add_discussions(conn: sqlite3.Connection) -> None:
+    """Add the whole discussion schema atomically inside the caller's migration transaction, and
+    give each credential that has none an agent identity."""
+    from .common import AppError
+    from .discussions import bind_credential
+
+    statements = list(filter(str.strip, DISCUSSION_SCHEMA.split(";")))
+    expected = {}
+    for statement in statements:
+        match = re.match(r"\s*CREATE (?:UNIQUE )?(?:TABLE|INDEX) (\w+)", statement)
+        assert match is not None
+        expected[match.group(1)] = " ".join(statement.split())
+    existing = {row[0]: " ".join((row[1] or "").split()) for row in conn.execute("SELECT name,sql FROM sqlite_master WHERE name LIKE 'discussion%' OR name LIKE 'communication%'")}
+    if existing and existing != expected:
+        raise AppError(503, "database_invalid", "Communication schema is incomplete or changed; restore a verified backup")
+    # Each statement is executed separately: executescript would commit the caller.
+    if not existing:
+        for statement in statements:
+            conn.execute(statement)
+    for row in conn.execute("SELECT id,label FROM credentials WHERE id NOT IN(SELECT credential_id FROM communication_credentials)").fetchall():
+        bind_credential(conn, row[0], row[1])
+
+
+# v2: the repository catalog, and the runs, participations and updates agents report.
 COORDINATION_SCHEMA = """
 CREATE TABLE repositories(id TEXT PRIMARY KEY,name TEXT NOT NULL,url TEXT NOT NULL DEFAULT '',description TEXT NOT NULL DEFAULT '',archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
 CREATE UNIQUE INDEX repositories_url ON repositories(url) WHERE url<>'';
@@ -31,8 +130,30 @@ CREATE TABLE coordination_update_repositories(update_id TEXT NOT NULL REFERENCES
 CREATE INDEX coordination_update_repositories_repository ON coordination_update_repositories(repository_id,update_id);
 """
 
+# v4: messages the person writes into a tracked chat, and their deliveries to agent runs.
+CHAT_MESSAGE_SCHEMA = """
+CREATE TABLE chat_messages(id TEXT PRIMARY KEY,chat_id TEXT NOT NULL REFERENCES agent_chats(id),text TEXT NOT NULL,author_id TEXT NOT NULL,author_label TEXT NOT NULL,created_at TEXT NOT NULL);
+CREATE INDEX chat_messages_chat ON chat_messages(chat_id,created_at,id);
+CREATE TABLE chat_message_deliveries(message_id TEXT NOT NULL REFERENCES chat_messages(id),run_id TEXT NOT NULL REFERENCES agent_runs(id),status TEXT NOT NULL CHECK(status IN('pending','delivered','expired')),expires_at TEXT NOT NULL,delivered_at TEXT,expired_at TEXT,expire_reason TEXT,PRIMARY KEY(message_id,run_id));
+CREATE INDEX chat_message_deliveries_run ON chat_message_deliveries(run_id,status);
+"""
+
+# v5: tickets. Every statement stands alone: execute_schema splits on semicolons.
+TICKET_SCHEMA = """
+CREATE TABLE tickets(id TEXT PRIMARY KEY,number INTEGER NOT NULL UNIQUE CHECK(number>=1),title TEXT NOT NULL,description TEXT NOT NULL DEFAULT '',kind TEXT NOT NULL DEFAULT 'bug' CHECK(kind IN('bug','incident','task')),priority TEXT NOT NULL DEFAULT 'normal' CHECK(priority IN('low','normal','high','urgent')),status TEXT NOT NULL DEFAULT 'open' CHECK(status IN('open','doing','blocked','done')),resolution TEXT NOT NULL DEFAULT '',item_id TEXT REFERENCES work_items(id),assignee_id TEXT,author_id TEXT NOT NULL,author_label TEXT NOT NULL,author_kind TEXT NOT NULL CHECK(author_kind IN('agent','human')),archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL,closed_at TEXT,last_activity_at TEXT NOT NULL);
+CREATE INDEX tickets_list ON tickets(archived,status,last_activity_at,id);
+CREATE INDEX tickets_item ON tickets(item_id,archived);
+CREATE INDEX tickets_assignee ON tickets(assignee_id,archived,status);
+CREATE TABLE ticket_repositories(ticket_id TEXT NOT NULL REFERENCES tickets(id),repository_id TEXT NOT NULL REFERENCES repositories(id),created_at TEXT NOT NULL,PRIMARY KEY(ticket_id,repository_id));
+CREATE INDEX ticket_repositories_repository ON ticket_repositories(repository_id,ticket_id);
+CREATE TABLE ticket_labels(ticket_id TEXT NOT NULL REFERENCES tickets(id),label TEXT NOT NULL,PRIMARY KEY(ticket_id,label));
+CREATE INDEX ticket_labels_label ON ticket_labels(label,ticket_id);
+CREATE TABLE ticket_comments(id TEXT PRIMARY KEY,ticket_id TEXT NOT NULL REFERENCES tickets(id),text TEXT NOT NULL,author_id TEXT NOT NULL,author_label TEXT NOT NULL,author_kind TEXT NOT NULL CHECK(author_kind IN('agent','human')),created_at TEXT NOT NULL);
+CREATE INDEX ticket_comments_ticket ON ticket_comments(ticket_id,created_at,id);
+"""
+
 # v6 keys repositories by remote rather than by address text. COORDINATION_SCHEMA keeps the
-# v2-v5 shape and every database, new ones included, reaches v6 through add_remote_identity.
+# v2-v5 shape, and add_remote_identity brings every older database to v6's.
 # duplicate_of flags a record that shares its remote with the canonical one; merged_into marks
 # a record a person merged into another, whose remote then answers with that other record.
 REPOSITORY_IDENTITY_COLUMNS = (", remote_identity TEXT NOT NULL DEFAULT '', duplicate_of TEXT REFERENCES repositories(id)"
@@ -133,6 +254,13 @@ def _refile_notes(conn: sqlite3.Connection, notes: list[tuple[str, str, str, str
         batch = identities[start:start + 500]
         conn.execute(f"DELETE FROM search_index WHERE entity_id IN ({','.join('?' for _ in batch)})", batch)
     conn.executemany("INSERT INTO search_index(entity_id,type,title,body,owner_id,archived) VALUES(?,'note',?,?,?,?)", notes)
+
+
+# v9: resources, which an upgrade leaves empty. Every statement stands alone: execute_schema
+# splits on semicolons.
+RESOURCE_SCHEMA = """
+CREATE TABLE resources(id TEXT PRIMARY KEY,title TEXT NOT NULL,summary TEXT NOT NULL DEFAULT '',archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL,body TEXT NOT NULL DEFAULT '');
+"""
 
 
 # v10 gives each person a title, a description and contact details. The field v9 kept as
@@ -462,7 +590,7 @@ def upgrade(conn: sqlite3.Connection) -> None:
         return
     if version not in UPGRADABLE_VERSIONS:
         raise ValueError(f"Unsupported database schema version {version}")
-    from .discussions import AGENT_AVATAR_COLUMN, assign_missing_avatars
+    from .discussions import assign_missing_avatars
 
     tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     # v2, and v1 databases that already hold discussions, predate avatars.
@@ -471,10 +599,6 @@ def upgrade(conn: sqlite3.Connection) -> None:
     if version == 1:
         _upgrade_v1(conn, tables)
     assign_missing_avatars(conn)
-    from .chat_messages import SCHEMA as CHAT_MESSAGE_SCHEMA
-    from .resources import SCHEMA as RESOURCE_SCHEMA
-    from .tickets import SCHEMA as TICKET_SCHEMA
-
     if version < 4:
         execute_schema(conn, CHAT_MESSAGE_SCHEMA)
     if version < 5:
@@ -505,15 +629,6 @@ def upgrade(conn: sqlite3.Connection) -> None:
 
 
 def _upgrade_v1(conn: sqlite3.Connection, tables: set[str]) -> None:
-    from .db import (
-        AGENT_CHAT_COLUMNS,
-        CHAT_STEPS_SCHEMA,
-        LINKS_CHATS_GITHUB_SCHEMA,
-        PEOPLE_SCHEMA,
-        QUESTIONS_DECISIONS_SCHEMA,
-    )
-    from .discussions import migrate as migrate_discussions
-
     columns = {row[1] for row in conn.execute("PRAGMA table_info(work_items)")}
     if "roadmap_id" not in columns:
         conn.execute("ALTER TABLE work_items ADD COLUMN roadmap_id TEXT REFERENCES roadmaps(id)")
@@ -532,7 +647,7 @@ def _upgrade_v1(conn: sqlite3.Connection, tables: set[str]) -> None:
         conn.execute("ALTER TABLE roadmaps ADD COLUMN parent_id TEXT REFERENCES roadmaps(id)")
     if not {"roadmap_questions", "roadmap_decisions"} <= tables:
         execute_schema(conn, QUESTIONS_DECISIONS_SCHEMA)
-    migrate_discussions(conn)
+    add_discussions(conn)
     execute_schema(conn, COORDINATION_SCHEMA)
 
 

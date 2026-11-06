@@ -9,7 +9,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from worklog import recovery
+import sealed
+from worklog import migrations, recovery
 from worklog.common import AppError
 from worklog.db import Database
 
@@ -358,89 +359,58 @@ def test_export_original_html_bytes_have_hashed_manifest_entry(tmp_path):
         assert entry["sha256"] == hashlib.sha256(original).hexdigest()
 
 
-def test_legacy_v1_database_without_roadmap_id_migrates_and_restores(tmp_path):
-    from worklog.db import SCHEMA
-    from worklog.plans import SCHEMA as PLAN_SCHEMA
-    from worklog.proposals import SCHEMA as PROPOSAL_SCHEMA
+# Sealed v1 shapes the tests below start from, as backend/tests/schemas/v01.json lists them.
+WITH_DISCUSSIONS = sealed.shape(1, 1)  # discussions, before roadmap questions and decisions
+BEFORE_DISCUSSIONS = sealed.shape(1, 2)  # and before discussions
+BEFORE_AGENT_ASSIGNMENTS = sealed.shape(1, 3)  # before agent chats named providers, models, repos and steps
+BEFORE_NESTING = sealed.shape(1, 4)  # the shape above, before roadmaps nested
+BEFORE_ITEM_ROADMAPS = sealed.shape(1, 7)  # before nesting, people, links, agent chats and work items' roadmaps
 
+
+def test_legacy_v1_database_without_roadmap_id_migrates_and_restores(tmp_path):
     legacy_path = tmp_path / "legacy.sqlite3"
-    legacy_schema = (PLAN_SCHEMA + PROPOSAL_SCHEMA + SCHEMA).replace(
-        ", roadmap_id TEXT REFERENCES roadmaps(id)", ""
-    ).replace(", parent_id TEXT REFERENCES roadmaps(id)", "")
-    from worklog.db import (
-        CHAT_STEPS_SCHEMA,
-        LINKS_CHATS_GITHUB_SCHEMA,
-        PEOPLE_SCHEMA,
-        QUESTIONS_DECISIONS_SCHEMA,
-    )
-    legacy_schema = legacy_schema.replace(PEOPLE_SCHEMA, "").replace(LINKS_CHATS_GITHUB_SCHEMA, "").replace(CHAT_STEPS_SCHEMA, "").replace(QUESTIONS_DECISIONS_SCHEMA, "")
+    sealed.build(legacy_path, 1, BEFORE_ITEM_ROADMAPS)
     with closing(sqlite3.connect(legacy_path)) as conn:
-        conn.executescript(legacy_schema)
-        for key, value in {"timezone": "America/Chicago", "dataId": str(os.urandom(16).hex()), "backlogRevision": 1}.items():
-            conn.execute("INSERT INTO settings VALUES(?,?)", (key, json.dumps("11111111-1111-4111-8111-111111111111" if key == "dataId" else value)))
         conn.execute("INSERT INTO roadmaps VALUES('r1','Road','',1,0,'2026-01-01','2026-01-01')")
         conn.execute("INSERT INTO steps VALUES('s1','r1','Step','',NULL,0,'open',1,0)")
         conn.execute("INSERT INTO work_items(id,title,step_id,backlog_order,created_at,updated_at) VALUES ('w1','Legacy item','s1',0,'2026-01-01','2026-01-01')")
-        conn.execute("PRAGMA user_version=1")
         conn.commit()
     target = make_database(tmp_path / "active.sqlite3")
     recovery.restore_database(target, legacy_path, tmp_path / "backups")
     with closing(sqlite3.connect(target)) as conn:
         assert conn.execute("SELECT roadmap_id FROM work_items WHERE id='w1'").fetchone() == ("r1",)
         assert conn.execute("SELECT parent_id FROM roadmaps WHERE id='r1'").fetchone() == (None,)
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
     Database(legacy_path).initialize()
     with closing(sqlite3.connect(legacy_path)) as conn:
         assert conn.execute("SELECT roadmap_id FROM work_items WHERE id='w1'").fetchone() == ("r1",)
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
-
-
-def before_questions_and_decisions() -> str:
-    """The schema of databases created before roadmaps kept questions and decisions."""
-    from worklog.db import QUESTIONS_DECISIONS_SCHEMA, SCHEMA
-    from worklog.plans import SCHEMA as PLAN_SCHEMA
-    from worklog.proposals import SCHEMA as PROPOSAL_SCHEMA
-
-    return (PLAN_SCHEMA + PROPOSAL_SCHEMA + SCHEMA).replace(QUESTIONS_DECISIONS_SCHEMA, "")
-
-
-def before_agent_assignments() -> str:
-    """The schema of databases created before agent chats named providers, models, repos and steps."""
-    from worklog.db import AGENT_CHAT_COLUMNS, CHAT_STEPS_SCHEMA
-
-    return before_questions_and_decisions().replace(CHAT_STEPS_SCHEMA, "").replace(AGENT_CHAT_COLUMNS, "")
+        assert recovery._schema_signature(conn) == sealed.current()
 
 
 def test_database_from_before_roadmap_nesting_migrates_to_the_current_schema(tmp_path):
     flat_path = tmp_path / "flat.sqlite3"
+    sealed.build(flat_path, 1, BEFORE_NESTING)
     with closing(sqlite3.connect(flat_path)) as conn:
-        conn.executescript(before_agent_assignments().replace(", parent_id TEXT REFERENCES roadmaps(id)", ""))
-        for key, value in {"timezone": "America/Chicago", "dataId": "11111111-1111-4111-8111-111111111111", "backlogRevision": 1}.items():
-            conn.execute("INSERT INTO settings VALUES(?,?)", (key, json.dumps(value)))
         conn.execute("INSERT INTO roadmaps VALUES('r1','Road','',1,0,'2026-01-01','2026-01-01')")
-        conn.execute("PRAGMA user_version=1")
         conn.commit()
     recovery.validate_database(flat_path)
     target = make_database(tmp_path / "active.sqlite3")
     recovery.restore_database(target, flat_path, tmp_path / "backups")
     with closing(sqlite3.connect(target)) as conn:
         assert conn.execute("SELECT parent_id FROM roadmaps WHERE id='r1'").fetchone() == (None,)
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
     Database(flat_path).initialize()
     with closing(sqlite3.connect(flat_path)) as conn:
         assert conn.execute("SELECT parent_id FROM roadmaps WHERE id='r1'").fetchone() == (None,)
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
 
 
 def test_database_from_before_agent_assignments_keeps_its_chats_and_migrates(tmp_path):
     previous_path = tmp_path / "previous.sqlite3"
+    sealed.build(previous_path, 1, BEFORE_AGENT_ASSIGNMENTS)
     with closing(sqlite3.connect(previous_path)) as conn:
-        conn.executescript(before_agent_assignments())
-        for key, value in {"timezone": "America/Chicago", "dataId": "11111111-1111-4111-8111-111111111111", "backlogRevision": 1}.items():
-            conn.execute("INSERT INTO settings VALUES(?,?)", (key, json.dumps(value)))
         conn.execute("INSERT INTO roadmaps(id,title,overview,revision,created_at,updated_at) VALUES('r1','Road','',1,'2026-01-01','2026-01-01')")
         conn.execute("INSERT INTO agent_chats VALUES('c1','roadmap','r1','conv-1','Earlier chat','2026-01-01',0,1,'2026-01-01','2026-01-01')")
-        conn.execute("PRAGMA user_version=1")
         conn.commit()
     recovery.validate_database(previous_path)
     target = make_database(tmp_path / "active.sqlite3")
@@ -450,18 +420,15 @@ def test_database_from_before_agent_assignments_keeps_its_chats_and_migrates(tmp
         with closing(sqlite3.connect(migrated)) as conn:
             assert conn.execute("SELECT title,provider,model,repos FROM agent_chats WHERE id='c1'").fetchone() == ("Earlier chat", "", "", "[]")
             assert conn.execute("SELECT count(*) FROM chat_steps").fetchone() == (0,)
-            assert recovery._schema_signature(conn) == recovery._expected_schema()
+            assert recovery._schema_signature(conn) == sealed.current()
 
 
 def test_unknown_legacy_schema_is_rejected_before_migration(tmp_path):
     path = tmp_path / "previous.sqlite3"
+    sealed.build(path, 1, BEFORE_AGENT_ASSIGNMENTS)
     with closing(sqlite3.connect(path)) as conn:
-        conn.executescript(before_agent_assignments())
-        for key, value in {"timezone": "America/Chicago", "dataId": "11111111-1111-4111-8111-111111111111", "backlogRevision": 1}.items():
-            conn.execute("INSERT INTO settings VALUES(?,?)", (key, json.dumps(value)))
         # An extra object is not an accepted legacy shape and must never be migrated.
         conn.execute("CREATE TABLE chat_steps_step(x)")
-        conn.execute("PRAGMA user_version=1")
         conn.commit()
     with pytest.raises(AppError, match="schema definitions"):
         Database(path).initialize()
@@ -471,17 +438,11 @@ def test_unknown_legacy_schema_is_rejected_before_migration(tmp_path):
 
 @pytest.mark.parametrize("discussions", [False, True], ids=["before-discussions", "with-discussions"])
 def test_database_from_before_questions_and_decisions_keeps_its_roadmaps_and_migrates(tmp_path, discussions):
-    from worklog.discussions import AGENT_AVATAR_COLUMN
-    from worklog.discussions import SCHEMA as DISCUSSION_SCHEMA
-
     previous_path = tmp_path / "previous.sqlite3"
+    # Discussions shipped first, so a database may have them without questions and decisions.
+    sealed.build(previous_path, 1, WITH_DISCUSSIONS if discussions else BEFORE_DISCUSSIONS)
     with closing(sqlite3.connect(previous_path)) as conn:
-        # Discussions shipped first, so a database may have them without questions and decisions.
-        conn.executescript(before_questions_and_decisions() + (DISCUSSION_SCHEMA.replace(AGENT_AVATAR_COLUMN, "") if discussions else ""))
-        for key, value in {"timezone": "America/Chicago", "dataId": "11111111-1111-4111-8111-111111111111", "backlogRevision": 1}.items():
-            conn.execute("INSERT INTO settings VALUES(?,?)", (key, json.dumps(value)))
         conn.execute("INSERT INTO roadmaps(id,title,overview,revision,created_at,updated_at) VALUES('r1','Road','',1,'2026-01-01','2026-01-01')")
-        conn.execute("PRAGMA user_version=1")
         conn.commit()
     # Earlier backups stay valid restore candidates.
     recovery.validate_database(previous_path)
@@ -498,29 +459,21 @@ def test_database_from_before_questions_and_decisions_keeps_its_roadmaps_and_mig
             assert conn.execute("SELECT title FROM roadmaps WHERE id='r1'").fetchone() == ("Road",)
             assert conn.execute("SELECT count(*) FROM roadmap_questions").fetchone() == (0,)
             assert conn.execute("SELECT count(*) FROM roadmap_decisions").fetchone() == (0,)
-            assert recovery._schema_signature(conn) == recovery._expected_schema()
+            assert recovery._schema_signature(conn) == sealed.current()
         recovery.validate_database(migrated)
 
 
 def test_a_failed_questions_and_decisions_migration_leaves_no_partial_tables(tmp_path, monkeypatch):
-    from worklog import migrations
-    from worklog.db import QUESTIONS_DECISIONS_SCHEMA
-
     execute = migrations.execute_schema
 
     def fail_after_questions(conn, schema):
         execute(conn, schema)
-        if schema == QUESTIONS_DECISIONS_SCHEMA:
+        if schema == migrations.QUESTIONS_DECISIONS_SCHEMA:
             raise sqlite3.OperationalError("Injected question migration failure")
 
     monkeypatch.setattr(migrations, "execute_schema", fail_after_questions)
     path = tmp_path / "previous.sqlite3"
-    with closing(sqlite3.connect(path)) as conn:
-        conn.executescript(before_questions_and_decisions())
-        for key, value in {"timezone": "America/Chicago", "dataId": "11111111-1111-4111-8111-111111111111", "backlogRevision": 1}.items():
-            conn.execute("INSERT INTO settings VALUES(?,?)", (key, json.dumps(value)))
-        conn.execute("PRAGMA user_version=1")
-        conn.commit()
+    sealed.build(path, 1, BEFORE_DISCUSSIONS)
     with pytest.raises(sqlite3.Error):
         Database(path).initialize()
     with closing(sqlite3.connect(path)) as conn:

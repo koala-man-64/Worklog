@@ -11,6 +11,7 @@ from contextlib import closing, contextmanager
 from pathlib import Path
 
 import pytest
+import sealed
 from fastapi.testclient import TestClient
 from worklog import migrations, recovery
 from worklog.app import create_app
@@ -346,7 +347,7 @@ def test_the_v13_upgrade_ends_what_waits_for_an_unbound_identity_and_keeps_the_r
     Database(path).initialize()
     with Database(path).read() as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
     snapshots = list((tmp_path / "backups").glob("worklog-pre-migration-*.sqlite3"))
     assert len(snapshots) == 1
     with closing(sqlite3.connect(snapshots[0])) as conn:
@@ -399,13 +400,13 @@ def test_the_documented_way_back_to_v12_gives_its_exact_shape_and_upgrades_again
     to_v12(path)
     recovery.validate_database(path)
     with Database(path).read() as conn:
-        assert recovery._schema_signature(conn) == recovery._expected_schema(chat_confirmations=False)
+        assert recovery._schema_signature(conn) == sealed.shape(12)
         # Version 12 has no 'unconfirmed' reason, so that delivery reads as plainly expired there.
         assert [tuple(r) for r in conn.execute("SELECT status,expire_reason FROM chat_message_deliveries")] == [("expired", None)]
     Database(path).initialize()
     with Database(path).read() as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
         # The way back drops the person's confirmations; they confirm those agents again.
         assert conn.execute("SELECT count(*) FROM chat_confirmations").fetchone()[0] == 0
 

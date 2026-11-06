@@ -9,6 +9,7 @@ from contextlib import closing, contextmanager
 from pathlib import Path
 
 import pytest
+import sealed
 from fastapi.testclient import TestClient
 from worklog import migrations, operations, recovery
 from worklog.app import create_app
@@ -268,7 +269,7 @@ def test_the_v15_upgrade_keeps_every_work_item_and_every_reference_to_one(tmp_pa
     Database(path).initialize()
     with closing(sqlite3.connect(path)) as conn:
         assert version(conn) == migrations.SCHEMA_VERSION
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
         # Every row of every table is as it was, work items' rowids included. The upgrade goes on
         # to v16, whose table names no proposal here, none having been approved.
         upgraded = contents(conn)
@@ -347,7 +348,7 @@ def test_restoring_a_v14_backup_upgrades_it_and_keeps_its_work(tmp_path):
     recovery.restore_database(target, source, tmp_path / "restore-backups")
     with closing(sqlite3.connect(target)) as conn:
         assert version(conn) == migrations.SCHEMA_VERSION
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
         restored = contents(conn)
         assert {table: restored[table] for table in kept} == kept
         assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
@@ -369,7 +370,7 @@ def test_the_documented_way_back_to_v14_gives_its_exact_shape_and_upgrades_again
     recovery.validate_database(path)
     with closing(sqlite3.connect(path)) as conn:
         assert version(conn) == 14
-        assert recovery._schema_signature(conn) == recovery._expected_schema(waiting_status=False)
+        assert recovery._schema_signature(conn) == sealed.shape(14)
         # Waiting work goes back to Blocked, and nothing else changes: not even its revision.
         status = [column[1] for column in conn.execute("PRAGMA table_info(work_items)")].index("status") + 1
         before["work_items"] = sorted((row[:status] + ("blocked",) + row[status + 1:] if row[1] == waiting["id"] else row
@@ -379,7 +380,7 @@ def test_the_documented_way_back_to_v14_gives_its_exact_shape_and_upgrades_again
     Database(path).initialize()
     with closing(sqlite3.connect(path)) as conn:
         assert version(conn) == migrations.SCHEMA_VERSION
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
     with person(tmp_path) as c:
         assert ok(c.get(f"/api/v1/work-items/{waiting['id']}"))["status"] == "blocked"
 
