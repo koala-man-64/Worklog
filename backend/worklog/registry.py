@@ -22,7 +22,7 @@ STALE_AFTER = timedelta(hours=2)
 TIE_LIMIT = 200
 SNIPPET = 1000
 # How an agent came to be tied to a record, in display order.
-VIA = ("participation", "role", "update", "message", "run", "chat")
+VIA = ("participation", "role", "update", "message", "run", "confirmed", "chat")
 
 
 def _latest(*values: str | None) -> str | None:
@@ -146,9 +146,12 @@ class AgentRegistry:
                 "working": working.get(a["id"], []), "roles": roles.get(a["id"], [])})
         return result
 
-    def agents(self, c: sqlite3.Connection, limit: int = 50, offset: int = 0) -> dict:
-        """Agents with an active credential first, then the most recently active."""
+    def agents(self, c: sqlite3.Connection, limit: int = 50, offset: int = 0, q: str = "") -> dict:
+        """Agents with an active credential first, then the most recently active; `q` keeps those
+        whose label holds it, ignoring case."""
         rows = c.execute(f"SELECT a.*,{LIVE_AGENT} AS active FROM communication_agents a").fetchall()
+        if q.strip():
+            rows = [r for r in rows if q.strip().casefold() in r["label"].casefold()]
         summaries = self._summaries(c, rows) if rows else []
         summaries.sort(key=lambda s: (s["lastActivityAt"] or s["createdAt"], s["id"]), reverse=True)
         summaries.sort(key=lambda s: not s["active"])
@@ -193,6 +196,9 @@ class AgentRegistry:
             else:
                 {"item": items, "roadmap": roadmaps}[r["context_type"]].add(r["context_id"], "message", posted)
         chat_refs += [(r["external_chat_id"], "run", r["created_at"], r["ended_at"] is None) for r in runs if r["external_chat_id"]]
+        # The person's word that the agent works in a chat ties it too, though not to current work.
+        chat_refs += [(r["chat_id"], "confirmed", r["created_at"], False)
+                      for r in c.execute("SELECT chat_id,created_at FROM chat_confirmations WHERE agent_id=?", (identity,))]
 
         # A reported chat ID that a tracked chat carries ties the agent to that chat's work.
         tracked = self._chats(c, {ref[0] for ref in chat_refs})

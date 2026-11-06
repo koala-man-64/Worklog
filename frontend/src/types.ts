@@ -196,6 +196,18 @@ export type TranscriptSummary = {
   // Set when the transcript exists but could not be read.
   error?: string;
 };
+/**
+ * An agent identity tied to a chat: registered with it, confirmed in it by you, or, only a
+ * claim, with an open run that reports it. `chatId` is the chat ID as that tie stored it.
+ */
+export type ChatAgent = {
+  id: string;
+  label: string;
+  avatar: string | null;
+  active: boolean;
+  binding: "registered" | "confirmed" | "run";
+  chatId: string;
+};
 /** An agent chat with the record it belongs to, the steps it works on, and its transcript. */
 export type ChatOverview = AgentChat & {
   owner: {
@@ -207,7 +219,35 @@ export type ChatOverview = AgentChat & {
   // The roadmaps the owner sits within, top level first; a roadmap's own chat ends with that roadmap.
   roadmaps: { id: string; title: string; archived: boolean }[];
   steps: { id: string; title: string; status: Status; retired: boolean }[];
+  agents: ChatAgent[];
   transcript: TranscriptSummary;
+};
+/** A Claude Code session running on this machine, with what already tracks it and who works in it. */
+export type RunningSession = {
+  sessionId: string;
+  // The Claude desktop session running it, when the desktop app does.
+  hostSessionId: string | null;
+  // The ID to track it by: the one its agents use, else one a record tracks it under, else its own.
+  chatId: string;
+  name: string;
+  cwd: string;
+  entrypoint: string;
+  kind: string;
+  status: "working" | "waiting" | "idle";
+  waitingFor: string;
+  startedAt: string | null;
+  statusAt: string | null;
+  version: string;
+  model: string;
+  tracked: {
+    id: string;
+    title: string;
+    archived: boolean;
+    ownerType: "item" | "roadmap";
+    ownerId: string;
+    ownerTitle: string;
+  }[];
+  agents: ChatAgent[];
 };
 export type ChatMessage = {
   id: string;

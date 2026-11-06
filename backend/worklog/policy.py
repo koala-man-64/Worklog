@@ -6,7 +6,8 @@ handler only in an agent scope, and the handler may check further: who owns a pr
 an identity, whether a credential was revoked while the call waited for the write lock. A method a
 route has no entry for, HEAD among them, is the person's. Agents read what they read today (K2), apart
 from the person's own pages: settings, export and the API document, the agent registry, the list of
-tracked chats, and each chat's messages and transcript.
+tracked chats, each chat's messages and transcript, and the Claude Code sessions running on the
+person's machine.
 
 Observe mode: the middleware still decides, with its own checks. test_route_policy.py sends every route
 and method through it and requires the same answer from this table, and checks the CLI's allowlist
@@ -69,6 +70,9 @@ ROUTES: dict[str, dict[str, str | Only]] = {
 
     "/backups": {"POST": HUMAN},
 
+    "/chat-confirmations": {"POST": HUMAN},
+    "/chat-confirmations/remove": {"POST": HUMAN},
+
     "/chats": {"GET": HUMAN, "POST": HUMAN},
     "/chats/{identity}": {"GET": READ, "PATCH": HUMAN},
     "/chats/{identity}/archive": {"POST": HUMAN},
@@ -77,6 +81,8 @@ ROUTES: dict[str, dict[str, str | Only]] = {
     "/chats/{identity}/messages": {"GET": HUMAN, "POST": HUMAN},
     "/chats/{identity}/recover": {"POST": HUMAN},
     "/chats/{identity}/transcript": {"GET": HUMAN},
+
+    "/claude-sessions": {"GET": HUMAN},
 
     "/context": {"GET": READ},
 

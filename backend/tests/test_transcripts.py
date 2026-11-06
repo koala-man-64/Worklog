@@ -320,6 +320,27 @@ def test_a_summary_reads_only_the_end_of_an_unopened_transcript(roots):
     assert path not in reader.cache
 
 
+def test_a_headline_names_a_chat_from_its_main_transcript_alone(roots, monkeypatch):
+    reader = TranscriptReader(roots)
+    read = []
+    original = reader.latest
+
+    def latest(thread):
+        read.append(thread.key)
+        return original(thread)
+
+    monkeypatch.setattr(reader, "latest", latest)
+    assert reader.headline(CLAUDE) == ("Build the API", "claude-opus-5-5")
+    assert read == [CLAUDE]  # not its subagent's transcript
+    assert reader.headline(str(uuid.uuid4())) == ("", "")
+
+    def unreadable(chat_id):
+        raise PermissionError("denied")
+
+    monkeypatch.setattr(reader, "threads", unreadable)
+    assert reader.headline(CLAUDE) == ("", "")
+
+
 def test_transcripts_are_for_the_person_only_and_ids_never_name_paths(client):
     work = write(client, "POST", "/work-items", {"title": "API"}).json()
     record = chat(client, "item", work["id"], CLAUDE, "API builder")
