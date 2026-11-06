@@ -1,6 +1,6 @@
 # Worklog agent guide
 
-> Worklog is a single-user workbench that runs on the person's own machine, by default at http://127.0.0.1:8877. It holds the person's daily plan, work items, roadmaps, people, repositories, tickets and resources (reference pages the person writes for you), and it coordinates the AI agents working for them. Agents use the `worklog agent` command line to read that context, report their own runs and repository activity, write tickets and discussion messages, receive the messages the person writes into their chats, and propose changes to the person's records for the person to approve.
+> Worklog is a single-user workbench that runs on the person's own machine, by default at http://127.0.0.1:8877. It holds the person's daily plan, work items, roadmaps, people, repositories, tickets and resources (reference pages the person writes for you), and it coordinates the AI agents working for them. Agents use the `worklog agent` command line to read that context, report their own runs and repository activity, write tickets and discussion messages, tie themselves to the records they work on, receive the messages the person writes into their chats, and propose changes to the person's records for the person to approve.
 
 This guide is for AI agents (Claude Code, Codex and others) acting for the person. Read sections 1 to 4 before your first Worklog command; sections 5 to 12 are reference. `worklog agent guide` prints this guide; it needs no credential and no running Worklog. The person's own guide is `docs/GUIDE.md`, which Worklog shows on its Guide page.
 
@@ -32,11 +32,11 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 3. **Act as yourself.** Every later command MUST give `--as NAME` before the group. Your runs, reports, messages, tickets and proposals then carry your own identity.
 4. **One request ID per write.** Give each write a stable `--request-id`: 8-200 printable ASCII characters without spaces. After an uncertain result, rerun with the same ID and the identical payload; it cannot apply twice. A new operation MUST get a new ID. Proposal commands take none (section 7).
 5. **Current revisions.** A revision-checked command MUST carry the revision from your latest read. On `409 conflict`, read the record again and decide afresh; never reapply blindly.
-6. **Proposals for the person's records.** Work items, day entries, scratchpads and notes, checklist tasks, roadmaps and step progress, people, links, tracked chats, GitHub references, questions, decisions, repository edits and the files attached to the person's records change only through a proposal the person approves (section 6). You write tickets, discussions, your own runs, participation and updates, repository registrations and your inbox directly. Resources, the person's reference pages, are read-only to you: no command and no proposal changes one.
-7. **Advisory, not authority.** Participation, ticket assignment and roles reserve nothing and lock nothing, and a fresh report does not prove an agent is running. An acknowledgement means "received and understood", never approval.
+6. **Proposals for the person's records.** Work items, day entries, scratchpads and notes, checklist tasks, roadmaps and step progress, people, links, tracked chats, GitHub references, questions, decisions, repository edits and the files attached to the person's records change only through a proposal the person approves (section 6). You write tickets, discussions, your own runs, participation, updates and ties, repository registrations and your inbox directly. Resources, the person's reference pages, are read-only to you: no command and no proposal changes one.
+7. **Advisory, not authority.** Participation, ticket assignment, roles and ties reserve nothing and lock nothing, and a fresh report does not prove an agent is running. A tie to a tracked chat never brings you its messages: only the chat you registered with, or one the person confirmed you on, does (section 5.6). An acknowledgement means "received and understood", never approval.
 8. **Search first.** Before you investigate a failure, search past tickets, closed ones included: `tickets list --status all --q 'WORDS'`. File a ticket for an issue worth tracking, comment as you learn, and close it with a resolution that says what fixed it.
 9. **Never work around a refusal.** `401` means your identity was revoked: by the person, by the retirement of the agent that registered you, or by a restore. Stop, tell the person, and register again only if they agree. `403 agent_scope` is outside agent authority: propose the change or ask. `429 agent_limit`: report it and do not retry. `403 repository_registration_off`: propose `repository.create`. Section 8 lists every code.
-10. **Leave nothing open.** When the chat's work is done, offer or release the roles you own, release your participation, end your runs and `retire` (section 4, step 8). Retiring does not release roles: they would stay with a retired identity until the person reassigns them. The lifecycle commands `start`, `stop`, `backup`, `backups`, `restore`, `export` and `serve` are the person's: you MUST NOT run them unless the person asks. `worklog check` only reads, and is safe.
+10. **Leave nothing open.** When the chat's work is done, offer or release the roles you own, remove the ties you set that held only for this chat's work, release your participation, end your runs and `retire` (section 4, step 8). Retiring does not release roles: they would stay with a retired identity until the person reassigns them. Ties stay too, under your retired identity. The lifecycle commands `start`, `stop`, `backup`, `backups`, `restore`, `export` and `serve` are the person's: you MUST NOT run them unless the person asks. `worklog check` only reads, and is safe.
 
 ## 2. Records
 
@@ -64,6 +64,7 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 | Update | UUID | `kind` update, blocker or handoff; immutable | you, directly |
 | Discussion, message | UUID | messages are immutable; a request is pending, satisfied, released_by_human or cancelled | you, directly |
 | Role | UUID | one owner; at most one pending offer | you, directly; the person reassigns |
+| Tie | an identity and a record: `targetType` and `targetId` | `relationship`, the agent's role there; `setBy` `human` (the person) or `agent` (the agent itself) | the person, for any agent; you, directly, for yourself |
 | Inbox message | UUID | handed out once; expires after 2 hours | the person writes; you receive |
 
 Records are archived, never deleted, and only the person archives or recovers them.
@@ -82,6 +83,8 @@ Records are archived, never deleted, and only the person archives or recovers th
 | Archive or recover tickets | yes | no | no |
 | Write, archive or recover resources | yes | no | no |
 | Post, reply, acknowledge, cancel your own requests, act on roles | yes | yes | - |
+| Tie yourself to a record, change your role there, untie yourself | yes | yes, ties you set | - |
+| Tie another agent; change or remove a tie the person set | yes | no | no |
 | Archive a discussion, release a wait, reassign a role | yes | no | - |
 | Start and end runs; report participation and updates | - | yes, your own | - |
 | End another agent's run | yes | no | - |
@@ -110,7 +113,7 @@ worklog agent register --chat CHAT_ID --label 'Parser fix (Claude)'
 worklog agent --as NAME runs start --client-run-key CHAT_ID --display-name 'Parser fix' --provider claude --request-id run-start-CHAT_ID
 ```
 
-**Step 4. Read before you act:** the day's context, matching work, known issues, and the person's resources. `context` lists every resource by title and summary; read each one that bears on your task, and any the person names, with `resources show`: they hold what the person wants every agent to know.
+**Step 4. Read before you act:** the day's context, matching work, known issues, and the person's resources. `context` lists every resource by title and summary; read each one that bears on your task, and any the person names, with `resources show`: they hold what the person wants every agent to know. `context` also lists your ties (`ties`): the records the person tied you to, with your role on each, such as a repository you maintain or a resource to follow. Treat them as part of your brief.
 
 ```powershell
 worklog agent --as NAME context
@@ -135,7 +138,7 @@ worklog agent --as NAME inbox
 worklog agent --as NAME discussions list --view awaiting
 ```
 
-**Step 8. Finish.** Offer or release any roles you own (section 5.7). Release participation and end the run, each with the revision from your latest read (posting an update advances a participation's revision), then retire. `retire` alone also ends your open runs and releases their participation; it revokes your identity and every identity you registered, and deletes your stored token.
+**Step 8. Finish.** Offer or release any roles you own (section 5.7), and remove the ties you set that held only for this chat's work (section 5.8). Release participation and end the run, each with the revision from your latest read (posting an update advances a participation's revision), then retire. `retire` alone also ends your open runs and releases their participation; it revokes your identity and every identity you registered, and deletes your stored token.
 
 ```powershell
 worklog agent --as NAME participation release PARTICIPATION_ID --revision 2 --request-id release-CHAT_ID
@@ -396,6 +399,31 @@ worklog agent --as NAME discussions roles withdraw ROLE_ID --revision 3
 worklog agent --as NAME discussions roles release ROLE_ID --revision 4
 ```
 
+### 5.8 Ties
+
+A tie says which records an agent is tied to, and its role on each, such as Maintainer of a repository or Reviewer of a work item. The person ties any agent to any record. You tie yourself directly, with no proposal, and change or remove only the ties you set.
+
+| Command | Arguments and options | Request ID | Prints |
+|---|---|---|---|
+| `ties list` | `[--agent AGENT_ID]`, or `--type TYPE --id ID` (repeat `--id` for several records of one type) | - | `{items,total}`: your own ties, unless the options name an agent or records; each is `{id,agentId,agent:{id,label,avatar,active},targetType,targetId,target,relationship,setBy,createdAt}` |
+| `ties set` | `--type TYPE --id ID [--relationship TEXT]` | optional | the tie; setting it again changes your role there |
+| `ties remove` | `--type TYPE --id ID` | optional | `{ok,id,agentId,targetType,targetId}` |
+
+- **Types.** TYPE is `item`, `roadmap`, `step`, `repository`, `person`, `resource`, `discussion`, `chat`, `proposal`, `ticket`, `agent`, `question` or `decision`. ID is the record's ID. A ticket also takes its key or number (`T-12`, `12`); a tracked chat takes Worklog's ID, not the chat ID; an agent takes its `agentId` from `discussions participants`; steps, questions and decisions take the IDs `roadmap show` lists.
+- **`target`** holds the record's `title` and `archived` (for a step, retired; for a repository, archived or merged; for an agent, no live credential), plus what a page needs to find it: a step's, question's or decision's `roadmapId` and `roadmapTitle`, a ticket's `number` and `status`, a work item's or proposal's `status`, a tracked chat's `ownerType` and `ownerId`. It is null for a record that no longer resolves.
+- **Who changes a tie.** `setBy` is `human` when the person set the tie or last changed it, and `agent` when you did. You change and remove only ties you set: one the person set refuses with `403 forbidden`. When the person changes your tie, it becomes theirs.
+- **New ties.** A repository must be active and not merged (`409 archived`, `409 repository_merged`); a retired step takes no new tie (`409 conflict`); you cannot tie yourself to your own identity (`422 validation`). Another agent's draft proposal is `404 not_found`, as when you read it, and its ties stay out of what you read. An existing tie's role can still change, and `ties remove` always works.
+- **Ties stay.** Archiving a record or retiring an identity keeps its ties. A repository merge moves them to the survivor, which keeps its own tie when an agent was tied to both.
+
+```powershell
+worklog agent --as NAME ties list
+worklog agent --as NAME ties list --agent AGENT_ID
+worklog agent --as NAME ties list --type question --id QUESTION_ID --id OTHER_QUESTION_ID
+worklog agent --as NAME ties set --type repository --id REPOSITORY_ID --relationship 'Maintainer' --request-id tie-CHAT_ID-1
+worklog agent --as NAME ties set --type ticket --id T-12 --relationship 'Fixing it' --request-id tie-CHAT_ID-2
+worklog agent --as NAME ties remove --type ticket --id T-12 --request-id untie-CHAT_ID-2
+```
+
 ## 6. Proposals
 
 A proposal is a JSON file with a title (up to 1,000 bytes), a rationale for the person reviewing it, and up to 500 operations (5,000,000 bytes in all):
@@ -602,7 +630,7 @@ worklog check
 | `archived` | 409 | The target, what it links to, or the evidence file to attach is archived | Ask the person to recover it, or choose another |
 | `too_large` | 413 | The request or file exceeds its limit | Shrink it (section 9) |
 | `file_size` | 413 or 422 | A file is empty or larger than 25,000,000 bytes | Upload a non-empty file within the limit |
-| `forbidden` | 403 | Not yours to do, such as approving, or acting on another agent's proposal | Do not retry; ask the person |
+| `forbidden` | 403 | Not yours to do, such as approving, acting on another agent's proposal, tying another agent, or changing or removing a tie the person set | Do not retry; ask the person |
 | `agent_scope` | 403 | Outside agent authority | Do not retry; propose the change or ask the person |
 | `authentication` | 401 | The credential is missing, invalid or revoked | Stop and tell the person (rule 9) |
 | `idempotency` | 428 or 422 | A required request ID is missing (428), or not 8-200 characters (422) | Give a valid `--request-id` |
@@ -623,7 +651,7 @@ worklog check
 | `token_revoked` | 409 | The token stored for your name was revoked | Tell the person; the error says how to forget the token |
 | `token_in_use` | 409 | The token stored for your name belongs to a credential the person issued | Tell the person; a registration never reuses the person's token |
 | `chat_mismatch` | 409 | Your name's identity was registered for another chat, or before chats were recorded | Register this chat under another `--name` |
-| `agent_limit` | 429 | 200 registered identities are active, or 200 were registered today | Report it; do not retry |
+| `agent_limit` | 429 | 200 registered identities are active, 200 were registered today, or you hold 500 ties you set yourself | Report it; do not retry. For ties, remove one that no longer holds first |
 | `avatar_in_use` | 409 | Another active agent shows that avatar | Choose one marked available |
 | `identity_binding` | 409 | A credential cannot change its agent identity | Tell the person |
 | `identity_missing` | 409 | A credential has no communication identity | The person's; tell them |
@@ -664,6 +692,7 @@ The following codes reach only the person's browser or a failed startup: `host` 
 | A tracked chat | 20 `repos` labels; 100 `repositoryIds` |
 | A discussion post | 20 repository labels; 30 contexts; 100 acknowledgement targets |
 | Registered identities | 200 active, and 200 registered a day (since local midnight); credentials the person issues do not count |
+| Ties | 500 that you set yourself (the person's ties on you do not count); a relationship of 200 bytes; `ties list` shows 500 |
 | Agent names | 1-64 characters |
 | Request IDs | 8-200 printable ASCII characters |
 | Pages | 50 by default, at most 200; `context` lists 100 |
@@ -695,7 +724,8 @@ Invoke-RestMethod -Uri 'http://127.0.0.1:8877/api/v1/work-items/ITEM_ID' -Header
 - **Resources.** The reference pages the person writes for you and for themselves. Only the person writes, archives and recovers them.
 - **Roadmaps.** "Agents working here", agent chips beside each step, tracked chats, questions and decisions, and "Applied proposals".
 - **Repositories.** Registered repositories; yours say "Registered by" your label and "unreviewed" until the person confirms them. A repository's page lists participants and recent updates. "Open agent runs" lets the person end a run you left open.
-- **Agents.** One entry per identity. It shows a status ("Reporting work", "Stale reports", "No current reports" or "Credential revoked"), your runs, messages, updates, the work you are tied to, and under "Proposals" every proposal you made, with where each got to.
+- **Agents.** One entry per identity. It shows a status ("Reporting work", "Stale reports", "No current reports" or "Credential revoked"), your runs, messages and updates, under "Tied to" every record you are tied to with your role there, under "From its reports" the work your runs, messages and updates tie you to, and under "Proposals" every proposal you made, with where each got to.
+- **Ties on every record.** A work item, roadmap, step, question, decision, repository, person, resource, discussion, tracked chat, proposal or ticket lists the agents tied to it under "Agents", each with its role and "By you" (the person set it) or "By the agent". The person ties and unties agents there.
 - **Chats.** Tracked chats, shown as "Working" or "Idle", with their transcripts. The person writes to a chat's agents there, and you receive it in your inbox.
 - **Discussions.** Threads, acknowledgement requests and roles.
 - **Review.** Your submitted proposals, with "Approve proposal", "Return to draft" and "Reject proposal", each confirmed. A change that attaches a file names it, with its size and a download link.
@@ -727,6 +757,7 @@ Point the person to the page that matters:
 | resource | `/resources` | a page under "Pages" on Resources |
 | step progress | `/steps/{id}/progress` | the progress control beside each step |
 | role | `/discussions/roles` | "Discussion roles" |
+| tie | `/agent-links` | "Tied to" on an agent's page; "Agents" on a record's page |
 | acknowledgement request | a message's `request` | "Request acknowledgement (received and understood)" |
 | the person | `local-user`, labelled `You` | - |
 | inbox message | `/inbox/receive` | the message box under a chat's history on the Chats page |
