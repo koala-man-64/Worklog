@@ -57,6 +57,8 @@ from .registration import (
     revoke_registered,
 )
 from .registry_api import install_registry_routes
+from .release_api import install_release_routes
+from .releases import ReleaseService
 from .resource_api import install_resource_routes
 from .resources import ResourceService
 from .search import SearchType, global_search, index_plans
@@ -712,7 +714,10 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                         # Open, doing and blocked tickets, so an agent sees known issues before it starts.
                         "tickets": TicketService().list(c, item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset),
                         # The person's reference pages by title and summary; `resources show` reads one.
-                        "resources": ResourceService().list(c, limit=limit, offset=offset)}
+                        "resources": ResourceService().list(c, limit=limit, offset=offset),
+                        # Upcoming releases with their counts, or those holding the item; `releases show` reads one.
+                        "releases": ReleaseService().list(c, target_type="item" if itemId else None, target_id=itemId,
+                                                          limit=limit, offset=offset)}
         items_result = work.items.list(item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset)
         return {"day": work.items.day(date or current), "workItems": items_result,
                 "roadmaps": plans.list(), "people": work.people.list(), "proposals": proposals.list(request.state.actor),
@@ -876,6 +881,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     install_ticket_routes(app, db, mutate)
     install_agent_link_routes(app, db, mutate)
     install_resource_routes(app, db, mutate)
+    install_release_routes(app, db, apply)
     install_discussion_routes(app, db, discussion_mutate)
     install_registration_routes(app, db, auto_backup)
     install_registry_routes(app, db, transcripts)

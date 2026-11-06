@@ -96,6 +96,12 @@ def _steps(conn, identifier, retired=False):
     return steps
 
 
+def step_tree(conn, roadmap_id):
+    """A roadmap's steps, retired ones included, with each parent's progress derived from its leaves
+    as the roadmap's page shows it."""
+    return _steps(conn, roadmap_id, retired=True)
+
+
 _URL_UNSAFE = re.compile(r"[()<>\s]")
 
 

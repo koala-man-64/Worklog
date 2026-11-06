@@ -23,7 +23,8 @@ CHUNK = 500
 MAX_TERMS = 30
 # Every kind of record the index holds, which global search can be narrowed to.
 SearchType = Literal["item", "step", "roadmap", "note", "attachment", "link", "chat", "github", "question",
-                     "decision", "person", "ticket", "ticket_comment", "discussion", "discussion_message", "resource"]
+                     "decision", "person", "ticket", "ticket_comment", "discussion", "discussion_message", "resource",
+                     "release", "release_check"]
 
 
 def prefix_match(query: str) -> str | None:
@@ -136,17 +137,19 @@ def global_search(c: sqlite3.Connection, query: str, archived: bool = False, lim
         LEFT JOIN repositories rp ON a.owner_type='repository' AND rp.id=a.owner_id
         LEFT JOIN discussions ds ON s.type IN ('discussion','discussion_message') AND ds.id=s.owner_id
         LEFT JOIN tickets tk ON s.type IN ('ticket','ticket_comment') AND tk.id=s.owner_id
+        LEFT JOIN releases rl ON s.type IN ('release','release_check') AND rl.id=s.owner_id
         WHERE search_index MATCH ? AND
          (CAST(s.archived AS INTEGER)=1 OR coalesce(w.archived,0)=1
           OR coalesce(st.retired,0)=1 OR coalesce(rm.archived,0)=1 OR coalesce(p.archived,0)=1 OR coalesce(ds.archived,0)=1
-          OR coalesce(tk.archived,0)=1 OR coalesce(rp.archived,0)=1)=?"""
+          OR coalesce(tk.archived,0)=1 OR coalesce(rp.archived,0)=1 OR coalesce(rl.archived,0)=1)=?"""
     if kinds:
         source += f" AND s.type IN ({','.join('?' * len(kinds))})"
     arguments = (match, int(archived), *kinds)
-    # A resource is its own page and carries its own archive flag in the index.
+    # A resource is its own page and carries its own archive flag in the index. A release's checks
+    # open on the release, and are archived with it as well as on their own.
     rows = c.execute("""SELECT s.entity_id,s.type,s.title,s.body,s.owner_id,
-                     CASE WHEN s.type='resource' THEN 'resources' WHEN ds.id IS NOT NULL THEN 'discussions' WHEN tk.id IS NOT NULL THEN 'tickets' WHEN w.id IS NOT NULL THEN 'work' WHEN p.id IS NOT NULL THEN 'people' WHEN rp.id IS NOT NULL THEN 'repositories' ELSE 'roadmaps' END AS route_type,
-                     CASE WHEN s.type='resource' THEN s.entity_id ELSE coalesce(ds.id,tk.id,w.id,p.id,rp.id,rm.id) END AS route_id """ + source + " ORDER BY rank LIMIT ? OFFSET ?", (*arguments, limit, offset)).fetchall()
+                     CASE WHEN s.type='resource' THEN 'resources' WHEN ds.id IS NOT NULL THEN 'discussions' WHEN tk.id IS NOT NULL THEN 'tickets' WHEN rl.id IS NOT NULL THEN 'releases' WHEN w.id IS NOT NULL THEN 'work' WHEN p.id IS NOT NULL THEN 'people' WHEN rp.id IS NOT NULL THEN 'repositories' ELSE 'roadmaps' END AS route_type,
+                     CASE WHEN s.type='resource' THEN s.entity_id ELSE coalesce(ds.id,tk.id,rl.id,w.id,p.id,rp.id,rm.id) END AS route_id """ + source + " ORDER BY rank LIMIT ? OFFSET ?", (*arguments, limit, offset)).fetchall()
     total = c.execute("SELECT count(*) " + source, arguments).fetchone()[0]
     return {"items": [{"id": r[0], "type": r[1], "title": r[2], "snippet": r[3][:220], "ownerId": r[4],
                        "routeType": r["route_type"], "routeId": r["route_id"]} for r in rows], "total": total}

@@ -27,6 +27,12 @@ const shapes = {
       <path d="M6 7v4a3 3 0 0 0 3 3h6a3 3 0 0 1 3 3" />
     </>
   ),
+  releases: (
+    <>
+      <path d="M5.5 21V3.5" />
+      <path d="M5.5 4.5h12l-2.5 4 2.5 4h-12" />
+    </>
+  ),
   people: (
     <>
       <circle cx="9" cy="8" r="3.5" />
