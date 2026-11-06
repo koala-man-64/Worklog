@@ -17,10 +17,10 @@ from urllib.parse import quote
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import FastAPI, Query, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from starlette.concurrency import run_in_threadpool
 
 from . import __version__, operations, policy, support
 from . import models as m
@@ -33,7 +33,6 @@ from .common import (
     HTML_LIMIT,
     AppError,
     event,
-    lone_surrogate,
     now,
     read_events,
     setting,
@@ -46,6 +45,7 @@ from .coordination_api import install_coordination_routes
 from .db import Database
 from .discussion_api import install_discussion_routes
 from .discussions import bind_credential, communication_actor, registered_by, registered_chats
+from .guard import RequestGuard, error_response
 from .maintenance import prune_receipts
 from .plans import PlanService
 from .proposals import ProposalService, approval_required
@@ -75,13 +75,8 @@ def default_data_directory() -> Path:
     return Path(os.environ.get("WORKLOG_DATA_DIR") or Path(os.environ.get("LOCALAPPDATA", Path.home() / ".local/share")) / "Worklog")
 
 
-def error_response(exc: AppError) -> JSONResponse:
-    return JSONResponse({"error": {"code": exc.code, "message": exc.message,
-                                  **({"fields": exc.fields} if exc.fields is not None else {})}},
-                        status_code=exc.status, headers={"Retry-After": "1"} if exc.code == "database_busy" else None)
-
-
 async def bounded_body(request: Request, maximum: int) -> bytes:
+    """A body the guard leaves to its route (guard.STREAMED, and the bootstrap), read to the route's limit."""
     length = request.headers.get("content-length")
     if length:
         try:
@@ -177,69 +172,9 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         logger.error("Storage request failed (%s)", type(exc).__name__)
         return error_response(AppError(503, "storage_error", "Storage operation failed. Check free disk space and folder permissions, then retry."))
 
-    @app.middleware("http")
-    async def protect(request: Request, call_next: Callable) -> Response:
-        try:
-            if request.headers.get("host", "") not in allowed_hosts:
-                raise AppError(400, "host", "Use the local Worklog address")
-            path, method = request.url.path, request.method
-            supplied_origin = request.headers.get("origin")
-            if supplied_origin and supplied_origin not in allowed_origins:
-                raise AppError(403, "origin", "Foreign browser origins are not allowed")
-            if path.startswith("/api/") and path != "/api/v1/session/bootstrap":
-                authorization = request.headers.get("authorization", "")
-                if authorization:
-                    if not authorization.startswith("Bearer "):
-                        raise AppError(401, "authentication", "Use a valid credential")
-                    digest = hashlib.sha256(authorization[7:].encode()).hexdigest()
-                    with db.read() as conn:
-                        credential = conn.execute("SELECT * FROM credentials WHERE token_hash=? AND revoked=0", (digest,)).fetchone()
-                    if credential is None:
-                        raise AppError(401, "authentication", "Credential is invalid or revoked")
-                    actor = {"id": credential["id"], "label": credential["label"], "kind": "agent"}
-                    # The scope policy.ROUTES gives the route decides. A call no route serves reaches no
-                    # handler: only a read goes on to the router, and not one it would redirect to the
-                    # person's page.
-                    granted = policy.decide(app.router.routes, request.scope)
-                    if not (policy.agent_may(granted) if granted is not None
-                            else policy.passes_unserved(app.router.routes, request.scope)):
-                        raise AppError(403, "agent_scope", "This call is the person's. Agents read, propose changes, discuss, "
-                                       "file tickets, report their own work and take their inbox")
-                    request.state.agent_scope = granted
-                else:
-                    session_id = request.cookies.get("worklog_session", "")
-                    session = app.state.sessions.get(session_id)
-                    if not session or session["expires"] < time.time():
-                        raise AppError(401, "session", "Open Worklog to establish a local session")
-                    actor = {"id": "local-user", "label": "You", "kind": "human"}
-                    if method not in {"GET", "HEAD"}:
-                        # Compare bytes: compare_digest rejects non-ASCII str input with a TypeError.
-                        if supplied_origin not in allowed_origins or not secrets.compare_digest(request.headers.get("x-csrf-token", "").encode(), session["csrf"].encode()):
-                            raise AppError(403, "csrf", "Refresh Worklog before saving")
-                request.state.actor = actor
-                # Bound JSON requests before FastAPI's body parser can allocate arbitrarily.
-                if method not in {"GET", "HEAD"} and not (path == "/api/v1/attachments" or path == "/api/v1/imports/preview"):
-                    body = await bounded_body(request, 8_000_000)
-                    # Refused here, for every route and field at once: past this point a lone
-                    # surrogate fails deep in validation or in SQLite, as a 500.
-                    broken = lone_surrogate(body)
-                    if broken is not None:
-                        raise AppError(422, "validation", "The text holds a broken character, a lone UTF-16 surrogate; "
-                                       "remove it and retry", {broken: "invalid"})
-                    request._body = body
-            response = await call_next(request)
-        except AppError as exc:
-            response = error_response(exc)
-        except Exception:
-            # Unhandled failures still get the error envelope and the security headers below.
-            incident = uid()
-            logger.exception("Unhandled request failure (incident %s)", incident)
-            response = error_response(AppError(500, "internal_error", f"Unexpected server error. Reference {incident}."))
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["Referrer-Policy"] = "no-referrer"
-        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
-        response.headers["Cache-Control"] = "no-store" if request.url.path.startswith("/api/") else "no-cache"
-        return response
+    # Host, origin, the caller and the route policy, a bounded JSON body, and the security headers on
+    # every response (guard.py).
+    app.add_middleware(RequestGuard, owner=app, db=db, hosts=allowed_hosts, origins=allowed_origins)
 
     def mutate(request: Request, payload: Any, fn: Callable, *, required_key: bool = False,
                redact: tuple[str, ...] = (), communication: bool = False,

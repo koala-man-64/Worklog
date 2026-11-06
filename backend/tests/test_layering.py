@@ -30,9 +30,9 @@ ORDER = [
     # Work: the shapes the domains share, supporting records, work items, people, agent ties, releases,
     # and the router.
     "records", "support", "items", "people", "agent_links", "releases", "services",
-    # HTTP.
+    # HTTP: the routes of each domain, the request guard in front of them all, and the app.
     "agent_link_api", "chat_message_api", "coordination_api", "discussion_api", "registry_api", "release_api",
-    "reminder_api", "resource_api", "ticket_api", "app",
+    "reminder_api", "resource_api", "ticket_api", "guard", "app",
     # The command line.
     "cli",
 ]
