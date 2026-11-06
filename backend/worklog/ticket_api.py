@@ -1,6 +1,6 @@
-"""HTTP surface for tickets: agents file, change and comment directly; the person archives."""
+"""HTTP surface for tickets: agents file, change and comment directly; the person archives and
+recovers them (policy.ROUTES)."""
 
-import re
 from collections.abc import Callable
 from typing import Literal
 
@@ -10,14 +10,6 @@ from . import models as m
 from .common import AppError
 from .db import Database
 from .tickets import TicketService
-
-
-def ticket_agent_route_allowed(method: str, path: str) -> bool:
-    """Archive and recover stay with the person."""
-    suffix = path.removeprefix("/api/v1")
-    if method == "POST":
-        return suffix == "/tickets" or re.fullmatch(r"/tickets/[^/]+/comments", suffix) is not None
-    return method == "PATCH" and re.fullmatch(r"/tickets/[^/]+", suffix) is not None
 
 
 def install_ticket_routes(app: FastAPI, db: Database, mutate: Callable) -> None:

@@ -288,26 +288,30 @@ The table observes first and enforces afterwards. Every read agents have today s
 
 #### 3.1 · Policy table on the routes
 
-Status: In progress · Branch: `claude/route-policy` · PR: [#112](https://github.com/koala-man-64/Worklog/pull/112); the table takes over the decision in its own PR
+Status: In progress · Branches: `claude/route-policy`, `claude/route-policy-enforce` · PRs: [#112](https://github.com/koala-man-64/Worklog/pull/112), PR_LINK; the request guard moves to pure ASGI in its own PR
 
 Each route declares its scope. The table drives the middleware decision and checks the CLI allowlist, and replaces the seven predicate sites. Move the request guard to pure ASGI. Needs 0.2 and 2.1. Findings: C-03, A-02, C-14, REM-21, REM-22.
 
-Done so far, in observe mode:
-- **The table.** `policy.ROUTES` gives every route under `/api/v1` a scope for each method it serves: the person's (`human`), or an agent scope for reads, proposals, discussions, coordination, tickets, registration or the inbox. A scope can hang on one value. Agents may submit, withdraw and reopen a proposal, but not approve or reject one, and they upload evidence only to a proposal. A method a route lists no scope for is the person's.
-- **The decision.** `policy.decide` finds the route a request reaches, as the router does. A request no route serves under its method gets no scope: the router answers it with 404, 405 or a redirect, and no handler runs.
-- **Observe mode.** The middleware still decides. `test_route_policy.py` sends every call a route serves through today's middleware, with the router stubbed so no handler runs. It tries each verb and owner type the decisions read, and each word a route's path ends in as the value of a trailing parameter. Each call gets the table's answer, with four exceptions:
+Done so far:
+- **The table (#112).** `policy.ROUTES` gives every route under `/api/v1` a scope for each method it serves: the person's (`human`), or an agent scope for reads, proposals, discussions, coordination, tickets, registration or the inbox. A scope can hang on one value. Agents may submit, withdraw and reopen a proposal, but not approve or reject one, and they upload evidence only to a proposal. A method a route lists no scope for is the person's.
+- **The decision (#112).** `policy.decide` finds the route a request reaches, as the router does. A request no route serves under its method gets no scope: the router answers it with 404, 405 or a redirect, and no handler runs.
+- **Observed first (#112).** Before the table decided, `test_route_policy.py` held the old checks to it. Every call a route serves went through the middleware with the router stubbed, trying each verb and owner type the decisions read, and each word a route's path ends in as the value of a trailing parameter. The old checks and the table agreed on every call but four:
   - `/chats/messages`
   - `/chats/transcript`
   - `/roadmaps/agents`
   - a roadmap revision numbered `agents`
 
-  Today's checks match words in the path, so these read as the person's pages of those names. In fact each names a chat, roadmap or revision that no record has. Once the table decides, an agent gets those handlers' 404 instead of 403.
-- **Calls no route serves.** These reach no handler. Today's middleware treats them unevenly: it refuses some, and lets others through to the router's 404, 405 or redirect. The tests pin a sample of them, so the next PR's choice for them shows.
-- **Other checks.** The tests also check:
-  - the table against the route matrix;
-  - that the CLI sends no call the table refuses, and can make every agent write the table lists, with each verb and owner type;
-  - that every route has a scope.
-- **No live observation.** The table and the middleware both decide from a call's method, path and query alone, and the tests cover every shape of call a route serves. A log of live calls would add no case.
+  The old checks matched words in the path, so these read as the person's pages of those names. In fact each names a record no one has.
+- **The table decides (PR_NUMBER).** The middleware authenticates, then lets an agent's call through to a handler only in an agent scope, and the seven checks are gone. A write in the coordination or inbox scope still rechecks for a revoked credential before it replays a receipt, now chosen by its scope. What agents see changes in three places, and no route's decision changes:
+  - the four calls above reach their handlers, which find no such record and answer 404, or 422 for the revision number;
+  - a read no route serves goes on to the router's 404, or to its redirect unless that leads to the person's page, which refuses it at once as before; a roadmap ID named `agents` with a trailing slash now redirects to its handler's 404;
+  - any other call no route serves is refused, including proposal writes the old checks let through to a 404 or 405.
+- **Tests.**
+  - `test_route_policy.py` checks that the middleware gives the table's decision on every call a route serves.
+  - It pins calls no route serves.
+  - It checks the table against the route matrix, the CLI against the table, and every route for a scope.
+  - A new test pins the recheck: a retry in the coordination or inbox scope, by a credential revoked after the middleware let it in, gets 401 rather than its earlier receipt, which for the inbox holds the person's messages.
+- **No live observation.** The table decides from a call's method, path and query alone, and the tests cover every shape of call a route serves. A log of live calls would add no case.
 
 #### 3.2 · Human-only scope on sensitive routes
 
@@ -535,3 +539,4 @@ These look like consolidation candidates but stay:
 - 2026-11-05: K13 recorded while building step 2.5's baseline module: a new database starts from the baseline schema at the current version.
 - 2026-11-05: Schema v16, `proposal_targets`, added outside the plan for a product request (the proposal histories of work items, roadmaps and agents), with its seal and documented way back. Approval writes it, and the upgrade fills it in from approved proposals with `proposal_targets.targets`, the rule approval uses. It is the first version added after the baseline: its table is in `schema.BASELINE` and in its upgrade step, in the same text.
 - 2026-11-05: Step 3.1 split into PRs while building it: the policy table in observe mode first, then the table deciding in the middleware.
+- 2026-11-05: Step 3.1's request guard moves to pure ASGI in a third PR, after the table decides. The table's PR also settles calls no route serves: an agent's read goes on to the router unless the router would redirect it to the person's page, and anything else is refused.

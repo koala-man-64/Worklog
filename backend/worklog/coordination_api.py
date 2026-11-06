@@ -1,6 +1,5 @@
 """Narrow HTTP surface for reviewed repositories and self-reported activity."""
 
-import re
 from collections.abc import Callable
 
 from fastapi import FastAPI, Query, Request
@@ -20,15 +19,6 @@ from .coordination import (
 from .db import Database
 from .models import Expected
 from .records import people_on
-
-
-def coordination_agent_route_allowed(method: str, path: str) -> bool:
-    suffix = path.removeprefix("/api/v1")
-    if method == "POST":
-        return (suffix in {"/agent-runs", "/participations", "/repositories/ensure"}
-                or re.fullmatch(r"/agent-runs/[^/]+/end", suffix) is not None
-                or re.fullmatch(r"/participations/[^/]+/(?:release|rejoin|check-in|updates)", suffix) is not None)
-    return method == "PATCH" and re.fullmatch(r"/participations/[^/]+", suffix) is not None
 
 
 def install_coordination_routes(app: FastAPI, db: Database, mutate: Callable) -> None:

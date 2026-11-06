@@ -11,7 +11,6 @@ import pytest
 from fastapi.testclient import TestClient
 from worklog.app import create_app
 from worklog.common import AppError
-from worklog.discussion_api import agent_route_allowed
 from worklog.discussions import (
     DiscussionService,
     bind_credential,
@@ -444,12 +443,15 @@ def test_invalid_contracts_and_allowlist_do_not_expand_agent_authority(client):
         assert write(client, "/discussions", body, a).status_code == 422
     assert get(client, "/discussions?limit=0", a).status_code == 422
     assert get(client, "/discussions?offset=-1", a).status_code == 422
-    assert agent_route_allowed("POST", "/api/v1/discussions/roles/id/release")
-    assert not agent_route_allowed("POST", "/api/v1/discussions/messages/id/release")
-    assert not agent_route_allowed("POST", "/api/v1/discussions/roles/id/reassign")
-    assert not agent_route_allowed("POST", "/api/v1/discussions/id/archive")
-    assert not agent_route_allowed("POST", "/api/v1/discussions/messages/id/cancel/extra")
-    assert not agent_route_allowed("PATCH", "/api/v1/discussions/id")
+    # An agent may release its role, but releasing a request, reassigning a role and archiving a
+    # thread are the person's, and so is any call no route serves.
+    assert write(client, "/discussions/roles/id/release", {"revision": 1}, a).json()["error"]["code"] != "agent_scope"
+    for method, path in [("POST", "/discussions/messages/id/release"), ("POST", "/discussions/roles/id/reassign"),
+                         ("POST", "/discussions/id/archive"), ("POST", "/discussions/messages/id/cancel/extra"),
+                         ("PATCH", "/discussions/id")]:
+        refused = client.request(method, "/api/v1" + path, json={"revision": 1},
+                                 headers={"Authorization": "Bearer " + a["token"], "Idempotency-Key": str(uuid.uuid4())})
+        assert refused.status_code == 403 and refused.json()["error"]["code"] == "agent_scope", (method, path, refused.text)
 
 
 def test_future_cursor_and_wrong_scope_cannot_skip_or_cross_a_snapshot(client):

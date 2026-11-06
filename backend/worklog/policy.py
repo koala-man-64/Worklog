@@ -1,16 +1,18 @@
 """Who may call each API route: the person alone, or an agent too, and in which scope (consolidation
 step 3.1).
 
-Every route under /api/v1 has an entry for each method it serves. An agent's call reaches a route's
-handler only in an agent scope, and the handler may check further: who owns a proposal, who registered
-an identity, whether a credential was revoked while the call waited for the write lock. A method a
-route has no entry for, HEAD among them, is the person's. Agents read what they read today (K2), apart
-from the person's own pages: settings, export and the API document, the agent registry, the list of
-tracked chats, and each chat's messages and transcript.
+Every route under /api/v1 has an entry for each method it serves, and the middleware lets an agent's
+call through to a route's handler only in an agent scope. The handler may check further: who owns a
+proposal, who registered an identity, whether a credential was revoked while the call waited for the
+write lock. A method a route has no entry for, HEAD among them, is the person's. A call no route serves
+reaches no handler: the middleware lets an agent's read go on to the router's 404 or redirect, unless
+the redirect leads to the person's page, and refuses any other call (passes_unserved).
 
-Observe mode: the middleware still decides, with its own checks. test_route_policy.py sends every route
-and method through it and requires the same answer from this table, and checks the CLI's allowlist
-against the table. The next PR of step 3.1 makes the table decide.
+Agents read what they read before this table (K2), apart from the person's own pages: settings, export
+and the API document, the agent registry, the list of tracked chats, and each chat's messages and
+transcript. A transcript holds a whole conversation, tool output included, and a chat's messages are
+the person's prompts to it: agents take theirs from the inbox. The agent registry joins tracked chats
+into every agent's record, as a roadmap's view of its agents does.
 """
 
 from __future__ import annotations
@@ -261,3 +263,17 @@ def decide(routes: Iterable[BaseRoute], scope: Scope) -> str | None:
 def agent_may(scope: str) -> bool:
     """Whether an agent's call in this scope gets past the middleware to the route's handler."""
     return scope != HUMAN
+
+
+def passes_unserved(routes: Iterable[BaseRoute], scope: Scope) -> bool:
+    """Whether an agent's call no route serves goes on to the router, which runs no handler for it.
+
+    Only a read does. The router answers it with 404, or redirects it when the path names a route with
+    its trailing slash added or removed, and a read it would redirect is decided now as the read it
+    becomes: a slash cannot turn the person's page into a redirect an agent follows. Anything else no
+    route serves is refused."""
+    if scope["method"] != "GET":
+        return False
+    path = scope["path"]
+    target = decide(routes, {**scope, "path": path.rstrip("/") if path.endswith("/") else path + "/"})
+    return target is None or agent_may(target)

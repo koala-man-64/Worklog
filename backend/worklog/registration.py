@@ -30,7 +30,6 @@ ACTIVE_LIMIT = 200
 DAILY_LIMIT = 200
 # A random token of the minimum length shows dozens; this only refuses a constant or a pattern.
 DISTINCT_TOKEN_CHARACTERS = 10
-_ROUTES = {"/agent-registrations", "/agent-registrations/retire"}
 
 
 class AgentRegistration(Command):
@@ -43,10 +42,6 @@ class AgentRegistration(Command):
     chatId: str = Field(min_length=1, max_length=500)
     # A name from GET /discussions/avatars; omitted draws the least-used one.
     avatar: str | None = Field(default=None, min_length=1, max_length=100)
-
-
-def agent_route_allowed(method: str, path: str) -> bool:
-    return method == "POST" and path.removeprefix("/api/v1") in _ROUTES
 
 
 def _registered(c: sqlite3.Connection) -> Callable[[str], list[str]]:
