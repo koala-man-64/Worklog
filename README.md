@@ -111,7 +111,7 @@ For an upgrade, stop Worklog, make a manual backup with the installed version, u
 
 Keep the previous version and its manual backup until verification succeeds. To roll back, stop Worklog, switch to the previous version and run its setup, then use that version’s `restore` command with the pre-upgrade backup. Start and check Worklog again. Restoring returns the data to the time of the snapshot, creates a new data identity, and revokes the restored credentials.
 
-From version 16 to version 15, a way back keeps everything: version 15 has no list of the proposals applied to a work item or roadmap, and upgrading again fills it in from the approved proposals, those approved under version 15 included. With Worklog stopped and after a manual backup, run this on the database, stopping at the first error (the `sqlite3` shell's `-bail`), then start the version 15 checkout:
+From version 16 to version 15, a way back keeps every record. It drops only the list of what each approved proposal was applied to, which version 15 doesn't have. Upgrading again fills that list in from the approved proposals, those approved under version 15 included, as the upgrade above describes. With Worklog stopped and after a manual backup, run this on the database, stopping at the first error (the `sqlite3` shell's `-bail`), then start the version 15 checkout:
 
 ```sql
 BEGIN;

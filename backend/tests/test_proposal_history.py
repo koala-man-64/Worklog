@@ -338,24 +338,56 @@ def test_after_the_upgrade_a_proposal_the_person_wrote_counts_only_toward_what_i
     assert recorded(path) == [(drafted["id"], 1, "item.create", "roadmap", roadmap["id"])]
 
 
+def test_the_upgrade_pairs_creations_in_the_order_they_were_written_whatever_the_clock_said(tmp_path):
+    path = tmp_path / "worklog.sqlite3"
+    with person(tmp_path) as c:
+        p = plan(c)
+        agent = credential(c, "Builder")
+        earlier = propose(c, agent, "Start", [change("item.update", id=p["work"]["id"], revision=1, status="doing")])
+        later = propose(c, agent, "Two at once", [change("item.create", title="First"), change("item.create", title="Second")])
+    kept = recorded(path)
+    first, second = titled(path, "work_items", "First"), titled(path, "work_items", "Second")
+    assert (later["id"], 1, "item.create", "item", first) in kept and (later["id"], 2, "item.create", "item", second) in kept
+    to_v15(path)
+    with closing(sqlite3.connect(path)) as conn:
+        # A coarse clock: both creations and both approvals in one tick, the second creation's
+        # event id sorting before the first's.
+        conn.execute("UPDATE events SET created_at=? WHERE (kind='item.create' AND entity_id IN (?,?)) OR kind='proposal.approve'",
+                     (earlier["updatedAt"], first, second))
+        conn.execute("UPDATE proposals SET updated_at=? WHERE status='approved'", (earlier["updatedAt"],))
+        conn.execute("UPDATE events SET id='ffffffff-ffff-4fff-bfff-ffffffffffff' WHERE kind='item.create' AND entity_id=?", (first,))
+        conn.execute("UPDATE events SET id='00000000-0000-4000-8000-000000000000' WHERE kind='item.create' AND entity_id=?", (second,))
+        conn.commit()
+    Database(path).initialize()
+    assert recorded(path) == kept
+
+
 def test_the_upgrade_passes_over_approved_changes_it_cannot_read(tmp_path):
     path = tmp_path / "worklog.sqlite3"
+    # Stored rows no approval would have taken: not a list, not JSON, an unknown action, owners
+    # and targets that aren't strings, and ids or actions holding a lone surrogate.
+    unreadable = [
+        '{"not": "a list"}', "not json", '[1, {"action": "item.retitle", "payload": {}}]',
+        '[{"action": "note.create", "payload": {"ownerType": ["item"], "ownerId": "x", "text": "t"}}]',
+        '[{"action": "person.link", "payload": {"personId": "p", "targetType": {"kind": "item"}, "targetId": "x"}}]',
+        r'[{"action": "item.update", "payload": {"id": "\ud800", "stepId": "\udc00"}}]',
+        r'[{"action": "item.upd\ud800ate", "payload": {"id": "x"}}]',
+    ]
     with person(tmp_path) as c:
         p = plan(c)
         agent = credential(c, "Builder")
         good = propose(c, agent, "Readable", [change("item.update", id=p["work"]["id"], revision=1, status="doing")])
         odd = [propose(c, agent, f"Odd {n}", [change("item.update", id=p["other"]["id"], revision=1 + n, status="doing")])
-               for n in range(3)]
+               for n in range(len(unreadable))]
     to_v15(path)
     with closing(sqlite3.connect(path)) as conn:
-        for proposal, stored in zip(odd, ['{"not": "a list"}', "not json", '[1, {"action": "item.retitle", "payload": {}}]'],
-                                    strict=True):
+        for proposal, stored in zip(odd, unreadable, strict=True):
             conn.execute("UPDATE proposals SET operations=? WHERE id=?", (stored, proposal["id"]))
         conn.commit()
     Database(path).initialize()
     assert recorded(path) == [(good["id"], 1, "item.update", "item", p["work"]["id"])]
     with person(tmp_path) as c:
-        assert history(c, f"/agents/{agent['agentId']}")["total"] == 4
+        assert history(c, f"/agents/{agent['agentId']}")["total"] == 1 + len(unreadable)
 
 
 def test_the_documented_way_back_to_v15_gives_its_exact_shape_and_upgrades_again(tmp_path):

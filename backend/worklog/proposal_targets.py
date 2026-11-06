@@ -1,7 +1,9 @@
 """The work items and roadmaps each change of an applied proposal was made to (schema v16).
 
 Approval records them in proposal_targets, and the v16 upgrade fills them in for the proposals
-approved before it by the same rules, so a record's proposal history reads the same either way.
+approved before it by the same rules, so a record's proposal history reads the same either way. The
+one difference: the upgrade finds a work item or roadmap a change created only when an agent's
+proposal created it, since the person also creates them directly.
 A change counts toward:
 - the work item or roadmap it creates, changes, archives or recovers;
 - the work item or roadmap that holds the record it creates or changes: a work item's tasks,
@@ -35,7 +37,14 @@ INSERT = ("INSERT OR IGNORE INTO proposal_targets(proposal_id,operation,action,t
 
 
 def _named(value: Any) -> str | None:
-    return value if isinstance(value, str) and value else None
+    """An id as SQLite can bind it: a nonempty string with no lone surrogate."""
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError:
+        return None
+    return value
 
 
 def _step_roadmap(conn: sqlite3.Connection, step_id: Any) -> str | None:
@@ -47,7 +56,7 @@ def _step_roadmap(conn: sqlite3.Connection, step_id: Any) -> str | None:
 def _holder(conn: sqlite3.Connection, owner_type: Any, owner_id: Any) -> tuple[str, str] | None:
     """The work item or roadmap a supporting record's owner is: a step's roadmap for a step."""
     identity = _named(owner_id)
-    if identity is None:
+    if identity is None or not isinstance(owner_type, str):
         return None
     if owner_type in {"item", "roadmap"}:
         return owner_type, identity
@@ -64,7 +73,7 @@ def targets(conn: sqlite3.Connection, action: Any, payload: Any, created: str | 
     made, which its payload cannot name. Anything malformed counts toward nothing: approval
     refused such a change, so it was never applied.
     """
-    if not isinstance(action, str) or not isinstance(payload, dict):
+    if _named(action) is None or not isinstance(payload, dict):
         return set()
     kind, _, verb = action.partition(".")
     found: set[tuple[str, str]] = set()

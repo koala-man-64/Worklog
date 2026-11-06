@@ -393,30 +393,35 @@ def add_proposal_targets(conn: sqlite3.Connection) -> None:
 
     A change names the records it was made to, except the work item or roadmap it created, whose
     id Worklog chose while applying it. That creation is in the record's history, under the
-    proposal's agent, and belongs to the first approval at or after it: an approval applies every
-    change in the transaction that records it, and an agent creates work items and roadmaps only
-    through proposals. Where a proposal's creations don't pair one for one with its creating
-    changes, or the person wrote the proposal, it keeps the targets its changes name. Nothing here
-    fails startup: a change that can't be read counts toward nothing, as approval refused it.
+    proposal's agent, written in the transaction that approved the proposal, before its
+    proposal.approve event and after the approval before it: writes are serialized, an approval
+    applies every change in its own transaction, and an agent creates work items and roadmaps only
+    through proposals. History is read in the order it was written, by rowid, which no clock's
+    resolution or adjustment can reorder; Worklog never deletes events or vacuums. Where a
+    proposal's creations don't pair one for one with its creating changes, or the person wrote
+    the proposal, it keeps the targets its changes name. Nothing here fails startup: a change
+    that can't be read counts toward nothing, as approval refused it.
     """
-    from bisect import bisect_left
-
     from .proposal_targets import record
 
     execute_schema(conn, PROPOSAL_TARGETS_SCHEMA)
-    # An approved proposal is final, so it was last updated when it was approved.
-    approved = conn.execute("SELECT id,actor_id,operations,updated_at FROM proposals "
-                            "WHERE status='approved' ORDER BY updated_at,id").fetchall()
-    approvals = [row[3] for row in approved]
+    proposers = dict(conn.execute("SELECT id,actor_id FROM proposals WHERE status='approved'").fetchall())
     # Only an agent's creations: the person also creates work items and roadmaps directly.
     made: dict[str, dict[str, list[str]]] = {}
-    for kind, identity, actor, at in conn.execute(
-            "SELECT kind,entity_id,actor_id,created_at FROM events WHERE kind IN ('item.create','roadmap.create') "
-            "AND actor_kind='agent' ORDER BY created_at,id").fetchall():
-        place = bisect_left(approvals, at)
-        if place < len(approved) and approved[place][1] == actor:
-            made.setdefault(approved[place][0], {}).setdefault(kind, []).append(identity)
-    for proposal, _, stored, _ in approved:
+    since: list[tuple[str, str, str]] = []  # creations since the last approval, in the order made
+    for kind, identity, actor in conn.execute(
+            "SELECT kind,entity_id,actor_id FROM events WHERE kind='proposal.approve' "
+            "OR (kind IN ('item.create','roadmap.create') AND actor_kind='agent') ORDER BY rowid").fetchall():
+        if kind != "proposal.approve":
+            since.append((kind, identity, actor))
+            continue
+        for created_kind, created_id, creator in since:
+            if identity in proposers and creator == proposers[identity]:
+                made.setdefault(identity, {}).setdefault(created_kind, []).append(created_id)
+        since = []
+    for proposal in proposers:
+        # One at a time: a whole plan's revision runs to a megabyte.
+        (stored,) = conn.execute("SELECT operations FROM proposals WHERE id=?", (proposal,)).fetchone()
         try:
             operations = json.loads(stored)
         except (ValueError, RecursionError):
