@@ -304,10 +304,10 @@ Done so far:
   The old checks matched words in the path, so these read as the person's pages of those names. In fact each names a record no one has.
 - **The table decides (#113).** The middleware authenticates, then lets an agent's call through to a handler only in an agent scope, and the seven checks are gone. A write in the coordination or inbox scope still rechecks for a revoked credential before it replays a receipt, now chosen by its scope. What agents see changes in three places, and no route's decision changes:
   - the four calls above reach their handlers, which find no such record and answer 404, or 422 for the revision number;
-  - a read no route serves goes on to the router's 404, or to its redirect unless that leads to the person's page, which refuses it at once as before; a roadmap ID named `agents` with a trailing slash now redirects to its handler's 404;
-  - any other call no route serves is refused, including proposal writes the old checks let through to a 404 or 405.
+  - a read no route serves goes on to the router's 404, or to its redirect. If the redirect leads to the person's page or to a path that serves no read, the read is refused at once, as before. A roadmap ID named `agents` with a trailing slash now redirects to its handler's 404;
+  - any other call no route serves is refused, including writes under `/proposals/` that the old checks let through to a 404, 405 or redirect.
 - **Tests.**
-  - `test_route_policy.py` checks that the middleware gives the table's decision on every call a route serves.
+  - `test_route_policy.py` checks that the middleware gives the table's decision on every call a route serves, and that `policy.served` finds the route the router dispatches each call to.
   - It pins calls no route serves.
   - It checks the table against the route matrix, the CLI against the table, and every route for a scope.
   - A new test pins the recheck: a retry in the coordination or inbox scope, by a credential revoked after the middleware let it in, gets 401 rather than its earlier receipt, which for the inbox holds the person's messages.
@@ -539,4 +539,4 @@ These look like consolidation candidates but stay:
 - 2026-11-05: K13 recorded while building step 2.5's baseline module: a new database starts from the baseline schema at the current version.
 - 2026-11-05: Schema v16, `proposal_targets`, added outside the plan for a product request (the proposal histories of work items, roadmaps and agents), with its seal and documented way back. Approval writes it, and the upgrade fills it in from approved proposals with `proposal_targets.targets`, the rule approval uses. It is the first version added after the baseline: its table is in `schema.BASELINE` and in its upgrade step, in the same text.
 - 2026-11-05: Step 3.1 split into PRs while building it: the policy table in observe mode first, then the table deciding in the middleware.
-- 2026-11-05: Step 3.1's request guard moves to pure ASGI in a third PR, after the table decides. The table's PR also settles calls no route serves: an agent's read goes on to the router unless the router would redirect it to the person's page, and anything else is refused.
+- 2026-11-05: Step 3.1's request guard moves to pure ASGI in a third PR, after the table decides. The table's PR also settles calls no route serves: an agent's read goes on to the router unless the router would redirect it to the person's page or to a path that serves no read, and anything else is refused.

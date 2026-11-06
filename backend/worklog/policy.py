@@ -6,7 +6,8 @@ call through to a route's handler only in an agent scope. The handler may check 
 proposal, who registered an identity, whether a credential was revoked while the call waited for the
 write lock. A method a route has no entry for, HEAD among them, is the person's. A call no route serves
 reaches no handler: the middleware lets an agent's read go on to the router's 404 or redirect, unless
-the redirect leads to the person's page, and refuses any other call (passes_unserved).
+the redirect leads to the person's page or to a path that serves no read, and refuses any other call
+(passes_unserved).
 
 Agents read what they read before this table (K2), apart from the person's own pages: settings, export
 and the API document, the agent registry, the list of tracked chats, and each chat's messages and
@@ -268,12 +269,20 @@ def agent_may(scope: str) -> bool:
 def passes_unserved(routes: Iterable[BaseRoute], scope: Scope) -> bool:
     """Whether an agent's call no route serves goes on to the router, which runs no handler for it.
 
-    Only a read does. The router answers it with 404, or redirects it when the path names a route with
-    its trailing slash added or removed, and a read it would redirect is decided now as the read it
-    becomes: a slash cannot turn the person's page into a redirect an agent follows. Anything else no
-    route serves is refused."""
+    Only a read does. The router answers it with 404, or redirects it when some route serves the path
+    with its trailing slash added or removed, and a read it would redirect is decided now as the read it
+    becomes: a slash cannot turn the person's page into a redirect an agent follows. A path that serves
+    no read leads to a 405, and a method a route has no entry for is the person's, so that read is
+    refused too. Anything else no route serves is refused."""
     if scope["method"] != "GET":
         return False
     path = scope["path"]
-    target = decide(routes, {**scope, "path": path.rstrip("/") if path.endswith("/") else path + "/"})
-    return target is None or agent_may(target)
+    toggled = {**scope, "path": path.rstrip("/") if path.endswith("/") else path + "/"}
+    elsewhere = False
+    for route in routes:
+        match, child = route.matches(toggled)
+        if match is Match.FULL:
+            return agent_may(scope_for("GET", getattr(route, "path", ""), dict(child.get("path_params", {})),
+                                       scope.get("query_string", b"")))
+        elsewhere = elsewhere or match is Match.PARTIAL
+    return not elsewhere

@@ -10,6 +10,7 @@ checks to it, which found the four calls pinned below; test_agent_route_matrix.p
 agents get from each route.
 """
 
+import asyncio
 import json
 import uuid
 
@@ -44,15 +45,23 @@ WORDS_TAKEN_FOR_PAGES = {
 }
 # Calls no route serves, which reach no handler: the router answers them with 404, 405 or a redirect.
 # The middleware lets an agent's read go on to the router, unless the router would redirect it to the
-# person's page, and refuses anything else (policy.passes_unserved). Before the table decided, a
-# roadmap ID named agents with a slash was refused too, and the two proposal writes went on to a 404.
+# person's page or to a path that serves no read, and refuses anything else (policy.passes_unserved).
+# Before the table decided, a roadmap ID named agents with a slash was refused too, and writes under
+# /proposals/ went on to a 404, 405 or redirect.
 UNSERVED = {
     ("GET", "/api/v1/nonexistent"): True, ("POST", "/api/v1/nonexistent"): False,
     ("DELETE", "/api/v1/context"): False, ("HEAD", "/api/v1/context"): False, ("GET", "/api/v1/context/"): True,
-    ("GET", "/api/v1/settings/"): False, ("GET", "/api/v1/agents/"): False, ("GET", "/api/v1/roadmaps/agents/"): True,
+    ("GET", "/api/v1/tickets/"): True, ("GET", "/api/v1/roadmaps/agents/"): True,
+    ("GET", "/api/v1/settings/"): False, ("GET", "/api/v1/agents/"): False,
+    ("GET", "/api/v1/backups/"): False, ("GET", "/api/v1/agent-registrations/"): False,
     ("POST", "/api/v1/proposals/submit"): False, ("POST", f"/api/v1/proposals/{PLACEHOLDER}/x/submit"): False,
-    ("GET", "/api/v1/session/bootstrap"): True,
+    ("PATCH", "/api/v1/proposals/"): False,
 }
+# Paths a router can treat in its own way: a newline the route pattern's $ lets through, doubled or
+# trailing slashes, a dot segment. served() must find whatever the router dispatches them to.
+ODD = [("POST", f"/api/v1/proposals/{PLACEHOLDER}/submit\n", ""), ("GET", "/api/v1//context", ""),
+       ("GET", "/api/v1/context//", ""), ("GET", "/api/v1/context/.", ""), ("GET", "/api/v1/settings/", ""),
+       ("PATCH", "/api/v1/proposals//approve", ""), ("GET", "/api/v1/backups/", "")]
 # Calls the route matrix records as refused that the middleware lets through: their handlers refuse an
 # agent with the same code. Retiring is for a credential an agent registered, not one issued in Settings.
 REFUSED_BY_HANDLER = {"POST /api/v1/agent-registrations/retire"}
@@ -125,6 +134,35 @@ def through(agent, method, path, query=""):
     return False
 
 
+async def passes(app, token, method, path, query=""):
+    """through(), as one direct ASGI call: thousands of these run in one event loop without a client."""
+    body = b"" if method in {"GET", "HEAD"} else b"{}"
+    scope = {"type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1", "method": method, "scheme": "http",
+             "path": path, "raw_path": path.encode(), "root_path": "", "query_string": query.removeprefix("?").encode(),
+             "headers": [(b"host", b"127.0.0.1:8877"), (b"authorization", b"Bearer " + token.encode()),
+                         (b"content-type", b"application/json"), (b"content-length", str(len(body)).encode())],
+             "client": ("127.0.0.1", 50000), "server": ("127.0.0.1", 8877)}
+    pending = [{"type": "http.request", "body": body, "more_body": False}]
+    answer: dict = {"body": b""}
+
+    async def receive():
+        if pending:
+            return pending.pop()
+        await asyncio.Event().wait()  # the caller stays connected until the call ends
+
+    async def send(message):
+        if message["type"] == "http.response.start":
+            answer["status"] = message["status"]
+        else:
+            answer["body"] += message.get("body", b"")
+
+    await app(scope, receive, send)
+    if answer["status"] == REACHED:
+        return True
+    assert answer["status"] == 403 and json.loads(answer["body"])["error"]["code"] == "agent_scope", (method, path + query, answer)
+    return False
+
+
 def test_every_route_has_an_entry_for_each_method_it_serves_and_no_entry_names_another(tmp_path):
     app = create_app(tmp_path, testing=True)
     served = {(method, route.path) for route in api_routes(app) for method in route.methods - {"HEAD"}}
@@ -135,21 +173,62 @@ def test_every_route_has_an_entry_for_each_method_it_serves_and_no_entry_names_a
 
 def test_the_middleware_gives_the_tables_decision_for_every_call_a_route_serves(tmp_path):
     app, agent = agent_through_stub(tmp_path)
-    compared, differ = set(), set()
-    for method, path, query in calls(app):
-        decided = policy.decide(app.router.routes, request_scope(method, path, query))
-        if decided is None:
-            continue  # no route serves this path and method: the router answers, and no handler runs
-        if through(agent, method, path, query) != policy.agent_may(decided):
-            differ.add((method, path + query))
-        found = policy.served(app.router.routes, request_scope(method, path, query))
+    token = agent.headers["Authorization"].removeprefix("Bearer ")
+    # A call no route serves under its method reaches no handler; the router answers it.
+    served = [(call, policy.decide(app.router.routes, request_scope(*call))) for call in calls(app)]
+    served = [(call, decided) for call, decided in served if decided is not None]
+
+    async def run():
+        return [await passes(app, token, *call) for call, _ in served]
+
+    differ = {(method, path + query) for ((method, path, query), decided), through_ in zip(served, asyncio.run(run()), strict=True)
+              if through_ != policy.agent_may(decided)}
+    compared = set()
+    for call, _ in served:
+        found = policy.served(app.router.routes, request_scope(*call))
         assert found is not None
-        compared.add((method, found[0]))
+        compared.add((call[0], found[0]))
     assert differ == set()
     assert {(method, path) for method, path, _ in calls(app)} >= set(WORDS_TAKEN_FOR_PAGES)
     # Every method each route serves was compared: HEAD only where a route serves it, since FastAPI's
     # routes answer HEAD with 405, while the API document's plain Starlette route serves it.
     assert compared == {(method, route.path) for route in api_routes(app) for method in route.methods}
+
+
+def test_served_finds_the_route_the_router_dispatches_each_call_to(tmp_path):
+    # The table decides by the route served() finds, so served() must find the very route whose handler
+    # the router runs: here each route's handle is replaced by a recorder, and the router itself matches.
+    app = create_app(tmp_path, testing=True)
+    dispatched = []
+
+    def recorder(route):
+        async def handle(scope, receive, send):
+            # A route that matches the path but not the method answers 405 and runs no handler.
+            dispatched.append(route if scope["method"] in getattr(route, "methods", None) or () else None)
+            await send({"type": "http.response.start", "status": REACHED, "headers": []})
+            await send({"type": "http.response.body", "body": b""})
+        return handle
+
+    for route in app.router.routes:
+        route.handle = recorder(route)
+
+    async def receive():
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(message):
+        pass
+
+    async def compare():
+        for method, path, query in calls(app) + ODD:
+            scope = {**request_scope(method, path, query), "scheme": "http", "server": ("127.0.0.1", 8877),
+                     "headers": [(b"host", b"127.0.0.1:8877")]}
+            dispatched.clear()
+            await app.router.app(dict(scope), receive, send)
+            route = dispatched[0] if dispatched else None
+            found = policy.served(app.router.routes, request_scope(method, path, query))
+            assert (found[0] if found else None) == getattr(route, "path", None), (method, path, query)
+
+    asyncio.run(compare())
 
 
 def test_an_agents_read_no_route_serves_goes_on_to_the_router_unless_it_leads_to_the_persons_page(tmp_path):
@@ -266,6 +345,8 @@ def test_a_scope_can_hang_on_a_verb_or_a_query_value_and_an_unlisted_method_is_t
     proposal = "/api/v1/proposals/{identity}/{verb}"
     assert policy.scope_for("POST", proposal, {"verb": "submit"}) == policy.PROPOSE
     assert policy.scope_for("POST", proposal, {"verb": "approve"}) == policy.HUMAN
+    # The route pattern's $ lets a trailing newline into the verb, which then names no agent verb.
+    assert policy.scope_for("POST", proposal, {"verb": "submit\n"}) == policy.HUMAN
     upload = "/api/v1/attachments"
     assert policy.scope_for("POST", upload, {}, b"ownerType=proposal") == policy.PROPOSE
     assert policy.scope_for("POST", upload, {}, b"ownerType=proposal&ownerType=item") == policy.HUMAN
