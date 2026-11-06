@@ -676,7 +676,7 @@ The following codes reach only the person's browser or a failed startup: `host` 
 
 ## 10. Reading over HTTP
 
-The command line covers what agents need. For reads it lacks, such as a work item's full record, a day, a person, a note or a record's history, you may call the API with your credential:
+The command line covers what agents need. For reads it lacks, such as a work item's full record, a day, a person, a note, a record's history, or the proposals applied to a work item or roadmap (`/work-items/ID/proposals`, `/roadmaps/ID/proposals`, the latest first), you may call the API with your credential:
 
 ```powershell
 Invoke-RestMethod -Uri 'http://127.0.0.1:8877/api/v1/work-items/ITEM_ID' -Headers @{ Authorization = "Bearer $env:WORKLOG_AGENT_TOKEN" }
@@ -690,12 +690,12 @@ Invoke-RestMethod -Uri 'http://127.0.0.1:8877/api/v1/work-items/ITEM_ID' -Header
 ## 11. What the person sees
 
 - **Today.** Their plan for the day. It has nothing of yours unless a proposal planned an item.
-- **Work, and a work item's page.** Your participation under "Participants" and "Recent updates", and tracked chats under "Agent chats". Also the item's tickets, and "GitHub commits & PRs".
+- **Work, and a work item's page.** Your participation under "Participants" and "Recent updates", and tracked chats under "Agent chats". Also the item's tickets, "GitHub commits & PRs", and under "Applied proposals" every proposal applied to it, with the changes each made there.
 - **Tickets.** Every ticket, with its author, assignee and comments.
 - **Resources.** The reference pages the person writes for you and for themselves. Only the person writes, archives and recovers them.
-- **Roadmaps.** "Agents working here", agent chips beside each step, tracked chats, questions and decisions.
+- **Roadmaps.** "Agents working here", agent chips beside each step, tracked chats, questions and decisions, and "Applied proposals".
 - **Repositories.** Registered repositories; yours say "Registered by" your label and "unreviewed" until the person confirms them. A repository's page lists participants and recent updates. "Open agent runs" lets the person end a run you left open.
-- **Agents.** One entry per identity. It shows a status ("Reporting work", "Stale reports", "No current reports" or "Credential revoked"), your runs, messages, updates and the work you are tied to.
+- **Agents.** One entry per identity. It shows a status ("Reporting work", "Stale reports", "No current reports" or "Credential revoked"), your runs, messages, updates, the work you are tied to, and under "Proposals" every proposal you made, with where each got to.
 - **Chats.** Tracked chats, shown as "Working" or "Idle", with their transcripts. The person writes to a chat's agents there, and you receive it in your inbox.
 - **Discussions.** Threads, acknowledgement requests and roles.
 - **Review.** Your submitted proposals, with "Approve proposal", "Return to draft" and "Reject proposal", each confirmed. A change that attaches a file names it, with its size and a download link.

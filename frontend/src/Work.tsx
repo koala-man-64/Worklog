@@ -28,6 +28,7 @@ import {
   RepositoryFilter,
 } from "./RepositoryControls";
 import { Coordination } from "./Coordination";
+import { AppliedProposals } from "./ProposalHistory";
 import { TicketsSection } from "./Tickets";
 import { Icon } from "./icons";
 import { RankButton, RankPicker, useRank } from "./StackRank";
@@ -666,6 +667,7 @@ export function ItemDetail({ id }: { id: string }) {
           },
         ]}
       />
+      <AppliedProposals path={"/work-items/" + id} noun="work item" />
       <History items={item.history} />
     </>
   );

@@ -59,10 +59,13 @@ CREATE INDEX roadmap_questions_roadmap ON roadmap_questions(roadmap_id,archived)
 CREATE TABLE roadmap_decisions(id TEXT PRIMARY KEY,roadmap_id TEXT NOT NULL REFERENCES roadmaps(id),title TEXT NOT NULL,rationale TEXT NOT NULL DEFAULT '',decided_date TEXT NOT NULL,archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
 CREATE INDEX roadmap_decisions_roadmap ON roadmap_decisions(roadmap_id,archived);
 
--- Proposals agents make for the person to review, and the stale-plan notices each was sent.
+-- Proposals agents make for the person to review, the stale-plan notices each was sent, and the
+-- work items and roadmaps each change of an applied proposal was made to.
 CREATE TABLE proposals ( id TEXT PRIMARY KEY, title TEXT NOT NULL, rationale TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'draft', revision INTEGER NOT NULL, actor_id TEXT NOT NULL, actor_label TEXT NOT NULL, actor_kind TEXT NOT NULL, operations TEXT NOT NULL, supersedes_id TEXT REFERENCES proposals(id), created_at TEXT NOT NULL, updated_at TEXT NOT NULL , submitted_at TEXT, auto_approved INTEGER NOT NULL DEFAULT 0 CHECK(auto_approved IN(0,1)));
 CREATE INDEX proposals_status ON proposals(status,created_at);
 CREATE TABLE proposal_stale_notices(proposal_id TEXT NOT NULL REFERENCES proposals(id),proposal_revision INTEGER NOT NULL,conflicts TEXT NOT NULL,created_at TEXT NOT NULL,PRIMARY KEY(proposal_id,proposal_revision,conflicts));
+CREATE TABLE proposal_targets(proposal_id TEXT NOT NULL REFERENCES proposals(id),operation INTEGER NOT NULL CHECK(operation>=1),action TEXT NOT NULL,target_type TEXT NOT NULL CHECK(target_type IN('item','roadmap')),target_id TEXT NOT NULL,PRIMARY KEY(proposal_id,operation,target_type,target_id));
+CREATE INDEX proposal_targets_target ON proposal_targets(target_type,target_id);
 
 -- History, idempotency receipts and search.
 CREATE TABLE events(id TEXT PRIMARY KEY,entity_id TEXT NOT NULL,kind TEXT NOT NULL,actor_id TEXT NOT NULL,actor_label TEXT NOT NULL,actor_kind TEXT NOT NULL,created_at TEXT NOT NULL,local_date TEXT NOT NULL,before_json TEXT NOT NULL,after_json TEXT NOT NULL);

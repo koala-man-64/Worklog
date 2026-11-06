@@ -273,6 +273,23 @@ test("agent proposal remains unapplied until explicit human approval", async ({
   await expect(
     page.getByRole("link", { name: title, exact: true }),
   ).toBeVisible();
+  // The new item's history names the proposal that created it, and its agent lists it.
+  await page.getByRole("link", { name: title, exact: true }).click();
+  await page.getByText("Applied proposals (1)").click();
+  const entry = page
+    .getByRole("list", { name: "Applied proposals" })
+    .getByRole("listitem");
+  await expect(entry).toHaveCount(1);
+  await expect(entry).toContainText("Change 1 of 1: item.create");
+  await expect(
+    entry.getByRole("link", { name: title, exact: true }),
+  ).toHaveAttribute("href", "#review/" + proposal.id);
+  await entry.getByRole("link", { name: "Browser test agent" }).click();
+  await expect(
+    page
+      .getByRole("list", { name: "Proposals from this agent" })
+      .getByRole("link", { name: title, exact: true }),
+  ).toBeVisible();
 });
 test("quick capture distinguishes work already performed from a plan", async ({
   page,

@@ -660,6 +660,20 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def proposal_show(identity: str, request: Request) -> dict:
         return proposal_detail(identity, request.state.actor)
 
+    # Each record's proposal history, the latest first: what was applied to a work item or
+    # roadmap, and what an agent proposed. Agents read the first two; /agents is the person's.
+    @app.get("/api/v1/work-items/{identity}/proposals")
+    def item_proposals(identity: str, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
+        return proposals.applied_to("item", identity, limit, offset)
+
+    @app.get("/api/v1/roadmaps/{identity}/proposals")
+    def roadmap_proposals(identity: str, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
+        return proposals.applied_to("roadmap", identity, limit, offset)
+
+    @app.get("/api/v1/agents/{identity}/proposals")
+    def agent_proposals(identity: str, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
+        return proposals.from_agent(identity, limit, offset)
+
     @app.post("/api/v1/proposals")
     def proposal_create(request: Request, body: m.ProposalCreate) -> dict:
         p = body.model_dump()

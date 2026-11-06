@@ -12,9 +12,9 @@ import json
 import re
 import sqlite3
 
-SCHEMA_VERSION = 15
+SCHEMA_VERSION = 16
 # Older versions that startup and offline restore upgrade in one transaction.
-UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14})
+UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})
 
 # v1 grew in place before versions were counted: _upgrade_v1 adds whichever of these a v1 database
 # lacks. People as v1 had them; v10 renames role to team, adds person details and lets links name
@@ -505,6 +505,69 @@ def add_waiting_status(conn: sqlite3.Connection) -> None:
     execute_schema(conn, WORK_ITEM_INDEXES)
 
 
+# v16 records which work items and roadmaps each change of an applied proposal was made to, by
+# the rules in proposal_targets.py, so a record's page lists the proposals applied to it in order.
+# operation is the change's number as Review shows it, and action its operation, so the list names
+# the changes without reading the proposal's operations. Only approval writes rows, and an approved
+# proposal is final, so a proposal's rows never change once written.
+PROPOSAL_TARGETS_SCHEMA = """
+CREATE TABLE proposal_targets(proposal_id TEXT NOT NULL REFERENCES proposals(id),operation INTEGER NOT NULL CHECK(operation>=1),action TEXT NOT NULL,target_type TEXT NOT NULL CHECK(target_type IN('item','roadmap')),target_id TEXT NOT NULL,PRIMARY KEY(proposal_id,operation,target_type,target_id));
+CREATE INDEX proposal_targets_target ON proposal_targets(target_type,target_id);
+"""
+
+
+def add_proposal_targets(conn: sqlite3.Connection) -> None:
+    """Record what each proposal approved before v16 was applied to, as approval now records it.
+
+    A change names the records it was made to, except the work item or roadmap it created, whose
+    id Worklog chose while applying it. That creation is in the record's history, under the
+    proposal's agent, written in the transaction that approved the proposal, before its
+    proposal.approve event and after the approval before it: writes are serialized, an approval
+    applies every change in its own transaction, and an agent creates work items and roadmaps only
+    through proposals. History is read in the order it was written, by rowid, which no clock's
+    resolution or adjustment can reorder; Worklog never deletes events or vacuums. Where a
+    proposal's creations don't pair one for one with its creating changes, or the person wrote
+    the proposal, it keeps the targets its changes name. Nothing here fails startup: a change
+    that can't be read counts toward nothing, as approval refused it.
+    """
+    from .proposal_targets import record
+
+    execute_schema(conn, PROPOSAL_TARGETS_SCHEMA)
+    proposers = dict(conn.execute("SELECT id,actor_id FROM proposals WHERE status='approved'").fetchall())
+    # Only an agent's creations: the person also creates work items and roadmaps directly.
+    made: dict[str, dict[str, list[str]]] = {}
+    since: list[tuple[str, str, str]] = []  # creations since the last approval, in the order made
+    for kind, identity, actor in conn.execute(
+            "SELECT kind,entity_id,actor_id FROM events WHERE kind='proposal.approve' "
+            "OR (kind IN ('item.create','roadmap.create') AND actor_kind='agent') ORDER BY rowid").fetchall():
+        if kind != "proposal.approve":
+            since.append((kind, identity, actor))
+            continue
+        for created_kind, created_id, creator in since:
+            if identity in proposers and creator == proposers[identity]:
+                made.setdefault(identity, {}).setdefault(created_kind, []).append(created_id)
+        since = []
+    for proposal in proposers:
+        # One at a time: a whole plan's revision runs to a megabyte.
+        (stored,) = conn.execute("SELECT operations FROM proposals WHERE id=?", (proposal,)).fetchone()
+        try:
+            operations = json.loads(stored)
+        except (ValueError, RecursionError):
+            continue
+        if not isinstance(operations, list):
+            continue
+        numbered = [(number, operation.get("action"), operation.get("payload"))
+                    for number, operation in enumerate(operations, 1) if isinstance(operation, dict)]
+        created: dict[int, str] = {}
+        for kind, identities in made.get(proposal, {}).items():
+            # Changes apply in their order, so the nth creation is the nth change that creates.
+            creating = [number for number, action, _ in numbered if action == kind]
+            if len(creating) == len(identities):
+                created.update(zip(creating, identities, strict=True))
+        for number, action, payload in numbered:
+            record(conn, proposal, number, action, payload, created.get(number))
+
+
 def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
     """Unlike executescript, preserve the caller's transaction and rollback boundary."""
     for statement in filter(str.strip, schema.split(";")):
@@ -519,7 +582,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
     The one record v13 changes is a chat message still waiting for an identity that isn't bound to
     the chat: that delivery ends, with the reason 'unconfirmed'. v14 gives every task its place in
     its work item's list, the one it was listed in, and changes nothing else about it. v15 lets a
-    work item wait and changes no record.
+    work item wait and changes no record. v16 records what each approved proposal was applied to
+    and changes no record either.
     """
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version == SCHEMA_VERSION:
@@ -557,8 +621,10 @@ def upgrade(conn: sqlite3.Connection) -> None:
         add_chat_confirmations(conn)
     if version < 14:
         add_task_positions(conn)
-    # Every upgradable version predates the waiting status of v15.
-    add_waiting_status(conn)
+    if version < 15:
+        add_waiting_status(conn)
+    # Every upgradable version predates the proposal targets of v16.
+    add_proposal_targets(conn)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 

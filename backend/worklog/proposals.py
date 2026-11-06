@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from contextlib import nullcontext
 
-from . import scratchpad
+from . import proposal_targets, scratchpad
 from .chat_messages import BOUND, RECIPIENTS, ChatMessageService
 from .common import NOTE_LIMIT, AppError, event, now, require_revision, setting, uid
 from .discussions import DiscussionService
@@ -22,6 +22,27 @@ AUTOMATIC = {"id": AUTOMATIC_APPROVAL_ID, "label": "Automatic approval", "kind":
 # Since v12 a proposal's row says when it was last submitted and whether automatic approval
 # applied it; before, both were read from its events.
 SELECT = "SELECT p.* FROM proposals p"
+# Changes whose record's id Worklog chooses while applying them; proposal_targets needs that id.
+CREATES = frozenset({"item.create", "roadmap.create"})
+# A proposal as a history lists it, without its operations: their number is enough there. A
+# history holds the latest first, each numbered by its place in the sequence. An approved
+# proposal is final, so it was last updated when it was applied.
+HISTORY = ("SELECT p.id,p.title,p.status,p.auto_approved,p.actor_label,cc.agent_id,p.created_at,p.submitted_at,"
+           "p.updated_at,CASE WHEN json_valid(p.operations) THEN json_array_length(p.operations) ELSE 0 END"
+           " FROM proposals p LEFT JOIN communication_credentials cc ON cc.credential_id=p.actor_id")
+APPLIED_TO = ("p.status='approved' AND p.id IN "
+              "(SELECT proposal_id FROM proposal_targets WHERE target_type=? AND target_id=?)")
+MADE_BY = ("p.actor_kind='agent' AND p.actor_id IN "
+           "(SELECT credential_id FROM communication_credentials WHERE agent_id=?)")
+
+
+def _entry(row, number):
+    status = row[2]
+    return {"number": number, "id": row[0], "title": row[1], "status": status,
+            "autoApproved": bool(row[3]), "actorLabel": row[4], "agentId": row[5],
+            "createdAt": row[6], "submittedAt": None if status == "draft" else row[7],
+            "appliedAt": row[8] if status == "approved" else None, "updatedAt": row[8],
+            "operationCount": row[9]}
 
 
 def approval_required(conn):
@@ -199,6 +220,39 @@ class ProposalService:
             _visible(conn, row, actor)
             return _record(row)
 
+    def applied_to(self, target_type, target_id, limit=50, offset=0):
+        """The proposals applied to a work item or roadmap, in the order they were applied, with
+        the numbers and actions of the changes made to it. Approved proposals are visible to
+        every caller, so the list is the same for the person and for agents."""
+        def read(conn):
+            table, missing = {"item": ("work_items", "Work item not found"), "roadmap": ("roadmaps", "Roadmap not found")}[target_type]
+            if conn.execute(f"SELECT 1 FROM {table} WHERE id=?", (target_id,)).fetchone() is None:
+                raise AppError(404, "not_found", missing)
+            total = conn.execute("SELECT count(*) FROM proposals p WHERE " + APPLIED_TO, (target_type, target_id)).fetchone()[0]
+            rows = conn.execute(HISTORY + " WHERE " + APPLIED_TO + " ORDER BY p.updated_at DESC,p.id DESC LIMIT ? OFFSET ?",
+                                (target_type, target_id, limit, offset)).fetchall()
+            changes: dict[str, list[dict]] = {row[0]: [] for row in rows}
+            if rows:
+                for proposal, number, action in conn.execute(
+                        "SELECT proposal_id,operation,action FROM proposal_targets WHERE target_type=? AND target_id=? "
+                        f"AND proposal_id IN ({','.join('?' * len(rows))}) ORDER BY operation",
+                        (target_type, target_id, *changes)):
+                    changes[proposal].append({"number": number, "action": action})
+            return {"items": [{**_entry(row, total - offset - place), "changes": changes[row[0]]}
+                              for place, row in enumerate(rows)], "total": total}
+        return self.db.snapshot(read)
+
+    def from_agent(self, agent_id, limit=50, offset=0):
+        """An agent identity's proposals, under any of its credentials, in the order it made them."""
+        def read(conn):
+            if conn.execute("SELECT 1 FROM communication_agents WHERE id=?", (agent_id,)).fetchone() is None:
+                raise AppError(404, "not_found", "Agent not found")
+            total = conn.execute("SELECT count(*) FROM proposals p WHERE " + MADE_BY, (agent_id,)).fetchone()[0]
+            rows = conn.execute(HISTORY + " WHERE " + MADE_BY + " ORDER BY p.created_at DESC,p.id DESC LIMIT ? OFFSET ?",
+                                (agent_id, limit, offset)).fetchall()
+            return {"items": [_entry(row, total - offset - place) for place, row in enumerate(rows)], "total": total}
+        return self.db.snapshot(read)
+
     def create(self, payload, actor, conn=None):
         if actor.get("kind") not in {"human", "agent"}:
             raise AppError(403, "forbidden", "Invalid actor")
@@ -305,9 +359,13 @@ class ProposalService:
                     if action == "attachment.create":
                         # The file is this proposal's own evidence, which only Worklog names.
                         payload = {**payload, "proposalId": row["id"]}
-                    self.dispatch(connection, proposer, action, payload)
+                    result = self.dispatch(connection, proposer, action, payload)
                 except AppError as exc:
                     raise _numbered(exc, number, len(operations), operation["action"]) from exc
+                # Read from the change as proposed, as the v16 upgrade reads it: a note that landed
+                # in a scratchpad counts toward its work item either way.
+                created = result.get("id") if operation["action"] in CREATES and isinstance(result, dict) else None
+                proposal_targets.record(connection, row["id"], number, operation["action"], operation["payload"], created)
         finally:
             self._applying_id = previous
 

@@ -57,6 +57,7 @@ SEALED_SCHEMAS: dict[int, frozenset[str]] = {
     13: frozenset({"ed29b8f9cfc5e2b17578ab73f23020bf1a51c5ef0d5971ece2052d08f1ada692"}),  # chat confirmations
     14: frozenset({"134bc42f3ccc11c5c9dabe483ba5a6e1d8d766b21bc00a2b7720a374daf00e13"}),  # task order
     15: frozenset({"7b1a1ec43f20cc2c3cf1d06d4b1956abd5c7c7bee6fcb2754add975fb7ef59fa"}),  # work items can wait
+    16: frozenset({"50d1aa8a96cab827efcdc66625b82a7dc0d67f1c4aaaf84df7eb3eb82a00e79d"}),  # what each approved proposal was applied to
 }
 
 

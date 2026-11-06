@@ -314,6 +314,28 @@ export type Proposal = RecordBase & {
   operations: Operation[];
   attachments: Attachment[];
 };
+/**
+ * A proposal as a history lists it, the latest first. number is its place in the sequence, 1 the
+ * first: for a work item or roadmap, the order proposals were applied to it; for an agent, the order
+ * it made them.
+ */
+export type ProposalEntry = {
+  number: number;
+  id: string;
+  title: string;
+  status: string;
+  autoApproved: boolean;
+  actorLabel: string;
+  // The agent identity that made it; null for one the person wrote.
+  agentId: string | null;
+  createdAt: string;
+  submittedAt: string | null;
+  appliedAt: string | null;
+  updatedAt: string;
+  operationCount: number;
+  // A work item's or roadmap's history only: its changes made to that record, by their number.
+  changes?: { number: number; action: string }[];
+};
 export type Settings = {
   timezone: string;
   today: string;

@@ -45,8 +45,11 @@ REFERRING = {("daily_entries", "item_id"), ("tasks", "item_id"), ("file_referenc
 
 
 def to_v14(path):
-    """Take a current database back to the v14 shape the documented way. The connection starts
-    with foreign keys off, as the sqlite3 shell's does; the script turns them on itself."""
+    """Take a current database back to the v14 shape the documented way: to version 15 first. The
+    connection starts with foreign keys off, as the sqlite3 shell's does; the script turns them on itself."""
+    from test_proposal_history import to_v15
+
+    to_v15(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK)
 
@@ -265,10 +268,13 @@ def test_the_v15_upgrade_keeps_every_work_item_and_every_reference_to_one(tmp_pa
     recovery.validate_database(path)
     Database(path).initialize()
     with closing(sqlite3.connect(path)) as conn:
-        assert version(conn) == migrations.SCHEMA_VERSION == 15
+        assert version(conn) == migrations.SCHEMA_VERSION
         assert recovery._schema_signature(conn) == sealed.current()
-        # Every row of every table is as it was, work items' rowids included.
-        assert contents(conn) == kept
+        # Every row of every table is as it was, work items' rowids included. The upgrade goes on
+        # to v16, whose table names no proposal here, none having been approved.
+        upgraded = contents(conn)
+        assert upgraded.pop("proposal_targets") == []
+        assert upgraded == kept
         assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
         assert conn.execute("PRAGMA integrity_check").fetchall() == [("ok",)]
     snapshots = list((tmp_path / "backups").glob("worklog-pre-migration-*.sqlite3"))
@@ -358,6 +364,8 @@ def test_the_documented_way_back_to_v14_gives_its_exact_shape_and_upgrades_again
     scatter_rowids(path)
     with closing(sqlite3.connect(path)) as conn:
         before = contents(conn)
+    # The way back to v15, which to_v14 takes first, drops v16's table and nothing else.
+    before.pop("proposal_targets")
     to_v14(path)
     recovery.validate_database(path)
     with closing(sqlite3.connect(path)) as conn:
@@ -402,11 +410,14 @@ def test_a_way_back_that_fails_part_way_commits_nothing_even_without_bail(tmp_pa
 
 
 def test_a_v14_shape_cannot_claim_version_15_and_a_v15_shape_cannot_claim_14(tmp_path):
+    from test_proposal_history import to_v15
+
     older, current = tmp_path / "older.sqlite3", tmp_path / "current.sqlite3"
     Database(older).initialize()
     to_v14(older)
     recovery.validate_database(older)
     Database(current).initialize()
+    to_v15(current)
     recovery.validate_database(current)
     for path, claimed in ((older, 15), (current, 14)):
         with closing(sqlite3.connect(path)) as conn:
