@@ -289,7 +289,7 @@ The table observes first and enforces afterwards. Every read agents have today s
 
 #### 3.1 · Policy table on the routes
 
-Status: Merged · Branches: `claude/route-policy`, `claude/route-policy-enforce`, `claude/asgi-guard` · PRs: [#112](https://github.com/koala-man-64/Worklog/pull/112), [#113](https://github.com/koala-man-64/Worklog/pull/113), PR_LINK
+Status: Merged · Branches: `claude/route-policy`, `claude/route-policy-enforce`, `claude/asgi-guard` · PRs: [#112](https://github.com/koala-man-64/Worklog/pull/112), [#113](https://github.com/koala-man-64/Worklog/pull/113), [#122](https://github.com/koala-man-64/Worklog/pull/122)
 
 Each route declares its scope. The table drives the middleware decision and checks the CLI allowlist, and replaces the seven predicate sites. Move the request guard to pure ASGI. Needs 0.2 and 2.1. Findings: C-03, A-02, C-14, REM-21, REM-22.
 
@@ -313,7 +313,7 @@ What changed:
   - It checks the table against the route matrix, the CLI against the table, and every route for a scope.
   - A new test pins the recheck: a retry in the coordination or inbox scope, by a credential revoked after the middleware let it in, gets 401 rather than its earlier receipt, which for the inbox holds the person's messages.
 - **No live observation.** The table decides from a call's method, path and query alone, and the tests cover every shape of call a route serves. A log of live calls would add no case.
-- **The guard in pure ASGI (PR_NUMBER).** `guard.RequestGuard` replaces the `BaseHTTPMiddleware` that handed a JSON body on through Starlette's private `request._body`. It makes the same checks in the same order and answers as before, except in two cases:
+- **The guard in pure ASGI (#122).** `guard.RequestGuard` replaces the `BaseHTTPMiddleware` that handed a JSON body on through Starlette's private `request._body`. It makes the same checks in the same order and answers as before, except in two cases:
   - **The path checked** is the one the router matches, without the app's `root_path`. Behind a `root_path`, the old check read the full path and let API requests past unauthenticated, as the security review of #113 found. No `root_path` is configured.
   - **A client that leaves before its body arrives** is answered nothing. The old check logged it as an unhandled failure and answered with a 500 that no one received.
 
