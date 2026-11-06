@@ -154,4 +154,12 @@ CREATE TABLE resources(id TEXT PRIMARY KEY,title TEXT NOT NULL,summary TEXT NOT 
 -- Agent ties: the records each agent identity is tied to, its role on each, and who set the tie.
 CREATE TABLE agent_links(id TEXT PRIMARY KEY,agent_id TEXT NOT NULL REFERENCES communication_agents(id),target_type TEXT NOT NULL CHECK(target_type IN('item','roadmap','step','repository','person','resource','discussion','proposal','ticket','agent','question','decision')),target_id TEXT NOT NULL,relationship TEXT NOT NULL DEFAULT '',set_by TEXT NOT NULL CHECK(set_by IN('human','agent')),created_at TEXT NOT NULL,UNIQUE(agent_id,target_type,target_id));
 CREATE INDEX agent_links_target ON agent_links(target_type,target_id);
+
+-- Releases: what ships together and when, the work items, roadmaps, steps and GitHub references each holds,
+-- and its checks: who needs to know, what to test and what to prepare first. A date is a YYYY-MM-DD day or null.
+CREATE TABLE releases(id TEXT PRIMARY KEY,title TEXT NOT NULL,description TEXT NOT NULL DEFAULT '',release_date TEXT CHECK(release_date IS NULL OR date(release_date) IS release_date),status TEXT NOT NULL DEFAULT 'planned' CHECK(status IN('planned','released','cancelled')),archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+CREATE TABLE release_contents(release_id TEXT NOT NULL REFERENCES releases(id),target_type TEXT NOT NULL CHECK(target_type IN('item','roadmap','step','github')),target_id TEXT NOT NULL,created_at TEXT NOT NULL,PRIMARY KEY(release_id,target_type,target_id));
+CREATE INDEX release_contents_target ON release_contents(target_type,target_id,release_id);
+CREATE TABLE release_checks(id TEXT PRIMARY KEY,release_id TEXT NOT NULL REFERENCES releases(id),kind TEXT NOT NULL CHECK(kind IN('notify','test','prepare')),text TEXT NOT NULL,details TEXT NOT NULL DEFAULT '',person_id TEXT REFERENCES people(id),due_date TEXT CHECK(due_date IS NULL OR date(due_date) IS due_date),status TEXT NOT NULL DEFAULT 'open' CHECK(status IN('open','doing','waiting','blocked','done')),archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+CREATE INDEX release_checks_release ON release_checks(release_id,archived,kind);
 """

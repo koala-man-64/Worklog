@@ -383,8 +383,9 @@ def test_the_v17_upgrade_starts_with_no_ties_and_changes_no_record(tmp_path):
         kept = conn.execute("SELECT * FROM work_items").fetchall()
     Database(path).initialize()
     with closing(sqlite3.connect(path)) as conn:
-        # The upgrade goes on to v18, which adds only an unknown directory to each registration.
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION == 18
+        # The upgrade goes on to v18, which adds only an unknown directory to each registration, and
+        # to v19, whose releases start empty.
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
         assert recovery._schema_signature(conn) == sealed.current()
         assert conn.execute("SELECT count(*) FROM agent_links").fetchone()[0] == 0
         assert conn.execute("SELECT * FROM work_items").fetchall() == kept

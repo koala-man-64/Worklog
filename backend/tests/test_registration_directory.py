@@ -31,7 +31,10 @@ COMMIT;
 
 
 def to_v17(path):
-    """Take a current database back to the v17 shape the documented way."""
+    """Take a current database back to the v17 shape the documented way: to version 18 first."""
+    from test_release_recovery import to_v18
+
+    to_v18(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK)
 
@@ -215,7 +218,10 @@ def test_the_v18_upgrade_leaves_earlier_registrations_unknown_and_changes_no_rec
         assert recovery._schema_signature(conn) == sealed.current()
         assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
         upgraded = contents(conn)
-    # Every row of every table is as it was; each registration gains a directory, unknown.
+    # Every row of every table is as it was; each registration gains a directory, unknown. The
+    # upgrade goes on to v19, whose releases start empty.
+    for table in ("releases", "release_contents", "release_checks"):
+        assert upgraded.pop(table) == []
     assert {row[-1] for row in upgraded["communication_credentials"]} == {None}
     upgraded["communication_credentials"] = [row[:-1] for row in upgraded["communication_credentials"]]
     assert upgraded == kept
