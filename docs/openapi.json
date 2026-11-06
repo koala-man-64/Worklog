@@ -4153,6 +4153,37 @@
               "default": 0,
               "title": "Offset"
             }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "item",
+                  "step",
+                  "roadmap",
+                  "note",
+                  "attachment",
+                  "link",
+                  "chat",
+                  "github",
+                  "question",
+                  "decision",
+                  "person",
+                  "ticket",
+                  "ticket_comment",
+                  "discussion",
+                  "discussion_message",
+                  "resource"
+                ],
+                "type": "string"
+              },
+              "default": [],
+              "title": "Type"
+            }
           }
         ],
         "responses": {
@@ -6876,6 +6907,176 @@
         }
       }
     },
+    "/api/v1/agent-links": {
+      "get": {
+        "summary": "Agent Links",
+        "operationId": "agent_links_api_v1_agent_links_get",
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Agentid"
+            }
+          },
+          {
+            "name": "targetType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "item",
+                    "roadmap",
+                    "step",
+                    "repository",
+                    "person",
+                    "resource",
+                    "discussion",
+                    "chat",
+                    "proposal",
+                    "ticket",
+                    "agent",
+                    "question",
+                    "decision"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Targettype"
+            }
+          },
+          {
+            "name": "targetId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": [],
+              "title": "Targetid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Agent Links Api V1 Agent Links Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Agent Link Set",
+        "operationId": "agent_link_set_api_v1_agent_links_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentLinkSet"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Agent Link Set Api V1 Agent Links Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agent-links/unlink": {
+      "post": {
+        "summary": "Agent Link Remove",
+        "operationId": "agent_link_remove_api_v1_agent_links_unlink_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentLinkRemove"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Agent Link Remove Api V1 Agent Links Unlink Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/resources": {
       "get": {
         "summary": "Resources",
@@ -8754,6 +8955,102 @@
         "additionalProperties": false,
         "type": "object",
         "title": "Acknowledgement"
+      },
+      "AgentLinkRemove": {
+        "properties": {
+          "agentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agentid"
+          },
+          "targetType": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap",
+              "step",
+              "repository",
+              "person",
+              "resource",
+              "discussion",
+              "chat",
+              "proposal",
+              "ticket",
+              "agent",
+              "question",
+              "decision"
+            ],
+            "title": "Targettype"
+          },
+          "targetId": {
+            "type": "string",
+            "title": "Targetid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "targetType",
+          "targetId"
+        ],
+        "title": "AgentLinkRemove"
+      },
+      "AgentLinkSet": {
+        "properties": {
+          "agentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agentid"
+          },
+          "targetType": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap",
+              "step",
+              "repository",
+              "person",
+              "resource",
+              "discussion",
+              "chat",
+              "proposal",
+              "ticket",
+              "agent",
+              "question",
+              "decision"
+            ],
+            "title": "Targettype"
+          },
+          "targetId": {
+            "type": "string",
+            "title": "Targetid"
+          },
+          "relationship": {
+            "type": "string",
+            "title": "Relationship",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "targetType",
+          "targetId"
+        ],
+        "title": "AgentLinkSet",
+        "description": "The person names the agent. An agent ties only itself, so it may leave agentId out."
       },
       "AgentRegistration": {
         "properties": {

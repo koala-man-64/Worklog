@@ -16,10 +16,14 @@ from __future__ import annotations
 import re
 import sqlite3
 from collections.abc import Sequence
+from typing import Literal
 
 CHUNK = 500
 # The most words one search matches; the rest of a long query is ignored.
 MAX_TERMS = 30
+# Every kind of record the index holds, which global search can be narrowed to.
+SearchType = Literal["item", "step", "roadmap", "note", "attachment", "link", "chat", "github", "question",
+                     "decision", "person", "ticket", "ticket_comment", "discussion", "discussion_message", "resource"]
 
 
 def prefix_match(query: str) -> str | None:
@@ -95,14 +99,17 @@ def index_plans(c: sqlite3.Connection, roadmap_id: str | None = None) -> None:
             replace=False)
 
 
-def global_search(c: sqlite3.Connection, query: str, archived: bool = False, limit: int = 50, offset: int = 0) -> dict:
+def global_search(c: sqlite3.Connection, query: str, archived: bool = False, limit: int = 50, offset: int = 0,
+                  types: Sequence[str] = ()) -> dict:
     """Every kind of record the header's search box finds, each with the page it opens on.
 
     A result is archived when it is, when the record it hangs off is, or when its step is retired.
+    `types` narrows the results to those kinds of record, as a picker of one kind needs.
     """
     match = prefix_match(query)
     if match is None:
         return {"items": [], "total": 0}
+    kinds = list(dict.fromkeys(types))
     # Resolve ownership at query time so archiving a parent also hides its notes/files
     # without destroying each supporting record's independent archive flag.
     source = """FROM search_index s
@@ -133,11 +140,14 @@ def global_search(c: sqlite3.Connection, query: str, archived: bool = False, lim
          (CAST(s.archived AS INTEGER)=1 OR coalesce(w.archived,0)=1
           OR coalesce(st.retired,0)=1 OR coalesce(rm.archived,0)=1 OR coalesce(p.archived,0)=1 OR coalesce(ds.archived,0)=1
           OR coalesce(tk.archived,0)=1 OR coalesce(rp.archived,0)=1)=?"""
+    if kinds:
+        source += f" AND s.type IN ({','.join('?' * len(kinds))})"
+    arguments = (match, int(archived), *kinds)
     # A resource is its own page and carries its own archive flag in the index.
     rows = c.execute("""SELECT s.entity_id,s.type,s.title,s.body,s.owner_id,
                      CASE WHEN s.type='resource' THEN 'resources' WHEN ds.id IS NOT NULL THEN 'discussions' WHEN tk.id IS NOT NULL THEN 'tickets' WHEN w.id IS NOT NULL THEN 'work' WHEN p.id IS NOT NULL THEN 'people' WHEN rp.id IS NOT NULL THEN 'repositories' ELSE 'roadmaps' END AS route_type,
-                     CASE WHEN s.type='resource' THEN s.entity_id ELSE coalesce(ds.id,tk.id,w.id,p.id,rp.id,rm.id) END AS route_id """ + source + " ORDER BY rank LIMIT ? OFFSET ?", (match, int(archived), limit, offset)).fetchall()
-    total = c.execute("SELECT count(*) " + source, (match, int(archived))).fetchone()[0]
+                     CASE WHEN s.type='resource' THEN s.entity_id ELSE coalesce(ds.id,tk.id,w.id,p.id,rp.id,rm.id) END AS route_id """ + source + " ORDER BY rank LIMIT ? OFFSET ?", (*arguments, limit, offset)).fetchall()
+    total = c.execute("SELECT count(*) " + source, arguments).fetchone()[0]
     return {"items": [{"id": r[0], "type": r[1], "title": r[2], "snippet": r[3][:220], "ownerId": r[4],
                        "routeType": r["route_type"], "routeId": r["route_id"]} for r in rows], "total": total}
 

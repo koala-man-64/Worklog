@@ -157,8 +157,12 @@ def _same_principal(conn, actor_id, actor):
         " WHERE theirs.credential_id=? AND mine.credential_id=?", (actor_id, actor["id"])).fetchone() is not None
 
 
-def _can_see(conn, row, actor):
-    # Agents see other agents' proposals only once submitted; withdrawing an unsubmitted draft keeps it private.
+def can_see(conn, row, actor):
+    """Whether the caller may see this proposal: its row needs status, actor_id and submitted_at.
+
+    Agents see other agents' proposals only once submitted; withdrawing an unsubmitted draft keeps it
+    private. Agent ties (agent_links.py) ask this too, so a tie never shows a draft to another agent.
+    """
     if actor["kind"] != "agent" or row["status"] in {"submitted", "approved", "rejected"} or _same_principal(conn, row["actor_id"], actor):
         return True
     # submitted_at is set by every submit and never cleared, reopening included.
@@ -166,7 +170,7 @@ def _can_see(conn, row, actor):
 
 
 def _visible(conn, row, actor):
-    if not _can_see(conn, row, actor):
+    if not can_see(conn, row, actor):
         raise AppError(404, "not_found", "Proposal not found")
 
 
@@ -211,7 +215,7 @@ class ProposalService:
         with self.db.read() as conn:
             rows = conn.execute(SELECT + " ORDER BY p.created_at,p.id").fetchall()
             items = [_record(r) for r in rows if (not status or r["status"] == status)
-                     and _can_see(conn, r, actor)]
+                     and can_see(conn, r, actor)]
             return {"items": items, "total": len(items)}
 
     def detail(self, identifier, actor):

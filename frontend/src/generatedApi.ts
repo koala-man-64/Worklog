@@ -1899,6 +1899,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/agent-links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Agent Links */
+        get: operations["agent_links_api_v1_agent_links_get"];
+        put?: never;
+        /** Agent Link Set */
+        post: operations["agent_link_set_api_v1_agent_links_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agent-links/unlink": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Agent Link Remove */
+        post: operations["agent_link_remove_api_v1_agent_links_unlink_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/resources": {
         parameters: {
             query?: never;
@@ -2449,6 +2484,38 @@ export interface components {
             mode: "all" | "any" | "any_agent" | "anyone";
             /** Targets */
             targets?: components["schemas"]["Target"][];
+        };
+        /** AgentLinkRemove */
+        AgentLinkRemove: {
+            /** Agentid */
+            agentId?: string | null;
+            /**
+             * Targettype
+             * @enum {string}
+             */
+            targetType: "item" | "roadmap" | "step" | "repository" | "person" | "resource" | "discussion" | "chat" | "proposal" | "ticket" | "agent" | "question" | "decision";
+            /** Targetid */
+            targetId: string;
+        };
+        /**
+         * AgentLinkSet
+         * @description The person names the agent. An agent ties only itself, so it may leave agentId out.
+         */
+        AgentLinkSet: {
+            /** Agentid */
+            agentId?: string | null;
+            /**
+             * Targettype
+             * @enum {string}
+             */
+            targetType: "item" | "roadmap" | "step" | "repository" | "person" | "resource" | "discussion" | "chat" | "proposal" | "ticket" | "agent" | "question" | "decision";
+            /** Targetid */
+            targetId: string;
+            /**
+             * Relationship
+             * @default
+             */
+            relationship: string;
         };
         /** AgentRegistration */
         AgentRegistration: {
@@ -6395,6 +6462,7 @@ export interface operations {
                 archived?: boolean;
                 limit?: number;
                 offset?: number;
+                type?: ("item" | "step" | "roadmap" | "note" | "attachment" | "link" | "chat" | "github" | "question" | "decision" | "person" | "ticket" | "ticket_comment" | "discussion" | "discussion_message" | "resource")[];
             };
             header?: never;
             path?: never;
@@ -8161,6 +8229,111 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["Expected"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    agent_links_api_v1_agent_links_get: {
+        parameters: {
+            query?: {
+                agentId?: string | null;
+                targetType?: ("item" | "roadmap" | "step" | "repository" | "person" | "resource" | "discussion" | "chat" | "proposal" | "ticket" | "agent" | "question" | "decision") | null;
+                targetId?: string[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    agent_link_set_api_v1_agent_links_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentLinkSet"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    agent_link_remove_api_v1_agent_links_unlink_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentLinkRemove"];
             };
         };
         responses: {

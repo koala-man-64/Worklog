@@ -27,10 +27,10 @@ ORDER = [
     "coordination", "registration", "registry",
     # Schema history, proposals, then backup and restore.
     "migrations", "proposals", "recovery",
-    # Work: the shapes the domains share, supporting records, work items, people, and the router.
-    "records", "support", "items", "people", "services",
+    # Work: the shapes the domains share, supporting records, work items, people, agent ties, and the router.
+    "records", "support", "items", "people", "agent_links", "services",
     # HTTP.
-    "chat_message_api", "coordination_api", "discussion_api", "registry_api", "resource_api", "ticket_api", "app",
+    "agent_link_api", "chat_message_api", "coordination_api", "discussion_api", "registry_api", "resource_api", "ticket_api", "app",
     # The command line.
     "cli",
 ]

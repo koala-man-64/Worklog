@@ -56,6 +56,9 @@ AGENT_TOKEN = re.compile(r"[A-Za-z0-9_-]{43,200}")
 RESERVED_NAMES = frozenset({"con", "prn", "aux", "nul", *(f"{d}{n}" for d in ("com", "lpt") for n in range(10))})
 # A ticket's key (T-12), number or ID, the only forms a ticket route may carry.
 TICKET_REF = re.compile(r"[Tt]-[1-9][0-9]{0,8}|[1-9][0-9]{0,8}|[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}")
+# What an agent can be tied to, as agent_links.TYPES lists them; test_agent_links.py keeps them equal.
+TIE_TYPES = ("item", "roadmap", "step", "repository", "person", "resource", "discussion", "chat", "proposal",
+             "ticket", "agent", "question", "decision")
 TICKET_KINDS = ("bug", "incident", "task")
 TICKET_PRIORITIES = ("low", "normal", "high", "urgent")
 TICKET_STATUSES = ("open", "doing", "blocked", "done")
@@ -500,6 +503,11 @@ def _ticket_route_allowed(method: str, route: str) -> bool:
     return method == "POST" and parts[3] == "comments"
 
 
+def _tie_route_allowed(method: str, route: str) -> bool:
+    """Agents read ties and set and remove their own; Worklog keeps each agent to its own identity."""
+    return (route == "/agent-links" and method in {"GET", "POST"}) or (route == "/agent-links/unlink" and method == "POST")
+
+
 def _agent_url(base_url: str) -> str:
     parsed = urlsplit(base_url)
     if (parsed.scheme != "http" or parsed.hostname != HOST or parsed.username
@@ -544,7 +552,8 @@ class AgentClient:
             ids = query.get("ownerId", [])
             allowed = query.get("ownerType") == ["proposal"] and len(ids) == 1 and valid_id(ids[0])
         allowed = (allowed or _discussion_route_allowed(method, route) or _coordination_route_allowed(method, route)
-                   or _ticket_route_allowed(method, route) or (method == "POST" and route == "/inbox/receive"))
+                   or _ticket_route_allowed(method, route) or _tie_route_allowed(method, route)
+                   or (method == "POST" and route == "/inbox/receive"))
         if not allowed:
             raise ValueError("Agent command is outside proposal/read scope")
         headers = {"Authorization": "Bearer " + self.token, "Accept": "application/json"}
@@ -728,6 +737,8 @@ def agent_command(args: argparse.Namespace, port: int, redact: list[str]) -> Any
         return coordination_command(client, args)
     if args.agent_action == "tickets":
         return ticket_command(client, args)
+    if args.agent_action == "ties":
+        return tie_command(client, args)
     if args.agent_action == "resources":
         if args.resource_action == "list":
             return client.request("GET", "/resources" + _coordination_query(args, "q", "archived", "limit", "offset"))
@@ -977,6 +988,39 @@ def ticket_command(client: AgentClient, args: argparse.Namespace) -> Any:
             payload[field] = empty
     payload["revision"] = args.revision
     return client.request("PATCH", route, payload, request_id=args.request_id)
+
+
+def tie_command(client: AgentClient, args: argparse.Namespace) -> Any:
+    if args.tie_action == "list":
+        if args.agentId is not None and (args.targetType or args.targetId):
+            raise ValueError("Give --agent, or --type with --id, not both")
+        if bool(args.targetType) != bool(args.targetId):
+            raise ValueError("Give --type and --id together")
+        query = ({"agentId": args.agentId} if args.agentId is not None
+                 else {"targetType": args.targetType, "targetId": args.targetId} if args.targetType else {})
+        return client.request("GET", "/agent-links" + ("?" + urlencode(query, doseq=True) if query else ""))
+    payload = {"targetType": args.targetType, "targetId": args.targetId}
+    if args.tie_action == "set":
+        return client.request("POST", "/agent-links", {**payload, "relationship": args.relationship},
+                              request_id=args.request_id)
+    return client.request("POST", "/agent-links/unlink", payload, request_id=args.request_id)
+
+
+def _tie_parser(actions: Any) -> None:
+    ties = actions.add_parser("ties", help="The records you are tied to, with your role on each; tie yourself and untie").add_subparsers(
+        dest="tie_action", required=True)
+    listing = ties.add_parser("list", help="Your own ties, unless --agent, or --type with --id, names others")
+    listing.add_argument("--agent", dest="agentId", help="An agent ID: that agent's ties")
+    listing.add_argument("--type", dest="targetType", choices=TIE_TYPES, help="With --id: the agents tied to that record")
+    listing.add_argument("--id", dest="targetId", action="append", help="A record's ID; repeat for several of one type")
+    for verb, purpose in (("set", "Tie yourself to a record, or change your role there"),
+                          ("remove", "Untie yourself from a record; only from a tie you set")):
+        command = ties.add_parser(verb, help=purpose)
+        command.add_argument("--type", dest="targetType", choices=TIE_TYPES, required=True)
+        command.add_argument("--id", dest="targetId", required=True, help="The record's ID; a ticket also takes T-12 or 12")
+        if verb == "set":
+            command.add_argument("--relationship", default="", help="Your role there, such as Maintainer or Reviewer")
+        command.add_argument("--request-id", help="Reuse with the same payload after an uncertain result")
 
 
 def _ticket_parser(actions: Any) -> None:
@@ -1258,6 +1302,7 @@ def parser() -> argparse.ArgumentParser:
     _discussion_parser(actions)
     _coordination_parser(actions)
     _ticket_parser(actions)
+    _tie_parser(actions)
     inbox = actions.add_parser("inbox", help="Receive the messages the person wrote into your chats; each arrives once")
     inbox.add_argument("--chat", help="Only messages for your open runs that reported this chat ID")
     inbox.add_argument("--request-id", help="Reuse after an uncertain result to receive the same messages again")

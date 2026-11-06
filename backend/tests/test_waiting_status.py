@@ -271,9 +271,11 @@ def test_the_v15_upgrade_keeps_every_work_item_and_every_reference_to_one(tmp_pa
         assert version(conn) == migrations.SCHEMA_VERSION
         assert recovery._schema_signature(conn) == sealed.current()
         # Every row of every table is as it was, work items' rowids included. The upgrade goes on
-        # to v16, whose table names no proposal here, none having been approved.
+        # to v16, whose table names no proposal here, none having been approved, and to v17, whose
+        # agent ties start empty.
         upgraded = contents(conn)
         assert upgraded.pop("proposal_targets") == []
+        assert upgraded.pop("agent_links") == []
         assert upgraded == kept
         assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
         assert conn.execute("PRAGMA integrity_check").fetchall() == [("ok",)]
@@ -364,7 +366,8 @@ def test_the_documented_way_back_to_v14_gives_its_exact_shape_and_upgrades_again
     scatter_rowids(path)
     with closing(sqlite3.connect(path)) as conn:
         before = contents(conn)
-    # The way back to v15, which to_v14 takes first, drops v16's table and nothing else.
+    # The ways back to v16 and v15, which to_v14 takes first, drop v17's and v16's tables and nothing else.
+    before.pop("agent_links")
     before.pop("proposal_targets")
     to_v14(path)
     recovery.validate_database(path)
