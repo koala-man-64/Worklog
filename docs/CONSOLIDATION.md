@@ -289,11 +289,11 @@ The table observes first and enforces afterwards. Every read agents have today s
 
 #### 3.1 · Policy table on the routes
 
-Status: In progress · Branches: `claude/route-policy`, `claude/route-policy-enforce` · PRs: [#112](https://github.com/koala-man-64/Worklog/pull/112), [#113](https://github.com/koala-man-64/Worklog/pull/113); the request guard moves to pure ASGI in its own PR
+Status: Merged · Branches: `claude/route-policy`, `claude/route-policy-enforce`, `claude/asgi-guard` · PRs: [#112](https://github.com/koala-man-64/Worklog/pull/112), [#113](https://github.com/koala-man-64/Worklog/pull/113), [#122](https://github.com/koala-man-64/Worklog/pull/122)
 
 Each route declares its scope. The table drives the middleware decision and checks the CLI allowlist, and replaces the seven predicate sites. Move the request guard to pure ASGI. Needs 0.2 and 2.1. Findings: C-03, A-02, C-14, REM-21, REM-22.
 
-Done so far:
+What changed:
 - **The table (#112).** `policy.ROUTES` gives every route under `/api/v1` a scope for each method it serves: the person's (`human`), or an agent scope for reads, proposals, discussions, coordination, tickets, registration or the inbox. A scope can hang on one value. Agents may submit, withdraw and reopen a proposal, but not approve or reject one, and they upload evidence only to a proposal. A method a route lists no scope for is the person's.
 - **The decision (#112).** `policy.decide` finds the route a request reaches, as the router does. A request no route serves under its method gets no scope: the router answers it with 404, 405 or a redirect, and no handler runs.
 - **Observed first (#112).** Before the table decided, `test_route_policy.py` held the old checks to it. Every call a route serves went through the middleware with the router stubbed, trying each verb and owner type the decisions read, and each word a route's path ends in as the value of a trailing parameter. The old checks and the table agreed on every call but four:
@@ -313,6 +313,13 @@ Done so far:
   - It checks the table against the route matrix, the CLI against the table, and every route for a scope.
   - A new test pins the recheck: a retry in the coordination or inbox scope, by a credential revoked after the middleware let it in, gets 401 rather than its earlier receipt, which for the inbox holds the person's messages.
 - **No live observation.** The table decides from a call's method, path and query alone, and the tests cover every shape of call a route serves. A log of live calls would add no case.
+- **The guard in pure ASGI (#122).** `guard.RequestGuard` replaces the `BaseHTTPMiddleware` that handed a JSON body on through Starlette's private `request._body`. It makes the same checks in the same order and answers as before, except in four cases. In none of them does a call get further than before:
+  - **The path checked** is the one the router matches, without the app's `root_path`. Behind a `root_path`, the old check read the full path and let API requests past unauthenticated, as the security review of #113 found. No `root_path` is configured.
+  - **A path that holds a tab, CR or LF**, sent percent-encoded, is checked as the router matches it. The old check read `request.url.path`, which drops those characters. So `/api/v1/session/bootstrap%0A` skipped the check, as the bootstrap does, and the router still took it to the bootstrap. It now needs a caller, like any other API call.
+  - **A client that leaves before its body arrives** is answered nothing. The old check logged it as an unhandled failure and answered with a 500 that no one received.
+  - **A failure after a response has started** is left to the server, which closes the connection, so the client sees the response cut short. The old check ended it as if it were complete.
+
+  How it works: a JSON body is read from `receive` to the same 8,000,000-byte limit, refused with 413 once it passes it, and replayed to the route. Uploads, HTML imports and the session bootstrap read their own bodies with the same reader, each to its own limit. The security headers are set as each response starts, so every response still carries them, a 500 included. `test_guard.py` pins each of these. Findings C-14, REM-22.
 
 #### 3.2 · Human-only scope on sensitive routes
 

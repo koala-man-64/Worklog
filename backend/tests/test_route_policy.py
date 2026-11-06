@@ -310,11 +310,11 @@ def test_the_cli_sends_no_call_the_table_refuses_and_can_make_every_agent_write(
 
 @pytest.mark.parametrize("path", ["/agent-runs", "/inbox/receive"])
 def test_a_retry_in_coordination_or_the_inbox_refuses_a_credential_revoked_after_the_middleware_let_it_in(tmp_path, monkeypatch, path):
-    # The middleware authenticates before the write lock, so the person's revoke can land in between.
-    # A write in these scopes checks the credential again before it replays a receipt, which would
+    # The guard authenticates before the write lock, so the person's revoke can land in between. A
+    # write in these scopes checks the credential again before it replays a receipt, which would
     # otherwise hand a revoked credential the response it was given before, messages included.
-    import worklog.app as app_module
     from test_chat_messages import agent, confirm, ok, request, send, tracked_chat
+    from worklog import guard
 
     app = create_app(tmp_path, testing=True)
     with TestClient(app, base_url=ORIGIN) as c:
@@ -329,14 +329,14 @@ def test_a_retry_in_coordination_or_the_inbox_refuses_a_credential_revoked_after
         first = ok(request(c, "POST", "/inbox/receive", {}, credential, "receive-key-1"))
         assert first["total"] == 1  # so the receive kept a receipt
         keys = {"/agent-runs": "run-key-1", "/inbox/receive": "receive-key-1"}
-        read_body = app_module.bounded_body
+        read_body = guard.read_body
 
-        async def revoke_after_authentication(incoming, maximum):
+        async def revoke_after_authentication(receive, headers, maximum):
             with app.state.db.transaction() as conn:
                 conn.execute("UPDATE credentials SET revoked=1 WHERE id=?", (credential["id"],))
-            return await read_body(incoming, maximum)
+            return await read_body(receive, headers, maximum)
 
-        monkeypatch.setattr(app_module, "bounded_body", revoke_after_authentication)
+        monkeypatch.setattr(guard, "read_body", revoke_after_authentication)
         replay = request(c, "POST", path, payloads[path], credential, keys[path])
         assert replay.status_code == 401 and replay.json()["error"]["code"] == "authentication", replay.text
 
