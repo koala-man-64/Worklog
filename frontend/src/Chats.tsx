@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { AgentTies } from "./AgentTies";
 import { contextStorageKey } from "./api";
 import { useCollapsed, useData } from "./hooks";
 import { RepositoryBadges } from "./RepositoryControls";
@@ -614,6 +615,12 @@ function ChatHistory({ chat }: { chat: ChatOverview }) {
           </div>
         )}
       </div>
+      <AgentTies
+        targetType="chat"
+        targetId={chat.id}
+        layout="fold"
+        note="A tie doesn't bring an agent your messages: they reach only the agents bound to this chat."
+      />
       <ErrorMessage error={transcript.error} />
       {transcript.isPending ? (
         <p>Reading the transcript…</p>

@@ -13,6 +13,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { slugger } from "./guideAnchors";
 import { RepositoryBadges, RepositoryPicker } from "./RepositoryControls";
+import type { TieType } from "./agentTieTypes";
 import { download, getDataContext } from "./api";
 import { commands } from "./commands";
 import {
@@ -1168,9 +1169,11 @@ export function personLine(title: string, team: string) {
  * A tie's role, saved when its field loses focus, and the tie's Unlink. Pressing Unlink
  * right after editing the role saves the role first: the press is not lost to a button
  * disabled mid-click, and the save cannot land after the unlink and tie the person again.
+ * A person's tie goes to /person-links; an agent's, with `path`, to /agent-links.
  */
 export function TieRole({
   tie,
+  path = "/person-links",
   name,
   unlinkName,
   relationship,
@@ -1178,11 +1181,14 @@ export function TieRole({
   unlinkDisabled = false,
   placeholder,
 }: {
-  tie: {
-    personId: string;
-    targetType: "item" | "roadmap" | "repository";
-    targetId: string;
-  };
+  tie:
+    | {
+        personId: string;
+        targetType: "item" | "roadmap" | "repository";
+        targetId: string;
+      }
+    | { agentId: string; targetType: TieType; targetId: string };
+  path?: "/person-links" | "/agent-links";
   /** The role field's accessible name, such as "Role on Define SLOs". */
   name: string;
   unlinkName: string;
@@ -1206,10 +1212,7 @@ export function TieRole({
           const next = e.target.value.trim();
           if (next !== relationship)
             saving.current = action
-              .mutateAsync({
-                path: "/person-links",
-                body: { ...tie, relationship: next },
-              })
+              .mutateAsync({ path, body: { ...tie, relationship: next } })
               .catch(() => undefined);
         }}
       />
@@ -1222,7 +1225,7 @@ export function TieRole({
           setUnlinking(true);
           void saving.current
             .then(() =>
-              action.mutateAsync({ path: "/person-links/unlink", body: tie }),
+              action.mutateAsync({ path: path + "/unlink", body: tie }),
             )
             .catch(() => undefined)
             .finally(() => setUnlinking(false));
