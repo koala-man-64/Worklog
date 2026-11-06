@@ -6,11 +6,13 @@ with, so a change here never changes how an older database upgrades. test_sealed
 that a new database, and every older shape once upgraded, have the shape the current version sealed
 in recovery.SEALED_SCHEMAS.
 
-A seal covers each statement's text, spacing included, so each statement reads as an upgraded
-database records it. A column after ", " is one ALTER TABLE ADD COLUMN appended after the table's
-last column, and the statements spaced inside their parentheses keep the line breaks they were
-first written with. Never reformat one. A schema change needs a new version: its upgrade in
-migrations.py, the same change here, and a new seal (test_sealed_schemas.py says how).
+A seal covers each statement's text with its whitespace collapsed to single spaces, so where a
+space falls is part of the shape, though not whether it was a space or a line break. Each statement
+here is spaced as an upgraded database records it: a column after ", " is one ALTER TABLE ADD
+COLUMN appended after the table's last column, and the spaces inside the parentheses of roadmaps,
+steps, roadmap_versions, plan_imports and proposals stand for the line breaks those tables were
+first written with. Never add or remove a space in one. A schema change needs a new version: its
+upgrade in migrations.py, the same change here, and a new seal (test_sealed_schemas.py says how).
 """
 
 BASELINE = """

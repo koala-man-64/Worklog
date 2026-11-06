@@ -20,8 +20,9 @@ from typing import Any
 from .common import AppError, event, now, text, uid
 from .discussions import communication_actor
 
-# A delivery still pending at expires_at stays 'pending' in the table: it reads as
-# expired (not_picked_up) and is never handed out, so no background job is needed.
+# A delivery expires this long after its message is sent. One still pending at expires_at stays
+# 'pending' in the table: it reads as expired (not_picked_up) and is never handed out, so no
+# background job is needed.
 PICKUP_WINDOW = timedelta(hours=2)
 
 # Whether the identity of the run `ar` is bound to the chat that run reports: it registered with
