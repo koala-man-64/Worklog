@@ -40,6 +40,7 @@ import { AgentTies } from "./AgentTies";
 import { DecisionsSection, QuestionsSection } from "./QuestionsDecisions";
 import { AgentChips, workersOn } from "./RoadmapAgents";
 import { AppliedProposals } from "./ProposalHistory";
+import { ReleasesSection } from "./Releases";
 import type { RoadmapWorker } from "./agentTypes";
 import type { Item, List, Person, Roadmap, Step } from "./types";
 import { Icon } from "./icons";
@@ -903,6 +904,11 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
         chats={road.chats}
         disabled={road.archived}
       />
+      <ReleasesSection
+        targetType="roadmap"
+        targetId={id}
+        disabled={road.archived}
+      />
       <Files ownerType="roadmap" ownerId={id} files={road.attachments} />
       <section>
         <h3>Immutable versions</h3>
@@ -1026,6 +1032,12 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
           </p>
         )}
       </section>
+      <ReleasesSection
+        key={selected.id}
+        targetType="step"
+        targetId={selected.id}
+        disabled={road.archived || selected.retired}
+      />
       <StepAgentChats
         roadmapId={id}
         step={selected}

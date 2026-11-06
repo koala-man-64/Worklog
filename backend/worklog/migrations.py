@@ -12,9 +12,9 @@ import json
 import re
 import sqlite3
 
-SCHEMA_VERSION = 17
+SCHEMA_VERSION = 18
 # Older versions that startup and offline restore upgrade in one transaction.
-UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16})
+UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17})
 
 # v1 grew in place before versions were counted: _upgrade_v1 adds whichever of these a v1 database
 # lacks. People as v1 had them; v10 renames role to team, adds person details and lets links name
@@ -577,6 +577,21 @@ CREATE INDEX agent_links_target ON agent_links(target_type,target_id);
 """
 
 
+# v18: releases, which an upgrade leaves empty: what ships together and when, the records each
+# holds, and its checks of who needs to know, what to test and what to prepare first. A
+# release_contents row names a work item, roadmap, step or GitHub reference by id, which the
+# release service checks before it adds the row; Worklog never deletes those records. Both dates
+# are a YYYY-MM-DD day or null, which the CHECKs hold, since past-due flags compare them as text.
+# Every statement stands alone: execute_schema splits on semicolons.
+RELEASE_SCHEMA = """
+CREATE TABLE releases(id TEXT PRIMARY KEY,title TEXT NOT NULL,description TEXT NOT NULL DEFAULT '',release_date TEXT CHECK(release_date IS NULL OR date(release_date) IS release_date),status TEXT NOT NULL DEFAULT 'planned' CHECK(status IN('planned','released','cancelled')),archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+CREATE TABLE release_contents(release_id TEXT NOT NULL REFERENCES releases(id),target_type TEXT NOT NULL CHECK(target_type IN('item','roadmap','step','github')),target_id TEXT NOT NULL,created_at TEXT NOT NULL,PRIMARY KEY(release_id,target_type,target_id));
+CREATE INDEX release_contents_target ON release_contents(target_type,target_id,release_id);
+CREATE TABLE release_checks(id TEXT PRIMARY KEY,release_id TEXT NOT NULL REFERENCES releases(id),kind TEXT NOT NULL CHECK(kind IN('notify','test','prepare')),text TEXT NOT NULL,details TEXT NOT NULL DEFAULT '',person_id TEXT REFERENCES people(id),due_date TEXT CHECK(due_date IS NULL OR date(due_date) IS due_date),status TEXT NOT NULL DEFAULT 'open' CHECK(status IN('open','doing','waiting','blocked','done')),archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+CREATE INDEX release_checks_release ON release_checks(release_id,archived,kind);
+"""
+
+
 def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
     """Unlike executescript, preserve the caller's transaction and rollback boundary."""
     for statement in filter(str.strip, schema.split(";")):
@@ -593,6 +608,7 @@ def upgrade(conn: sqlite3.Connection) -> None:
     its work item's list, the one it was listed in, and changes nothing else about it. v15 lets a
     work item wait and changes no record. v16 records what each approved proposal was applied to
     and changes no record either. v17 adds agent ties, which start empty, and changes no record.
+    v18 adds releases, which start empty, and changes no record.
     """
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version == SCHEMA_VERSION:
@@ -634,8 +650,10 @@ def upgrade(conn: sqlite3.Connection) -> None:
         add_waiting_status(conn)
     if version < 16:
         add_proposal_targets(conn)
-    # Every upgradable version predates the agent ties of v17.
-    execute_schema(conn, AGENT_LINKS_SCHEMA)
+    if version < 17:
+        execute_schema(conn, AGENT_LINKS_SCHEMA)
+    # Every upgradable version predates the releases of v18.
+    execute_schema(conn, RELEASE_SCHEMA)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 

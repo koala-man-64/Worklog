@@ -13,6 +13,7 @@ import type {
   GithubRef,
   RankResult,
 } from "./types";
+import type { Release, ReleaseCheck } from "./releaseTypes";
 import type { ResourcePage } from "./resourceTypes";
 import type { Ticket, TicketComment } from "./ticketTypes";
 type Schema = components["schemas"];
@@ -71,4 +72,22 @@ export const commands = {
     request<ResourcePage>("/resources", "POST", body),
   updateResource: (id: string, body: Schema["ResourceUpdate"]) =>
     request<ResourcePage>("/resources/" + id, "PATCH", body),
+  /** Fields left out take their defaults: no date, planned. */
+  createRelease: (
+    body: Pick<Schema["ReleaseCreate"], "title"> &
+      Partial<Schema["ReleaseCreate"]>,
+  ) => request<Release>("/releases", "POST", body),
+  updateRelease: (id: string, body: Schema["ReleaseUpdate"]) =>
+    request<Release>("/releases/" + id, "PATCH", body),
+  /** Holds a work item, roadmap, step or GitHub reference; holding one twice changes nothing. */
+  holdInRelease: (body: Schema["ReleaseContentChange"]) =>
+    request<{ changed: boolean }>("/release-contents", "POST", body),
+  removeFromRelease: (body: Schema["ReleaseContentChange"]) =>
+    request<{ changed: boolean }>("/release-contents/remove", "POST", body),
+  createReleaseCheck: (
+    body: Pick<Schema["ReleaseCheckCreate"], "releaseId" | "kind" | "text"> &
+      Partial<Schema["ReleaseCheckCreate"]>,
+  ) => request<ReleaseCheck>("/release-checks", "POST", body),
+  updateReleaseCheck: (id: string, body: Schema["ReleaseCheckUpdate"]) =>
+    request<ReleaseCheck>("/release-checks/" + id, "PATCH", body),
 };

@@ -30,6 +30,7 @@ import {
 import { AgentTies } from "./AgentTies";
 import { Coordination } from "./Coordination";
 import { AppliedProposals } from "./ProposalHistory";
+import { ReleasesSection } from "./Releases";
 import { TicketsSection } from "./Tickets";
 import { Icon } from "./icons";
 import { RankButton, RankPicker, useRank } from "./StackRank";
@@ -626,6 +627,11 @@ export function ItemDetail({ id }: { id: string }) {
         chats={item.chats}
       />
       <TicketsSection itemId={id} disabled={!!item.archived} />
+      <ReleasesSection
+        targetType="item"
+        targetId={id}
+        disabled={!!item.archived}
+      />
       {!!item.dailyEntries?.length && (
         <section>
           <h3>Daily record</h3>

@@ -32,7 +32,7 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 3. **Act as yourself.** Every later command MUST give `--as NAME` before the group. Your runs, reports, messages, tickets and proposals then carry your own identity.
 4. **One request ID per write.** Give each write a stable `--request-id`: 8-200 printable ASCII characters without spaces. After an uncertain result, rerun with the same ID and the identical payload; it cannot apply twice. A new operation MUST get a new ID. Proposal commands take none (section 7).
 5. **Current revisions.** A revision-checked command MUST carry the revision from your latest read. On `409 conflict`, read the record again and decide afresh; never reapply blindly.
-6. **Proposals for the person's records.** Work items, day entries, scratchpads and notes, checklist tasks, roadmaps and step progress, people, links, tracked chats, GitHub references, questions, decisions, repository edits, resources (the person's reference pages) and the files attached to the person's records change only through a proposal the person approves (section 6). You write tickets, discussions, your own runs, participation, updates and ties, repository registrations and your inbox directly; a proposal can also file or change a ticket that belongs with what it creates.
+6. **Proposals for the person's records.** Work items, day entries, scratchpads and notes, checklist tasks, roadmaps and step progress, people, links, tracked chats, GitHub references, questions, decisions, repository edits, resources (the person's reference pages) and the files attached to the person's records change only through a proposal the person approves (section 6). You write tickets, discussions, your own runs, participation, updates and ties, repository registrations and your inbox directly; a proposal can also file or change a ticket that belongs with what it creates. Releases, the person's plans of what ships together, are read-only to you: no command and no proposal changes one. Read them to learn which release your work is in, and what has to be tested and prepared for it.
 7. **Advisory, not authority.** Participation, ticket assignment, roles and ties reserve nothing and lock nothing, and a fresh report does not prove an agent is running. An acknowledgement means "received and understood", never approval.
 8. **Search first.** Before you investigate a failure, search past tickets, closed ones included: `tickets list --status all --q 'WORDS'`. File a ticket for an issue worth tracking, comment as you learn, and close it with a resolution that says what fixed it.
 9. **Never work around a refusal.** `401` means your identity was revoked: by the person, by the retirement of the agent that registered you, or by a restore. Stop, tell the person, and register again only if they agree. `403 agent_scope` is outside agent authority: propose the change or ask. `429 agent_limit`: report it and do not retry. `403 repository_registration_off`: propose `repository.create`. Section 8 lists every code.
@@ -57,6 +57,8 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 | Repository | UUID; one record per remote | `registeredBy`, `reviewed`, `duplicateOf`, `mergedInto` | you register; edits by proposal |
 | Ticket | `T-12`, `12` or UUID | `kind` bug, incident or task; `priority` low, normal, high or urgent; `status` open, doing, blocked or done; `resolution` | you, directly, or by proposal (`ticket.create`, `ticket.update`) |
 | Resource | UUID | `title`, `summary` (what the page is for), `body` (Markdown); `archived` | the person; you by proposal (`resource.*`) |
+| Release | UUID | `title`, `description` (Markdown), `releaseDate` (a YYYY-MM-DD day, or null while not dated), `status` planned, released or cancelled; `archived`. It holds work items, roadmaps, steps and GitHub references, and its `changes` are the GitHub references it holds with those on its work items and roadmaps | the person only; you read |
+| Release check | UUID | `kind` notify (who needs to know), test (what to test) or prepare (what to prepare first); `text`, `details` (Markdown), `personId`, `dueDate`; `status` open, doing, waiting, blocked or done | the person only; you read |
 | Proposal | UUID | draft, submitted, approved, rejected or withdrawn; `autoApproved` | you draft; the person decides |
 | Identity, credential | `agentId`; a credential `id` | active or revoked | the person issues; you register and retire your own |
 | Run | UUID; `--client-run-key` is unique per credential | open or ended | you, directly |
@@ -73,7 +75,7 @@ Records are archived, never deleted, and only the person archives or recovers th
 
 | Action | The person | You directly | You by proposal |
 |---|---|---|---|
-| Read work, days, roadmaps, steps, people, notes, tickets, resources, discussions, repositories, runs and proposals | yes | yes | - |
+| Read work, days, roadmaps, steps, people, notes, tickets, resources, releases, discussions, repositories, runs and proposals | yes | yes | - |
 | Read chat transcripts, chat messages, the Claude Code sessions running on the person's machine, the Agents page, Settings, credentials, backups or the export | yes | no | - |
 | Change work items, day entries, notes, tasks, roadmaps, progress, people, links, tracked chats, GitHub references, questions or decisions | yes | no | yes |
 | Register a repository | yes | yes, unless the person turned it off | yes |
@@ -83,6 +85,7 @@ Records are archived, never deleted, and only the person archives or recovers th
 | Comment on tickets | yes | yes | no |
 | Archive or recover tickets | yes | no | no |
 | Write, archive or recover resources | yes | no | yes |
+| Change, archive or recover releases and their checks | yes | no | no |
 | Post, reply, acknowledge, cancel your own requests, act on roles | yes | yes | - |
 | Tie yourself to a record, change your role there, untie yourself | yes | yes, ties you set | - |
 | Tie another agent; change or remove a tie the person set | yes | no | no |
@@ -175,16 +178,18 @@ worklog agent --as NAME retire
 
 | Command | Arguments and options | Prints |
 |---|---|---|
-| `context` | `[--date DATE] [--repo REPOSITORY_ID] [--item ITEM_ID]` | `{day,workItems,roadmaps,people,proposals,repositories,runs,participations,updates,tickets,resources}`: the day's entries, roadmaps without their steps, up to 100 of each list, open tickets, and resources by title and summary without their text |
+| `context` | `[--date DATE] [--repo REPOSITORY_ID] [--item ITEM_ID]` | `{day,workItems,roadmaps,people,proposals,repositories,runs,participations,updates,tickets,resources,releases}`: the day's entries, roadmaps without their steps, up to 100 of each list, open tickets, resources by title and summary without their text, and upcoming releases with their counts (with `--item`, the upcoming releases that hold that work item) |
 | `search QUERY` | `[--limit 50] [--archived]` | `{items:[{id,type,title,snippet,ownerId,routeType,routeId}],total}`; 220-character snippets; the first 30 words of QUERY count |
 | `roadmap show ID` | - | the roadmap with every step's full text, progress, revision and `retired` flag, its versions, work items, notes, links, tracked chats, GitHub references, questions and decisions; without its history |
 | `step show ID` | - | the step with its `roadmapId`, notes and attachments |
 | `resources list` | `[--q WORDS] [--archived] [--limit 50] [--offset 0]` | `{items:[{id,title,summary,archived,revision,createdAt,updatedAt}],total,limit,offset}` by title, without the pages' text; `--q` searches titles, summaries and text; `--archived` lists archived pages only |
 | `resources show ID` | - | one page with its whole Markdown `body`, and its latest 100 changes without their records |
+| `releases list` | `[--status planned\|released\|cancelled\|all] [--q WORDS] [--item ITEM_ID] [--archived] [--limit 50] [--offset 0]` | `{items:[{id,title,description,releaseDate,status,pastDue,counts:{items,itemsDone,notify,test,prepare,pastDue},...}],total,limit,offset}`: planned releases by default, soonest first and the not dated ones last; `--q` searches titles, descriptions and checks; `--item` keeps the releases that hold that work item |
+| `releases show ID` | - | one release with its `items`, `roadmaps` and `steps`, its `changes` (each PR or commit with `direct`, its owner and the tracked chat that made it), every check with its `revision` and `pastDue`, and its latest 100 changes and its checks', without their records |
 | `proposals` | `[--status draft\|submitted\|approved\|rejected\|withdrawn]` | `{items,total}`: yours, and other agents' once submitted |
 | `proposal show ID` | - | one proposal with its operations and evidence |
 
-`search` covers work items, notes, file names, links, tracked chats, GitHub references, roadmaps and steps, questions and decisions, people, discussions, tickets and ticket comments, and resources, but not proposals.
+`search` covers work items, notes, file names, links, tracked chats, GitHub references, roadmaps and steps, questions and decisions, people, discussions, tickets and ticket comments, resources, and releases and their checks, but not proposals.
 
 ```powershell
 worklog agent --as NAME context --date 2026-11-04 --repo REPOSITORY_ID --item ITEM_ID
@@ -193,6 +198,8 @@ worklog agent --as NAME roadmap show ROADMAP_ID
 worklog agent --as NAME step show STEP_ID
 worklog agent --as NAME resources list --q 'release checks' --limit 20 --archived
 worklog agent --as NAME resources show RESOURCE_ID
+worklog agent --as NAME releases list --item ITEM_ID --status all
+worklog agent --as NAME releases show RELEASE_ID
 worklog agent --as NAME proposals --status submitted
 worklog agent --as NAME proposal show PROPOSAL_ID
 ```
@@ -702,6 +709,7 @@ The following codes reach only the person's browser or a failed startup: `host` 
 | A proposal | 500 operations; 5,000,000 bytes of operations; a title of 1,000 bytes |
 | A roadmap | 5,000 steps; 100 levels of nesting |
 | A ticket | title 1,000 bytes; description, resolution and each comment 100,000 bytes; 20 labels |
+| A release | title 1,000 bytes; description 1,000,000 bytes; a check's text 2,000 bytes and its details 100,000 bytes |
 | A participation | description 2,000 characters; 40 contexts |
 | An update | 4,000 characters |
 | A repository | description 10,000 characters; URL 2,000 characters |
@@ -738,6 +746,7 @@ Invoke-RestMethod -Uri 'http://127.0.0.1:8877/api/v1/work-items/ITEM_ID' -Header
 - **Work, and a work item's page.** Your participation under "Participants" and "Recent updates", and tracked chats under "Agent chats". Also the item's tickets, "GitHub commits & PRs", and under "Applied proposals" every proposal applied to it, with the changes each made there.
 - **Tickets.** Every ticket, with its author, assignee and comments.
 - **Resources.** The reference pages the person writes for you and for themselves. You change them only by proposal.
+- **Releases.** What ships together and when: each release's work items, roadmaps and steps, its "Changes" (the PRs and commits on them, with "Made in" and the tracked chat that made each), and "Who needs to know", "What to test" and "Before release". Only the person changes them.
 - **Roadmaps.** "Agents working here", agent chips beside each step, tracked chats, questions and decisions, and "Applied proposals".
 - **Repositories.** Registered repositories; yours say "Registered by" your label and "unreviewed" until the person confirms them. A repository's page lists participants and recent updates. "Open agent runs" lets the person end a run you left open.
 - **Agents.** One entry per identity. It shows a status ("Reporting work", "Stale reports", "No current reports" or "Credential revoked"), your runs, messages and updates, under "Tied to" every record you are tied to with your role there, under "From its work" the work your runs, messages and updates tie you to, and the chats the person confirmed you in, and under "Proposals" every proposal you made, with where each got to.
@@ -771,6 +780,7 @@ Point the person to the page that matters:
 | backlog | `view=backlog`, `isBacklog` | "Unscheduled backlog" |
 | `tickets list --status active` | `status=active` | "Open, doing or blocked" |
 | resource | `/resources` | a page under "Pages" on Resources |
+| release, release check (`kind` notify, test, prepare) | `/releases`, `/release-checks` | a release on Releases; "Who needs to know", "What to test", "Before release" |
 | step progress | `/steps/{id}/progress` | the progress control beside each step |
 | role | `/discussions/roles` | "Discussion roles" |
 | tie | `/agent-links` | "Tied to" on an agent's page; "Agents" on a record's page |

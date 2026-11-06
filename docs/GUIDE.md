@@ -39,6 +39,7 @@ The sidebar lists these pages, in this order:
 | Work | Every work item, the backlog, and each item's page |
 | Tickets | Issues you and your agents file, work and close |
 | Roadmaps | Bigger efforts broken into steps, with versions |
+| Releases | What ships together and when, who needs to know, what to test and what to prepare first |
 | Repositories | The code repositories you and your agents work in |
 | People | Who you work with and how to reach them, tied to work, roadmaps and repositories |
 | Resources | Reference pages you write for yourself and your agents |
@@ -68,14 +69,14 @@ The field shows "Conflict: draft kept. Reload to compare." beside the saved valu
 
 Nothing is deleted. Archived records leave the lists, and their pages show what happened to them:
 
-- Work items, tickets, roadmaps, people, repositories and resources have "Archive" and "Recover" on their page or row.
+- Work items, tickets, roadmaps, releases, people, repositories and resources have "Archive" and "Recover" on their page or row.
 - Lists have "Show archive" to show only archived records.
-- On a work item, roadmap or repository, archived notes, links, files and tasks are under "Archived supporting records", each with "Recover".
-- An archived roadmap, ticket or resource is read-only until you recover it.
+- On a work item, roadmap or repository, archived notes, links, files and tasks are under "Archived supporting records", each with "Recover". So are a release's archived checks.
+- An archived roadmap, ticket, resource or release is read-only until you recover it.
 
 ### Activity history
 
-Work items, roadmaps, people, tickets and resources keep an "Activity history" at the bottom of their page. Every change is listed with who made it, including changes applied from an agent's proposal. Each entry is the raw record of the change.
+Work items, roadmaps, people, tickets, resources and releases keep an "Activity history" at the bottom of their page. Every change is listed with who made it, including changes applied from an agent's proposal. Each entry is the raw record of the change. A release's also lists the changes to its checks.
 
 Work items and roadmaps also keep "Applied proposals" just above it. It lists every proposal applied to the record, the latest first, each numbered in the order it was applied. A row names the agent that proposed it, when it was applied, and which of its changes were made here, by their numbers on Review. Its title opens the proposal on Review.
 
@@ -88,6 +89,7 @@ The box at the top of every page ("Search your work…") searches:
 - GitHub references, roadmaps and steps, questions and decisions
 - people, discussions, tickets and ticket comments
 - resources
+- releases and their checks
 
 Tick "Search archived records" to search the archive instead. Agent proposals are not searched: find them on Review. Clearing the box returns you to the page you were on.
 
@@ -99,14 +101,14 @@ Everything lives in one database file, `worklog.sqlite3`, in your data folder: y
 
 Agents act with credentials you issue in Settings (see [Bring an AI agent in](#bring-an-ai-agent-in)). They can:
 
-- read your work, roadmaps and resources
+- read your work, roadmaps, releases and resources
 - report what they work on and where
 - talk in Discussions
 - file and work tickets
 - tie themselves to the records they work on, with their role there, and change or remove the ties they set
 - receive the messages you write into their chat
 
-They never change your work items, days, roadmaps, people, repositories or resources directly, nor attach files to them. They propose those changes, and you approve or reject each proposal on Review. You can turn approval off in Settings; then a proposal applies as soon as its agent submits it. A proposal can also file or change tickets beside the work it creates.
+They never change your work items, days, roadmaps, people, repositories or resources directly, nor attach files to them. They propose those changes, and you approve or reject each proposal on Review. You can turn approval off in Settings; then a proposal applies as soon as its agent submits it. A proposal can also file or change tickets beside the work it creates. Releases are yours alone: agents read them, but nothing they do changes one, not even a proposal.
 
 ## How to
 
@@ -188,6 +190,7 @@ Open the item from **Work**. Its page holds, from top to bottom:
 - **"Agent chats"**: chats an agent works in for this item ([Follow a chat and message its agents](#follow-a-chat-and-message-its-agents)).
 - **"GitHub commits & PRs"**: choose a "GitHub reference type", enter the address, and press "Add GitHub ref".
 - **"Tickets"**: "File ticket" files a ticket tied to this item.
+- **"Releases"**: the releases that hold the item. "Add to release" adds it to an upcoming one, and "Remove" takes it out ([Coordinate a release](#coordinate-a-release)).
 - **"Files"**: under "How to add a file", either:
   - "Attach a copy" stores the file in Worklog, up to 25 MB.
   - "Reference a local file" keeps only its path. "Copy path" copies it for you to open yourself; Worklog never opens local paths.
@@ -239,6 +242,25 @@ On a roadmap's overview:
 
 - **"Questions"**: type a "New question" and press "Add question". "Answer" records the answer, "Reopen" opens it again, and answered questions collapse under "Answered".
 - **"Decisions"**: write the "New decision", its "Date decided" and why, then press "Record decision".
+
+### Coordinate a release
+
+A release gathers what ships together, and what has to happen around it.
+
+1. Open **Releases**. Type a name into "New release title", pick a "Release date" if it has one, and press "Add release". The release opens. A release with no date shows as "Not dated" until you give it one.
+2. Gather what it ships:
+   - "Add work item" finds work and adds it.
+   - "Add roadmap or step" adds a whole roadmap, or one step of one.
+   - "Changes" lists the PRs and commits on the work items and roadmaps the release holds, each with where it came from and, under "Made in", the tracked agent chat that made it. When only part of an item ships, "Add PR or commit" adds one PR or commit on its own.
+   - "Remove" takes one out again. A work item, roadmap or step can be in more than one release.
+3. Write down what has to happen around it, each under its own heading:
+   - "Who needs to know": the people and groups to tell, and what to tell them ("Add who to tell").
+   - "What to test" ("Add test").
+   - "Before release": configuration to change and requests to make ahead of time ("Add preparation").
+4. Give each one a "Person" from People (who to tell, who tests, or who handles it), a "Due" date, and a status: Open, Doing, Waiting (such as a request still out with another team), Blocked (such as a failed test) or Done. "Edit" changes its text and adds "Details (Markdown)", such as where to test or a link to the request.
+5. Set the release's status to Released when it ships, or Cancelled if it won't. Until then it is listed under "Upcoming".
+
+From a work item, a roadmap or a step, "Add to release" adds it to an upcoming release, and its "Releases" section lists the ones that hold it. A date saves when you leave its field or press Enter, never part way through typing it.
 
 ### Keep people and tie them to work
 
@@ -451,13 +473,30 @@ Plans broken into steps, with every saved version kept.
     - **The overview:**
       - The overview text and people, "Questions", "Decisions" and "Sub-roadmaps".
       - "Work items": "Add work item" creates one on the roadmap, and "Attach work item" links existing work.
-      - Notes, links, agent chats, GitHub references and files.
+      - Notes, links, agent chats, GitHub references, releases and files.
       - "Immutable versions", "Original plan references", "Retired steps", "Archived supporting records", "Applied proposals" and "Activity history".
     - **A step**, chosen in the outline:
-      - Its description and work items.
+      - Its description, work items and releases.
       - Its agent chats, with "Assign chat", "Add chat to step" and "Unassign".
       - Its notes and files, and "Step history".
     - **"Edit roadmap structure"**: the editor.
+
+### Releases
+
+What ships together and when, and what has to happen around it.
+
+- **The list:**
+  - "New release title", "Release date" and "Add release".
+  - "Find releases…", which also searches each release's checks, "Release status" ("Upcoming", "Released", "Cancelled" or "All releases") and "Show archive".
+  - Upcoming releases come soonest first, then the ones "Not dated". Each row shows its date, "Past due" once a planned release's date has passed, how many of its work items are done, and what is still open: to tell, to test, to prepare, and past due.
+- **A release's page:**
+  - "All releases", the title, the "Release status" menu, and "Archive" or "Recover".
+  - "Title", "Release date" (with "Clear date") and "Description (Markdown)".
+  - "Work items", "Roadmaps and steps" and "Changes", each with its add button and "Remove".
+  - "Who needs to know", "What to test" and "Before release". Each check shows its "Person", "Due" date and status, with "Archive" and "Edit"; one not done after its due date shows "Past due".
+  - "Archived supporting records" and "Activity history", which lists the changes to the release and to its checks.
+
+See [Coordinate a release](#coordinate-a-release).
 
 ### Repositories
 
@@ -582,6 +621,8 @@ This guide. "Contents" lists its sections; pick one to jump to it. A section has
 | Step | One part of a roadmap; leaf steps carry progress |
 | Ticket | An issue with a key such as T-12, closed with a resolution |
 | Resource | A reference page you write for yourself and your agents: a title, a summary and Markdown text |
+| Release | What ships together, on a date or not dated yet: work items, roadmaps and steps, and their PRs and commits |
+| Release check | Something to do around a release: someone to tell, something to test, or something to prepare first |
 | Revision | A record's change counter; it lets Worklog refuse a stale save instead of overwriting |
 | Archive | Hiding a record without deleting it; you can recover it |
 | Credential | A token you issue in Settings that lets an agent use Worklog |
