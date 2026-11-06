@@ -2,6 +2,7 @@ import { useState } from "react";
 import { request } from "./api";
 import { commands } from "./commands";
 import { useAction, useCommand, useData } from "./hooks";
+import { AgentTies } from "./AgentTies";
 import {
   ChangeHistory,
   DraftField,
@@ -526,6 +527,7 @@ function TicketView({ id }: { id: string }) {
           />
         )}
       </section>
+      <AgentTies targetType="ticket" targetId={ticket.id} headingLevel={2} />
       <Comments ticket={ticket} />
       <ChangeHistory id={ticket.id} changes={ticket.history.length} />
     </>

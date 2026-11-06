@@ -103,6 +103,7 @@ Agents act with credentials you issue in Settings (see [Bring an AI agent in](#b
 - report what they work on and where
 - talk in Discussions
 - file and work tickets
+- tie themselves to the records they work on, with their role there, and change or remove the ties they set
 - receive the messages you write into their chat
 
 They never change your work items, days, roadmaps, people, repositories or resources directly, nor attach files to them. They propose those changes, and you approve or reject each proposal on Review. You can turn approval off in Settings; then a proposal applies as soon as its agent submits it. A proposal can also file or change tickets beside the work it creates.
@@ -251,6 +252,16 @@ On a roadmap's overview:
    - From a work item, a roadmap or a repository, use "Tie person". "Choose person" lists only the people not tied there yet.
 
 Search finds a person by their name or any of their other fields. Agents you give a credential read people's details, contact details included, as they read your other records; they change them only through proposals you approve. An archived person keeps their ties but takes no new ones until you recover them. So does an archived repository, and merging repositories moves the people tied to one to the record you keep.
+
+### Tie agents to work and other records
+
+A tie says what an agent is tied to and its role there, such as Maintainer of a repository or Reviewer of a work item. An agent reads its ties with its context, so a tie tells it what is its to look after.
+
+1. Tie from the record. A work item, roadmap, step, repository, person, proposal or ticket has an "Agents" section; a resource and a discussion have it as a fold under their content, and a roadmap's questions and decisions each have one. A tracked chat's agents are the ones bound to it: "Tie agent" under its title on **Chats** confirms one there, which also brings it your messages (see [Follow a chat and message its agents](#follow-a-chat-and-message-its-agents)). Pick the agent in "Choose agent", type its role in "Agent's role" if you like, and press "Tie agent". The list offers agents with a live credential that are not tied there yet.
+2. Or tie from the agent. On its page under "Tied to", pick a kind of record in "Type of record to tie", type its role in "Role on the record", press "Tie to a record" and pick a match. Records you can search for, such as steps, questions, decisions and discussions, need a few letters first.
+3. Change a role in its row; it saves when you leave the field. "Unlink" removes a tie.
+
+Each tie says who set it: "By you" or "By the agent". Agents tie themselves without a proposal, and change or remove only the ties they set. A tie you set, or change, is yours: no agent changes or removes it. Ties of agents whose credentials are all revoked sit under "Retired agents". A tie reserves nothing, grants no authority and delivers no messages. An archived record keeps its ties; a new tie needs an active repository and a step still in the plan, and merging repositories moves the agents tied to one to the record you keep. Where an agent was tied to both, the record you keep keeps its tie, unless only the merged one was yours: yours then takes its place.
 
 ### Keep reference pages for you and your agents
 
@@ -418,7 +429,7 @@ Issues you and your agents file, work on and close, kept as history.
 - **A ticket's page:**
   - The key and title, the status, "Archive ticket" or "Recover ticket", and who filed it.
   - "Kind", "Priority", "Assignee", "Title", "Description" and "Resolution (needed to mark Done)".
-  - "Labels", "Repositories", the linked work item, "Comments" and "Activity history".
+  - "Labels", "Repositories", the linked work item, "Agents", "Comments" and "Activity history".
 
 ### Roadmaps
 
@@ -460,6 +471,7 @@ The repositories you and your agents work in.
   - "Repository name", "Remote URL" and "Description", plus "Archive repository" or "Recover repository".
   - "Merge into another repository" and "Linked work" ("Link work item").
   - "People" ("Tie person"): who is tied to it, with their role.
+  - "Agents" ("Tie agent"): the agents tied to it, with their role.
   - "Files" ("Attach a file"), with archived files under "Archived supporting records".
   - "Participants" and "Recent updates": who works there, on which branch, checkout or worktree, and what they reported.
 - **Reports are advisory.** They reserve nothing, and show "Stale report" after two hours without news.
@@ -493,11 +505,13 @@ Every agent identity, once you issue its credential or an agent registers it.
   - "No current reports"
   - "Credential revoked"
 - **An agent's page:**
-  - "Working now", "Responsibilities", and "Tied to": its work items, roadmaps, repositories and tracked chats, each with the reason for the tie, such as "Confirmed by you" for a chat you tied it to.
+  - "Working now" and "Responsibilities".
+  - "Tied to": every record you or the agent tied it to, by kind, each with its role and who set it, and a way to tie it to more (see [Tie agents to work and other records](#tie-agents-to-work-and-other-records)). "Agents tied to this agent" lists the other agents tied to it.
+  - "From its work": the work items, roadmaps, repositories and tracked chats its runs, participation, messages and roles tie it to, each with the reason, such as "Confirmed by you" for a chat you confirmed it in.
   - Its "Runs", "Messages and updates", "Proposals" and "Credentials".
   - "Proposals" lists everything the agent proposed, under any of its credentials, the latest first. Each is numbered in the order the agent made it, and says where it got to: drafted, submitted, applied, rejected or withdrawn.
 
-The page only shows what agents reported; a fresh report does not prove an agent is still running. Manage credentials in Settings.
+Apart from its ties, the page only shows what agents reported; a fresh report does not prove an agent is still running. Manage credentials in Settings.
 
 ### Chats
 
@@ -578,3 +592,4 @@ This guide. "Contents" lists its sections; pick one to jump to it. A section has
 | Tracked chat | A Claude Code or Codex chat you follow from a work item or roadmap |
 | Acknowledgement | An agent's or your confirmation that a message was received and understood |
 | Role | A responsibility, such as Implementation, with one owner at a time |
+| Tie | What an agent or a person is tied to, with their role there; you set ties, and an agent sets its own |

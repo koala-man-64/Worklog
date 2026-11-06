@@ -12,9 +12,9 @@ import json
 import re
 import sqlite3
 
-SCHEMA_VERSION = 16
+SCHEMA_VERSION = 17
 # Older versions that startup and offline restore upgrade in one transaction.
-UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})
+UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16})
 
 # v1 grew in place before versions were counted: _upgrade_v1 adds whichever of these a v1 database
 # lacks. People as v1 had them; v10 renames role to team, adds person details and lets links name
@@ -568,6 +568,15 @@ def add_proposal_targets(conn: sqlite3.Connection) -> None:
             record(conn, proposal, number, action, payload, created.get(number))
 
 
+# v17 ties agent identities to records: any of these types, with the agent's role there, set by the
+# person or by the agent itself (agent_links.py). A record's id is not a foreign key, since a tie names
+# one of many tables; Worklog never deletes a record a tie can name, and a repository merge moves them.
+AGENT_LINKS_SCHEMA = """
+CREATE TABLE agent_links(id TEXT PRIMARY KEY,agent_id TEXT NOT NULL REFERENCES communication_agents(id),target_type TEXT NOT NULL CHECK(target_type IN('item','roadmap','step','repository','person','resource','discussion','proposal','ticket','agent','question','decision')),target_id TEXT NOT NULL,relationship TEXT NOT NULL DEFAULT '',set_by TEXT NOT NULL CHECK(set_by IN('human','agent')),created_at TEXT NOT NULL,UNIQUE(agent_id,target_type,target_id));
+CREATE INDEX agent_links_target ON agent_links(target_type,target_id);
+"""
+
+
 def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
     """Unlike executescript, preserve the caller's transaction and rollback boundary."""
     for statement in filter(str.strip, schema.split(";")):
@@ -583,7 +592,7 @@ def upgrade(conn: sqlite3.Connection) -> None:
     the chat: that delivery ends, with the reason 'unconfirmed'. v14 gives every task its place in
     its work item's list, the one it was listed in, and changes nothing else about it. v15 lets a
     work item wait and changes no record. v16 records what each approved proposal was applied to
-    and changes no record either.
+    and changes no record either. v17 adds agent ties, which start empty, and changes no record.
     """
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version == SCHEMA_VERSION:
@@ -623,8 +632,10 @@ def upgrade(conn: sqlite3.Connection) -> None:
         add_task_positions(conn)
     if version < 15:
         add_waiting_status(conn)
-    # Every upgradable version predates the proposal targets of v16.
-    add_proposal_targets(conn)
+    if version < 16:
+        add_proposal_targets(conn)
+    # Every upgradable version predates the agent ties of v17.
+    execute_schema(conn, AGENT_LINKS_SCHEMA)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 

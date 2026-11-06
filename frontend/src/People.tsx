@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { commands } from "./commands";
 import { useAction, useCommand, useData } from "./hooks";
+import { AgentTies } from "./AgentTies";
 import {
   DraftField,
   Empty,
@@ -488,6 +489,11 @@ export function PersonDetailView({ id }: { id: string }) {
           </div>
         )}
       </section>
+      <AgentTies
+        targetType="person"
+        targetId={person.id}
+        disabled={person.archived}
+      />
       <History items={person.history} />
     </>
   );
