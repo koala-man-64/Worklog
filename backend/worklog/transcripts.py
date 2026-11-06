@@ -54,6 +54,8 @@ class TranscriptRoots:
     claude_desktop: tuple[Path, ...] = ()
     # Codex homes, each with sessions/, archived_sessions/ and session_index.jsonl.
     codex: tuple[Path, ...] = ()
+    # Folders where Claude Code keeps a record of each session while its process runs (active_sessions.py).
+    claude_sessions: tuple[Path, ...] = ()
 
     @classmethod
     def from_environment(cls) -> TranscriptRoots:
@@ -65,7 +67,7 @@ class TranscriptRoots:
             desktop.append(Path(os.environ["APPDATA"]) / "Claude")
         if os.environ.get("LOCALAPPDATA"):
             desktop.append(Path(os.environ["LOCALAPPDATA"]) / "Claude-Data")
-        return cls((claude / "projects",), tuple(desktop), (codex,))
+        return cls((claude / "projects",), tuple(desktop), (codex,), (claude / "sessions",))
 
 
 @dataclass
@@ -594,6 +596,19 @@ class TranscriptReader:
         return {"found": bool(views), "source": source,
                 "lastActivityAt": max((v["lastActivityAt"] for v in views if v["lastActivityAt"]), default=None),
                 "state": "working" if any(v["state"] == "working" for v in views) else "idle", "threads": views}
+
+    def headline(self, chat_id: str) -> tuple[str, str]:
+        """A chat's own title and latest model, read from its main transcript alone, so a chat
+        with many subagents stays cheap to name. Both are empty when unknown or unreadable."""
+        try:
+            _, threads = self.threads(chat_id)
+            if not threads:
+                return "", ""
+            state = self.latest(threads[0])
+            return state.title or threads[0].title, one_line(state.model, NAME_LIMIT)
+        except Exception as exc:  # as in summary: one unreadable transcript never fails a list
+            logger.warning("Agent chat transcript could not be read for its title (%s)", type(exc).__name__)
+            return "", ""
 
     def summary(self, chat_id: str) -> dict:
         """A chat's agents and their latest activity. One unreadable transcript never fails a list of chats."""

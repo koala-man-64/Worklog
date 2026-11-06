@@ -507,6 +507,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/claude-sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Claude Sessions
+         * @description The Claude Code sessions running on this machine, each with the chats tracking it and
+         *     the agents tied to it, so Chats can suggest the ones nothing tracks yet.
+         */
+        get: operations["claude_sessions_api_v1_claude_sessions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chats/{identity}/transcript": {
         parameters: {
             query?: never;
@@ -1812,6 +1833,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/chat-confirmations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Chat Id Confirmation Create */
+        post: operations["chat_id_confirmation_create_api_v1_chat_confirmations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chat-confirmations/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Chat Id Confirmation Remove */
+        post: operations["chat_id_confirmation_remove_api_v1_chat_confirmations_remove_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/inbox/receive": {
         parameters: {
             query?: never;
@@ -2509,6 +2564,13 @@ export interface components {
             repos?: string[];
             /** Stepids */
             stepIds?: string[];
+        };
+        /** ChatIdConfirmation */
+        ChatIdConfirmation: {
+            /** Agentid */
+            agentId: string;
+            /** Chatid */
+            chatId: string;
         };
         /** ChatMessageCreate */
         ChatMessageCreate: {
@@ -4776,6 +4838,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    claude_sessions_api_v1_claude_sessions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };
@@ -7925,6 +8009,76 @@ export interface operations {
             };
         };
     };
+    chat_id_confirmation_create_api_v1_chat_confirmations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatIdConfirmation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chat_id_confirmation_remove_api_v1_chat_confirmations_remove_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatIdConfirmation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     inbox_receive_api_v1_inbox_receive_post: {
         parameters: {
             query?: never;
@@ -9236,6 +9390,7 @@ export interface operations {
             query?: {
                 limit?: number;
                 offset?: number;
+                q?: string;
             };
             header?: never;
             path?: never;

@@ -1854,6 +1854,27 @@
         }
       }
     },
+    "/api/v1/claude-sessions": {
+      "get": {
+        "summary": "Claude Sessions",
+        "description": "The Claude Code sessions running on this machine, each with the chats tracking it and\nthe agents tied to it, so Chats can suggest the ones nothing tracks yet.",
+        "operationId": "claude_sessions_api_v1_claude_sessions_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Claude Sessions Api V1 Claude Sessions Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/chats/{identity}/transcript": {
       "get": {
         "summary": "Chat Transcript",
@@ -6371,6 +6392,86 @@
         }
       }
     },
+    "/api/v1/chat-confirmations": {
+      "post": {
+        "summary": "Chat Id Confirmation Create",
+        "operationId": "chat_id_confirmation_create_api_v1_chat_confirmations_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatIdConfirmation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Chat Id Confirmation Create Api V1 Chat Confirmations Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat-confirmations/remove": {
+      "post": {
+        "summary": "Chat Id Confirmation Remove",
+        "operationId": "chat_id_confirmation_remove_api_v1_chat_confirmations_remove_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatIdConfirmation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Chat Id Confirmation Remove Api V1 Chat Confirmations Remove Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/inbox/receive": {
       "post": {
         "summary": "Inbox Receive",
@@ -8513,6 +8614,17 @@
               "default": 0,
               "title": "Offset"
             }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200,
+              "default": "",
+              "title": "Q"
+            }
           }
         ],
         "responses": {
@@ -8924,6 +9036,29 @@
           "title"
         ],
         "title": "ChatCreate"
+      },
+      "ChatIdConfirmation": {
+        "properties": {
+          "agentId": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Agentid"
+          },
+          "chatId": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Chatid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "agentId",
+          "chatId"
+        ],
+        "title": "ChatIdConfirmation"
       },
       "ChatMessageCreate": {
         "properties": {

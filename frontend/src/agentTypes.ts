@@ -2,7 +2,13 @@ import type { AgentRun, RepositoryContext } from "./repositoryTypes";
 
 type Titled = { id: string; title: string; archived: boolean };
 export type TieReason =
-  "participation" | "role" | "update" | "message" | "run" | "chat";
+  | "participation"
+  | "role"
+  | "update"
+  | "message"
+  | "run"
+  | "confirmed"
+  | "chat";
 type Tie = { via: TieReason[]; current: boolean; lastAt: string | null };
 export type Ties<T> = { items: (T & Tie)[]; total: number };
 export type RegistryWork = {
