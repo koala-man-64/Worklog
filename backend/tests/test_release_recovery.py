@@ -36,7 +36,10 @@ COMMIT;
 
 
 def to_v18(path):
-    """Take a current database back to the v18 shape the documented way."""
+    """Take a current database back to the v18 shape the documented way: to version 19 first."""
+    from test_reminder_recovery import to_v19
+
+    to_v19(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK)
 
@@ -128,7 +131,8 @@ def test_the_documented_way_back_to_v18_drops_only_the_releases_and_upgrades_aga
     # The release and its two checks are in the index under the types the way back removes.
     assert sorted(kind for _, kind, *_ in search_rows(path, "k.type IN " + RELEASE_TYPES)) == [
         "release", "release_check", "release_check"]
-    kept_tables = [name for name in tables(path) if name not in RELEASE_TABLES]
+    # The way back to v19, which to_v18 takes first, drops v20's reminders, of which this test holds none.
+    kept_tables = [name for name in tables(path) if name not in (*RELEASE_TABLES, "reminders")]
     kept, kept_search = rows(path, kept_tables), search_rows(path, "k.type NOT IN " + RELEASE_TYPES)
     to_v18(path)
     recovery.validate_database(path)

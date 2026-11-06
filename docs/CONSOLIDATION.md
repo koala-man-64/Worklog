@@ -55,6 +55,7 @@ The order is fixed:
 | K11 (D7) | Which tool hash-locks Python dependencies? | pip-tools (`pip-compile --generate-hashes`), with separate runtime and dev lock files | 5.7 | 2026-11-04, Rudy |
 | K12 | Should registering with a chat also wait for the person's confirmation? (from the security review of 1.4) | No: K3 stays as it is. A registered identity is bound to its chat with no confirmation, since agents are cooperating (K1), and the chat page names who registered each one. C-01 stays narrowed, not closed. | 1.4 | 2026-11-04, Rudy |
 | K13 | Does a new database start from the baseline schema, or at v1 with every upgrade run? (from building 2.5) | From the baseline, at the current version. Each schema change then writes its DDL twice, in `schema.py` and in its upgrade step, and the seals fail on any difference (see 2.5). | 2.5 | 2026-11-05, Claude, while building 2.5 |
+| K14 | What may agents do with the person's reminders (schema v20)? | Read every reminder, notes and archived ones included, and set, change, snooze, complete and reopen them directly under their own identity, as with tickets. Only the person archives and recovers. The policy table lists the reads as `agent:read` and the writes as `agent:remind` (K2). | 3.3 | 2026-11-06, Rudy |
 | D6 | Is a migration framework needed? | Closed as done: migrations v1 to v10 run in one transaction after a pre-migration backup. | — | 2026-11-04, Rudy |
 
 ## Rules the roundtable settled

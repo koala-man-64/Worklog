@@ -13,6 +13,7 @@ import {
 } from "./components";
 import { Coordination, OpenRuns, Pages } from "./Coordination";
 import { LinkPicker } from "./LinkPicker";
+import { RecordReminders } from "./RecordReminders";
 import { RepositoryName } from "./RepositoryControls";
 import type { Repository, RepositoryRegistration } from "./repositoryTypes";
 import type { Attachment, Item, List } from "./types";
@@ -532,6 +533,15 @@ function RepositoryDetail({ id }: { id: string }) {
         />
       )}
       {!repo.mergedInto && <RepositoryFiles repo={repo} />}
+      {/* A merge moves its reminders to the record that answers for this one, too. */}
+      {!repo.mergedInto && (
+        <RecordReminders
+          targetType="repository"
+          targetId={repo.id}
+          archived={repo.archived}
+          heading="h2"
+        />
+      )}
       <Coordination repositoryId={id} />
     </>
   );

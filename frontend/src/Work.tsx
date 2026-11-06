@@ -30,6 +30,7 @@ import {
 import { AgentTies } from "./AgentTies";
 import { Coordination } from "./Coordination";
 import { AppliedProposals } from "./ProposalHistory";
+import { RecordReminders } from "./RecordReminders";
 import { ReleasesSection } from "./Releases";
 import { TicketsSection } from "./Tickets";
 import { Icon } from "./icons";
@@ -674,6 +675,11 @@ export function ItemDetail({ id }: { id: string }) {
             records: item.github ?? [],
           },
         ]}
+      />
+      <RecordReminders
+        targetType="item"
+        targetId={id}
+        archived={!!item.archived}
       />
       <AppliedProposals path={"/work-items/" + id} noun="work item" />
       <History items={item.history} />

@@ -12,9 +12,9 @@ import json
 import re
 import sqlite3
 
-SCHEMA_VERSION = 19
+SCHEMA_VERSION = 20
 # Older versions that startup and offline restore upgrade in one transaction.
-UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18})
+UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19})
 
 # v1 grew in place before versions were counted: _upgrade_v1 adds whichever of these a v1 database
 # lacks. People as v1 had them; v10 renames role to team, adds person details and lets links name
@@ -615,6 +615,14 @@ CREATE TABLE release_checks(id TEXT PRIMARY KEY,release_id TEXT NOT NULL REFEREN
 CREATE INDEX release_checks_release ON release_checks(release_id,archived,kind);
 """
 
+# v20: reminders, which an upgrade leaves empty. Every statement stands alone: execute_schema
+# splits on semicolons.
+REMINDER_SCHEMA = """
+CREATE TABLE reminders(id TEXT PRIMARY KEY,title TEXT NOT NULL,due_date TEXT NOT NULL,due_time TEXT,state TEXT NOT NULL DEFAULT 'open' CHECK(state IN('open','done')),target_type TEXT CHECK(target_type IN('item','ticket','roadmap','person','repository','chat')),target_id TEXT,author_id TEXT NOT NULL,author_label TEXT NOT NULL,author_kind TEXT NOT NULL CHECK(author_kind IN('agent','human')),archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL,done_at TEXT,notes TEXT NOT NULL DEFAULT '',CHECK((target_type IS NULL)=(target_id IS NULL)));
+CREATE INDEX reminders_due ON reminders(archived,state,due_date,due_time);
+CREATE INDEX reminders_target ON reminders(target_type,target_id);
+"""
+
 
 def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
     """Unlike executescript, preserve the caller's transaction and rollback boundary."""
@@ -634,6 +642,7 @@ def upgrade(conn: sqlite3.Connection) -> None:
     and changes no record either. v17 adds agent ties, which start empty, and changes no record.
     v18 records the directory each agent registered from, unknown for those registered before it,
     and changes no record. v19 adds releases, which start empty, and changes no record.
+    v20 adds reminders, which start empty too, and changes no record either.
     """
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version == SCHEMA_VERSION:
@@ -679,8 +688,10 @@ def upgrade(conn: sqlite3.Connection) -> None:
         execute_schema(conn, AGENT_LINKS_SCHEMA)
     if version < 18:
         add_registration_directories(conn)
-    # Every upgradable version predates the releases of v19.
-    execute_schema(conn, RELEASE_SCHEMA)
+    if version < 19:
+        execute_schema(conn, RELEASE_SCHEMA)
+    if version < 20:
+        execute_schema(conn, REMINDER_SCHEMA)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 

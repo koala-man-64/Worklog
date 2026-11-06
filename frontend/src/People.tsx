@@ -17,6 +17,7 @@ import { LinkPicker } from "./LinkPicker";
 import type { Repository } from "./repositoryTypes";
 import type { Item, List, Person, PersonDetail, Roadmap } from "./types";
 import { Icon } from "./icons";
+import { RecordReminders } from "./RecordReminders";
 
 type TargetType = "item" | "roadmap" | "repository";
 
@@ -493,6 +494,11 @@ export function PersonDetailView({ id }: { id: string }) {
         targetType="person"
         targetId={person.id}
         disabled={person.archived}
+      />
+      <RecordReminders
+        targetType="person"
+        targetId={id}
+        archived={!!person.archived}
       />
       <History items={person.history} />
     </>

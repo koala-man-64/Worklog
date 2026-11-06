@@ -6,7 +6,7 @@ maps each record to its row's rowid, with the record's type and owner indexed, s
 write here finds its rows through an index and changes them by rowid. Keys and rows stay
 in step only because every write goes through this module:
 backend/tests/test_search_writes.py fails when another module writes either table.
-The searches of one kind of record (work, people, tickets, resources, discussions) query
+The searches of one kind of record (work, people, tickets, resources, reminders, discussions) query
 search_index with MATCH where they are, with the expression prefix_match builds from what
 the person typed.
 """
@@ -24,7 +24,7 @@ MAX_TERMS = 30
 # Every kind of record the index holds, which global search can be narrowed to.
 SearchType = Literal["item", "step", "roadmap", "note", "attachment", "link", "chat", "github", "question",
                      "decision", "person", "ticket", "ticket_comment", "discussion", "discussion_message", "resource",
-                     "release", "release_check"]
+                     "release", "release_check", "reminder"]
 
 
 def prefix_match(query: str) -> str | None:
@@ -145,11 +145,11 @@ def global_search(c: sqlite3.Connection, query: str, archived: bool = False, lim
     if kinds:
         source += f" AND s.type IN ({','.join('?' * len(kinds))})"
     arguments = (match, int(archived), *kinds)
-    # A resource is its own page and carries its own archive flag in the index. A release's checks
+    # A resource or a reminder is its own page and carries its own archive flag in the index. A release's checks
     # open on the release, and are archived with it as well as on their own.
     rows = c.execute("""SELECT s.entity_id,s.type,s.title,s.body,s.owner_id,
-                     CASE WHEN s.type='resource' THEN 'resources' WHEN ds.id IS NOT NULL THEN 'discussions' WHEN tk.id IS NOT NULL THEN 'tickets' WHEN rl.id IS NOT NULL THEN 'releases' WHEN w.id IS NOT NULL THEN 'work' WHEN p.id IS NOT NULL THEN 'people' WHEN rp.id IS NOT NULL THEN 'repositories' ELSE 'roadmaps' END AS route_type,
-                     CASE WHEN s.type='resource' THEN s.entity_id ELSE coalesce(ds.id,tk.id,rl.id,w.id,p.id,rp.id,rm.id) END AS route_id """ + source + " ORDER BY rank LIMIT ? OFFSET ?", (*arguments, limit, offset)).fetchall()
+                     CASE WHEN s.type='resource' THEN 'resources' WHEN s.type='reminder' THEN 'reminders' WHEN ds.id IS NOT NULL THEN 'discussions' WHEN tk.id IS NOT NULL THEN 'tickets' WHEN rl.id IS NOT NULL THEN 'releases' WHEN w.id IS NOT NULL THEN 'work' WHEN p.id IS NOT NULL THEN 'people' WHEN rp.id IS NOT NULL THEN 'repositories' ELSE 'roadmaps' END AS route_type,
+                     CASE WHEN s.type IN ('resource','reminder') THEN s.entity_id ELSE coalesce(ds.id,tk.id,rl.id,w.id,p.id,rp.id,rm.id) END AS route_id """ + source + " ORDER BY rank LIMIT ? OFFSET ?", (*arguments, limit, offset)).fetchall()
     total = c.execute("SELECT count(*) " + source, arguments).fetchone()[0]
     return {"items": [{"id": r[0], "type": r[1], "title": r[2], "snippet": r[3][:220], "ownerId": r[4],
                        "routeType": r["route_type"], "routeId": r["route_id"]} for r in rows], "total": total}

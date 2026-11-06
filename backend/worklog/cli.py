@@ -63,6 +63,9 @@ TIE_TYPES = ("item", "roadmap", "step", "repository", "person", "resource", "dis
 TICKET_KINDS = ("bug", "incident", "task")
 TICKET_PRIORITIES = ("low", "normal", "high", "urgent")
 TICKET_STATUSES = ("open", "doing", "blocked", "done")
+# What a reminder may name, each with its flag, and which reminders a list shows.
+REMINDER_TARGETS = ("item", "ticket", "roadmap", "person", "repository", "chat")
+REMINDER_VIEWS = ("open", "due", "upcoming", "done", "all")
 # What agents read before their first command; `worklog agent guide` prints it. Resolved like the
 # frontend build in app.py, from this checkout.
 AGENT_GUIDE = Path(__file__).resolve().parents[2] / "docs" / "AGENT-GUIDE.md"
@@ -510,6 +513,22 @@ def _tie_route_allowed(method: str, route: str) -> bool:
     return (route == "/agent-links" and method in {"GET", "POST"}) or (route == "/agent-links/unlink" and method == "POST")
 
 
+def _reminder_route_allowed(method: str, route: str) -> bool:
+    """Agents set, change, snooze and complete the person's reminders; archive and recover stay
+    with the person."""
+    if route == "/reminders":
+        return method in {"GET", "POST"}
+    parts = route.split("/")
+    if len(parts) != 3 or parts[1] != "reminders":
+        return False
+    try:
+        if str(uuid.UUID(parts[2])) != parts[2].lower():
+            return False
+    except ValueError:
+        return False
+    return method in {"GET", "PATCH"}
+
+
 def _agent_url(base_url: str) -> str:
     parsed = urlsplit(base_url)
     if (parsed.scheme != "http" or parsed.hostname != HOST or parsed.username
@@ -555,7 +574,7 @@ class AgentClient:
             allowed = query.get("ownerType") == ["proposal"] and len(ids) == 1 and valid_id(ids[0])
         allowed = (allowed or _discussion_route_allowed(method, route) or _coordination_route_allowed(method, route)
                    or _ticket_route_allowed(method, route) or _tie_route_allowed(method, route)
-                   or (method == "POST" and route == "/inbox/receive"))
+                   or _reminder_route_allowed(method, route) or (method == "POST" and route == "/inbox/receive"))
         if not allowed:
             raise ValueError("Agent command is outside proposal/read scope")
         headers = {"Authorization": "Bearer " + self.token, "Accept": "application/json"}
@@ -566,7 +585,7 @@ class AgentClient:
             data = json.dumps(payload).encode("utf-8")
             headers["Content-Type"] = "application/json"
         coordination_write = method in {"POST", "PATCH"} and route.startswith(("/repositories", "/agent-runs", "/participations",
-                                                                               "/tickets", "/chats/track"))
+                                                                               "/tickets", "/chats/track", "/reminders"))
         if method == "POST" or coordination_write:
             request_id = request_id or str(uuid.uuid4())
             if not 8 <= len(request_id) <= 200 or not request_id.isascii() or any(ord(c) < 33 or ord(c) > 126 for c in request_id):
@@ -755,6 +774,8 @@ def agent_command(args: argparse.Namespace, port: int, redact: list[str]) -> Any
         return ticket_command(client, args)
     if args.agent_action == "ties":
         return tie_command(client, args)
+    if args.agent_action == "reminders":
+        return reminder_command(client, args)
     if args.agent_action == "resources":
         if args.resource_action == "list":
             return client.request("GET", "/resources" + _coordination_query(args, "q", "archived", "limit", "offset"))
@@ -1125,6 +1146,97 @@ def _ticket_parser(actions: Any) -> None:
     write(post)
 
 
+def _reminder_target(args: argparse.Namespace) -> tuple[str, str] | None:
+    """The record a reminder command names with --item, --ticket and the like, if any."""
+    for kind in REMINDER_TARGETS:
+        value = getattr(args, "target_" + kind, None)
+        if value is not None:
+            return kind, value
+    return None
+
+
+def reminder_command(client: AgentClient, args: argparse.Namespace) -> Any:
+    action = args.reminder_action
+    target = _reminder_target(args)
+    if action == "list":
+        args.targetType, args.targetId = target or (None, None)
+        return client.request("GET", "/reminders" + _coordination_query(
+            args, "state", "date", "until", "targetType", "targetId", "q", "archived", "limit", "offset"))
+    if action == "show":
+        return client.request("GET", "/reminders/" + args.reminder)
+    payload: dict[str, Any] = {}
+    for flag, field in (("title", "title"), ("notes", "notes"), ("on", "date"), ("at", "time")):
+        if getattr(args, flag, None) is not None:
+            payload[field] = getattr(args, flag)
+    if target:
+        payload["targetType"], payload["targetId"] = target
+    if action == "add":
+        return client.request("POST", "/reminders", payload, request_id=args.request_id)
+    if getattr(args, "all_day", False):
+        payload["time"] = None
+    if getattr(args, "unlink", False):
+        payload["targetType"] = payload["targetId"] = None
+    if action in {"done", "reopen"}:
+        payload["state"] = "done" if action == "done" else "open"
+    payload["revision"] = args.revision
+    return client.request("PATCH", "/reminders/" + args.reminder, payload, request_id=args.request_id)
+
+
+def _reminder_parser(actions: Any) -> None:
+    def write(command: Any) -> None:
+        command.add_argument("--request-id", help="Reuse with the same payload after an uncertain result")
+
+    def reminder(command: Any, *, revision: bool = True) -> None:
+        command.add_argument("reminder", help="The reminder's ID")
+        if revision:
+            command.add_argument("--revision", type=int, required=True)
+
+    def target(command: Any, *, unlink: bool = False) -> None:
+        names = command.add_mutually_exclusive_group()
+        names.add_argument("--item", dest="target_item", metavar="ID", help="Work item ID")
+        names.add_argument("--ticket", dest="target_ticket", metavar="REF", help="T-12, 12 or the ticket's ID")
+        names.add_argument("--roadmap", dest="target_roadmap", metavar="ID", help="Roadmap ID")
+        names.add_argument("--person", dest="target_person", metavar="ID", help="Person ID")
+        names.add_argument("--repository", dest="target_repository", metavar="ID", help="Catalog repository ID")
+        names.add_argument("--chat", dest="target_chat", metavar="ID", help="Tracked chat ID, as Worklog keeps it")
+        if unlink:
+            names.add_argument("--unlink", action="store_true", help="Stop naming a record")
+
+    reminders = actions.add_parser("reminders", help="Set, snooze and complete the person's reminders").add_subparsers(
+        dest="reminder_action", required=True)
+    listing = reminders.add_parser("list", help="Open reminders by when they come due unless --state says otherwise")
+    listing.add_argument("--state", choices=REMINDER_VIEWS, help="due: due now; upcoming: open and not due yet")
+    listing.add_argument("--date", help="Only those due on this day, YYYY-MM-DD")
+    listing.add_argument("--until", help="Only those due on or before this day, YYYY-MM-DD")
+    target(listing)
+    listing.add_argument("--q", help="Words from a reminder's title or notes")
+    listing.add_argument("--archived", action="store_true", help="List archived reminders")
+    listing.add_argument("--limit", type=int, default=50)
+    listing.add_argument("--offset", type=int, default=0)
+    reminder(reminders.add_parser("show", help="A reminder with its notes and history"), revision=False)
+    add = reminders.add_parser("add", help="Set a reminder for the person")
+    add.add_argument("--title", required=True)
+    add.add_argument("--on", required=True, help="The day it is due, YYYY-MM-DD, in the Worklog timezone")
+    add.add_argument("--at", help="The time on that day, HH:MM on a 24-hour clock; without it, it is due all day")
+    add.add_argument("--notes", help="Markdown")
+    target(add)
+    write(add)
+    update = reminders.add_parser("update", help="Change a reminder; snooze it with --on and --at")
+    reminder(update)
+    update.add_argument("--title")
+    update.add_argument("--notes", help="Markdown")
+    update.add_argument("--on", help="Move it to this day, YYYY-MM-DD")
+    when = update.add_mutually_exclusive_group()
+    when.add_argument("--at", help="Move it to this time, HH:MM")
+    when.add_argument("--all-day", action="store_true", help="Make it due all day, with no time")
+    target(update, unlink=True)
+    write(update)
+    for verb, summary in (("done", "Mark a reminder done"), ("reopen", "Open a done reminder again")):
+        command = reminders.add_parser(verb, help=summary)
+        reminder(command)
+        write(command)
+
+
 def _discussion_context(args: argparse.Namespace) -> dict:
     context = getattr(args, "context", None)
     if context:
@@ -1349,6 +1461,7 @@ def parser() -> argparse.ArgumentParser:
     _coordination_parser(actions)
     _ticket_parser(actions)
     _tie_parser(actions)
+    _reminder_parser(actions)
     inbox = actions.add_parser("inbox", help="Receive the messages the person wrote into your chats; each arrives once")
     inbox.add_argument("--chat", help="Only messages for your open runs that reported this chat ID")
     inbox.add_argument("--request-id", help="Reuse after an uncertain result to receive the same messages again")

@@ -315,6 +315,34 @@ class ReleaseCheckUpdate(Expected):
     status: ItemState | None = None
 
 
+# What a reminder may name (v20).
+ReminderTarget = Literal["item", "ticket", "roadmap", "person", "repository", "chat"]
+
+
+class ReminderCreate(Command):
+    title: str
+    notes: str = ""
+    # The day it is due, YYYY-MM-DD, and the time on it, HH:MM, by the clock of the Worklog
+    # timezone. Without a time it is due all day.
+    date: str
+    time: str | None = None
+    # Both or neither: the record it is about. A ticket can be named by its key (T-12).
+    targetType: ReminderTarget | None = None
+    targetId: str | None = None
+
+
+class ReminderUpdate(Expected):
+    title: str | None = None
+    notes: str | None = None
+    date: str | None = None
+    # Null makes it an all-day reminder; omitted keeps its time.
+    time: str | None = None
+    state: Literal["open", "done"] | None = None
+    # Null for both stops naming a record; omitted keeps the one it names.
+    targetType: ReminderTarget | None = None
+    targetId: str | None = None
+
+
 class PersonCreate(Command):
     name: str
     title: str = ""

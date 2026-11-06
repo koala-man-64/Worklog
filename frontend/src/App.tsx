@@ -17,6 +17,7 @@ import { RoadmapNav } from "./RoadmapNav";
 import { Releases } from "./Releases";
 import { Repositories } from "./Repositories";
 import { Tickets } from "./Tickets";
+import { Reminders, RemindersLink } from "./Reminders";
 import { People } from "./People";
 import { Resources } from "./Resources";
 import { Agents } from "./Agents";
@@ -144,6 +145,12 @@ export default function App() {
                       />
                     </button>
                   </div>
+                ) : route === "reminders" && session.data ? (
+                  // Counting what is due needs the session.
+                  <RemindersLink
+                    key={session.data.dataId}
+                    current={page === route}
+                  />
                 ) : (
                   link(route, icon, label)
                 )}
@@ -207,6 +214,8 @@ export default function App() {
             <Work key={id ?? "list"} selected={id} />
           ) : page === "tickets" ? (
             <Tickets key={id ?? "list"} selected={id} />
+          ) : page === "reminders" ? (
+            <Reminders selected={id} />
           ) : page === "roadmaps" ? (
             <Roadmaps key={id ?? "list"} selected={id} step={sub} />
           ) : page === "releases" ? (

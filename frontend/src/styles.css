@@ -3611,7 +3611,8 @@ code {
   .chats-split .panel-body,
   .discussions-split .panel-body,
   .guide-split .panel-body,
-  .resources-split .panel-body {
+  .resources-split .panel-body,
+  .reminders-split .panel-body {
     max-height: 60dvh;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -3687,6 +3688,9 @@ code {
   }
   .resources-split {
     grid-template-columns: minmax(260px, 1fr) minmax(0, 3fr);
+  }
+  .reminders-split {
+    grid-template-columns: minmax(300px, 1fr) minmax(0, 2fr);
   }
   .discussion-roles-panel[open] {
     flex: 1 1 auto;
@@ -3767,13 +3771,15 @@ code {
   margin-top: 0;
 }
 /* Resources: the person's reference pages, named and summarised, beside the page they open. */
-.resource-tools {
+.resource-tools,
+.reminder-tools {
   display: grid;
   gap: 8px;
   padding: 12px 16px;
   border-bottom: 1px solid var(--line);
 }
-.resource-tools input {
+.resource-tools input,
+.reminder-tools input {
   margin: 0;
 }
 .resource-add {
@@ -3790,12 +3796,14 @@ code {
   flex-basis: 100%;
   margin: 0;
 }
-.resource-list {
+.resource-list,
+.reminder-list {
   list-style: none;
   margin: 0;
   padding: 8px 0;
 }
-.resource-list a {
+.resource-list a,
+.reminder-list a {
   display: grid;
   gap: 2px;
   padding: 6px 8px;
@@ -3804,28 +3812,35 @@ code {
   text-decoration: none;
   overflow-wrap: anywhere;
 }
-.resource-list a:hover {
+.resource-list a:hover,
+.reminder-list a:hover {
   background: var(--teal-wash);
 }
-.resource-list a[aria-current] {
+.resource-list a[aria-current],
+.reminder-list a[aria-current] {
   background: var(--teal-wash);
   color: var(--teal);
 }
-.resource-list a[aria-current] .resource-name {
+.resource-list a[aria-current] .resource-name,
+.reminder-list a[aria-current] .reminder-name {
   font-weight: 600;
 }
-.resource-list small {
+.resource-list small,
+.reminder-list small {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.5;
 }
-.resource-none {
+.resource-none,
+.reminder-none {
   margin: 12px 8px;
 }
-.resource-head {
+.resource-head,
+.reminder-head {
   margin-bottom: 12px;
 }
-.resource-head > h2 {
+.resource-head > h2,
+.reminder-head > h2 {
   margin: 0;
 }
 .resource-pane .lede {
@@ -3835,9 +3850,134 @@ code {
 .resource-pane .markdown h2:first-child {
   margin-top: 0;
 }
-.resource-updated {
+.resource-updated,
+.reminder-updated {
   margin: 16px 0 8px;
   font-size: 12px;
+}
+/* Reminders: how many are due beside the sidebar's link, and the reminders listed on Today, on
+   each record's page and on Reminders, where a due one is marked amber and an overdue one red. */
+.sidebar nav .nav-count {
+  margin-left: auto;
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--status-doing-bg);
+  color: var(--status-doing-ink);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: center;
+}
+.reminder-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.reminder-add input {
+  margin: 0;
+}
+.reminder-add input:not([type="date"], [type="time"]) {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+.reminder-add input:is([type="date"], [type="time"]) {
+  flex: 0 1 auto;
+  width: auto;
+  min-width: 0;
+}
+.reminder-add .error {
+  flex-basis: 100%;
+  margin: 0;
+}
+.reminder-section > .reminder-add {
+  margin: 0 0 12px;
+}
+.reminder-when.overdue {
+  color: var(--danger);
+}
+.reminder-list a.due .reminder-when {
+  color: var(--status-doing-ink);
+}
+.reminder-list a.done .reminder-name {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.reminder-rows {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.reminder-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  padding: 8px 12px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line);
+  border-radius: 5px;
+}
+.reminder-row.due {
+  border-left-color: var(--status-doing-border);
+}
+.reminder-row.overdue {
+  border-left-color: var(--danger);
+}
+.reminder-main {
+  display: grid;
+  gap: 2px;
+  flex: 1 1 240px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.reminder-main small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.reminder-row > .toolbar {
+  margin: 0;
+  gap: 6px;
+}
+.reminder-row > .error {
+  flex-basis: 100%;
+  margin: 0;
+}
+.reminder-setter {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  vertical-align: middle;
+}
+.reminder-state {
+  margin: 0 0 8px;
+  color: var(--muted);
+}
+.reminder-when-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  margin: 12px 0;
+}
+.reminder-when-fields label {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+/* As specific as the rule for a label's input, so these sit on the button's line. */
+.reminder-when-fields label > input {
+  width: auto;
+  margin: 0;
+}
+.reminder-target {
+  margin: 8px 0 16px;
+  overflow-wrap: anywhere;
 }
 /* Linked repositories read as chips that unlink; "Link repository" searches for another. */
 .repository-picker {
