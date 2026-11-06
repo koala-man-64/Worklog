@@ -186,6 +186,19 @@ ROUTES: dict[str, dict[str, str | Only]] = {
     "/references/{identity}/archive": {"POST": HUMAN},
     "/references/{identity}/recover": {"POST": HUMAN},
 
+    "/release-checks": {"POST": HUMAN},
+    "/release-checks/{identity}": {"GET": READ, "PATCH": HUMAN},
+    "/release-checks/{identity}/archive": {"POST": HUMAN},
+    "/release-checks/{identity}/recover": {"POST": HUMAN},
+
+    "/release-contents": {"POST": HUMAN},
+    "/release-contents/remove": {"POST": HUMAN},
+
+    "/releases": {"GET": READ, "POST": HUMAN},
+    "/releases/{identity}": {"GET": READ, "PATCH": HUMAN},
+    "/releases/{identity}/archive": {"POST": HUMAN},
+    "/releases/{identity}/recover": {"POST": HUMAN},
+
     "/repositories": {"GET": READ, "POST": HUMAN},
     "/repositories/ensure": {"POST": COORDINATE},
     "/repositories/resolve": {"GET": READ},

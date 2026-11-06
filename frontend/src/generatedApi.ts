@@ -2059,6 +2059,179 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/releases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Releases */
+        get: operations["releases_api_v1_releases_get"];
+        put?: never;
+        /** Release Create */
+        post: operations["release_create_api_v1_releases_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/releases/{identity}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Release */
+        get: operations["release_api_v1_releases__identity__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Release Update */
+        patch: operations["release_update_api_v1_releases__identity__patch"];
+        trace?: never;
+    };
+    "/api/v1/releases/{identity}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Release Archive */
+        post: operations["release_archive_api_v1_releases__identity__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/releases/{identity}/recover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Release Recover */
+        post: operations["release_recover_api_v1_releases__identity__recover_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/release-contents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Release Add */
+        post: operations["release_add_api_v1_release_contents_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/release-contents/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Release Remove */
+        post: operations["release_remove_api_v1_release_contents_remove_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/release-checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check Create */
+        post: operations["check_create_api_v1_release_checks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/release-checks/{identity}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Check */
+        get: operations["check_api_v1_release_checks__identity__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Check Update */
+        patch: operations["check_update_api_v1_release_checks__identity__patch"];
+        trace?: never;
+    };
+    "/api/v1/release-checks/{identity}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check Archive */
+        post: operations["check_archive_api_v1_release_checks__identity__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/release-checks/{identity}/recover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check Recover */
+        post: operations["check_recover_api_v1_release_checks__identity__recover_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/discussions/participants": {
         parameters: {
             query?: never;
@@ -3246,10 +3419,97 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** ReleaseCheckCreate */
+        ReleaseCheckCreate: {
+            /** Releaseid */
+            releaseId: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "notify" | "test" | "prepare";
+            /** Text */
+            text: string;
+            /**
+             * Details
+             * @default
+             */
+            details: string;
+            /** Personid */
+            personId?: string | null;
+            /** Duedate */
+            dueDate?: string | null;
+            /**
+             * Status
+             * @default open
+             * @enum {string}
+             */
+            status: "open" | "doing" | "waiting" | "blocked" | "done";
+        };
+        /** ReleaseCheckUpdate */
+        ReleaseCheckUpdate: {
+            /** Revision */
+            revision: number;
+            /** Kind */
+            kind?: ("notify" | "test" | "prepare") | null;
+            /** Text */
+            text?: string | null;
+            /** Details */
+            details?: string | null;
+            /** Personid */
+            personId?: string | null;
+            /** Duedate */
+            dueDate?: string | null;
+            /** Status */
+            status?: ("open" | "doing" | "waiting" | "blocked" | "done") | null;
+        };
+        /** ReleaseContentChange */
+        ReleaseContentChange: {
+            /** Releaseid */
+            releaseId: string;
+            /**
+             * Targettype
+             * @enum {string}
+             */
+            targetType: "item" | "roadmap" | "step" | "github";
+            /** Targetid */
+            targetId: string;
+        };
+        /** ReleaseCreate */
+        ReleaseCreate: {
+            /** Title */
+            title: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Releasedate */
+            releaseDate?: string | null;
+            /**
+             * Status
+             * @default planned
+             * @enum {string}
+             */
+            status: "planned" | "released" | "cancelled";
+        };
         /** ReleaseRequest */
         ReleaseRequest: {
             /** Reason */
             reason: string;
+        };
+        /** ReleaseUpdate */
+        ReleaseUpdate: {
+            /** Revision */
+            revision: number;
+            /** Title */
+            title?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Releasedate */
+            releaseDate?: string | null;
+            /** Status */
+            status?: ("planned" | "released" | "cancelled") | null;
         };
         /** Reorder */
         Reorder: {
@@ -6593,7 +6853,7 @@ export interface operations {
                 archived?: boolean;
                 limit?: number;
                 offset?: number;
-                type?: ("item" | "step" | "roadmap" | "note" | "attachment" | "link" | "chat" | "github" | "question" | "decision" | "person" | "ticket" | "ticket_comment" | "discussion" | "discussion_message" | "resource")[];
+                type?: ("item" | "step" | "roadmap" | "note" | "attachment" | "link" | "chat" | "github" | "question" | "decision" | "person" | "ticket" | "ticket_comment" | "discussion" | "discussion_message" | "resource" | "release" | "release_check")[];
             };
             header?: never;
             path?: never;
@@ -8743,6 +9003,475 @@ export interface operations {
             path: {
                 identity: string;
                 verb: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Expected"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    releases_api_v1_releases_get: {
+        parameters: {
+            query?: {
+                /** @description planned, released, cancelled or all */
+                status?: string;
+                archived?: boolean;
+                q?: string;
+                /** @description item, roadmap, step or github, with targetId: the releases that hold that record */
+                targetType?: string | null;
+                targetId?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    release_create_api_v1_releases_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReleaseCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    release_api_v1_releases__identity__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    release_update_api_v1_releases__identity__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReleaseUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    release_archive_api_v1_releases__identity__archive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Expected"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    release_recover_api_v1_releases__identity__recover_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Expected"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    release_add_api_v1_release_contents_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReleaseContentChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    release_remove_api_v1_release_contents_remove_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReleaseContentChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_create_api_v1_release_checks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReleaseCheckCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_api_v1_release_checks__identity__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_update_api_v1_release_checks__identity__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReleaseCheckUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_archive_api_v1_release_checks__identity__archive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Expected"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_recover_api_v1_release_checks__identity__recover_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
             };
             cookie?: never;
         };

@@ -14,6 +14,7 @@ import { Today } from "./Today";
 import { Work } from "./Work";
 import { Roadmaps } from "./Roadmaps";
 import { RoadmapNav } from "./RoadmapNav";
+import { Releases } from "./Releases";
 import { Repositories } from "./Repositories";
 import { Tickets } from "./Tickets";
 import { People } from "./People";
@@ -208,6 +209,8 @@ export default function App() {
             <Tickets key={id ?? "list"} selected={id} />
           ) : page === "roadmaps" ? (
             <Roadmaps key={id ?? "list"} selected={id} step={sub} />
+          ) : page === "releases" ? (
+            <Releases key={id ?? "list"} selected={id} />
           ) : page === "repositories" ? (
             <Repositories key={id ?? "list"} selected={id} />
           ) : page === "people" ? (
