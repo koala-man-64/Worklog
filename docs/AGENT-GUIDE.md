@@ -102,7 +102,7 @@ Approval is on by default. When the person turns it off in Settings, `proposal s
 
 **Step 1. Read this guide** with `worklog agent guide`.
 
-**Step 2. Register your identity** (rules 1 and 2). The label says what you work on and which agent you are. After an uncertain result, run the same command again: it resolves to the same identity.
+**Step 2. Register your identity** (rules 1 and 2). The label says what you work on and which agent you are. Run it from the directory you work in, such as your checkout or worktree: Worklog records that directory with your identity, and the person sees it beside your proposals on Review. After an uncertain result, run the same command again: it resolves to the same identity.
 
 ```powershell
 worklog agent register --chat CHAT_ID --label 'Parser fix (Claude)'
@@ -156,10 +156,11 @@ Every command below except `guide` and `register` takes `--as NAME` before its g
 | Command | Arguments and options | Rev | Request ID | Prints |
 |---|---|---|---|---|
 | `guide` | - | - | - | this guide, as Markdown |
-| `register` | `--chat CHAT_ID --label LABEL [--name NAME] [--avatar AVATAR]` | - | - (rerun the same command) | `{name,id,agentId,label,avatar,chatId,registeredBy}`, never the token |
+| `register` | `--chat CHAT_ID --label LABEL [--name NAME] [--avatar AVATAR]` | - | - (rerun the same command) | `{name,id,agentId,label,avatar,chatId,registeredBy,directory}`, never the token |
 | `retire` | needs `--as NAME` | - | - | `{name,id,agentId,retired,registeredRevoked}` |
 
 - **Your chat.** An identity works in the one chat it registered with. Its runs report that chat unless `runs start --chat` names another, and its participation with `--item` tracks that chat on the work item. A new chat registers a new identity; registering a name again for another chat is refused (`chat_mismatch`). The name is the chat ID unless `--name` gives another.
+- **Your directory.** `register` sends the directory it runs in, and `directory` prints it. Rerunning `register` keeps the directory the identity first registered from. A directory Worklog cannot record (one holding a control or formatting character, or over 2,000 bytes) is left out, and `directory` prints null.
 - **Authority.** `register` acts with `--as NAME` (an identity you registered) or else with `WORKLOG_AGENT_TOKEN`. An identity you register can register others; retiring or revoking it takes them with it.
 - **Tokens.** Tokens are kept per data directory and port, so a test instance never uses the everyday instance's names.
 - **Retiring.** A retired identity stays retired: registering the name again creates a new identity. You can retire only an identity you registered, never a credential the person issued.
