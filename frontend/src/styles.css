@@ -3971,6 +3971,7 @@ code {
   margin-block: 0.6rem;
 }
 .reported-context code,
+.proposal-directory code,
 .coordination-update {
   overflow-wrap: anywhere;
 }
