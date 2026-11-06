@@ -288,7 +288,7 @@ The table observes first and enforces afterwards. Every read agents have today s
 
 #### 3.1 · Policy table on the routes
 
-Status: In progress · Branch: `claude/route-policy` · PR: PR_LINK; the table takes over the decision in its own PR
+Status: In progress · Branch: `claude/route-policy` · PR: [#112](https://github.com/koala-man-64/Worklog/pull/112); the table takes over the decision in its own PR
 
 Each route declares its scope. The table drives the middleware decision and checks the CLI allowlist, and replaces the seven predicate sites. Move the request guard to pure ASGI. Needs 0.2 and 2.1. Findings: C-03, A-02, C-14, REM-21, REM-22.
 
