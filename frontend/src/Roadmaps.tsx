@@ -40,6 +40,7 @@ import { AgentTies } from "./AgentTies";
 import { DecisionsSection, QuestionsSection } from "./QuestionsDecisions";
 import { AgentChips, workersOn } from "./RoadmapAgents";
 import { AppliedProposals } from "./ProposalHistory";
+import { RecordReminders } from "./RecordReminders";
 import { ReleasesSection } from "./Releases";
 import type { RoadmapWorker } from "./agentTypes";
 import type { Item, List, Person, Roadmap, Step } from "./types";
@@ -987,6 +988,11 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
             records: road.decisions ?? [],
           },
         ]}
+      />
+      <RecordReminders
+        targetType="roadmap"
+        targetId={id}
+        archived={!!road.archived}
       />
       <AppliedProposals path={"/roadmaps/" + id} noun="roadmap" />
       <History items={road.history} />

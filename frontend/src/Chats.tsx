@@ -5,6 +5,7 @@ import { RepositoryBadges } from "./RepositoryControls";
 import { NamedRuns } from "./Coordination";
 import { ChatOutbox } from "./ChatOutbox";
 import { ChatAgents, RunningSessions } from "./ChatTies";
+import { RecordReminders } from "./RecordReminders";
 import { Empty, ErrorMessage, Markdown } from "./components";
 import { Icon, type IconName } from "./icons";
 import { localStore } from "./storage";
@@ -648,6 +649,11 @@ function ChatHistory({ chat }: { chat: ChatOverview }) {
         />
       ) : null}
       <ChatOutbox chat={chat} refreshMs={TRANSCRIPT_REFRESH_MS} time={clock} />
+      <RecordReminders
+        targetType="chat"
+        targetId={chat.id}
+        archived={!!chat.archived}
+      />
     </>
   );
 }

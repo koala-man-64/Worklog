@@ -17,6 +17,7 @@ import {
 } from "./components";
 import { CreateItem } from "./Work";
 import { DaySummary } from "./DaySummary";
+import { TodayReminders } from "./RecordReminders";
 import type { Day, Detail, Entry, Item, ItemStatus, List } from "./types";
 import { Icon } from "./icons";
 import { RankBadge } from "./StackRank";
@@ -324,6 +325,7 @@ export function Today({
         </label>
       </header>
       <CreateItem day={date} />
+      <TodayReminders date={date} today={today} />
       <ErrorMessage error={day.error || action.error || rescheduleError} />
       {data && (
         <>

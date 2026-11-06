@@ -20,6 +20,12 @@ const shapes = {
       <path d="M14.5 5.5v13" strokeDasharray="1.5 2" />
     </>
   ),
+  reminders: (
+    <>
+      <path d="M6 11a6 6 0 0 1 12 0v5l1.5 2h-15L6 16z" />
+      <path d="M10 20.5a2 2 0 0 0 4 0M12 5V3.5" />
+    </>
+  ),
   roadmaps: (
     <>
       <circle cx="6" cy="5" r="2" />

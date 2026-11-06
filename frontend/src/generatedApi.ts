@@ -2232,6 +2232,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reminders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reminders */
+        get: operations["reminders_api_v1_reminders_get"];
+        put?: never;
+        /** Reminder Create */
+        post: operations["reminder_create_api_v1_reminders_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reminders/{identity}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reminder */
+        get: operations["reminder_api_v1_reminders__identity__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Reminder Update */
+        patch: operations["reminder_update_api_v1_reminders__identity__patch"];
+        trace?: never;
+    };
+    "/api/v1/reminders/{identity}/{verb}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reminder Archive */
+        post: operations["reminder_archive_api_v1_reminders__identity___verb__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/discussions/participants": {
         parameters: {
             query?: never;
@@ -3510,6 +3563,43 @@ export interface components {
             releaseDate?: string | null;
             /** Status */
             status?: ("planned" | "released" | "cancelled") | null;
+        };
+        /** ReminderCreate */
+        ReminderCreate: {
+            /** Title */
+            title: string;
+            /**
+             * Notes
+             * @default
+             */
+            notes: string;
+            /** Date */
+            date: string;
+            /** Time */
+            time?: string | null;
+            /** Targettype */
+            targetType?: ("item" | "ticket" | "roadmap" | "person" | "repository" | "chat") | null;
+            /** Targetid */
+            targetId?: string | null;
+        };
+        /** ReminderUpdate */
+        ReminderUpdate: {
+            /** Revision */
+            revision: number;
+            /** Title */
+            title?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /** Date */
+            date?: string | null;
+            /** Time */
+            time?: string | null;
+            /** State */
+            state?: ("open" | "done") | null;
+            /** Targettype */
+            targetType?: ("item" | "ticket" | "roadmap" | "person" | "repository" | "chat") | null;
+            /** Targetid */
+            targetId?: string | null;
         };
         /** Reorder */
         Reorder: {
@@ -6853,7 +6943,7 @@ export interface operations {
                 archived?: boolean;
                 limit?: number;
                 offset?: number;
-                type?: ("item" | "step" | "roadmap" | "note" | "attachment" | "link" | "chat" | "github" | "question" | "decision" | "person" | "ticket" | "ticket_comment" | "discussion" | "discussion_message" | "resource" | "release" | "release_check")[];
+                type?: ("item" | "step" | "roadmap" | "note" | "attachment" | "link" | "chat" | "github" | "question" | "decision" | "person" | "ticket" | "ticket_comment" | "discussion" | "discussion_message" | "resource" | "release" | "release_check" | "reminder")[];
             };
             header?: never;
             path?: never;
@@ -9472,6 +9562,192 @@ export interface operations {
             header?: never;
             path: {
                 identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Expected"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reminders_api_v1_reminders_get: {
+        parameters: {
+            query?: {
+                state?: "open" | "due" | "upcoming" | "done" | "all";
+                /** @description Only those due on this day, YYYY-MM-DD */
+                date?: string | null;
+                /** @description Only those due on or before this day, YYYY-MM-DD */
+                until?: string | null;
+                targetType?: ("item" | "ticket" | "roadmap" | "person" | "repository" | "chat") | null;
+                targetId?: string | null;
+                q?: string;
+                archived?: boolean;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reminder_create_api_v1_reminders_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReminderCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reminder_api_v1_reminders__identity__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reminder_update_api_v1_reminders__identity__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReminderUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reminder_archive_api_v1_reminders__identity___verb__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+                verb: string;
             };
             cookie?: never;
         };

@@ -242,6 +242,9 @@ def repository_merge(c: sqlite3.Connection, actor: dict, identity: str, p: dict)
     c.execute("UPDATE OR IGNORE agent_links SET target_id=? WHERE target_type='repository' AND target_id=?",
               (survivor["id"], source["id"]))
     c.execute("DELETE FROM agent_links WHERE target_type='repository' AND target_id=?", (source["id"],))
+    # Reminders about it name the survivor, archived ones included.
+    moved["reminders"] = c.execute("UPDATE reminders SET target_id=? WHERE target_type='repository' AND target_id=?",
+                                   (survivor["id"], source["id"])).rowcount
     # Attached files follow too, archived ones included, so none stay on a record that takes no changes.
     search.move_repository_files(c, source["id"], survivor["id"])
     moved["attachments"] = c.execute("UPDATE attachments SET owner_id=? WHERE owner_type='repository' AND owner_id=?",

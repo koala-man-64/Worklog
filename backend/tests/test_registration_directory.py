@@ -219,8 +219,8 @@ def test_the_v18_upgrade_leaves_earlier_registrations_unknown_and_changes_no_rec
         assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
         upgraded = contents(conn)
     # Every row of every table is as it was; each registration gains a directory, unknown. The
-    # upgrade goes on to v19, whose releases start empty.
-    for table in ("releases", "release_contents", "release_checks"):
+    # upgrade goes on to v19, whose releases start empty, and to v20, whose reminders start empty too.
+    for table in ("releases", "release_contents", "release_checks", "reminders"):
         assert upgraded.pop(table) == []
     assert {row[-1] for row in upgraded["communication_credentials"]} == {None}
     upgraded["communication_credentials"] = [row[:-1] for row in upgraded["communication_credentials"]]

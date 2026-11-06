@@ -14,6 +14,7 @@ import type {
   RankResult,
 } from "./types";
 import type { Release, ReleaseCheck } from "./releaseTypes";
+import type { ReminderDetail } from "./reminderTypes";
 import type { ResourcePage } from "./resourceTypes";
 import type { Ticket, TicketComment } from "./ticketTypes";
 type Schema = components["schemas"];
@@ -90,4 +91,8 @@ export const commands = {
   ) => request<ReleaseCheck>("/release-checks", "POST", body),
   updateReleaseCheck: (id: string, body: Schema["ReleaseCheckUpdate"]) =>
     request<ReleaseCheck>("/release-checks/" + id, "PATCH", body),
+  createReminder: (body: Schema["ReminderCreate"]) =>
+    request<ReminderDetail>("/reminders", "POST", body),
+  updateReminder: (id: string, body: Schema["ReminderUpdate"]) =>
+    request<ReminderDetail>("/reminders/" + id, "PATCH", body),
 };
