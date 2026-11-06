@@ -45,7 +45,7 @@ from .coordination_api import install_coordination_routes
 from .db import Database
 from .discussion_api import install_discussion_routes
 from .discussions import bind_credential, communication_actor, registered_by, registered_chats
-from .guard import RequestGuard, error_response
+from .guard import RequestGuard, error_response, read_body
 from .maintenance import prune_receipts
 from .plans import PlanService
 from .proposals import ProposalService, approval_required
@@ -76,23 +76,9 @@ def default_data_directory() -> Path:
 
 
 async def bounded_body(request: Request, maximum: int) -> bytes:
-    """A body the guard leaves to its route (guard.STREAMED, and the bootstrap), read to the route's limit."""
-    length = request.headers.get("content-length")
-    if length:
-        try:
-            if int(length) < 0:
-                raise ValueError()
-            if int(length) > maximum:
-                raise AppError(413, "too_large", f"Request exceeds {maximum:,} bytes")
-        except ValueError:
-            raise AppError(400, "content_length", "Invalid Content-Length") from None
-    chunks, size = [], 0
-    async for chunk in request.stream():
-        size += len(chunk)
-        if size > maximum:
-            raise AppError(413, "too_large", f"Request exceeds {maximum:,} bytes")
-        chunks.append(chunk)
-    return b"".join(chunks)
+    """A body the guard leaves to its route (guard.STREAMED, and the bootstrap), read as the guard reads
+    JSON, to the route's own limit. A client that leaves before it arrives is answered nothing."""
+    return await read_body(request.receive, request.headers, maximum)
 
 
 def create_app(data_dir: str | Path | None = None, *, testing: bool = False,

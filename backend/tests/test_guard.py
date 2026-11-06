@@ -24,7 +24,7 @@ def started(tmp_path):
     return app, person, token
 
 
-def call(app, method, path, headers, receive, root_path=""):
+def call(app, method, path, headers, receive, root_path="", query=b""):
     """One request straight into the app as ASGI: what it sent back, as a status, headers and body."""
     sent = []
 
@@ -32,7 +32,7 @@ def call(app, method, path, headers, receive, root_path=""):
         sent.append(message)
 
     scope = {"type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1", "method": method, "scheme": "http",
-             "path": path, "raw_path": path.encode(), "root_path": root_path, "query_string": b"",
+             "path": path, "raw_path": path.encode(), "root_path": root_path, "query_string": query,
              "headers": [(b"host", b"127.0.0.1:8877"), *headers], "client": ("127.0.0.1", 50000), "server": ("127.0.0.1", 8877)}
     asyncio.run(app(scope, receive, send))
     if not sent:
@@ -78,7 +78,11 @@ def test_a_client_that_leaves_before_its_body_arrives_is_answered_nothing(tmp_pa
     async def receive():
         return {"type": "http.disconnect"}
 
-    assert call(app, "POST", "/api/v1/proposals", [(b"authorization", b"Bearer " + token.encode())], receive) is None
+    agent = [(b"authorization", b"Bearer " + token.encode())]
+    assert call(app, "POST", "/api/v1/proposals", agent, receive) is None
+    # An upload reads its own body, past the guard, and is answered nothing either, not a 500.
+    assert call(app, "POST", "/api/v1/attachments", agent, receive,
+                query=b"ownerType=proposal&ownerId=missing&name=evidence.txt") is None
 
 
 def test_uploads_and_imports_keep_their_own_limits(tmp_path):
