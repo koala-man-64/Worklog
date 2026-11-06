@@ -59,7 +59,7 @@ class WorkService:
             return self.people.apply(c, actor, action, p)
         if action.startswith(("release.", "check.")):
             # The HTTP layer already refuses agents' release writes; this keeps any other caller to
-            # the rule. No proposal carries a release change yet.
+            # the rule. An agent's change to a release comes through a proposal the person decided.
             if actor["kind"] != "human" and not proposed:
                 raise AppError(403, "agent_scope", "Only the person changes releases; agents read them")
             return self.releases.apply(c, actor, action, p)

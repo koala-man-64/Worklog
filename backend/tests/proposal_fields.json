@@ -641,5 +641,88 @@
       "status",
       "title"
     ]
+  },
+  "release.create": {
+    "required": [
+      "title"
+    ],
+    "allowed": [
+      "description",
+      "id",
+      "releaseDate",
+      "status",
+      "title"
+    ]
+  },
+  "release.update": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "description",
+      "id",
+      "releaseDate",
+      "revision",
+      "status",
+      "title"
+    ]
+  },
+  "release.add": {
+    "required": [
+      "releaseId",
+      "targetId",
+      "targetType"
+    ],
+    "allowed": [
+      "releaseId",
+      "targetId",
+      "targetType"
+    ]
+  },
+  "release.remove": {
+    "required": [
+      "releaseId",
+      "targetId",
+      "targetType"
+    ],
+    "allowed": [
+      "releaseId",
+      "targetId",
+      "targetType"
+    ]
+  },
+  "check.create": {
+    "required": [
+      "kind",
+      "releaseId",
+      "text"
+    ],
+    "allowed": [
+      "details",
+      "dueDate",
+      "id",
+      "kind",
+      "personId",
+      "releaseId",
+      "status",
+      "text"
+    ]
+  },
+  "check.update": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "details",
+      "dueDate",
+      "id",
+      "kind",
+      "personId",
+      "revision",
+      "status",
+      "text"
+    ]
   }
 }

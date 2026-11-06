@@ -426,7 +426,9 @@ class Operation(Command):
                     "question.create", "question.update", "question.archive", "question.recover",
                     "decision.create", "decision.update", "decision.archive", "decision.recover",
                     "resource.create", "resource.update", "resource.archive", "resource.recover",
-                    "ticket.create", "ticket.update"]
+                    "ticket.create", "ticket.update",
+                    "release.create", "release.update", "release.add", "release.remove",
+                    "check.create", "check.update"]
     payload: dict[str, Any]
 
 

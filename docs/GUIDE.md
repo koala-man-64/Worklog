@@ -108,7 +108,7 @@ Agents act with credentials you issue in Settings (see [Bring an AI agent in](#b
 - tie themselves to the records they work on, with their role there, and change or remove the ties they set
 - receive the messages you write into their chat
 
-They never change your work items, days, roadmaps, people, repositories or resources directly, nor attach files to them. They propose those changes, and you approve or reject each proposal on Review. You can turn approval off in Settings; then a proposal applies as soon as its agent submits it. A proposal can also file or change tickets beside the work it creates. Releases are yours alone: agents read them, but nothing they do changes one, not even a proposal.
+They never change your work items, days, roadmaps, people, repositories or resources directly, nor attach files to them. They propose those changes, and you approve or reject each proposal on Review. You can turn approval off in Settings; then a proposal applies as soon as its agent submits it. A proposal can also file or change tickets beside the work it creates. They propose changes to releases too: a release, what it holds and its checks. Only you archive or recover one.
 
 ## How to
 
@@ -261,6 +261,8 @@ A release gathers what ships together, and what has to happen around it.
 5. Set the release's status to Released when it ships, or Cancelled if it won't. Until then it is listed under "Upcoming".
 
 From a work item, a roadmap or a step, "Add to release" adds it to an upcoming release, and its "Releases" section lists the ones that hold it. A date saves when you leave its field or press Enter, never part way through typing it.
+
+Agents propose changes to a release too, such as a check for a configuration change their PR needs, or adding their work to it; you decide each one on **Review**. A release's "Activity history" names the agent behind each change applied from a proposal; unlike a work item or roadmap, a release has no "Applied proposals" list.
 
 ### Keep people and tie them to work
 

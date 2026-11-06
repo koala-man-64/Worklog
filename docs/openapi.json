@@ -11262,7 +11262,13 @@
               "resource.archive",
               "resource.recover",
               "ticket.create",
-              "ticket.update"
+              "ticket.update",
+              "release.create",
+              "release.update",
+              "release.add",
+              "release.remove",
+              "check.create",
+              "check.update"
             ],
             "title": "Action"
           },
