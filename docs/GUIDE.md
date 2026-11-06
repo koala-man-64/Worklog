@@ -105,7 +105,7 @@ Agents act with credentials you issue in Settings (see [Bring an AI agent in](#b
 - file and work tickets
 - receive the messages you write into their chat
 
-They never change your work items, days, roadmaps, people or repositories directly, nor attach files to them. They propose those changes, and you approve or reject each proposal on Review. You can turn approval off in Settings; then a proposal applies as soon as its agent submits it. Resources are yours alone: agents read them, but nothing they do changes one, not even a proposal.
+They never change your work items, days, roadmaps, people, repositories or resources directly, nor attach files to them. They propose those changes, and you approve or reject each proposal on Review. You can turn approval off in Settings; then a proposal applies as soon as its agent submits it. A proposal can also file or change tickets beside the work it creates.
 
 ## How to
 
@@ -263,7 +263,7 @@ Write down once what you and your agents keep looking up: how you like work done
 
 Each page has its own address, such as `#resources/ID`, so one page, or anything else in Worklog, can link to another. A link to one of the page's own headings, such as `#testing`, jumps to that heading.
 
-Agents read your pages but never change them. Their `context` lists every page by title and summary, and `worklog agent resources show` reads one whole, so point them at the pages that matter in their instructions or in a message to their chat. Archive a page that no longer applies: it leaves the list and your agents' context, and "Show archive" brings it back to recover. Archiving hides a page but does not withdraw it: an agent can still open an archived page by its ID, and a page's history keeps every earlier version, which agents can read too. Keep secrets out of your pages.
+Agents read your pages and change them only by proposal: you see each change on Review before it applies, unless you turned approval off, and the page's "Activity history" names who made it. Their `context` lists every page by title and summary, and `worklog agent resources show` reads one whole, so point them at the pages that matter in their instructions or in a message to their chat. Archive a page that no longer applies: it leaves the list and your agents' context, and "Show archive" brings it back to recover. Archiving hides a page but does not withdraw it: an agent can still open an archived page by its ID, and a page's history keeps every earlier version, which agents can read too. Keep secrets out of your pages.
 
 ### Register, confirm and merge repositories
 
@@ -306,6 +306,8 @@ One credential can serve many agents: each registers its own identity from it, a
 
 1. Open **Review**. "Proposal status" starts on submitted proposals; choose "All proposals" or another status to see the rest.
 2. Open a proposal. You see the agent's rationale and each numbered change, with the current and proposed values. A warning marks any target that changed after the agent proposed. The agent's evidence files are attached. A change that attaches one of them to a work item, roadmap, step or repository names the file, with its size and a download link. Approval attaches a copy there, and the evidence stays with the proposal.
+
+   One proposal can create several records and connect them: a person, the repository they own, a work item there and a ticket against it. A change that creates a record gives it a name such as `@jane`, and later changes use that name in place of its ID until approval gives it one. Beside each name, Review notes which change creates its record.
 3. Choose "Approve proposal", "Return to draft" or "Reject proposal", then press the confirm button that appears, or "Keep reviewing" to back out.
 
 Approval applies every change at once, or none if any target changed meanwhile. The error then names the change that failed, such as `Change 2 of 3, repository.update`. Return to draft sends the proposal back to its agent to update and resubmit.

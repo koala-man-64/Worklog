@@ -1,8 +1,9 @@
 """Tickets: issues the person and agents file, work on and close, then keep as history.
 
-Agents write tickets directly, as they post in discussions. Every change carries the
-author's stable communication identity and lands in the ticket's history. Only the
-person archives or recovers a ticket, and an archived ticket is read-only.
+Agents write tickets directly, as they post in discussions, or by proposal, so a ticket can
+come with the records the same proposal creates. Every change carries the author's stable
+communication identity and lands in the ticket's history. Only the person archives or
+recovers a ticket, and an archived ticket is read-only.
 """
 
 from __future__ import annotations
@@ -175,6 +176,14 @@ class TicketService:
         if retitle:
             # Comments show their ticket's key and title in search results.
             search.retitle(c, "ticket_comment", ticket["id"], title)
+
+    def apply(self, c: sqlite3.Connection, actor: dict, action: str, p: dict) -> dict:
+        """An applied proposal's change, made as the identity that proposed it (WorkService.apply)."""
+        if action == "ticket.create":
+            return self.create(c, actor, p)
+        if action == "ticket.update":
+            return self.update(c, actor, p["id"], {k: v for k, v in p.items() if k != "id"})
+        raise AppError(422, "operation", "Unsupported ticket operation")
 
     def create(self, c: sqlite3.Connection, actor: dict, p: dict) -> dict:
         values = self._fields({"title": "", "description": "", "kind": "bug", "priority": "normal",

@@ -98,6 +98,18 @@ def communication_actor(conn: sqlite3.Connection, original_actor: dict) -> dict:
     return {"id": row["id"], "label": row["label"], "kind": "agent"}
 
 
+def proposer_identity(conn: sqlite3.Connection, actor: dict) -> dict:
+    """The identity a proposal's change is written as, where a record names its author as the
+    stable identity: the agent whose credential wrote the proposal, even if that credential was
+    rotated or revoked before the person approved it, or the person as `local-user`. A credential
+    no identity holds stays as it is."""
+    if actor["kind"] == "human":
+        return {"id": "local-user", "label": "You", "kind": "human"}
+    row = conn.execute("SELECT a.id,a.label FROM communication_agents a JOIN communication_credentials cc ON cc.agent_id=a.id "
+                       "WHERE cc.credential_id=?", (actor["id"],)).fetchone()
+    return {"id": row["id"], "label": row["label"], "kind": "agent"} if row else actor
+
+
 def registered_by(c: sqlite3.Connection, credential_ids: Iterable[str]) -> dict[str, dict]:
     """The registering agent of each credential; ones issued in Settings are absent."""
     rows = rows_in(c, "SELECT credential_id,registered_by,registered_by_label FROM communication_credentials "

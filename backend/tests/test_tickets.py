@@ -98,6 +98,51 @@ def test_an_agent_files_comments_and_closes_as_itself_across_a_token_rotation(cl
     assert {e["actorId"] for e in history} == {agent["agentId"]}
 
 
+def propose(c, agent, *operations):
+    """An agent's proposal, submitted; the person decides it with approve()."""
+    drafted = ok(request(c, "POST", "/proposals", {"title": "Ticket", "rationale": "", "operations": list(operations)}, agent))
+    return ok(request(c, "POST", f"/proposals/{drafted['id']}/submit", {"revision": drafted["revision"]}, agent))
+
+
+def approve(c, proposal):
+    return request(c, "POST", f"/proposals/{proposal['id']}/approve", {"revision": proposal["revision"]})
+
+
+def test_a_proposed_ticket_is_filed_and_changed_as_its_agent_even_after_a_rotation(client):
+    agent = credential(client)
+    item = ok(request(client, "POST", "/work-items", {"title": "Parser"}))
+    filing = propose(client, agent, {"action": "ticket.create", "payload": {"title": "Parser drops trailing rows",
+                                                                            "itemId": item["id"], "priority": "high"}})
+    assert get(client, "/tickets")["items"] == []
+    # The person approves later, after the agent's credential was rotated and the old one revoked.
+    rotated = ok(request(client, "POST", f"/credentials/{agent['id']}/rotate", {}))
+    ok(approve(client, filing))
+    (ticket,) = get(client, "/tickets")["items"]
+    assert (ticket["key"], ticket["itemId"], ticket["priority"]) == ("T-1", item["id"], "high")
+    assert ticket["author"]["id"] == agent["agentId"] and ticket["author"]["kind"] == "agent"
+    # A change names the ticket by its key, and null unlinks its work item, as on the person's route.
+    unlinking = propose(client, rotated, {"action": "ticket.update", "payload": {"id": "T-1", "revision": 1, "status": "doing",
+                                                                                 "itemId": None}})
+    ok(approve(client, unlinking))
+    changed = get(client, "/tickets/T-1")
+    assert (changed["status"], changed["itemId"], changed["revision"]) == ("doing", None, 2)
+    assert {e["actorId"] for e in get(client, f"/history?entityId={ticket['id']}")["items"]} == {agent["agentId"]}
+    # A change from an older revision is refused when the person approves it, and changes nothing.
+    stale = propose(client, rotated, {"action": "ticket.update", "payload": {"id": "T-1", "revision": 1, "status": "blocked"}})
+    refused = error(approve(client, stale), 409, "conflict")
+    assert refused["message"].startswith("Change 1 of 1, ticket.update: ")
+    assert get(client, "/tickets/T-1")["status"] == "doing"
+
+
+def test_a_ticket_proposed_before_its_credential_was_revoked_is_still_filed_as_its_agent(client):
+    agent = credential(client, "Short-lived")
+    filing = propose(client, agent, {"action": "ticket.create", "payload": {"title": "Seen once"}})
+    ok(request(client, "POST", f"/credentials/{agent['id']}/revoke", {}))
+    ok(approve(client, filing))
+    (ticket,) = get(client, "/tickets")["items"]
+    assert (ticket["author"]["id"], ticket["author"]["label"]) == (agent["agentId"], "Short-lived")
+
+
 def test_done_needs_a_resolution_and_reopening_keeps_it(client):
     ticket = create(client)
     failure = error(request(client, "PATCH", f"/tickets/{ticket['id']}", {"revision": ticket["revision"], "status": "done"}), 422, "validation")

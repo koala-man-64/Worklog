@@ -182,6 +182,24 @@ def test_approval_records_the_work_items_and_roadmaps_each_change_was_made_to(tm
     assert [c["action"] for c in history(client, f"/work-items/{created}")["items"][0]["changes"]] == ["item.create"]
 
 
+def test_a_ticket_change_counts_toward_the_work_item_the_ticket_is_linked_to_once_made(tmp_path, client):
+    p = plan(client)
+    agent = credential(client, "Builder")
+    work, other = p["work"]["id"], p["other"]["id"]
+    filed = propose(client, agent, "File it", [change("ticket.create", title="Lexer drops the last token", itemId=work),
+                                               change("resource.create", title="Lexer notes")])
+    ticket = ok(read(client, "/tickets/T-1"))
+    moved = propose(client, agent, "Move it", [change("ticket.update", id="T-1", revision=1, itemId=other)])
+    unlinked = propose(client, agent, "Unlink it", [change("ticket.update", id=ticket["id"], revision=2, itemId=None)])
+    assert unlinked["status"] == "approved"
+    # A resource, like a person or a repository, counts toward no work item or roadmap, and a ticket
+    # linked to none after the change counts toward none.
+    assert recorded(tmp_path / "worklog.sqlite3") == sorted([
+        (filed["id"], 1, "ticket.create", "item", work), (moved["id"], 1, "ticket.update", "item", other)])
+    assert [e["id"] for e in history(client, f"/work-items/{work}")["items"]] == [filed["id"]]
+    assert [e["id"] for e in history(client, f"/work-items/{other}")["items"]] == [moved["id"]]
+
+
 def test_a_records_history_holds_only_what_was_applied_to_it_the_latest_first(client):
     p = plan(client)
     builder, reviewer = credential(client, "Builder"), credential(client, "Reviewer")
