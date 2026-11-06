@@ -22,12 +22,12 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
-from . import __version__, operations, support
+from . import __version__, operations, policy, support
 from . import models as m
 from .active_sessions import running_sessions
-from .agent_link_api import agent_link_route_allowed, install_agent_link_routes
+from .agent_link_api import install_agent_link_routes
 from .agent_links import ties_of_agent, visible_history
-from .chat_message_api import chat_message_agent_route_allowed, install_chat_message_routes
+from .chat_message_api import install_chat_message_routes
 from .common import (
     FILE_LIMIT,
     HTML_LIMIT,
@@ -42,9 +42,9 @@ from .common import (
     uid,
 )
 from .coordination import CoordinationService, agents_may_register, close_credential_runs
-from .coordination_api import coordination_agent_route_allowed, install_coordination_routes
+from .coordination_api import install_coordination_routes
 from .db import Database
-from .discussion_api import agent_route_allowed, install_discussion_routes
+from .discussion_api import install_discussion_routes
 from .discussions import bind_credential, communication_actor, registered_by, registered_chats
 from .maintenance import prune_receipts
 from .plans import PlanService
@@ -56,7 +56,6 @@ from .registration import (
     install_registration_routes,
     revoke_registered,
 )
-from .registration import agent_route_allowed as registration_route_allowed
 from .registry_api import install_registry_routes
 from .release_api import install_release_routes
 from .releases import ReleaseService
@@ -64,7 +63,7 @@ from .resource_api import install_resource_routes
 from .resources import ResourceService
 from .search import SearchType, global_search, index_plans
 from .services import WorkService
-from .ticket_api import install_ticket_routes, ticket_agent_route_allowed
+from .ticket_api import install_ticket_routes
 from .tickets import TicketService
 from .transcripts import MESSAGE_LIMIT, TranscriptReader, TranscriptRoots
 
@@ -197,31 +196,15 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                     if credential is None:
                         raise AppError(401, "authentication", "Credential is invalid or revoked")
                     actor = {"id": credential["id"], "label": credential["label"], "kind": "agent"}
-                    suffix = path.removeprefix("/api/v1")
-                    # Transcripts hold whole conversations, tool output included; only the person reads them,
-                    # and a chat's messages are the person's prompts to it. Agents take theirs from the inbox.
-                    # The agent registry joins tracked chats into every agent's record, so it is theirs too,
-                    # as is a roadmap's view of it. So are the person's sessions running on this machine.
-                    # A trailing slash would only redirect, but it is refused here rather than there.
-                    chats = suffix.rstrip("/")
-                    forbidden = (suffix.startswith(("/settings", "/credentials", "/backups", "/export", "/openapi")) or
-                                 chats in {"/chats", "/claude-sessions"} or
-                                 (chats.startswith("/chats/") and chats.endswith(("/transcript", "/messages"))) or
-                                 chats == "/agents" or chats.startswith("/agents/") or
-                                 (chats.startswith("/roadmaps/") and chats.endswith("/agents")))
-                    agent_write = ((suffix == "/proposals" and method == "POST") or
-                                   (suffix.startswith("/proposals/") and (method == "PATCH" or (method == "POST" and suffix.rsplit("/", 1)[-1] in {"submit", "withdraw", "reopen"}))) or
-                                   (suffix == "/attachments" and method == "POST" and request.query_params.get("ownerType") == "proposal"))
-                    in_discussions = suffix == "/discussions" or suffix.startswith("/discussions/")
-                    if in_discussions:
-                        if not agent_route_allowed(method, suffix):
-                            raise AppError(403, "agent_scope", "This discussion operation is outside agent scope")
-                    elif forbidden or (method != "GET" and not agent_write and not coordination_agent_route_allowed(method, suffix)
-                                       and not chat_message_agent_route_allowed(method, suffix)
-                                       and not registration_route_allowed(method, suffix)
-                                       and not ticket_agent_route_allowed(method, suffix)
-                                       and not agent_link_route_allowed(method, suffix)):
-                        raise AppError(403, "agent_scope", "Agents may read context, participate in discussions, file tickets, and submit proposals")
+                    # The scope policy.ROUTES gives the route decides. A call no route serves reaches no
+                    # handler: only a read goes on to the router, and not one it would redirect to the
+                    # person's page.
+                    granted = policy.decide(app.router.routes, request.scope)
+                    if not (policy.agent_may(granted) if granted is not None
+                            else policy.passes_unserved(app.router.routes, request.scope)):
+                        raise AppError(403, "agent_scope", "This call is the person's. Agents read, propose changes, discuss, "
+                                       "file tickets, report their own work and take their inbox")
+                    request.state.agent_scope = granted
                 else:
                     session_id = request.cookies.get("worklog_session", "")
                     session = app.state.sessions.get(session_id)
@@ -269,8 +252,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         digest = hashlib.sha256((request.method + str(request.url.path) + "?" + str(request.url.query) + json.dumps(payload, sort_keys=True)).encode()).hexdigest()
         actor = request.state.actor
         with db.transaction() as c:
-            if actor["kind"] == "agent" and (coordination_agent_route_allowed(request.method, request.url.path)
-                                             or chat_message_agent_route_allowed(request.method, request.url.path)):
+            if actor["kind"] == "agent" and getattr(request.state, "agent_scope", None) in {policy.COORDINATE, policy.INBOX}:
                 # Middleware authentication precedes the write lock; revoke may win that race.
                 # Recheck before receipt replay as well as before a new mutation.
                 communication_actor(c, actor)

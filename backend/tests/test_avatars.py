@@ -13,7 +13,6 @@ from fastapi.testclient import TestClient
 from worklog import avatars, discussions, migrations, recovery
 from worklog.app import create_app
 from worklog.db import Database
-from worklog.discussion_api import agent_route_allowed
 
 ORIGIN = "http://127.0.0.1:8877"
 STAMP = "2026-01-01T00:00:00+00:00"
@@ -118,9 +117,9 @@ def test_agents_choose_their_own_avatar_and_a_revoked_agent_frees_its_avatar(cli
     assert {e["name"]: e["available"] for e in ok(get(client, "/discussions/avatars", agent))["items"]}[other["avatar"]]
     assert ok(write(client, "/discussions/avatar", {"avatar": other["avatar"]}, agent))["avatar"] == other["avatar"]
     assert write(client, "/discussions/avatar", {"avatar": wanted}, other).status_code == 401
-    assert agent_route_allowed("GET", "/api/v1/discussions/avatars")
-    assert agent_route_allowed("POST", "/api/v1/discussions/avatar")
-    assert not agent_route_allowed("POST", "/api/v1/discussions/avatars")
+    # The list of avatars is read-only: no route serves a POST to it, so an agent's is refused.
+    refused = write(client, "/discussions/avatars", {"avatar": wanted}, agent)
+    assert refused.status_code == 403 and refused.json()["error"]["code"] == "agent_scope"
 
 
 def test_reissuing_a_revoked_agent_redraws_an_avatar_someone_took_meanwhile(client):

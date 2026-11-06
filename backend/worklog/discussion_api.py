@@ -1,6 +1,6 @@
-"""HTTP boundary for communication; work/proposal authorization is unchanged."""
+"""HTTP boundary for communication. What agents may call here is in policy.ROUTES: archiving a
+thread, releasing a request and reassigning a role stay the person's."""
 
-import re
 from collections.abc import Callable
 from typing import Literal
 
@@ -9,26 +9,6 @@ from fastapi import FastAPI, Query, Request
 from . import discussion_models as m
 from .db import Database
 from .discussions import DiscussionService, communication_actor
-
-_READ_PATHS = {
-    "/discussions", "/discussions/participants", "/discussions/avatars", "/discussions/roles",
-    "/discussions/changes", "/discussions/resume",
-}
-
-
-def agent_route_allowed(method: str, path: str) -> bool:
-    """Use exact segment patterns: archive/release-request/reassign stay human-only."""
-    suffix = path.removeprefix("/api/v1")
-    if method == "GET":
-        return (suffix in _READ_PATHS or
-                re.fullmatch(r"/discussions/[^/]+", suffix) is not None or
-                re.fullmatch(r"/discussions/messages/[^/]+", suffix) is not None)
-    if method != "POST":
-        return False
-    return (suffix in {"/discussions", "/discussions/roles", "/discussions/avatar"} or
-            re.fullmatch(r"/discussions/[^/]+/messages", suffix) is not None or
-            re.fullmatch(r"/discussions/messages/[^/]+/(?:acknowledge|cancel)", suffix) is not None or
-            re.fullmatch(r"/discussions/roles/[^/]+/(?:claim|release|offer|accept|decline|withdraw)", suffix) is not None)
 
 
 def install_discussion_routes(app: FastAPI, db: Database, mutate: Callable) -> None:

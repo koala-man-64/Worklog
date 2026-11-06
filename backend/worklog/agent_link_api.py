@@ -1,4 +1,6 @@
-"""HTTP surface for agent ties: the person ties any agent to any record, and an agent ties only itself."""
+"""HTTP surface for agent ties: the person ties any agent to any record, and an agent ties only itself.
+Agents may set and remove ties (policy.ROUTES, agent:tie); set_tie and remove_tie keep an agent to its
+own identity."""
 
 from collections.abc import Callable
 
@@ -9,11 +11,6 @@ from .agent_links import remove_tie, set_tie, ties_of_agent, ties_on
 from .common import AppError
 from .db import Database
 from .discussions import communication_actor
-
-
-def agent_link_route_allowed(method: str, path: str) -> bool:
-    """An agent sets and removes ties itself; set_tie and remove_tie keep it to its own identity."""
-    return method == "POST" and path.removeprefix("/api/v1") in {"/agent-links", "/agent-links/unlink"}
 
 
 def install_agent_link_routes(app: FastAPI, db: Database, mutate: Callable) -> None:

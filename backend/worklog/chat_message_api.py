@@ -1,4 +1,5 @@
-"""HTTP surface for messages to a chat's agents: the person writes and confirms who works in the chat, agents receive."""
+"""HTTP surface for messages to a chat's agents: the person writes and confirms who works in the chat, agents receive.
+Agents may only take their inbox (policy.ROUTES); a chat's messages and the composer stay with the person."""
 
 from collections.abc import Callable
 
@@ -7,11 +8,6 @@ from fastapi import FastAPI, Query, Request
 from . import models as m
 from .chat_messages import ChatMessageService
 from .db import Database
-
-
-def chat_message_agent_route_allowed(method: str, path: str) -> bool:
-    """Agents only receive; the chat's messages and the composer stay with the person."""
-    return method == "POST" and path.removeprefix("/api/v1") == "/inbox/receive"
 
 
 def install_chat_message_routes(app: FastAPI, db: Database, mutate: Callable) -> None:
