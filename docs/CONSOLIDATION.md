@@ -323,9 +323,14 @@ What changed:
 
 #### 3.2 · Human-only scope on sensitive routes
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branch: `claude/person-only` · PR: PR_LINK
 
 Add a route-level human scope to settings, credentials, backups and export, as a second line behind the middleware. Findings: C-08.
+
+What changed:
+- **The second line.** The seven routes declare `person_only`, a FastAPI dependency in `app.py`: reading and changing settings, issuing, rotating and revoking a credential, making a backup, and the export. It refuses every caller but the person with `403 agent_scope`, whatever `policy.ROUTES` says, and before the handler runs.
+- **Agents see no change.** The table already gives these routes the person's scope, so the guard refuses an agent first, with the same code.
+- **Tests.** `test_person_only.py` pins the routes that declare `person_only`, and that the table keeps each one the person's. It then opens all seven to agents in the table, as a mistake would. An agent's call to each still gets 403 from the route itself, and the settings, credentials and backups are unchanged. With the dependency taken off one route, both tests fail.
 
 #### 3.3 · Explicit agent reads
 
