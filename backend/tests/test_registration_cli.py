@@ -3,6 +3,7 @@
 import io
 import json
 import os
+from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 
@@ -14,7 +15,7 @@ from worklog.app import create_app
 SPONSOR = "sponsor-token-that-must-stay-private"
 CHAT = "4c1e4f6b-3f6a-4c49-9a1d-2b7f0e5d8a11"
 REGISTERED = {"id": "credential", "agentId": "agent", "label": "Parser fix", "avatar": "teal-visor-antenna", "chatId": CHAT,
-              "registeredBy": {"id": "sponsor", "label": "Shared agents"}}
+              "registeredBy": {"id": "sponsor", "label": "Shared agents"}, "directory": "C:\\Projects\\parser"}
 
 
 @pytest.fixture
@@ -55,7 +56,7 @@ def store(home, name, token, port=8877):
     (home / str(port) / f"{name}.json").write_text(json.dumps({"name": name, "token": token}), encoding="utf-8")
 
 
-def test_register_stores_a_generated_token_before_sending_it_and_never_prints_it(home, transport, monkeypatch, capsys):
+def test_register_stores_a_generated_token_before_sending_it_and_never_prints_it(home, transport, monkeypatch, capsys, tmp_path):
     sent, replies = transport
     path = home / "8877" / "parser-fix.json"
     seen_on_disk = []
@@ -66,12 +67,17 @@ def test_register_stores_a_generated_token_before_sending_it_and_never_prints_it
         return respond(request, **kwargs)
 
     monkeypatch.setattr(cli, "_open", check_first)
+    # The agent registers from the directory it works in, which Worklog records.
+    workspace = tmp_path / "parser checkout"
+    workspace.mkdir()
+    monkeypatch.chdir(workspace)
     assert cli.main(["agent", "register", "--chat", CHAT, "--name", "Parser-Fix", "--label", "Parser fix", "--avatar", "teal-visor-antenna"]) == 0
     request = sent[-1]
     assert (request.method, urlsplit(request.full_url).path) == ("POST", "/api/v1/agent-registrations")
     assert request.get_header("Authorization") == "Bearer " + SPONSOR
     body = json.loads(request.data)
     token = stored(home, "parser-fix")
+    assert Path(body.pop("directory")) == workspace
     assert body == {"label": "Parser fix", "token": token, "chatId": CHAT, "avatar": "teal-visor-antenna"}
     assert len(token) == 43 and seen_on_disk == [True]
     if os.name != "nt":
@@ -79,6 +85,38 @@ def test_register_stores_a_generated_token_before_sending_it_and_never_prints_it
     out, err = capsys.readouterr()
     assert json.loads(out) == {"name": "parser-fix", **REGISTERED}
     assert token not in out + err and SPONSOR not in out + err
+
+
+@pytest.mark.parametrize("directory", [FileNotFoundError("deleted"), "C:\\parser\u202e", "C:\\" + "x" * 2000])
+def test_register_names_no_directory_worklog_would_refuse(monkeypatch, directory):
+    """A deleted or overlong directory, or one with a character that doesn't show as itself:
+    Worklog would refuse the registration."""
+    def getcwd():
+        if isinstance(directory, Exception):
+            raise directory
+        return directory
+
+    # Only for the lookup itself: on Windows, resolving any path asks for the current directory too.
+    with monkeypatch.context() as patch:
+        patch.setattr(cli.os, "getcwd", getcwd)
+        found = cli._registering_directory()
+    assert found is None
+
+
+def test_register_names_a_directory_with_any_kind_of_space(monkeypatch):
+    folder = "C:\\Users\\Jane\u00a0Doe\\作業\u3000一"
+    with monkeypatch.context() as patch:
+        patch.setattr(cli.os, "getcwd", lambda: folder)
+        found = cli._registering_directory()
+    assert found == folder
+
+
+def test_register_without_a_directory_still_registers(home, transport, monkeypatch, capsys):
+    sent, replies = transport
+    monkeypatch.setattr(cli, "_registering_directory", lambda: None)
+    assert cli.main(["agent", "register", "--chat", CHAT, "--name", "parser-fix", "--label", "Parser fix"]) == 0
+    assert "directory" not in json.loads(sent[-1].data)
+    assert json.loads(capsys.readouterr().out)["name"] == "parser-fix"
 
 
 def test_uncertain_registration_is_retried_with_the_same_token(home, transport, capsys):
@@ -205,6 +243,8 @@ def test_register_post_and_retire_against_the_application(tmp_path, home, monkey
         token = stored(home, "parser-fix")
         assert registered["registeredBy"] == {"id": sponsor["agentId"], "label": "Shared agents"}
         assert registered["chatId"] == CHAT
+        # Worklog takes the directory the command ran in, whatever this machine calls it.
+        assert registered["directory"] == os.getcwd()
         assert run("register", "--chat", CHAT, "--name", "parser-fix", "--label", "Parser fix")["id"] == registered["id"]
         # The name stays with its chat: registering it for another chat is refused, and says what to do.
         assert cli.main(["agent", "register", "--chat", "other-chat", "--name", "parser-fix", "--label", "Parser fix"]) == 1

@@ -271,13 +271,16 @@ def test_the_v15_upgrade_keeps_every_work_item_and_every_reference_to_one(tmp_pa
         assert version(conn) == migrations.SCHEMA_VERSION
         assert recovery._schema_signature(conn) == sealed.current()
         # Every row of every table is as it was, work items' rowids included. The upgrade goes on
-        # to v16, whose table names no proposal here, none having been approved, and to v17, whose
-        # agent ties start empty, and to v18, whose releases do too.
+        # to v16, whose table names no proposal here, none having been approved, to v17, whose
+        # agent ties start empty, to v18, whose registration directory is unknown for every
+        # identity here, none having registered, and to v19, whose releases start empty.
         upgraded = contents(conn)
         assert upgraded.pop("proposal_targets") == []
         assert upgraded.pop("agent_links") == []
         for table in ("releases", "release_contents", "release_checks"):
             assert upgraded.pop(table) == []
+        assert {row[-1] for row in upgraded["communication_credentials"]} == {None}
+        upgraded["communication_credentials"] = [row[:-1] for row in upgraded["communication_credentials"]]
         assert upgraded == kept
         assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
         assert conn.execute("PRAGMA integrity_check").fetchall() == [("ok",)]
@@ -368,10 +371,13 @@ def test_the_documented_way_back_to_v14_gives_its_exact_shape_and_upgrades_again
     scatter_rowids(path)
     with closing(sqlite3.connect(path)) as conn:
         before = contents(conn)
-    # The ways back to v17, v16 and v15, which to_v14 takes first, drop v18's, v17's and v16's
-    # tables and nothing else; this test holds no release.
-    for table in ("releases", "release_contents", "release_checks", "agent_links", "proposal_targets"):
+    # The ways back to v18, v17, v16 and v15, which to_v14 takes first, drop v19's tables, v18's
+    # registration directory and v17's and v16's tables, and nothing else; this test holds no release.
+    for table in ("releases", "release_contents", "release_checks"):
         before.pop(table)
+    before["communication_credentials"] = [row[:-1] for row in before["communication_credentials"]]
+    before.pop("agent_links")
+    before.pop("proposal_targets")
     to_v14(path)
     recovery.validate_database(path)
     with closing(sqlite3.connect(path)) as conn:

@@ -59,7 +59,8 @@ SEALED_SCHEMAS: dict[int, frozenset[str]] = {
     15: frozenset({"7b1a1ec43f20cc2c3cf1d06d4b1956abd5c7c7bee6fcb2754add975fb7ef59fa"}),  # work items can wait
     16: frozenset({"50d1aa8a96cab827efcdc66625b82a7dc0d67f1c4aaaf84df7eb3eb82a00e79d"}),  # what each approved proposal was applied to
     17: frozenset({"0e3f67dde3cbef64846789f21bc50da0600006d9e7119a451061805c3e727cf0"}),  # agent ties
-    18: frozenset({"7416a0d3156250aac3d06dd954d615a1c166b89007c7aa808372c1c9f9e4697e"}),  # releases, their contents and checks
+    18: frozenset({"4776ba985558f5e6ddf310cddff70974b259de468bce783eda5b4d68140c1b0a"}),  # the directory each agent registered from
+    19: frozenset({"e99601094754d13945ba203ea8645d52b0dbebf709870f1bfa0f246da51246ad"}),  # releases, their contents and checks
 }
 
 

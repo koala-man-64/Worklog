@@ -351,6 +351,9 @@ export type Proposal = RecordBase & {
   // When its agent submitted it; null until then.
   submittedAt: string | null;
   actorLabel: string;
+  // The directory its agent registered from; null for the person, a credential
+  // issued in Settings, or an agent that registered without one.
+  actorDirectory: string | null;
   operations: Operation[];
   attachments: Attachment[];
 };

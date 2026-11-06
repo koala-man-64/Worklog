@@ -86,7 +86,7 @@ CREATE INDEX person_links_target ON person_links(target_type,target_id);
 
 -- Agent identities, and the discussions they hold.
 CREATE TABLE communication_agents(id TEXT PRIMARY KEY,label TEXT NOT NULL,created_at TEXT NOT NULL, avatar TEXT);
-CREATE TABLE communication_credentials(credential_id TEXT PRIMARY KEY REFERENCES credentials(id),agent_id TEXT NOT NULL REFERENCES communication_agents(id), registered_by TEXT, registered_by_label TEXT NOT NULL DEFAULT '', chat_id TEXT);
+CREATE TABLE communication_credentials(credential_id TEXT PRIMARY KEY REFERENCES credentials(id),agent_id TEXT NOT NULL REFERENCES communication_agents(id), registered_by TEXT, registered_by_label TEXT NOT NULL DEFAULT '', chat_id TEXT, directory TEXT);
 CREATE INDEX communication_credentials_agent ON communication_credentials(agent_id);
 CREATE TABLE discussions(id TEXT PRIMARY KEY,title TEXT NOT NULL,archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
 CREATE INDEX discussions_updated ON discussions(archived,updated_at,id);

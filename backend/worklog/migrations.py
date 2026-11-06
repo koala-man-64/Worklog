@@ -12,9 +12,9 @@ import json
 import re
 import sqlite3
 
-SCHEMA_VERSION = 18
+SCHEMA_VERSION = 19
 # Older versions that startup and offline restore upgrade in one transaction.
-UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17})
+UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18})
 
 # v1 grew in place before versions were counted: _upgrade_v1 adds whichever of these a v1 database
 # lacks. People as v1 had them; v10 renames role to team, adds person details and lets links name
@@ -576,8 +576,32 @@ CREATE TABLE agent_links(id TEXT PRIMARY KEY,agent_id TEXT NOT NULL REFERENCES c
 CREATE INDEX agent_links_target ON agent_links(target_type,target_id);
 """
 
+# v18 records the directory each agent registered from, on its registration's row beside the chat
+# it registered with, so Review can say where a proposal's agent works. Registration also names the
+# directory in its credential.register event, as it names the chat.
+REGISTRATION_DIRECTORY_COLUMN = "directory TEXT"
 
-# v18: releases, which an upgrade leaves empty: what ships together and when, the records each
+
+def add_registration_directories(conn: sqlite3.Connection) -> None:
+    """Copy each registration's directory out of its event into the new column.
+
+    No identity registered before v18 named one, so after an upgrade from v17 every directory is
+    unknown. After the documented way back to v17 and an upgrade again, each identity registered
+    under v18 gets its directory back from its event. An event that can't be read gives none.
+    """
+    conn.execute("ALTER TABLE communication_credentials ADD COLUMN " + REGISTRATION_DIRECTORY_COLUMN)
+    for credential, after in conn.execute("SELECT entity_id,after_json FROM events WHERE kind='credential.register' "
+                                          "ORDER BY created_at,id").fetchall():
+        try:
+            record = json.loads(after)
+        except (TypeError, ValueError, RecursionError):
+            continue
+        directory = record.get("directory") if isinstance(record, dict) else None
+        if isinstance(directory, str) and directory:
+            conn.execute("UPDATE communication_credentials SET directory=? WHERE credential_id=?", (directory, credential))
+
+
+# v19: releases, which an upgrade leaves empty: what ships together and when, the records each
 # holds, and its checks of who needs to know, what to test and what to prepare first. A
 # release_contents row names a work item, roadmap, step or GitHub reference by id, which the
 # release service checks before it adds the row; Worklog never deletes those records. Both dates
@@ -608,7 +632,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
     its work item's list, the one it was listed in, and changes nothing else about it. v15 lets a
     work item wait and changes no record. v16 records what each approved proposal was applied to
     and changes no record either. v17 adds agent ties, which start empty, and changes no record.
-    v18 adds releases, which start empty, and changes no record.
+    v18 records the directory each agent registered from, unknown for those registered before it,
+    and changes no record. v19 adds releases, which start empty, and changes no record.
     """
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version == SCHEMA_VERSION:
@@ -652,7 +677,9 @@ def upgrade(conn: sqlite3.Connection) -> None:
         add_proposal_targets(conn)
     if version < 17:
         execute_schema(conn, AGENT_LINKS_SCHEMA)
-    # Every upgradable version predates the releases of v18.
+    if version < 18:
+        add_registration_directories(conn)
+    # Every upgradable version predates the releases of v19.
     execute_schema(conn, RELEASE_SCHEMA)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 

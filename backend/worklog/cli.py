@@ -28,6 +28,7 @@ from urllib.parse import urlencode, urlsplit
 from urllib.request import HTTPHandler, HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
 from worklog import __version__
+from worklog.common import shows_as_written
 from worklog.recovery import (
     InstanceLock,
     automatic_backup,
@@ -670,6 +671,17 @@ def _store_new_token(path: Path, name: str, token: str) -> None:
         temporary.unlink(missing_ok=True)
 
 
+def _registering_directory() -> str | None:
+    """The directory register runs in, which Worklog records as where the agent works. A directory
+    Worklog would refuse (deleted, holding a character that doesn't show as itself, or over 2,000
+    bytes) is left out rather than block registering, and the identity's directory stays unknown."""
+    try:
+        directory = os.getcwd()
+    except OSError:
+        return None
+    return directory if shows_as_written(directory) and len(directory.encode("utf-8")) <= 2000 else None
+
+
 def register_command(client: AgentClient, args: argparse.Namespace, redact: list[str]) -> dict:
     """Register a new identity for this chat, with a token generated here and never printed."""
     if args.name is None:
@@ -686,7 +698,9 @@ def register_command(client: AgentClient, args: argparse.Namespace, redact: list
         token = secrets.token_urlsafe(32)
         _store_new_token(path, name, token)
     redact.append(token)
-    payload = {"label": args.label, "token": token, "chatId": args.chat, **({"avatar": args.avatar} if args.avatar else {})}
+    directory = _registering_directory()
+    payload = {"label": args.label, "token": token, "chatId": args.chat, **({"avatar": args.avatar} if args.avatar else {}),
+               **({"directory": directory} if directory else {})}
     try:
         registration = client.request("POST", "/agent-registrations", payload)
     except AgentRequestError as exc:
@@ -1298,7 +1312,8 @@ def parser() -> argparse.ArgumentParser:
                        help="Act as an agent registered here with `register` (default: WORKLOG_AGENT_TOKEN)")
     actions = agent.add_subparsers(dest="agent_action", required=True)
     actions.add_parser("guide", help="Print the agent guide; needs no credential or running Worklog")
-    register = actions.add_parser("register", help="Register a new agent identity for your chat; its token is generated and kept here, never printed")
+    register = actions.add_parser("register", help="Register a new agent identity for your chat, from the directory you work in, which "
+                                                   "Worklog records; its token is generated and kept here, never printed")
     register.add_argument("--chat", required=True, metavar="CHAT_ID",
                           help="Your chat's ID: a Claude Code session ID, a Claude desktop local_ ID or a Codex thread ID. "
                                "Your runs report it, and the work they report tracks your chat")

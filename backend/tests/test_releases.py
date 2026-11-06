@@ -1,4 +1,4 @@
-"""Releases (schema v18): what ships together and when, the work items, roadmaps, steps and GitHub
+"""Releases (schema v19): what ships together and when, the work items, roadmaps, steps and GitHub
 references each holds, the changes those make up, and the checks of who needs to know, what to
 test and what to prepare first. Agents read releases and change none. The upgrade, restore and the
 documented way back are in test_release_recovery.py."""

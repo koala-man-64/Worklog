@@ -2755,6 +2755,8 @@ export interface components {
             chatId: string;
             /** Avatar */
             avatar?: string | null;
+            /** Directory */
+            directory?: string | null;
         };
         /** Archive */
         Archive: {

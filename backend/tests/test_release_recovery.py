@@ -1,4 +1,4 @@
-"""Schema v18 adds releases: what ships together and when, what each holds, and its checks.
+"""Schema v19 adds releases: what ships together and when, what each holds, and its checks.
 
 An older database comes up with none, a failed upgrade changes nothing, and restore, export and
 the documented way back keep everything else whole. test_releases.py has the rules of releases.
@@ -22,7 +22,7 @@ from worklog.db import Database
 ORIGIN = "http://127.0.0.1:8877"
 RELEASE_TABLES = ("releases", "release_contents", "release_checks")
 RELEASE_TYPES = "('release','release_check')"
-# README: from version 18 to version 17, with Worklog stopped and after a manual backup.
+# README: from version 19 to version 18, with Worklog stopped and after a manual backup.
 WAY_BACK = """\
 BEGIN;
 DELETE FROM search_index WHERE rowid IN (SELECT doc FROM search_keys WHERE type IN ('release','release_check'));
@@ -30,13 +30,13 @@ DELETE FROM search_keys WHERE type IN ('release','release_check');
 DROP TABLE release_checks;
 DROP TABLE release_contents;
 DROP TABLE releases;
-PRAGMA user_version=17;
+PRAGMA user_version=18;
 COMMIT;
 """
 
 
-def to_v17(path):
-    """Take a current database back to the v17 shape the documented way."""
+def to_v18(path):
+    """Take a current database back to the v18 shape the documented way."""
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK)
 
@@ -119,7 +119,7 @@ def state(path):
         return conn.execute("PRAGMA user_version").fetchone()[0], recovery._schema_signature(conn)
 
 
-def test_the_documented_way_back_to_v17_drops_only_the_releases_and_upgrades_again(tmp_path):
+def test_the_documented_way_back_to_v18_drops_only_the_releases_and_upgrades_again(tmp_path):
     # The SQL tested here is the SQL the README gives the person.
     assert "```sql\n" + WAY_BACK + "```" in (Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
     path = tmp_path / "worklog.sqlite3"
@@ -130,9 +130,9 @@ def test_the_documented_way_back_to_v17_drops_only_the_releases_and_upgrades_aga
         "release", "release_check", "release_check"]
     kept_tables = [name for name in tables(path) if name not in RELEASE_TABLES]
     kept, kept_search = rows(path, kept_tables), search_rows(path, "k.type NOT IN " + RELEASE_TYPES)
-    to_v17(path)
+    to_v18(path)
     recovery.validate_database(path)
-    assert state(path) == (17, sealed.shape(17))
+    assert state(path) == (18, sealed.shape(18))
     assert search_rows(path, "1") == kept_search
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("SELECT count(*) FROM search_index WHERE type IN " + RELEASE_TYPES).fetchone()[0] == 0
@@ -146,12 +146,12 @@ def test_the_documented_way_back_to_v17_drops_only_the_releases_and_upgrades_aga
     assert rows(path, kept_tables) == kept
 
 
-def test_the_v18_upgrade_adds_empty_releases_after_a_snapshot_and_changes_no_record(tmp_path):
+def test_the_v19_upgrade_adds_empty_releases_after_a_snapshot_and_changes_no_record(tmp_path):
     path = tmp_path / "live" / "worklog.sqlite3"
     path.parent.mkdir()
     with person(path.parent) as c:
         work(c)
-    to_v17(path)
+    to_v18(path)
     names = tables(path)
     before, search = rows(path, names), search_rows(path, "1")
     Database(path).initialize()
@@ -161,14 +161,14 @@ def test_the_v18_upgrade_adds_empty_releases_after_a_snapshot_and_changes_no_rec
     assert search_rows(path, "1") == search
     snapshots = sorted((path.parent / "backups").glob("worklog-pre-migration-*.sqlite3"))
     assert snapshots
-    assert state(snapshots[-1]) == (17, sealed.shape(17))
+    assert state(snapshots[-1]) == (18, sealed.shape(18))
 
 
-def test_a_failed_release_schema_rolls_back_the_v17_upgrade(tmp_path, monkeypatch):
+def test_a_failed_release_schema_rolls_back_the_v18_upgrade(tmp_path, monkeypatch):
     path = tmp_path / "worklog.sqlite3"
     with person(tmp_path) as c:
         work(c)
-    to_v17(path)
+    to_v18(path)
     names = tables(path)
     before = rows(path, names)
     execute = migrations.execute_schema
@@ -181,16 +181,16 @@ def test_a_failed_release_schema_rolls_back_the_v17_upgrade(tmp_path, monkeypatc
     monkeypatch.setattr(migrations, "execute_schema", fail_after_releases)
     with pytest.raises(RuntimeError, match="Injected"):
         Database(path).initialize()
-    assert state(path) == (17, sealed.shape(17))
+    assert state(path) == (18, sealed.shape(18))
     assert rows(path, names) == before
     recovery.validate_database(path)
 
 
-def test_restoring_a_v17_backup_upgrades_it_with_no_releases(tmp_path):
+def test_restoring_a_v18_backup_upgrades_it_with_no_releases(tmp_path):
     source, target = tmp_path / "source" / "worklog.sqlite3", tmp_path / "target" / "worklog.sqlite3"
     with person(source.parent) as c:
         work(c)
-    to_v17(source)
+    to_v18(source)
     kept = rows(source, ["work_items", "github_refs", "people"])
     Database(target).initialize()
     recovery.restore_database(target, source, tmp_path / "restore-backups")
@@ -199,7 +199,7 @@ def test_restoring_a_v17_backup_upgrades_it_with_no_releases(tmp_path):
     assert rows(target, ["work_items", "github_refs", "people"]) == kept
 
 
-def test_restoring_a_v18_backup_keeps_its_releases_whole(tmp_path):
+def test_restoring_a_v19_backup_keeps_its_releases_whole(tmp_path):
     source, target = tmp_path / "source" / "worklog.sqlite3", tmp_path / "target" / "worklog.sqlite3"
     with person(source.parent) as c:
         populate(c)
@@ -212,14 +212,14 @@ def test_restoring_a_v18_backup_keeps_its_releases_whole(tmp_path):
     assert dangling(target) == []
 
 
-def test_a_v17_shape_cannot_claim_version_18_and_a_v18_shape_cannot_claim_17(tmp_path):
+def test_a_v18_shape_cannot_claim_version_19_and_a_v19_shape_cannot_claim_18(tmp_path):
     older, current = tmp_path / "older.sqlite3", tmp_path / "current.sqlite3"
     Database(older).initialize()
-    to_v17(older)
+    to_v18(older)
     recovery.validate_database(older)
     Database(current).initialize()
     recovery.validate_database(current)
-    for path, claimed in ((older, 18), (current, 17)):
+    for path, claimed in ((older, 19), (current, 18)):
         with closing(sqlite3.connect(path)) as conn:
             conn.execute(f"PRAGMA user_version={claimed}")
         with pytest.raises(ValueError, match="schema definitions"):

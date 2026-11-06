@@ -337,7 +337,7 @@ One credential can serve many agents: each registers its own identity from it, a
 
 ### Review what an agent proposes
 
-1. Open **Review**. "Proposal status" starts on submitted proposals; choose "All proposals" or another status to see the rest.
+1. Open **Review**. "Proposal status" starts on submitted proposals; choose "All proposals" or another status to see the rest. Each proposal names its agent and, after "Registered from", the directory that agent registered from, such as its checkout or worktree. Agents that registered before Worklog recorded directories, and credentials you issued in Settings, show none.
 2. Open a proposal. You see the agent's rationale and each numbered change, with the current and proposed values. A warning marks any target that changed after the agent proposed. The agent's evidence files are attached. A change that attaches one of them to a work item, roadmap, step or repository names the file, with its size and a download link. Approval attaches a copy there, and the evidence stays with the proposal.
 
    One proposal can create several records and connect them: a person, the repository they own, a work item there and a ticket against it. A change that creates a record gives it a name such as `@jane`, and later changes use that name in place of its ID until approval gives it one. Beside each name, Review notes which change creates its record.

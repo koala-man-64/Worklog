@@ -229,3 +229,84 @@ test("an agent registers its own identity and speaks as it", async ({
   });
   expect(shared.ok()).toBeTruthy();
 });
+
+test("Review says which directory a proposal's agent registered from", async ({
+  page,
+  baseURL,
+}) => {
+  const origin = new URL(baseURL!).origin;
+  // Data persists between local runs, so everything here is found by its own words.
+  const suffix = crypto.randomUUID();
+  const title = "Directory proposal " + suffix;
+  const directory = `C:\\Projects\\parser\\.claude\\worktrees\\${suffix}`;
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Today", exact: true }),
+  ).toBeVisible();
+  const boot = await page.request.post("/api/v1/session/bootstrap", {
+    headers: { Origin: origin, "X-Worklog-Bootstrap": "1" },
+    data: {},
+  });
+  const { csrfToken } = await boot.json();
+  async function post(path: string, data: unknown, token?: string) {
+    const response = await page.request.post("/api/v1" + path, {
+      headers: {
+        "Idempotency-Key": crypto.randomUUID(),
+        ...(token
+          ? { Authorization: "Bearer " + token }
+          : { Origin: origin, "X-CSRF-Token": csrfToken }),
+      },
+      data,
+    });
+    expect(response.ok(), `${path}: ${await response.text()}`).toBeTruthy();
+    return response.json();
+  }
+  const sponsor = await post("/credentials", {
+    label: "Directory sponsor " + suffix,
+  });
+  const token = Buffer.from(
+    crypto.getRandomValues(new Uint8Array(32)),
+  ).toString("base64url");
+  // `worklog agent register` sends the directory it runs in.
+  const agent = await post(
+    "/agent-registrations",
+    {
+      label: "Directory agent " + suffix,
+      token,
+      chatId: crypto.randomUUID(),
+      directory,
+    },
+    sponsor.token,
+  );
+  expect(agent.directory).toBe(directory);
+  const drafted = await post(
+    "/proposals",
+    {
+      title,
+      rationale: "",
+      operations: [{ action: "item.create", payload: { title } }],
+    },
+    token,
+  );
+  const submitted = await post(
+    `/proposals/${drafted.id}/submit`,
+    { revision: drafted.revision },
+    token,
+  );
+  expect(submitted.status).toBe("submitted");
+
+  await page.goto("/#review");
+  const link = page.getByRole("link", { name: title, exact: true });
+  const row = page.locator("article.roadmap-row").filter({ has: link });
+  await expect(row).toContainText(`Registered from ${directory}`);
+  await link.click();
+  await expect(
+    page.getByRole("heading", { name: title, exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText(directory, { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Registered from", { exact: false }),
+  ).toContainText(directory);
+
+  await post("/agent-registrations/retire", {}, token);
+});
