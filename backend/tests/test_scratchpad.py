@@ -5,6 +5,7 @@ import uuid
 from contextlib import closing
 
 import pytest
+import sealed
 from fastapi.testclient import TestClient
 from test_coordination_recovery import legacy_database
 from test_people_recovery import to_v9
@@ -68,7 +69,7 @@ def test_v8_folds_each_items_active_notes_into_its_oldest_and_archives_the_rest(
     Database(path).initialize()
     with Database(path).read() as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
     after = notes(path)
     # The oldest active note holds every active note in order, a titled one under its heading.
     assert after["first"]["title"] == "Scratchpad"
@@ -85,7 +86,7 @@ def test_v8_folds_each_items_active_notes_into_its_oldest_and_archives_the_rest(
     snapshot, = (path.parent / "backups").glob("worklog-pre-migration-*.sqlite3")
     with closing(sqlite3.connect(snapshot)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 7
-        assert recovery._schema_signature(conn) == recovery._expected_schema(scratchpads=False)
+        assert recovery._schema_signature(conn) == sealed.shape(7)
     assert notes(snapshot) == before
 
 
@@ -129,7 +130,7 @@ def test_restoring_a_v7_backup_folds_its_notes(tmp_path):
     target = tmp_path / "target" / "worklog.sqlite3"
     recovery.restore_database(target, source, tmp_path / "backups")
     with Database(target).read() as conn:
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
     restored = notes(target)
     assert {i for i, n in restored.items() if n["owner_type"] == "item" and not n["archived"]} == {"first", "titled", "untitled", "tie-a"}
     assert restored["first"]["text"].startswith("First thoughts\n\n## Decisions")
@@ -147,7 +148,7 @@ def test_restoring_a_v1_backup_folds_its_notes_through_the_whole_upgrade(tmp_pat
     recovery.restore_database(target, source, tmp_path / "backups")
     with Database(target).read() as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
     restored = notes(target)
     assert (restored["v1-a"]["archived"], restored["v1-a"]["text"]) == (0, "## Plan\n\nStart here\n\nThen this")
     assert restored["v1-b"]["archived"] == 1
@@ -164,7 +165,7 @@ def test_a_failed_v8_upgrade_leaves_v7_and_its_notes_as_they_were(tmp_path, monk
     assert notes(path) == before
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 7
-        assert recovery._schema_signature(conn) == recovery._expected_schema(scratchpads=False)
+        assert recovery._schema_signature(conn) == sealed.shape(7)
     recovery.validate_database(path)
 
 
@@ -189,7 +190,7 @@ def test_the_documented_way_back_to_v7_keeps_the_folded_notes_and_upgrades_again
         conn.executescript("DROP INDEX notes_item_scratchpad; PRAGMA user_version=7;")
     recovery.validate_database(path)
     with closing(sqlite3.connect(path)) as conn:
-        assert recovery._schema_signature(conn) == recovery._expected_schema(scratchpads=False)
+        assert recovery._schema_signature(conn) == sealed.shape(7)
     Database(path).initialize()
     assert notes(path) == folded
 

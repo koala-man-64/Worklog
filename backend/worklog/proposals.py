@@ -12,17 +12,6 @@ from .discussions import DiscussionService
 from .migrations import AUTOMATIC_APPROVAL_ID, stale_signature
 from .operations import OPERATIONS, validate
 
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS proposals (
- id TEXT PRIMARY KEY, title TEXT NOT NULL, rationale TEXT NOT NULL,
- status TEXT NOT NULL DEFAULT 'draft', revision INTEGER NOT NULL,
- actor_id TEXT NOT NULL, actor_label TEXT NOT NULL, actor_kind TEXT NOT NULL,
- operations TEXT NOT NULL, supersedes_id TEXT REFERENCES proposals(id),
- created_at TEXT NOT NULL, updated_at TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS proposals_status ON proposals(status,created_at);
-"""
-
 # Explicit schemas prevent a proposal becoming an arbitrary operation transport. Each operation's
 # keys come from its one definition in operations.py: (required, allowed) per action.
 FIELDS = {action: (set(spec.required), set(spec.allowed)) for action, spec in OPERATIONS.items()}

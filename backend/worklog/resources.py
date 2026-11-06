@@ -13,12 +13,6 @@ from typing import Any
 from . import search
 from .common import NOTE_LIMIT, AppError, event, now, read_events, require_revision, text, uid
 
-# Added in schema v9. Every statement stands alone: execute_schema splits on semicolons.
-# The page's text is the last column, so listing titles need not read through a long page's overflow pages.
-SCHEMA = """
-CREATE TABLE resources(id TEXT PRIMARY KEY,title TEXT NOT NULL,summary TEXT NOT NULL DEFAULT '',archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL,body TEXT NOT NULL DEFAULT '');
-"""
-
 TITLE_LIMIT = 1_000
 SUMMARY_LIMIT = 2_000
 # As much as a scratchpad holds.

@@ -8,6 +8,7 @@ from contextlib import closing, contextmanager
 from pathlib import Path
 
 import pytest
+import sealed
 from fastapi.testclient import TestClient
 from worklog import migrations, recovery
 from worklog.app import create_app
@@ -244,7 +245,7 @@ def test_the_v14_upgrade_keeps_every_list_as_version_13_showed_it(tmp_path):
     Database(path).initialize()
     with Database(path).read() as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
         assert [tuple(r) for r in conn.execute("SELECT id,revision,updated_at,created_at,done,archived,text FROM tasks ORDER BY id")] == kept
         assert {item: [r[0] for r in conn.execute("SELECT id FROM tasks WHERE item_id=? ORDER BY position", (item,))]
                 for item in (first, second)} == shown
@@ -273,12 +274,12 @@ def test_the_documented_way_back_to_v13_gives_its_exact_shape_and_upgrades_again
     recovery.validate_database(path)
     with Database(path).read() as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 13
-        assert recovery._schema_signature(conn) == recovery._expected_schema(task_positions=False)
+        assert recovery._schema_signature(conn) == sealed.shape(13)
         assert [r[0] for r in conn.execute("SELECT text FROM tasks ORDER BY created_at")] == ["A", "B"]
     Database(path).initialize()
     with Database(path).read() as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
     with person(tmp_path) as c:
         assert listed(c, item) == ["A", "B"]
 

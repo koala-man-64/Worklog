@@ -54,6 +54,7 @@ The order is fixed:
 | K10 (D4) | What are the agent quotas? | Per agent: 50 open drafts, 100 submitted proposals awaiting review, and per proposal 20 evidence files and 100 MB | 3.4 | 2026-11-04, Rudy |
 | K11 (D7) | Which tool hash-locks Python dependencies? | pip-tools (`pip-compile --generate-hashes`), with separate runtime and dev lock files | 5.7 | 2026-11-04, Rudy |
 | K12 | Should registering with a chat also wait for the person's confirmation? (from the security review of 1.4) | No: K3 stays as it is. A registered identity is bound to its chat with no confirmation, since agents are cooperating (K1), and the chat page names who registered each one. C-01 stays narrowed, not closed. | 1.4 | 2026-11-04, Rudy |
+| K13 | Does a new database start from the baseline schema, or at v1 with every upgrade run? (from building 2.5) | From the baseline, at the current version. Each schema change then writes its DDL twice, in `schema.py` and in its upgrade step, and the seals fail on any difference (see 2.5). | 2.5 | 2026-11-05, Claude, while building 2.5 |
 | D6 | Is a migration framework needed? | Closed as done: migrations v1 to v10 run in one transaction after a pre-migration backup. | — | 2026-11-04, Rudy |
 
 ## Rules the roundtable settled
@@ -150,9 +151,9 @@ Each of these is a separate migration with its own PR and its own independent re
 - v12 (step 1.3) copies decision state out of event JSON into columns.
 - v13 (step 1.4) binds chats to identities. It changes who receives the person's messages, so it gets a security review rather than a data review.
 
-Each migration's PR owns `migrations.py`, `db.py` and `recovery.py` while it is open. A deploy that runs a migration on real data waits for the person's go-ahead.
+Each migration's PR owns `migrations.py`, `schema.py`, `db.py` and `recovery.py` while it is open. A deploy that runs a migration on real data waits for the person's go-ahead.
 
-v11 and v12 went live together on 2026-11-04, after a dry run of the upgrade on a copy of the newest backup. v13 went live the same evening, after its own dry run, and steps 2.1 to 2.3 followed it.
+v11 and v12 went live together on 2026-11-04, after a dry run of the upgrade on a copy of the newest backup. v13 went live the same evening, after its own dry run, and steps 2.1 to 2.3 followed it. Step 2.4 went live on 2026-11-05, and the first half of step 2.5 that morning too, after a dry run of its new restore checks on a copy of the newest backup.
 
 #### 1.0 · One writer for the search index
 
@@ -263,16 +264,23 @@ What changed:
 
 #### 2.5 · Baseline schema and sealed digests
 
-Status: In progress · Branch: `claude/sealed-schemas` · PR: [#104](https://github.com/koala-man-64/Worklog/pull/104); the baseline schema module follows in its own PR
+Status: Merged · Branches: `claude/sealed-schemas`, `claude/baseline-schema` · PRs: [#104](https://github.com/koala-man-64/Worklog/pull/104), PR_LINK
 
 Add one baseline schema module. Seal a digest for every released version, with DDL dumps as test fixtures, so restore stops rebuilding old shapes by running today's migration code. Restore keeps accepting v1 onward (K5). Findings: B-06, B-08, A-14.
 
-Done so far: `recovery.SEALED_SCHEMAS` seals each shape a version shipped in, nine for v1 and one each for v2 to v13. `backend/tests/schemas` holds each shape's DDL. Restore accepts a database whose version and digest are sealed, the same shapes it accepted before, and no longer builds v2 to v13 from today's migration code. `test_sealed_schemas.py` checks:
+What changed:
+- **Sealed digests (#104).** `recovery.SEALED_SCHEMAS` seals each shape a version shipped in: nine for v1, and one for each later version. `backend/tests/schemas` holds each shape's DDL. Restore accepts a database whose version and digest are sealed, the same shapes it accepted before, and no longer builds older shapes from today's migration code.
+- **The baseline (PR_NUMBER).** `schema.py` holds every table and index of the current version, each statement as an upgraded database records it, since a seal covers the text. Under K13 a new database starts from it at the current version. Before, it was created at v1 and run through every upgrade, the v10 column rename and the v15 table rebuild among them.
+- **One home for the history.** The DDL used to be spread over eight modules. Now `migrations.py` holds every older piece, each upgrade step keeping the DDL its version shipped with, and the domain modules hold none. `db` no longer reaches `proposals`, so two upward imports from `db` remain in the layering test.
+- **Old shapes come from the dumps.** `backend/tests/sealed.py` builds an older database from its version's dump and gives the shape each version sealed. `recovery._expected_schema` and `_compatible_schemas`, which rebuilt released shapes from today's code for tests, are gone. So are the strings only they used, the v1 tables new databases started from; the v1 dump keeps them.
+
+`test_sealed_schemas.py` checks:
 - every digest against its dump, and that every version is sealed;
-- that a new database has the current sealed shape;
-- that each sealed shape, built from its dump, is accepted by restore and upgrades to the current one;
-- that a changed shape, or a sealed shape under another version, is refused;
-- that the shapes tests build from today's code are still the sealed ones, so an edit to a shipped migration fails.
+- that a new database has the current sealed shape, and holds exactly what an empty v1 database holds once upgraded;
+- that each sealed shape, built from its dump, is accepted by restore and upgrades to the current one, so an upgrade step changed after it shipped fails;
+- that a changed shape, or a sealed shape under another version, is refused.
+
+A schema change is a new version: its upgrade step, the same change in `schema.py`, and a new seal. The dump script writes a new version's dump only when a new database and the previous version's shape, upgraded, agree.
 
 ### Phase 3 · One authorization policy
 
@@ -507,3 +515,4 @@ These look like consolidation candidates but stay:
 - 2026-11-04: Step 2.5 split into two PRs while building it: sealed digests first, then the baseline schema module.
 - 2026-11-05: Schema v14, an order for each work item's tasks, added outside the plan for a product request, with its seal and documented way back. Step 2.5's baseline schema module starts from v14.
 - 2026-11-05: Schema v15, a Waiting status for work items, added outside the plan for a product request, with its seal and documented way back. It rebuilds `work_items` to widen its status CHECK. Step 2.5's baseline schema module starts from v15.
+- 2026-11-05: K13 recorded while building step 2.5's baseline module: a new database starts from the baseline schema at the current version.

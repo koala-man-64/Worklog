@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+import sealed
 from fastapi.testclient import TestClient
 from worklog import migrations, recovery, search
 from worklog.app import create_app
@@ -87,7 +88,7 @@ def test_a_new_database_keys_every_search_row(client):
     populate(client)
     with client.app.state.db.read() as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
         assert keyed(conn)
         names = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='index'")}
         assert {"tasks_item", "file_references_item", "work_items_step", "work_items_roadmap", "github_refs_chat",
@@ -107,7 +108,7 @@ def test_v10_upgrade_keys_every_row_drops_duplicates_and_dates_receipts(tmp_path
     to_v10(path)
     recovery.validate_database(path)
     with closing(sqlite3.connect(path)) as conn:
-        assert recovery._schema_signature(conn) == recovery._expected_schema(search_keys=False)
+        assert recovery._schema_signature(conn) == sealed.shape(10)
         # As a writer that inserted without deleting could leave it: the item indexed again, later.
         conn.execute("INSERT INTO search_index(entity_id,type,title,body,owner_id,archived) VALUES(?,'item','Newer quokka','',?,0)",
                      (item["id"], item["id"]))
@@ -116,7 +117,7 @@ def test_v10_upgrade_keys_every_row_drops_duplicates_and_dates_receipts(tmp_path
     Database(path).initialize()
     with Database(path).read() as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
         assert keyed(conn)
         # The newest row is the item's current one, and the only one left.
         assert [r[0] for r in conn.execute("SELECT title FROM search_index WHERE entity_id=?", (item["id"],))] == ["Newer quokka"]

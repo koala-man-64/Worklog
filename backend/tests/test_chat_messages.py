@@ -12,14 +12,11 @@ from contextlib import closing
 from datetime import timedelta
 
 import pytest
+import sealed
 from fastapi.testclient import TestClient
 from worklog import chat_messages, migrations, recovery
 from worklog.app import create_app
-from worklog.db import SCHEMA, Database
-from worklog.discussions import SCHEMA as DISCUSSION_SCHEMA
-from worklog.migrations import COORDINATION_SCHEMA
-from worklog.plans import SCHEMA as PLAN_SCHEMA
-from worklog.proposals import SCHEMA as PROPOSAL_SCHEMA
+from worklog.db import Database
 
 ORIGIN = "http://127.0.0.1:8877"
 STAMP = "2026-01-01T00:00:00+00:00"
@@ -243,17 +240,14 @@ def test_messages_list_newest_first_with_paging(client):
 
 def v3_database(path):
     """The shape main shipped as v3: avatars, but no messages to chats."""
+    sealed.build(path, 3)
     with closing(sqlite3.connect(path)) as conn:
-        conn.executescript(PLAN_SCHEMA + PROPOSAL_SCHEMA + SCHEMA + DISCUSSION_SCHEMA + COORDINATION_SCHEMA)
-        for key, value in {"dataId": "11111111-1111-4111-8111-111111111111", "timezone": "America/Chicago", "backlogRevision": 1}.items():
-            conn.execute("INSERT INTO settings VALUES(?,?)", (key, json.dumps(value)))
         conn.execute("INSERT INTO credentials VALUES('credential','Agent','hash-agent',?,0)", (STAMP,))
         conn.execute("INSERT INTO communication_agents(id,label,created_at,avatar) VALUES('credential','Agent',?,'teal-dots-antenna')", (STAMP,))
         conn.execute("INSERT INTO communication_credentials VALUES('credential','credential')")
         conn.execute("INSERT INTO work_items(id,title,backlog_order,created_at,updated_at) VALUES('item','Work',0,?,?)", (STAMP, STAMP))
         conn.execute("INSERT INTO agent_chats(id,owner_type,owner_id,chat_id,title,created_date,created_at,updated_at) VALUES('chat','item','item','session-1','Chat','2026-01-01',?,?)", (STAMP, STAMP))
         conn.execute("INSERT INTO agent_runs(id,agent_id,credential_id,client_run_key,display_name,external_chat_id,created_at,updated_at) VALUES('run','credential','credential','key','Run','session-1',?,?)", (STAMP, STAMP))
-        conn.execute("PRAGMA user_version=3")
         conn.commit()
     recovery.validate_database(path)
 
@@ -266,18 +260,18 @@ def test_v3_upgrade_adds_messages_after_a_snapshot_and_restores(tmp_path):
     Database(path).initialize()
     with Database(path).read() as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
         assert conn.execute("SELECT count(*) FROM chat_messages").fetchone()[0] == 0
     assert {t: conn_rows(path, t) for t in before} == before
     snapshots = list((path.parent / "backups").glob("worklog-pre-migration-*.sqlite3"))
     assert len(snapshots) == 1
     with closing(sqlite3.connect(snapshots[0])) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
-        assert recovery._schema_signature(conn) == recovery._expected_schema(chat_messages=False, tickets=False, remote_identity=False)
+        assert recovery._schema_signature(conn) == sealed.shape(3)
     restored = tmp_path / "restored" / "worklog.sqlite3"
     recovery.restore_database(restored, snapshots[0], tmp_path / "restore-backups")
     with Database(restored).read() as conn:
-        assert recovery._schema_signature(conn) == recovery._expected_schema()
+        assert recovery._schema_signature(conn) == sealed.current()
         assert conn.execute("SELECT end_reason FROM agent_runs").fetchone()[0] == "restore"
 
 
@@ -293,7 +287,7 @@ def test_failed_message_schema_rolls_back_the_v3_upgrade(tmp_path, monkeypatch):
 
     def fail_after_messages(conn, schema):
         execute(conn, schema)
-        if schema == chat_messages.SCHEMA:
+        if schema == migrations.CHAT_MESSAGE_SCHEMA:
             raise RuntimeError("Injected message schema failure")
 
     monkeypatch.setattr(migrations, "execute_schema", fail_after_messages)
@@ -301,7 +295,7 @@ def test_failed_message_schema_rolls_back_the_v3_upgrade(tmp_path, monkeypatch):
         Database(path).initialize()
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
-        assert recovery._schema_signature(conn) == recovery._expected_schema(chat_messages=False, tickets=False, remote_identity=False)
+        assert recovery._schema_signature(conn) == sealed.shape(3)
     recovery.validate_database(path)
 
 

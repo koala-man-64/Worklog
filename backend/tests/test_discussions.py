@@ -16,8 +16,8 @@ from worklog.discussions import (
     DiscussionService,
     bind_credential,
     communication_actor,
-    migrate,
 )
+from worklog.migrations import add_discussions
 
 ORIGIN = "http://127.0.0.1:8877"
 
@@ -412,9 +412,9 @@ def test_migration_binding_is_atomic_idempotent_and_partial_schema_fails_closed(
     c.execute("CREATE TABLE credentials(id TEXT PRIMARY KEY,label TEXT,revoked INTEGER)")
     c.execute("INSERT INTO credentials VALUES('old','Original',0)")
     c.execute("BEGIN IMMEDIATE")
-    migrate(c)
+    add_discussions(c)
     c.commit()
-    migrate(c)
+    add_discussions(c)
     assert communication_actor(c, {"id": "old", "kind": "agent"}) == {"id": "old", "label": "Original", "kind": "agent"}
     c.execute("INSERT INTO credentials VALUES('new','Replacement',0)")
     bind_credential(c, "new", "Replacement", "old")
@@ -426,7 +426,7 @@ def test_migration_binding_is_atomic_idempotent_and_partial_schema_fails_closed(
         bind_credential(c, "new", "Other", "wrong-profile")
     c.execute("DROP INDEX discussion_contexts_context")
     with pytest.raises(AppError, match="incomplete or changed"):
-        migrate(c)
+        add_discussions(c)
     assert c.execute("SELECT 1 FROM sqlite_master WHERE name='discussion_contexts_context'").fetchone() is None
     c.close()
 

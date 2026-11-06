@@ -29,7 +29,8 @@ REQUIRED_TABLES = frozenset(
 # contents, and never changes once released; only v1 shipped in more than one shape. Restore accepts
 # a database whose version and digest are listed here, and builds nothing from today's code to compare
 # it with. backend/tests/schemas holds the DDL of each shape, and test_sealed_schemas.py checks every
-# digest against it, so a schema change needs a new version, its upgrade and a new seal.
+# digest against it, so a schema change needs a new version, its upgrade, the same change in
+# schema.BASELINE and a new seal.
 SEALED_SCHEMAS: dict[int, frozenset[str]] = {
     1: frozenset({
         "c5ae7406cdd63ddfa0cd7f3a18f2cc74f898936ef42c3b72909424c2d2e5a272",  # discussions with roadmap questions and decisions, the last v1 shape
@@ -69,138 +70,6 @@ def _schema_signature(conn: sqlite3.Connection) -> dict[tuple[str, str], str]:
 def _schema_digest(signature: dict[tuple[str, str], str]) -> str:
     encoded = json.dumps(sorted((kind, name, sql) for (kind, name), sql in signature.items()), separators=(",", ":"))
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
-
-
-def _expected_schema(*, discussions: bool = True, coordination: bool = True,
-                     avatars: bool = True, chat_messages: bool = True,
-                     tickets: bool = True, remote_identity: bool = True,
-                     provenance: bool = True, scratchpads: bool = True,
-                     resources: bool = True, people: bool = True,
-                     search_keys: bool = True, decision_state: bool = True,
-                     chat_confirmations: bool = True, task_positions: bool = True,
-                     waiting_status: bool = True) -> dict[tuple[str, str], str]:
-    """A released shape built from today's code. Only tests build shapes this way: restore checks
-    SEALED_SCHEMAS, and test_sealed_schemas.py fails if a shape built here stops matching its seal."""
-    from worklog.db import SCHEMA
-    from worklog.plans import SCHEMA as PLAN_SCHEMA
-    from worklog.proposals import SCHEMA as PROPOSAL_SCHEMA
-
-    with closing(sqlite3.connect(":memory:")) as conn:
-        conn.executescript(PLAN_SCHEMA + PROPOSAL_SCHEMA + SCHEMA)
-        if discussions:
-            from worklog.discussions import AGENT_AVATAR_COLUMN
-            from worklog.discussions import SCHEMA as DISCUSSION_SCHEMA
-
-            conn.executescript(DISCUSSION_SCHEMA if avatars else DISCUSSION_SCHEMA.replace(AGENT_AVATAR_COLUMN, ""))
-        if coordination:
-            from worklog.migrations import (
-                COORDINATION_SCHEMA,
-                add_item_scratchpads,
-                add_remote_identity,
-                add_repository_provenance,
-            )
-
-            conn.executescript(COORDINATION_SCHEMA)
-            # Each version's shape includes every earlier one's.
-            if remote_identity:
-                add_remote_identity(conn)
-                if provenance:
-                    add_repository_provenance(conn)
-                    if scratchpads:
-                        add_item_scratchpads(conn)
-                        if resources:
-                            from worklog.resources import SCHEMA as RESOURCE_SCHEMA
-
-                            conn.executescript(RESOURCE_SCHEMA)
-                            if people:
-                                from worklog.migrations import add_person_details
-
-                                add_person_details(conn)
-                                if search_keys:
-                                    from worklog.migrations import add_search_keys_and_receipt_dates
-
-                                    add_search_keys_and_receipt_dates(conn)
-                                    if decision_state:
-                                        from worklog.migrations import add_decision_state
-
-                                        add_decision_state(conn)
-                                        if chat_confirmations:
-                                            # Only the table: the upgrade's delivery step reads
-                                            # chat_message_deliveries, which is created further down.
-                                            from worklog.migrations import (
-                                                CHAT_CONFIRMATIONS_SCHEMA,
-                                                execute_schema,
-                                            )
-
-                                            execute_schema(conn, CHAT_CONFIRMATIONS_SCHEMA)
-                                            if task_positions:
-                                                from worklog.migrations import add_task_positions
-
-                                                add_task_positions(conn)
-                                                if waiting_status:
-                                                    from worklog.migrations import (
-                                                        add_waiting_status,
-                                                    )
-
-                                                    add_waiting_status(conn)
-        if chat_messages:
-            from worklog.chat_messages import SCHEMA as CHAT_MESSAGE_SCHEMA
-
-            conn.executescript(CHAT_MESSAGE_SCHEMA)
-        if tickets:
-            from worklog.tickets import SCHEMA as TICKET_SCHEMA
-
-            conn.executescript(TICKET_SCHEMA)
-        return _schema_signature(conn)
-
-
-def _compatible_schemas() -> tuple[dict[tuple[str, str], str], ...]:
-    from worklog.db import AGENT_CHAT_COLUMNS
-
-    latest = _expected_schema()
-    # Every v1 shape predates agent avatars (v3), messages to chats (v4) and tickets (v5).
-    discussion_v1 = _expected_schema(coordination=False, avatars=False, chat_messages=False, tickets=False)
-    question_names = {"roadmap_questions", "roadmap_questions_roadmap", "roadmap_decisions", "roadmap_decisions_roadmap"}
-    # Questions and decisions shipped on main after discussions, still at v1.
-    before_questions = {k: v for k, v in discussion_v1.items() if k[1] not in question_names}
-    before_discussions = {k: v for k, v in _expected_schema(discussions=False, coordination=False, chat_messages=False, tickets=False).items() if k[1] not in question_names}
-    # `current` is the last shape before agent chats gained provider, model, repos and step
-    # assignments; every earlier shape below derives from it.
-    current = {k: v for k, v in before_discussions.items() if k[1] not in {"chat_steps", "chat_steps_step"}}
-    current[("table", "agent_chats")] = before_discussions[("table", "agent_chats")].replace(AGENT_CHAT_COLUMNS, "")
-    lcg_names = {
-        "web_links",
-        "web_links_owner",
-        "agent_chats",
-        "agent_chats_owner",
-        "github_refs",
-        "github_refs_owner",
-    }
-    people_names = {
-        "people",
-        "person_links",
-        "person_links_target",
-        "person_links_person",
-    }
-    without_lcg = {k: v for k, v in current.items() if k[1] not in lcg_names}
-    without_people = {
-        k: v for k, v in without_lcg.items() if k[1] not in people_names
-    }
-    legacy_roadmap = dict(without_people)
-    legacy_roadmap[("table", "work_items")] = without_people[("table", "work_items")].replace(
-        ", roadmap_id TEXT REFERENCES roadmaps(id)", ""
-    )
-    current_without_roadmap = dict(current)
-    current_without_roadmap[("table", "work_items")] = current[("table", "work_items")].replace(
-        ", roadmap_id TEXT REFERENCES roadmaps(id)", ""
-    )
-    # Every earlier shape predates roadmap nesting, so none has roadmaps.parent_id.
-    earlier = [
-        {**schema, ("table", "roadmaps"): schema[("table", "roadmaps")].replace(
-            ", parent_id TEXT REFERENCES roadmaps(id)", "")}
-        for schema in (current, without_lcg, without_people, legacy_roadmap, current_without_roadmap)
-    ]
-    return (latest, discussion_v1, before_questions, before_discussions, current, *earlier)
 
 
 class InstanceLock:

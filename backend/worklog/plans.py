@@ -14,33 +14,6 @@ from markdownify import markdownify
 
 from .common import AppError, event, now, read_events, require_revision, uid
 
-# roadmaps.parent_id sits exactly where ALTER TABLE ADD COLUMN places it, so created and
-# migrated databases share one definition for offline restore validation.
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS roadmaps (
- id TEXT PRIMARY KEY, title TEXT NOT NULL, overview TEXT NOT NULL,
- revision INTEGER NOT NULL, archived INTEGER NOT NULL DEFAULT 0,
- created_at TEXT NOT NULL, updated_at TEXT NOT NULL
-, parent_id TEXT REFERENCES roadmaps(id));
-CREATE TABLE IF NOT EXISTS steps (
- id TEXT PRIMARY KEY, roadmap_id TEXT NOT NULL REFERENCES roadmaps(id),
- title TEXT NOT NULL, description TEXT NOT NULL, parent_id TEXT,
- position INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'open',
- revision INTEGER NOT NULL, retired INTEGER NOT NULL DEFAULT 0
-);
-CREATE INDEX IF NOT EXISTS steps_roadmap ON steps(roadmap_id);
-CREATE TABLE IF NOT EXISTS roadmap_versions (
- roadmap_id TEXT NOT NULL REFERENCES roadmaps(id), number INTEGER NOT NULL,
- created_at TEXT NOT NULL, note TEXT NOT NULL, snapshot TEXT NOT NULL,
- PRIMARY KEY(roadmap_id,number)
-);
-CREATE TABLE IF NOT EXISTS plan_imports (
- id TEXT PRIMARY KEY, name TEXT NOT NULL, original BLOB NOT NULL, sha256 TEXT NOT NULL,
- preview TEXT NOT NULL, actor_id TEXT NOT NULL, created_at TEXT NOT NULL,
- roadmap_id TEXT REFERENCES roadmaps(id)
-);
-"""
-
 STATUSES = {"open", "doing", "blocked", "done"}
 
 
