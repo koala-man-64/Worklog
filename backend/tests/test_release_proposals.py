@@ -171,6 +171,51 @@ def test_a_proposal_names_only_what_a_release_change_can_take(client, agent):
     assert [(c["url"], c["direct"]) for c in shown["changes"]] == [("https://github.com/acme/app/pull/12", True)]
 
 
+def test_a_proposal_creates_a_release_and_a_check_and_changes_both_by_name(client, agent):
+    proposal = submitted(
+        client, agent,
+        {"action": "release.create", "payload": {"id": "@jan", "title": "January release"}},
+        {"action": "check.create", "payload": {"id": "@smoke", "releaseId": "@jan", "kind": "test", "text": "Smoke test"}},
+        {"action": "check.update", "payload": {"id": "@smoke", "revision": 1, "status": "done"}},
+        {"action": "release.update", "payload": {"id": "@jan", "revision": 1, "releaseDate": "2027-01-15"}},
+    )
+    assert ok(approve(client, proposal))["status"] == "approved"
+    (listed,) = ok(client.get("/api/v1/releases"))["items"]
+    shown = ok(client.get("/api/v1/releases/" + listed["id"]))
+    assert (shown["title"], shown["releaseDate"]) == ("January release", "2027-01-15")
+    assert [(c["text"], c["status"]) for c in shown["checks"]] == [("Smoke test", "done")]
+
+
+def test_staged_changes_keep_their_numbers_and_a_failure_applies_nothing(client, agent):
+    # GitHub references apply after the other changes, and a release change that holds one after
+    # them; an error still names the change by its place in the proposal.
+    work = ok(call(client, "POST", "/work-items", {"title": "Export button"}))
+    release = ok(call(client, "POST", "/releases", {"title": "Spring release"}))
+    proposal = submitted(
+        client, agent,
+        {"action": "github.create", "payload": {"id": "@pr", "ownerType": "item", "ownerId": work["id"], "kind": "pr",
+                                                "url": "https://github.com/acme/app/pull/3"}},
+        {"action": "release.add", "payload": {"releaseId": release["id"], "targetType": "github", "targetId": "@pr"}},
+        {"action": "release.update", "payload": {"id": release["id"], "revision": release["revision"],
+                                                 "title": "Agent's title"}},
+    )
+    ok(call(client, "PATCH", "/releases/" + release["id"], {"revision": release["revision"], "title": "Your title"}))
+    error = refused(approve(client, proposal), 409)
+    assert error["code"] == "conflict" and "Change 3 of 3, release.update" in error["message"]
+    assert ok(client.get("/api/v1/releases/" + release["id"]))["changes"] == []
+    assert ok(client.get("/api/v1/work-items/" + work["id"]))["github"] == []
+
+
+def test_an_approved_proposal_reaches_the_release_service_for_its_agent(tmp_path):
+    # Only an approved proposal (app.dispatch) passes proposed=True; the person's routes never do.
+    app = create_app(tmp_path, testing=True)
+    proposer = {"id": "agent-credential", "label": "Implementer", "kind": "agent"}
+    with TestClient(app, base_url=ORIGIN):
+        with app.state.db.transaction() as c:
+            made = app.state.work.apply(c, proposer, "release.create", {"title": "Theirs"}, proposed=True)
+        assert made["title"] == "Theirs"
+
+
 def test_a_proposal_cannot_change_an_archived_release(client, agent):
     release = ok(call(client, "POST", "/releases", {"title": "Shelved"}))
     proposal = submitted(client, agent, {"action": "check.create", "payload": {

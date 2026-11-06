@@ -559,6 +559,7 @@ Any other field is refused. On a create, `id` is not an ID but a name for the ne
   - A release's `status` is `planned`, `released` or `cancelled`. A check's `kind` is `notify` (who needs to know), `test` (what to test) or `prepare` (what to prepare first), and its `status` is a work item's.
   - `release.add` and `release.remove` take a `targetType` of `item`, `roadmap`, `step` or `github` (a GitHub reference) and its `targetId`. Holding a record twice, or removing one not held, changes nothing; a release takes no archived record, retired step, or GitHub reference on archived work.
   - A `personId` newly named must be an active person.
+  - Dates, people and the records a change names by ID are checked when it applies, as every record's own rules are, so a bad date or an archived person fails the person's approval: check them before you submit.
   - When your change needs something before it ships, such as a configuration change, a request to another team or a test, propose a check on the release that holds your work: `releases list --item ITEM_ID` finds it, and `releases show` gives each check's `revision`.
 - **Files.** You attach a file to the person's records with a copy of evidence uploaded to the same proposal:
   1. Draft the proposal; its operations may be empty for now.

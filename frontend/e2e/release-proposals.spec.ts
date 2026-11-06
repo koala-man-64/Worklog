@@ -117,4 +117,57 @@ test("an agent proposes what a release needs, and the person approves it on Revi
     .locator("section")
     .filter({ has: page.getByRole("heading", { name: /^Work items/ }) });
   await expect(items.getByRole("link", { name: work })).toBeVisible();
+
+  // Once the request is in, the agent proposes the check done; Review compares it with the check now.
+  const shown = await page.request.get("/api/v1/releases/" + releaseId, {
+    headers: { Authorization: "Bearer " + token },
+  });
+  expect(shown.ok(), await shown.text()).toBeTruthy();
+  const check = (
+    (await shown.json()) as {
+      checks: { id: string; text: string; revision: number }[];
+    }
+  ).checks.find((c) => c.text === need)!;
+  const done = await page.request.post("/api/v1/proposals", {
+    headers: agent(),
+    data: {
+      title: `Firewall rule granted ${suffix}`,
+      rationale: "Network approved the rule this morning.",
+      operations: [
+        {
+          action: "check.update",
+          payload: { id: check.id, revision: check.revision, status: "done" },
+        },
+      ],
+    },
+  });
+  expect(done.ok(), await done.text()).toBeTruthy();
+  const update = (await done.json()) as { id: string; revision: number };
+  const sent = await page.request.post(
+    `/api/v1/proposals/${update.id}/submit`,
+    { headers: agent(), data: { revision: update.revision } },
+  );
+  expect(sent.ok(), await sent.text()).toBeTruthy();
+  await page.goto("/#review/" + update.id);
+  const change = page
+    .getByRole("heading", { name: "Change 1: check.update" })
+    .locator("xpath=ancestor::article[1]");
+  // Each field Review compares carries the check's current value.
+  await expect(
+    change.getByText("Current", { exact: true }).first(),
+  ).toBeVisible();
+  await expect(page.getByText(/^Malformed target/)).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Approve proposal", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Confirm approve", exact: true })
+    .click();
+  await expect(page.getByText(/approved, revision/)).toBeVisible();
+  await page.goto("/#releases/" + releaseId);
+  await expect(
+    page
+      .getByRole("article", { name: need })
+      .getByRole("combobox", { name: "Status" }),
+  ).toHaveValue("done");
 });

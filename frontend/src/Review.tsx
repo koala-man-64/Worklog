@@ -294,6 +294,7 @@ const NAME_FIELDS = new Set([
   "roadmapId",
   "parentId",
   "personId",
+  "releaseId",
   "ownerId",
   "targetId",
   "repositoryIds",
