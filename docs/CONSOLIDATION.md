@@ -264,13 +264,13 @@ What changed:
 
 #### 2.5 · Baseline schema and sealed digests
 
-Status: Merged · Branches: `claude/sealed-schemas`, `claude/baseline-schema` · PRs: [#104](https://github.com/koala-man-64/Worklog/pull/104), PR_LINK
+Status: Merged · Branches: `claude/sealed-schemas`, `claude/baseline-schema` · PRs: [#104](https://github.com/koala-man-64/Worklog/pull/104), [#110](https://github.com/koala-man-64/Worklog/pull/110)
 
 Add one baseline schema module. Seal a digest for every released version, with DDL dumps as test fixtures, so restore stops rebuilding old shapes by running today's migration code. Restore keeps accepting v1 onward (K5). Findings: B-06, B-08, A-14.
 
 What changed:
 - **Sealed digests (#104).** `recovery.SEALED_SCHEMAS` seals each shape a version shipped in: nine for v1, and one for each later version. `backend/tests/schemas` holds each shape's DDL. Restore accepts a database whose version and digest are sealed, the same shapes it accepted before, and no longer builds older shapes from today's migration code.
-- **The baseline (PR_NUMBER).** `schema.py` holds every table and index of the current version, each statement as an upgraded database records it, since a seal covers the text. Under K13 a new database starts from it at the current version. Before, it was created at v1 and run through every upgrade, the v10 column rename and the v15 table rebuild among them.
+- **The baseline (#110).** `schema.py` holds every table and index of the current version, each statement as an upgraded database records it, since a seal covers the text. Under K13 a new database starts from it at the current version. Before, it was created at v1 and run through every upgrade, the v10 column rename and the v15 table rebuild among them.
 - **One home for the history.** The DDL used to be spread over eight modules. Now `migrations.py` holds every older piece, each upgrade step keeping the DDL its version shipped with, and the domain modules hold none. `db` no longer reaches `proposals`, so two upward imports from `db` remain in the layering test.
 - **Old shapes come from the dumps.** `backend/tests/sealed.py` builds an older database from its version's dump and gives the shape each version sealed. `recovery._expected_schema` and `_compatible_schemas`, which rebuilt released shapes from today's code for tests, are gone. So are the strings only they used, the v1 tables new databases started from; the v1 dump keeps them.
 
