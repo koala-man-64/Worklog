@@ -90,6 +90,7 @@ export function Review({ selectedId }: { selectedId?: string }) {
               <p>
                 {p.actorLabel}, {p.operations.length} proposed changes
               </p>
+              <Directory proposal={p} />
               <Dates proposal={p} />
             </div>
             <span className="badge">{statusLabel(p)}</span>
@@ -147,6 +148,7 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
       <p className="muted">
         Proposed by {p.actorLabel}, {statusLabel(p)}, revision {p.revision}
       </p>
+      <Directory proposal={p} />
       <Dates proposal={p} className="muted" />
       <Markdown text={p.rationale} />
       <h3>Proposed changes</h3>
@@ -249,6 +251,16 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
 }
 function timestamp(value: string) {
   return <time dateTime={value}>{new Date(value).toLocaleString()}</time>;
+}
+// The directory the proposal's agent registered from, which says where it
+// works; nothing when it named none.
+function Directory({ proposal: p }: { proposal: Proposal }) {
+  if (!p.actorDirectory) return null;
+  return (
+    <p className="muted proposal-directory">
+      Registered from <code>{p.actorDirectory}</code>
+    </p>
+  );
 }
 // Dated by its submission, or by its start until it is submitted; "updated"
 // shows only for a change after that: an edit, a withdrawal or a decision.

@@ -20,8 +20,12 @@ FIELDS = {action: tuple(set(names) for names in keys(action)) for action in OPER
 # proposal: the person's authority, recorded apart from the approvals they give in Review.
 AUTOMATIC = {"id": AUTOMATIC_APPROVAL_ID, "label": "Automatic approval", "kind": "human"}
 # Since v12 a proposal's row says when it was last submitted and whether automatic approval
-# applied it; before, both were read from its events.
-SELECT = "SELECT p.* FROM proposals p"
+# applied it; before, both were read from its events. Since v18 a proposal also names the directory
+# its agent's identity registered from, whichever of the identity's credentials wrote it: rotating a
+# credential keeps the identity. Only a registration row holds a directory, one per identity.
+SELECT = ("SELECT p.*,(SELECT reg.directory FROM communication_credentials cc JOIN communication_credentials reg"
+          " ON reg.agent_id=cc.agent_id WHERE cc.credential_id=p.actor_id AND reg.directory IS NOT NULL LIMIT 1)"
+          " AS actor_directory FROM proposals p")
 # Changes whose record proposal_targets reads from applying them: the work item or roadmap a create
 # made, whose ID Worklog chooses, and the ticket a change was made to, which may be named by its key.
 APPLIED_TO_RECORD = frozenset({"item.create", "roadmap.create", "ticket.create", "ticket.update"})
@@ -135,7 +139,8 @@ def _record(row):
     return {"id": row["id"], "title": row["title"], "rationale": row["rationale"],
             "status": row["status"], "autoApproved": bool(row["auto_approved"]),
             "revision": row["revision"], "actorId": row["actor_id"],
-            "actorLabel": row["actor_label"], "operations": json.loads(row["operations"]),
+            "actorLabel": row["actor_label"], "actorDirectory": row["actor_directory"],
+            "operations": json.loads(row["operations"]),
             "supersedesId": row["supersedes_id"], "createdAt": row["created_at"],
             "updatedAt": row["updated_at"],
             "submittedAt": None if row["status"] == "draft" else row["submitted_at"],

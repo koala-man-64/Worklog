@@ -5,7 +5,8 @@ descends from a credential the person issued in Settings. The agent generates th
 new token and Worklog stores only its SHA-256, like a credential issued in Settings.
 The registered credential's row in communication_credentials says who registered it and the
 chat the new identity works in (since v12; before, only the `credential.register` event did):
-its runs report that chat, and work they report tracks it. A
+its runs report that chat, and work they report tracks it. Since v18 the row and the event also
+hold the directory the agent registered from, which Review shows beside its proposals. A
 registered identity gets the same agent scope as any other, nothing more, and it
 loses access with the identity that registered it.
 """
@@ -15,11 +16,12 @@ from __future__ import annotations
 import hashlib
 import sqlite3
 from collections.abc import Callable, Iterable
+from pathlib import PurePosixPath, PureWindowsPath
 
 from fastapi import FastAPI, Request
 from pydantic import Field
 
-from .common import AppError, event, now, setting, text, today, uid
+from .common import AppError, event, now, setting, shows_as_written, text, today, uid
 from .coordination import close_credential_runs
 from .db import Database
 from .discussions import bind_credential, communication_actor, registered_by, registered_chats
@@ -42,6 +44,9 @@ class AgentRegistration(Command):
     chatId: str = Field(min_length=1, max_length=500)
     # A name from GET /discussions/avatars; omitted draws the least-used one.
     avatar: str | None = Field(default=None, min_length=1, max_length=100)
+    # The absolute directory the agent works in; `worklog agent register` sends its current one.
+    # Review shows it beside the identity's proposals. Omitted, it stays unknown.
+    directory: str | None = Field(default=None, min_length=1, max_length=2000)
 
 
 def _registered(c: sqlite3.Connection) -> Callable[[str], list[str]]:
@@ -87,11 +92,24 @@ def revoke_registered(c: sqlite3.Connection, actor: dict, credential_id: str) ->
     return revoked
 
 
+def _directory(value: object) -> str | None:
+    """The directory an agent registers from: absolute, on Windows or POSIX, and every character
+    shown as itself, so no control or bidirectional formatting character can make Review show
+    another path."""
+    if value is None:
+        return None
+    directory = text(value, "directory", required=True, limit=2000)
+    if not shows_as_written(directory) or not (PureWindowsPath(directory).is_absolute() or PurePosixPath(directory).is_absolute()):
+        raise AppError(422, "validation", "Give the absolute directory you work in, as your shell reports it", {"directory": "invalid"})
+    return directory
+
+
 def _record(c: sqlite3.Connection, credential_id: str) -> dict:
-    row = c.execute("SELECT cr.id,cr.label,a.id AS agent_id,a.avatar FROM credentials cr JOIN communication_credentials cc ON cc.credential_id=cr.id JOIN communication_agents a ON a.id=cc.agent_id WHERE cr.id=?", (credential_id,)).fetchone()
+    row = c.execute("SELECT cr.id,cr.label,a.id AS agent_id,a.avatar,cc.directory FROM credentials cr JOIN communication_credentials cc ON cc.credential_id=cr.id JOIN communication_agents a ON a.id=cc.agent_id WHERE cr.id=?", (credential_id,)).fetchone()
     return {"id": row["id"], "agentId": row["agent_id"], "label": row["label"], "avatar": row["avatar"],
             "chatId": registered_chats(c, [credential_id]).get(credential_id),
-            "registeredBy": registered_by(c, [credential_id]).get(credential_id)}
+            "registeredBy": registered_by(c, [credential_id]).get(credential_id),
+            "directory": row["directory"]}
 
 
 def register(c: sqlite3.Connection, actor: dict, p: dict) -> dict:
@@ -104,12 +122,14 @@ def register(c: sqlite3.Connection, actor: dict, p: dict) -> dict:
     chat = text(p.get("chatId"), "chatId", required=True, limit=500)
     if any(ch.isspace() or ord(ch) < 32 for ch in chat):
         raise AppError(422, "validation", "Give the chat's ID as it is, without spaces", {"chatId": "invalid"})
+    directory = _directory(p.get("directory"))
     digest = hashlib.sha256(p["token"].encode()).hexdigest()
     existing = c.execute("SELECT id,revoked FROM credentials WHERE token_hash=?", (digest,)).fetchone()
     if existing is not None:
         if existing["revoked"]:
             raise AppError(409, "token_revoked", "This token was revoked; generate a new one to register again")
-        # The token is the idempotency key: retrying an uncertain registration returns it.
+        # The token is the idempotency key: retrying an uncertain registration returns it, with the
+        # directory it first recorded.
         if existing["id"] not in registered_by(c, [existing["id"]]):
             raise AppError(409, "token_in_use", "This token belongs to a credential issued in Settings; generate a new one")
         # An identity works in the one chat it registered with; another chat registers another identity.
@@ -132,11 +152,11 @@ def register(c: sqlite3.Connection, actor: dict, p: dict) -> dict:
     identity = uid()
     c.execute("INSERT INTO credentials(id,label,token_hash,created_at,revoked) VALUES(?,?,?,?,0)", (identity, label, digest, now()))
     agent = bind_credential(c, identity, label, avatar=p["avatar"])
-    c.execute("UPDATE communication_credentials SET registered_by=?,registered_by_label=?,chat_id=? WHERE credential_id=?",
-              (sponsor["id"], sponsor["label"], chat, identity))
+    c.execute("UPDATE communication_credentials SET registered_by=?,registered_by_label=?,chat_id=?,directory=? WHERE credential_id=?",
+              (sponsor["id"], sponsor["label"], chat, directory, identity))
     event(c, actor, "credential.register", identity, None, {"label": label, "avatar": agent["avatar"], "agentId": agent["id"],
                                                              "registeredBy": {"id": sponsor["id"], "label": sponsor["label"]},
-                                                             "chatId": chat})
+                                                             "chatId": chat, "directory": directory})
     return _record(c, identity)
 
 
