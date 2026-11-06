@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+import unicodedata
 import uuid
 from collections.abc import Iterable
 from datetime import UTC, date, datetime
@@ -24,6 +25,15 @@ IN_BATCH = 400
 # one run's or one request's own credential, which a revoked credential must fail on its own.
 LIVE_AGENT = ("EXISTS(SELECT 1 FROM communication_credentials cc JOIN credentials cr ON cr.id=cc.credential_id "
               "WHERE cc.agent_id=a.id AND cr.revoked=0)")
+# Characters that don't show as themselves: controls, formatting (bidirectional overrides and
+# zero-width characters among them), lone surrogates, and line and paragraph separators.
+UNSEEN = frozenset({"Cc", "Cf", "Cs", "Zl", "Zp"})
+
+
+def shows_as_written(value: str) -> bool:
+    """Whether every character of value shows as itself, so a reader sees what was recorded.
+    A space of any kind shows as a space, as in a folder name."""
+    return not any(unicodedata.category(ch) in UNSEEN for ch in value)
 
 
 def rows_in(c: sqlite3.Connection, sql: str, ids: Iterable[str], size: int = IN_BATCH) -> list[sqlite3.Row]:

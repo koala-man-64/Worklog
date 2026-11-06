@@ -393,6 +393,77 @@ it("shows an automatic approval in a proposal's detail", async () => {
   ).toBeInTheDocument();
   expect(screen.queryByText(/^Approval is off/)).toBeNull();
 });
+const DIRECTORY =
+  "C:\\Users\\person\\Projects\\parser\\.claude\\worktrees\\fix";
+function fromAgent(id: string, title: string, actorDirectory: string | null) {
+  return {
+    id,
+    title,
+    rationale: "",
+    status: "submitted",
+    autoApproved: false,
+    revision: 2,
+    actorLabel: "Parser agent",
+    actorDirectory,
+    operations: [],
+    attachments: [],
+  };
+}
+it("names the directory each listed proposal's agent registered from", async () => {
+  requestMock.mockImplementation(async (path: string) => {
+    if (path === "/settings") return { requireProposalApproval: true };
+    if (path === "/proposals?status=submitted")
+      return {
+        items: [
+          fromAgent(ID, "From the worktree", DIRECTORY),
+          fromAgent(OTHER_ID, "From a shared credential", null),
+        ],
+        total: 2,
+      };
+    throw new ApiError(404, "Not found", "not_found");
+  });
+  renderWithClient(<Review />);
+  const row = async (title: string) =>
+    (await screen.findByRole("link", { name: title })).closest(
+      "article",
+    ) as HTMLElement;
+  expect(
+    within(await row("From the worktree")).getByText(/^Registered from/),
+  ).toHaveTextContent(`Registered from ${DIRECTORY}`);
+  // An agent that named no directory, or a credential issued in Settings, shows none.
+  expect(
+    within(await row("From a shared credential")).queryByText(
+      /^Registered from/,
+    ),
+  ).toBeNull();
+});
+it("names the directory a proposal's agent registered from in its detail", async () => {
+  requestMock.mockImplementation(async (path: string) => {
+    if (path === `/proposals/${ID}`)
+      return fromAgent(ID, "From the worktree", DIRECTORY);
+    if (path === "/settings") return { requireProposalApproval: true };
+    return { items: [], total: 0 };
+  });
+  renderWithClient(<Review selectedId={ID} />);
+  expect(await screen.findByText(/^Registered from/)).toHaveTextContent(
+    `Registered from ${DIRECTORY}`,
+  );
+  // The path reads as code, so it is never mistaken for prose.
+  expect(screen.getByText(DIRECTORY).tagName).toBe("CODE");
+});
+it("names no directory in the detail of a proposal whose agent named none", async () => {
+  requestMock.mockImplementation(async (path: string) => {
+    if (path === `/proposals/${ID}`)
+      return fromAgent(ID, "From a shared credential", null);
+    if (path === "/settings") return { requireProposalApproval: true };
+    return { items: [], total: 0 };
+  });
+  renderWithClient(<Review selectedId={ID} />);
+  expect(
+    await screen.findByText("Proposed by Parser agent, submitted, revision 2"),
+  ).toBeInTheDocument();
+  expect(screen.queryByText(/^Registered from/)).toBeNull();
+});
 const STARTED = "2026-11-02T14:00:00.000001+00:00";
 const SUBMITTED = "2026-11-02T15:00:00.123456+00:00";
 const CHANGED = "2026-11-02T16:30:00.5+00:00";
