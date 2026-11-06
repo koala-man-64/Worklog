@@ -295,8 +295,19 @@ Each route declares its scope. The table drives the middleware decision and chec
 Done so far, in observe mode:
 - **The table.** `policy.ROUTES` gives every route under `/api/v1` a scope for each method it serves: the person's (`human`), or an agent scope for reads, proposals, discussions, coordination, tickets, registration or the inbox. A scope can hang on one value. Agents may submit, withdraw and reopen a proposal, but not approve or reject one, and they upload evidence only to a proposal. A method a route lists no scope for is the person's.
 - **The decision.** `policy.decide` finds the route a request reaches, as the router does. A request no route serves under its method gets no scope: the router answers it with 404, 405 or a redirect, and no handler runs.
-- **Observe mode.** The middleware still decides. `test_route_policy.py` sends every call a route serves through today's middleware, with each verb and owner type the decisions read, and with the router stubbed so no handler runs. Each call must get the table's answer. The tests also check that the CLI sends no call the table refuses and can make every agent write the table lists, and that every route has a scope.
-- **No live observation.** Agents reach Worklog through the CLI, whose allowlist these tests cover call by call, so a log of live calls would add no case.
+- **Observe mode.** The middleware still decides. `test_route_policy.py` sends every call a route serves through today's middleware, with the router stubbed so no handler runs. It tries each verb and owner type the decisions read, and each word a route's path ends in as the value of a trailing parameter. Each call gets the table's answer, with four exceptions:
+  - `/chats/messages`
+  - `/chats/transcript`
+  - `/roadmaps/agents`
+  - a roadmap revision numbered `agents`
+
+  Today's checks match words in the path, so these read as the person's pages of those names. In fact each names a chat, roadmap or revision that no record has. Once the table decides, an agent gets those handlers' 404 instead of 403.
+- **Calls no route serves.** These reach no handler. Today's middleware treats them unevenly: it refuses some, and lets others through to the router's 404, 405 or redirect. The tests pin a sample of them, so the next PR's choice for them shows.
+- **Other checks.** The tests also check:
+  - the table against the route matrix;
+  - that the CLI sends no call the table refuses, and can make every agent write the table lists, with each verb and owner type;
+  - that every route has a scope.
+- **No live observation.** The table and the middleware both decide from a call's method, path and query alone, and the tests cover every shape of call a route serves. A log of live calls would add no case.
 
 #### 3.2 · Human-only scope on sensitive routes
 
