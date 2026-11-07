@@ -11,6 +11,7 @@ from .common import NOTE_LIMIT, AppError, event, now, require_revision, setting,
 from .discussions import DiscussionService
 from .migrations import AUTOMATIC_APPROVAL_ID, stale_signature
 from .operations import OPERATIONS, keys, validate
+from .plans import revised_by
 
 # Explicit schemas prevent a proposal becoming an arbitrary operation transport. Each operation's
 # keys come from its one definition in operations.py: (required, allowed) per action.
@@ -500,10 +501,10 @@ class ProposalService:
                 rm = conn.execute("SELECT id,title,revision FROM roadmaps WHERE id=?", (target,)).fetchone() if isinstance(target, str) else None
                 if rm is not None:
                     if action == "roadmap.revise" and rm["revision"] == payload.get("revision") and isinstance(payload.get("steps"), list):
-                        for step in payload["steps"]:
-                            sid = step.get("id") if isinstance(step, dict) else None
-                            if isinstance(sid, str):
-                                revised_steps[sid] = revised_steps.get(sid, 0) + 1
+                        # A revise raises the revision only of the steps it changes (K4), so a
+                        # later progress.set in the proposal expects one more for those alone.
+                        for sid in revised_by(conn, rm["id"], payload["steps"]):
+                            revised_steps[sid] = revised_steps.get(sid, 0) + 1
                     if (roadmap_id is None or rm["id"] == roadmap_id) and rm["revision"] != payload.get("revision"):
                         conflicts.append({
                             "operation": number,

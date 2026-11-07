@@ -367,7 +367,7 @@ Stop the growth before reclaiming space.
 
 #### 4.1 · Roadmap save diff
 
-Status: Not started · Branch: — · PR: —
+Status: In progress · Branch: `claude/roadmap-save-diff` · PR: [#126](https://github.com/koala-man-64/Worklog/pull/126); the reorders and the reflection's own revision follow in their own PRs
 
 A structure save rewrites every step, bumps every step's revision, and puts two full trees into the roadmap event.
 
@@ -379,6 +379,20 @@ Fix, under K4:
 - stop reorder and progress from bumping unrelated revisions.
 
 Findings: B-02, REM-13, REM-26.
+
+Done so far:
+- **Roadmap saves (#126).**
+  - A revise, restore or create writes only the steps it changes. A step that keeps its title, description, parent and position, and stays active, keeps its revision and gets no event.
+  - A save that changes nothing records no revision, version or event. So no version is identical to the one before it.
+  - The roadmap's event records `{versionNumber, changedStepIds}`: the version holds the whole plan, and each changed step's own event holds its before and after. A roadmap's history was two copies of the tree per save.
+  - Progress raises only the step's revision. The roadmap's revision guards its title, overview and step tree, which progress leaves alone, so setting progress no longer makes an open structure edit conflict.
+  - A proposal that revises a roadmap and then sets a step's progress expects one more only for a step the revise changes. The stale check (`plans.revised_by`) and the agent guide say so.
+
+  `test_roadmap_save_diff.py` pins each of these. Findings B-02 and REM-13's roadmap half.
+
+Still to come:
+- **The reorders.** Backlog and day reorders stop bumping the revisions of the records they reorder, and an entry change bumps the day's revision only when it adds an entry (REM-13's other half).
+- **The reflection's own revision.** A schema version adds it, so reorders and new entries no longer conflict with a reflection draft (REM-26).
 
 #### 4.2 · Backups off the request path
 
@@ -572,3 +586,4 @@ These look like consolidation candidates but stay:
 - 2026-11-05: Step 3.1's request guard moves to pure ASGI in a third PR, after the table decides. The table's PR also settles calls no route serves: an agent's read goes on to the router unless the router would redirect it to the person's page or to a path that serves no read, and anything else is refused.
 - 2026-11-06: Schema v18, `communication_credentials.directory`, added outside the plan for a product request (Review names the directory each proposal's agent registered from), with its seal and documented way back. Registration writes it beside the chat, and the `credential.register` event records it too, so the upgrade copies it back from those events after the way back; identities registered before v18 have none. Built as v17 alongside agent ties (#116), it became v18 when that merged first.
 - 2026-11-06: Schema v19, releases (`releases`, `release_contents`, `release_checks`), added outside the plan for a product request (coordinating what ships together, who needs to know, what to test and what to prepare first), with its seal and documented way back, which discards releases. It was built as v17 and renumbered as v17's agent ties and v18's registration directories landed first; it is the last upgrade step, after their guarded ones. Its routes start in the policy table: agents read them and write none. Agent proposals for releases are a separate PR.
+- 2026-11-06: Step 4.1 split into PRs while building it: roadmap saves and progress first, then the backlog and day reorders, then the reflection's own revision, which is a schema change.

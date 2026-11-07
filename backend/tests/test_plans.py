@@ -167,10 +167,13 @@ def test_pathological_nesting_is_rejected_with_validation_error(plans):
     assert error.value.status == 422
 
 
-def test_new_steps_ignore_caller_progress_and_roadmap_conflicts(plans):
+def test_new_steps_ignore_caller_progress_and_progress_leaves_the_plan_revision(plans):
     created = apply(plans, "roadmap.create", {"title": "Plan", "steps": [{"title": "New", "status": "done"}]})
     assert created["steps"][0]["status"] == "open"
     apply(plans, "progress.set", {"id": created["steps"][0]["id"], "revision": 1, "status": "doing"})
+    # Progress is the step's: the roadmap's revision guards its structure, which progress leaves (K4).
+    renamed = apply(plans, "roadmap.revise", {"id": created["id"], "revision": 1, "title": "Renamed", "steps": created["steps"]})
+    assert renamed["revision"] == 2 and renamed["steps"][0]["status"] == "doing"
     with pytest.raises(AppError) as error:
         apply(plans, "roadmap.revise", {"id": created["id"], "revision": 1, "title": "Stale", "steps": []})
     assert error.value.status == 409
