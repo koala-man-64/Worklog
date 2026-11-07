@@ -367,7 +367,7 @@ Stop the growth before reclaiming space.
 
 #### 4.1 · Roadmap save diff
 
-Status: In progress · Branch: `claude/roadmap-save-diff` · PR: [#126](https://github.com/koala-man-64/Worklog/pull/126); the reorders and the reflection's own revision follow in their own PRs
+Status: In progress · Branches: `claude/roadmap-save-diff`, `claude/reorder-revisions` · PRs: [#126](https://github.com/koala-man-64/Worklog/pull/126), [#127](https://github.com/koala-man-64/Worklog/pull/127); the reflection's own revision follows in its own PR
 
 A structure save rewrites every step, bumps every step's revision, and puts two full trees into the roadmap event.
 
@@ -389,7 +389,7 @@ Done so far:
   - A proposal that revises a roadmap and then sets a step's progress expects one more only for a step the revise changes. The stale check (`plans.revised_by`) and the agent guide say so.
 
   `test_roadmap_save_diff.py` pins each of these. Findings B-02 and REM-13's roadmap half.
-- **The reorders (PR_NUMBER).** Order belongs to the backlog and to each day, and their revisions guard it.
+- **The reorders (#127).** Order belongs to the backlog and to each day, and their revisions guard it.
   - A backlog reorder, and moving a work item up or down, leave the work items they move their revisions.
   - A day reorder leaves its entries theirs.
   - An entry change raises the day's revision only when it adds the entry, as removing one does. So an outcome saved while a reflection draft is open leaves the draft able to save.
