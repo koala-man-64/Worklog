@@ -334,7 +334,7 @@ What changed:
 
 #### 3.3 · Explicit agent reads
 
-Status: Merged · Branch: `claude/agent-reads` · PR: PR_LINK
+Status: Merged · Branch: `claude/agent-reads` · PR: [#124](https://github.com/koala-man-64/Worklog/pull/124)
 
 List every read agents keep (K2) as allowed, and deny agents any route that isn't listed. Update AGENT-GUIDE's "may GET every route" in the same PR. Findings: C-04, C-15.
 
