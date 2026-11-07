@@ -415,15 +415,15 @@ What changed:
 
 #### 4.2 · Backups off the request path
 
-Status: Merged · Branches: `claude/backup-off-requests`, `claude/streaming-export` · PRs: PR_LINK, PR2_LINK
+Status: Merged · Branches: `claude/backup-off-requests`, `claude/streaming-export` · PRs: [#131](https://github.com/koala-man-64/Worklog/pull/131), PR2_LINK
 
 The daily backup now runs from the watcher only, not on the first write of the day. Backup hashes are cached, and export streams instead of holding blobs twice in memory. Findings: B-05, C-17, REM-18.
 
 What changed:
-- **Backups off the request path (PR_NUMBER).**
+- **Backups off the request path (#131).**
   - The day's automatic backup is taken at startup and by the serve watcher's minute check, as the README says. No write takes it: `mutate()` and agent registration used to, so the first write of a day waited for the whole database to be copied.
   - `app.daily_backup` shows a failure in Settings until a backup succeeds, from the watcher as from startup.
-- **Cached backup hashes (PR_NUMBER).** The CLI's `backups` listing takes each file's SHA-256 from `backups/backup-hashes.json` while the file keeps the size and modification time it was hashed at. Each new backup's hash goes there as it is made, and the hash of a file that has gone leaves.
+- **Cached backup hashes (#131).** The CLI's `backups` listing takes each file's SHA-256 from `backups/backup-hashes.json` while the file keeps the size and modification time it was hashed at. Each new backup's hash goes there as it is made, and the hash of a file that has gone leaves.
 
   `test_backup_path.py` pins each of these.
 - **The streaming export (PR2_NUMBER).**
