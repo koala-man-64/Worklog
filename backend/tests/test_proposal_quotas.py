@@ -4,10 +4,12 @@ Each quota is counted from the live tables, per agent identity: the limit succee
 gets 429 agent_limit. The person is never limited. The list pages, and an agent never sees another
 agent's drafts on any page."""
 
+import sqlite3
 import uuid
 
 import pytest
 from fastapi.testclient import TestClient
+from worklog import proposals as proposals_module
 from worklog.app import create_app
 from worklog.common import now
 
@@ -56,24 +58,26 @@ def draft(c, token, item):
         {"action": "item.update", "payload": {"id": item["id"], "revision": item["revision"], "title": "Renamed"}}]}, token))
 
 
-def held(client, actor_id, status, count, kind="agent"):
-    """Proposals an actor already holds, written straight into the table the quotas count."""
+def held(client, actor_id, status, count, kind="agent", submitted=True):
+    """Proposals an actor already holds, written straight into the table the quotas count. A draft,
+    and a proposal withdrawn before it was submitted, has no submitted time."""
     ids, stamp = [], now()
     with client.app.state.db.transaction() as conn:
         for _ in range(count):
             ids.append(str(uuid.uuid4()))
             conn.execute("INSERT INTO proposals(id,title,rationale,status,revision,actor_id,actor_label,actor_kind,operations,"
                          "created_at,updated_at,submitted_at) VALUES(?,'Held','',?,1,?,'Held',?,'[]',?,?,?)",
-                         (ids[-1], status, actor_id, kind, stamp, stamp, None if status == "draft" else stamp))
+                         (ids[-1], status, actor_id, kind, stamp, stamp, stamp if submitted and status != "draft" else None))
     return ids
 
 
-def evidence(client, proposal_id, count, size):
+def evidence(client, proposal_id, count, size, archived=False):
     """Evidence files a proposal already holds, recorded at the size the quota adds up."""
     with client.app.state.db.transaction() as conn:
         for _ in range(count):
-            conn.execute("INSERT INTO attachments(id,owner_type,owner_id,name,mime,size,sha256,content,created_at) "
-                         "VALUES(?,'proposal',?,'held.txt','text/plain',?,'0',x'00',?)", (str(uuid.uuid4()), proposal_id, size, now()))
+            conn.execute("INSERT INTO attachments(id,owner_type,owner_id,name,mime,size,sha256,content,archived,created_at) "
+                         "VALUES(?,'proposal',?,'held.txt','text/plain',?,'0',x'00',?,?)",
+                         (str(uuid.uuid4()), proposal_id, size, int(archived), now()))
 
 
 def test_an_agent_keeps_at_most_50_drafts_under_any_of_its_credentials(client, wire):
@@ -135,7 +139,9 @@ def test_a_proposal_holds_at_most_20_evidence_files_and_100_mb(client, wire):
             f"/api/v1/attachments?ownerType=proposal&ownerId={proposal['id']}&name=evidence.txt", content=content, headers=headers)
 
     files = draft(wire, agent["token"], item)
-    evidence(client, files["id"], 19, 1)
+    # Archived evidence stays in the file, so it counts.
+    evidence(client, files["id"], 10, 1)
+    evidence(client, files["id"], 9, 1, archived=True)
     ok(upload(files, agent["token"]))
     limited(upload(files, agent["token"]), "20 evidence files")
     big = draft(wire, agent["token"], item)
@@ -151,17 +157,48 @@ def test_the_list_pages_and_never_shows_an_agent_another_agents_drafts(client, w
     my_drafts = set(held(client, mine["id"], "draft", 3))
     held(client, theirs["id"], "draft", 3)
     their_submitted = set(held(client, theirs["id"], "submitted", 2))
+    # Withdrawn before it was submitted, a proposal stays its agent's; withdrawn after, every agent sees it.
+    held(client, theirs["id"], "withdrawn", 1, submitted=False)
+    their_withdrawn = set(held(client, theirs["id"], "withdrawn", 1))
     seen = []
-    for offset in range(6):
+    for offset in range(7):
         page = ok(call(wire, "GET", f"/proposals?limit=1&offset={offset}", token=mine["token"]))
-        assert page["total"] == 5
+        assert page["total"] == 6
         seen += [p["id"] for p in page["items"]]
-    assert len(seen) == 5 and set(seen) == my_drafts | their_submitted
+    assert len(seen) == 6 and set(seen) == my_drafts | their_submitted | their_withdrawn
     # The person sees every proposal, 50 to a page unless asked for more, up to 200.
     held(client, "local-user", "approved", 52, kind="human")
     first = ok(call(client, "GET", "/proposals"))
-    assert (len(first["items"]), first["total"]) == (50, 60)
-    assert len(ok(call(client, "GET", "/proposals?limit=200"))["items"]) == 60
+    assert (len(first["items"]), first["total"]) == (50, 62)
+    assert len(ok(call(client, "GET", "/proposals?limit=200"))["items"]) == 62
     assert call(client, "GET", "/proposals?limit=201").status_code == 422
     drafts = ok(call(client, "GET", "/proposals?status=draft&offset=4"))
     assert (len(drafts["items"]), drafts["total"]) == (2, 6)
+
+
+def test_a_page_is_read_from_one_snapshot(client, wire, monkeypatch):
+    """A list's two reads, which proposals the caller may see and then those on the page, see one
+    state of the file: no write lands between them, so an agent is never shown another agent's
+    proposal after it turned back into a draft (from the review of #125)."""
+    a, b = credential(client, "A"), credential(client, "B")
+    item = ok(call(client, "POST", "/work-items", {"title": "Target"}))
+    proposal = draft(wire, a["token"], item)
+    ok(call(wire, "POST", f"/proposals/{proposal['id']}/submit", {"revision": proposal["revision"]}, a["token"]))
+    original, landed = proposals_module._records, []
+
+    def reopened_between(conn, ids):
+        # The proposal turns back into a draft between the two reads, if any write can land there.
+        writer = sqlite3.connect(client.app.state.db.path, timeout=0.2)
+        try:
+            writer.execute("UPDATE proposals SET status='draft' WHERE id=?", (proposal["id"],))
+            writer.commit()
+            landed.append(True)
+        except sqlite3.OperationalError:
+            writer.rollback()
+        finally:
+            writer.close()
+        return original(conn, ids)
+
+    monkeypatch.setattr(proposals_module, "_records", reopened_between)
+    listed = ok(call(wire, "GET", "/proposals", token=b["token"]))
+    assert landed == [] and [(p["id"], p["status"]) for p in listed["items"]] == [(proposal["id"], "submitted")]

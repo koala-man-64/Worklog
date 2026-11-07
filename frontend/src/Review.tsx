@@ -34,6 +34,13 @@ export function Review({ selectedId }: { selectedId?: string }) {
     offset: String(offset),
   });
   const proposals = useData<List<Proposal>>("/proposals?" + params.toString());
+  const total = proposals.data?.total ?? 0;
+  const emptied =
+    !!proposals.data && !proposals.data.items.length && offset > 0;
+  useEffect(() => {
+    // Reviewing the last proposals of a later page leaves it empty: show the last page there is.
+    if (emptied) setOffset(Math.max(0, Math.floor((total - 1) / PAGE) * PAGE));
+  }, [emptied, total]);
   const settings = useData<Settings>("/settings");
   const selected = selectedId ?? "";
   return (
@@ -108,7 +115,7 @@ export function Review({ selectedId }: { selectedId?: string }) {
       {!selected && (
         <Pages
           offset={offset}
-          total={proposals.data?.total ?? 0}
+          total={total}
           change={setOffset}
           label="proposals"
         />

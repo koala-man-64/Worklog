@@ -511,6 +511,24 @@ it("pages the proposals 50 at a time", async () => {
   ).toBeInTheDocument();
   expect(screen.getByText("51 to 60 of 60")).toBeInTheDocument();
 });
+it("goes back to the last page there is when a later one empties", async () => {
+  requestMock.mockImplementation(async (path: string) => {
+    if (path === "/settings") return { requireProposalApproval: true };
+    if (path === "/proposals?status=submitted&limit=50&offset=0")
+      return { items: [fromAgent(ID, "Still waiting", null)], total: 51 };
+    // The person reviewed the 51st meanwhile, so the second page is empty.
+    if (path === "/proposals?status=submitted&limit=50&offset=50")
+      return { items: [], total: 50 };
+    throw new ApiError(404, "Not found", "not_found");
+  });
+  renderWithClient(<Review />);
+  await screen.findByRole("link", { name: "Still waiting" });
+  await userEvent.click(screen.getByRole("button", { name: "Next proposals" }));
+  expect(
+    await screen.findByRole("link", { name: "Still waiting" }),
+  ).toBeInTheDocument();
+  expect(screen.queryByText(/^No submitted proposals/)).toBeNull();
+});
 it("names the directory a proposal's agent registered from in its detail", async () => {
   requestMock.mockImplementation(async (path: string) => {
     if (path === `/proposals/${ID}`)

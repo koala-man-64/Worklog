@@ -253,16 +253,19 @@ class ProposalService:
     def list(self, actor, status=None, limit=None, offset=0):
         """The proposals the caller may see, oldest first: a page of `limit` from `offset`, or with no
         limit every one (GET /context). Visibility is decided on each row's status and owner alone,
-        before the page's proposals are read whole."""
+        before the page's proposals are read whole. Both reads see one snapshot, so a proposal that
+        turns back into a draft between them is never shown whole to another agent."""
         if status is not None and status not in {"draft", "submitted", "approved", "rejected", "withdrawn"}:
             raise AppError(422, "validation", "Invalid proposal status")
-        with self.db.read() as conn:
+
+        def read(conn):
             rows = conn.execute("SELECT p.id,p.status,p.actor_id,p.submitted_at FROM proposals p"
                                 + (" WHERE p.status=?" if status else "") + " ORDER BY p.created_at,p.id",
                                 (status,) if status else ()).fetchall()
             visible = [row["id"] for row in rows if can_see(conn, row, actor)]
             page = visible[offset:] if limit is None else visible[offset:offset + limit]
             return {"items": _records(conn, page), "total": len(visible)}
+        return self.db.snapshot(read)
 
     def detail(self, identifier, actor):
         with self.db.read() as conn:
