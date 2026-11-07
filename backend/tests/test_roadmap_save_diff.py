@@ -6,6 +6,7 @@ its version and the steps changed, where it held two copies of the tree. Progres
 step's revision, and a proposal that revises a roadmap and then sets a step's progress expects one
 more only for a step the revise changes."""
 
+import random
 import uuid
 
 import pytest
@@ -313,3 +314,157 @@ def test_another_agents_progress_stays_current_when_a_revise_numbers_the_plan_af
         row = conn.execute("SELECT * FROM proposals WHERE id=?", (progress["id"],)).fetchone()
         assert client.app.state.proposals._stale_operations(conn, row) == []
     assert call(client, "POST", f"/proposals/{progress['id']}/approve", {"revision": progress["revision"]})["status"] == "approved"
+
+
+# From the review of K15: the cases a step's place can turn on, and the rule checked over many saves.
+
+TREE = ("id", "title", "description", "parentId", "position")
+
+
+def as_listed(roadmap):
+    return [{k: s[k] for k in TREE} for s in sorted(roadmap["steps"], key=lambda s: (s["position"], s["id"])) if not s["retired"]]
+
+
+def test_a_step_restored_under_another_parent_changes_once(plans):
+    created, a, b, c = three(plans)
+    retired = apply(plans, "roadmap.revise", {"id": created["id"], "revision": 1, "title": "Plan",
+                                              "steps": [s for s in steps_of(created) if s["id"] != c]})
+    back = [*steps_of(retired), {"id": c, "title": "C", "description": "", "parentId": a, "position": 3}]
+    revised, changed = revised_and_kinds(plans, retired, back)
+    assert changed == {c}
+    assert {s["id"]: (s["revision"], s["parentId"], s["retired"]) for s in revised["steps"]} == {
+        a: (1, None, False), b: (1, None, False), c: (3, a, False)}
+    assert kinds(plans, c) == ["step.create", "step.restore", "step.retire"]
+
+
+def test_a_step_moved_to_another_branch_with_the_plan_numbered_afresh_moves_only_it(plans):
+    a, a1, b, b1, c = uid(), uid(), uid(), uid(), uid()
+    created = apply(plans, "roadmap.create", {"title": "Plan", "steps": [
+        {"id": a, "title": "A"}, {"id": a1, "title": "A1", "parentId": a}, {"id": b, "title": "B"},
+        {"id": b1, "title": "B1", "parentId": b}, {"id": c, "title": "C"}]})
+    steps = {s["id"]: s for s in as_listed(created)}
+    moved = [steps[a], steps[a1], {**steps[b1], "parentId": a}, steps[b], steps[c]]
+    revised, changed = revised_and_kinds(plans, created, numbered(moved))
+    assert changed == {b1}
+    assert [s["title"] for s in revised["steps"] if s["parentId"] == a] == ["A1", "B1"]
+
+
+def test_siblings_on_the_same_number_show_in_id_order_and_move_only_when_that_order_changes(plans):
+    first, second = "00000000-0000-4000-8000-000000000001", "00000000-0000-4000-8000-000000000002"
+    created = apply(plans, "roadmap.create", {"title": "Plan", "steps": [
+        {"id": first, "title": "First"}, {"id": second, "title": "Second"}]})
+    # Both on 0: still First, then Second, so neither moved and the save records nothing.
+    tied = apply(plans, "roadmap.revise", {"id": created["id"], "revision": 1, "title": "Plan",
+                                           "steps": [{**s, "position": 0} for s in as_listed(created)]})
+    assert tied["revision"] == 1 and [s["title"] for s in tied["steps"]] == ["First", "Second"]
+    assert {s["position"] for s in stored(plans, created["id"]).values()} == {0}
+    # Second now first: one of the two moved, the one now first.
+    swapped = [{**s, "position": 1 if s["id"] == first else 0} for s in as_listed(tied)]
+    revised, changed = revised_and_kinds(plans, tied, swapped)
+    assert changed == {second} and [s["title"] for s in revised["steps"]] == ["Second", "First"]
+
+
+def test_positions_left_out_count_the_retired_steps_listed_too(plans):
+    created, a, b, c = three(plans)
+    retired = apply(plans, "roadmap.revise", {"id": created["id"], "revision": 1, "title": "Plan",
+                                              "steps": [s for s in steps_of(created) if s["id"] != a]})
+    # As `roadmap show` lists them, retired A first, with no positions: B is 1 and C is 2.
+    listed = [{"id": s["id"], "title": s["title"], "description": s["description"], "parentId": s["parentId"],
+               "retired": s["retired"]} for s in sorted(retired["steps"], key=lambda s: s["title"])]
+    revised = apply(plans, "roadmap.revise", {"id": created["id"], "revision": retired["revision"], "title": "Plan", "steps": listed})
+    assert revised["revision"] == retired["revision"] and len(revised["versions"]) == len(retired["versions"])
+    assert {sid: (row["position"], row["revision"], row["retired"]) for sid, row in stored(plans, created["id"]).items()} == {
+        a: (0, 2, 1), b: (1, 1, 0), c: (2, 1, 0)}
+
+
+def test_numbering_afresh_alone_stores_the_numbers_and_records_nothing(plans):
+    created, a, b, c = three(plans)
+    revised = apply(plans, "roadmap.revise", {"id": created["id"], "revision": 1, "title": "Plan",
+                                              "steps": [{**s, "position": 10 * (s["position"] + 1)} for s in steps_of(created)]})
+    assert revised["revision"] == 1 and len(revised["versions"]) == 1
+    assert kinds(plans, created["id"]) == ["roadmap.create"]
+    assert {sid: (row["position"], row["revision"]) for sid, row in stored(plans, created["id"]).items()} == {
+        a: (10, 1), b: (20, 1), c: (30, 1)}
+
+
+def random_save(rng, roadmap):
+    """A save as a person or an agent might send it: steps retired with what is under them, one
+    restored, new ones, new titles, one moved to another branch, the order changed or not, and the
+    positions numbered afresh, with gaps, or loosely with ties."""
+    steps = as_listed(roadmap)
+
+    def under(root):
+        found = {root}
+        while True:
+            more = {s["id"] for s in steps if s["parentId"] in found} - found
+            if not more:
+                return found
+            found |= more
+
+    if steps and rng.random() < 0.3:
+        gone = under(rng.choice(steps)["id"])
+        steps = [s for s in steps if s["id"] not in gone]
+    retired = [s for s in roadmap["steps"] if s["retired"]]
+    if retired and rng.random() < 0.3:
+        back = rng.choice(retired)
+        steps.append({**{k: back[k] for k in TREE}, "parentId": rng.choice([None, *(s["id"] for s in steps)])})
+    for _ in range(rng.randint(0, 2)):
+        steps.insert(rng.randint(0, len(steps)), {"id": uid(), "title": "New", "description": "",
+                                                  "parentId": rng.choice([None, *(s["id"] for s in steps)]), "position": 0})
+    for s in rng.sample(steps, k=min(len(steps), rng.randint(0, 2))):
+        s["title"] += "!"
+    if steps and rng.random() < 0.3:
+        s = rng.choice(steps)
+        s["parentId"] = rng.choice([None, *(o["id"] for o in steps if o["id"] not in under(s["id"]))])
+    order = rng.random()
+    if order < 0.3 and len(steps) > 1:
+        steps.insert(rng.randrange(len(steps)), steps.pop(rng.randrange(len(steps))))
+    elif order < 0.45:
+        rng.shuffle(steps)
+    numbering = rng.random()
+    for index, s in enumerate(steps):
+        s["position"] = (index if numbering < 0.5 else index * rng.randint(1, 3) if numbering < 0.8
+                         else rng.randint(0, len(steps)))
+    return steps
+
+
+def test_over_many_random_saves_a_step_keeps_its_revision_exactly_when_the_save_keeps_it(plans):
+    """Seeded, so a failure repeats. A step whose revision a save leaves alone was active and stays
+    so, with its parent, its text and its order among the siblings that stay; every other stored step
+    it touched takes one more revision; the roadmap's event names exactly the steps raised or added;
+    and the plan shows in the order sent, ties going to the lower ID."""
+    rng = random.Random(4115)
+    for _ in range(40):
+        ids = [uid() for _ in range(rng.randint(2, 9))]
+        current = apply(plans, "roadmap.create", {"title": "Random", "steps": [
+            {"id": sid, "title": f"S{n}", "parentId": rng.choice([None, *ids[:n]]) if n else None,
+             "position": rng.randint(0, 9)} for n, sid in enumerate(ids)]})
+        for _ in range(4):
+            sent = random_save(rng, current)
+            before = stored(plans, current["id"])
+            revised = apply(plans, "roadmap.revise", {"id": current["id"], "revision": current["revision"],
+                                                      "title": "Random", "steps": sent})
+            after = stored(plans, current["id"])
+            raised = {sid for sid in before if after[sid]["revision"] != before[sid]["revision"]}
+            assert all(after[sid]["revision"] == before[sid]["revision"] + 1 for sid in raised)
+            kept = [sid for sid in before if sid not in raised and not before[sid]["retired"]]
+            for sid in kept:
+                fields = ("retired", "parent_id", "title", "description")
+                assert [after[sid][f] for f in fields] == [before[sid][f] for f in fields], sent
+            for parent in {before[sid]["parent_id"] for sid in kept}:
+                group = [sid for sid in kept if before[sid]["parent_id"] == parent]
+                assert (sorted(group, key=lambda sid: (before[sid]["position"], sid))
+                        == sorted(group, key=lambda sid: (after[sid]["position"], sid))), sent
+            for parent in {s["parentId"] for s in sent}:
+                sent_order = [s["id"] for s in sorted((s for s in sent if s["parentId"] == parent),
+                                                       key=lambda s: (s["position"], s["id"]))]
+                shown = [s["id"] for s in revised["steps"] if not s["retired"] and s["parentId"] == parent]
+                assert shown == sent_order, sent
+            added = set(after) - set(before)
+            if len(revised["versions"]) > len(current["versions"]):
+                event = next(e for e in events(plans, current["id"]) if e["kind"] == "roadmap.revise"
+                             and e["after"]["versionNumber"] == revised["versions"][-1]["number"])
+                assert set(event["after"]["changedStepIds"]) == raised | added
+            else:
+                assert raised | added == set()
+            current = revised

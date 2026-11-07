@@ -138,14 +138,107 @@ def changed_by(rows, steps):
     return changed
 
 
-def revised_by(conn, identifier, steps):
-    """The stored steps of this roadmap whose revision a revise with these steps would raise by one:
-    those it changes (changed_by). A step list the revise would refuse raises none."""
-    try:
-        normalized = PlanService.validate_steps(conn, identifier, steps)
-    except AppError:
-        return set()
-    return changed_by(conn.execute("SELECT * FROM steps WHERE roadmap_id=?", (identifier,)).fetchall(), normalized)
+class Forecast:
+    """What a proposal's plan changes leave, worked out in order without writing anything: each
+    roadmap's revision, title and overview, and each step's revision, text, parent, place and
+    retired flag. The stale check reads it, so a change expects the revisions the proposal's earlier
+    changes leave, as approving it applies them (K4). A change approving would refuse, such as a
+    step list that is not one tree, leaves everything as it was."""
+
+    def __init__(self, conn):
+        self.conn = conn
+        self._roadmaps: dict[str, dict | None] = {}
+        self._steps: dict[str, dict[str, dict]] = {}  # roadmap ID -> step ID -> row
+
+    def roadmap(self, identifier):
+        """The roadmap as the earlier changes leave it, or None when there is none."""
+        if not isinstance(identifier, str):
+            return None
+        if identifier not in self._roadmaps:
+            row = self.conn.execute("SELECT id,title,overview,revision,archived FROM roadmaps WHERE id=?",
+                                    (identifier,)).fetchone()
+            self._roadmaps[identifier] = dict(row) if row else None
+        return self._roadmaps[identifier]
+
+    def _rows(self, roadmap_id):
+        if roadmap_id not in self._steps:
+            self._steps[roadmap_id] = {row["id"]: dict(row) for row in self.conn.execute(
+                "SELECT * FROM steps WHERE roadmap_id=?", (roadmap_id,))}
+        return self._steps[roadmap_id]
+
+    def step(self, identifier):
+        """The step as the earlier changes leave it, a new one among them, or None."""
+        if not isinstance(identifier, str):
+            return None
+        for rows in self._steps.values():
+            if identifier in rows:
+                return rows[identifier]
+        row = self.conn.execute("SELECT roadmap_id FROM steps WHERE id=?", (identifier,)).fetchone()
+        return self._rows(row["roadmap_id"]).get(identifier) if row else None
+
+    def _open(self, roadmap):
+        return roadmap is not None and not roadmap["archived"]
+
+    def revise(self, roadmap, payload):
+        """A revise whose revision checks: what it changes (changed_by) takes one more revision."""
+        if not self._open(roadmap):
+            return
+        rows = self._rows(roadmap["id"])
+        try:
+            title, overview = _title(payload.get("title")), _text(payload.get("overview"), "overview", "")
+            steps = PlanService.validate_steps(self.conn, roadmap["id"], payload.get("steps"))
+        except AppError:
+            return
+        changed = changed_by(list(rows.values()), steps)
+        wanted = {step["id"] for step in steps}
+        for sid, row in rows.items():
+            if sid not in wanted and not row["retired"]:
+                row.update(retired=1, revision=row["revision"] + 1)
+        added = False
+        for step in steps:
+            row = rows.get(step["id"])
+            if row is None:
+                rows[step["id"]] = {"id": step["id"], "roadmap_id": roadmap["id"], "title": step["title"],
+                                    "description": step["description"], "parent_id": step["parentId"],
+                                    "position": step["position"], "status": "open", "revision": 1, "retired": 0}
+                added = True
+            elif step["id"] in changed:
+                row.update(title=step["title"], description=step["description"], parent_id=step["parentId"],
+                           position=step["position"], retired=0, revision=row["revision"] + 1)
+            else:
+                row["position"] = step["position"]
+        if changed or added or (title, overview) != (roadmap["title"], roadmap["overview"]):
+            roadmap.update(title=title, overview=overview, revision=roadmap["revision"] + 1)
+
+    def update_step(self, step, payload):
+        """A step.update whose revision checks: new text raises the step's revision and its roadmap's."""
+        roadmap = self.roadmap(step["roadmap_id"])
+        if step["retired"] or not self._open(roadmap):
+            return
+        try:
+            title = step["title"] if payload.get("title") is None else _title(payload["title"])
+            description = step["description"] if payload.get("description") is None else _text(payload["description"], "description")
+        except AppError:
+            return
+        if rewrites(step, {"title": title, "description": description}):
+            step.update(title=title, description=description, revision=step["revision"] + 1)
+            roadmap["revision"] += 1
+
+    def set_progress(self, step):
+        """A progress.set whose revision checks, on a leaf: the step's revision rises."""
+        roadmap = self.roadmap(step["roadmap_id"])
+        leaf = not any(row["parent_id"] == step["id"] and not row["retired"]
+                       for row in self._rows(step["roadmap_id"]).values())
+        if not step["retired"] and self._open(roadmap) and leaf:
+            step["revision"] += 1
+
+    def change_roadmap(self, roadmap, action):
+        """A move, archive or recover whose revision checks: the roadmap's revision rises."""
+        if action == "roadmap.move" and not self._open(roadmap):
+            return
+        roadmap["revision"] += 1
+        if action in {"roadmap.archive", "roadmap.recover"}:
+            roadmap["archived"] = int(action == "roadmap.archive")
 
 
 def rewrites(row, payload):
@@ -458,6 +551,8 @@ class PlanService:
         if action != "roadmap.create":
             if not changed and (title, overview) == (row["title"], row["overview"]):
                 # A save that changes nothing records nothing: no revision, version or event (K4).
+                # Position numbers it renumbers without moving a step are stored all the same, with
+                # no record of their own: the order they give is the one shown before.
                 return self._detail(conn, identifier)
             conn.execute("UPDATE roadmaps SET title=?,overview=?,revision=revision+1,updated_at=? WHERE id=?",
                          (title, overview, now(), identifier))

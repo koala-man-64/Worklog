@@ -118,8 +118,9 @@ it("rebases keeping the current text of what the draft left as it found it", asy
   const network = vi
     .spyOn(globalThis, "fetch")
     .mockImplementation(async () => new Response("{}", { status: 200 }));
-  // The user renamed Alpha. Since, an agent's step.update gave Beta a description and moved
-  // Gamma under Alpha, and the roadmap was retitled.
+  // The user renamed Alpha. Since, Alpha was renamed elsewhere too (the user's name wins), an
+  // agent's step.update gave Beta a description, Gamma moved under Alpha, and the roadmap was
+  // retitled.
   storeDraft({
     title: "Plan",
     overview: "",
@@ -140,7 +141,7 @@ it("rebases keeping the current text of what the draft left as it found it", asy
   render(
     view({
       ...roadmap(5, [
-        A,
+        { ...A, title: "Alpha from elsewhere", revision: 2 },
         { ...B, description: "AB#1559 is the predecessor", revision: 2 },
         { ...C, parentId: A.id },
       ]),

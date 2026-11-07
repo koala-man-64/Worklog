@@ -279,6 +279,65 @@ def test_a_step_an_earlier_revise_adds_can_take_its_text_in_the_same_proposal(cl
     assert (step(client, new)["description"], step(client, new)["revision"]) == ("Why D", 2)
 
 
+def stale(client, proposal):
+    with client.app.state.db.read() as conn:
+        row = conn.execute("SELECT * FROM proposals WHERE id=?", (proposal["id"],)).fetchone()
+        return client.app.state.proposals._stale_operations(conn, row)
+
+
+def listed(current, **titles):
+    return [{**{k: s[k] for k in FIELDS}, **({"title": titles[s["id"]]} if s["id"] in titles else {})}
+            for s in current["steps"] if not s["retired"]]
+
+
+@pytest.mark.parametrize("case", ["adds then describes then moves", "rewords then revises then starts",
+                                  "adds then moves"])
+def test_the_stale_check_expects_what_the_proposals_earlier_changes_leave(client, plan, case):
+    """From the review of K15: the stale check forecasts each change in order, as approval applies
+    them, so a valid proposal gets no stale notice and approves."""
+    ids, current = plan["ids"], roadmap(client, plan)
+    revision, new = current["revision"], str(uuid.uuid4())
+    programme = ok(write(client, "POST", "/roadmaps", {"title": "Programme"}))
+    added = listed(current) + [{"id": new, "title": "D", "description": "", "parentId": None, "position": 6}]
+    revise = {"id": plan["id"], "title": "Plan", "overview": "Why"}
+    operations = {
+        # The revise adds D, so the roadmap is one higher; describing D makes it one higher again.
+        "adds then describes then moves": [
+            change("roadmap.revise", **revise, revision=revision, steps=added),
+            change("step.update", id=new, revision=1, description="Why D"),
+            change("roadmap.move", id=plan["id"], revision=revision + 2, parentId=programme["id"])],
+        # The revise carries A2's new title, which it already has by then, so A2 stays at 2.
+        "rewords then revises then starts": [
+            change("step.update", id=ids["A2"], revision=1, title="A2n"),
+            change("roadmap.revise", **revise, revision=revision + 1, steps=listed(current, **{ids["A2"]: "A2n", ids["B"]: "Bn"})),
+            change("progress.set", id=ids["A2"], revision=2, status="doing")],
+        "adds then moves": [
+            change("roadmap.revise", **revise, revision=revision, steps=added),
+            change("roadmap.move", id=plan["id"], revision=revision + 1, parentId=programme["id"])],
+    }[case]
+    proposal = submit(client, plan["Planner"], case, operations)
+    assert stale(client, proposal) == []
+    assert ok(approve(client, proposal))["status"] == "approved"
+
+
+def test_a_later_change_that_misses_an_earlier_ones_revision_is_still_stale(client, plan):
+    ids = plan["ids"]
+    proposal = submit(client, plan["Planner"], "Rename, then start", [
+        change("step.update", id=ids["A2"], revision=1, title="A2n"),
+        change("progress.set", id=ids["A2"], revision=1, status="doing")])
+    conflicts = stale(client, proposal)
+    assert [(c["operation"], c["expectedRevision"], c["currentRevision"]) for c in conflicts] == [(2, 1, 2)]
+    refused(approve(client, proposal), 409, "conflict")
+
+
+def test_a_step_update_with_no_text_is_refused_at_submit(client, plan):
+    drafted = ok(write(client, "POST", "/proposals", {"title": "Nothing", "rationale": "", "operations": [
+        change("step.update", id=plan["ids"]["A"], revision=1)]}, plan["Planner"]))
+    refused(write(client, "POST", f"/proposals/{drafted['id']}/submit", {"revision": drafted["revision"]}, plan["Planner"]),
+            422, "validation")
+    assert ok(read(client, f"/proposals/{drafted['id']}", plan["Planner"]))["status"] == "draft"
+
+
 def test_submit_refuses_a_value_the_operation_never_takes(client, plan):
     drafted = ok(write(client, "POST", "/proposals", {"title": "Bad", "rationale": "", "operations": [
         change("step.update", id=plan["ids"]["A"], revision=1, title=7)]}, plan["Planner"]))
