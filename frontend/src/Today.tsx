@@ -747,7 +747,7 @@ export function Today({
             draftKey={"reflection-" + date}
             label="End-of-day reflection (Markdown)"
             initial={data.reflection}
-            revision={data.revision}
+            revision={data.reflectionRevision}
             save={(text, revision) =>
               request(`/days/${date}/reflection`, "PUT", { revision, text })
             }

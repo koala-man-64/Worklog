@@ -171,7 +171,8 @@ class Items:
                 if after.get("status") == "done" and after.get("_statusChanged"):
                     completed.append({"id": after["id"], "title": after["title"]})
             return {"date": date, "revision": day["revision"] if day else 0,
-                    "reflection": day["reflection"] if day else "", "entries": entries,
+                    "reflection": day["reflection"] if day else "",
+                    "reflectionRevision": day["reflection_revision"] if day else 0, "entries": entries,
                     "summary": {"worked": [{"id": e["itemId"], "title": e["item"]["title"], "outcome": e["outcome"]} for e in entries if e["worked"]],
                                 "completed": completed,
                                 "blocked": [{"id": k, "title": v["title"]} for k, v in states.items() if v["status"] == "blocked"]},
@@ -217,7 +218,9 @@ class Items:
     @staticmethod
     def ensure_day(c: sqlite3.Connection, date: str) -> None:
         valid_date(date)
-        c.execute("INSERT OR IGNORE INTO days(date) VALUES(?)", (date,))
+        # A day with no row reads as reflection revision 0, so its row starts there: a reflection
+        # draft opened on an empty day still saves after work is first planned on it.
+        c.execute("INSERT OR IGNORE INTO days(date,reflection_revision) VALUES(?,0)", (date,))
 
     @staticmethod
     def bump_backlog(c: sqlite3.Connection) -> None:
@@ -353,14 +356,17 @@ class Items:
         return {"ok": True}
 
     def reflection(self, c: sqlite3.Connection, actor: dict, date: str, p: dict) -> dict:
+        """Save the day's reflection, checked against its own revision (v21, REM-26): the day's
+        revision guards its entries and their order, which the reflection leaves alone."""
         valid_date(date)
         row = c.execute("SELECT * FROM days WHERE date=?", (date,)).fetchone()
-        require_revision(row or {"revision": 0}, p.get("revision"))
+        require_revision({"revision": row["reflection_revision"] if row else 0}, p.get("revision"))
         value = text(p.get("text", ""), "reflection")
         self.ensure_day(c, date)
-        c.execute("UPDATE days SET reflection=?,revision=revision+1 WHERE date=?", (value, date))
+        c.execute("UPDATE days SET reflection=?,reflection_revision=reflection_revision+1 WHERE date=?", (value, date))
         event(c, actor, "day.reflection", date, row["reflection"] if row else "", value)
-        return {"date": date, "reflection": value, "revision": c.execute("SELECT revision FROM days WHERE date=?", (date,)).fetchone()[0]}
+        return {"date": date, "reflection": value,
+                "revision": c.execute("SELECT reflection_revision FROM days WHERE date=?", (date,)).fetchone()[0]}
 
     def reorder(self, c: sqlite3.Connection, actor: dict, p: dict, date: str | None = None) -> dict:
         if date:

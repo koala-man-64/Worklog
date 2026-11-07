@@ -114,8 +114,11 @@ export type TabCounts = {
 export type RankResult = { id: string; rank: number; rankedCount: number };
 export type Day = {
   date: string;
+  // Guards which entries the day holds and their order.
   revision: number;
   reflection: string;
+  // Guards the reflection alone, so reordering or adding work leaves a draft able to save (v21).
+  reflectionRevision: number;
   entries: Entry[];
   summary: { worked: Entry[]; completed: Entry[]; blocked: Entry[] };
   nextItemId: string | null;
