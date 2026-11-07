@@ -73,6 +73,29 @@ def _step(row):
             "retired": bool(row["retired"])}
 
 
+def unchanged_by(old, step):
+    """Whether a structure save leaves a stored step as it is (K4): the same title, description,
+    parent and place, and not retired. Such a step keeps its revision and gets no event."""
+    return ((old["title"], old["description"], old["parent_id"], old["position"], bool(old["retired"]))
+            == (step["title"], step["description"], step["parentId"], step["position"], False))
+
+
+def revised_by(conn, identifier, steps):
+    """The stored steps of this roadmap whose revision a revise with these steps would raise by one:
+    those it changes, retires or restores. A step list the revise would refuse raises none."""
+    try:
+        normalized = PlanService.validate_steps(conn, identifier, steps)
+    except AppError:
+        return set()
+    wanted = {step["id"]: step for step in normalized}
+    raised = set()
+    for old in conn.execute("SELECT * FROM steps WHERE roadmap_id=?", (identifier,)).fetchall():
+        step = wanted.get(old["id"])
+        if (step is None and not old["retired"]) or (step is not None and not unchanged_by(old, step)):
+            raised.add(old["id"])
+    return raised
+
+
 def _steps(conn, identifier, retired=False):
     rows = conn.execute("SELECT * FROM steps WHERE roadmap_id=? ORDER BY position,id",
                         (identifier,)).fetchall()
@@ -180,7 +203,10 @@ class PlanService:
             items = read_events(conn, step_id)
             return {"items": items, "total": len(items)}
 
-    def _validate_steps(self, conn, identifier, steps):
+    @staticmethod
+    def validate_steps(conn, identifier, steps):
+        """A step list as a save takes it: each step's ID, title, description, parent and position,
+        checked, with a new step given an ID. Refuses a list that is not one tree of this roadmap's."""
         if not isinstance(steps, list) or len(steps) > 5000:
             raise AppError(422, "validation", "Steps must be a list of at most 5000 steps")
         normalized = []
@@ -221,6 +247,7 @@ class PlanService:
         return normalized
 
     def _snapshot(self, conn, identifier, note):
+        """Record the roadmap as it now stands as its next version, and return the version's number."""
         row = _row(conn, identifier)
         number = conn.execute("SELECT COALESCE(MAX(number),0)+1 FROM roadmap_versions WHERE roadmap_id=?",
                               (identifier,)).fetchone()[0]
@@ -228,6 +255,33 @@ class PlanService:
                     "steps": _steps(conn, identifier)}
         conn.execute("INSERT INTO roadmap_versions(roadmap_id,number,created_at,note,snapshot) VALUES(?,?,?,?,?)",
                      (identifier, number, now(), note, json.dumps(snapshot)))
+        return number
+
+    def _save_steps(self, conn, actor, identifier, steps):
+        """Make the roadmap's steps these, touching only the ones that change (K4): a step left out is
+        retired, and a new, changed or restored one is written. Returns the IDs of the steps changed."""
+        wanted = {s["id"] for s in steps}
+        changed = []
+        for old in conn.execute("SELECT * FROM steps WHERE roadmap_id=?", (identifier,)).fetchall():
+            if old["id"] not in wanted and not old["retired"]:
+                conn.execute("UPDATE steps SET retired=1,revision=revision+1 WHERE id=?", (old["id"],))
+                event(conn, actor, "step.retire", old["id"], _step(old), _step(self.get_step(conn, old["id"])))
+                changed.append(old["id"])
+        for step in steps:
+            old = conn.execute("SELECT * FROM steps WHERE id=?", (step["id"],)).fetchone()
+            if old and unchanged_by(old, step):
+                continue
+            if old:
+                conn.execute("UPDATE steps SET title=?,description=?,parent_id=?,position=?,retired=0,revision=revision+1 WHERE id=?",
+                             (step["title"], step["description"], step["parentId"], step["position"], step["id"]))
+            else:
+                conn.execute("INSERT INTO steps(id,roadmap_id,title,description,parent_id,position,status,revision,retired) "
+                             "VALUES(?,?,?,?,?,?,?,?,?)",
+                             (step["id"], identifier, step["title"], step["description"], step["parentId"], step["position"], "open", 1, 0))
+            event(conn, actor, "step.restore" if old and old["retired"] else "step.revise" if old else "step.create",
+                  step["id"], _step(old) if old else None, _step(self.get_step(conn, step["id"])))
+            changed.append(step["id"])
+        return changed
 
     def apply(self, conn, actor, action, payload):
         if actor.get("kind") not in {"human", "agent"}:
@@ -246,8 +300,9 @@ class PlanService:
                 raise AppError(422, "validation", "Invalid progress status")
             before = _step(row)
             conn.execute("UPDATE steps SET status=?,revision=revision+1 WHERE id=?", (status, identifier))
-            # The roadmap revision binds every tree and leaf change for stale proposal detection.
-            conn.execute("UPDATE roadmaps SET revision=revision+1,updated_at=? WHERE id=?", (now(), row["roadmap_id"]))
+            # Progress is the step's, guarded by its revision: the roadmap's revision guards its
+            # title, overview and step tree, which progress leaves alone (K4).
+            conn.execute("UPDATE roadmaps SET updated_at=? WHERE id=?", (now(), row["roadmap_id"]))
             result = _step(self.get_step(conn, identifier))
             event(conn, actor, action, identifier, before, result)
             return result
@@ -256,16 +311,17 @@ class PlanService:
             identifier = uid()
             title = _title(payload.get("title"))
             overview = _text(payload.get("overview"), "overview", "")
-            steps = self._validate_steps(conn, identifier, payload.get("steps", []))
+            steps = self.validate_steps(conn, identifier, payload.get("steps", []))
             parent = _parent(conn, identifier, payload.get("parentId"))
             stamp = now()
             conn.execute("INSERT INTO roadmaps(id,title,overview,revision,archived,created_at,updated_at,parent_id) VALUES(?,?,?,?,?,?,?,?)",
                          (identifier, title, overview, 1, 0, stamp, stamp, parent))
-            before = None
+            note = "Created"
         else:
             row = _row(conn, identifier)
             require_revision(row, payload.get("revision"))
-            before = self._detail(conn, identifier)
+            if action in {"roadmap.archive", "roadmap.recover", "roadmap.move"}:
+                before = self._detail(conn, identifier)
             if action in {"roadmap.archive", "roadmap.recover"}:
                 conn.execute("UPDATE roadmaps SET archived=?,revision=revision+1,updated_at=? WHERE id=?",
                              (int(action == "roadmap.archive"), now(), identifier))
@@ -296,30 +352,19 @@ class PlanService:
                 raise AppError(422, "validation", "Unsupported roadmap action")
             title = _title(content.get("title"))
             overview = _text(content.get("overview"), "overview", "")
-            steps = self._validate_steps(conn, identifier, content.get("steps", []))
+            steps = self.validate_steps(conn, identifier, content.get("steps", []))
+        changed = self._save_steps(conn, actor, identifier, steps)
+        if action != "roadmap.create":
+            if not changed and (title, overview) == (row["title"], row["overview"]):
+                # A save that changes nothing records nothing: no revision, version or event (K4).
+                return self._detail(conn, identifier)
             conn.execute("UPDATE roadmaps SET title=?,overview=?,revision=revision+1,updated_at=? WHERE id=?",
                          (title, overview, now(), identifier))
-        wanted = {s["id"] for s in steps}
-        existing = conn.execute("SELECT * FROM steps WHERE roadmap_id=?", (identifier,)).fetchall()
-        for old in existing:
-            if old["id"] not in wanted and not old["retired"]:
-                conn.execute("UPDATE steps SET retired=1,revision=revision+1 WHERE id=?", (old["id"],))
-                event(conn, actor, "step.retire", old["id"], _step(old), _step(self.get_step(conn, old["id"])))
-        for step in steps:
-            old = conn.execute("SELECT * FROM steps WHERE id=?", (step["id"],)).fetchone()
-            if old:
-                conn.execute("UPDATE steps SET title=?,description=?,parent_id=?,position=?,retired=0,revision=revision+1 WHERE id=?",
-                             (step["title"], step["description"], step["parentId"], step["position"], step["id"]))
-            else:
-                conn.execute("INSERT INTO steps(id,roadmap_id,title,description,parent_id,position,status,revision,retired) "
-                             "VALUES(?,?,?,?,?,?,?,?,?)",
-                             (step["id"], identifier, step["title"], step["description"], step["parentId"], step["position"], "open", 1, 0))
-            event(conn, actor, "step.restore" if old and old["retired"] else "step.revise" if old else "step.create",
-                  step["id"], _step(old) if old else None, _step(self.get_step(conn, step["id"])))
-        self._snapshot(conn, identifier, "Created" if action == "roadmap.create" else note)
-        result = self._detail(conn, identifier)
-        event(conn, actor, action, identifier, before, result)
-        return result
+        number = self._snapshot(conn, identifier, note)
+        # The version holds the whole plan, and each changed step's own event its before and after,
+        # so the roadmap's event names them rather than holding two copies of the tree (B-02).
+        event(conn, actor, action, identifier, None, {"versionNumber": number, "changedStepIds": changed})
+        return self._detail(conn, identifier)
 
     def preview(self, data: bytes, name: str, actor):
         if not data or len(data) > 5_000_000:
