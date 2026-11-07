@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { TIE_TYPES, tieHref, type TieType } from "./agentTieTypes";
 import { getDataContext, request } from "./api";
 import type {
   DiscussionContext,
@@ -119,6 +120,23 @@ export function ContextPicker({
   );
 }
 
+/** Where a tagged record opens, as a tie to it opens; a step needs its roadmap. */
+function contextHref(
+  context: DiscussionContext,
+  roadmapId: string | undefined,
+): string | undefined {
+  if (context.type === "release") return "#releases/" + context.id;
+  if (context.type === "step" && !roadmapId) return undefined;
+  if (!(TIE_TYPES as readonly string[]).includes(context.type))
+    return undefined;
+  return tieHref(context.type as TieType, context.id, {
+    id: context.id,
+    title: context.title ?? "",
+    archived: !!context.archived,
+    roadmapId,
+  });
+}
+
 export function ContextReference({
   context,
   label,
@@ -128,15 +146,11 @@ export function ContextReference({
 }) {
   const detail = useContextDetail(context);
   const title =
-    label || detail.title || `${context.type} ${context.id.slice(0, 8)}`;
-  const href =
-    context.type === "item"
-      ? "#work/" + context.id
-      : context.type === "roadmap"
-        ? "#roadmaps/" + context.id
-        : detail.roadmapId
-          ? `#roadmaps/${detail.roadmapId}/${context.id}`
-          : undefined;
+    label ||
+    context.title ||
+    detail.title ||
+    `${context.type} ${context.id.slice(0, 8)}`;
+  const href = contextHref(context, context.roadmapId ?? detail.roadmapId);
   return href ? (
     <a className="context-tag" href={href} title={context.id}>
       {title}
@@ -148,17 +162,14 @@ export function ContextReference({
   );
 }
 
+/** A step's title and roadmap, read only when the discussion didn't bring them, as a draft's
+ * chosen context doesn't. */
 function useContextDetail(context: DiscussionContext) {
-  const path =
-    context.type === "item"
-      ? `/work-items/${context.id}`
-      : context.type === "roadmap"
-        ? `/roadmaps/${context.id}`
-        : `/steps/${context.id}`;
+  const path = `/steps/${context.id}`;
   const query = useQuery({
     queryKey: [getDataContext(), "discussion-context-detail", path],
     queryFn: () => request<{ title?: string; roadmapId?: string }>(path),
-    enabled: context.type === "step",
+    enabled: context.type === "step" && !context.roadmapId,
     staleTime: 60_000,
   });
   return {

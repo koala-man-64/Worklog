@@ -6,10 +6,15 @@ from pydantic import Field, StrictBool, model_validator
 
 from .models import Command, Revision
 
-ContextType = Literal["item", "roadmap", "step"]
+# What a discussion can be tagged with (v22), as discussions.TAG_KINDS lists them; roles sit only on
+# the first three, the work contexts.
+ContextType = Literal["item", "roadmap", "step", "repository", "ticket", "release", "person", "resource",
+                      "question", "decision"]
+RoleContextType = Literal["item", "roadmap", "step"]
 
 
 class Context(Command):
+    """A tag: a record of one kind by its id, or a ticket by its key or number."""
     type: ContextType
     id: str = Field(min_length=1, max_length=500)
 
@@ -45,6 +50,7 @@ class MessageCreate(Command):
 class DiscussionCreate(MessageCreate):
     title: str | None = Field(default=None, max_length=1000)
     contexts: list[Context] = Field(default_factory=list, max_length=30)
+    # Free-text repository labels, which a new discussion no longer takes (K8): any given are refused.
     repos: list[str] = Field(default_factory=list, max_length=20)
 
 
@@ -69,8 +75,13 @@ class Archive(Command):
     archived: StrictBool
 
 
+class Pin(Command):
+    revision: Revision
+    pinned: StrictBool
+
+
 class RoleCreate(Command):
-    contextType: ContextType
+    contextType: RoleContextType
     contextId: str = Field(min_length=1, max_length=500)
     label: str = Field(min_length=1, max_length=200)
 

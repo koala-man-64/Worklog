@@ -83,7 +83,7 @@ def slots(message):
 
 def test_shared_forum_is_separate_from_provider_chat_and_domain_permissions(client):
     a, b = enroll(client, "Builder"), enroll(client, "Reviewer")
-    p = post(client, agent=a, title="Shared question", chatId="missing-provider-session", repos=["worklog"], acknowledgement={"mode": "anyone"})
+    p = post(client, agent=a, title="Shared question", chatId="missing-provider-session", acknowledgement={"mode": "anyone"})
     message = p["message"]
     assert message["authorId"] == a["agentId"]
     assert message["chatId"] == "missing-provider-session"
@@ -264,7 +264,9 @@ def test_scope_resume_finds_role_only_requests_and_feed_cursors_bind_dataset(cli
     assert resumed["counts"] == {"roles": 1, "discussions": 2, "requests": 2}
     inherited = next(m for m in resumed["requests"] if m["id"] == personal["id"])
     assert {"managed", "predecessor"} <= set(inherited["request"]["classifications"])
-    assert {"type": "item", "id": work["id"]} in resumed["discussions"][0]["contexts"]
+    # The role brings its work item in as a context with no tag of its own, so nobody added it.
+    context = next(ctx for ctx in resumed["discussions"][0]["contexts"] if (ctx["type"], ctx["id"]) == ("item", work["id"]))
+    assert (context["title"], context["addedBy"], context["home"]) == (work["title"], None, False)
     feed = get(client, f"/discussions/changes?{scope}&cursor={cursor}&limit=1", b).json()
     assert feed["hasMore"] and len(feed["items"]) == 1
     changes = feed["items"][:]

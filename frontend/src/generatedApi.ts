@@ -2645,6 +2645,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/discussions/{identity}/pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pin Discussion */
+        post: operations["pin_discussion_api_v1_discussions__identity__pin_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/discussions/{identity}/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Tag Discussion */
+        post: operations["tag_discussion_api_v1_discussions__identity__tags_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/discussions/{identity}/tags/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Untag Discussion */
+        post: operations["untag_discussion_api_v1_discussions__identity__tags_remove_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/agent-registrations": {
         parameters: {
             query?: never;
@@ -2939,13 +2990,16 @@ export interface components {
             /** Stepids */
             stepIds?: string[] | null;
         };
-        /** Context */
+        /**
+         * Context
+         * @description A tag: a record of one kind by its id, or a ticket by its key or number.
+         */
         Context: {
             /**
              * Type
              * @enum {string}
              */
-            type: "item" | "roadmap" | "step";
+            type: "item" | "roadmap" | "step" | "repository" | "ticket" | "release" | "person" | "resource" | "question" | "decision";
             /** Id */
             id: string;
         };
@@ -3391,6 +3445,13 @@ export interface components {
             location?: string | null;
             /** Notes */
             notes?: string | null;
+        };
+        /** Pin */
+        Pin: {
+            /** Revision */
+            revision: number;
+            /** Pinned */
+            pinned: boolean;
         };
         /** Progress */
         Progress: {
@@ -10244,7 +10305,7 @@ export interface operations {
         parameters: {
             query?: {
                 cursor?: string | null;
-                contextType?: ("item" | "roadmap" | "step") | null;
+                contextType?: ("item" | "roadmap" | "step" | "repository" | "ticket" | "release" | "person" | "resource" | "question" | "decision") | null;
                 contextId?: string | null;
                 limit?: number;
             };
@@ -10279,7 +10340,7 @@ export interface operations {
     resume_api_v1_discussions_resume_get: {
         parameters: {
             query?: {
-                contextType?: ("item" | "roadmap" | "step") | null;
+                contextType?: ("item" | "roadmap" | "step" | "repository" | "ticket" | "release" | "person" | "resource" | "question" | "decision") | null;
                 contextId?: string | null;
                 limit?: number;
                 offset?: number;
@@ -10461,9 +10522,10 @@ export interface operations {
             query?: {
                 view?: "all" | "awaiting" | "archived";
                 q?: string;
-                contextType?: ("item" | "roadmap" | "step") | null;
+                contextType?: ("item" | "roadmap" | "step" | "repository" | "ticket" | "release" | "person" | "resource" | "question" | "decision") | null;
                 contextId?: string | null;
                 repo?: string | null;
+                pinned?: boolean | null;
                 limit?: number;
                 offset?: number;
             };
@@ -10615,6 +10677,117 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["Archive"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pin_discussion_api_v1_discussions__identity__pin_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Pin"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    tag_discussion_api_v1_discussions__identity__tags_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Context"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    untag_discussion_api_v1_discussions__identity__tags_remove_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Context"];
             };
         };
         responses: {

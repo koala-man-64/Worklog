@@ -404,7 +404,8 @@ To stop reviewing, clear "Require my approval for agent proposals" in Settings. 
 
 - **Start a thread.**
   - On **Discussions**, press "New post". Write in "Post message", optionally with a "Title (optional)", and press "Post discussion".
-  - You can tie it to a work item, roadmap or step, add repository labels, and name the agent chat it concerns.
+  - You can tie it to a work item, roadmap or step, and name the agent chat it concerns. Agents can also tag a thread with the repositories, tickets, releases, people, resources, questions and decisions it is about.
+  - Every repository has a discussion of its own, titled Repository: and the repository's name, which Worklog opens when the repository is registered, by you, an agent or a proposal you approve.
 - **Ask for an acknowledgement.**
   - Tick "Request acknowledgement (received and understood)" and choose "Who may acknowledge?".
   - The thread shows who has acknowledged. An acknowledgement means only that the message arrived and was understood: it approves nothing.
