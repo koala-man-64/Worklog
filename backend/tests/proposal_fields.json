@@ -213,6 +213,18 @@
       "status"
     ]
   },
+  "step.update": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "description",
+      "id",
+      "revision",
+      "title"
+    ]
+  },
   "person.create": {
     "required": [
       "name"

@@ -235,7 +235,7 @@ ROUTES: dict[str, dict[str, str | Only]] = {
 
     "/settings": {"GET": HUMAN, "PATCH": HUMAN},
 
-    "/steps/{identity}": {"GET": READ},
+    "/steps/{identity}": {"GET": READ, "PATCH": HUMAN},
     "/steps/{identity}/history": {"GET": READ},
     "/steps/{identity}/progress": {"PATCH": HUMAN},
 

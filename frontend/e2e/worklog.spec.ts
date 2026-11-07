@@ -850,6 +850,76 @@ test("a progress change made while editing leaves the structure draft current", 
   expect(active[1].status).toBe("doing");
   expect(saved.revision).toBe(2);
 });
+test("a step's text edited alone survives a structure draft's rebase", async ({
+  page,
+  baseURL,
+}) => {
+  const origin = new URL(baseURL!).origin;
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Today", exact: true }),
+  ).toBeVisible();
+  const boot = await page.request.post("/api/v1/session/bootstrap", {
+    headers: { Origin: origin, "X-Worklog-Bootstrap": "1" },
+    data: {},
+  });
+  const { csrfToken } = await boot.json();
+  const created = await page.request.post("/api/v1/roadmaps", {
+    headers: {
+      Origin: origin,
+      "X-CSRF-Token": csrfToken,
+      "Idempotency-Key": crypto.randomUUID(),
+    },
+    data: {
+      title: "Step text " + Date.now(),
+      steps: [{ title: "Leaf one" }, { title: "Leaf two" }, { title: "Leaf three" }],
+    },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { id, steps } = await created.json();
+  await page.goto("/#roadmaps/" + id);
+  // A structure draft starts, and is left open in this browser.
+  await page.getByRole("button", { name: "Edit structure" }).click();
+  await page
+    .getByRole("textbox", { name: "Step 1 title" })
+    .fill("Leaf one, renamed");
+  await page.getByRole("button", { name: "Close editor" }).click();
+  // Meanwhile one step's text changes alone, as an agent's step.update would.
+  await page.goto(`/#roadmaps/${id}/${steps[1].id}`);
+  await page.getByRole("button", { name: "Edit step" }).click();
+  await page
+    .getByRole("textbox", { name: "Description (Markdown)" })
+    .fill("AB#1559 is the predecessor");
+  const saved = page.waitForResponse(
+    (r) =>
+      r.url().endsWith(`/steps/${steps[1].id}`) &&
+      r.request().method() === "PATCH",
+  );
+  await page.getByRole("button", { name: "Save step" }).click();
+  expect((await saved).ok()).toBeTruthy();
+  await expect(page.getByText("AB#1559 is the predecessor")).toBeVisible();
+  // The draft is now behind; rebasing keeps both changes.
+  await page.goto("/#roadmaps/" + id);
+  await page.getByRole("button", { name: "Edit structure" }).click();
+  await expect(page.getByText(/based on revision 1/)).toBeVisible();
+  await page.getByRole("button", { name: "Rebase onto current" }).click();
+  await expect(
+    page.getByRole("textbox", { name: "Step 2 description" }),
+  ).toHaveValue("AB#1559 is the predecessor");
+  await page.getByRole("button", { name: "Save new version" }).click();
+  await expect(
+    page.getByRole("button", { name: "Edit structure" }),
+  ).toBeVisible();
+  const plan = await (await page.request.get(`/api/v1/roadmaps/${id}`)).json();
+  const by = (title: string) =>
+    plan.steps.find((s: { title: string }) => s.title === title);
+  expect(by("Leaf one, renamed").revision).toBe(2);
+  expect(by("Leaf two").description).toBe("AB#1559 is the predecessor");
+  expect(by("Leaf two").revision).toBe(2);
+  // Untouched, and the step edit recorded no version: create, then the structure save.
+  expect(by("Leaf three").revision).toBe(1);
+  expect(plan.versions).toHaveLength(2);
+});
 test("the sidebar and plan outline resize by drag and keep their widths", async ({
   page,
   baseURL,

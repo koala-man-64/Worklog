@@ -236,9 +236,10 @@ Your agents can set reminders for you too, for example to merge once a pull requ
    - "Retire step"
 3. Add a "Version note" and press "Save new version". Each saved version is kept for good under "Immutable versions", where "Restore as new version" brings an old one back.
 4. Set progress on leaf steps (Open, Doing, Blocked or Done) in "Plan & progress". A parent step follows its children: Done when all are done, Blocked if any is blocked, otherwise Doing once any has started. The bar at the top counts finished steps.
-5. To nest a roadmap under another, use "Add sub-roadmap" on the parent's overview, or choose its parent in "Nested under".
+5. To change one step's title or description, open the step, press "Edit step", then "Save step". It saves that step alone, without a new version, so agents working on other steps carry on undisturbed. Agents propose the same change for one step.
+6. To nest a roadmap under another, use "Add sub-roadmap" on the parent's overview, or choose its parent in "Nested under".
 
-The editor keeps your unsaved structure as a browser draft. If the roadmap changed in the meantime, choose "Rebase onto current" to keep your edits on the newest version, or "Discard draft". Retired steps keep their history and are listed under "Retired steps".
+The editor keeps your unsaved structure as a browser draft. If the roadmap changed in the meantime, choose "Rebase onto current" to keep your edits on the newest version: a title, description or parent you didn't change takes the newest one, so a step edited elsewhere keeps its new text. Or choose "Discard draft". A save changes only the steps you changed: adding or retiring a step leaves the others as they were. Retired steps keep their history and are listed under "Retired steps".
 
 ### Turn an HTML plan into a roadmap
 
@@ -511,7 +512,7 @@ Plans broken into steps, with every saved version kept.
       - Notes, links, agent chats, GitHub references, releases and files.
       - "Immutable versions", "Original plan references", "Retired steps", "Archived supporting records", "Reminders", "Applied proposals" and "Activity history".
     - **A step**, chosen in the outline:
-      - Its description, work items and releases.
+      - Its description, with "Edit step" for its title and description, its work items and releases.
       - Its agent chats, with "Assign chat", "Add chat to step" and "Unassign".
       - Its notes and files, and "Step history".
     - **"Edit roadmap structure"**: the editor.

@@ -1071,7 +1071,8 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** Update Step */
+        patch: operations["update_step_api_v1_steps__identity__patch"];
         trace?: never;
     };
     "/api/v1/steps/{identity}/history": {
@@ -3241,7 +3242,7 @@ export interface components {
              * Action
              * @enum {string}
              */
-            action: "repository.create" | "repository.update" | "repository.archive" | "repository.recover" | "item.create" | "item.update" | "item.archive" | "item.recover" | "entry.upsert" | "note.create" | "note.update" | "task.create" | "task.update" | "roadmap.create" | "roadmap.revise" | "roadmap.move" | "progress.set" | "person.create" | "person.update" | "person.archive" | "person.recover" | "person.link" | "person.unlink" | "link.create" | "link.update" | "link.archive" | "link.recover" | "attachment.create" | "chat.create" | "chat.update" | "chat.archive" | "chat.recover" | "github.create" | "github.update" | "github.archive" | "github.recover" | "question.create" | "question.update" | "question.archive" | "question.recover" | "decision.create" | "decision.update" | "decision.archive" | "decision.recover" | "resource.create" | "resource.update" | "resource.archive" | "resource.recover" | "ticket.create" | "ticket.update" | "release.create" | "release.update" | "release.add" | "release.remove" | "check.create" | "check.update";
+            action: "repository.create" | "repository.update" | "repository.archive" | "repository.recover" | "item.create" | "item.update" | "item.archive" | "item.recover" | "entry.upsert" | "note.create" | "note.update" | "task.create" | "task.update" | "roadmap.create" | "roadmap.revise" | "roadmap.move" | "progress.set" | "step.update" | "person.create" | "person.update" | "person.archive" | "person.recover" | "person.link" | "person.unlink" | "link.create" | "link.update" | "link.archive" | "link.recover" | "attachment.create" | "chat.create" | "chat.update" | "chat.archive" | "chat.recover" | "github.create" | "github.update" | "github.archive" | "github.recover" | "question.create" | "question.update" | "question.archive" | "question.recover" | "decision.create" | "decision.update" | "decision.archive" | "decision.recover" | "resource.create" | "resource.update" | "resource.archive" | "resource.recover" | "ticket.create" | "ticket.update" | "release.create" | "release.update" | "release.add" | "release.remove" | "check.create" | "check.update";
             /** Payload */
             payload: {
                 [key: string]: unknown;
@@ -3812,6 +3813,18 @@ export interface components {
             requireProposalApproval?: boolean | null;
             /** Agentrepositoryregistration */
             agentRepositoryRegistration?: boolean | null;
+        };
+        /**
+         * StepUpdate
+         * @description revision is the step's own. A field given replaces the step's text; one left out keeps it.
+         */
+        StepUpdate: {
+            /** Revision */
+            revision: number;
+            /** Title */
+            title?: string | null;
+            /** Description */
+            description?: string | null;
         };
         /** Target */
         Target: {
@@ -6533,6 +6546,43 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_step_api_v1_steps__identity__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepUpdate"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

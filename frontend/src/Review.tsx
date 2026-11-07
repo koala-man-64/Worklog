@@ -368,7 +368,7 @@ function currentPath(
     const date = String(payload.date ?? "");
     return DATE.test(date) ? "/days/" + encodeURIComponent(date) : null;
   }
-  if (action === "progress.set") return "/steps/" + id;
+  if (action === "progress.set" || action.startsWith("step.")) return "/steps/" + id;
   if (action.startsWith("repository.")) return "/repositories/" + id;
   if (action.startsWith("release.")) return "/releases/" + id;
   if (action.startsWith("check.")) return "/release-checks/" + id;

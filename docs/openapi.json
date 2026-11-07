@@ -3549,6 +3549,55 @@
       }
     },
     "/api/v1/steps/{identity}": {
+      "patch": {
+        "summary": "Update Step",
+        "operationId": "update_step_api_v1_steps__identity__patch",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StepUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Update Step Api V1 Steps  Identity  Patch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "get": {
         "summary": "Step Detail",
         "operationId": "step_detail_api_v1_steps__identity__get",
@@ -11610,6 +11659,7 @@
               "roadmap.revise",
               "roadmap.move",
               "progress.set",
+              "step.update",
               "person.create",
               "person.update",
               "person.archive",
@@ -13338,6 +13388,44 @@
         "additionalProperties": false,
         "type": "object",
         "title": "SettingsUpdate"
+      },
+      "StepUpdate": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision"
+        ],
+        "title": "StepUpdate",
+        "description": "revision is the step's own. A field given replaces the step's text; one left out keeps it."
       },
       "Target": {
         "properties": {

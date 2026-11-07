@@ -41,6 +41,7 @@ it.each([
   ["task.update", { id: "../../export?x=1" }],
   ["work-item.update", { id: `${ID}/../export` }],
   ["progress.set", { stepId: "..%2Fexport" }],
+  ["step.update", { id: "../export", revision: 1 }],
   ["roadmap.update", { roadmapId: "export" }],
   ["entry.upsert", { itemId: "../export", date: "2026-10-28" }],
   ["resource.update", { id: "T-12" }],
@@ -58,6 +59,8 @@ it.each([
   ["work-item.update", { id: ID }, `/work-items/${ID}`],
   ["roadmap.update", { roadmapId: ID }, `/roadmaps/${ID}`],
   ["progress.set", { stepId: ID }, `/steps/${ID}`],
+  // One step's text compares with the step, not a work item.
+  ["step.update", { id: ID, revision: 1 }, `/steps/${ID}`],
   ["resource.update", { id: ID }, `/resources/${ID}`],
   ["release.update", { id: ID }, `/releases/${ID}`],
   ["check.update", { id: ID }, `/release-checks/${ID}`],

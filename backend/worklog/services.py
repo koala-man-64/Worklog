@@ -46,14 +46,17 @@ class WorkService:
             return self.items.upsert_entry(c, actor, p)
         if action.startswith(("note.", "task.", "reference.", "attachment.", "link.", "chat.", "github.", "question.", "decision.")):
             return support.apply(c, actor, action, p)
-        if action.startswith(("roadmap.", "progress.")):
+        if action.startswith(("roadmap.", "progress.", "step.")):
             result = self.plans.apply(c, actor, action, p)
+            if action == "step.update":
+                # One step's text: index that step alone. Only an active step of an active roadmap changes.
+                search.put(c, result["id"], "step", result["title"], result["description"], result["roadmapId"])
             # Moving changes no indexed text or archive state.
-            if action not in {"progress.set", "roadmap.move"}:
+            elif action not in {"progress.set", "roadmap.move"}:
                 search.index_plans(c, result["id"])
             if self.proposals is not None and action != "roadmap.create":
                 self.proposals.notify_stale_proposals(
-                    c, result.get("roadmapId") if action == "progress.set" else result.get("id"))
+                    c, result.get("roadmapId") if action in {"progress.set", "step.update"} else result.get("id"))
             return result
         if action.startswith("person."):
             return self.people.apply(c, actor, action, p)
