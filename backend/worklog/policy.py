@@ -134,6 +134,9 @@ ROUTES: dict[str, dict[str, str | Only]] = {
     "/discussions/{identity}": {"GET": READ},
     "/discussions/{identity}/archive": {"POST": HUMAN},
     "/discussions/{identity}/messages": {"POST": DISCUSS},
+    "/discussions/{identity}/pin": {"POST": HUMAN},
+    "/discussions/{identity}/tags": {"POST": DISCUSS},
+    "/discussions/{identity}/tags/remove": {"POST": DISCUSS},
 
     "/export": {"GET": HUMAN},
 

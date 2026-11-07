@@ -9123,7 +9123,14 @@
                   "enum": [
                     "item",
                     "roadmap",
-                    "step"
+                    "step",
+                    "repository",
+                    "ticket",
+                    "release",
+                    "person",
+                    "resource",
+                    "question",
+                    "decision"
                   ],
                   "type": "string"
                 },
@@ -9204,7 +9211,14 @@
                   "enum": [
                     "item",
                     "roadmap",
-                    "step"
+                    "step",
+                    "repository",
+                    "ticket",
+                    "release",
+                    "person",
+                    "resource",
+                    "question",
+                    "decision"
                   ],
                   "type": "string"
                 },
@@ -9515,7 +9529,14 @@
                   "enum": [
                     "item",
                     "roadmap",
-                    "step"
+                    "step",
+                    "repository",
+                    "ticket",
+                    "release",
+                    "person",
+                    "resource",
+                    "question",
+                    "decision"
                   ],
                   "type": "string"
                 },
@@ -9556,6 +9577,22 @@
                 }
               ],
               "title": "Repo"
+            }
+          },
+          {
+            "name": "pinned",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Pinned"
             }
           },
           {
@@ -9795,6 +9832,159 @@
                   "type": "object",
                   "additionalProperties": true,
                   "title": "Response Archive Discussion Api V1 Discussions  Identity  Archive Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discussions/{identity}/pin": {
+      "post": {
+        "summary": "Pin Discussion",
+        "operationId": "pin_discussion_api_v1_discussions__identity__pin_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Pin"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Pin Discussion Api V1 Discussions  Identity  Pin Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discussions/{identity}/tags": {
+      "post": {
+        "summary": "Tag Discussion",
+        "operationId": "tag_discussion_api_v1_discussions__identity__tags_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Context"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Tag Discussion Api V1 Discussions  Identity  Tags Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discussions/{identity}/tags/remove": {
+      "post": {
+        "summary": "Untag Discussion",
+        "operationId": "untag_discussion_api_v1_discussions__identity__tags_remove_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Context"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Untag Discussion Api V1 Discussions  Identity  Tags Remove Post"
                 }
               }
             }
@@ -10634,7 +10824,14 @@
             "enum": [
               "item",
               "roadmap",
-              "step"
+              "step",
+              "repository",
+              "ticket",
+              "release",
+              "person",
+              "resource",
+              "question",
+              "decision"
             ],
             "title": "Type"
           },
@@ -10651,7 +10848,8 @@
           "type",
           "id"
         ],
-        "title": "Context"
+        "title": "Context",
+        "description": "A tag: a record of one kind by its id, or a ticket by its key or number."
       },
       "CoordinationUpdateCreate": {
         "properties": {
@@ -12030,6 +12228,26 @@
           "revision"
         ],
         "title": "PersonUpdate"
+      },
+      "Pin": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "pinned": {
+            "type": "boolean",
+            "title": "Pinned"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision",
+          "pinned"
+        ],
+        "title": "Pin"
       },
       "Progress": {
         "properties": {

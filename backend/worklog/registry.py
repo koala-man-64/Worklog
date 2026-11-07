@@ -189,12 +189,13 @@ class AgentRegistry:
             latest_by_discussion[r["discussion_id"]] = _latest(latest_by_discussion.get(r["discussion_id"]), r["created_at"]) or r["created_at"]
             if r["chat_id"]:
                 chat_refs.append((r["chat_id"], "message", r["created_at"], False))
+        # A thread's work contexts and repositories tie them; its other tags (v21) tie nothing here.
         for r in rows_in(c, "SELECT * FROM discussion_contexts WHERE discussion_id IN ({})", latest_by_discussion):
             posted = latest_by_discussion[r["discussion_id"]]
             if r["context_type"] == "step":
                 step_ties.append((r["context_id"], "message", posted, False))
-            else:
-                {"item": items, "roadmap": roadmaps}[r["context_type"]].add(r["context_id"], "message", posted)
+            elif r["context_type"] in {"item", "roadmap", "repository"}:
+                {"item": items, "roadmap": roadmaps, "repository": repositories}[r["context_type"]].add(r["context_id"], "message", posted)
         chat_refs += [(r["external_chat_id"], "run", r["created_at"], r["ended_at"] is None) for r in runs if r["external_chat_id"]]
         # The person's word that the agent works in a chat ties it too, though not to current work.
         chat_refs += [(r["chat_id"], "confirmed", r["created_at"], False)

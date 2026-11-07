@@ -48,7 +48,9 @@ def seed(c):
     # Work on a step of the roadmap, with a note of its own.
     r["linkeditem"] = write(c, "POST", "/work-items", {"title": f"{WORD} linkeditemtag", "stepId": step_id})
     r["person"] = write(c, "POST", "/people", {"name": f"{WORD} persontag", "team": "Platform"})
-    r["repository"] = write(c, "POST", "/repositories", {"name": "Quillback service", "url": "https://github.com/example/quillback"})
+    r["repository"] = write(c, "POST", "/repositories", {"name": f"{WORD} repositoryhometag", "url": "https://github.com/example/quillback"})
+    # A repository isn't in search itself, but the discussion Worklog opens for it (v21) is.
+    r["repositoryhome"] = {"id": r["repository"]["discussionId"]}
     for owner in ("item", "roadmap", "step", "linkeditem"):
         owner_type = "item" if owner == "linkeditem" else owner
         r[f"{owner}note"] = write(c, "POST", "/notes", {"ownerType": owner_type, "ownerId": r[owner]["id"], "text": f"{WORD} {owner}notetag"})
@@ -112,6 +114,8 @@ EVERYTHING = sorted([
     ("stepfile", "attachment", "roadmaps", "roadmap", "step"),
     ("person", "person", "people", "person", "person"),
     ("repositoryfile", "attachment", "repositories", "repository", "repository"),
+    ("repositoryhome", "discussion", "discussions", "repositoryhome", "repositoryhome"),
+    ("repositoryhome", "discussion_message", "discussions", "repositoryhome", "repositoryhome"),
     ("resource", "resource", "resources", "resource", "resource"),
     ("discussion", "discussion", "discussions", "discussion", "discussion"),
     ("opening", "discussion_message", "discussions", "discussion", "discussion"),

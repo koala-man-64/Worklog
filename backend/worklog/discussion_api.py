@@ -1,5 +1,5 @@
-"""HTTP boundary for communication. What agents may call here is in policy.ROUTES: archiving a
-thread, releasing a request and reassigning a role stay the person's."""
+"""HTTP boundary for communication. What agents may call here is in policy.ROUTES: archiving and
+pinning a thread, releasing a request and reassigning a role stay the person's."""
 
 from collections.abc import Callable
 from typing import Literal
@@ -35,7 +35,7 @@ def install_discussion_routes(app: FastAPI, db: Database, mutate: Callable) -> N
         return write(request, body, lambda c, a: service.choose_avatar(c, a, body.model_dump()))
 
     @app.get("/api/v1/discussions/roles")
-    def roles(request: Request, contextType: m.ContextType | None = None,
+    def roles(request: Request, contextType: m.RoleContextType | None = None,
               contextId: str | None = None, limit: int = Query(50, ge=1, le=200),
               offset: int = Query(0, ge=0)) -> dict:
         return read(request, lambda c, a: service.roles(c, contextType, contextId, limit, offset))
@@ -103,9 +103,10 @@ def install_discussion_routes(app: FastAPI, db: Database, mutate: Callable) -> N
     @app.get("/api/v1/discussions")
     def list_discussions(request: Request, view: Literal["all", "awaiting", "archived"] = "all",
                          q: str = "", contextType: m.ContextType | None = None,
-                         contextId: str | None = None, repo: str | None = None,
+                         contextId: str | None = None, repo: str | None = None, pinned: bool | None = None,
                          limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
-        return read(request, lambda c, a: service.list(c, a, view=view, q=q, context_type=contextType, context_id=contextId, repo=repo, limit=limit, offset=offset))
+        return read(request, lambda c, a: service.list(c, a, view=view, q=q, context_type=contextType, context_id=contextId,
+                                                       repo=repo, pinned=pinned, limit=limit, offset=offset))
 
     @app.post("/api/v1/discussions")
     def create_discussion(request: Request, body: m.DiscussionCreate) -> dict:
@@ -123,3 +124,15 @@ def install_discussion_routes(app: FastAPI, db: Database, mutate: Callable) -> N
     @app.post("/api/v1/discussions/{identity}/archive")
     def archive_discussion(identity: str, request: Request, body: m.Archive) -> dict:
         return write(request, body, lambda c, a: service.archive(c, a, identity, body.model_dump()))
+
+    @app.post("/api/v1/discussions/{identity}/pin")
+    def pin_discussion(identity: str, request: Request, body: m.Pin) -> dict:
+        return write(request, body, lambda c, a: service.pin(c, a, identity, body.model_dump()))
+
+    @app.post("/api/v1/discussions/{identity}/tags")
+    def tag_discussion(identity: str, request: Request, body: m.Context) -> dict:
+        return write(request, body, lambda c, a: service.tag(c, a, identity, body.model_dump()))
+
+    @app.post("/api/v1/discussions/{identity}/tags/remove")
+    def untag_discussion(identity: str, request: Request, body: m.Context) -> dict:
+        return write(request, body, lambda c, a: service.untag(c, a, identity, body.model_dump()))

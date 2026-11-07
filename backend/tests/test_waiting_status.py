@@ -283,6 +283,13 @@ def test_the_v15_upgrade_keeps_every_work_item_and_every_reference_to_one(tmp_pa
             assert upgraded.pop(table) == []
         assert {row[-1] for row in upgraded["communication_credentials"]} == {None}
         upgraded["communication_credentials"] = [row[:-1] for row in upgraded["communication_credentials"]]
+        # v21 gives each discussion a pin, none here, and gives the repository back the discussion it
+        # opened under v21 before the way back, rather than opening another.
+        assert {row[-1] for row in upgraded["discussions"]} == {None}
+        upgraded["discussions"] = [row[:-1] for row in upgraded["discussions"]]
+        [home] = upgraded.pop("discussion_contexts")
+        assert kept.pop("discussion_contexts") == []
+        assert (home[1], home[2:5]) == (kept["discussions"][0][1], ("repository", kept["repositories"][0][1], 1))
         assert upgraded == kept
         assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
         assert conn.execute("PRAGMA integrity_check").fetchall() == [("ok",)]
@@ -373,9 +380,14 @@ def test_the_documented_way_back_to_v14_gives_its_exact_shape_and_upgrades_again
     scatter_rowids(path)
     with closing(sqlite3.connect(path)) as conn:
         before = contents(conn)
-    # The ways back to v19, v18, v17, v16 and v15, which to_v14 takes first, drop v20's and v19's
-    # tables, v18's registration directory and v17's and v16's tables, and nothing else; this test
-    # holds no release or reminder.
+    # The ways back to v20, v19, v18, v17, v16 and v15, which to_v14 takes first, drop v21's pins and
+    # its tags of kinds v20 lacks, v20's and v19's tables, v18's registration directory and v17's and
+    # v16's tables, and nothing else; this test holds no release or reminder. The repository's own
+    # discussion stays, as an ordinary one: its tag and the feed's record of it go.
+    before["discussions"] = [row[:-1] for row in before["discussions"]]
+    assert [row[2] for row in before.pop("discussion_contexts")] == ["repository"]
+    assert [row[2] for row in before.pop("discussion_change_contexts")] == ["repository"]
+    before["discussion_contexts"] = before["discussion_change_contexts"] = []
     for table in ("releases", "release_contents", "release_checks"):
         before.pop(table)
     before["communication_credentials"] = [row[:-1] for row in before["communication_credentials"]]

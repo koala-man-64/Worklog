@@ -12,7 +12,7 @@ from urllib.parse import urlsplit, urlunsplit
 from . import search
 from .chat_messages import expire_pending
 from .common import AppError, event, now, require_revision, setting, text, uid
-from .discussions import communication_actor, identity_chat
+from .discussions import DiscussionService, communication_actor, identity_chat
 
 
 def _get(c: sqlite3.Connection, table: str, identity: str) -> sqlite3.Row:
@@ -31,6 +31,13 @@ def repository_record(row: Any) -> dict:
             "description": row["description"], "archived": bool(row["archived"]),
             "registeredBy": registrant, "reviewed": bool(row["reviewed"]),
             "revision": row["revision"], "createdAt": row["created_at"], "updatedAt": row["updated_at"]}
+
+
+def with_discussion(c: sqlite3.Connection, record: dict) -> dict:
+    """A repository record as the API returns it, with its own discussion's id (v21). A merged one,
+    whose discussion is tagged with the survivor now, gives null, as does one archived when the upgrade
+    opened the others' and not recovered since. History keeps the record as repository_record gives it."""
+    return {**record, "discussionId": DiscussionService.home_discussions(c, [record["id"]]).get(record["id"])}
 
 
 def agents_may_register(c: sqlite3.Connection) -> bool:
@@ -191,7 +198,8 @@ def repository_resolution(c: sqlite3.Connection, url: str) -> dict:
     address = _repository_url(url)
     key = repository_identity(address)
     holder = repository_holder(c, key)
-    return {"url": address, "remoteIdentity": key, "repository": repository_record(holder) if holder else None}
+    return {"url": address, "remoteIdentity": key,
+            "repository": with_discussion(c, repository_record(holder)) if holder else None}
 
 
 # Tables that link other records to a repository; each keys on its owner and the repository.
@@ -202,9 +210,11 @@ _REPOSITORY_LINKS = {"items": "item_repositories", "chats": "chat_repositories",
 def repository_merge(c: sqlite3.Connection, actor: dict, identity: str, p: dict) -> dict:
     """Fold a record into another that stands for the same repository: a person's decision.
 
-    Links, reported contexts, updates and attached files move to the survivor without changing
-    the revisions of the records that hold them; update snapshots keep the names they were posted with.
-    The merged record stays, archived and read-only, and its remote answers with the survivor.
+    Links, reported contexts, updates, discussion tags and attached files move to the survivor
+    without changing the revisions of the records that hold them; update snapshots keep the names
+    they were posted with. The merged record's own discussion becomes one tagged with the survivor,
+    which keeps its own. The merged record stays, archived and read-only, and its remote answers
+    with the survivor.
     """
     if actor["kind"] != "human":
         raise AppError(403, "forbidden", "Only a person may merge repositories")
@@ -245,6 +255,8 @@ def repository_merge(c: sqlite3.Connection, actor: dict, identity: str, p: dict)
     # Reminders about it name the survivor, archived ones included.
     moved["reminders"] = c.execute("UPDATE reminders SET target_id=? WHERE target_type='repository' AND target_id=?",
                                    (survivor["id"], source["id"])).rowcount
+    # Discussions tagged with it are tagged with the survivor, its own discussion among them.
+    moved["discussions"] = DiscussionService.move_repository_tags(c, source["id"], survivor["id"])
     # Attached files follow too, archived ones included, so none stay on a record that takes no changes.
     search.move_repository_files(c, source["id"], survivor["id"])
     moved["attachments"] = c.execute("UPDATE attachments SET owner_id=? WHERE owner_type='repository' AND owner_id=?",
@@ -262,7 +274,7 @@ def repository_merge(c: sqlite3.Connection, actor: dict, identity: str, p: dict)
     event(c, actor, "repository.merge", source["id"], before, {**result, "moved": moved})
     kept = repository_record(_get(c, "repositories", survivor["id"]))
     event(c, actor, "repository.merge", survivor["id"], kept, {**kept, "mergedFrom": source["id"], "moved": moved})
-    return result
+    return with_discussion(c, result)
 
 
 def _registered(c: sqlite3.Connection, key: str) -> Any:
@@ -283,6 +295,8 @@ def _register(c: sqlite3.Connection, actor: dict, name: str, url: str, descripti
               "registered_by_kind,registered_by_label,registered_by_agent,reviewed) VALUES(?,?,?,?,?,0,1,?,?,?,?,?,?)",
               (identity, name, url, repository_identity(url), description, stamp, stamp, actor["kind"],
                agent["label"] if agent else actor["label"], agent["id"] if agent else None, int(reviewed)))
+    # Every new repository gets its own discussion, whoever registers it and however (v21).
+    DiscussionService(None).open_repository_discussion(c, identity, name)
     return identity
 
 
@@ -295,7 +309,7 @@ def repository_ensure(c: sqlite3.Connection, actor: dict, p: dict) -> dict:
         raise AppError(422, "validation", "url is required", {"url": "required"})
     holder = _registered(c, repository_identity(url))
     if holder:
-        return {**repository_record(holder), "created": False}
+        return {**with_discussion(c, repository_record(holder)), "created": False}
     if actor["kind"] == "agent" and not agents_may_register(c):
         raise AppError(403, "repository_registration_off", "That remote is not registered, and agents may not register "
                        "repositories; propose repository.create instead", {"url": url})
@@ -305,7 +319,7 @@ def repository_ensure(c: sqlite3.Connection, actor: dict, p: dict) -> dict:
                          reviewed=actor["kind"] != "agent")
     result = repository_record(_get(c, "repositories", identity))
     event(c, actor, "repository.create", identity, None, result)
-    return {**result, "created": True}
+    return {**with_discussion(c, result), "created": True}
 
 
 def repository_confirm(c: sqlite3.Connection, actor: dict, identity: str, p: dict) -> dict:
@@ -316,11 +330,11 @@ def repository_confirm(c: sqlite3.Connection, actor: dict, identity: str, p: dic
     require_revision(row, p.get("revision"))
     _refuse_merged(c, row)
     if row["reviewed"]:
-        return repository_record(row)
+        return with_discussion(c, repository_record(row))
     c.execute("UPDATE repositories SET reviewed=1,revision=revision+1,updated_at=? WHERE id=?", (now(), identity))
     result = repository_record(_get(c, "repositories", identity))
     event(c, actor, "repository.confirm", identity, repository_record(row), result)
-    return result
+    return with_discussion(c, result)
 
 
 def repository_apply(c: sqlite3.Connection, actor: dict, action: str, p: dict) -> dict:
@@ -344,6 +358,9 @@ def repository_apply(c: sqlite3.Connection, actor: dict, action: str, p: dict) -
                 live_repo = c.execute("SELECT 1 FROM participation_contexts pc JOIN repositories r ON r.id=pc.repository_id WHERE pc.participation_id=? AND r.archived=0", (row["id"],)).fetchone()
                 if not live_item and not live_repo:
                     _release(c, actor, row, "repository_archived")
+        else:
+            # One archived when the v21 upgrade opened the others' discussions gets its own now.
+            DiscussionService(None).open_repository_discussion(c, before["id"], before["name"])
         identity = before["id"]
     else:
         values = {"name": "", "url": "", "description": ""} if before is None else dict(before)
@@ -359,7 +376,7 @@ def repository_apply(c: sqlite3.Connection, actor: dict, action: str, p: dict) -
             holder = _registered(c, key)
             if holder:
                 # Registering a repository again links to the record it already has.
-                return {**repository_record(holder), "created": False}
+                return {**with_discussion(c, repository_record(holder)), "created": False}
             identity = _register(c, actor, name, url, description, reviewed=True)
         else:
             holder = repository_holder(c, key, before["id"]) if key != old_key else None
@@ -371,9 +388,12 @@ def repository_apply(c: sqlite3.Connection, actor: dict, action: str, p: dict) -
                       "revision=revision+1,updated_at=? WHERE id=?", (name, url, key, duplicate_of, description, now(), identity))
             if old_key and key != old_key and before["duplicateOf"] is None:
                 _hand_over(c, actor, identity, old_key)
+            if name != before["name"]:
+                DiscussionService(None).retitle_repository_discussion(c, actor, identity, name)
     result = repository_record(_get(c, "repositories", identity))
     event(c, actor, action, identity, before, result)
-    return {**result, "created": True} if action == "repository.create" else result
+    shown = with_discussion(c, result)
+    return {**shown, "created": True} if action == "repository.create" else shown
 
 
 class CoordinationService:
@@ -388,7 +408,8 @@ class CoordinationService:
 
     def repositories(self, c, archived=False, limit=50, offset=0, q="") -> dict:
         q = text(q, "q", limit=500).strip().lower()
-        return self._page(c, "SELECT * FROM repositories WHERE archived=? AND (?='' OR instr(lower(name || ' ' || url || ' ' || description),?)>0) ORDER BY name COLLATE NOCASE,id", [int(archived), q, q], limit, offset, repository_record)
+        return self._page(c, "SELECT * FROM repositories WHERE archived=? AND (?='' OR instr(lower(name || ' ' || url || ' ' || description),?)>0) ORDER BY name COLLATE NOCASE,id", [int(archived), q, q], limit, offset,
+                          lambda row: with_discussion(c, repository_record(row)))
 
     def context_summaries(self, c, item_id=None, repository_id=None, limit=50, offset=0) -> dict:
         """Filter before paging; reported context never creates a canonical work link."""
@@ -407,7 +428,8 @@ class CoordinationService:
             repo_args.append(repository_id)
             run_where.append("EXISTS(SELECT 1 FROM participation_contexts pc JOIN repositories r ON r.id=pc.repository_id WHERE pc.participation_id=p.id AND pc.repository_id=? AND r.archived=0)")
             run_args.append(repository_id)
-        repositories = self._page(c, "SELECT r.* FROM repositories r WHERE " + " AND ".join(repo_where) + " ORDER BY r.name COLLATE NOCASE,r.id", repo_args, limit, offset, repository_record)
+        repositories = self._page(c, "SELECT r.* FROM repositories r WHERE " + " AND ".join(repo_where) + " ORDER BY r.name COLLATE NOCASE,r.id", repo_args, limit, offset,
+                                  lambda row: with_discussion(c, repository_record(row)))
         runs = self._page(c, "SELECT ar.* FROM agent_runs ar WHERE ar.ended_at IS NULL AND EXISTS(SELECT 1 FROM participations p WHERE " + " AND ".join(run_where) + ") ORDER BY ar.created_at DESC,ar.id DESC", run_args, limit, offset, self.run_record)
         return {"repositories": repositories, "runs": runs}
 

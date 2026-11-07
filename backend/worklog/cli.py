@@ -60,6 +60,11 @@ TICKET_REF = re.compile(r"[Tt]-[1-9][0-9]{0,8}|[1-9][0-9]{0,8}|[0-9a-fA-F]{8}(?:
 # What an agent can be tied to, as agent_links.TYPES lists them; test_agent_links.py keeps them equal.
 TIE_TYPES = ("item", "roadmap", "step", "repository", "person", "resource", "discussion", "proposal", "ticket",
              "agent", "question", "decision")
+# What a discussion can be tagged with, as discussions.TAG_KINDS lists them, and the work contexts roles
+# sit on; test_discussion_tags.py keeps them equal.
+DISCUSSION_TAG_KINDS = ("item", "roadmap", "step", "repository", "ticket", "release", "person", "resource",
+                        "question", "decision")
+ROLE_CONTEXT_KINDS = ("item", "roadmap", "step")
 TICKET_KINDS = ("bug", "incident", "task")
 TICKET_PRIORITIES = ("low", "normal", "high", "urgent")
 TICKET_STATUSES = ("open", "doing", "blocked", "done")
@@ -459,10 +464,13 @@ def _discussion_route_allowed(method: str, route: str) -> bool:
     if len(parts) == 3 and parts[1] == "discussions" and valid_id(parts[2]):
         return method == "GET"
     if len(parts) == 4 and parts[1] == "discussions":
-        if valid_id(parts[2]) and parts[3] == "messages":
+        if valid_id(parts[2]) and parts[3] in {"messages", "tags"}:
             return method == "POST"
         if parts[2] == "messages" and valid_id(parts[3]):
             return method == "GET"
+    # Taking a tag off; pinning, like archiving, stays the person's.
+    if len(parts) == 5 and parts[1] == "discussions" and valid_id(parts[2]) and parts[3:] == ["tags", "remove"]:
+        return method == "POST"
     if len(parts) == 5 and parts[1] == "discussions" and valid_id(parts[3]):
         if parts[2] == "messages" and parts[4] in {"acknowledge", "cancel"}:
             return method == "POST"
@@ -1238,19 +1246,25 @@ def _reminder_parser(actions: Any) -> None:
         write(command)
 
 
-def _discussion_context(args: argparse.Namespace) -> dict:
+def _context_pair(value: str, kinds: tuple[str, ...]) -> tuple[str, str]:
+    """TYPE:ID as a kind of record and its id; a ticket's ID may be its key or number."""
+    kind, separator, identity = value.partition(":")
+    if not separator or kind not in kinds or not identity:
+        raise ValueError("Context must be TYPE:ID, where TYPE is one of " + ", ".join(kinds))
+    return kind, identity
+
+
+def _discussion_context(args: argparse.Namespace, kinds: tuple[str, ...] = DISCUSSION_TAG_KINDS) -> dict:
     context = getattr(args, "context", None)
     if context:
-        kind, separator, identity = context.partition(":")
-        if not separator or kind not in {"item", "roadmap", "step"} or not identity:
-            raise ValueError("Context must be item:ID, roadmap:ID or step:ID")
+        kind, identity = _context_pair(context, kinds)
         return {"contextType": kind, "contextId": identity}
     return {}
 
 
-def _discussion_query(args: argparse.Namespace, *names: str) -> str:
+def _discussion_query(args: argparse.Namespace, *names: str, kinds: tuple[str, ...] = DISCUSSION_TAG_KINDS) -> str:
     values = {name: getattr(args, name) for name in names if getattr(args, name, None) is not None}
-    values.update(_discussion_context(args))
+    values.update(_discussion_context(args, kinds))
     return "?" + urlencode(values) if values else ""
 
 
@@ -1302,7 +1316,11 @@ def discussion_command(client: AgentClient, args: argparse.Namespace) -> Any:
     if action == "avatar":
         return client.request("POST", base + "/avatar", {"avatar": args.name}, request_id=args.request_id)
     if action == "list":
-        return client.request("GET", base + _discussion_query(args, "view", "q", "repo", "limit", "offset"))
+        return client.request("GET", base + _discussion_query(args, "view", "q", "repo", "pinned", "limit", "offset"))
+    if action in {"tag", "untag"}:
+        kind, identity = _context_pair(args.context, DISCUSSION_TAG_KINDS)
+        route = base + "/" + args.id + ("/tags" if action == "tag" else "/tags/remove")
+        return client.request("POST", route, {"type": kind, "id": identity}, request_id=args.request_id)
     if action in {"changes", "resume"}:
         fields = ("cursor", "limit") if action == "changes" else ("limit", "offset")
         return client.request("GET", base + "/" + action + _discussion_query(args, *fields))
@@ -1314,9 +1332,9 @@ def discussion_command(client: AgentClient, args: argparse.Namespace) -> Any:
     if action == "roles":
         verb = args.role_action
         if verb == "list":
-            return client.request("GET", base + "/roles" + _discussion_query(args, "limit", "offset"))
+            return client.request("GET", base + "/roles" + _discussion_query(args, "limit", "offset", kinds=ROLE_CONTEXT_KINDS))
         if verb == "create":
-            payload = {"label": args.label, **_discussion_context(args)}
+            payload = {"label": args.label, **_discussion_context(args, ROLE_CONTEXT_KINDS)}
             route = base + "/roles"
         else:
             payload = {"revision": args.revision}
@@ -1338,10 +1356,8 @@ def discussion_command(client: AgentClient, args: argparse.Namespace) -> Any:
             if args.title:
                 payload["title"] = args.title
             if args.context:
-                context = _discussion_context(args)
-                payload["contexts"] = [{"type": context["contextType"], "id": context["contextId"]}]
-            if args.repo:
-                payload["repos"] = args.repo
+                payload["contexts"] = [dict(zip(("type", "id"), _context_pair(value, DISCUSSION_TAG_KINDS), strict=True))
+                                       for value in args.context]
         route = base if action == "post" else base + "/" + args.id + "/messages"
     return client.request("POST", route, payload, request_id=args.request_id)
 
@@ -1371,7 +1387,8 @@ def _discussion_parser(actions: Any) -> None:
     listing = commands.add_parser("list")
     listing.add_argument("--view", choices=("all", "awaiting", "archived"), default="all")
     listing.add_argument("--q")
-    listing.add_argument("--repo")
+    listing.add_argument("--repo", help="A free-text repository label older threads carry")
+    listing.add_argument("--pinned", action="store_const", const="true", help="Only the threads the person pinned")
     context(listing)
     pages(listing)
     read = commands.add_parser("read")
@@ -1396,8 +1413,12 @@ def _discussion_parser(actions: Any) -> None:
         command.add_argument("--chat")
         if verb == "post":
             command.add_argument("--title")
-            command.add_argument("--repo", action="append")
-            context(command)
+            command.add_argument("--context", action="append", metavar="TYPE:ID", help="Tag the thread with a record; repeat for more")
+        write(command)
+    for verb, summary in (("tag", "Tag a thread with a record it is about"), ("untag", "Take a tag you added off a thread")):
+        command = commands.add_parser(verb, help=summary)
+        command.add_argument("id")
+        context(command, required=True)
         write(command)
     for verb in ("ack", "cancel"):
         command = commands.add_parser(verb)

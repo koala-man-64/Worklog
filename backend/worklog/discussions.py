@@ -15,20 +15,35 @@ import sqlite3
 from collections.abc import Iterable
 from typing import Any
 
-from . import search
+from . import record_kinds, search
 from .avatars import AVATARS, choose, is_avatar
 from .common import (
     LIVE_AGENT,
     AppError,
     event,
     now,
-    repository_labels,
     require_revision,
     rows_in,
     setting,
     text,
     uid,
 )
+from .tickets import TicketService
+
+# What a discussion can be tagged with (v21), in the order its tags list them. The first three are
+# v1's work contexts, which roles keep to.
+TAG_KINDS = ("item", "roadmap", "step", "repository", "ticket", "release", "person", "resource", "question", "decision")
+ROLE_KINDS = ("item", "roadmap", "step")
+TAG_LIMIT = 30
+PERSON = {"id": "local-user", "label": "You", "kind": "human"}
+# How threads list: pinned ones first, the latest pinned first, then the most recently active.
+LISTED = "d.pinned_at IS NULL,d.pinned_at DESC,d.updated_at DESC,d.id"
+# A repository's own discussion, which Worklog opens as the person when the repository is registered.
+# Its first message begins as migrations.REPOSITORY_DISCUSSION_TEXT does and names the repository's ID
+# in backticks, which is how the v21 upgrade finds one again after the way back. What agents do here is
+# the agent guide's to say.
+REPOSITORY_TITLE = "Repository: {name}"
+REPOSITORY_TEXT = "Worklog opened this discussion for the repository **{name}** (`{id}`)."
 
 
 def avatars_in_use(conn: sqlite3.Connection, *, exclude: str | None = None) -> list[str]:
@@ -145,18 +160,44 @@ class DiscussionService:
         return row
 
     @staticmethod
-    def _scope(context_type: str | None, context_id: str | None) -> tuple[str, str] | None:
+    def _tag_id(c: sqlite3.Connection, context_type: str, context_id: str) -> str:
+        """A tagged record's own id: a ticket may also be named by its key, T-12, or its number. A key
+        that names no ticket stays as it is, as an unknown id of any kind does: a tag of it fails as a
+        record that doesn't exist, and a filter by it finds nothing."""
+        context_id = text(context_id, "contextId", required=True, limit=500)
+        if context_type != "ticket":
+            return context_id
+        try:
+            return str(TicketService.resolve(c, context_id)["id"])
+        except AppError as missing:
+            if missing.status != 404:
+                raise
+            return context_id
+
+    @classmethod
+    def _scope(cls, c: sqlite3.Connection, context_type: str | None, context_id: str | None,
+               kinds: tuple[str, ...] = TAG_KINDS) -> tuple[str, str] | None:
         if context_type is None and context_id is None:
             return None
-        if context_type not in {"item", "roadmap", "step"} or not context_id:
+        if context_type not in kinds or not context_id:
             raise AppError(422, "validation", "Choose both a context type and ID")
-        return context_type, text(context_id, "contextId", required=True, limit=500)
+        return context_type, cls._tag_id(c, context_type, context_id)
 
-    @staticmethod
-    def _context(c: sqlite3.Connection, context_type: str, context_id: str) -> None:
-        table = {"item": "work_items", "roadmap": "roadmaps", "step": "steps"}.get(context_type)
-        if table is None or not c.execute(f"SELECT 1 FROM {table} WHERE id=?", (context_id,)).fetchone():
-            raise AppError(422, "validation", "Work context does not exist")
+    @classmethod
+    def _context(cls, c: sqlite3.Connection, context_type: str, context_id: str) -> str:
+        """The id of a record a discussion can be tagged with, which must exist. A merged repository
+        answers with the one it was merged into."""
+        if context_type not in TAG_KINDS:
+            raise AppError(422, "validation", "Choose a kind of record a discussion can be tagged with")
+        identity = cls._tag_id(c, context_type, context_id)
+        found = record_kinds.rows(c, context_type, [identity])
+        if not found:
+            raise AppError(422, "validation", "The record to tag does not exist", {"contextId": "not_found"})
+        if context_type == "repository" and found[0]["mergedInto"]:
+            survivor = c.execute("SELECT name FROM repositories WHERE id=?", (found[0]["mergedInto"],)).fetchone()
+            raise AppError(409, "repository_merged", f"{found[0]['title']} was merged into {survivor['name']}; use that repository instead",
+                           {"repositoryId": found[0]["mergedInto"]})
+        return identity
 
     @staticmethod
     def _agent(c: sqlite3.Connection, identity: str, *, active: bool = False) -> sqlite3.Row:
@@ -201,13 +242,16 @@ class DiscussionService:
 
     def roles(self, c: sqlite3.Connection, context_type: str | None = None,
               context_id: str | None = None, limit: int = 50, offset: int = 0) -> dict:
-        scope = self._scope(context_type, context_id)
+        # A role sits on a work item, roadmap or step; any other tag's context holds none.
+        scope = self._scope(c, context_type, context_id)
         clause, args = (" WHERE context_type=? AND context_id=?", list(scope)) if scope else ("", [])
         total = c.execute("SELECT count(*) FROM discussion_roles" + clause, args).fetchone()[0]
         ids = c.execute("SELECT id FROM discussion_roles" + clause + " ORDER BY context_type,context_id,label_key,id LIMIT ? OFFSET ?", [*args, limit, offset]).fetchall()
         return {"items": [self.role(c, r["id"]) for r in ids], "total": total, "limit": limit, "offset": offset}
 
     def create_role(self, c: sqlite3.Connection, actor: dict, p: dict) -> dict:
+        if p["contextType"] not in ROLE_KINDS:
+            raise AppError(422, "validation", "A role sits on a work item, roadmap or step")
         self._context(c, p["contextType"], p["contextId"])
         label = text(p["label"], "label", required=True, limit=200)
         if c.execute("SELECT 1 FROM discussion_roles WHERE context_type=? AND context_id=? AND label_key=?", (p["contextType"], p["contextId"], label.casefold())).fetchone():
@@ -293,26 +337,67 @@ class DiscussionService:
             ORDER BY context_type,context_id""", (discussion_id, discussion_id, discussion_id)).fetchall()
         return [{"type": row[0], "id": row[1]} for row in rows]
 
+    @staticmethod
+    def _identities(c: sqlite3.Connection, ids: set[str]) -> dict[str, dict]:
+        """The person and the agent identities these ids name, by the labels they have now."""
+        found = {"local-user": dict(PERSON)} if "local-user" in ids else {}
+        for row in rows_in(c, "SELECT id,label FROM communication_agents WHERE id IN ({})", [i for i in ids if i != "local-user"]):
+            found[row["id"]] = {"id": row["id"], "label": row["label"], "kind": "agent"}
+        return found
+
+    @staticmethod
+    def _described(c: sqlite3.Connection, contexts: builtins.list[dict], tags: dict[tuple[str, str], sqlite3.Row]) -> builtins.list[dict]:
+        """Each context with what a reader needs to show it: its record's title and archived state, what
+        a page needs to link to it, and, for a tag, who added it and when, and whether it is home. A
+        context a role brings in, with no tag of its own, has no `addedBy`."""
+        records: dict[tuple[str, str], dict] = {}
+        for kind in TAG_KINDS:
+            ids = [ctx["id"] for ctx in contexts if ctx["type"] == kind]
+            for row in record_kinds.rows(c, kind, ids) if ids else []:
+                records[(kind, row["id"])] = record_kinds.summary(row)
+        adders = DiscussionService._identities(c, {tag["added_by"] for tag in tags.values()})
+        order = {kind: position for position, kind in enumerate(TAG_KINDS)}
+        described = []
+        for ctx in sorted(contexts, key=lambda ctx: (order.get(ctx["type"], len(order)), ctx["id"])):
+            key = (ctx["type"], ctx["id"])
+            tag, details = tags.get(key), {k: v for k, v in records.get(key, {}).items() if k != "id"}
+            described.append({"type": ctx["type"], "id": ctx["id"], "title": None, "archived": False, **details,
+                              "home": bool(tag["home"]) if tag else False,
+                              "addedBy": adders.get(tag["added_by"]) if tag else None,
+                              "addedAt": tag["created_at"] if tag else None})
+        return described
+
     def summary(self, c: sqlite3.Connection, identity: str) -> dict:
         r = self._get(c, "discussions", identity)
-        contexts = self._contexts(c, identity)
+        tags = {(t["context_type"], t["context_id"]): t
+                for t in c.execute("SELECT * FROM discussion_contexts WHERE discussion_id=?", (identity,))}
+        contexts = self._described(c, self._contexts(c, identity), tags)
+        home = next((ctx for ctx in contexts if ctx["home"]), None)
         repos = [row[0] for row in c.execute("SELECT repo FROM discussion_repos WHERE discussion_id=? ORDER BY repo", (identity,))]
         pending = c.execute("SELECT count(*) FROM discussion_requests r JOIN discussion_messages m ON m.id=r.message_id WHERE m.discussion_id=? AND r.state='pending'", (identity,)).fetchone()[0]
         return {"id": r["id"], "title": r["title"], "archived": bool(r["archived"]), "revision": r["revision"],
-                "createdAt": r["created_at"], "updatedAt": r["updated_at"], "contexts": contexts, "repos": repos, "pendingCount": pending}
+                "createdAt": r["created_at"], "updatedAt": r["updated_at"],
+                "pinned": r["pinned_at"] is not None, "pinnedAt": r["pinned_at"], "contexts": contexts, "repos": repos,
+                "pendingCount": pending, "repository": {"id": home["id"], "name": home["title"]} if home else None}
 
-    def create(self, c: sqlite3.Connection, actor: dict, p: dict) -> dict:
+    def create(self, c: sqlite3.Connection, actor: dict, p: dict, *, home: tuple[str, str] | None = None) -> dict:
+        """Start a thread with its first message. `home` names the tag that makes it a repository's own
+        discussion, which only Worklog opens (open_repository_discussion)."""
         body = text(p["text"], "text", required=True)
+        if p.get("repos"):
+            # K8: the labels a discussion already has stay readable, and new ones are refused.
+            raise AppError(422, "validation", "Free-text repository labels are retired: tag the discussion with a "
+                           "repository from the catalog instead, as a context of type repository", {"repos": "retired"})
         title = text(p.get("title") or body.splitlines()[0][:120], "title", required=True, limit=1000)
-        contexts = {(ctx["type"], ctx["id"]) for ctx in p.get("contexts", [])}
-        for context_type, context_id in contexts:
-            self._context(c, context_type, context_id)
-        repos = repository_labels(p.get("repos", []))
+        requested = p.get("contexts", [])
+        if len(requested) > TAG_LIMIT:
+            raise AppError(422, "validation", f"A discussion holds at most {TAG_LIMIT} tags", {"contexts": "limit"})
+        contexts = list(dict.fromkeys((ctx["type"], self._context(c, ctx["type"], ctx["id"])) for ctx in requested))
         identity, at = uid(), now()
         c.execute("INSERT INTO discussions(id,title,created_at,updated_at) VALUES(?,?,?,?)", (identity, title, at, at))
-        c.executemany("INSERT INTO discussion_contexts(discussion_id,context_type,context_id) VALUES(?,?,?)",
-                      [(identity, *scope) for scope in sorted(contexts)])
-        c.executemany("INSERT INTO discussion_repos(discussion_id,repo) VALUES(?,?)", [(identity, repo) for repo in repos])
+        c.executemany("INSERT INTO discussion_contexts(discussion_id,context_type,context_id,home,added_by,added_by_kind,created_at) "
+                      "VALUES(?,?,?,?,?,?,?)", [(identity, kind, context_id, int((kind, context_id) == home), actor["id"],
+                                                 actor["kind"], at) for kind, context_id in contexts])
         search.put(c, identity, "discussion", title, "", identity, replace=False)
         message = self.post(c, actor, identity, p, first=True)
         return {"discussion": self.summary(c, identity), "message": message}
@@ -522,6 +607,112 @@ class DiscussionService:
         self._emit(c, actor, "discussion.archive" if p["archived"] else "discussion.reopen", identity, before, result, discussion_id=identity)
         return result
 
+    def tag(self, c: sqlite3.Connection, actor: dict, identity: str, p: dict) -> dict:
+        """Tag a discussion with a record it is about. Anyone may, on any thread, archived ones too; a
+        tag it already has changes nothing. A tag is not conversation, so the thread keeps its place
+        in the list: its revision moves, and its updated_at does not."""
+        self._get(c, "discussions", identity)
+        kind = p["type"]
+        context_id = self._context(c, kind, p["id"])
+        if c.execute("SELECT 1 FROM discussion_contexts WHERE discussion_id=? AND context_type=? AND context_id=?",
+                     (identity, kind, context_id)).fetchone():
+            return self.summary(c, identity)
+        held = c.execute("SELECT count(*) FROM discussion_contexts WHERE discussion_id=?", (identity,)).fetchone()[0]
+        if held >= TAG_LIMIT:
+            raise AppError(422, "validation", f"A discussion holds at most {TAG_LIMIT} tags; remove one first", {"contexts": "limit"})
+        before = self.summary(c, identity)
+        c.execute("INSERT INTO discussion_contexts(discussion_id,context_type,context_id,home,added_by,added_by_kind,created_at) "
+                  "VALUES(?,?,?,0,?,?,?)", (identity, kind, context_id, actor["id"], actor["kind"], now()))
+        c.execute("UPDATE discussions SET revision=revision+1 WHERE id=?", (identity,))
+        result = self.summary(c, identity)
+        self._emit(c, actor, "discussion.tag", identity, before, result, discussion_id=identity)
+        return result
+
+    def untag(self, c: sqlite3.Connection, actor: dict, identity: str, p: dict) -> dict:
+        """Take a tag off a discussion. An agent takes off only the tags it added, and the person any but
+        a repository's tag on its own discussion, which only a merge moves. A tag the discussion
+        doesn't have changes nothing."""
+        self._get(c, "discussions", identity)
+        kind = p["type"]
+        if kind not in TAG_KINDS:
+            raise AppError(422, "validation", "Choose a kind of record a discussion can be tagged with")
+        context_id = self._tag_id(c, kind, p["id"])
+        tag = c.execute("SELECT * FROM discussion_contexts WHERE discussion_id=? AND context_type=? AND context_id=?",
+                        (identity, kind, context_id)).fetchone()
+        if tag is None:
+            return self.summary(c, identity)
+        if tag["home"]:
+            raise AppError(403, "forbidden", "This is the repository's own discussion, so it keeps that repository's tag",
+                           {"contextId": "home"})
+        if actor["kind"] == "agent" and tag["added_by"] != actor["id"]:
+            raise AppError(403, "forbidden", "An agent takes off only the tags it added", {"contextId": "not_yours"})
+        before = self.summary(c, identity)
+        c.execute("DELETE FROM discussion_contexts WHERE discussion_id=? AND context_type=? AND context_id=?",
+                  (identity, kind, context_id))
+        c.execute("UPDATE discussions SET revision=revision+1 WHERE id=?", (identity,))
+        result = self.summary(c, identity)
+        # The feed of the record it no longer names sees it go.
+        self._emit(c, actor, "discussion.untag", identity, before, result, discussion_id=identity, also=[(kind, context_id)])
+        return result
+
+    def pin(self, c: sqlite3.Connection, actor: dict, identity: str, p: dict) -> dict:
+        """The person pins a discussion, so it lists first wherever it is listed, or unpins it. Like a
+        tag, a pin moves the revision and not updated_at."""
+        self._human(actor)
+        row = self._get(c, "discussions", identity)
+        require_revision(row, p["revision"])
+        if (row["pinned_at"] is not None) == p["pinned"]:
+            return self.summary(c, identity)
+        before = self.summary(c, identity)
+        c.execute("UPDATE discussions SET pinned_at=?,revision=revision+1 WHERE id=?", (now() if p["pinned"] else None, identity))
+        result = self.summary(c, identity)
+        self._emit(c, actor, "discussion.pin" if p["pinned"] else "discussion.unpin", identity, before, result, discussion_id=identity)
+        return result
+
+    @staticmethod
+    def home_discussions(c: sqlite3.Connection, repository_ids: Iterable[str]) -> dict[str, str]:
+        """Each repository's own discussion, by repository; one with none is absent."""
+        rows = rows_in(c, "SELECT context_id,discussion_id FROM discussion_contexts WHERE context_type='repository' "
+                          "AND home=1 AND context_id IN ({})", repository_ids)
+        return {row[0]: row[1] for row in rows}
+
+    def open_repository_discussion(self, c: sqlite3.Connection, repository_id: str, name: str) -> dict:
+        """Open a repository's own discussion, as the person, as proposal notices are written: one
+        tagged with the repository, its tag marked home. A repository that has one keeps it."""
+        held = self.home_discussions(c, [repository_id]).get(repository_id)
+        if held is not None:
+            return self.summary(c, held)
+        p = {"title": REPOSITORY_TITLE.format(name=name), "text": REPOSITORY_TEXT.format(name=name, id=repository_id),
+             "contexts": [{"type": "repository", "id": repository_id}]}
+        return self.create(c, PERSON, p, home=("repository", repository_id))["discussion"]
+
+    def retitle_repository_discussion(self, c: sqlite3.Connection, actor: dict, repository_id: str, name: str) -> None:
+        """A renamed repository's own discussion takes its new name, in search too."""
+        identity = self.home_discussions(c, [repository_id]).get(repository_id)
+        title = REPOSITORY_TITLE.format(name=name)
+        if identity is None or self._get(c, "discussions", identity)["title"] == title:
+            return
+        before = self.summary(c, identity)
+        c.execute("UPDATE discussions SET title=?,revision=revision+1 WHERE id=?", (title, identity))
+        search.retitle(c, "discussion", identity, title)
+        search.retitle(c, "discussion_message", identity, title)
+        self._emit(c, actor, "discussion.retitle", identity, before, self.summary(c, identity), discussion_id=identity)
+
+    @staticmethod
+    def move_repository_tags(c: sqlite3.Connection, source: str, survivor: str) -> int:
+        """A merge moves a repository's tags to the one it was merged into, as it moves other links,
+        without changing the revisions of the threads that hold them. The merged repository's own
+        discussion becomes one tagged with the survivor, which keeps its own discussion. Returns how
+        many tags the merged repository had."""
+        moved = c.execute("SELECT count(*) FROM discussion_contexts WHERE context_type='repository' AND context_id=?",
+                          (source,)).fetchone()[0]
+        c.execute("UPDATE discussion_contexts SET home=0 WHERE context_type='repository' AND context_id=?", (source,))
+        # A thread tagged with both keeps its tag of the survivor.
+        c.execute("UPDATE OR IGNORE discussion_contexts SET context_id=? WHERE context_type='repository' AND context_id=?",
+                  (survivor, source))
+        c.execute("DELETE FROM discussion_contexts WHERE context_type='repository' AND context_id=?", (source,))
+        return int(moved)
+
     def read(self, c: sqlite3.Connection, actor: dict, identity: str,
              limit: int = 50, offset: int = 0) -> dict:
         summary = self.summary(c, identity)
@@ -542,12 +733,16 @@ class DiscussionService:
 
     def list(self, c: sqlite3.Connection, actor: dict, *, view: str = "all", q: str = "",
              context_type: str | None = None, context_id: str | None = None,
-             repo: str | None = None, limit: int = 50, offset: int = 0) -> dict:
+             repo: str | None = None, pinned: bool | None = None, limit: int = 50, offset: int = 0) -> dict:
+        """Pinned threads first, the latest pinned first, then the most recently active. `repo` keeps
+        the threads with that free-text label, which no new thread gets (K8)."""
         if view not in {"all", "awaiting", "archived"}:
             raise AppError(422, "validation", "Unknown discussion view")
-        scope = self._scope(context_type, context_id)
+        scope = self._scope(c, context_type, context_id)
         scope_clause, args = self._discussion_scope(scope)
         clauses = [scope_clause]
+        if pinned is not None:
+            clauses.append("d.pinned_at IS NOT NULL" if pinned else "d.pinned_at IS NULL")
         if view != "awaiting":
             clauses.append("d.archived=?")
             args.append(int(view == "archived"))
@@ -564,7 +759,7 @@ class DiscussionService:
             args.append(match)
         clause = " AND ".join(clauses)
         total = c.execute("SELECT count(*) FROM discussions d WHERE " + clause, args).fetchone()[0]
-        rows = c.execute("SELECT d.id FROM discussions d WHERE " + clause + " ORDER BY d.updated_at DESC,d.id LIMIT ? OFFSET ?", [*args, limit, offset]).fetchall()
+        rows = c.execute("SELECT d.id FROM discussions d WHERE " + clause + " ORDER BY " + LISTED + " LIMIT ? OFFSET ?", [*args, limit, offset]).fetchall()
         return {"items": [self.summary(c, r["id"]) for r in rows], "total": total, "limit": limit, "offset": offset}
 
     @staticmethod
@@ -580,10 +775,11 @@ class DiscussionService:
 
     def _emit(self, c: sqlite3.Connection, actor: dict, kind: str, identity: str,
               before: Any, after: Any, *, discussion_id: str | None = None,
-              message_id: str | None = None, role_id: str | None = None) -> None:
+              message_id: str | None = None, role_id: str | None = None,
+              also: Iterable[tuple[str, str]] = ()) -> None:
         recorded = event(c, actor, kind, identity, before, after)
         change = c.execute("INSERT INTO discussion_changes(event_id,kind,discussion_id,message_id,role_id,created_at) VALUES(?,?,?,?,?,?)", (recorded["id"], kind, discussion_id, message_id, role_id, recorded["createdAt"]))
-        scopes: set[tuple[str, str]] = set()
+        scopes: set[tuple[str, str]] = set(also)
         if discussion_id:
             scopes.update((ctx["type"], ctx["id"]) for ctx in self._contexts(c, discussion_id))
         if role_id:
@@ -623,7 +819,7 @@ class DiscussionService:
     def changes(self, c: sqlite3.Connection, *, cursor: str | None = None,
                 context_type: str | None = None, context_id: str | None = None,
                 limit: int = 50) -> dict:
-        scope = self._scope(context_type, context_id)
+        scope = self._scope(c, context_type, context_id)
         seq = self._decode_cursor(c, cursor, scope)
         clause = "ch.seq>?"
         args: list[Any] = [seq]
@@ -640,10 +836,10 @@ class DiscussionService:
 
     def resume(self, c: sqlite3.Connection, actor: dict, *, context_type: str | None = None,
                context_id: str | None = None, limit: int = 50, offset: int = 0) -> dict:
-        scope = self._scope(context_type, context_id)
+        scope = self._scope(c, context_type, context_id)
         clause, args = self._discussion_scope(scope)
         discussion_count = c.execute("SELECT count(*) FROM discussions d WHERE " + clause, args).fetchone()[0]
-        discussions = c.execute("SELECT d.id FROM discussions d WHERE " + clause + " ORDER BY d.updated_at DESC,d.id LIMIT ? OFFSET ?", [*args, limit, offset]).fetchall()
+        discussions = c.execute("SELECT d.id FROM discussions d WHERE " + clause + " ORDER BY " + LISTED + " LIMIT ? OFFSET ?", [*args, limit, offset]).fetchall()
         request_query = " FROM discussion_messages m JOIN discussion_requests r ON r.message_id=m.id JOIN discussions d ON d.id=m.discussion_id WHERE r.state='pending' AND " + clause
         request_count = c.execute("SELECT count(*)" + request_query, args).fetchone()[0]
         request_ids = c.execute("SELECT m.id" + request_query + " ORDER BY m.created_at,m.id LIMIT ? OFFSET ?", [*args, limit, offset]).fetchall()
