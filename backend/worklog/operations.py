@@ -75,6 +75,8 @@ OPERATIONS: dict[str, Spec] = {
     "roadmap.revise": _existing(m.RoadmapRevision, also_required=frozenset({"steps"})),
     "roadmap.move": _existing(m.RoadmapMove),
     "progress.set": _existing(m.Progress),
+    # One step's text, without the whole plan a revise states.
+    "step.update": _existing(m.StepUpdate),
     "person.create": _new(m.PersonCreate),
     "person.update": _existing(m.PersonUpdate),
     "person.archive": _existing(m.Expected),

@@ -376,6 +376,8 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
   const action = useAction();
   const createItem = useCommand(commands.createItem);
   const [editing, setEditing] = useState(false);
+  // The step whose own text is being edited, alone, apart from the structure editor.
+  const [editingStep, setEditingStep] = useState<string | null>(null);
   const [snapshot, setSnapshot] = useState<unknown>(null);
   // Collapsed steps persist per roadmap so a large plan reopens as it was left.
   const collapsedKey = contextStorageKey("roadmap-collapsed", id);
@@ -461,6 +463,8 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
   // A step opened by link shows in the outline: expand its collapsed ancestors once.
   if (step !== revealed) {
     setRevealed(step);
+    // Another step's page closes an unsaved edit of this one's text.
+    setEditingStep(null);
     const ancestors = new Set<string>();
     let parent = active.find((s) => s.id === selected?.parentId);
     while (parent && !ancestors.has(parent.id)) {
@@ -1004,27 +1008,38 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
         <Icon name="back" />
         Roadmap overview
       </a>
-      <div className="section-heading step-title">
-        <h2>{selected.title}</h2>
-        <button
-          className="quiet"
-          onClick={() => showHistory("/steps/" + selected.id + "/history")}
-        >
-          Step history
-        </button>
-      </div>
+      {editingStep === selected.id && !road.archived ? (
+        <StepTextForm step={selected} onDone={() => setEditingStep(null)} />
+      ) : (
+        <div className="section-heading step-title">
+          <h2>{selected.title}</h2>
+          <div className="toolbar">
+            <button
+              className="quiet"
+              disabled={road.archived}
+              onClick={() => setEditingStep(selected.id)}
+            >
+              Edit step
+            </button>
+            <button
+              className="quiet"
+              onClick={() => showHistory("/steps/" + selected.id + "/history")}
+            >
+              Step history
+            </button>
+          </div>
+        </div>
+      )}
       {parentStep && (
         <p className="muted">
           Part of{" "}
           <a href={`#roadmaps/${id}/${parentStep.id}`}>{parentStep.title}</a>
         </p>
       )}
-      {selected.description ? (
+      {editingStep === selected.id && !road.archived ? null : selected.description ? (
         <Markdown text={selected.description} />
       ) : (
-        <p className="muted">
-          No description yet. Add one with Edit structure.
-        </p>
+        <p className="muted">No description yet. Add one with Edit step.</p>
       )}
       <section>
         <h3>
@@ -1249,6 +1264,115 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
     </div>
   );
 }
+/**
+ * One step's title and description, saved alone with the step's own revision (PATCH /steps/ID),
+ * so the rest of the plan, and other agents' changes to it, stay as they are.
+ */
+function StepTextForm({ step, onDone }: { step: Step; onDone: () => void }) {
+  const action = useAction();
+  const client = useQueryClient();
+  const [title, setTitle] = useState(step.title);
+  const [description, setDescription] = useState(step.description);
+  // The text this edit started from. Progress set meanwhile changes the step's revision but not
+  // its text, so only new text elsewhere asks before it is replaced.
+  const [opened] = useState({
+    title: step.title,
+    description: step.description,
+  });
+  const replaced =
+    step.title !== opened.title || step.description !== opened.description;
+  const changed =
+    title.trim() !== step.title || description !== step.description;
+  return (
+    <form
+      className="roadmap-record-form"
+      aria-label={"Edit step " + step.title}
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (!title.trim() || !changed) return;
+        await action
+          .mutateAsync({
+            path: "/steps/" + step.id,
+            method: "PATCH",
+            body: { revision: step.revision, title: title.trim(), description },
+          })
+          .then(onDone)
+          .catch((error) => {
+            // The step changed elsewhere first: load it, keeping what was typed here.
+            if (error instanceof ApiError && error.status === 409)
+              client.invalidateQueries({
+                predicate: (q) => q.queryKey[0] !== "session",
+              });
+          });
+      }}
+    >
+      <label>
+        Step title
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          maxLength={1000}
+          required
+          autoFocus
+        />
+      </label>
+      <label>
+        Description (Markdown)
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
+      </label>
+      {replaced && (
+        <div className="warning" role="alert">
+          <p>
+            This step's text changed since you opened it. Saving replaces it
+            with yours. It now reads:
+          </p>
+          <strong>{step.title}</strong>
+          {step.description && <Markdown text={step.description} />}
+        </div>
+      )}
+      <p className="muted">
+        Saves this step alone: the rest of the roadmap stays as it is.
+      </p>
+      <div className="toolbar">
+        <button
+          type="submit"
+          className="primary"
+          disabled={action.isPending || !title.trim() || !changed}
+        >
+          Save step
+        </button>
+        <button type="button" className="quiet" onClick={onDone}>
+          Cancel
+        </button>
+      </div>
+      <ErrorMessage error={action.error} />
+    </form>
+  );
+}
+// The roadmap's text as a structure draft found it, so a rebase can tell the person's edits from
+// changes saved elsewhere since, such as an agent's step.update.
+type DraftBase = {
+  title: string;
+  overview: string;
+  steps: Record<string, Pick<Step, "title" | "description" | "parentId">>;
+};
+function draftBase(roadmap: Roadmap): DraftBase {
+  return {
+    title: roadmap.title,
+    overview: roadmap.overview,
+    steps: Object.fromEntries(
+      roadmap.steps
+        .filter((s) => !s.retired)
+        .map((s) => [
+          s.id,
+          { title: s.title, description: s.description, parentId: s.parentId },
+        ]),
+    ),
+  };
+}
 export function StructureEditor({
   roadmap,
   onDone,
@@ -1266,6 +1390,8 @@ export function StructureEditor({
     revision: number;
     // Active step ids when the draft started; missing on drafts saved before it was recorded.
     baseStepIds?: string[];
+    // The text it started from; missing on drafts saved before it was recorded.
+    base?: DraftBase;
     note?: string;
   } | null = null;
   try {
@@ -1284,6 +1410,9 @@ export function StructureEditor({
   const [baseStepIds, setBaseStepIds] = useState<string[] | null>(() =>
     draft ? (draft.baseStepIds ?? null) : active().map((s) => s.id),
   );
+  const [base, setBase] = useState<DraftBase | null>(() =>
+    draft ? (draft.base ?? null) : draftBase(roadmap),
+  );
   const [recovered, setRecovered] = useState(draft !== null);
   const serverOnly = active().filter((s) => !steps.some((d) => d.id === s.id));
   const [keep, setKeep] = useState(() => new Set(serverOnly.map((s) => s.id)));
@@ -1296,9 +1425,10 @@ export function StructureEditor({
     nextTitle: string,
     nextOverview: string,
     nextSteps: Step[],
-    base = revision,
+    baseRevision = revision,
     baseIds = baseStepIds,
     nextNote = note,
+    nextBase = base,
   ) {
     const persisted = localStore.write(
       key,
@@ -1306,8 +1436,9 @@ export function StructureEditor({
         title: nextTitle,
         overview: nextOverview,
         steps: nextSteps,
-        revision: base,
+        revision: baseRevision,
         ...(baseIds ? { baseStepIds: baseIds } : {}),
+        ...(nextBase ? { base: nextBase } : {}),
         ...(nextNote ? { note: nextNote } : {}),
       }),
     );
@@ -1332,6 +1463,7 @@ export function StructureEditor({
     setSteps(active().map((s) => ({ ...s })));
     setRevision(roadmap.revision);
     setBaseStepIds(active().map((s) => s.id));
+    setBase(draftBase(roadmap));
     setNote("");
     setRecovered(false);
   }
@@ -1343,18 +1475,59 @@ export function StructureEditor({
         baseStepIds ? !baseStepIds.includes(s.id) : keep.has(s.id),
       )
       .map((s) => ({ ...s }));
-    const ids = new Set([...steps, ...added].map((s) => s.id));
-    const next = [...steps, ...added].map((s, index) => ({
+    // What the draft left as it found it takes its current value, so a change saved elsewhere
+    // since, such as an agent's step.update, survives the save. The person's edits stay theirs.
+    const current = new Map(active().map((s) => [s.id, s]));
+    const untouched = (s: Step) => {
+      const was = base?.steps[s.id];
+      return (
+        !!was &&
+        s.title === was.title &&
+        s.description === was.description &&
+        s.parentId === was.parentId
+      );
+    };
+    // A step retired elsewhere since stays retired, unless the draft changed it.
+    const kept = steps.filter((s) => current.has(s.id) || !untouched(s));
+    const merged = kept.map((s) => {
+      const was = base?.steps[s.id];
+      const now = current.get(s.id);
+      if (!was || !now) return s;
+      return {
+        ...s,
+        title: s.title === was.title ? now.title : s.title,
+        description:
+          s.description === was.description ? now.description : s.description,
+        parentId: s.parentId === was.parentId ? now.parentId : s.parentId,
+      };
+    });
+    const nextTitle = base && title === base.title ? roadmap.title : title;
+    const nextOverview =
+      base && overview === base.overview ? roadmap.overview : overview;
+    const ids = new Set([...merged, ...added].map((s) => s.id));
+    const next = [...merged, ...added].map((s, index) => ({
       ...s,
       parentId: s.parentId && ids.has(s.parentId) ? s.parentId : null,
       position: index,
     }));
     const baseIds = active().map((s) => s.id);
+    const nextBase = draftBase(roadmap);
+    setTitle(nextTitle);
+    setOverview(nextOverview);
     setSteps(next);
     setRevision(roadmap.revision);
     setBaseStepIds(baseIds);
+    setBase(nextBase);
     setRecovered(false);
-    persist(title, overview, next, roadmap.revision, baseIds);
+    persist(
+      nextTitle,
+      nextOverview,
+      next,
+      roadmap.revision,
+      baseIds,
+      note,
+      nextBase,
+    );
   }
   return (
     <form
@@ -1406,8 +1579,10 @@ export function StructureEditor({
         <div className="warning" role="alert">
           <p>
             This draft is based on revision {revision}, but the roadmap is now
-            at revision {roadmap.revision}, so saving it would be rejected.
-            Rebase keeps your edits on the current revision; discard drops them.
+            at revision {roadmap.revision}, so saving it would be rejected.{" "}
+            {base
+              ? "Rebase moves your edits onto the current revision: a title, description or parent you didn't change takes its current one, and a step retired since stays retired unless you changed it. Discard drops your edits."
+              : "Rebase keeps your draft's version of every step on the current revision; discard drops your edits."}
           </p>
           {!baseStepIds && serverOnly.length > 0 && (
             <fieldset>

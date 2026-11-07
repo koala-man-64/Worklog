@@ -8,8 +8,8 @@ A change counts toward:
 - the work item or roadmap it creates, changes, archives or recovers;
 - the work item or roadmap that holds the record it creates or changes: a work item's tasks,
   scratchpad, links, files, agent chats, GitHub references, day entries and people; a roadmap's
-  steps and their progress, notes and files, its questions, decisions, notes, links, files, agent
-  chats, GitHub references and people;
+  steps and their progress, text, notes and files, its questions, decisions, notes, links, files,
+  agent chats, GitHub references and people;
 - the roadmap it puts a work item or a sub-roadmap on;
 - the work item a ticket it creates or changes is linked to once the change is made.
 A person, a repository, a resource or a release is neither, so a change to one alone counts toward
@@ -95,7 +95,7 @@ def targets(conn: sqlite3.Connection, action: Any, payload: Any, applied: str | 
         add("roadmap", applied if verb == "create" else payload.get("id"))
         if verb in {"create", "move"}:
             add("roadmap", payload.get("parentId"))
-    elif action == "progress.set":
+    elif action in {"progress.set", "step.update"}:
         add("roadmap", _step_roadmap(conn, payload.get("id") or payload.get("stepId")))
     elif action == "entry.upsert":
         add("item", payload.get("itemId"))
