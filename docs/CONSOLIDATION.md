@@ -415,20 +415,24 @@ What changed:
 
 #### 4.2 · Backups off the request path
 
-Status: In progress · Branch: `claude/backup-off-requests` · PR: PR_LINK; the streaming export follows in its own PR
+Status: Merged · Branches: `claude/backup-off-requests`, `claude/streaming-export` · PRs: PR_LINK, PR2_LINK
 
 The daily backup now runs from the watcher only, not on the first write of the day. Backup hashes are cached, and export streams instead of holding blobs twice in memory. Findings: B-05, C-17, REM-18.
 
-Done so far:
+What changed:
 - **Backups off the request path (PR_NUMBER).**
   - The day's automatic backup is taken at startup and by the serve watcher's minute check, as the README says. No write takes it: `mutate()` and agent registration used to, so the first write of a day waited for the whole database to be copied.
   - `app.daily_backup` shows a failure in Settings until a backup succeeds, from the watcher as from startup.
 - **Cached backup hashes (PR_NUMBER).** The CLI's `backups` listing takes each file's SHA-256 from `backups/backup-hashes.json` while the file keeps the size and modification time it was hashed at. Each new backup's hash goes there as it is made, and the hash of a file that has gone leaves.
 
   `test_backup_path.py` pins each of these.
+- **The streaming export (PR2_NUMBER).**
+  - `recovery.write_export` writes the ZIP to a file a record and a BLOB at a time, from the same snapshot copy. It used to build the whole export in memory, with every BLOB in it twice.
+  - Each table's records, and the Markdown, are written beside the snapshot and copied in after, since a ZIP takes one member at a time. Each BLOB they name goes in as it is met, once.
+  - The members and manifest are byte for byte the ones before, apart from the manifest's time.
+  - `GET /export` sends the ZIP from a temporary file and removes it afterwards, a failed export's too. The CLI's `export` writes it beside its target and publishes it as before.
 
-Still to come:
-- **The streaming export.** It will write the ZIP to a file as it reads, and stop holding every record and blob in memory twice (REM-18).
+  `test_streaming_export.py` pins each of these. REM-18.
 
 #### 4.3 · Offline compact
 
