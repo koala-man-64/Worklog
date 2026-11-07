@@ -348,7 +348,7 @@ What changed:
 
 #### 3.4 · Quotas and proposal paging
 
-Status: Merged · Branch: `claude/proposal-quotas` · PR: PR_LINK
+Status: Merged · Branch: `claude/proposal-quotas` · PR: [#125](https://github.com/koala-man-64/Worklog/pull/125)
 
 Add K10's quotas, counted from live tables, not from events or receipts, and paginate `/proposals`. Findings: C-05, REM-17.
 
