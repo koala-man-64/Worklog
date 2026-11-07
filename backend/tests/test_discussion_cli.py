@@ -42,6 +42,10 @@ def command(*args):
     (["avatars"], "/discussions/avatars", {}),
     (["list", "--context", f"item:{DISCUSSION}", "--repo", "one & two", "--q", "a/b", "--view", "awaiting", "--limit", "3", "--offset", "4"],
      "/discussions", {"contextType": ["item"], "contextId": [DISCUSSION], "repo": ["one & two"], "q": ["a/b"], "view": ["awaiting"], "limit": ["3"], "offset": ["4"]}),
+    (["list", "--pinned", "--context", "ticket:T-12"], "/discussions",
+     {"pinned": ["true"], "contextType": ["ticket"], "contextId": ["T-12"], "view": ["all"], "limit": ["50"], "offset": ["0"]}),
+    (["list", "--context", f"repository:{DISCUSSION}"], "/discussions",
+     {"contextType": ["repository"], "contextId": [DISCUSSION], "view": ["all"], "limit": ["50"], "offset": ["0"]}),
     (["read", DISCUSSION], f"/discussions/{DISCUSSION}", {"limit": ["50"], "offset": ["0"]}),
     (["read", MESSAGE, "--message"], f"/discussions/messages/{MESSAGE}", {}),
     (["changes", "--cursor", "dataset:cursor+token", "--context", f"roadmap:{DISCUSSION}"],
@@ -67,13 +71,21 @@ def test_rich_post_retains_acknowledgement_and_context(transport, tmp_path):
     source = tmp_path / "post.json"
     source.write_text(json.dumps(payload))
     assert cli.main(command("post", "--file", str(source), "--as-role", ROLE, "--context", f"item:{DISCUSSION}",
-                            "--title", "Question", "--repo", "repo-one", "--repo", "repo-two", "--chat", DISCUSSION,
-                            "--request-id", "post-request-key")) == 0
+                            "--title", "Question", "--context", f"repository:{AGENT}", "--context", "ticket:T-12",
+                            "--chat", DISCUSSION, "--request-id", "post-request-key")) == 0
     request, _ = transport[-1]
     assert request.method == "POST"
     assert request.get_header("Idempotency-key") == "post-request-key"
-    assert json.loads(request.data) == {**payload, "onBehalfOfRoleId": ROLE, "contexts": [{"type": "item", "id": DISCUSSION}],
-                                       "title": "Question", "repos": ["repo-one", "repo-two"], "chatId": DISCUSSION}
+    assert json.loads(request.data) == {**payload, "onBehalfOfRoleId": ROLE, "title": "Question", "chatId": DISCUSSION, "contexts": [
+        {"type": "item", "id": DISCUSSION}, {"type": "repository", "id": AGENT}, {"type": "ticket", "id": "T-12"}]}
+
+
+def test_a_post_takes_no_free_text_repository_label(transport, capsys):
+    # K8: a thread names a catalog repository with --context repository:ID instead.
+    with pytest.raises(SystemExit) as exited:
+        cli.main(command("post", "--text", "Labelled", "--repo", "worklog"))
+    assert exited.value.code == 2
+    assert not transport
 
 
 def test_reply_from_stdin_keeps_role_and_uses_message_route(transport, monkeypatch):
@@ -98,6 +110,9 @@ def test_reply_from_stdin_keeps_role_and_uses_message_route(transport, monkeypat
       for verb in ("claim", "release", "accept", "decline", "withdraw")],
     (["roles", "offer", ROLE, "--revision", "8", "--to", AGENT, "--note", "handoff"],
      f"/discussions/roles/{ROLE}/offer", {"revision": 8, "successorId": AGENT, "note": "handoff"}),
+    (["tag", DISCUSSION, "--context", f"repository:{AGENT}"], f"/discussions/{DISCUSSION}/tags", {"type": "repository", "id": AGENT}),
+    (["tag", DISCUSSION, "--context", "ticket:12"], f"/discussions/{DISCUSSION}/tags", {"type": "ticket", "id": "12"}),
+    (["untag", DISCUSSION, "--context", f"release:{AGENT}"], f"/discussions/{DISCUSSION}/tags/remove", {"type": "release", "id": AGENT}),
 ])
 def test_writes_use_exact_routes_payload_and_supplied_key(transport, args, route, payload):
     assert cli.main(command(*args, "--request-id", "same-retry-key")) == 0
@@ -111,6 +126,8 @@ def test_writes_use_exact_routes_payload_and_supplied_key(transport, args, route
 @pytest.mark.parametrize("method,route", [
     ("POST", f"/discussions/messages/{MESSAGE}/release"),
     ("POST", f"/discussions/{DISCUSSION}/archive"),
+    ("POST", f"/discussions/{DISCUSSION}/pin"),
+    ("POST", "/discussions/not-an-id/tags"), ("POST", f"/discussions/{DISCUSSION}/tags/remove/"),
     ("POST", f"/discussions/roles/{ROLE}/reassign"),
     ("GET", "/chats"), ("GET", f"/chats/{DISCUSSION}/transcript"),
     ("GET", "/discussions/roles/"), ("POST", "/discussions/%2e%2e/messages"),
@@ -148,6 +165,9 @@ def test_uncertain_write_exposes_generated_key_reused_by_explicit_retry(transpor
 def test_invalid_context_and_request_id_fail_before_transport(transport, capsys):
     assert cli.main(command("list", "--context", "project:abc")) == 1
     assert cli.main(command("post", "--text", "hello", "--request-id", "bad\nheader")) == 1
+    # Roles sit only on work items, roadmaps and steps; a proposal is no kind of tag.
+    assert cli.main(command("roles", "create", "--context", f"repository:{AGENT}", "--label", "Review")) == 1
+    assert cli.main(command("tag", DISCUSSION, "--context", f"proposal:{AGENT}")) == 1
     assert not transport
 
 

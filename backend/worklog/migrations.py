@@ -12,9 +12,11 @@ import json
 import re
 import sqlite3
 
-SCHEMA_VERSION = 21
+from .common import now, setting, today, uid
+
+SCHEMA_VERSION = 22
 # Older versions that startup and offline restore upgrade in one transaction.
-UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20})
+UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21})
 
 # v1 grew in place before versions were counted: _upgrade_v1 adds whichever of these a v1 database
 # lacks. People as v1 had them; v10 renames role to team, adds person details and lets links name
@@ -636,6 +638,127 @@ def add_reflection_revisions(conn: sqlite3.Connection) -> None:
     conn.execute("UPDATE days SET reflection_revision=revision")
 
 
+# v22 tags a discussion with the records it is about, of more kinds than v1's work contexts, and says
+# who added each tag and when. The one tag marked home makes a discussion its repository's own: only a
+# repository's tag can be home, and the partial unique indexes keep it to one home discussion for a
+# repository and one home repository for a discussion. Feeds follow every kind a tag names. Nothing
+# refers to either table, so each is renamed aside, built again, copied and dropped, as v10 did with
+# person_links. A discussion can also be pinned, which only the person does.
+DISCUSSION_CONTEXTS_TABLE = (
+    "CREATE TABLE discussion_contexts(discussion_id TEXT NOT NULL REFERENCES discussions(id),"
+    "context_type TEXT NOT NULL CHECK(context_type IN('item','roadmap','step','repository','ticket','release','person','resource','question','decision')),"
+    "context_id TEXT NOT NULL,home INTEGER NOT NULL DEFAULT 0 CHECK(home IN(0,1)),added_by TEXT NOT NULL,"
+    "added_by_kind TEXT NOT NULL CHECK(added_by_kind IN('agent','human')),created_at TEXT NOT NULL,"
+    "PRIMARY KEY(discussion_id,context_type,context_id),CHECK(home=0 OR context_type='repository'))")
+DISCUSSION_CONTEXT_INDEXES = """
+CREATE INDEX discussion_contexts_context ON discussion_contexts(context_type,context_id,discussion_id);
+CREATE UNIQUE INDEX discussion_contexts_home ON discussion_contexts(context_type,context_id) WHERE home=1;
+CREATE UNIQUE INDEX discussion_contexts_home_discussion ON discussion_contexts(discussion_id) WHERE home=1;
+"""
+DISCUSSION_CHANGE_CONTEXTS_TABLE = (
+    "CREATE TABLE discussion_change_contexts(seq INTEGER NOT NULL REFERENCES discussion_changes(seq),"
+    "context_type TEXT NOT NULL CHECK(context_type IN('item','roadmap','step','repository','ticket','release','person','resource','question','decision')),"
+    "context_id TEXT NOT NULL,PRIMARY KEY(seq,context_type,context_id))")
+DISCUSSION_CHANGE_CONTEXT_INDEX = (
+    "CREATE INDEX discussion_change_contexts_context ON discussion_change_contexts(context_type,context_id,seq)")
+DISCUSSION_PIN_COLUMN = "pinned_at TEXT"
+# A column of a discussion's first message: its author is who v22 counts as having added the tags
+# the discussion had before.
+_FIRST_MESSAGE = ("(SELECT m.{} FROM discussion_messages m WHERE m.discussion_id={} "
+                  "ORDER BY m.created_at,m.id LIMIT 1)")
+# What v22 writes as the person to open each repository's discussion. A first message that begins so
+# and names the repository's ID in backticks marks the discussion as that repository's, so an upgrade
+# after the documented way back finds it again.
+REPOSITORY_DISCUSSION_TITLE = "Repository: {name}"
+REPOSITORY_DISCUSSION_OPENING = "Worklog opened this discussion for the repository **"
+REPOSITORY_DISCUSSION_TEXT = REPOSITORY_DISCUSSION_OPENING + "{name}** (`{id}`)."
+
+
+def add_discussion_tags(conn: sqlite3.Connection) -> None:
+    """Widen discussion tags and their feed to every kind v22 names, pin discussions, link exact
+    repository labels, and open a discussion for each repository that takes changes.
+
+    Each tag a discussion already had keeps its row, now added by whoever wrote the discussion's
+    first message, when the discussion was created. A free-text repository label becomes a tag of
+    the one repository, merged ones aside, whose name it is exactly; the labels themselves stay (K8).
+    """
+    conn.execute("ALTER TABLE discussions ADD COLUMN " + DISCUSSION_PIN_COLUMN)
+    conn.execute("ALTER TABLE discussion_contexts RENAME TO discussion_contexts_v21")
+    conn.execute(DISCUSSION_CONTEXTS_TABLE)
+    conn.execute("INSERT INTO discussion_contexts(discussion_id,context_type,context_id,home,added_by,added_by_kind,created_at) "
+                 "SELECT o.discussion_id,o.context_type,o.context_id,0,"
+                 f"COALESCE({_FIRST_MESSAGE.format('author_id', 'o.discussion_id')},'local-user'),"
+                 f"COALESCE({_FIRST_MESSAGE.format('author_kind', 'o.discussion_id')},'human'),COALESCE(d.created_at,'') "
+                 "FROM discussion_contexts_v21 o LEFT JOIN discussions d ON d.id=o.discussion_id")
+    conn.execute("DROP TABLE discussion_contexts_v21")  # and its index, whose name the new one takes
+    execute_schema(conn, DISCUSSION_CONTEXT_INDEXES)
+    conn.execute("ALTER TABLE discussion_change_contexts RENAME TO discussion_change_contexts_v21")
+    conn.execute(DISCUSSION_CHANGE_CONTEXTS_TABLE)
+    conn.execute("INSERT INTO discussion_change_contexts(seq,context_type,context_id) "
+                 "SELECT seq,context_type,context_id FROM discussion_change_contexts_v21")
+    conn.execute("DROP TABLE discussion_change_contexts_v21")
+    conn.execute(DISCUSSION_CHANGE_CONTEXT_INDEX)
+    conn.execute("INSERT OR IGNORE INTO discussion_contexts(discussion_id,context_type,context_id,home,added_by,added_by_kind,created_at) "
+                 "SELECT dr.discussion_id,'repository',r.id,0,"
+                 f"COALESCE({_FIRST_MESSAGE.format('author_id', 'dr.discussion_id')},'local-user'),"
+                 f"COALESCE({_FIRST_MESSAGE.format('author_kind', 'dr.discussion_id')},'human'),COALESCE(d.created_at,'') "
+                 "FROM discussion_repos dr JOIN repositories r ON r.name=dr.repo AND r.merged_into IS NULL "
+                 "LEFT JOIN discussions d ON d.id=dr.discussion_id "
+                 "WHERE (SELECT count(*) FROM repositories o WHERE o.name=dr.repo AND o.merged_into IS NULL)=1")
+    _open_repository_discussions(conn)
+
+
+def _open_repository_discussions(conn: sqlite3.Connection) -> None:
+    """Give each repository that isn't merged its own discussion. One that had it before the
+    documented way back to v21, archived ones included, has that one again, found by its first
+    message: written by the person as v22 opens one and naming the repository's ID, in a thread not
+    already some repository's own. Otherwise an active repository's is opened, as the person, with
+    the history, feed entry and search rows a discussion opened today has; an archived one gets its
+    discussion when it is recovered."""
+    stamp = now()
+    local_date = today(setting(conn, "timezone", "America/Chicago"))
+    first_text = _FIRST_MESSAGE.format("text", "d.id")
+    for repository, name, archived in conn.execute("SELECT id,name,archived FROM repositories WHERE merged_into IS NULL "
+                                                   "ORDER BY created_at,id").fetchall():
+        found = conn.execute(
+            "SELECT d.id FROM discussions d WHERE d.title LIKE 'Repository: %' "
+            f"AND {_FIRST_MESSAGE.format('author_id', 'd.id')}='local-user' "
+            f"AND substr({first_text},1,?)=? AND instr({first_text},?)>0 "
+            "AND NOT EXISTS(SELECT 1 FROM discussion_contexts h WHERE h.discussion_id=d.id AND h.home=1) "
+            "ORDER BY d.created_at,d.id LIMIT 1",
+            (len(REPOSITORY_DISCUSSION_OPENING), REPOSITORY_DISCUSSION_OPENING, "(`" + repository + "`)")).fetchone()
+        if found is not None:
+            conn.execute("INSERT INTO discussion_contexts(discussion_id,context_type,context_id,home,added_by,added_by_kind,created_at) "
+                         "VALUES(?,'repository',?,1,'local-user','human',?) "
+                         "ON CONFLICT(discussion_id,context_type,context_id) DO UPDATE SET home=1", (found[0], repository, stamp))
+            continue
+        if archived:
+            continue
+        discussion, message, recorded = uid(), uid(), uid()
+        title = REPOSITORY_DISCUSSION_TITLE.format(name=name)
+        body = REPOSITORY_DISCUSSION_TEXT.format(name=name, id=repository)
+        conn.execute("INSERT INTO discussions(id,title,archived,revision,created_at,updated_at) VALUES(?,?,0,1,?,?)",
+                     (discussion, title, stamp, stamp))
+        conn.execute("INSERT INTO discussion_contexts(discussion_id,context_type,context_id,home,added_by,added_by_kind,created_at) "
+                     "VALUES(?,'repository',?,1,'local-user','human',?)", (discussion, repository, stamp))
+        conn.execute("INSERT INTO discussion_messages(id,discussion_id,text,author_id,author_label,author_kind,created_at) "
+                     "VALUES(?,?,?,'local-user','You','human',?)", (message, discussion, body, stamp))
+        for entity, kind, text in ((discussion, "discussion", ""), (message, "discussion_message", body)):
+            doc = conn.execute("INSERT INTO search_index(entity_id,type,title,body,owner_id,archived) VALUES(?,?,?,?,?,0)",
+                               (entity, kind, title, text, discussion)).lastrowid
+            conn.execute("INSERT INTO search_keys(entity_id,doc,type,owner_id) VALUES(?,?,?,?)", (entity, doc, kind, discussion))
+        after = {"id": message, "discussionId": discussion, "text": body, "authorId": "local-user", "authorLabel": "You",
+                 "authorKind": "human", "createdAt": stamp, "chatId": None, "onBehalfOfRoleId": None,
+                 "ownershipGeneration": None, "request": None}
+        conn.execute("INSERT INTO events(id,entity_id,kind,actor_id,actor_label,actor_kind,created_at,local_date,before_json,after_json) "
+                     "VALUES(?,?,'discussion.create','local-user','You','human',?,?,'null',?)",
+                     (recorded, message, stamp, local_date, json.dumps(after)))
+        seq = conn.execute("INSERT INTO discussion_changes(event_id,kind,discussion_id,message_id,role_id,created_at) "
+                           "VALUES(?,'discussion.create',?,?,NULL,?)", (recorded, discussion, message, stamp)).lastrowid
+        conn.execute("INSERT INTO discussion_change_contexts(seq,context_type,context_id) VALUES(?,'repository',?)",
+                     (seq, repository))
+
+
 def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
     """Unlike executescript, preserve the caller's transaction and rollback boundary."""
     for statement in filter(str.strip, schema.split(";")):
@@ -655,7 +778,10 @@ def upgrade(conn: sqlite3.Connection) -> None:
     v18 records the directory each agent registered from, unknown for those registered before it,
     and changes no record. v19 adds releases, which start empty, and changes no record.
     v20 adds reminders, which start empty too, and changes no record either. v21 gives each day's
-    reflection its own revision, starting at the day's, and changes no record.
+    reflection its own revision, starting at the day's, and changes no record. v22 lets a discussion
+    be tagged with more kinds of record and pinned, tags each discussion with the one repository a
+    repository label of it names exactly, and is the first to add records: it opens the discussion
+    of each repository that takes changes.
     """
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version == SCHEMA_VERSION:
@@ -707,6 +833,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
         execute_schema(conn, REMINDER_SCHEMA)
     if version < 21:
         add_reflection_revisions(conn)
+    if version < 22:
+        add_discussion_tags(conn)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 

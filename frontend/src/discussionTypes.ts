@@ -1,8 +1,28 @@
-export type DiscussionContextType = "item" | "roadmap" | "step";
+/** What a discussion can be tagged with (backend discussions.TAG_KINDS); roles keep to the first three. */
+export type DiscussionContextType =
+  | "item"
+  | "roadmap"
+  | "step"
+  | "repository"
+  | "ticket"
+  | "release"
+  | "person"
+  | "resource"
+  | "question"
+  | "decision";
 
 export type DiscussionContext = {
   type: DiscussionContextType;
   id: string;
+  /** The tagged record's title as Worklog found it, and what a page needs to link to it. */
+  title?: string | null;
+  archived?: boolean;
+  roadmapId?: string;
+  /** A repository's tag on its own discussion, which stays on it. */
+  home?: boolean;
+  /** Who added the tag; null for a work context a role brings in. */
+  addedBy?: { id: string; label: string; kind: "human" | "agent" } | null;
+  addedAt?: string | null;
 };
 
 export type DiscussionSummary = {
@@ -12,9 +32,14 @@ export type DiscussionSummary = {
   revision: number;
   createdAt: string;
   updatedAt: string;
+  pinned?: boolean;
+  pinnedAt?: string | null;
   contexts: DiscussionContext[];
+  /** Free-text repository labels older threads carry; a new thread takes none. */
   repos: string[];
   pendingCount: number;
+  /** On a repository's own discussion, the repository it is for. */
+  repository?: { id: string; name: string } | null;
 };
 
 export type DiscussionList = {

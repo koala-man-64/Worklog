@@ -341,10 +341,10 @@ it("posts plain text with a derived title and explicit named recipients, includi
     screen.getByRole("textbox", { name: "Post message" }),
     "Pack release files.\nKeep their hashes with the bundle.",
   );
-  await user.type(
-    screen.getByLabelText("Repository labels (optional)"),
-    "worklog, docs",
-  );
+  // A new thread takes no free-text repository labels (schema v22).
+  expect(
+    screen.queryByLabelText("Repository labels (optional)"),
+  ).not.toBeInTheDocument();
   await user.click(
     screen.getByRole("checkbox", {
       name: "Request acknowledgement (received and understood)",
@@ -366,10 +366,10 @@ it("posts plain text with a derived title and explicit named recipients, includi
   const created = api.calls.find(
     (call) => call.path === "/discussions" && call.method === "POST",
   );
+  expect(created?.body).not.toHaveProperty("repos");
   expect(created?.body).toMatchObject({
     title: "Pack release files.",
     text: "Pack release files.\nKeep their hashes with the bundle.",
-    repos: ["worklog", "docs"],
     acknowledgement: {
       mode: "all",
       targets: [
@@ -378,6 +378,39 @@ it("posts plain text with a derived title and explicit named recipients, includi
       ],
     },
   });
+});
+
+it("links each tag to its record by the title the discussion brings, whatever its kind", async () => {
+  serve({
+    initialSummary: summary({
+      contexts: [
+        { type: "repository", id: "repo-1", title: "Worklog", home: true },
+        { type: "ticket", id: "ticket-1", title: "Flaky import" },
+        { type: "release", id: "release-1", title: "November" },
+        {
+          type: "step",
+          id: "step-1",
+          title: "Cut the branch",
+          roadmapId: "roadmap-1",
+        },
+      ],
+    }),
+  });
+  renderPage();
+
+  const list = await screen.findByRole("region", { name: "Discussion list" });
+  expect(
+    await within(list).findByRole("link", { name: "Worklog" }),
+  ).toHaveAttribute("href", "#repositories/repo-1");
+  expect(
+    within(list).getByRole("link", { name: "Flaky import" }),
+  ).toHaveAttribute("href", "#tickets/ticket-1");
+  expect(
+    within(list).getByRole("link", { name: "November" }),
+  ).toHaveAttribute("href", "#releases/release-1");
+  expect(
+    within(list).getByRole("link", { name: "Cut the branch" }),
+  ).toHaveAttribute("href", "#roadmaps/roadmap-1/step-1");
 });
 
 it("keeps human replies separate from acknowledgement and records a human release reason", async () => {
