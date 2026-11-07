@@ -34,7 +34,7 @@ def repository_record(row: Any) -> dict:
 
 
 def with_discussion(c: sqlite3.Connection, record: dict) -> dict:
-    """A repository record as the API returns it, with its own discussion's id (v21). A merged one,
+    """A repository record as the API returns it, with its own discussion's id (v22). A merged one,
     whose discussion is tagged with the survivor now, gives null, as does one archived when the upgrade
     opened the others' and not recovered since. History keeps the record as repository_record gives it."""
     return {**record, "discussionId": DiscussionService.home_discussions(c, [record["id"]]).get(record["id"])}
@@ -295,7 +295,7 @@ def _register(c: sqlite3.Connection, actor: dict, name: str, url: str, descripti
               "registered_by_kind,registered_by_label,registered_by_agent,reviewed) VALUES(?,?,?,?,?,0,1,?,?,?,?,?,?)",
               (identity, name, url, repository_identity(url), description, stamp, stamp, actor["kind"],
                agent["label"] if agent else actor["label"], agent["id"] if agent else None, int(reviewed)))
-    # Every new repository gets its own discussion, whoever registers it and however (v21).
+    # Every new repository gets its own discussion, whoever registers it and however (v22).
     DiscussionService(None).open_repository_discussion(c, identity, name)
     return identity
 
@@ -359,7 +359,7 @@ def repository_apply(c: sqlite3.Connection, actor: dict, action: str, p: dict) -
                 if not live_item and not live_repo:
                     _release(c, actor, row, "repository_archived")
         else:
-            # One archived when the v21 upgrade opened the others' discussions gets its own now.
+            # One archived when the v22 upgrade opened the others' discussions gets its own now.
             DiscussionService(None).open_repository_discussion(c, before["id"], before["name"])
         identity = before["id"]
     else:

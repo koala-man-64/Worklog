@@ -35,6 +35,7 @@ const day = (entries: Entry[]): Day => ({
   date: "2026-11-05",
   revision: 7,
   reflection: "",
+  reflectionRevision: 3,
   entries,
   summary: { worked: [], completed: [], blocked: [] },
   nextItemId: null,

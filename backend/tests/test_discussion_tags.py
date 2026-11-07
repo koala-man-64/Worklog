@@ -1,4 +1,4 @@
-"""Discussion tags (schema v21): a thread names the records it is about, of ten kinds, and says who
+"""Discussion tags (schema v22): a thread names the records it is about, of ten kinds, and says who
 added each tag. Anyone adds a tag; an agent takes off only the tags it added, and the person any but a
 repository's tag on its own discussion. Feeds and filters follow every kind, free-text repository
 labels take no new writes (K8), and tags reserve and change nothing about the records they name."""

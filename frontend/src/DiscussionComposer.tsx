@@ -195,7 +195,7 @@ export function Composer({
     };
     if (mode === "new") {
       body.title = draft.title.trim() || titleFromText(draft.text);
-      // A new thread takes no free-text repository labels (schema v21): it is tagged instead.
+      // A new thread takes no free-text repository labels (schema v22): it is tagged instead.
       body.contexts = draft.contexts.map(({ type, id }) => ({ type, id }));
     }
     return body;

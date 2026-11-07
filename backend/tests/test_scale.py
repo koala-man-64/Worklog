@@ -19,7 +19,7 @@ def test_ten_thousand_items_and_hundred_thousand_events(tmp_path):
                       [(identity, f"Benchmark work {i:05}", "A bounded history fixture", "open", None, None, i, 0, 1, stamp, stamp) for i, identity in enumerate(identities)])
         c.executemany("INSERT INTO search_index(entity_id,type,title,body,owner_id,archived) VALUES(?,?,?,?,?,?)",
                       [(identity, "item", f"Benchmark work {i:05}", "A bounded history fixture", identity, 0) for i, identity in enumerate(identities)])
-        c.execute("INSERT INTO days VALUES('2026-10-28','',1)")
+        c.execute("INSERT INTO days(date,reflection,revision) VALUES('2026-10-28','',1)")
         c.executemany("INSERT INTO daily_entries VALUES(?,?,?,?,?,?,?,?)",
                       [(str(UUID(int=20_000 + i)), identity, "2026-10-28", 1, 1, "Recorded outcome", i, 1) for i, identity in enumerate(identities[:20])])
         def events():

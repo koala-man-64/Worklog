@@ -6,7 +6,7 @@ from pydantic import Field, StrictBool, model_validator
 
 from .models import Command, Revision
 
-# What a discussion can be tagged with (v21), as discussions.TAG_KINDS lists them; roles sit only on
+# What a discussion can be tagged with (v22), as discussions.TAG_KINDS lists them; roles sit only on
 # the first three, the work contexts.
 ContextType = Literal["item", "roadmap", "step", "repository", "ticket", "release", "person", "resource",
                       "question", "decision"]

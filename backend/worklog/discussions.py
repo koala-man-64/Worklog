@@ -30,7 +30,7 @@ from .common import (
 )
 from .tickets import TicketService
 
-# What a discussion can be tagged with (v21), in the order its tags list them. The first three are
+# What a discussion can be tagged with (v22), in the order its tags list them. The first three are
 # v1's work contexts, which roles keep to.
 TAG_KINDS = ("item", "roadmap", "step", "repository", "ticket", "release", "person", "resource", "question", "decision")
 ROLE_KINDS = ("item", "roadmap", "step")
@@ -40,7 +40,7 @@ PERSON = {"id": "local-user", "label": "You", "kind": "human"}
 LISTED = "d.pinned_at IS NULL,d.pinned_at DESC,d.updated_at DESC,d.id"
 # A repository's own discussion, which Worklog opens as the person when the repository is registered.
 # Its first message begins as migrations.REPOSITORY_DISCUSSION_TEXT does and names the repository's ID
-# in backticks, which is how the v21 upgrade finds one again after the way back. What agents do here is
+# in backticks, which is how the v22 upgrade finds one again after the way back. What agents do here is
 # the agent guide's to say.
 REPOSITORY_TITLE = "Repository: {name}"
 REPOSITORY_TEXT = "Worklog opened this discussion for the repository **{name}** (`{id}`)."

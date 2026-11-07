@@ -1,4 +1,4 @@
-"""Schema v21 widens discussion tags, adds pins and opens each repository's discussion: the upgrade,
+"""Schema v22 widens discussion tags, adds pins and opens each repository's discussion: the upgrade,
 the documented way back, restore and export keep every discussion whole, and an upgrade after the way
 back finds each repository's discussion again rather than opening another."""
 
@@ -17,24 +17,24 @@ from worklog.db import Database
 from worklog.discussions import PERSON, REPOSITORY_TEXT, REPOSITORY_TITLE, DiscussionService
 
 T1, T2 = "2026-10-01T10:00:00+00:00", "2026-10-02T10:00:00+00:00"
-# README: from version 21 to version 20, with Worklog stopped and after a manual backup.
+# README: from version 22 to version 21, with Worklog stopped and after a manual backup.
 WAY_BACK = """\
 BEGIN;
-ALTER TABLE discussion_contexts RENAME TO discussion_contexts_v21;
+ALTER TABLE discussion_contexts RENAME TO discussion_contexts_v22;
 CREATE TABLE discussion_contexts(discussion_id TEXT NOT NULL REFERENCES discussions(id),context_type TEXT NOT NULL CHECK(context_type IN('item','roadmap','step')),context_id TEXT NOT NULL,PRIMARY KEY(discussion_id,context_type,context_id));
-INSERT INTO discussion_contexts(discussion_id,context_type,context_id) SELECT discussion_id,context_type,context_id FROM discussion_contexts_v21 WHERE context_type IN ('item','roadmap','step');
-DROP TABLE discussion_contexts_v21;
+INSERT INTO discussion_contexts(discussion_id,context_type,context_id) SELECT discussion_id,context_type,context_id FROM discussion_contexts_v22 WHERE context_type IN ('item','roadmap','step');
+DROP TABLE discussion_contexts_v22;
 CREATE INDEX discussion_contexts_context ON discussion_contexts(context_type,context_id,discussion_id);
-ALTER TABLE discussion_change_contexts RENAME TO discussion_change_contexts_v21;
+ALTER TABLE discussion_change_contexts RENAME TO discussion_change_contexts_v22;
 CREATE TABLE discussion_change_contexts(seq INTEGER NOT NULL REFERENCES discussion_changes(seq),context_type TEXT NOT NULL CHECK(context_type IN('item','roadmap','step')),context_id TEXT NOT NULL,PRIMARY KEY(seq,context_type,context_id));
-INSERT INTO discussion_change_contexts(seq,context_type,context_id) SELECT seq,context_type,context_id FROM discussion_change_contexts_v21 WHERE context_type IN ('item','roadmap','step');
-DROP TABLE discussion_change_contexts_v21;
+INSERT INTO discussion_change_contexts(seq,context_type,context_id) SELECT seq,context_type,context_id FROM discussion_change_contexts_v22 WHERE context_type IN ('item','roadmap','step');
+DROP TABLE discussion_change_contexts_v22;
 CREATE INDEX discussion_change_contexts_context ON discussion_change_contexts(context_type,context_id,seq);
 ALTER TABLE discussions DROP COLUMN pinned_at;
-PRAGMA user_version=20;
+PRAGMA user_version=21;
 COMMIT;
 """
-# The tables v21 adds to or reshapes; it leaves every other table as it was.
+# The tables v22 adds to or reshapes; it leaves every other table as it was.
 TOUCHED = {"discussions", "discussion_contexts", "discussion_messages", "discussion_changes", "discussion_change_contexts",
            "events", "sqlite_sequence"}
 REPOSITORIES = [
@@ -49,16 +49,16 @@ REPOSITORIES = [
 OPENED = ["repo-a", "repo-d", "repo-e1", "repo-e2"]  # active and not merged, in the order they were created
 
 
-def to_v20(path):
-    """Take a current database back to the v20 shape the documented way."""
+def to_v21(path):
+    """Take a current database back to the v21 shape the documented way."""
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK)
 
 
-def v20_database(path):
-    """A v20 database in its sealed shape, with repositories of every state, and discussions with work
-    contexts, repository labels and a feed, written as v20 wrote them."""
-    sealed.build(path, 20)
+def v21_database(path):
+    """A v21 database in its sealed shape, with repositories of every state, and discussions with work
+    contexts, repository labels and a feed, written as v21 wrote them."""
+    sealed.build(path, 21)
     with closing(sqlite3.connect(path)) as conn:
         for position, (identity, name, archived, duplicate, merged) in enumerate(REPOSITORIES):
             created = f"2026-09-0{position + 1}T00:00:00+00:00"
@@ -90,15 +90,15 @@ def homes(path):
     return dict(rows(path, "SELECT context_id,discussion_id FROM discussion_contexts WHERE home=1"))
 
 
-def test_the_v21_upgrade_keeps_every_tag_links_exact_labels_and_opens_each_active_repositorys_discussion(tmp_path):
+def test_the_v22_upgrade_keeps_every_tag_links_exact_labels_and_opens_each_active_repositorys_discussion(tmp_path):
     path = tmp_path / "worklog.sqlite3"
-    v20_database(path)
+    v21_database(path)
     recovery.validate_database(path)
     _, _, before = contents(path)
     Database(path).initialize()
     version, signature, after = contents(path)
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
-    # Every table v21 doesn't touch is as it was, the search index's aside, which gains the new threads.
+    # Every table v22 doesn't touch is as it was, the search index's aside, which gains the new threads.
     untouched = [t for t in before if t not in TOUCHED and not t.startswith("search_")]
     assert {t: after[t] for t in untouched} == {t: before[t] for t in untouched}
     # Earlier threads keep their rows, with no pin, and every message stays.
@@ -129,25 +129,25 @@ def test_the_v21_upgrade_keeps_every_tag_links_exact_labels_and_opens_each_activ
     snapshots = list((tmp_path / "backups").glob("worklog-pre-migration-*.sqlite3"))
     assert len(snapshots) == 1
     with closing(sqlite3.connect(snapshots[0])) as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 20
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 21
     recovery.validate_database(path)
 
 
-def test_the_documented_way_back_to_v20_gives_its_exact_shape_and_an_upgrade_finds_each_discussion_again(tmp_path):
+def test_the_documented_way_back_to_v21_gives_its_exact_shape_and_an_upgrade_finds_each_discussion_again(tmp_path):
     # The SQL tested here is the SQL the README gives the person.
     assert "```sql\n" + WAY_BACK + "```" in (Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
     path = tmp_path / "worklog.sqlite3"
-    v20_database(path)
+    v21_database(path)
     Database(path).initialize()
     opened = homes(path)
     with Database(path).transaction() as conn:
         DiscussionService(None).pin(conn, PERSON, "talk-1", {"revision": 2, "pinned": True})
     threads = rows(path, "SELECT id FROM discussions ORDER BY id")
-    to_v20(path)
+    to_v21(path)
     recovery.validate_database(path)
     with closing(sqlite3.connect(path)) as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 20
-        assert recovery._schema_signature(conn) == sealed.shape(20)
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 21
+        assert recovery._schema_signature(conn) == sealed.shape(21)
         # Every thread and message stays; only the work contexts stay tagged, and the pin goes.
         assert conn.execute("SELECT id FROM discussions ORDER BY id").fetchall() == threads
         assert conn.execute("SELECT * FROM discussion_contexts").fetchall() == [("talk-1", "item", "item-1")]
@@ -161,12 +161,12 @@ def test_the_documented_way_back_to_v20_gives_its_exact_shape_and_an_upgrade_fin
 
 def test_after_the_way_back_a_repository_archived_since_gets_its_own_discussion_back(tmp_path):
     path = tmp_path / "worklog.sqlite3"
-    v20_database(path)
+    v21_database(path)
     Database(path).initialize()
     opened = homes(path)
     with Database(path).transaction() as conn:
         coordination.repository_apply(conn, PERSON, "repository.archive", {"id": "repo-a", "revision": 1})
-    to_v20(path)
+    to_v21(path)
     Database(path).initialize()
     # An archived repository is found again too, so recovering it opens no second discussion.
     assert homes(path) == opened
@@ -178,9 +178,9 @@ def test_after_the_way_back_a_repository_archived_since_gets_its_own_discussion_
 
 def test_the_upgrade_takes_no_thread_it_did_not_open_and_none_already_a_repositorys_own(tmp_path):
     path = tmp_path / "worklog.sqlite3"
-    v20_database(path)
+    v21_database(path)
     with closing(sqlite3.connect(path)) as conn:
-        # The person's own thread about repo-a, the older, and one that begins as v21 opens one but
+        # The person's own thread about repo-a, the older, and one that begins as v22 opens one but
         # names two repositories.
         for discussion, text, stamp in (("lookalike", "Notes on (`repo-a`): the build is flaky", T1),
                                         ("both", migrations.REPOSITORY_DISCUSSION_OPENING + "worklog** (`repo-a`) (`repo-d`).", T2)):
@@ -216,14 +216,14 @@ def test_restore_and_export_keep_tags_pins_and_each_repositorys_discussion(tmp_p
         [(home["id"], 1, "local-user"), (thread["id"], 0, "local-user")])
 
 
-def test_a_v20_shape_cannot_claim_version_21_and_a_v21_shape_cannot_claim_20(tmp_path):
+def test_a_v21_shape_cannot_claim_version_22_and_a_v22_shape_cannot_claim_21(tmp_path):
     older, current = tmp_path / "older.sqlite3", tmp_path / "current.sqlite3"
     Database(older).initialize()
-    to_v20(older)
+    to_v21(older)
     recovery.validate_database(older)
     Database(current).initialize()
     recovery.validate_database(current)
-    for path, claimed in ((older, 21), (current, 20)):
+    for path, claimed in ((older, 22), (current, 21)):
         with closing(sqlite3.connect(path)) as conn:
             conn.execute(f"PRAGMA user_version={claimed}")
         with pytest.raises(ValueError, match="schema definitions"):

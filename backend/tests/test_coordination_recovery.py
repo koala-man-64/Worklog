@@ -228,7 +228,7 @@ def test_populated_current_main_upgrades_without_losing_records(tmp_path, operat
     after["communication_credentials"] = before["communication_credentials"]
     assert after["proposals"] == [(*row, None, 0) for row in before["proposals"]]
     after["proposals"] = before["proposals"]
-    # v21 adds a pin to each discussion, and says who added each tag: whoever wrote the first message.
+    # v22 adds a pin to each discussion, and says who added each tag: whoever wrote the first message.
     assert after["discussions"] == [(*row, None) for row in before["discussions"]]
     after["discussions"] = before["discussions"]
     assert after["discussion_contexts"] == [(*row, 0, "credential", "agent", STAMP) for row in before["discussion_contexts"]]

@@ -1,6 +1,6 @@
 """The kinds of record other records name, and the query that summarizes each.
 
-Agent ties (agent_links.py, v17) and discussion tags (discussions.py, v21) both name records of many
+Agent ties (agent_links.py, v17) and discussion tags (discussions.py, v22) both name records of many
 kinds by type and id. Each kind's query gives its id, title and archived state, and what a page needs
 to link to it: a step, question or decision opens on its roadmap, and a ticket shows its key. A step
 that is retired, a repository that is merged and an agent whose credentials are all revoked count as

@@ -62,7 +62,8 @@ SEALED_SCHEMAS: dict[int, frozenset[str]] = {
     18: frozenset({"4776ba985558f5e6ddf310cddff70974b259de468bce783eda5b4d68140c1b0a"}),  # the directory each agent registered from
     19: frozenset({"e99601094754d13945ba203ea8645d52b0dbebf709870f1bfa0f246da51246ad"}),  # releases, their contents and checks
     20: frozenset({"c73937fd849b6e20cff7c2a1649ae026a1d429194852e424b547e786d8ef2540"}),  # reminders
-    21: frozenset({"6ffc5292cab8847d3a49a514996628e7c8fd8ec1f6ba008d6f4b0203d5d06e09"}),  # discussion tags, pins and repository discussions
+    21: frozenset({"83c552ee5c0747fd90c7bffc3c2cf3bd589ee275f3b2901596da081feda61ad2"}),  # each day's reflection revision
+    22: frozenset({"785c66e113042d83086be02da5a14f1edf58720a22843babb4a2000829f5a75d"}),  # discussion tags, pins and repository discussions
 }
 
 

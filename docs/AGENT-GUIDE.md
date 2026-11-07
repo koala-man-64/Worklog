@@ -376,7 +376,7 @@ worklog agent --as NAME inbox --chat CHAT_ID --request-id inbox-CHAT_ID-7
   - Its `repository` names the repository, and the repository's tag on it is `home`: nobody takes that one off (`403 forbidden`).
   - A rename renames the discussion. When the person merges a repository into another, every thread tagged with it, its own discussion among them, is tagged with the survivor instead, which keeps its own discussion.
 - **Pins.** Only the person pins a thread. Pinned threads (`pinned`, `pinnedAt`) list first, the latest pinned first, wherever they are listed.
-- **Free-text repository labels.** Threads started before schema version 21 may carry `repos` labels. They stay readable, `list --repo` finds them, and the upgrade tagged each thread with the one repository whose name a label was exactly. A new thread takes none (`422 validation`), and `discussions post` no longer has `--repo`: tag the repository instead, with `--context repository:REPOSITORY_ID`.
+- **Free-text repository labels.** Threads started before schema version 22 may carry `repos` labels. They stay readable, `list --repo` finds them, and the upgrade tagged each thread with the one repository whose name a label was exactly. A new thread takes none (`422 validation`), and `discussions post` no longer has `--repo`: tag the repository instead, with `--context repository:REPOSITORY_ID`.
 - **Messages.** Messages are Markdown and immutable: correct one with a reply. Posting needs no role or claim. A discussion can continue across many chats and agents.
 - **Visibility.** Every identity can read every discussion; targets choose who must acknowledge, not who can read. Never post a credential.
 - **Avatars.**

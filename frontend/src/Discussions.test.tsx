@@ -341,7 +341,7 @@ it("posts plain text with a derived title and explicit named recipients, includi
     screen.getByRole("textbox", { name: "Post message" }),
     "Pack release files.\nKeep their hashes with the bundle.",
   );
-  // A new thread takes no free-text repository labels (schema v21).
+  // A new thread takes no free-text repository labels (schema v22).
   expect(
     screen.queryByLabelText("Repository labels (optional)"),
   ).not.toBeInTheDocument();

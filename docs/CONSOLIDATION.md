@@ -56,7 +56,7 @@ The order is fixed:
 | K12 | Should registering with a chat also wait for the person's confirmation? (from the security review of 1.4) | No: K3 stays as it is. A registered identity is bound to its chat with no confirmation, since agents are cooperating (K1), and the chat page names who registered each one. C-01 stays narrowed, not closed. | 1.4 | 2026-11-04, Rudy |
 | K13 | Does a new database start from the baseline schema, or at v1 with every upgrade run? (from building 2.5) | From the baseline, at the current version. Each schema change then writes its DDL twice, in `schema.py` and in its upgrade step, and the seals fail on any difference (see 2.5). | 2.5 | 2026-11-05, Claude, while building 2.5 |
 | K14 | What may agents do with the person's reminders (schema v20)? | Read every reminder, notes and archived ones included, and set, change, snooze, complete and reopen them directly under their own identity, as with tickets. Only the person archives and recovers. The policy table lists the reads as `agent:read` and the writes as `agent:remind` (K2). | 3.3 | 2026-11-06, Rudy |
-| K15 | How do agents keep from working over each other, and what may they do with discussions (schema v21)? | Discussions take tags of ten kinds of record, which agents add and remove for themselves, and every repository has a discussion of its own. An agent announces its work in the discussion of each repository it will change, or in a discussion tagged with its work when no repository is involved, checks for overlapping work, and talks to the agent whose work overlaps. Only the person pins, and a pinned thread lists first everywhere. The rule lives in the agent guide only. | 5.6 | 2026-11-07, Rudy |
+| K15 | How do agents keep from working over each other, and what may they do with discussions (schema v22)? | Discussions take tags of ten kinds of record, which agents add and remove for themselves, and every repository has a discussion of its own. An agent announces its work in the discussion of each repository it will change, or in a discussion tagged with its work when no repository is involved, checks for overlapping work, and talks to the agent whose work overlaps. Only the person pins, and a pinned thread lists first everywhere. The rule lives in the agent guide only. | 5.6 | 2026-11-07, Rudy |
 | D6 | Is a migration framework needed? | Closed as done: migrations v1 to v10 run in one transaction after a pre-migration backup. | — | 2026-11-04, Rudy |
 
 ## Rules the roundtable settled
@@ -368,7 +368,7 @@ Stop the growth before reclaiming space.
 
 #### 4.1 · Roadmap save diff
 
-Status: In progress · Branches: `claude/roadmap-save-diff`, `claude/reorder-revisions` · PRs: [#126](https://github.com/koala-man-64/Worklog/pull/126), [#127](https://github.com/koala-man-64/Worklog/pull/127); the reflection's own revision follows in its own PR
+Status: Merged · Branches: `claude/roadmap-save-diff`, `claude/reorder-revisions`, `claude/reflection-revision` · PRs: [#126](https://github.com/koala-man-64/Worklog/pull/126), [#127](https://github.com/koala-man-64/Worklog/pull/127), [#129](https://github.com/koala-man-64/Worklog/pull/129)
 
 A structure save rewrites every step, bumps every step's revision, and puts two full trees into the roadmap event.
 
@@ -381,7 +381,7 @@ Fix, under K4:
 
 Findings: B-02, REM-13, REM-26.
 
-Done so far:
+What changed:
 - **Roadmap saves (#126).**
   - A revise, restore or create writes only the steps it changes. A step that keeps its title, description, parent and position, and stays active, keeps its revision and gets no event.
   - A save that changes nothing records no revision, version or event. So no version is identical to the one before it.
@@ -396,9 +396,14 @@ Done so far:
   - An entry change raises the day's revision only when it adds the entry, as removing one does. So an outcome saved while a reflection draft is open leaves the draft able to save.
 
   `test_reorder_revisions.py` pins each of these. REM-13's other half.
+- **The reflection's own revision (#129), schema v21.**
+  - `days.reflection_revision` guards the reflection alone. Only a reflection save raises it, and the reflection no longer raises the day's revision.
+  - So new work and reorders leave a reflection draft able to save, and two edits of one reflection still conflict.
+  - `GET /days/{date}` returns it as `reflectionRevision`, and Today's reflection draft saves against it.
+  - The upgrade starts each at its day's revision, so a draft opened before it still saves, and changes no record.
+  - The README gives the way back to v20.
 
-Still to come:
-- **The reflection's own revision.** A schema version adds it, so reorders and new entries no longer conflict with a reflection draft (REM-26).
+  `test_reflection_revision.py` pins each of these. REM-26.
 
 #### 4.2 · Backups off the request path
 
@@ -593,4 +598,4 @@ These look like consolidation candidates but stay:
 - 2026-11-06: Schema v18, `communication_credentials.directory`, added outside the plan for a product request (Review names the directory each proposal's agent registered from), with its seal and documented way back. Registration writes it beside the chat, and the `credential.register` event records it too, so the upgrade copies it back from those events after the way back; identities registered before v18 have none. Built as v17 alongside agent ties (#116), it became v18 when that merged first.
 - 2026-11-06: Schema v19, releases (`releases`, `release_contents`, `release_checks`), added outside the plan for a product request (coordinating what ships together, who needs to know, what to test and what to prepare first), with its seal and documented way back, which discards releases. It was built as v17 and renumbered as v17's agent ties and v18's registration directories landed first; it is the last upgrade step, after their guarded ones. Its routes start in the policy table: agents read them and write none. Agent proposals for releases are a separate PR.
 - 2026-11-06: Step 4.1 split into PRs while building it: roadmap saves and progress first, then the backlog and day reorders, then the reflection's own revision, which is a schema change.
-- 2026-11-07: Schema v21, discussion tags, pins and each repository's own discussion, added outside the plan for a product request (K15), with its seal and documented way back. It rebuilds `discussion_contexts` and `discussion_change_contexts` to take ten kinds of record, each tag saying who added it, and it is the first upgrade that adds records: it opens a discussion for each active repository. It also does K8's discussion half of step 5.6: a new thread takes no free-text repository label, and the upgrade tags each thread with the one repository a label of it names exactly; tracked chats' labels stay for 5.6. Its routes start in the policy table: agents tag and untag, and pinning is the person's. The overlap check and the announce rule are a second PR, and the app's tags and pins a third.
+- 2026-11-07: Schema v22, discussion tags, pins and each repository's own discussion, added outside the plan for a product request (K15), with its seal and documented way back. Built as v21 alongside #129, it became v22 when that merged first. It rebuilds `discussion_contexts` and `discussion_change_contexts` to take ten kinds of record, each tag saying who added it, and it is the first upgrade that adds records: it opens a discussion for each active repository. It also does K8's discussion half of step 5.6: a new thread takes no free-text repository label, and the upgrade tags each thread with the one repository a label of it names exactly; tracked chats' labels stay for 5.6. Its routes start in the policy table: agents tag and untag, and pinning is the person's. The overlap check and the announce rule are a second PR, and the app's tags and pins a third.

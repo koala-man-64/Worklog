@@ -1,4 +1,4 @@
-"""Every repository has its own discussion (schema v21): Worklog opens it, as the person, however the
+"""Every repository has its own discussion (schema v22): Worklog opens it, as the person, however the
 repository is registered, keeps it through a rename and a recover, and folds it into the survivor's
 threads on a merge. Its repository's tag stays on it, and the repository's records name it."""
 

@@ -14,9 +14,9 @@ import sqlite3
 
 from .common import now, setting, today, uid
 
-SCHEMA_VERSION = 21
+SCHEMA_VERSION = 22
 # Older versions that startup and offline restore upgrade in one transaction.
-UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20})
+UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21})
 
 # v1 grew in place before versions were counted: _upgrade_v1 adds whichever of these a v1 database
 # lacks. People as v1 had them; v10 renames role to team, adds person details and lets links name
@@ -625,7 +625,20 @@ CREATE INDEX reminders_due ON reminders(archived,state,due_date,due_time);
 CREATE INDEX reminders_target ON reminders(target_type,target_id);
 """
 
-# v21 tags a discussion with the records it is about, of more kinds than v1's work contexts, and says
+# v21: each day's reflection has its own revision (consolidation step 4.1, REM-26). The day's own
+# revision guards which entries it holds and their order, so reordering the day or adding work to it
+# no longer conflicts with a reflection being written.
+REFLECTION_REVISION_COLUMN = "reflection_revision INTEGER NOT NULL DEFAULT 1"
+
+
+def add_reflection_revisions(conn: sqlite3.Connection) -> None:
+    """Give each day's reflection its own revision, starting at the day's, so a reflection draft
+    opened before the upgrade still saves."""
+    conn.execute("ALTER TABLE days ADD COLUMN " + REFLECTION_REVISION_COLUMN)
+    conn.execute("UPDATE days SET reflection_revision=revision")
+
+
+# v22 tags a discussion with the records it is about, of more kinds than v1's work contexts, and says
 # who added each tag and when. The one tag marked home makes a discussion its repository's own: only a
 # repository's tag can be home, and the partial unique indexes keep it to one home discussion for a
 # repository and one home repository for a discussion. Feeds follow every kind a tag names. Nothing
@@ -649,11 +662,11 @@ DISCUSSION_CHANGE_CONTEXTS_TABLE = (
 DISCUSSION_CHANGE_CONTEXT_INDEX = (
     "CREATE INDEX discussion_change_contexts_context ON discussion_change_contexts(context_type,context_id,seq)")
 DISCUSSION_PIN_COLUMN = "pinned_at TEXT"
-# A column of a discussion's first message: its author is who v21 counts as having added the tags
+# A column of a discussion's first message: its author is who v22 counts as having added the tags
 # the discussion had before.
 _FIRST_MESSAGE = ("(SELECT m.{} FROM discussion_messages m WHERE m.discussion_id={} "
                   "ORDER BY m.created_at,m.id LIMIT 1)")
-# What v21 writes as the person to open each repository's discussion. A first message that begins so
+# What v22 writes as the person to open each repository's discussion. A first message that begins so
 # and names the repository's ID in backticks marks the discussion as that repository's, so an upgrade
 # after the documented way back finds it again.
 REPOSITORY_DISCUSSION_TITLE = "Repository: {name}"
@@ -662,7 +675,7 @@ REPOSITORY_DISCUSSION_TEXT = REPOSITORY_DISCUSSION_OPENING + "{name}** (`{id}`).
 
 
 def add_discussion_tags(conn: sqlite3.Connection) -> None:
-    """Widen discussion tags and their feed to every kind v21 names, pin discussions, link exact
+    """Widen discussion tags and their feed to every kind v22 names, pin discussions, link exact
     repository labels, and open a discussion for each repository that takes changes.
 
     Each tag a discussion already had keeps its row, now added by whoever wrote the discussion's
@@ -670,20 +683,20 @@ def add_discussion_tags(conn: sqlite3.Connection) -> None:
     the one repository, merged ones aside, whose name it is exactly; the labels themselves stay (K8).
     """
     conn.execute("ALTER TABLE discussions ADD COLUMN " + DISCUSSION_PIN_COLUMN)
-    conn.execute("ALTER TABLE discussion_contexts RENAME TO discussion_contexts_v20")
+    conn.execute("ALTER TABLE discussion_contexts RENAME TO discussion_contexts_v21")
     conn.execute(DISCUSSION_CONTEXTS_TABLE)
     conn.execute("INSERT INTO discussion_contexts(discussion_id,context_type,context_id,home,added_by,added_by_kind,created_at) "
                  "SELECT o.discussion_id,o.context_type,o.context_id,0,"
                  f"COALESCE({_FIRST_MESSAGE.format('author_id', 'o.discussion_id')},'local-user'),"
                  f"COALESCE({_FIRST_MESSAGE.format('author_kind', 'o.discussion_id')},'human'),COALESCE(d.created_at,'') "
-                 "FROM discussion_contexts_v20 o LEFT JOIN discussions d ON d.id=o.discussion_id")
-    conn.execute("DROP TABLE discussion_contexts_v20")  # and its index, whose name the new one takes
+                 "FROM discussion_contexts_v21 o LEFT JOIN discussions d ON d.id=o.discussion_id")
+    conn.execute("DROP TABLE discussion_contexts_v21")  # and its index, whose name the new one takes
     execute_schema(conn, DISCUSSION_CONTEXT_INDEXES)
-    conn.execute("ALTER TABLE discussion_change_contexts RENAME TO discussion_change_contexts_v20")
+    conn.execute("ALTER TABLE discussion_change_contexts RENAME TO discussion_change_contexts_v21")
     conn.execute(DISCUSSION_CHANGE_CONTEXTS_TABLE)
     conn.execute("INSERT INTO discussion_change_contexts(seq,context_type,context_id) "
-                 "SELECT seq,context_type,context_id FROM discussion_change_contexts_v20")
-    conn.execute("DROP TABLE discussion_change_contexts_v20")
+                 "SELECT seq,context_type,context_id FROM discussion_change_contexts_v21")
+    conn.execute("DROP TABLE discussion_change_contexts_v21")
     conn.execute(DISCUSSION_CHANGE_CONTEXT_INDEX)
     conn.execute("INSERT OR IGNORE INTO discussion_contexts(discussion_id,context_type,context_id,home,added_by,added_by_kind,created_at) "
                  "SELECT dr.discussion_id,'repository',r.id,0,"
@@ -697,8 +710,8 @@ def add_discussion_tags(conn: sqlite3.Connection) -> None:
 
 def _open_repository_discussions(conn: sqlite3.Connection) -> None:
     """Give each repository that isn't merged its own discussion. One that had it before the
-    documented way back to v20, archived ones included, has that one again, found by its first
-    message: written by the person as v21 opens one and naming the repository's ID, in a thread not
+    documented way back to v21, archived ones included, has that one again, found by its first
+    message: written by the person as v22 opens one and naming the repository's ID, in a thread not
     already some repository's own. Otherwise an active repository's is opened, as the person, with
     the history, feed entry and search rows a discussion opened today has; an archived one gets its
     discussion when it is recovered."""
@@ -764,7 +777,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
     and changes no record either. v17 adds agent ties, which start empty, and changes no record.
     v18 records the directory each agent registered from, unknown for those registered before it,
     and changes no record. v19 adds releases, which start empty, and changes no record.
-    v20 adds reminders, which start empty too, and changes no record either. v21 lets a discussion
+    v20 adds reminders, which start empty too, and changes no record either. v21 gives each day's
+    reflection its own revision, starting at the day's, and changes no record. v22 lets a discussion
     be tagged with more kinds of record and pinned, tags each discussion with the one repository a
     repository label of it names exactly, and is the first to add records: it opens the discussion
     of each repository that takes changes.
@@ -818,6 +832,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
     if version < 20:
         execute_schema(conn, REMINDER_SCHEMA)
     if version < 21:
+        add_reflection_revisions(conn)
+    if version < 22:
         add_discussion_tags(conn)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 

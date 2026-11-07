@@ -49,7 +49,7 @@ def seed(c):
     r["linkeditem"] = write(c, "POST", "/work-items", {"title": f"{WORD} linkeditemtag", "stepId": step_id})
     r["person"] = write(c, "POST", "/people", {"name": f"{WORD} persontag", "team": "Platform"})
     r["repository"] = write(c, "POST", "/repositories", {"name": f"{WORD} repositoryhometag", "url": "https://github.com/example/quillback"})
-    # A repository isn't in search itself, but the discussion Worklog opens for it (v21) is.
+    # A repository isn't in search itself, but the discussion Worklog opens for it (v22) is.
     r["repositoryhome"] = {"id": r["repository"]["discussionId"]}
     for owner in ("item", "roadmap", "step", "linkeditem"):
         owner_type = "item" if owner == "linkeditem" else owner

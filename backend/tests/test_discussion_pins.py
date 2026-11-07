@@ -1,4 +1,4 @@
-"""Pinned discussions (schema v21): only the person pins, a pinned thread lists first wherever it is
+"""Pinned discussions (schema v22): only the person pins, a pinned thread lists first wherever it is
 listed, the latest pinned first, and a pin changes the revision but not the thread's activity."""
 
 import uuid

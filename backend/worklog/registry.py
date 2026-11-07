@@ -189,7 +189,7 @@ class AgentRegistry:
             latest_by_discussion[r["discussion_id"]] = _latest(latest_by_discussion.get(r["discussion_id"]), r["created_at"]) or r["created_at"]
             if r["chat_id"]:
                 chat_refs.append((r["chat_id"], "message", r["created_at"], False))
-        # A thread's work contexts and repositories tie them; its other tags (v21) tie nothing here.
+        # A thread's work contexts and repositories tie them; its other tags (v22) tie nothing here.
         for r in rows_in(c, "SELECT * FROM discussion_contexts WHERE discussion_id IN ({})", latest_by_discussion):
             posted = latest_by_discussion[r["discussion_id"]]
             if r["context_type"] == "step":

@@ -273,8 +273,9 @@ def test_the_v15_upgrade_keeps_every_work_item_and_every_reference_to_one(tmp_pa
         # Every row of every table is as it was, work items' rowids included. The upgrade goes on
         # to v16, whose table names no proposal here, none having been approved, to v17, whose
         # agent ties start empty, to v18, whose registration directory is unknown for every
-        # identity here, none having registered, to v19, whose releases start empty, and to v20,
-        # whose reminders start empty too.
+        # identity here, none having registered, to v19, whose releases start empty, to v20,
+        # whose reminders start empty too, to v21, which starts each day's reflection revision
+        # at its day's revision, and to v22, which pins no discussion.
         upgraded = contents(conn)
         assert upgraded.pop("proposal_targets") == []
         assert upgraded.pop("agent_links") == []
@@ -283,8 +284,10 @@ def test_the_v15_upgrade_keeps_every_work_item_and_every_reference_to_one(tmp_pa
             assert upgraded.pop(table) == []
         assert {row[-1] for row in upgraded["communication_credentials"]} == {None}
         upgraded["communication_credentials"] = [row[:-1] for row in upgraded["communication_credentials"]]
-        # v21 gives each discussion a pin, none here, and gives the repository back the discussion it
-        # opened under v21 before the way back, rather than opening another.
+        assert upgraded["days"] and all(row[-1] == row[-2] for row in upgraded["days"])
+        upgraded["days"] = [row[:-1] for row in upgraded["days"]]
+        # v22 gives each discussion a pin, none here, and gives the repository back the discussion it
+        # opened under v22 before the way back, rather than opening another.
         assert {row[-1] for row in upgraded["discussions"]} == {None}
         upgraded["discussions"] = [row[:-1] for row in upgraded["discussions"]]
         [home] = upgraded.pop("discussion_contexts")
@@ -380,10 +383,11 @@ def test_the_documented_way_back_to_v14_gives_its_exact_shape_and_upgrades_again
     scatter_rowids(path)
     with closing(sqlite3.connect(path)) as conn:
         before = contents(conn)
-    # The ways back to v20, v19, v18, v17, v16 and v15, which to_v14 takes first, drop v21's pins and
-    # its tags of kinds v20 lacks, v20's and v19's tables, v18's registration directory and v17's and
-    # v16's tables, and nothing else; this test holds no release or reminder. The repository's own
-    # discussion stays, as an ordinary one: its tag and the feed's record of it go.
+    # The ways back to v21, v20, v19, v18, v17, v16 and v15, which to_v14 takes first, drop v22's pins
+    # and its tags of kinds v21 lacks, v21's reflection revision, v20's and v19's tables, v18's
+    # registration directory and v17's and v16's tables, and nothing else; this test holds no release
+    # or reminder. The repository's own discussion stays, as an ordinary one: its tag and the feed's
+    # record of it go.
     before["discussions"] = [row[:-1] for row in before["discussions"]]
     assert [row[2] for row in before.pop("discussion_contexts")] == ["repository"]
     assert [row[2] for row in before.pop("discussion_change_contexts")] == ["repository"]
@@ -391,6 +395,7 @@ def test_the_documented_way_back_to_v14_gives_its_exact_shape_and_upgrades_again
     for table in ("releases", "release_contents", "release_checks"):
         before.pop(table)
     before["communication_credentials"] = [row[:-1] for row in before["communication_credentials"]]
+    before["days"] = [row[:-1] for row in before["days"]]
     before.pop("agent_links")
     before.pop("proposal_targets")
     before.pop("reminders")
