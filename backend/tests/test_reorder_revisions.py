@@ -96,13 +96,14 @@ def test_an_outcome_leaves_the_day_revision_and_a_reflection_draft_still_saves(c
     opened = day(client)
     call(client, "PUT", f"/days/{DAY}/entries/{item['id']}", {"revision": entry["revision"], "outcome": "Drafted it"})
     assert day(client)["revision"] == opened["revision"]
-    saved = call(client, "PUT", f"/days/{DAY}/reflection", {"revision": opened["revision"], "text": "A good day"})
-    assert saved["reflection"] == "A good day"
+    # The reflection has its own revision since v21 (test_reflection_revision.py), and leaves the day's.
+    saved = call(client, "PUT", f"/days/{DAY}/reflection", {"revision": opened["reflectionRevision"], "text": "A good day"})
+    assert saved["reflection"] == "A good day" and day(client)["revision"] == opened["revision"]
     # Adding and removing an entry still change the day.
     (other,) = items(client, "Read")
     call(client, "PUT", f"/days/{DAY}/entries/{other['id']}", {"revision": 0, "planned": True})
     added = day(client)
-    assert added["revision"] == saved["revision"] + 1
+    assert added["revision"] == opened["revision"] + 1
     current = next(e for e in added["entries"] if e["itemId"] == other["id"])
     call(client, "POST", f"/days/{DAY}/entries/{other['id']}/remove", {"revision": current["revision"]})
     assert day(client)["revision"] == added["revision"] + 1

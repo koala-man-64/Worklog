@@ -12,9 +12,9 @@ import json
 import re
 import sqlite3
 
-SCHEMA_VERSION = 20
+SCHEMA_VERSION = 21
 # Older versions that startup and offline restore upgrade in one transaction.
-UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19})
+UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20})
 
 # v1 grew in place before versions were counted: _upgrade_v1 adds whichever of these a v1 database
 # lacks. People as v1 had them; v10 renames role to team, adds person details and lets links name
@@ -623,6 +623,18 @@ CREATE INDEX reminders_due ON reminders(archived,state,due_date,due_time);
 CREATE INDEX reminders_target ON reminders(target_type,target_id);
 """
 
+# v21: each day's reflection has its own revision (consolidation step 4.1, REM-26). The day's own
+# revision guards which entries it holds and their order, so reordering the day or adding work to it
+# no longer conflicts with a reflection being written.
+REFLECTION_REVISION_COLUMN = "reflection_revision INTEGER NOT NULL DEFAULT 1"
+
+
+def add_reflection_revisions(conn: sqlite3.Connection) -> None:
+    """Give each day's reflection its own revision, starting at the day's, so a reflection draft
+    opened before the upgrade still saves."""
+    conn.execute("ALTER TABLE days ADD COLUMN " + REFLECTION_REVISION_COLUMN)
+    conn.execute("UPDATE days SET reflection_revision=revision")
+
 
 def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
     """Unlike executescript, preserve the caller's transaction and rollback boundary."""
@@ -642,7 +654,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
     and changes no record either. v17 adds agent ties, which start empty, and changes no record.
     v18 records the directory each agent registered from, unknown for those registered before it,
     and changes no record. v19 adds releases, which start empty, and changes no record.
-    v20 adds reminders, which start empty too, and changes no record either.
+    v20 adds reminders, which start empty too, and changes no record either. v21 gives each day's
+    reflection its own revision, starting at the day's, and changes no record.
     """
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version == SCHEMA_VERSION:
@@ -692,6 +705,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
         execute_schema(conn, RELEASE_SCHEMA)
     if version < 20:
         execute_schema(conn, REMINDER_SCHEMA)
+    if version < 21:
+        add_reflection_revisions(conn)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 

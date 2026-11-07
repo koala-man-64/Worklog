@@ -62,6 +62,7 @@ const day = (date: string, entries: unknown[]) => ({
   date,
   revision: 7,
   reflection: "",
+  reflectionRevision: 3,
   entries,
   summary: { worked: [], completed: [], blocked: [] },
   nextItemId: null,
@@ -738,6 +739,32 @@ it("asks before taking off an entry the day records work on, and keeps it on Can
   await waitFor(() => expect(question()).toBeNull());
 });
 
+it("saves the reflection against its own revision, not the day's", async () => {
+  state.day = day("2026-10-28", [
+    entry("release", "Ship the release", "doing"),
+  ]);
+  const network = vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(
+      async () => new Response(JSON.stringify({ revision: 4 }), { status: 200 }),
+    );
+  render(view("2026-10-28", "2026-10-28"));
+  const field = screen.getByRole("textbox", {
+    name: "End-of-day reflection (Markdown)",
+  });
+  await userEvent.type(field, "A good day");
+  await userEvent.click(
+    within(field.closest("section")!).getByRole("button", { name: "Save now" }),
+  );
+  const saves = () =>
+    writes(network).filter(([url]) => String(url).endsWith("/reflection"));
+  await waitFor(() => expect(saves()).toHaveLength(1));
+  // The day is at revision 7; its reflection, which reorders and new work leave alone, at 3.
+  expect(JSON.parse(String(saves()[0][1]!.body))).toEqual({
+    revision: 3,
+    text: "A good day",
+  });
+});
 it("asks before discarding an outcome typed on the day and not saved yet", async () => {
   state.day = day("2026-10-28", [
     entry("release", "Ship the release", "doing"),
