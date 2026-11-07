@@ -39,6 +39,8 @@ def command(*args):
 
 @pytest.mark.parametrize("args,route,query", [
     (["participants"], "/discussions/participants", {}),
+    (["participant", AGENT], f"/discussions/participants/{AGENT}", {}),
+    (["participant", "local-user"], "/discussions/participants/local-user", {}),
     (["avatars"], "/discussions/avatars", {}),
     (["list", "--context", f"item:{DISCUSSION}", "--repo", "one & two", "--q", "a/b", "--view", "awaiting", "--limit", "3", "--offset", "4"],
      "/discussions", {"contextType": ["item"], "contextId": [DISCUSSION], "repo": ["one & two"], "q": ["a/b"], "view": ["awaiting"], "limit": ["3"], "offset": ["4"]}),
@@ -88,6 +90,13 @@ def test_a_post_takes_no_free_text_repository_label(transport, capsys):
     assert not transport
 
 
+def test_ask_is_refused_with_a_file_which_names_its_own_acknowledgement(transport, tmp_path, capsys):
+    unread = tmp_path / "missing.json"
+    assert cli.main(command("reply", DISCUSSION, "--file", str(unread), "--ask", AGENT, "--request-id", "key")) == 1
+    assert "Give --ask with --text" in capsys.readouterr().err
+    assert not transport
+
+
 def test_reply_from_stdin_keeps_role_and_uses_message_route(transport, monkeypatch):
     monkeypatch.setattr(cli.sys, "stdin", io.StringIO('{"text":"Reply","acknowledgement":{"mode":"any_agent","targets":[]}}'))
     assert cli.main(command("reply", DISCUSSION, "--file", "-", "--as-role", ROLE)) == 0
@@ -101,6 +110,13 @@ def test_reply_from_stdin_keeps_role_and_uses_message_route(transport, monkeypat
     (["post", "--text", "Hello"], "/discussions", {"text": "Hello"}),
     (["avatar", "teal-visor-antenna"], "/discussions/avatar", {"avatar": "teal-visor-antenna"}),
     (["reply", DISCUSSION, "--text", "Response"], f"/discussions/{DISCUSSION}/messages", {"text": "Response"}),
+    # --ask names who must acknowledge, each once: an agent by its identity, or the person.
+    (["reply", DISCUSSION, "--text", "We both change the lexer", "--ask", AGENT, "--ask", "person", "--ask", AGENT],
+     f"/discussions/{DISCUSSION}/messages", {"text": "We both change the lexer", "acknowledgement": {"mode": "all", "targets": [
+         {"kind": "agent", "id": AGENT}, {"kind": "human", "id": "local-user"}]}}),
+    (["post", "--text", "Who owns the lexer?", "--ask", "person", "--context", f"item:{DISCUSSION}"], "/discussions",
+     {"text": "Who owns the lexer?", "acknowledgement": {"mode": "all", "targets": [{"kind": "human", "id": "local-user"}]},
+      "contexts": [{"type": "item", "id": DISCUSSION}]}),
     (["ack", MESSAGE, "--target", SLOT, "--target", ROLE], f"/discussions/messages/{MESSAGE}/acknowledge", {"targetIds": [SLOT, ROLE]}),
     (["ack", MESSAGE], f"/discussions/messages/{MESSAGE}/acknowledge", {}),
     (["cancel", MESSAGE], f"/discussions/messages/{MESSAGE}/cancel", {}),
@@ -133,6 +149,8 @@ def test_writes_use_exact_routes_payload_and_supplied_key(transport, args, route
     ("GET", "/discussions/roles/"), ("POST", "/discussions/%2e%2e/messages"),
     ("POST", f"/discussions/messages/{MESSAGE}/acknowledge/"),
     ("PATCH", f"/discussions/messages/{MESSAGE}"),
+    ("GET", "/discussions/participants/not-an-id"), ("GET", f"/discussions/participants/{AGENT}/"),
+    ("POST", f"/discussions/participants/{AGENT}"),
 ])
 def test_agent_cannot_reach_human_actions_or_transcripts(transport, method, route):
     with pytest.raises(ValueError, match="outside"):

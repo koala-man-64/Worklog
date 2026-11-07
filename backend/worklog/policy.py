@@ -14,7 +14,8 @@ and the API document, the agent registry, the list of tracked chats, each chat's
 transcript, and the Claude Code sessions running on the person's machine. A transcript holds a whole
 conversation, tool output included, and a chat's messages are the person's prompts to it: agents take
 theirs from the inbox. The agent registry joins tracked chats into every agent's record, as a
-roadmap's view of its agents does.
+roadmap's view of its agents does. One participant's profile and the overlap check leave tracked chats
+and credentials out, and agents read both.
 """
 
 from __future__ import annotations
@@ -95,6 +96,7 @@ ROUTES: dict[str, dict[str, str | Only]] = {
 
     "/context": {"GET": READ},
 
+    "/coordination-overlaps": {"GET": READ},
     "/coordination-updates": {"GET": READ},
 
     "/credentials": {"POST": HUMAN},
@@ -122,6 +124,7 @@ ROUTES: dict[str, dict[str, str | Only]] = {
     "/discussions/messages/{identity}/cancel": {"POST": DISCUSS},
     "/discussions/messages/{identity}/release": {"POST": HUMAN},
     "/discussions/participants": {"GET": READ},
+    "/discussions/participants/{identity}": {"GET": READ},
     "/discussions/resume": {"GET": READ},
     "/discussions/roles": {"GET": READ, "POST": DISCUSS},
     "/discussions/roles/{identity}/accept": {"POST": DISCUSS},

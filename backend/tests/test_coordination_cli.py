@@ -10,6 +10,7 @@ import pytest
 from worklog import cli
 
 ID = "11111111-1111-4111-8111-111111111111"
+OTHER = "22222222-2222-4222-8222-222222222222"
 KEY = "stable-operation-key"
 
 
@@ -40,6 +41,9 @@ def requests(monkeypatch):
      {"repositoryId": [ID], "itemId": [ID], "participationId": [ID], "limit": ["50"], "offset": ["0"]}),
     (["context", "--repo", ID, "--item", ID, "--date", "2026-11-01"], "/context",
      {"repositoryId": [ID], "itemId": [ID], "date": ["2026-11-01"]}),
+    (["overlaps", "--repo", ID, "--repo", OTHER, "--item", ID, "--step", OTHER, "--ticket", "T-12", "--ticket", "7", "--limit", "5"],
+     "/coordination-overlaps", {"repositoryId": [ID, OTHER], "itemId": [ID], "stepId": [OTHER], "ticketId": ["T-12", "7"], "limit": ["5"]}),
+    (["overlaps", "--item", ID], "/coordination-overlaps", {"itemId": [ID], "limit": ["20"]}),
 ])
 def test_filtered_reads(requests, arguments, route, query):
     assert cli.main(["agent", *arguments]) == 0
@@ -120,6 +124,8 @@ def test_chats_track_names_one_piece_of_work_and_a_key_but_never_a_chat(requests
     ("POST", "/repositories"), ("PATCH", f"/repositories/{ID}"),
     ("POST", f"/repositories/{ID}/archive"), ("POST", f"/repositories/{ID}/recover"),
     ("POST", f"/repositories/{ID}/confirm"), ("POST", f"/repositories/{ID}/merge"), ("GET", "/repositories/ensure"),
+    # The overlap check and a remote's lookup are reads only.
+    ("POST", "/coordination-overlaps"), ("GET", "/coordination-overlaps/"), ("POST", "/repositories/resolve"),
     ("DELETE", f"/participations/{ID}"), ("POST", f"/participations/{ID}/reassign"),
     ("POST", "/participations/%2e%2e/updates"), ("POST", f"/participations/{ID}/release/"),
     # Tracking your own chat is the one chat write: the person's chat commands stay out of reach.
@@ -191,3 +197,31 @@ def test_a_folder_without_an_origin_is_refused_before_any_request(requests, monk
     assert cli.main(["agent", "participation", "start", "--run", ID, "--checkout", str(tmp_path), "--request-id", KEY]) == 1
     assert "is not a Git checkout with an origin remote" in capsys.readouterr().err
     assert len(requests) == count
+
+
+def test_overlaps_names_a_checkout_by_the_record_that_holds_its_origin(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("WORKLOG_AGENT_TOKEN", "private-agent-token")
+    sent, held = [], {"repository": {"id": OTHER, "name": "Worklog"}}
+
+    def respond(request, **kwargs):
+        sent.append(request)
+        return io.BytesIO(json.dumps(held if "/repositories/resolve" in request.full_url else {"items": []}).encode())
+
+    monkeypatch.setattr(cli, "_open", respond)
+    fake_git(monkeypatch, tmp_path, "C:/repo\nC:/repo/.git\nC:/repo/.git\nmain\n")
+    assert cli.main(["agent", "overlaps", "--repo", ID, "--checkout", str(tmp_path), "--ticket", "T-3"]) == 0
+    resolve, check = (urlsplit(request.full_url) for request in sent)
+    assert (resolve.path, parse_qs(resolve.query)) == ("/api/v1/repositories/resolve", {"url": ["git@github.com:Team/Worklog.git"]})
+    assert (check.path, parse_qs(check.query)) == ("/api/v1/coordination-overlaps",
+                                                   {"repositoryId": [ID, OTHER], "ticketId": ["T-3"], "limit": ["20"]})
+    # A remote no record holds is refused after the lookup, before the check.
+    held, sent[:] = {"repository": None}, []
+    assert cli.main(["agent", "overlaps", "--checkout", str(tmp_path)]) == 1
+    assert "No repository is registered" in capsys.readouterr().err
+    assert [urlsplit(request.full_url).path for request in sent] == ["/api/v1/repositories/resolve"]
+
+
+def test_overlaps_needs_something_to_check(requests, capsys):
+    assert cli.main(["agent", "overlaps", "--limit", "5"]) == 1
+    assert "Name a repository, checkout, work item, step or ticket" in capsys.readouterr().err
+    assert not requests

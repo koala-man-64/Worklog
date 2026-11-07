@@ -1799,6 +1799,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/coordination-overlaps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Overlaps */
+        get: operations["overlaps_api_v1_coordination_overlaps_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chats/{identity}/messages": {
         parameters: {
             query?: never;
@@ -2295,6 +2312,23 @@ export interface paths {
         };
         /** Participants */
         get: operations["participants_api_v1_discussions_participants_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/discussions/participants/{identity}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Participant */
+        get: operations["participant_api_v1_discussions_participants__identity__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -8475,6 +8509,43 @@ export interface operations {
             };
         };
     };
+    overlaps_api_v1_coordination_overlaps_get: {
+        parameters: {
+            query?: {
+                repositoryId?: string[];
+                itemId?: string[];
+                stepId?: string[];
+                ticketId?: string[];
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     chat_messages_api_v1_chats__identity__messages_get: {
         parameters: {
             query?: {
@@ -9910,6 +9981,39 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+        };
+    };
+    participant_api_v1_discussions_participants__identity__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

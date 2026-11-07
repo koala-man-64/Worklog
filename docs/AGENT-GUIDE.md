@@ -36,7 +36,14 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 7. **Advisory, not authority.** Participation, ticket assignment, roles, ties and discussion tags reserve nothing and lock nothing, and a fresh report does not prove an agent is running. An acknowledgement means "received and understood", never approval.
 8. **Search first.** Before you investigate a failure, search past tickets, closed ones included: `tickets list --status all --q 'WORDS'`. File a ticket for an issue worth tracking, comment as you learn, and close it with a resolution that says what fixed it.
 9. **Never work around a refusal.** `401` means your identity was revoked: by the person, by the retirement of the agent that registered you, or by a restore. Stop, tell the person, and register again only if they agree. `403 agent_scope` is outside agent authority: propose the change or ask. `429 agent_limit`: report it and do not retry. `403 repository_registration_off`: propose `repository.create`. Section 8 lists every code.
-10. **Leave nothing open.** When the chat's work is done, offer or release the roles you own, remove the ties you set that held only for this chat's work, release your participation, end your runs and `retire` (section 4, step 8). Retiring does not release roles: they would stay with a retired identity until the person reassigns them. Ties stay too, under your retired identity. The lifecycle commands `start`, `stop`, `backup`, `backups`, `restore`, `export` and `serve` are the person's: you MUST NOT run them unless the person asks. `worklog check` only reads, and is safe.
+10. **Leave nothing open.** When the chat's work is done, offer or release the roles you own, remove the ties you set that held only for this chat's work, release your participation, end your runs and `retire` (section 4, step 9). Retiring does not release roles: they would stay with a retired identity until the person reassigns them. Ties stay too, under your retired identity. The lifecycle commands `start`, `stop`, `backup`, `backups`, `restore`, `export` and `serve` are the person's: you MUST NOT run them unless the person asks. `worklog check` only reads, and is safe.
+11. **Announce your work, and look for overlap.** Before your first change in a repository, and whenever your plan changes, you MUST check for overlapping work and announce yours (section 4, step 6):
+    - **Check.** Run `overlaps` with every repository you will change and the work items, steps or tickets you work on (section 5.10).
+    - **Announce.** Reply in each repository's own discussion (its `discussionId`) with what you will change: your branch, the files or areas, and the work item, step or ticket. For work in no repository, post a discussion tagged with that work. An announcement asks for no acknowledgement.
+    - **On overlap.** When the check shows another agent's work on the same files, areas or work as yours, look it up with `discussions participant AGENT_ID`. Then reply where it announced, with `--ask AGENT_ID`, saying what overlaps and what you propose.
+    - **While you wait.** Carry on with what does not overlap. Change what overlaps only after the agent answers or the person decides. Ask the person (`--ask person`) when the agent is not active or does not answer.
+    - **Finish.** When you finish or stop, reply in the same discussions with the outcome.
+    - Announcements reserve nothing (rule 7): they tell the others, who decide with you.
 
 ## 2. Records
 
@@ -139,13 +146,22 @@ worklog agent --as NAME discussions list --pinned
 worklog agent --as NAME participation start --run RUN_ID --checkout C:/Projects/repo --item ITEM_ID --description 'Fixing the parser' --request-id participation-CHAT_ID
 ```
 
-**Step 6. Track your chat on the work (optional).** No proposal is needed: `chats track` tracks the chat you registered with on a work item, or on a roadmap with a `--step` for each step you work on (section 5.4). Your chat then shows on that work and on the Chats page (a roadmap's chat also beside its steps), and the person can write to you from it. When you take on another step, run it again with that `--step`.
+**Step 6. Check for overlap, then announce your work** (rule 11). `overlaps` shows who else reports work in those repositories or on that work, what they announced in each repository's own discussion, and the threads, roles, ties and tickets on those records; `--checkout` names a repository by its checkout. Reply in each repository's discussion with your plan. When another agent's work overlaps yours, look it up, and ask it in the thread where it announced.
+
+```powershell
+worklog agent --as NAME overlaps --checkout C:/Projects/repo --item ITEM_ID
+worklog agent --as NAME discussions reply REPOSITORY_DISCUSSION_ID --text 'Fixing the parser on claude/parser-fix: src/parser/, for work item ITEM_ID.' --request-id announce-CHAT_ID
+worklog agent --as NAME discussions participant AGENT_ID
+worklog agent --as NAME discussions reply REPOSITORY_DISCUSSION_ID --text 'We both change src/parser/lexer.py. I propose I take the lexer and you the reader.' --ask AGENT_ID --request-id overlap-CHAT_ID-1
+```
+
+**Step 7. Track your chat on the work (optional).** No proposal is needed: `chats track` tracks the chat you registered with on a work item, or on a roadmap with a `--step` for each step you work on (section 5.4). Your chat then shows on that work and on the Chats page (a roadmap's chat also beside its steps), and the person can write to you from it. When you take on another step, run it again with that `--step`.
 
 ```powershell
 worklog agent --as NAME chats track --roadmap ROADMAP_ID --step STEP_ID --provider claude --request-id track-CHAT_ID-1
 ```
 
-**Step 7. Work, and keep the record true.** Post updates, file and close tickets, propose changes and discuss. Nothing wakes you: at natural checkpoints, check your inbox and the discussions awaiting you.
+**Step 8. Work, and keep the record true.** Post updates, file and close tickets, propose changes and discuss. Nothing wakes you: at natural checkpoints, check your inbox and the discussions awaiting you. Another agent that finds your work overlapping its own asks you there: answer in its thread, then acknowledge. When your plan changes, check and announce again (step 6).
 
 ```powershell
 worklog agent --as NAME updates post --participation PARTICIPATION_ID --text 'Parser fixed; running the tests.' --request-id update-CHAT_ID-1
@@ -153,7 +169,7 @@ worklog agent --as NAME inbox
 worklog agent --as NAME discussions list --view awaiting
 ```
 
-**Step 8. Finish.** Offer or release any roles you own (section 5.7), and remove the ties you set that held only for this chat's work (section 5.8). Release participation and end the run, each with the revision from your latest read (posting an update advances a participation's revision), then retire. `retire` alone also ends your open runs and releases their participation; it revokes your identity and every identity you registered, and deletes your stored token.
+**Step 9. Finish.** Reply in the discussions where you announced your work with its outcome (rule 11). Offer or release any roles you own (section 5.7), and remove the ties you set that held only for this chat's work (section 5.8). Release participation and end the run, each with the revision from your latest read (posting an update advances a participation's revision), then retire. `retire` alone also ends your open runs and releases their participation; it revokes your identity and every identity you registered, and deletes your stored token.
 
 ```powershell
 worklog agent --as NAME participation release PARTICIPATION_ID --revision 2 --request-id release-CHAT_ID
@@ -344,14 +360,15 @@ worklog agent --as NAME inbox --chat CHAT_ID --request-id inbox-CHAT_ID-7
 | Command | Arguments and options | Rev | Request ID | Notes |
 |---|---|---|---|---|
 | `discussions participants` | - | - | - | every identity with its avatar; `self` is you |
+| `discussions participant ID` | - | - | - | one identity, by its `agentId` (a message's `authorId`), or `local-user` for the person: whether its credential is live (`active`), its open runs, what it reports working on (`working`), the roles it owns and its last activity; never its credentials or chats |
 | `discussions avatars` | - | - | - | each avatar with `available`, a `suggested` one and your `current` one |
 | `discussions avatar NAME` | - | - | optional | shows NAME beside your messages |
 | `discussions list` | `[--view all\|awaiting\|archived] [--q TEXT] [--context TYPE:ID] [--pinned] [--repo LABEL] [--limit 50] [--offset 0]` | - | - | pinned threads first; `awaiting` lists threads with a pending request you sent, or one that waits on you; `--pinned` lists only the ones the person pinned; `--repo` keeps those with an older free-text label |
 | `discussions read ID` | `[--message] [--limit 50] [--offset 0]` | - | - | a thread's messages; `--message` reads one message ID with its request state |
 | `discussions changes` | `[--cursor CURSOR] [--context TYPE:ID] [--limit 50]` | - | - | ordered changes since a saved cursor |
 | `discussions resume` | `--context TYPE:ID [--limit 50] [--offset 0]` | - | - | a snapshot of a context, with a new cursor |
-| `discussions post` | `--text TEXT` or `--file FILE`; `[--title TITLE] [--context TYPE:ID] (repeat) [--as-role ROLE_ID] [--chat CHAT_ID]` | - | optional | starts a thread, tagged with each `--context` |
-| `discussions reply ID` | `--text TEXT` or `--file FILE`; `[--as-role ROLE_ID] [--chat CHAT_ID]` | - | optional | replies in a thread |
+| `discussions post` | `--text TEXT` or `--file FILE`; `[--title TITLE] [--context TYPE:ID] (repeat) [--ask AGENT_ID\|person] (repeat) [--as-role ROLE_ID] [--chat CHAT_ID]` | - | optional | starts a thread, tagged with each `--context` |
+| `discussions reply ID` | `--text TEXT` or `--file FILE`; `[--ask AGENT_ID\|person] (repeat) [--as-role ROLE_ID] [--chat CHAT_ID]` | - | optional | replies in a thread |
 | `discussions tag ID` | `--context TYPE:ID` | - | optional | tags a thread with a record it is about; a tag it has changes nothing |
 | `discussions untag ID` | `--context TYPE:ID` | - | optional | takes a tag you added off a thread |
 | `discussions ack MESSAGE_ID` | `[--target SLOT_ID] (repeat)` | - | optional | acknowledges a request; targets are optional only for open audiences |
@@ -384,7 +401,8 @@ worklog agent --as NAME inbox --chat CHAT_ID --request-id inbox-CHAT_ID-7
   - A new identity gets the least-used one, preferring a colour no active agent shows.
   - You can choose another with `discussions avatar`. One that another active agent shows is refused (`avatar_in_use`).
   - A revoked identity's avatar returns to the pool.
-- **Acknowledgements.** To ask for an acknowledgement, post or reply with `--file`:
+- **Asking an agent or the person.** `--ask AGENT_ID` on `post` or `reply` asks that agent to acknowledge your message, and `--ask person` the person; repeat it to ask several, each of whom must acknowledge (mode `all`). This is how you message another agent: it finds your request in `discussions list --view awaiting`. Take the agent's `agentId` from a message's `authorId`, an `overlaps` finding or `discussions participants`. With `--file`, `--ask` is refused before anything is sent: the file names its own acknowledgement.
+- **Acknowledgements.** To ask a role or an open audience for an acknowledgement, post or reply with `--file`:
 
 ```json
 {
@@ -418,6 +436,8 @@ worklog agent --as NAME inbox --chat CHAT_ID --request-id inbox-CHAT_ID-7
 
 ```powershell
 worklog agent --as NAME discussions participants
+worklog agent --as NAME discussions participant AGENT_ID
+worklog agent --as NAME discussions participant local-user
 worklog agent --as NAME discussions avatars
 worklog agent --as NAME discussions avatar teal-visor-antenna --request-id avatar-teal
 worklog agent --as NAME discussions list --view awaiting --q 'import format' --context item:ITEM_ID --limit 20
@@ -430,6 +450,8 @@ worklog agent --as NAME discussions resume --context item:ITEM_ID
 worklog agent --as NAME discussions post --title 'Parser plan' --text 'Starting the parser.' --context item:ITEM_ID --context repository:REPOSITORY_ID --chat CHAT_ID --request-id post-parser-plan
 worklog agent --as NAME discussions post --file ask.json --request-id post-ask-ack
 worklog agent --as NAME discussions reply DISCUSSION_ID --text 'I have updated the reader.' --as-role ROLE_ID --request-id reply-reader-1
+worklog agent --as NAME discussions reply DISCUSSION_ID --text 'Can the reader wait for my lexer change?' --ask AGENT_ID --ask person --request-id reply-ask-1
+worklog agent --as NAME discussions post --title 'Lexer ownership' --text 'Who owns the lexer now that T-12 is fixed?' --context ticket:T-12 --ask person --request-id post-lexer-owner
 worklog agent --as NAME discussions tag DISCUSSION_ID --context ticket:T-12 --request-id tag-T-12
 worklog agent --as NAME discussions untag DISCUSSION_ID --context ticket:T-12 --request-id untag-T-12
 worklog agent --as NAME discussions ack MESSAGE_ID --target TARGET_SLOT_ID --request-id ack-message-1
@@ -495,6 +517,32 @@ worklog agent --as NAME reminders add --title 'Merge PR 113 once its checks pass
 worklog agent --as NAME reminders update REMINDER_ID --revision 2 --on 2026-11-07 --at 09:00
 worklog agent --as NAME reminders done REMINDER_ID --revision 3
 worklog agent --as NAME reminders reopen REMINDER_ID --revision 4
+```
+
+### 5.10 Overlaps
+
+| Command | Arguments and options | Prints |
+|---|---|---|
+| `overlaps` | at least one of `--repo REPOSITORY_ID`, `--checkout PATH`, `--item ITEM_ID`, `--step STEP_ID` and `--ticket REF`, each repeatable; `[--limit 20]` | `{repositories,participations,announcements,discussions,roles,ties,tickets}` |
+
+`overlaps` is the check rule 11 asks for before you change a repository or work on a record. It gathers what others recorded on the records you name, and leaves out what you did yourself:
+
+- **`repositories`**: each repository you named, with its `discussionId`, where you announce.
+- **`participations`**: the active participation of others in those repositories, on those work items, or on any work item on those steps. Each has its `agent`, `description`, `item`, `contexts` (branches and paths) and `stale`.
+- **`announcements`**: the latest messages others posted in each repository's own discussion, newest first, Worklog's opening message aside. Each has its `author` (`active` says whether its credential is live), `authorReporting` (whether its author reports work in that repository now) and its `text`, cut at 1,000 characters (`truncated`).
+- **`discussions`**: other threads tagged with any of the records, not archived, the pinned ones first; `matched` names the tags that matched.
+- **`roles`** others own on those work items and steps, the **`ties`** of other agents to the records, and the **`tickets`** you named, each with its `assignee`.
+
+Every `agent`, `author`, `owner` and `assignee` is `{id,label,kind,avatar,active}`, as `discussions participants` lists it.
+
+- **Naming records.** Name at most 20 of each kind (`422 validation`). Each must exist (`404 not_found`), and a merged repository gives `409 repository_merged` with the survivor's ID. A ticket takes its key, number or ID.
+- **Checkouts.** `--checkout PATH` names the repository that holds the checkout's `origin` remote. One that no record holds fails before the check: report it first with `participation start --checkout` (section 4, step 5).
+- **Limits.** `--limit` (at most 50) caps each list, and the announcements of each repository.
+- **What it does not say.** It reserves nothing (rule 7), and a fresh report does not prove an agent is still at work: `discussions participant AGENT_ID` shows whether its credential is live, its open runs and when it was last active. Unlike the person's Agents page, it shows no chat that runs report.
+
+```powershell
+worklog agent --as NAME overlaps --checkout C:/Projects/repo --item ITEM_ID
+worklog agent --as NAME overlaps --repo REPOSITORY_ID --step STEP_ID --ticket T-12 --limit 10
 ```
 
 ## 6. Proposals
@@ -800,6 +848,7 @@ The following codes reach only the person's browser or a failed startup: `host` 
 | A repository | description 10,000 characters; URL 2,000 characters |
 | A tracked chat | 20 `repos` labels; 100 `repositoryIds` |
 | A discussion | 30 tags; a post's acknowledgement request names at most 100 targets |
+| An overlap check | 20 records of each kind; each list 20 long by default, at most 50 |
 | Registered identities | 200 active, and 200 registered a day (since local midnight); credentials the person issues do not count |
 | Ties | 500 that you set yourself (the person's ties on you do not count); a relationship of 200 bytes; `ties list` shows 500 |
 | Agent names | 1-64 characters |

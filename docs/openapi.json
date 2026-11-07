@@ -6323,6 +6323,102 @@
         }
       }
     },
+    "/api/v1/coordination-overlaps": {
+      "get": {
+        "summary": "Overlaps",
+        "operationId": "overlaps_api_v1_coordination_overlaps_get",
+        "parameters": [
+          {
+            "name": "repositoryId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": [],
+              "title": "Repositoryid"
+            }
+          },
+          {
+            "name": "itemId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": [],
+              "title": "Itemid"
+            }
+          },
+          {
+            "name": "stepId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": [],
+              "title": "Stepid"
+            }
+          },
+          {
+            "name": "ticketId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": [],
+              "title": "Ticketid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Overlaps Api V1 Coordination Overlaps Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/chats/{identity}/messages": {
       "get": {
         "summary": "Chat Messages",
@@ -8587,6 +8683,47 @@
                   "additionalProperties": true,
                   "type": "object",
                   "title": "Response Participants Api V1 Discussions Participants Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discussions/participants/{identity}": {
+      "get": {
+        "summary": "Participant",
+        "operationId": "participant_api_v1_discussions_participants__identity__get",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Participant Api V1 Discussions Participants  Identity  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
