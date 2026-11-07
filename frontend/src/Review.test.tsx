@@ -391,8 +391,9 @@ it("says when approval is off and marks automatic approvals", async () => {
   });
   requestMock.mockImplementation(async (path: string) => {
     if (path === "/settings") return { requireProposalApproval: false };
-    if (path === "/proposals?status=submitted") return { items: [], total: 0 };
-    if (path === "/proposals?status=approved")
+    if (path === "/proposals?status=submitted&limit=50&offset=0")
+      return { items: [], total: 0 };
+    if (path === "/proposals?status=approved&limit=50&offset=0")
       return {
         items: [proposal(ID, true), proposal(OTHER_ID, false)],
         total: 2,
@@ -462,7 +463,7 @@ function fromAgent(id: string, title: string, actorDirectory: string | null) {
 it("names the directory each listed proposal's agent registered from", async () => {
   requestMock.mockImplementation(async (path: string) => {
     if (path === "/settings") return { requireProposalApproval: true };
-    if (path === "/proposals?status=submitted")
+    if (path === "/proposals?status=submitted&limit=50&offset=0")
       return {
         items: [
           fromAgent(ID, "From the worktree", DIRECTORY),
@@ -486,6 +487,47 @@ it("names the directory each listed proposal's agent registered from", async () 
       /^Registered from/,
     ),
   ).toBeNull();
+});
+it("pages the proposals 50 at a time", async () => {
+  requestMock.mockImplementation(async (path: string) => {
+    if (path === "/settings") return { requireProposalApproval: true };
+    if (path === "/proposals?status=submitted&limit=50&offset=0")
+      return { items: [fromAgent(ID, "On the first page", null)], total: 60 };
+    if (path === "/proposals?status=submitted&limit=50&offset=50")
+      return {
+        items: [fromAgent(OTHER_ID, "On the second page", null)],
+        total: 60,
+      };
+    throw new ApiError(404, "Not found", "not_found");
+  });
+  renderWithClient(<Review />);
+  expect(
+    await screen.findByRole("link", { name: "On the first page" }),
+  ).toBeInTheDocument();
+  expect(screen.getByText("1 to 50 of 60")).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Next proposals" }));
+  expect(
+    await screen.findByRole("link", { name: "On the second page" }),
+  ).toBeInTheDocument();
+  expect(screen.getByText("51 to 60 of 60")).toBeInTheDocument();
+});
+it("goes back to the last page there is when a later one empties", async () => {
+  requestMock.mockImplementation(async (path: string) => {
+    if (path === "/settings") return { requireProposalApproval: true };
+    if (path === "/proposals?status=submitted&limit=50&offset=0")
+      return { items: [fromAgent(ID, "Still waiting", null)], total: 51 };
+    // The person reviewed the 51st meanwhile, so the second page is empty.
+    if (path === "/proposals?status=submitted&limit=50&offset=50")
+      return { items: [], total: 50 };
+    throw new ApiError(404, "Not found", "not_found");
+  });
+  renderWithClient(<Review />);
+  await screen.findByRole("link", { name: "Still waiting" });
+  await userEvent.click(screen.getByRole("button", { name: "Next proposals" }));
+  expect(
+    await screen.findByRole("link", { name: "Still waiting" }),
+  ).toBeInTheDocument();
+  expect(screen.queryByText(/^No submitted proposals/)).toBeNull();
 });
 it("names the directory a proposal's agent registered from in its detail", async () => {
   requestMock.mockImplementation(async (path: string) => {

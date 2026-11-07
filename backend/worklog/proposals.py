@@ -39,6 +39,14 @@ APPLIED_TO = ("p.status='approved' AND p.id IN "
               "(SELECT proposal_id FROM proposal_targets WHERE target_type=? AND target_id=?)")
 MADE_BY = ("p.actor_kind='agent' AND p.actor_id IN "
            "(SELECT credential_id FROM communication_credentials WHERE agent_id=?)")
+# K10's quotas (consolidation step 3.4), counted from the live tables. An agent's are its identity's,
+# under any of its credentials, as _same_principal reads ownership. The person has none.
+DRAFT_LIMIT = 50
+AWAITING_LIMIT = 100
+EVIDENCE_FILES = 20
+EVIDENCE_BYTES = 100_000_000
+HELD_BY = ("p.actor_kind='agent' AND (p.actor_id=? OR p.actor_id IN (SELECT theirs.credential_id FROM communication_credentials"
+           " theirs JOIN communication_credentials mine ON mine.agent_id=theirs.agent_id WHERE mine.credential_id=?))")
 
 
 def _entry(row, number):
@@ -185,6 +193,28 @@ def _visible(conn, row, actor):
         raise AppError(404, "not_found", "Proposal not found")
 
 
+def _held(conn, actor, status):
+    """How many proposals in this status the calling agent holds, under any of its credentials."""
+    return conn.execute("SELECT count(*) FROM proposals p WHERE p.status=? AND " + HELD_BY,
+                        (status, actor["id"], actor["id"])).fetchone()[0]
+
+
+def _room_for_a_draft(conn, actor):
+    """A new or reopened draft of an agent's takes a place among its drafts (K10)."""
+    if actor["kind"] == "agent" and _held(conn, actor, "draft") >= DRAFT_LIMIT:
+        raise AppError(429, "agent_limit", f"An agent keeps at most {DRAFT_LIMIT} drafts; submit or withdraw one first")
+
+
+def _records(conn, ids):
+    """The proposals with these IDs, whole and in the order given."""
+    found: dict[str, dict] = {}
+    for start in range(0, len(ids), 500):
+        chunk = ids[start:start + 500]
+        found.update((row["id"], _record(row)) for row in conn.execute(
+            SELECT + f" WHERE p.id IN ({','.join('?' * len(chunk))})", chunk))
+    return [found[identifier] for identifier in ids]
+
+
 def _owner(conn, row, actor):
     if not _same_principal(conn, row["actor_id"], actor):
         raise AppError(403, "forbidden", "Only the originating actor may edit or submit this proposal")
@@ -220,14 +250,22 @@ class ProposalService:
         self.dispatch = dispatch
         self._applying_id: str | None = None
 
-    def list(self, actor, status=None):
+    def list(self, actor, status=None, limit=None, offset=0):
+        """The proposals the caller may see, oldest first: a page of `limit` from `offset`, or with no
+        limit every one (GET /context). Visibility is decided on each row's status and owner alone,
+        before the page's proposals are read whole. Both reads see one snapshot, so a proposal that
+        turns back into a draft between them is never shown whole to another agent."""
         if status is not None and status not in {"draft", "submitted", "approved", "rejected", "withdrawn"}:
             raise AppError(422, "validation", "Invalid proposal status")
-        with self.db.read() as conn:
-            rows = conn.execute(SELECT + " ORDER BY p.created_at,p.id").fetchall()
-            items = [_record(r) for r in rows if (not status or r["status"] == status)
-                     and can_see(conn, r, actor)]
-            return {"items": items, "total": len(items)}
+
+        def read(conn):
+            rows = conn.execute("SELECT p.id,p.status,p.actor_id,p.submitted_at FROM proposals p"
+                                + (" WHERE p.status=?" if status else "") + " ORDER BY p.created_at,p.id",
+                                (status,) if status else ()).fetchall()
+            visible = [row["id"] for row in rows if can_see(conn, row, actor)]
+            page = visible[offset:] if limit is None else visible[offset:offset + limit]
+            return {"items": _records(conn, page), "total": len(visible)}
+        return self.db.snapshot(read)
 
     def detail(self, identifier, actor):
         with self.db.read() as conn:
@@ -282,6 +320,7 @@ class ProposalService:
                 _owner(connection, prior, actor)
                 if prior["status"] not in {"rejected", "withdrawn"}:
                     raise AppError(409, "conflict", "Only rejected or withdrawn proposals may be superseded")
+            _room_for_a_draft(connection, actor)
             identifier, stamp = uid(), now()
             connection.execute("INSERT INTO proposals(id,title,rationale,status,revision,actor_id,actor_label,actor_kind,"
                                "operations,supersedes_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
@@ -334,6 +373,13 @@ class ProposalService:
             before = _record(row)
             if verb == "submit" and not before["operations"]:
                 raise AppError(422, "validation", "A submitted proposal needs at least one operation")
+            if verb == "reopen":
+                _room_for_a_draft(connection, actor)
+            # With approval off a submitted proposal is applied at once, and none waits for review.
+            if (verb == "submit" and actor["kind"] == "agent" and approval_required(connection)
+                    and _held(connection, actor, "submitted") >= AWAITING_LIMIT):
+                raise AppError(429, "agent_limit", f"An agent has at most {AWAITING_LIMIT} proposals awaiting review; "
+                               "wait until the person reviews some")
             if verb == "submit" and approval_required(connection):
                 # A value its model refuses, or a file it cannot attach, would only wait for the
                 # person to reject it. With approval off, applying it below makes the same checks.
@@ -594,11 +640,20 @@ class ProposalService:
             }, at=stamp)
         return discussion
 
-    def check_upload(self, conn, identifier, actor):
+    def check_upload(self, conn, identifier, actor, size=0):
+        """Whether the caller may add a file of `size` bytes to this proposal's evidence. An agent
+        adds it only to its own draft, within K10's 20 files and 100 MB a proposal, archived files
+        counted, since they stay in the file."""
         row = _row(conn, identifier)
         _visible(conn, row, actor)
         if actor["kind"] == "agent":
             _owner(conn, row, actor)
             if row["status"] != "draft":
                 raise AppError(409, "conflict", "Agent evidence uploads require an owned draft")
+            files, held = conn.execute("SELECT count(*),coalesce(sum(size),0) FROM attachments"
+                                       " WHERE owner_type='proposal' AND owner_id=?", (identifier,)).fetchone()
+            if files >= EVIDENCE_FILES:
+                raise AppError(429, "agent_limit", f"A proposal holds at most {EVIDENCE_FILES} evidence files")
+            if held + size > EVIDENCE_BYTES:
+                raise AppError(429, "agent_limit", f"A proposal's evidence holds at most {EVIDENCE_BYTES:,} bytes in all")
         return _record(row)

@@ -22,11 +22,25 @@ import type {
 import type { Repository, RepositoryResolution } from "./repositoryTypes";
 import { Icon } from "./icons";
 import { statusLabel } from "./ProposalHistory";
+import { Pages } from "./Coordination";
+// The list is paged 50 at a time, as Pages moves.
+const PAGE = 50;
 export function Review({ selectedId }: { selectedId?: string }) {
   const [status, setStatus] = useState("submitted");
-  const proposals = useData<List<Proposal>>(
-    "/proposals" + (status ? "?status=" + status : ""),
-  );
+  const [offset, setOffset] = useState(0);
+  const params = new URLSearchParams({
+    ...(status ? { status } : {}),
+    limit: String(PAGE),
+    offset: String(offset),
+  });
+  const proposals = useData<List<Proposal>>("/proposals?" + params.toString());
+  const total = proposals.data?.total ?? 0;
+  const emptied =
+    !!proposals.data && !proposals.data.items.length && offset > 0;
+  useEffect(() => {
+    // Reviewing the last proposals of a later page leaves it empty: show the last page there is.
+    if (emptied) setOffset(Math.max(0, Math.floor((total - 1) / PAGE) * PAGE));
+  }, [emptied, total]);
   const settings = useData<Settings>("/settings");
   const selected = selectedId ?? "";
   return (
@@ -50,6 +64,7 @@ export function Review({ selectedId }: { selectedId?: string }) {
             value={status}
             onChange={(e) => {
               setStatus(e.target.value);
+              setOffset(0);
               location.hash = "review";
             }}
           >
@@ -96,6 +111,14 @@ export function Review({ selectedId }: { selectedId?: string }) {
             <span className="badge">{statusLabel(p)}</span>
           </article>
         ))
+      )}
+      {!selected && (
+        <Pages
+          offset={offset}
+          total={total}
+          change={setOffset}
+          label="proposals"
+        />
       )}
     </>
   );

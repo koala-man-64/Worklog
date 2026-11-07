@@ -803,7 +803,8 @@ def agent_command(args: argparse.Namespace, port: int, redact: list[str]) -> Any
     if args.agent_action == "step":
         return client.request("GET", "/steps/" + args.id)
     if args.agent_action == "proposals":
-        return client.request("GET", "/proposals" + ("?" + urlencode({"status": args.status}) if args.status else ""))
+        query = {**({"status": args.status} if args.status else {}), "limit": args.limit, "offset": args.offset}
+        return client.request("GET", "/proposals?" + urlencode(query))
     action = args.proposal_action
     if action == "draft":
         return client.request("POST", "/proposals", _payload(args.file))
@@ -1498,8 +1499,10 @@ def parser() -> argparse.ArgumentParser:
     roadmap.add_subparsers(dest="roadmap_action", required=True).add_parser("show").add_argument("id")
     step = actions.add_parser("step", help="Read one step's full text, progress and notes")
     step.add_subparsers(dest="step_action", required=True).add_parser("show").add_argument("id")
-    proposals = actions.add_parser("proposals")
+    proposals = actions.add_parser("proposals", help="Proposals you may see, oldest first, 50 at a time by default")
     proposals.add_argument("--status")
+    proposals.add_argument("--limit", type=int, default=50)
+    proposals.add_argument("--offset", type=int, default=0)
     proposal = actions.add_parser("proposal")
     operations = proposal.add_subparsers(dest="proposal_action", required=True)
     for verb in ("draft", "update", "submit", "reopen", "show", "withdraw", "evidence"):
