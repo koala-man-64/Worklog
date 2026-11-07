@@ -367,7 +367,7 @@ Stop the growth before reclaiming space.
 
 #### 4.1 · Roadmap save diff
 
-Status: Merged · Branches: `claude/roadmap-save-diff`, `claude/reorder-revisions`, `claude/reflection-revision` · PRs: [#126](https://github.com/koala-man-64/Worklog/pull/126), [#127](https://github.com/koala-man-64/Worklog/pull/127), PR_LINK
+Status: Merged · Branches: `claude/roadmap-save-diff`, `claude/reorder-revisions`, `claude/reflection-revision` · PRs: [#126](https://github.com/koala-man-64/Worklog/pull/126), [#127](https://github.com/koala-man-64/Worklog/pull/127), [#129](https://github.com/koala-man-64/Worklog/pull/129)
 
 A structure save rewrites every step, bumps every step's revision, and puts two full trees into the roadmap event.
 
@@ -395,7 +395,7 @@ What changed:
   - An entry change raises the day's revision only when it adds the entry, as removing one does. So an outcome saved while a reflection draft is open leaves the draft able to save.
 
   `test_reorder_revisions.py` pins each of these. REM-13's other half.
-- **The reflection's own revision (PR_NUMBER), schema v21.**
+- **The reflection's own revision (#129), schema v21.**
   - `days.reflection_revision` guards the reflection alone. Only a reflection save raises it, and the reflection no longer raises the day's revision.
   - So new work and reorders leave a reflection draft able to save, and two edits of one reflection still conflict.
   - `GET /days/{date}` returns it as `reflectionRevision`, and Today's reflection draft saves against it.
