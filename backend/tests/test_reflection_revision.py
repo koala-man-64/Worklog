@@ -29,7 +29,10 @@ COMMIT;
 
 
 def to_v20(path):
-    """Take a current database back to the v20 shape the documented way."""
+    """Take a current database back to the v20 shape the documented way: to version 21 first."""
+    from test_discussion_tag_recovery import to_v21
+
+    to_v21(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK)
 

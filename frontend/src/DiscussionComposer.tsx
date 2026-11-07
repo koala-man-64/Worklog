@@ -19,7 +19,6 @@ type Draft = {
   title: string;
   text: string;
   contexts: ContextChoice[];
-  repos: string;
   chatId: string;
   askForAcknowledgement: boolean;
   acknowledgementMode: AcknowledgementMode;
@@ -30,7 +29,6 @@ const emptyDraft: Draft = {
   title: "",
   text: "",
   contexts: [],
-  repos: "",
   chatId: "",
   askForAcknowledgement: false,
   acknowledgementMode: "any_agent",
@@ -197,15 +195,8 @@ export function Composer({
     };
     if (mode === "new") {
       body.title = draft.title.trim() || titleFromText(draft.text);
+      // A new thread takes no free-text repository labels (schema v22): it is tagged instead.
       body.contexts = draft.contexts.map(({ type, id }) => ({ type, id }));
-      body.repos = [
-        ...new Set(
-          draft.repos
-            .split(",")
-            .map((repo) => repo.trim())
-            .filter(Boolean),
-        ),
-      ];
     }
     return body;
   }
@@ -301,14 +292,6 @@ export function Composer({
             results={contextSearch.data?.items ?? []}
             loading={contextSearch.isFetching}
           />
-          <label>
-            Repository labels (optional)
-            <input
-              value={draft.repos}
-              onChange={(event) => update("repos", event.target.value)}
-              placeholder="Comma-separated repository names"
-            />
-          </label>
         </div>
       )}
       <label>

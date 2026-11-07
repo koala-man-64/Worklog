@@ -17,38 +17,18 @@ import sqlite3
 from collections.abc import Iterable
 from typing import Any
 
+from . import record_kinds
 from .common import LIVE_AGENT, AppError, event, now, read_events, rows_in, text, uid
 from .coordination import repository_takes_people
 from .proposals import can_see
 from .tickets import TicketService
 
-# What an agent can be tied to, in the order a list shows them. A tracked chat is not among them: an
-# agent is bound to a chat by registering with it, or by the person confirming it there (v13), which
-# also brings it the chat's messages. Each type's summary query gives its
-# id, title and archived state, and what a page needs to link to it: a step, question or decision
-# opens on its roadmap, and a ticket shows its key. A step that is retired, a repository that is
-# merged and an agent whose credentials are all revoked count as archived.
-SUMMARIES: dict[str, str] = {
-    "item": "SELECT id,title,archived,status FROM work_items WHERE id IN ({})",
-    "roadmap": "SELECT id,title,archived FROM roadmaps WHERE id IN ({})",
-    "step": "SELECT s.id,s.title,s.retired AS archived,s.status,s.roadmap_id AS roadmapId,r.title AS roadmapTitle "
-            "FROM steps s JOIN roadmaps r ON r.id=s.roadmap_id WHERE s.id IN ({})",
-    "repository": "SELECT id,name AS title,(archived=1 OR merged_into IS NOT NULL) AS archived,merged_into AS mergedInto "
-                  "FROM repositories WHERE id IN ({})",
-    "person": "SELECT id,name AS title,archived FROM people WHERE id IN ({})",
-    "resource": "SELECT id,title,archived FROM resources WHERE id IN ({})",
-    "discussion": "SELECT id,title,archived FROM discussions WHERE id IN ({})",
-    # A proposal is never archived; its status says where it got to. actor_id and submitted_at decide
-    # who may see it, and are left out of the summary.
-    "proposal": "SELECT id,title,0 AS archived,status,actor_id,submitted_at FROM proposals WHERE id IN ({})",
-    "ticket": "SELECT id,title,archived,status,number FROM tickets WHERE id IN ({})",
-    "agent": f"SELECT a.id,a.label AS title,NOT {LIVE_AGENT} AS archived,a.avatar FROM communication_agents a WHERE a.id IN ({{}})",
-    "question": "SELECT q.id,q.title,q.archived,q.status,q.roadmap_id AS roadmapId,r.title AS roadmapTitle "
-                "FROM roadmap_questions q JOIN roadmaps r ON r.id=q.roadmap_id WHERE q.id IN ({})",
-    "decision": "SELECT d.id,d.title,d.archived,d.roadmap_id AS roadmapId,r.title AS roadmapTitle "
-                "FROM roadmap_decisions d JOIN roadmaps r ON r.id=d.roadmap_id WHERE d.id IN ({})",
-}
-TYPES = tuple(SUMMARIES)
+# What an agent can be tied to, in the order a list shows them, each summarized as record_kinds says.
+# A tracked chat is not among them: an agent is bound to a chat by registering with it, or by the
+# person confirming it there (v13), which also brings it the chat's messages.
+TYPES = ("item", "roadmap", "step", "repository", "person", "resource", "discussion", "proposal", "ticket",
+         "agent", "question", "decision")
+SUMMARIES: dict[str, str] = {kind: record_kinds.SUMMARIES[kind] for kind in TYPES}
 RELATIONSHIP_LIMIT = 200
 # The ties an agent may hold that it set itself; the person's ties on it don't count.
 SELF_SET_LIMIT = 500
@@ -56,7 +36,6 @@ SELF_SET_LIMIT = 500
 READ_LIMIT = 500
 # The most records one read asks about.
 TARGET_IDS_LIMIT = 200
-_HIDDEN = frozenset({"actor_id", "submitted_at"})
 
 
 def _target_type(value: Any) -> str:
@@ -89,12 +68,10 @@ def summaries(c: sqlite3.Connection, target_type: str, ids: Iterable[str], reade
     Agents see another agent's proposal only once it was submitted; the person sees every one.
     """
     found: dict[str, dict] = {}
-    for row in rows_in(c, SUMMARIES[target_type], ids):
+    for row in record_kinds.rows(c, target_type, ids):
         if target_type == "proposal" and reader is not None and not can_see(c, row, reader):
             continue
-        record = {key: row[key] for key in row.keys() if key not in _HIDDEN}
-        record["archived"] = bool(record["archived"])
-        found[row["id"]] = record
+        found[row["id"]] = record_kinds.summary(row)
     return found
 
 
