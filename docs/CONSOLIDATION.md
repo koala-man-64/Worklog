@@ -323,7 +323,7 @@ What changed:
 
 #### 3.2 · Human-only scope on sensitive routes
 
-Status: Merged · Branch: `claude/person-only` · PR: PR_LINK
+Status: Merged · Branch: `claude/person-only` · PR: [#123](https://github.com/koala-man-64/Worklog/pull/123)
 
 Add a route-level human scope to settings, credentials, backups and export, as a second line behind the middleware. Findings: C-08.
 
