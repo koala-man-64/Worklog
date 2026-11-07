@@ -367,7 +367,7 @@ Stop the growth before reclaiming space.
 
 #### 4.1 · Roadmap save diff
 
-Status: In progress · Branch: `claude/roadmap-save-diff` · PR: PR_LINK; the reorders and the reflection's own revision follow in their own PRs
+Status: In progress · Branch: `claude/roadmap-save-diff` · PR: [#126](https://github.com/koala-man-64/Worklog/pull/126); the reorders and the reflection's own revision follow in their own PRs
 
 A structure save rewrites every step, bumps every step's revision, and puts two full trees into the roadmap event.
 
@@ -381,7 +381,7 @@ Fix, under K4:
 Findings: B-02, REM-13, REM-26.
 
 Done so far:
-- **Roadmap saves (PR_NUMBER).**
+- **Roadmap saves (#126).**
   - A revise, restore or create writes only the steps it changes. A step that keeps its title, description, parent and position, and stays active, keeps its revision and gets no event.
   - A save that changes nothing records no revision, version or event. So no version is identical to the one before it.
   - The roadmap's event records `{versionNumber, changedStepIds}`: the version holds the whole plan, and each changed step's own event holds its before and after. A roadmap's history was two copies of the tree per save.
