@@ -218,7 +218,9 @@ class Items:
     @staticmethod
     def ensure_day(c: sqlite3.Connection, date: str) -> None:
         valid_date(date)
-        c.execute("INSERT OR IGNORE INTO days(date) VALUES(?)", (date,))
+        # A day with no row reads as reflection revision 0, so its row starts there: a reflection
+        # draft opened on an empty day still saves after work is first planned on it.
+        c.execute("INSERT OR IGNORE INTO days(date,reflection_revision) VALUES(?,0)", (date,))
 
     @staticmethod
     def bump_backlog(c: sqlite3.Connection) -> None:

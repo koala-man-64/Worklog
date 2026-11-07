@@ -71,6 +71,18 @@ def test_new_work_and_a_reorder_leave_a_reflection_draft_able_to_save(client):
     assert after["revision"] == reordered["revision"]
 
 
+def test_a_reflection_begun_on_an_empty_day_still_saves_after_work_is_first_planned_on_it(client):
+    """From the review of #129: the day's row is made by the first entry, and its reflection
+    revision starts at the 0 an empty day reads as."""
+    opened = call(client, "GET", f"/days/{DAY}")
+    assert opened["reflectionRevision"] == 0 and opened["entries"] == []
+    item = call(client, "POST", "/work-items", {"title": "First of the day"})
+    call(client, "PUT", f"/days/{DAY}/entries/{item['id']}", {"revision": 0, "planned": True})
+    assert call(client, "GET", f"/days/{DAY}")["reflectionRevision"] == 0
+    saved = call(client, "PUT", f"/days/{DAY}/reflection", {"revision": opened["reflectionRevision"], "text": "Started well"})
+    assert saved["revision"] == 1
+
+
 def test_two_edits_of_one_reflection_still_conflict(client):
     opened = call(client, "GET", f"/days/{DAY}")
     assert (opened["revision"], opened["reflectionRevision"]) == (0, 0)
