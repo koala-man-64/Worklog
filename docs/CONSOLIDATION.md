@@ -367,7 +367,7 @@ Stop the growth before reclaiming space.
 
 #### 4.1 · Roadmap save diff
 
-Status: In progress · Branches: `claude/roadmap-save-diff`, `claude/reorder-revisions` · PRs: [#126](https://github.com/koala-man-64/Worklog/pull/126), [#127](https://github.com/koala-man-64/Worklog/pull/127); the reflection's own revision follows in its own PR
+Status: Merged · Branches: `claude/roadmap-save-diff`, `claude/reorder-revisions`, `claude/reflection-revision` · PRs: [#126](https://github.com/koala-man-64/Worklog/pull/126), [#127](https://github.com/koala-man-64/Worklog/pull/127), PR_LINK
 
 A structure save rewrites every step, bumps every step's revision, and puts two full trees into the roadmap event.
 
@@ -380,7 +380,7 @@ Fix, under K4:
 
 Findings: B-02, REM-13, REM-26.
 
-Done so far:
+What changed:
 - **Roadmap saves (#126).**
   - A revise, restore or create writes only the steps it changes. A step that keeps its title, description, parent and position, and stays active, keeps its revision and gets no event.
   - A save that changes nothing records no revision, version or event. So no version is identical to the one before it.
@@ -395,9 +395,14 @@ Done so far:
   - An entry change raises the day's revision only when it adds the entry, as removing one does. So an outcome saved while a reflection draft is open leaves the draft able to save.
 
   `test_reorder_revisions.py` pins each of these. REM-13's other half.
+- **The reflection's own revision (PR_NUMBER), schema v21.**
+  - `days.reflection_revision` guards the reflection alone. Only a reflection save raises it, and the reflection no longer raises the day's revision.
+  - So new work and reorders leave a reflection draft able to save, and two edits of one reflection still conflict.
+  - `GET /days/{date}` returns it as `reflectionRevision`, and Today's reflection draft saves against it.
+  - The upgrade starts each at its day's revision, so a draft opened before it still saves, and changes no record.
+  - The README gives the way back to v20.
 
-Still to come:
-- **The reflection's own revision.** A schema version adds it, so reorders and new entries no longer conflict with a reflection draft (REM-26).
+  `test_reflection_revision.py` pins each of these. REM-26.
 
 #### 4.2 · Backups off the request path
 
