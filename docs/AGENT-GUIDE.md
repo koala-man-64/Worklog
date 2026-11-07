@@ -196,7 +196,7 @@ worklog agent --as NAME retire
 | `resources show ID` | - | one page with its whole Markdown `body`, and its latest 100 changes without their records |
 | `releases list` | `[--status planned\|released\|cancelled\|all] [--q WORDS] [--item ITEM_ID] [--archived] [--limit 50] [--offset 0]` | `{items:[{id,title,description,releaseDate,status,pastDue,counts:{items,itemsDone,notify,test,prepare,pastDue},...}],total,limit,offset}`: planned releases by default, soonest first and the not dated ones last; `--q` searches titles, descriptions and checks; `--item` keeps the releases that hold that work item |
 | `releases show ID` | - | one release with its `items`, `roadmaps` and `steps`, its `changes` (each PR or commit with `direct`, its owner and the tracked chat that made it), every check with its `revision` and `pastDue`, and its latest 100 changes and its checks', without their records |
-| `proposals` | `[--status draft\|submitted\|approved\|rejected\|withdrawn]` | `{items,total}`: yours, and other agents' once submitted |
+| `proposals` | `[--status draft\|submitted\|approved\|rejected\|withdrawn] [--limit 50] [--offset 0]` | `{items,total}`: yours, and other agents' once submitted, oldest first, up to 200 a page; `total` counts them all |
 | `proposal show ID` | - | one proposal with its operations and evidence |
 
 `search` covers work items, notes, file names, links, tracked chats, GitHub references, roadmaps and steps, questions and decisions, people, discussions, tickets and ticket comments, resources, reminders, and releases and their checks, but not proposals.
@@ -210,7 +210,7 @@ worklog agent --as NAME resources list --q 'release checks' --limit 20 --archive
 worklog agent --as NAME resources show RESOURCE_ID
 worklog agent --as NAME releases list --item ITEM_ID --status all
 worklog agent --as NAME releases show RELEASE_ID
-worklog agent --as NAME proposals --status submitted
+worklog agent --as NAME proposals --status submitted --limit 20 --offset 20
 worklog agent --as NAME proposal show PROPOSAL_ID
 ```
 
@@ -733,7 +733,7 @@ worklog check
 | `token_revoked` | 409 | The token stored for your name was revoked | Tell the person; the error says how to forget the token |
 | `token_in_use` | 409 | The token stored for your name belongs to a credential the person issued | Tell the person; a registration never reuses the person's token |
 | `chat_mismatch` | 409 | Your name's identity was registered for another chat, or before chats were recorded | Register this chat under another `--name` |
-| `agent_limit` | 429 | 200 registered identities are active, 200 were registered today, or you hold 500 ties you set yourself | Report it; do not retry. For ties, remove one that no longer holds first |
+| `agent_limit` | 429 | 200 registered identities are active, 200 were registered today, or you hold 500 ties you set yourself. Or you keep 50 drafts, 100 of your proposals await review, or a proposal holds 20 evidence files or 100,000,000 bytes of them | Report it; do not retry. For ties, remove one that no longer holds first. For drafts, submit or withdraw one first |
 | `avatar_in_use` | 409 | Another active agent shows that avatar | Choose one marked available |
 | `identity_binding` | 409 | A credential cannot change its agent identity | Tell the person |
 | `identity_missing` | 409 | A credential has no communication identity | The person's; tell them |
@@ -766,6 +766,8 @@ The following codes reach only the person's browser or a failed startup: `host` 
 | A note or scratchpad, a proposal's rationale, a discussion message | 1,000,000 bytes |
 | An HTML plan import (the person's) | 5,000,000 bytes |
 | A proposal | 500 operations; 5,000,000 bytes of operations; a title of 1,000 bytes |
+| Your proposals, under any of your credentials | 50 drafts; 100 awaiting review while approval is on |
+| A proposal's evidence | 20 files; 100,000,000 bytes in all |
 | A roadmap | 5,000 steps; 100 levels of nesting |
 | A ticket | title 1,000 bytes; description, resolution and each comment 100,000 bytes; 20 labels |
 | A release | title 1,000 bytes; description 1,000,000 bytes; a check's text 2,000 bytes and its details 100,000 bytes |

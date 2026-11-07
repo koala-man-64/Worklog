@@ -591,8 +591,9 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         return result
 
     @app.get("/api/v1/proposals")
-    def proposal_list(request: Request, status: str | None = None) -> dict:
-        return proposals.list(request.state.actor, status)
+    def proposal_list(request: Request, status: str | None = None, limit: int = Query(50, ge=1, le=200),
+                      offset: int = Query(0, ge=0)) -> dict:
+        return proposals.list(request.state.actor, status, limit, offset)
 
     @app.get("/api/v1/proposals/{identity}")
     def proposal_show(identity: str, request: Request) -> dict:

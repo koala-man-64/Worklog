@@ -348,9 +348,18 @@ What changed:
 
 #### 3.4 · Quotas and proposal paging
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branch: `claude/proposal-quotas` · PR: PR_LINK
 
 Add K10's quotas, counted from live tables, not from events or receipts, and paginate `/proposals`. Findings: C-05, REM-17.
+
+What changed:
+- **The quotas.** They are counted in `proposals.py` from the `proposals` and `attachments` tables, inside the write that would pass them. An agent's are its identity's, under any of its credentials, as ownership is read; the person has none.
+  - An agent keeps at most 50 drafts. Creating, superseding or reopening its own proposal past that gets 429 `agent_limit`.
+  - While approval is on, at most 100 of its proposals await review, and a 101st submit gets the same. With approval off, a submitted proposal is applied at once, so none waits.
+  - A proposal's evidence holds at most 20 files and 100,000,000 bytes, archived files included, since they stay in the file. An agent's upload past either gets 429 `agent_limit`.
+- **The paged list.** `GET /proposals` takes `limit` (50 by default, at most 200) and `offset`, oldest first. `total` counts every proposal the caller may see. Visibility is decided on each row's status and owner before the page's proposals are read whole, so an agent never sees another agent's draft on any page. Review pages through the list 50 at a time, and `agent proposals` takes `--limit` and `--offset`.
+- **Not changed.** `GET /context` still lists every proposal the caller may see. The audit's proposal to cap it and drop operations from list responses (REMEDIATION's D3) was not carried into this plan's decisions.
+- **Tests.** `test_proposal_quotas.py` holds each quota at its boundary: the limit succeeds and one more gets 429. It also covers the identity under a rotated credential, the person past every count, approval off, and the paged list for an agent and for the person.
 
 ### Phase 4 · Write amplification and retention
 

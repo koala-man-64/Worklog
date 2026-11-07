@@ -6694,6 +6694,8 @@ export interface operations {
         parameters: {
             query?: {
                 status?: string | null;
+                limit?: number;
+                offset?: number;
             };
             header?: never;
             path?: never;

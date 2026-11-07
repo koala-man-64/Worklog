@@ -52,6 +52,13 @@ def test_draft_update_submit_and_withdraw_use_exact_proposal_routes(requests, tm
         assert json.loads(requests[-1].data) == {"revision": 4}
 
 
+def test_proposals_are_listed_a_page_at_a_time(requests):
+    assert cli.main(["agent", "proposals"]) == 0
+    assert requests[-1].full_url.endswith("/api/v1/proposals?limit=50&offset=0")
+    assert cli.main(["agent", "proposals", "--status", "draft", "--limit", "10", "--offset", "20"]) == 0
+    assert requests[-1].full_url.endswith("/api/v1/proposals?status=draft&limit=10&offset=20")
+
+
 def test_evidence_is_raw_upload_owned_by_proposal(requests, tmp_path):
     path = tmp_path / "evidence.txt"
     path.write_bytes(b"actual evidence")

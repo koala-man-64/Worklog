@@ -579,7 +579,7 @@ def upload(c: sqlite3.Connection, actor: dict, owner_type: str, owner_id: str,
            name: str, mime: str, content: bytes, proposals: Any) -> dict:
     check_owner(c, owner_type, owner_id, files=True)
     if owner_type == "proposal":
-        proposals.check_upload(c, owner_id, actor)
+        proposals.check_upload(c, owner_id, actor, len(content))
     if owner_type == "repository":
         repository_takes_files(c, owner_id)
     if not content or len(content) > FILE_LIMIT:
