@@ -8,7 +8,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-from worklog import cli
+from worklog import cli, policy
 from worklog.proposals import FIELDS
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -111,6 +111,15 @@ def test_every_error_code_is_explained():
     errors = AGENT_GUIDE.read_text(encoding="ascii").split("## 8. Errors", 1)[1].split("\n## ", 1)[0]
     missing = sorted(code for code in codes if f"`{code}`" not in errors)
     assert not missing, f"Explain these codes in section 8 of docs/AGENT-GUIDE.md: {missing}"
+
+
+def test_the_readable_routes_name_every_read_the_table_keeps_for_the_person():
+    """Consolidation step 3.3 (K2): agents read what policy.ROUTES lists, and the guide names the rest."""
+    bullet = next(line for line in AGENT_GUIDE.read_text(encoding="ascii").splitlines()
+                  if line.startswith("- **Readable routes.**"))
+    named = {path.replace("/ID", "/{identity}") for path in re.findall(r"`(/[^`]*)`", bullet)} - {"/api/v1"}
+    persons = {template for template, entry in policy.ROUTES.items() if entry.get("GET") == policy.HUMAN}
+    assert named == persons, "Name in section 10 of docs/AGENT-GUIDE.md exactly the reads policy.ROUTES keeps for the person"
 
 
 def test_agent_guide_command_needs_no_credential_or_server(monkeypatch, capsys):

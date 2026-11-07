@@ -334,9 +334,17 @@ What changed:
 
 #### 3.3 · Explicit agent reads
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branch: `claude/agent-reads` · PR: [#124](https://github.com/koala-man-64/Worklog/pull/124)
 
 List every read agents keep (K2) as allowed, and deny agents any route that isn't listed. Update AGENT-GUIDE's "may GET every route" in the same PR. Findings: C-04, C-15.
+
+What changed:
+- **The reads were listed by 3.1.** Since #112 and #113, every GET under `/api/v1` has its scope in `policy.ROUTES`. When this step was done, 54 of them were `agent:read` and 12 were the person's.
+- **Unlisted routes are closed to agents.** A route or method the table gives agents no scope for is the person's, and `test_route_policy.py` fails until a new route has an entry. So a new route starts closed to agents, as K2 asks.
+- **The agent guide now follows the table.** Section 10 of AGENT-GUIDE names the person's reads from the table, and `test_guides.py` fails when the two differ.
+  - Its old list named `/credentials` and `/backups`, which serve no read.
+  - It left out an agent's page, its activity and its proposals.
+- **Search snippets stay readable to agents** (K2).
 
 #### 3.4 · Quotas and proposal paging
 
