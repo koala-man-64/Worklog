@@ -368,7 +368,7 @@ Stop the growth before reclaiming space.
 
 #### 4.1 · Roadmap save diff
 
-Status: In progress · Branches: `claude/roadmap-save-diff`, `claude/reorder-revisions` · PRs: [#126](https://github.com/koala-man-64/Worklog/pull/126), [#127](https://github.com/koala-man-64/Worklog/pull/127); the reflection's own revision follows in its own PR
+Status: In progress · Branches: `claude/roadmap-save-diff`, `claude/reorder-revisions`, `claude/roadmap-proposal-scope-32b851` · PRs: [#126](https://github.com/koala-man-64/Worklog/pull/126), [#127](https://github.com/koala-man-64/Worklog/pull/127), [#128](https://github.com/koala-man-64/Worklog/pull/128); the reflection's own revision follows in its own PR
 
 A structure save rewrites every step, bumps every step's revision, and puts two full trees into the roadmap event.
 
@@ -396,7 +396,7 @@ Done so far:
   - An entry change raises the day's revision only when it adds the entry, as removing one does. So an outcome saved while a reflection draft is open leaves the draft able to save.
 
   `test_reorder_revisions.py` pins each of these. REM-13's other half.
-- **One step's text, and saves that renumber.** Under K4 and K15.
+- **One step's text, and saves that renumber (#128).** Under K4 and K15.
   - `step.update` (`PATCH /steps/{id}`) changes one step's title or description against the step's own revision. It writes that step alone, records no version, and raises the roadmap's revision. Text the step already has records nothing.
   - A save gives a step a new revision and an event when it moves it: a new parent, or a new place among the siblings that keep theirs. Numbering the positions afresh, as the structure editor does on every save, or adding or retiring a step before it, writes the new number alone. Of siblings put in a new order, the fewest that account for it count as moved.
   - A step sent back marked `retired: true`, as `roadmap show` lists one, stays retired instead of being restored.
