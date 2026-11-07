@@ -415,9 +415,20 @@ What changed:
 
 #### 4.2 · Backups off the request path
 
-Status: Not started · Branch: — · PR: —
+Status: In progress · Branch: `claude/backup-off-requests` · PR: PR_LINK; the streaming export follows in its own PR
 
 The daily backup now runs from the watcher only, not on the first write of the day. Backup hashes are cached, and export streams instead of holding blobs twice in memory. Findings: B-05, C-17, REM-18.
+
+Done so far:
+- **Backups off the request path (PR_NUMBER).**
+  - The day's automatic backup is taken at startup and by the serve watcher's minute check, as the README says. No write takes it: `mutate()` and agent registration used to, so the first write of a day waited for the whole database to be copied.
+  - `app.daily_backup` shows a failure in Settings until a backup succeeds, from the watcher as from startup.
+- **Cached backup hashes (PR_NUMBER).** The CLI's `backups` listing takes each file's SHA-256 from `backups/backup-hashes.json` while the file keeps the size and modification time it was hashed at. Each new backup's hash goes there as it is made, and the hash of a file that has gone leaves.
+
+  `test_backup_path.py` pins each of these.
+
+Still to come:
+- **The streaming export.** It will write the ZIP to a file as it reads, and stop holding every record and blob in memory twice (REM-18).
 
 #### 4.3 · Offline compact
 
@@ -606,3 +617,4 @@ These look like consolidation candidates but stay:
 - 2026-11-06: Schema v18, `communication_credentials.directory`, added outside the plan for a product request (Review names the directory each proposal's agent registered from), with its seal and documented way back. Registration writes it beside the chat, and the `credential.register` event records it too, so the upgrade copies it back from those events after the way back; identities registered before v18 have none. Built as v17 alongside agent ties (#116), it became v18 when that merged first.
 - 2026-11-06: Schema v19, releases (`releases`, `release_contents`, `release_checks`), added outside the plan for a product request (coordinating what ships together, who needs to know, what to test and what to prepare first), with its seal and documented way back, which discards releases. It was built as v17 and renumbered as v17's agent ties and v18's registration directories landed first; it is the last upgrade step, after their guarded ones. Its routes start in the policy table: agents read them and write none. Agent proposals for releases are a separate PR.
 - 2026-11-06: Step 4.1 split into PRs while building it: roadmap saves and progress first, then the backlog and day reorders, then the reflection's own revision, which is a schema change.
+- 2026-11-07: Step 4.2 split into two PRs while building it: backups off the request path with cached hashes first, then the streaming export.

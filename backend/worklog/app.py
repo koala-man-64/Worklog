@@ -75,6 +75,23 @@ def default_data_directory() -> Path:
     return Path(os.environ.get("WORKLOG_DATA_DIR") or Path(os.environ.get("LOCALAPPDATA", Path.home() / ".local/share")) / "Worklog")
 
 
+BACKUP_FAILED = "Automatic backup failed. Check free disk space and retry a manual backup."
+
+
+def daily_backup(app: FastAPI) -> bool:
+    """Take the day's automatic backup unless it has one, and show a failure in Settings until one
+    succeeds. Startup and the serve watcher call this, never a request (consolidation step 4.2,
+    B-05): the first write of a day used to wait for the whole database to be copied."""
+    try:
+        automatic_backup(app.state.db.path, app.state.db.path.parent / "backups")
+    except (OSError, sqlite3.Error, ValueError, RuntimeError):
+        app.state.backup_error = BACKUP_FAILED
+        logger.warning("Automatic backup failed; see storage settings")
+        return False
+    app.state.backup_error = None
+    return True
+
+
 async def bounded_body(request: Request, maximum: int) -> bytes:
     """A body the guard leaves to its route (guard.STREAMED, and the bootstrap), read as the guard reads
     JSON, to the route's own limit. A client that leaves before it arrives is answered nothing."""
@@ -124,17 +141,8 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         allowed_hosts.add("127.0.0.1:5173")
         allowed_origins.add("http://127.0.0.1:5173")
 
-    def auto_backup() -> None:
-        if testing or os.environ.get("WORKLOG_AUTO_BACKUP") == "0":
-            return
-        try:
-            automatic_backup(db.path, directory / "backups")
-            app.state.backup_error = None
-        except (OSError, sqlite3.Error, ValueError, RuntimeError):
-            app.state.backup_error = "Automatic backup failed. Check free disk space and retry a manual backup."
-            logger.warning("Automatic backup failed; see storage settings")
-
-    auto_backup()
+    if not testing and os.environ.get("WORKLOG_AUTO_BACKUP") != "0":
+        daily_backup(app)
     # Receipts only serve retries: each start drops those past the retention window, and the
     # serve watcher repeats it hourly. A busy database leaves them to the watcher rather than
     # stopping the start.
@@ -174,7 +182,6 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def mutate(request: Request, payload: Any, fn: Callable, *, required_key: bool = False,
                redact: tuple[str, ...] = (), communication: bool = False,
                receipt_if: Callable[[dict], bool] | None = None) -> dict:
-        auto_backup()
         key = request.headers.get("idempotency-key")
         if required_key and not key:
             raise AppError(428, "idempotency", "An Idempotency-Key is required for this command")
@@ -820,7 +827,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     install_release_routes(app, db, apply)
     install_reminder_routes(app, db, mutate)
     install_discussion_routes(app, db, discussion_mutate)
-    install_registration_routes(app, db, auto_backup)
+    install_registration_routes(app, db)
     install_registry_routes(app, db, transcripts)
     dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
     if (dist / "assets").is_dir():

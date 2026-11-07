@@ -31,7 +31,6 @@ from worklog import __version__
 from worklog.common import shows_as_written
 from worklog.recovery import (
     InstanceLock,
-    automatic_backup,
     backup_database,
     export_database,
     list_backups,
@@ -375,7 +374,7 @@ def _server(app: Any, port: int, grace: int = SHUTDOWN_GRACE_S) -> Any:
 
 def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
     """Private foreground entry point; start launches this in one hidden process."""
-    from worklog.app import create_app
+    from worklog.app import create_app, daily_backup
 
     os.environ["WORKLOG_DATA_DIR"] = str(directory)
     os.environ["WORKLOG_PORT"] = str(port)
@@ -405,8 +404,11 @@ def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
                     server.should_exit = True
                     return
                 if time.monotonic() >= next_backup and os.environ.get("WORKLOG_AUTO_BACKUP") != "0":
+                    # The day's automatic backup is taken here and at startup, never by a request; a
+                    # failure shows in Settings until one succeeds.
                     try:
-                        automatic_backup(directory / "worklog.sqlite3", directory / "backups")
+                        if not daily_backup(app):
+                            print("Automatic Worklog backup failed; Settings shows it", file=sys.stderr, flush=True)
                     except Exception as exc:
                         # Preserve service availability but make a failed backup visible in server.log.
                         print(f"Automatic Worklog backup failed: {type(exc).__name__}", file=sys.stderr, flush=True)
