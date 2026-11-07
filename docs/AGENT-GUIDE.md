@@ -581,7 +581,7 @@ Any other field is refused. On a create, `id` is not an ID but a name for the ne
 - **Roadmap steps.**
   - `steps` is a list of `{id, title, description, parentId, position}`; leave out `id` for a new step. At most 5,000 steps, nested at most 100 levels.
   - `roadmap.revise` replaces the whole step list. It retires each step it leaves out, restores each retired step it includes, and keeps exactly the descriptions it carries. Build it from `roadmap show`.
-  - A revise raises a step's revision only when it changes that step's title, description, parent or position, or retires or restores it. A later `progress.set` in the same proposal carries the step's revision as the revise leaves it: one higher for a step it changes, the same for any other. Progress changes no roadmap's revision.
+  - A revise raises a step's revision only when it changes that step's title, description, parent or position, or retires or restores it. A later `progress.set` in the same proposal carries the step's revision as the revise leaves it: one higher for a step it changes, the same for any other. Progress changes no roadmap's revision. A revise that changes nothing leaves the roadmap's revision as it was, so a later roadmap change in the same proposal carries that same revision.
   - `roadmap.move` changes only the nesting; `parentId` is null for the top level.
 - **Tracked chats.**
   - Your own chat needs no proposal: `chats track` tracks the chat you registered with on a work item, or on a roadmap and its steps (section 5.4), and participation with `--item` tracks it on that work item, once. Propose `chat.*` for any other chat, and to change or archive one.

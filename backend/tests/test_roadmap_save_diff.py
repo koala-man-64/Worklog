@@ -10,7 +10,7 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 from worklog.app import create_app
-from worklog.common import read_events, uid
+from worklog.common import AppError, read_events, uid
 from worklog.db import Database
 from worklog.plans import PlanService
 
@@ -142,3 +142,47 @@ def test_a_proposal_that_revises_then_sets_progress_expects_one_more_only_where_
     assert statuses == {a: ("doing", 3), b: ("doing", 2)}
     # Progress left the roadmap's revision where the revise put it.
     assert call(client, "GET", f"/roadmaps/{roadmap['id']}")["revision"] == 2
+
+
+@pytest.mark.parametrize("change", ["title", "overview", "description", "parent", "position"])
+def test_each_kind_of_change_raises_the_roadmap_revision_once_and_only_its_steps(plans, change):
+    created, a, b, c = three(plans)
+    steps = steps_of(created)
+    title, overview = "Plan", ""
+    if change == "title":
+        title = "Renamed"
+    elif change == "overview":
+        overview = "Why this plan"
+    elif change == "description":
+        steps[1]["description"] = "More about B"
+    elif change == "parent":
+        steps[1]["parentId"] = a
+    else:
+        steps[1]["position"], steps[2]["position"] = steps[2]["position"], steps[1]["position"]
+    revised = apply(plans, "roadmap.revise", {"id": created["id"], "revision": 1, "title": title, "overview": overview, "steps": steps})
+    raised = {s["id"] for s in revised["steps"] if s["revision"] > 1}
+    assert revised["revision"] == 2 and len(revised["versions"]) == 2
+    assert raised == {"title": set(), "overview": set(), "description": {b}, "parent": {b}, "position": {b, c}}[change]
+
+
+def test_a_revise_that_changes_nothing_leaves_a_later_one_in_the_proposal_its_revision(client):
+    """From the review of #126: a revise that changes nothing keeps the roadmap's revision, so a
+    later roadmap change in the same proposal carries the same revision, not one more."""
+    roadmap = call(client, "POST", "/roadmaps", {"title": "Plan", "steps": [{"title": "A"}]})
+    steps = [{"id": s["id"], "title": s["title"], "description": s["description"], "parentId": s["parentId"],
+              "position": s["position"]} for s in roadmap["steps"]]
+    proposal = call(client, "POST", "/proposals", {"title": "Twice", "rationale": "", "operations": [
+        {"action": "roadmap.revise", "payload": {"id": roadmap["id"], "revision": 1, "title": "Plan", "steps": steps}},
+        {"action": "roadmap.revise", "payload": {"id": roadmap["id"], "revision": 1, "title": "Renamed", "steps": steps}}]})
+    submitted = call(client, "POST", f"/proposals/{proposal['id']}/submit", {"revision": proposal["revision"]})
+    assert call(client, "POST", f"/proposals/{proposal['id']}/approve", {"revision": submitted["revision"]})["status"] == "approved"
+    assert call(client, "GET", f"/roadmaps/{roadmap['id']}")["title"] == "Renamed"
+
+
+def test_an_archived_roadmap_refuses_a_save_even_one_that_changes_nothing(plans):
+    created, *_ = three(plans)
+    archived = apply(plans, "roadmap.archive", {"id": created["id"], "revision": 1})
+    with pytest.raises(AppError) as error:
+        apply(plans, "roadmap.revise", {"id": created["id"], "revision": archived["revision"], "title": "Plan",
+                                        "steps": steps_of(created)})
+    assert error.value.status == 409

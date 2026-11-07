@@ -796,7 +796,7 @@ test("a link changed in another tab survives tabbing through a stale field", asy
   expect(await savedLink()).toBe(url);
   await other.close();
 });
-test("a structure draft survives a progress change made while editing", async ({
+test("a progress change made while editing leaves the structure draft current", async ({
   page,
   baseURL,
 }) => {
@@ -828,10 +828,15 @@ test("a structure draft survives a progress change made while editing", async ({
   await page
     .getByRole("textbox", { name: "Step 1 title" })
     .fill("Leaf one, renamed");
-  // Progress bumps the roadmap revision, which used to strand the draft.
+  // Progress is the step's: it leaves the roadmap's revision, which used to strand the draft (K4).
+  const progressed = page.waitForResponse(
+    (r) => r.url().includes("/progress") && r.request().method() === "PATCH",
+  );
   await page.getByLabel("Progress for Leaf two").selectOption("doing");
-  await expect(page.getByText(/based on revision/)).toBeVisible();
-  await page.getByRole("button", { name: "Rebase onto current" }).click();
+  expect((await progressed).ok()).toBeTruthy();
+  const current = await (await page.request.get(`/api/v1/roadmaps/${id}`)).json();
+  expect(current.revision).toBe(1);
+  await expect(page.getByText(/based on revision/)).toHaveCount(0);
   await page.getByRole("button", { name: "Save new version" }).click();
   await expect(
     page.getByRole("button", { name: "Edit structure" }),
@@ -843,6 +848,7 @@ test("a structure draft survives a progress change made while editing", async ({
     "Leaf two",
   ]);
   expect(active[1].status).toBe("doing");
+  expect(saved.revision).toBe(2);
 });
 test("the sidebar and plan outline resize by drag and keep their widths", async ({
   page,
