@@ -239,7 +239,7 @@ Your agents can set reminders for you too, for example to merge once a pull requ
 5. To change one step's title or description, open the step, press "Edit step", then "Save step". It saves that step alone, without a new version, so agents working on other steps carry on undisturbed. Agents propose the same change for one step.
 6. To nest a roadmap under another, use "Add sub-roadmap" on the parent's overview, or choose its parent in "Nested under".
 
-The editor keeps your unsaved structure as a browser draft. If the roadmap changed in the meantime, choose "Rebase onto current" to keep your edits on the newest version: a title, description or parent you didn't change takes the newest one, so a step edited elsewhere keeps its new text. Or choose "Discard draft". A save changes only the steps you changed: adding or retiring a step leaves the others as they were. Retired steps keep their history and are listed under "Retired steps".
+The editor keeps your unsaved structure as a browser draft. If the roadmap changed in the meantime, choose "Rebase onto current" to keep your edits on the newest version: a title, description or parent you didn't change takes the newest one, so a step edited elsewhere keeps its new text, and a step retired elsewhere stays retired unless you changed it. Or choose "Discard draft". A save changes only the steps you changed: adding or retiring a step leaves the others as they were. Retired steps keep their history and are listed under "Retired steps".
 
 ### Turn an HTML plan into a roadmap
 

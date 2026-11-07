@@ -401,7 +401,7 @@ Done so far:
   - A save gives a step a new revision and an event when it moves it: a new parent, or a new place among the siblings that keep theirs. Numbering the positions afresh, as the structure editor does on every save, or adding or retiring a step before it, writes the new number alone. Of siblings put in a new order, the fewest that account for it count as moved.
   - A step sent back marked `retired: true`, as `roadmap show` lists one, stays retired instead of being restored.
   - The stale check follows each change's revisions through a proposal, so a later change on the same step or roadmap expects one more where an earlier one raises it.
-  - The structure editor's rebase takes the current title, description or parent of whatever the draft left as it found it, so a step edited elsewhere keeps its new text. A draft saved before keeps its own text, and says so.
+  - The structure editor's rebase takes the current title, description or parent of whatever the draft left as it found it, so a step edited elsewhere keeps its new text, and a step retired elsewhere that the draft left alone stays retired. A draft saved before keeps its own text, and says so.
 
   `test_step_update.py` and `test_roadmap_save_diff.py` pin each of these.
 

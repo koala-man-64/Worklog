@@ -1478,7 +1478,18 @@ export function StructureEditor({
     // What the draft left as it found it takes its current value, so a change saved elsewhere
     // since, such as an agent's step.update, survives the save. The person's edits stay theirs.
     const current = new Map(active().map((s) => [s.id, s]));
-    const merged = steps.map((s) => {
+    const untouched = (s: Step) => {
+      const was = base?.steps[s.id];
+      return (
+        !!was &&
+        s.title === was.title &&
+        s.description === was.description &&
+        s.parentId === was.parentId
+      );
+    };
+    // A step retired elsewhere since stays retired, unless the draft changed it.
+    const kept = steps.filter((s) => current.has(s.id) || !untouched(s));
+    const merged = kept.map((s) => {
       const was = base?.steps[s.id];
       const now = current.get(s.id);
       if (!was || !now) return s;
@@ -1570,7 +1581,7 @@ export function StructureEditor({
             This draft is based on revision {revision}, but the roadmap is now
             at revision {roadmap.revision}, so saving it would be rejected.{" "}
             {base
-              ? "Rebase moves your edits onto the current revision: a title, description or parent you didn't change takes its current one. Discard drops your edits."
+              ? "Rebase moves your edits onto the current revision: a title, description or parent you didn't change takes its current one, and a step retired since stays retired unless you changed it. Discard drops your edits."
               : "Rebase keeps your draft's version of every step on the current revision; discard drops your edits."}
           </p>
           {!baseStepIds && serverOnly.length > 0 && (

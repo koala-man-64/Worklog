@@ -175,6 +175,43 @@ it("rebases keeping the current text of what the draft left as it found it", asy
     ["Gamma", "", A.id],
   ]);
 });
+it("rebases leaving a step retired elsewhere retired, unless the draft changed it", async () => {
+  const network = vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(async () => new Response("{}", { status: 200 }));
+  // Since the draft started, Beta and Gamma were retired elsewhere; the draft renamed Gamma.
+  storeDraft({
+    title: "Plan",
+    overview: "",
+    steps: [A, B, { ...C, title: "Gamma kept" }],
+    revision: 3,
+    baseStepIds: [A.id, B.id, C.id],
+    base: {
+      title: "Plan",
+      overview: "",
+      steps: Object.fromEntries(
+        [A, B, C].map((s) => [
+          s.id,
+          { title: s.title, description: s.description, parentId: s.parentId },
+        ]),
+      ),
+    },
+  });
+  render(
+    view(
+      roadmap(4, [A, { ...B, retired: true }, { ...C, retired: true }]),
+    ),
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Rebase onto current" }),
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Save new version" }),
+  );
+  await waitFor(() => expect(network).toHaveBeenCalled());
+  const body = JSON.parse(String(network.mock.calls.at(-1)?.[1]?.body));
+  expect(body.steps.map((s: Step) => s.title)).toEqual(["Alpha", "Gamma kept"]);
+});
 it("keeps a legacy draft's own text, and says so", () => {
   storeDraft({ title: "Plan", overview: "", steps: [A], revision: 3, baseStepIds: [A.id] });
   render(view(roadmap(4, [{ ...A, description: "From elsewhere" }])));
