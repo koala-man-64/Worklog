@@ -389,9 +389,14 @@ Done so far:
   - A proposal that revises a roadmap and then sets a step's progress expects one more only for a step the revise changes. The stale check (`plans.revised_by`) and the agent guide say so.
 
   `test_roadmap_save_diff.py` pins each of these. Findings B-02 and REM-13's roadmap half.
+- **The reorders (PR_NUMBER).** Order belongs to the backlog and to each day, and their revisions guard it.
+  - A backlog reorder, and moving a work item up or down, leave the work items they move their revisions.
+  - A day reorder leaves its entries theirs.
+  - An entry change raises the day's revision only when it adds the entry, as removing one does. So an outcome saved while a reflection draft is open leaves the draft able to save.
+
+  `test_reorder_revisions.py` pins each of these. REM-13's other half.
 
 Still to come:
-- **The reorders.** Backlog and day reorders stop bumping the revisions of the records they reorder, and an entry change bumps the day's revision only when it adds an entry (REM-13's other half).
 - **The reflection's own revision.** A schema version adds it, so reorders and new entries no longer conflict with a reflection draft (REM-26).
 
 #### 4.2 · Backups off the request path

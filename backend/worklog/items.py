@@ -313,7 +313,10 @@ class Items:
         self.ensure_day(c, date)
         c.execute("""INSERT INTO daily_entries(id,item_id,date,planned,worked,outcome,position,revision) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(item_id,date) DO UPDATE SET planned=excluded.planned,worked=excluded.worked,outcome=excluded.outcome,revision=excluded.revision""",
                   (val["id"], item_id, date, int(val["planned"]), int(val["worked"]), val["outcome"], val["position"], val["revision"]))
-        c.execute("UPDATE days SET revision=revision+1 WHERE date=?", (date,))
+        if row is None:
+            # The day's revision guards which entries it holds and their order (K4): a new entry
+            # changes them, an entry's own fields only its revision.
+            c.execute("UPDATE days SET revision=revision+1 WHERE date=?", (date,))
         self.bump_backlog(c)
         event(c, actor, "entry.upsert", item_id, before, val)
         return val
@@ -371,9 +374,11 @@ class Items:
         ids = p.get("ids")
         if not isinstance(ids, list) or len(ids) != len(set(ids)) or set(ids) != set(actual):
             raise AppError(409, "conflict", "Order must include exactly the current records")
+        # Order is the day's or the backlog's, guarded by their revisions: the entries and work items
+        # moved keep their own (K4), so an edit open on any of them still saves.
         if date:
             for pos, identity in enumerate(ids):
-                c.execute("UPDATE daily_entries SET position=?,revision=revision+1 WHERE id=?", (pos, identity))
+                c.execute("UPDATE daily_entries SET position=? WHERE id=?", (pos, identity))
             c.execute("UPDATE days SET revision=revision+1 WHERE date=?", (date,))
         else:
             # The backlog trades the positions it already holds, so planned work keeps its stack
@@ -381,7 +386,7 @@ class Items:
             renumber(c, backlog_sequence(c))
             held = dict(c.execute("SELECT id,backlog_order FROM work_items").fetchall())
             for slot, identity in zip(sorted(held[i] for i in actual), ids, strict=True):
-                c.execute("UPDATE work_items SET backlog_order=?,revision=revision+1 WHERE id=?", (slot, identity))
+                c.execute("UPDATE work_items SET backlog_order=? WHERE id=?", (slot, identity))
         self.bump_backlog(c)
         event(c, actor, "day.reorder" if date else "backlog.reorder", date or "backlog", actual, ids)
         return {"ok": True}
@@ -424,8 +429,9 @@ class Items:
         renumber(c, backlog_sequence(c))
         held = dict(c.execute("SELECT id,backlog_order FROM work_items WHERE id IN (?,?)", (identity, neighbor)).fetchall())
         positions = (held[neighbor], held[identity])
-        c.execute("UPDATE work_items SET backlog_order=?,revision=revision+1 WHERE id=?", (positions[0], identity))
-        c.execute("UPDATE work_items SET backlog_order=?,revision=revision+1 WHERE id=?", (positions[1], neighbor))
+        # Checked against the backlog's revision, the move leaves both items theirs (K4).
+        c.execute("UPDATE work_items SET backlog_order=? WHERE id=?", (positions[0], identity))
+        c.execute("UPDATE work_items SET backlog_order=? WHERE id=?", (positions[1], neighbor))
         self.bump_backlog(c)
         event(c, actor, "backlog.move", "backlog", {"id": identity, "position": index}, {"id": identity, "position": target})
         return {"ok": True}
