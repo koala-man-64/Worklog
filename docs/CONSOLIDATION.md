@@ -56,6 +56,7 @@ The order is fixed:
 | K12 | Should registering with a chat also wait for the person's confirmation? (from the security review of 1.4) | No: K3 stays as it is. A registered identity is bound to its chat with no confirmation, since agents are cooperating (K1), and the chat page names who registered each one. C-01 stays narrowed, not closed. | 1.4 | 2026-11-04, Rudy |
 | K13 | Does a new database start from the baseline schema, or at v1 with every upgrade run? (from building 2.5) | From the baseline, at the current version. Each schema change then writes its DDL twice, in `schema.py` and in its upgrade step, and the seals fail on any difference (see 2.5). | 2.5 | 2026-11-05, Claude, while building 2.5 |
 | K14 | What may agents do with the person's reminders (schema v20)? | Read every reminder, notes and archived ones included, and set, change, snooze, complete and reopen them directly under their own identity, as with tickets. Only the person archives and recovers. The policy table lists the reads as `agent:read` and the writes as `agent:remind` (K2). | 3.3 | 2026-11-06, Rudy |
+| K15 | May one step's title or description change without a whole-roadmap save? (An agent couldn't record a predecessor on one step of a 323-step roadmap without rewriting the plan while other agents worked in it.) | Yes: `step.update` (`PATCH /steps/{id}`), checked against the step's own revision. It writes that step alone and records no version, so K6's last 20 versions stay structure saves. It raises the roadmap's revision, so a structure save drafted before it is refused rather than writing the old text back. | 4.1 | 2026-11-07, Rudy asked for it; Claude chose the guards while building it |
 | D6 | Is a migration framework needed? | Closed as done: migrations v1 to v10 run in one transaction after a pre-migration backup. | — | 2026-11-04, Rudy |
 
 ## Rules the roundtable settled
@@ -367,7 +368,7 @@ Stop the growth before reclaiming space.
 
 #### 4.1 · Roadmap save diff
 
-Status: Merged · Branches: `claude/roadmap-save-diff`, `claude/reorder-revisions`, `claude/reflection-revision` · PRs: [#126](https://github.com/koala-man-64/Worklog/pull/126), [#127](https://github.com/koala-man-64/Worklog/pull/127), [#129](https://github.com/koala-man-64/Worklog/pull/129)
+Status: Merged · Branches: `claude/roadmap-save-diff`, `claude/reorder-revisions`, `claude/roadmap-proposal-scope-32b851`, `claude/reflection-revision` · PRs: [#126](https://github.com/koala-man-64/Worklog/pull/126), [#127](https://github.com/koala-man-64/Worklog/pull/127), [#128](https://github.com/koala-man-64/Worklog/pull/128), [#129](https://github.com/koala-man-64/Worklog/pull/129)
 
 A structure save rewrites every step, bumps every step's revision, and puts two full trees into the roadmap event.
 
@@ -395,6 +396,14 @@ What changed:
   - An entry change raises the day's revision only when it adds the entry, as removing one does. So an outcome saved while a reflection draft is open leaves the draft able to save.
 
   `test_reorder_revisions.py` pins each of these. REM-13's other half.
+- **One step's text, and saves that renumber (#128).** Under K4 and K15.
+  - `step.update` (`PATCH /steps/{id}`) changes one step's title or description against the step's own revision. It writes that step alone, records no version, and raises the roadmap's revision. Text the step already has records nothing.
+  - A save gives a step a new revision and an event when it moves it: a new parent, or a new place among the siblings that keep theirs. Numbering the positions afresh, as the structure editor does on every save, or adding or retiring a step before it, writes the new number alone. Of siblings put in a new order, the fewest that account for it count as moved.
+  - A step sent back marked `retired: true`, as `roadmap show` lists one, stays retired instead of being restored.
+  - The stale check works out what a proposal's earlier changes leave, as approving applies them (`plans.Forecast`, in place of `revised_by`), so a later change on the same step or roadmap is current when it expects the revision they leave, and a valid proposal gets no stale notice.
+  - The structure editor's rebase takes the current title, description or parent of whatever the draft left as it found it, so a step edited elsewhere keeps its new text, and a step retired elsewhere that the draft left alone stays retired. A draft saved before keeps its own text, and says so.
+
+  `test_step_update.py` and `test_roadmap_save_diff.py` pin each of these.
 - **The reflection's own revision (#129), schema v21.**
   - `days.reflection_revision` guards the reflection alone. Only a reflection save raises it, and the reflection no longer raises the day's revision.
   - So new work and reorders leave a reflection draft able to save, and two edits of one reflection still conflict.

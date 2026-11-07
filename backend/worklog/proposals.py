@@ -11,7 +11,7 @@ from .common import NOTE_LIMIT, AppError, event, now, require_revision, setting,
 from .discussions import DiscussionService
 from .migrations import AUTOMATIC_APPROVAL_ID, stale_signature
 from .operations import OPERATIONS, keys, validate
-from .plans import revised_by
+from .plans import Forecast
 
 # Explicit schemas prevent a proposal becoming an arbitrary operation transport. Each operation's
 # keys come from its one definition in operations.py: (required, allowed) per action.
@@ -491,21 +491,21 @@ class ProposalService:
         return result
 
     def _stale_operations(self, conn, row, roadmap_id=None):
+        """The proposal's plan changes whose revision no longer matches. Each is checked against the
+        revision its record has once the proposal's earlier changes apply (plans.Forecast), so a
+        change that expects one more after an earlier change in the same proposal is current (K4).
+        currentRevision is that revision."""
         operations = json.loads(row["operations"])
-        revised_steps: dict[str, int] = {}
+        forecast = Forecast(conn)
         conflicts = []
         for number, op in enumerate(operations, 1):
             action, payload = op["action"], op["payload"]
             if action in {"roadmap.revise", "roadmap.move", "roadmap.archive", "roadmap.recover"}:
-                target = payload.get("id") or payload.get("roadmapId")
-                rm = conn.execute("SELECT id,title,revision FROM roadmaps WHERE id=?", (target,)).fetchone() if isinstance(target, str) else None
-                if rm is not None:
-                    if action == "roadmap.revise" and rm["revision"] == payload.get("revision") and isinstance(payload.get("steps"), list):
-                        # A revise raises the revision only of the steps it changes (K4), so a
-                        # later progress.set in the proposal expects one more for those alone.
-                        for sid in revised_by(conn, rm["id"], payload["steps"]):
-                            revised_steps[sid] = revised_steps.get(sid, 0) + 1
-                    if (roadmap_id is None or rm["id"] == roadmap_id) and rm["revision"] != payload.get("revision"):
+                rm = forecast.roadmap(payload.get("id") or payload.get("roadmapId"))
+                if rm is None:
+                    continue
+                if rm["revision"] != payload.get("revision"):
+                    if roadmap_id is None or rm["id"] == roadmap_id:
                         conflicts.append({
                             "operation": number,
                             "action": action,
@@ -516,15 +516,16 @@ class ProposalService:
                             "expectedRevision": payload.get("revision"),
                             "currentRevision": rm["revision"],
                         })
-            elif action == "progress.set":
-                target = payload.get("id") or payload.get("stepId")
-                st = conn.execute(
-                    "SELECT s.id,s.title,s.revision,s.roadmap_id,r.title AS roadmap_title FROM steps s JOIN roadmaps r ON r.id=s.roadmap_id WHERE s.id=?",
-                    (target,),
-                ).fetchone() if isinstance(target, str) else None
-                if st is not None:
-                    expected_after_earlier = st["revision"] + revised_steps.get(st["id"], 0)
-                    if (roadmap_id is None or st["roadmap_id"] == roadmap_id) and expected_after_earlier != payload.get("revision"):
+                elif action == "roadmap.revise":
+                    forecast.revise(rm, payload)
+                else:
+                    forecast.change_roadmap(rm, action)
+            elif action in {"progress.set", "step.update"}:
+                st = forecast.step(payload.get("id") or payload.get("stepId"))
+                if st is None:
+                    continue
+                if st["revision"] != payload.get("revision"):
+                    if roadmap_id is None or st["roadmap_id"] == roadmap_id:
                         conflicts.append({
                             "operation": number,
                             "action": action,
@@ -535,6 +536,10 @@ class ProposalService:
                             "expectedRevision": payload.get("revision"),
                             "currentRevision": st["revision"],
                         })
+                elif action == "progress.set":
+                    forecast.set_progress(st)
+                else:
+                    forecast.update_step(st, payload)
         return conflicts
 
     def notify_stale_proposals(self, conn, roadmap_id=None):

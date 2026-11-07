@@ -114,6 +114,112 @@ it("rebases onto the current revision, keeping steps added elsewhere", async () 
     "Beta",
   ]);
 });
+it("rebases keeping the current text of what the draft left as it found it", async () => {
+  const network = vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(async () => new Response("{}", { status: 200 }));
+  // The user renamed Alpha. Since, Alpha was renamed elsewhere too (the user's name wins), an
+  // agent's step.update gave Beta a description, Gamma moved under Alpha, and the roadmap was
+  // retitled.
+  storeDraft({
+    title: "Plan",
+    overview: "",
+    steps: [{ ...A, title: "Alpha edited" }, B, C],
+    revision: 3,
+    baseStepIds: [A.id, B.id, C.id],
+    base: {
+      title: "Plan",
+      overview: "",
+      steps: Object.fromEntries(
+        [A, B, C].map((s) => [
+          s.id,
+          { title: s.title, description: s.description, parentId: s.parentId },
+        ]),
+      ),
+    },
+  });
+  render(
+    view({
+      ...roadmap(5, [
+        { ...A, title: "Alpha from elsewhere", revision: 2 },
+        { ...B, description: "AB#1559 is the predecessor", revision: 2 },
+        { ...C, parentId: A.id },
+      ]),
+      title: "Plan, retitled",
+    }),
+  );
+  expect(
+    screen.getByText(/a title, description or parent you didn't change/),
+  ).toBeInTheDocument();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Rebase onto current" }),
+  );
+  expect(stepTitle(1)).toHaveValue("Alpha edited");
+  expect(
+    screen.getByRole("textbox", { name: "Step 2 description" }),
+  ).toHaveValue("AB#1559 is the predecessor");
+  expect(screen.getByRole("textbox", { name: "Title" })).toHaveValue(
+    "Plan, retitled",
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Save new version" }),
+  );
+  await waitFor(() => expect(network).toHaveBeenCalled());
+  const body = JSON.parse(String(network.mock.calls.at(-1)?.[1]?.body));
+  expect(body.revision).toBe(5);
+  expect(body.title).toBe("Plan, retitled");
+  expect(
+    body.steps.map((s: Step) => [s.title, s.description, s.parentId]),
+  ).toEqual([
+    ["Alpha edited", "", null],
+    ["Beta", "AB#1559 is the predecessor", null],
+    ["Gamma", "", A.id],
+  ]);
+});
+it("rebases leaving a step retired elsewhere retired, unless the draft changed it", async () => {
+  const network = vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(async () => new Response("{}", { status: 200 }));
+  // Since the draft started, Beta and Gamma were retired elsewhere; the draft renamed Gamma.
+  storeDraft({
+    title: "Plan",
+    overview: "",
+    steps: [A, B, { ...C, title: "Gamma kept" }],
+    revision: 3,
+    baseStepIds: [A.id, B.id, C.id],
+    base: {
+      title: "Plan",
+      overview: "",
+      steps: Object.fromEntries(
+        [A, B, C].map((s) => [
+          s.id,
+          { title: s.title, description: s.description, parentId: s.parentId },
+        ]),
+      ),
+    },
+  });
+  render(
+    view(
+      roadmap(4, [A, { ...B, retired: true }, { ...C, retired: true }]),
+    ),
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Rebase onto current" }),
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Save new version" }),
+  );
+  await waitFor(() => expect(network).toHaveBeenCalled());
+  const body = JSON.parse(String(network.mock.calls.at(-1)?.[1]?.body));
+  expect(body.steps.map((s: Step) => s.title)).toEqual(["Alpha", "Gamma kept"]);
+});
+it("keeps a legacy draft's own text, and says so", () => {
+  storeDraft({ title: "Plan", overview: "", steps: [A], revision: 3, baseStepIds: [A.id] });
+  render(view(roadmap(4, [{ ...A, description: "From elsewhere" }])));
+  expect(
+    screen.getByText(/Rebase keeps your draft's version of every step/),
+  ).toBeInTheDocument();
+});
 it("asks about server-only steps when a legacy draft has no recorded base", async () => {
   storeDraft({ title: "Plan", overview: "", steps: [A], revision: 3 });
   render(view(roadmap(4, [A, B, C])));
@@ -131,6 +237,109 @@ it("records the base revision and step ids with a new draft", async () => {
   const stored = JSON.parse(localStorage.getItem(draftKey())!);
   expect(stored.revision).toBe(4);
   expect(stored.baseStepIds).toEqual([A.id, B.id]);
+  // And the text it started from, which a rebase compares with.
+  expect(stored.base.title).toBe("Plan");
+  expect(stored.base.steps[A.id]).toEqual({
+    title: "Alpha",
+    description: "",
+    parentId: null,
+  });
+});
+it("edits one step's text alone, with the step's own revision", async () => {
+  const calls: { url: string; method: string; body: unknown }[] = [];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const url = String(input);
+    const method = init?.method ?? "GET";
+    const json = (data: unknown) =>
+      new Response(JSON.stringify(data), { status: 200 });
+    if (method !== "GET") {
+      calls.push({ url, method, body: JSON.parse(String(init?.body)) });
+      return json({ ...B, title: "Beta, renamed", revision: 3, roadmapId: ROADMAP });
+    }
+    if (url.includes(`/roadmaps/${ROADMAP}`))
+      return json(roadmap(4, [A, { ...B, revision: 2 }, C]));
+    return json({ items: [], total: 0 });
+  });
+  render(withClient(<RoadmapDetail id={ROADMAP} step={B.id} />));
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Edit step" }),
+  );
+  const form = screen.getByRole("form", { name: "Edit step Beta" });
+  const save = within(form).getByRole("button", { name: "Save step" });
+  expect(save).toBeDisabled();
+  const title = within(form).getByRole("textbox", { name: "Step title" });
+  await userEvent.clear(title);
+  await userEvent.type(title, "Beta, renamed ");
+  await userEvent.type(
+    within(form).getByRole("textbox", { name: "Description (Markdown)" }),
+    "AB#1559",
+  );
+  await userEvent.click(save);
+  await waitFor(() => expect(calls).toHaveLength(1));
+  expect(calls[0].url).toContain(`/api/v1/steps/${B.id}`);
+  expect(calls[0].method).toBe("PATCH");
+  expect(calls[0].body).toEqual({
+    revision: 2,
+    title: "Beta, renamed",
+    description: "AB#1559",
+  });
+  // Saved, the form gives way to the step's heading: one or the other, never both.
+  expect(
+    await screen.findByRole("button", { name: "Edit step" }),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("form", { name: "Edit step Beta" })).toBeNull();
+});
+it("shows the step's new text before replacing it, when it changed meanwhile", async () => {
+  const patches: unknown[] = [];
+  let current = roadmap(4, [A, { ...B, revision: 2 }, C]);
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const url = String(input);
+    const method = init?.method ?? "GET";
+    const json = (data: unknown, status = 200) =>
+      new Response(JSON.stringify(data), { status });
+    if (method !== "GET") {
+      const body = JSON.parse(String(init?.body));
+      patches.push(body);
+      if (body.revision !== 3)
+        return json(
+          {
+            error: {
+              code: "conflict",
+              message: "This record changed. Reload and review your draft.",
+            },
+          },
+          409,
+        );
+      return json({ ...B, ...body, revision: 4, roadmapId: ROADMAP });
+    }
+    if (url.includes(`/roadmaps/${ROADMAP}`)) return json(current);
+    return json({ items: [], total: 0 });
+  });
+  render(withClient(<RoadmapDetail id={ROADMAP} step={B.id} />));
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Edit step" }),
+  );
+  await userEvent.type(
+    screen.getByRole("textbox", { name: "Description (Markdown)" }),
+    "Mine",
+  );
+  // An agent's step.update lands first.
+  current = roadmap(5, [A, { ...B, description: "ADO rev 7", revision: 3 }, C]);
+  await userEvent.click(screen.getByRole("button", { name: "Save step" }));
+  expect(
+    await screen.findByText(/text changed since you opened it/),
+  ).toBeInTheDocument();
+  expect(screen.getByText("ADO rev 7")).toBeInTheDocument();
+  // What was typed here stays, and saving again replaces the new text knowingly.
+  expect(
+    screen.getByRole("textbox", { name: "Description (Markdown)" }),
+  ).toHaveValue("Mine");
+  await userEvent.click(screen.getByRole("button", { name: "Save step" }));
+  await waitFor(() => expect(patches).toHaveLength(2));
+  expect(patches).toEqual([
+    { revision: 2, title: "Beta", description: "Mine" },
+    { revision: 3, title: "Beta", description: "Mine" },
+  ]);
 });
 it("offers a rebase, keeping the draft and note, when a save conflicts", async () => {
   let current = roadmap(4, [A, B]);

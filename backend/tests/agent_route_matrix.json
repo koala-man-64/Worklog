@@ -79,6 +79,7 @@
   "PATCH /api/v1/repositories/{identity}": "refused",
   "PATCH /api/v1/resources/{identity}": "refused",
   "PATCH /api/v1/settings": "refused",
+  "PATCH /api/v1/steps/{identity}": "refused",
   "PATCH /api/v1/steps/{identity}/progress": "refused",
   "PATCH /api/v1/tasks/{identity}": "refused",
   "PATCH /api/v1/tickets/{ref}": "reaches handler",

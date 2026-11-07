@@ -545,6 +545,10 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def progress(identity: str, request: Request, body: m.Progress) -> dict:
         return apply(request, "progress.set", {"id": identity, **body.model_dump()})
 
+    @app.patch("/api/v1/steps/{identity}")
+    def update_step(identity: str, request: Request, body: m.StepUpdate) -> dict:
+        return apply(request, "step.update", {**body.model_dump(exclude_unset=True), "id": identity})
+
     @app.get("/api/v1/steps/{identity}")
     def step_detail(identity: str) -> dict:
         with db.read() as c:

@@ -2,7 +2,7 @@
 
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, model_validator
 
 Revision = Annotated[StrictInt, Field(ge=0)]
 # A ticket's or a roadmap step's state.
@@ -433,6 +433,19 @@ class Progress(Expected):
     status: State
 
 
+class StepUpdate(Expected):
+    """revision is the step's own. A field given replaces the step's text; one left out keeps it."""
+    title: str | None = None
+    description: str | None = None
+
+    @model_validator(mode="after")
+    def _gives_text(self):
+        # Checked by the model, a change with no text is refused at submit, not only at approve.
+        if self.title is None and self.description is None:
+            raise ValueError("Give the step's title, its description or both")
+        return self
+
+
 class ImportCommit(Command):
     title: str
     overview: str = ""
@@ -445,7 +458,7 @@ class Operation(Command):
     action: Literal["repository.create", "repository.update", "repository.archive", "repository.recover",
                     "item.create", "item.update", "item.archive", "item.recover", "entry.upsert",
                     "note.create", "note.update", "task.create", "task.update",
-                    "roadmap.create", "roadmap.revise", "roadmap.move", "progress.set",
+                    "roadmap.create", "roadmap.revise", "roadmap.move", "progress.set", "step.update",
                     "person.create", "person.update", "person.archive", "person.recover",
                     "person.link", "person.unlink",
                     "link.create", "link.update", "link.archive", "link.recover", "attachment.create",
