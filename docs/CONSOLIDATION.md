@@ -562,6 +562,9 @@ Done so far:
 - **Typed writes, second batch.** Work items, a day's entries and reflection, roadmaps, steps, people and their ties.
   - A roadmap's commands answer with its steps and versions, and with supporting lists that are always empty, which its read fills.
   - A command that names nothing back answers `{"ok": true}` (`Done`). So does counting a page view, which came in with #158.
+- **Typed writes, third batch.** Resources, reminders, releases with their contents and checks, tickets with their comments, and repositories.
+  - A release's and a check's commands answer without the `pastDue` their reads add.
+  - Registering a repository's address answers with the record that holds it and whether it is new.
 
 #### 5.4 · Frontend layout
 

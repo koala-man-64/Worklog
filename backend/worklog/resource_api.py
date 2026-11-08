@@ -30,17 +30,17 @@ def install_resource_routes(app: FastAPI, db: Database, mutate: Callable) -> Non
     def resource(identity: str) -> dict:
         return read(lambda c: service.detail(c, identity))
 
-    @app.post("/api/v1/resources")
+    @app.post("/api/v1/resources", response_model=out.ResourcePage)
     def resource_create(request: Request, body: m.ResourceCreate) -> dict:
         p = body.model_dump()
         return mutate(request, p, lambda c, a: service.create(c, a, p), required_key=True)
 
-    @app.patch("/api/v1/resources/{identity}")
+    @app.patch("/api/v1/resources/{identity}", response_model=out.ResourcePage)
     def resource_update(identity: str, request: Request, body: m.ResourceUpdate) -> dict:
         p = body.model_dump(exclude_unset=True)
         return mutate(request, p, lambda c, a: service.update(c, a, identity, p))
 
-    @app.post("/api/v1/resources/{identity}/{verb}")
+    @app.post("/api/v1/resources/{identity}/{verb}", response_model=out.ResourcePage)
     def resource_archive(identity: str, verb: str, request: Request, body: m.Expected) -> dict:
         if verb not in {"archive", "recover"}:
             raise AppError(404, "not_found", "Unknown resource command")

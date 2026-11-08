@@ -50,29 +50,29 @@ def install_coordination_routes(app: FastAPI, db: Database, mutate: Callable) ->
         return read(lambda c: {**with_discussion(c, repository_record(_get(c, "repositories", identity))),
                                "people": people_on(c, "repository", [identity])[identity]})
 
-    @app.post("/api/v1/repositories")
+    @app.post("/api/v1/repositories", response_model=out.EnsuredRepository)
     def repository_create(request: Request, body: m.RepositoryCreate) -> dict:
         return write(request, body, lambda c, a: repository_apply(c, a, "repository.create", body.model_dump()))
 
-    @app.post("/api/v1/repositories/ensure")
+    @app.post("/api/v1/repositories/ensure", response_model=out.EnsuredRepository)
     def repository_ensure_route(request: Request, body: m.RepositoryEnsure) -> dict:
         return write(request, body, lambda c, a: repository_ensure(c, a, body.model_dump()))
 
-    @app.patch("/api/v1/repositories/{identity}")
+    @app.patch("/api/v1/repositories/{identity}", response_model=out.DiscussedRepository)
     def repository_update(identity: str, request: Request, body: m.RepositoryUpdate) -> dict:
         return write(request, body, lambda c, a: repository_apply(c, a, "repository.update", {"id": identity, **body.model_dump(exclude_unset=True)}), required_key=False, exclude_unset=True)
 
     # Registered before /repositories/{identity}/{verb}. Agents cannot reach it: merging is a person's call.
-    @app.post("/api/v1/repositories/{identity}/merge")
+    @app.post("/api/v1/repositories/{identity}/merge", response_model=out.DiscussedRepository)
     def repository_merge_into(identity: str, request: Request, body: m.RepositoryMerge) -> dict:
         return write(request, body, lambda c, a: repository_merge(c, a, identity, body.model_dump()))
 
     # The person confirms what an agent registered; registered before /repositories/{identity}/{verb}.
-    @app.post("/api/v1/repositories/{identity}/confirm")
+    @app.post("/api/v1/repositories/{identity}/confirm", response_model=out.DiscussedRepository)
     def repository_confirm_route(identity: str, request: Request, body: Expected) -> dict:
         return write(request, body, lambda c, a: repository_confirm(c, a, identity, body.model_dump()))
 
-    @app.post("/api/v1/repositories/{identity}/{verb}")
+    @app.post("/api/v1/repositories/{identity}/{verb}", response_model=out.DiscussedRepository)
     def repository_archive(identity: str, verb: str, request: Request, body: Expected) -> dict:
         if verb not in {"archive", "recover"}:
             raise AppError(404, "not_found", "Unknown repository command")
