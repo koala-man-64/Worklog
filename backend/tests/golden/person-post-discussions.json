@@ -1,0 +1,47 @@
+{
+  "status": 200,
+  "body": {
+    "discussion": {
+      "id": "<id1>",
+      "title": "Parser",
+      "archived": false,
+      "revision": 1,
+      "createdAt": "<time>",
+      "updatedAt": "<time>",
+      "pinned": false,
+      "pinnedAt": null,
+      "contexts": [
+        {
+          "type": "item",
+          "id": "<id2>",
+          "title": "Parser",
+          "archived": false,
+          "status": "doing",
+          "home": false,
+          "addedBy": {
+            "id": "local-user",
+            "label": "You",
+            "kind": "human"
+          },
+          "addedAt": "<time>"
+        }
+      ],
+      "repos": [],
+      "pendingCount": 0,
+      "repository": null
+    },
+    "message": {
+      "id": "<id3>",
+      "discussionId": "<id1>",
+      "text": "Where do we start?",
+      "authorId": "local-user",
+      "authorLabel": "You",
+      "authorKind": "human",
+      "createdAt": "<time>",
+      "chatId": null,
+      "onBehalfOfRoleId": null,
+      "ownershipGeneration": null,
+      "request": null
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "roadmapId": "<id2>",
+    "title": "Which parser?",
+    "details": "",
+    "answer": "",
+    "status": "open",
+    "archived": false,
+    "revision": 1,
+    "createdAt": "<time>",
+    "updatedAt": "<time>"
+  }
+}

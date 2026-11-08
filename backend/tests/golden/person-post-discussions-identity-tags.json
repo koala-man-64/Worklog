@@ -1,0 +1,45 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "title": "Parser",
+    "archived": false,
+    "revision": 3,
+    "createdAt": "<time>",
+    "updatedAt": "<time>",
+    "pinned": false,
+    "pinnedAt": null,
+    "contexts": [
+      {
+        "type": "item",
+        "id": "<id2>",
+        "title": "Parser",
+        "archived": false,
+        "status": "doing",
+        "home": false,
+        "addedBy": {
+          "id": "local-user",
+          "label": "You",
+          "kind": "human"
+        },
+        "addedAt": "<time>"
+      },
+      {
+        "type": "roadmap",
+        "id": "<id3>",
+        "title": "Plan 2",
+        "archived": false,
+        "home": false,
+        "addedBy": {
+          "id": "local-user",
+          "label": "You",
+          "kind": "human"
+        },
+        "addedAt": "<time>"
+      }
+    ],
+    "repos": [],
+    "pendingCount": 0,
+    "repository": null
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "title": "Rename",
+    "rationale": "Clearer",
+    "status": "draft",
+    "autoApproved": false,
+    "revision": 1,
+    "actorId": "<id2>",
+    "actorLabel": "Builder",
+    "actorDirectory": null,
+    "operations": [],
+    "supersedesId": null,
+    "createdAt": "<time>",
+    "updatedAt": "<time>",
+    "submittedAt": null,
+    "attachments": []
+  }
+}

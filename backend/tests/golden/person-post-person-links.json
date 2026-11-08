@@ -1,0 +1,15 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "personId": "<id2>",
+    "name": "Ada",
+    "personTitle": "Engineer",
+    "personTeam": "",
+    "targetType": "item",
+    "targetId": "<id3>",
+    "relationship": "Reviewer",
+    "archived": false,
+    "createdAt": "<time>"
+  }
+}

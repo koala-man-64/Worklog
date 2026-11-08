@@ -1,0 +1,56 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "discussionId": "<id2>",
+    "text": "Confirm the table plan",
+    "authorId": "local-user",
+    "authorLabel": "You",
+    "authorKind": "human",
+    "createdAt": "<time>",
+    "chatId": null,
+    "onBehalfOfRoleId": null,
+    "ownershipGeneration": null,
+    "request": {
+      "id": "<id1>",
+      "mode": "all",
+      "state": "satisfied",
+      "targets": [
+        {
+          "id": "<id3>",
+          "kind": "agent",
+          "recipientId": "<id4>",
+          "label": "Builder",
+          "ownerId": null,
+          "ownershipGeneration": null,
+          "acknowledged": true,
+          "acknowledgedBy": "<id4>"
+        }
+      ],
+      "receipts": [
+        {
+          "id": "<id5>",
+          "targetId": "<id3>",
+          "actorId": "<id4>",
+          "actorLabel": "Builder",
+          "actorKind": "agent",
+          "roleId": null,
+          "ownershipGeneration": null,
+          "createdAt": "<time>",
+          "late": false
+        }
+      ],
+      "actionableTargetIds": [],
+      "canCancel": false,
+      "canRelease": false,
+      "classifications": [],
+      "reason": null,
+      "terminalAt": "<time>",
+      "terminalActorId": "<id4>",
+      "terminalActorLabel": "Builder",
+      "terminalActorKind": "agent",
+      "authorityRoleId": null,
+      "authorityGeneration": null
+    }
+  }
+}

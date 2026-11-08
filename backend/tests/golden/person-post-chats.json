@@ -1,0 +1,20 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "ownerType": "item",
+    "ownerId": "<id2>",
+    "chatId": "chat-1",
+    "title": "Build",
+    "createdDate": "<today>",
+    "archived": false,
+    "revision": 1,
+    "createdAt": "<time>",
+    "updatedAt": "<time>",
+    "provider": "",
+    "model": "",
+    "repos": [],
+    "stepIds": [],
+    "repositoryIds": []
+  }
+}
