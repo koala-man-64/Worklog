@@ -279,15 +279,21 @@ def backup_database(db_path: Path | str, backup_dir: Path | str,
         os.replace(stage, target)
     finally:
         stage.unlink(missing_ok=True)
-    keep = {"daily": 14, "pre-migration": 3, "pre-compact": 3}.get(kind)
+    # Compaction prunes its own backups, once a compaction has finished (compaction.BACKUPS_KEPT).
+    keep = {"daily": 14, "pre-migration": 3}.get(kind)
     if keep is not None:
-        for old in sorted(directory.glob(f"worklog-{kind}-*.sqlite3"), reverse=True)[keep:]:
-            old.unlink()
+        prune_backups(directory, kind, keep)
     # The new backup is hashed for its metadata anyway, so the next listing need not hash it again.
     cache = _hash_cache(directory)
     result = _metadata(target, cache=cache)
     _save_hash_cache(directory, cache)
     return result
+
+
+def prune_backups(backup_dir: Path | str, kind: str, keep: int) -> None:
+    """Delete all but the newest `keep` backups of a kind, by the time in their names."""
+    for old in sorted(Path(backup_dir).glob(f"worklog-{kind}-*.sqlite3"), reverse=True)[keep:]:
+        old.unlink()
 
 
 def automatic_backup(db_path: Path | str, backup_dir: Path | str) -> dict[str, Any] | None:

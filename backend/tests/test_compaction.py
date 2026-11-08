@@ -97,10 +97,13 @@ def world(tmp_path):
         for number in range(2, 26):
             roadmap = call(c, "POST", f"/roadmaps/{roadmap['id']}/revisions",
                            {"revision": roadmap["revision"], "title": f"Plan {number}", "steps": [{"id": step, "title": "Step"}]})
+        small = call(c, "POST", "/roadmaps", {"title": "Small 1", "steps": []})
+        for number in (2, 3):
+            small = call(c, "POST", f"/roadmaps/{small['id']}/revisions", {"revision": small["revision"], "title": f"Small {number}", "steps": []})
         imports = [c.post(f"/api/v1/imports/preview?name={name}.html", content=HTML).json() for name in ("kept", "left")]
         committed = call(c, "POST", f"/imports/{imports[0]['id']}/commit", {"title": "Imported", "steps": []})
         before = {"day": day, "today": call(c, "GET", f"/days/{day}"), "roadmap": roadmap["id"], "step": step,
-                  "committed": committed["id"], "imports": [i["id"] for i in imports], "done": done["id"],
+                  "committed": committed["id"], "imports": [i["id"] for i in imports], "done": done["id"], "small": small["id"],
                   "search": call(c, "GET", "/search?q=Finished")}
     database = data / "worklog.sqlite3"
     with closing(sqlite3.connect(database)) as conn:
@@ -118,6 +121,7 @@ def world(tmp_path):
 def test_compaction_thins_old_display_history_and_keeps_every_record_and_state(world):
     data, database, before = world
     result = compact_database(database, data / "backups", now=LATER)
+    assert result["bytesAfter"] == database.stat().st_size
 
     # Every event row is there, in its order. Kinds that hold state keep their payloads byte for
     # byte; display-only ones keep their records' id, title, status and _statusChanged.
@@ -155,6 +159,7 @@ def test_compaction_thins_old_display_history_and_keeps_every_record_and_state(w
         assert call(c, "GET", "/search?q=Finished") == before["search"]
         roadmap = call(c, "GET", f"/roadmaps/{before['roadmap']}")
         assert [v["number"] for v in roadmap["versions"]] == list(range(6, 26))
+        assert [v["number"] for v in call(c, "GET", f"/roadmaps/{before['small']}")["versions"]] == [1, 2, 3]
         assert c.get(f"/api/v1/roadmaps/{before['roadmap']}/revisions/5").status_code == 404
         assert call(c, "GET", f"/roadmaps/{before['roadmap']}/revisions/6")["title"] == "Plan 6"
         revised = call(c, "POST", f"/roadmaps/{before['roadmap']}/revisions",
@@ -168,7 +173,6 @@ def test_compaction_thins_old_display_history_and_keeps_every_record_and_state(w
     assert rows(database, "SELECT count(*) FROM search_keys k LEFT JOIN search_index s ON s.rowid=k.doc "
                           "WHERE s.rowid IS NULL OR s.entity_id<>k.entity_id") == [(0,)]
     assert result["bytesReclaimed"] == result["bytesBefore"] - result["bytesAfter"]
-    assert result["bytesAfter"] == database.stat().st_size
     assert [p.name for p in data.iterdir() if p.name.startswith(".compact-")] == []
 
 
@@ -239,10 +243,75 @@ def test_a_failure_before_the_swap_leaves_the_database_as_it_was(world, monkeypa
         return real_replace(source, destination)
 
     monkeypatch.setattr(compaction.os, "replace", swap_refused)
-    with pytest.raises(PermissionError):
+    with pytest.raises(RuntimeError, match="open in another program"):
         compact_database(database, data / "backups", now=LATER)
     assert digest(database) == original
     assert [p.name for p in data.iterdir() if p.name.startswith(".compact-")] == []
+    # Each run's backup only repeated the database, so it went again.
+    assert list((data / "backups").glob("worklog-pre-compact-*")) == []
+
+
+def test_only_finished_compactions_keep_backups_and_the_three_newest_stay(world, monkeypatch):
+    # From the review of step 4.3: failed runs used to push out the backup holding the history.
+    data, database, _ = world
+    backups = data / "backups"
+    names = [compact_database(database, backups, now=LATER)["preCompactBackup"]["name"] for _ in range(4)]
+    assert sorted(p.name for p in backups.glob("worklog-pre-compact-*")) == sorted(names[1:])
+    real_validate = compaction.validate_database
+    calls = []
+
+    def fails_once_swapped(path, **options):
+        calls.append(path)
+        if len(calls) == 3:  # the database itself, the copy, then the database after the swap
+            raise ValueError("Database integrity check failed")
+        return real_validate(path, **options)
+
+    monkeypatch.setattr(compaction, "validate_database", fails_once_swapped)
+    with pytest.raises(RuntimeError, match="restore worklog-pre-compact-") as failure:
+        compact_database(database, backups, now=LATER)
+    # The swap happened, so the backup it names is the way back, and stays.
+    kept = str(failure.value).split("restore ")[1].split(" ")[0]
+    assert (backups / kept).is_file() and len(list(backups.glob("worklog-pre-compact-*"))) == 4
+
+
+def test_a_payload_that_is_not_json_stops_compaction_and_changes_nothing(world):
+    data, database, _ = world
+    with closing(sqlite3.connect(database)) as conn:
+        conn.execute("UPDATE events SET after_json='{not json' WHERE kind='item.create'")
+        conn.commit()
+    original = digest(database)
+    with pytest.raises(ValueError, match="not JSON"):
+        compact_database(database, data / "backups", now=LATER)
+    assert digest(database) == original
+    assert list((data / "backups").glob("worklog-pre-compact-*")) == []
+
+
+def test_compaction_refuses_a_database_another_connection_is_reading(world):
+    data, database, _ = world
+    with closing(sqlite3.connect(database, isolation_level=None)) as reader:
+        reader.execute("BEGIN")
+        reader.execute("SELECT count(*) FROM events").fetchone()
+        with pytest.raises(RuntimeError, match="before compacting"):
+            compact_database(database, data / "backups", now=LATER)
+        reader.execute("ROLLBACK")
+
+
+def test_a_run_killed_part_way_leaves_nothing_the_next_one_keeps(world):
+    data, database, _ = world
+    for name in (".compact-left.sqlite3", ".compact-left.sqlite3-journal"):
+        (data / name).write_bytes(b"left by a killed run")
+    compact_database(database, data / "backups", now=LATER)
+    assert [p.name for p in data.iterdir() if p.name.startswith(".compact-")] == []
+
+
+def test_vacuum_must_keep_the_order_history_is_read_in(world, monkeypatch):
+    data, database, _ = world
+    original = digest(database)
+    orders = iter(["before", "after"])
+    monkeypatch.setattr(compaction, "_event_order", lambda conn: next(orders))
+    with pytest.raises(ValueError, match="changed the order of events"):
+        compact_database(database, data / "backups", now=LATER)
+    assert digest(database) == original
 
 
 def test_the_cli_compacts_and_reports_or_explains_a_refusal(world, capsys):

@@ -2,14 +2,14 @@
 
 Worklog keeps every record and every event row. Compaction lets go of what K6 decided it may:
 
-- The payloads of display-only history older than HISTORY_DAYS. An event of a THINNED kind keeps
-  the KEPT fields of its before and after records: Today's completed and blocked lists, and each
-  day entry's status on its day, replay item events by them. Any other payload becomes null.
-  Every other kind keeps its payloads whole, since they hold state, are read at runtime, or are
-  history the guides promise (CONSOLIDATION.md's *Rules*): credentials, proposals, chats,
-  discussions, resources, releases, settings and the rest. No event row goes:
-  discussion_changes names events, and history is read in the order it was written, by rowid,
-  which VACUUM keeps.
+- The payloads of display-only history older than HISTORY_DAYS. An event of a THINNED family
+  keeps only the KEPT fields of its before and after records, so an object with none of them
+  becomes {}: Today's completed and blocked lists, and each day entry's status on its day, replay
+  item events by those fields. A payload that is not an object becomes null. Every other family
+  keeps its payloads whole, since they hold state, are read at runtime, or are history the guides
+  promise (CONSOLIDATION.md's *Rules*): credentials, proposals, chats, discussions, agent ties,
+  resources, releases, settings and the rest. No event row goes: discussion_changes names events,
+  and history is read in the order it was written, by rowid, which VACUUM must keep.
 - Each roadmap's versions but its VERSIONS_KEPT newest.
 - Plan imports never committed to a roadmap, IMPORT_DAYS after their preview.
 - Idempotency receipts past their retention (maintenance.prune_receipts).
@@ -17,11 +17,12 @@ Worklog keeps every record and every event row. Compaction lets go of what K6 de
 VACUUM then hands the space back. Compaction runs while Worklog is stopped, under the server's
 lock, after a pre-compaction backup. It works on a copy beside the database: the copy is
 compacted, vacuumed and validated, and only then renamed into the database's place, so a failure
-before that rename leaves the database as it was.
+before that rename leaves the database as it was, and takes the run's backup away again.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sqlite3
@@ -39,15 +40,20 @@ from .recovery import (
     _readonly,
     _snapshot,
     backup_database,
+    prune_backups,
     validate_database,
 )
 
 HISTORY_DAYS = 90
 VERSIONS_KEPT = 20
 IMPORT_DAYS = 7
-# The kinds, by the part of their name before the first dot, whose payloads only show in history:
-# work items and the day's plan, supporting records, and roadmaps with their steps, progress and
-# imports. A kind not listed keeps its payloads whole, so a new kind is kept until it is listed.
+# The pre-compaction backups kept: those of the newest compactions that finished.
+BACKUPS_KEPT = 3
+# The families of kinds, by the part of a kind's name before its first dot, whose payloads only show
+# in history: work items and the day's plan, supporting records, and roadmaps with their steps,
+# progress and imports. Every kind of a listed family is thinned, a new one too, so a payload of
+# these families must never hold state: state goes in columns (CONSOLIDATION.md's *Rules*). A kind
+# of any other family keeps its payloads whole.
 THINNED = frozenset({"item", "entry", "day", "backlog", "note", "task", "link", "github", "reference",
                      "question", "decision", "attachment", "step", "roadmap", "progress", "import"})
 KEPT = ("id", "title", "status", "_statusChanged")
@@ -67,9 +73,12 @@ def thinned(payload: Any) -> Any:
 
 def compact_database(db_path: Path | str, backup_dir: Path | str, *, now: datetime | None = None) -> dict[str, Any]:
     """Compact the stopped database at db_path, as the module says, and report what went."""
-    target = Path(db_path).resolve()
+    target, backups = Path(db_path).resolve(), Path(backup_dir)
     moment = now or datetime.now(UTC)
     with InstanceLock(target.parent):
+        # A run killed part way leaves its copy behind; the lock keeps any other run out.
+        for leftover in target.parent.glob(".compact-*.sqlite3*"):
+            leftover.unlink(missing_ok=True)
         _check_offline(target)
         validate_database(target)
         with closing(_readonly(target)) as conn:
@@ -78,10 +87,11 @@ def compact_database(db_path: Path | str, backup_dir: Path | str, *, now: dateti
             raise ValueError(f"The database is at schema version {version}: start Worklog once to upgrade it "
                              f"to version {SCHEMA_VERSION}, stop it, then compact")
         size = target.stat().st_size
-        backup = backup_database(target, backup_dir, "pre-compact")
+        backup = backup_database(target, backups, "pre-compact")
         descriptor, name = tempfile.mkstemp(prefix=".compact-", suffix=".sqlite3", dir=target.parent)
         os.close(descriptor)
         stage = Path(name)
+        swapped = False
         try:
             _snapshot(target, stage)
             counts = _compact(stage, moment)
@@ -90,16 +100,26 @@ def compact_database(db_path: Path | str, backup_dir: Path | str, *, now: dateti
                 os.fsync(stream.fileno())
             compacted = stage.stat().st_size
             _check_offline(target)
-            os.replace(stage, target)
+            try:
+                os.replace(stage, target)
+            except PermissionError as exc:
+                raise RuntimeError("The database is open in another program, so it was not changed: close "
+                                   "that program, then compact again") from exc
+            swapped = True
         finally:
             stage.unlink(missing_ok=True)
             # The copy's own rollback journal, left by a failure while the copy was written.
             stage.with_name(stage.name + "-journal").unlink(missing_ok=True)
+            if not swapped:
+                # The database is as it was, so this run's backup only repeats it. Taking it away keeps
+                # failed runs from pushing out the backup of a compaction that finished.
+                (backups / backup["name"]).unlink(missing_ok=True)
         try:
             validate_database(target)
         except ValueError as exc:
             raise RuntimeError(f"The compacted database failed validation ({exc}); restore {backup['name']} "
                                "from the backups folder") from exc
+        prune_backups(backups, "pre-compact", BACKUPS_KEPT)
     return {"compacted": target.name, **counts, "bytesBefore": size, "bytesAfter": compacted,
             "bytesReclaimed": size - compacted, "preCompactBackup": backup}
 
@@ -137,8 +157,22 @@ def _compact(stage: Path, moment: datetime) -> dict[str, int]:
             if conn.in_transaction:
                 conn.execute("ROLLBACK")
             raise
+        # SQLite documents that VACUUM may renumber the rowids of a table without an INTEGER PRIMARY
+        # KEY, as events is. It keeps those of a table with an index, as events has, but history is
+        # read in rowid order, so the order is checked rather than trusted.
+        order = _event_order(conn)
         conn.execute("VACUUM")
+        if _event_order(conn) != order:
+            raise ValueError("VACUUM changed the order of events, so the database was not changed")
     return counts
+
+
+def _event_order(conn: sqlite3.Connection) -> str:
+    """A digest of the events' ids in rowid order, the order history is read in."""
+    digest = hashlib.sha256()
+    for (identity,) in conn.execute("SELECT id FROM events ORDER BY rowid"):
+        digest.update(identity.encode("utf-8") + b"\0")
+    return digest.hexdigest()
 
 
 def _thin_events(conn: sqlite3.Connection, cutoff: str) -> int:
