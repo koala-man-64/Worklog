@@ -166,6 +166,9 @@ class World:
             {"action": "question.create", "payload": {"roadmapId": roadmap["id"], "title": "Who reviews?"}}]})
         submitted = self.write(a, "POST", f"/proposals/{proposed['id']}/submit", {"revision": proposed["revision"]})
         self.write(p, "POST", f"/proposals/{proposed['id']}/approve", {"revision": submitted["revision"]})
+        # The agent posts an update on its participation, so the updates and its activity list one.
+        self.write(a, "POST", f"/participations/{ids['participation']}/updates", {"kind": "update",
+                                                                                  "text": "Parser half done"})
 
 
 def concrete(template: str, ids: dict[str, str], today: str) -> str:

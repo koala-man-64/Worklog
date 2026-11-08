@@ -1,8 +1,33 @@
 {
   "status": 200,
   "body": {
-    "items": [],
-    "total": 0,
+    "items": [
+      {
+        "kind": "update",
+        "id": "<id1>",
+        "createdAt": "<time>",
+        "text": "Parser half done",
+        "truncated": false,
+        "updateKind": "update",
+        "runName": "Builder",
+        "participationId": "<id2>",
+        "item": {
+          "id": "<id3>",
+          "title": "Parser"
+        },
+        "contexts": [
+          {
+            "repositoryId": "<id4>",
+            "repositoryName": "worklog",
+            "archived": false,
+            "checkoutPath": "",
+            "worktreePath": "",
+            "branch": ""
+          }
+        ]
+      }
+    ],
+    "total": 1,
     "limit": 50,
     "offset": 0
   }

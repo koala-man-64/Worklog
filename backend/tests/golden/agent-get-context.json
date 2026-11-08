@@ -304,7 +304,7 @@
               "branch": ""
             }
           ],
-          "revision": 1,
+          "revision": 2,
           "createdAt": "<time>",
           "updatedAt": "<time>",
           "lastSeenAt": "<time>",
@@ -332,15 +332,38 @@
       "offset": 0
     },
     "updates": {
-      "items": [],
-      "total": 0,
+      "items": [
+        {
+          "id": "<id17>",
+          "participationId": "<id16>",
+          "runId": "<id14>",
+          "agentId": "<id10>",
+          "credentialId": "<id10>",
+          "authorLabel": "Builder",
+          "kind": "update",
+          "text": "Parser half done",
+          "itemId": "<id2>",
+          "contexts": [
+            {
+              "repositoryId": "<id12>",
+              "repositoryName": "worklog",
+              "archived": false,
+              "checkoutPath": "",
+              "worktreePath": "",
+              "branch": ""
+            }
+          ],
+          "createdAt": "<time>"
+        }
+      ],
+      "total": 1,
       "limit": 100,
       "offset": 0
     },
     "tickets": {
       "items": [
         {
-          "id": "<id17>",
+          "id": "<id18>",
           "number": 1,
           "key": "T-1",
           "title": "Crash on save",
@@ -393,7 +416,7 @@
     "resources": {
       "items": [
         {
-          "id": "<id18>",
+          "id": "<id19>",
           "title": "Style",
           "summary": "How we write",
           "archived": false,
@@ -409,7 +432,7 @@
     "releases": {
       "items": [
         {
-          "id": "<id19>",
+          "id": "<id20>",
           "title": "1.0",
           "description": "",
           "releaseDate": "2026-12-01",

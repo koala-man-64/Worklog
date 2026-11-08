@@ -86,7 +86,8 @@
             "archived": false
           },
           "via": [
-            "participation"
+            "participation",
+            "update"
           ],
           "current": true,
           "lastAt": "<time>"
@@ -101,7 +102,8 @@
           "title": "Plan 2",
           "archived": false,
           "via": [
-            "participation"
+            "participation",
+            "update"
           ],
           "current": true,
           "lastAt": "<time>"
@@ -116,7 +118,8 @@
           "name": "worklog",
           "archived": false,
           "via": [
-            "participation"
+            "participation",
+            "update"
           ],
           "current": true,
           "lastAt": "<time>"
