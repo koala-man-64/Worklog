@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Avatar } from "./Avatar";
 import { commands } from "./commands";
-import { ErrorMessage } from "./components";
+import { ErrorMessage } from "./ui/Messages";
 import { refreshAfterWrite, useCommand, useData } from "./hooks";
 import {
   clockIn,

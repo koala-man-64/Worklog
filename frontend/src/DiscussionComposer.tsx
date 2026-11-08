@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { contextStorageKey } from "./api";
-import { ErrorMessage } from "./components";
+import { ErrorMessage } from "./ui/Messages";
 import {
   useContextSearch,
   ContextPicker,

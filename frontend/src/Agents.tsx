@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { AgentTiedTo, AgentTies } from "./AgentTies";
 import { useData } from "./hooks";
-import { Empty, ErrorMessage } from "./components";
+import { Empty, ErrorMessage } from "./ui/Messages";
 import { EndRun, Pages } from "./Coordination";
 import { AgentProposals } from "./ProposalHistory";
 import type {

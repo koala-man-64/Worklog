@@ -18,25 +18,18 @@ import {
   useStoredWidth,
   useWrites,
 } from "./hooks";
-import {
-  AgentChatsSection,
-  Empty,
-  ErrorMessage,
-  Files,
-  GithubRefsSection,
-  History,
-  ITEM_STATUSES,
-  LinksSection,
-  Markdown,
-  Notes,
-  PeopleLinks,
-  PersonBadges,
-  RecoverRecords,
-  ResizeHandle,
-  STATUSES,
-  StatusSelect,
-  StepAgentChats,
-} from "./components";
+import { AgentChatsSection, StepAgentChats } from "./sections/AgentChats";
+import { Files } from "./sections/Files";
+import { GithubRefsSection } from "./sections/GithubRefs";
+import { History } from "./sections/History";
+import { LinksSection } from "./sections/Links";
+import { Notes } from "./sections/Notes";
+import { PeopleLinks, PersonBadges } from "./sections/PeopleLinks";
+import { RecoverRecords } from "./sections/RecoverRecords";
+import { Markdown } from "./ui/Markdown";
+import { Empty, ErrorMessage } from "./ui/Messages";
+import { ResizeHandle } from "./ui/ResizeHandle";
+import { ITEM_STATUSES, STATUSES, StatusSelect } from "./ui/Status";
 import { AgentTies } from "./AgentTies";
 import { DecisionsSection, QuestionsSection } from "./QuestionsDecisions";
 import { AgentChips, workersOn } from "./RoadmapAgents";

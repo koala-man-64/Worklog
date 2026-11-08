@@ -1,7 +1,9 @@
 import { useEffect, useId, useState } from "react";
 import { commands } from "./commands";
 import { Pages } from "./Coordination";
-import { ChangeHistory, DraftField, Empty, ErrorMessage } from "./components";
+import { ChangeHistory } from "./sections/History";
+import { DraftField } from "./ui/DraftField";
+import { Empty, ErrorMessage } from "./ui/Messages";
 import {
   exactDiscussionDate,
   formatDiscussionDate,

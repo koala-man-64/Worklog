@@ -2,19 +2,15 @@ import { useState, type ReactNode } from "react";
 import { contextStorageKey, request, getDataContext } from "./api";
 import { commands } from "./commands";
 import { unsavedDraft, useCollapsed, useData, useWrites } from "./hooks";
-import {
-  Checklist,
-  DraftField,
-  Empty,
-  ErrorMessage,
-  Files,
-  ITEM_STATUSES,
-  LinksSection,
-  Scratchpad,
-  StatusSelect,
-  Markdown,
-  Tabs,
-} from "./components";
+import { Checklist } from "./sections/Checklist";
+import { Files } from "./sections/Files";
+import { LinksSection } from "./sections/Links";
+import { Scratchpad } from "./sections/Notes";
+import { DraftField } from "./ui/DraftField";
+import { Markdown } from "./ui/Markdown";
+import { Empty, ErrorMessage } from "./ui/Messages";
+import { ITEM_STATUSES, StatusSelect } from "./ui/Status";
+import { Tabs } from "./ui/Tabs";
 import { CreateItem } from "./Work";
 import { DaySummary } from "./DaySummary";
 import { TodayReminders } from "./RecordReminders";

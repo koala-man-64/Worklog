@@ -1,7 +1,8 @@
 import { useRef, useState, type FormEvent } from "react";
 import { contextStorageKey } from "./api";
 import { Avatar } from "./Avatar";
-import { ErrorMessage, Markdown } from "./components";
+import { Markdown } from "./ui/Markdown";
+import { ErrorMessage } from "./ui/Messages";
 import { useData, useWrites } from "./hooks";
 import { commands } from "./commands";
 import { localStore } from "./storage";

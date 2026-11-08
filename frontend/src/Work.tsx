@@ -3,24 +3,18 @@ import { useQuery } from "@tanstack/react-query";
 import { request, getDataContext } from "./api";
 import { commands } from "./commands";
 import { useCommand, useData, useWrites } from "./hooks";
-import {
-  AgentChatsSection,
-  Checklist,
-  DraftField,
-  Empty,
-  ErrorMessage,
-  Files,
-  GithubRefsSection,
-  History,
-  ITEM_STATUSES,
-  LinksSection,
-  PeopleLinks,
-  PersonBadges,
-  RecoverRecords,
-  Scratchpad,
-  StatusSelect,
-  statusLabel,
-} from "./components";
+import { AgentChatsSection } from "./sections/AgentChats";
+import { Checklist } from "./sections/Checklist";
+import { Files } from "./sections/Files";
+import { GithubRefsSection } from "./sections/GithubRefs";
+import { History } from "./sections/History";
+import { LinksSection } from "./sections/Links";
+import { Scratchpad } from "./sections/Notes";
+import { PeopleLinks, PersonBadges } from "./sections/PeopleLinks";
+import { RecoverRecords } from "./sections/RecoverRecords";
+import { DraftField } from "./ui/DraftField";
+import { Empty, ErrorMessage } from "./ui/Messages";
+import { ITEM_STATUSES, statusLabel, StatusSelect } from "./ui/Status";
 import type {
   Answer,
   Detail,

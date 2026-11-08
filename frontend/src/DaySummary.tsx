@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { ErrorMessage, Markdown, statusLabel } from "./components";
+import { Markdown } from "./ui/Markdown";
+import { ErrorMessage } from "./ui/Messages";
+import { statusLabel } from "./ui/Status";
 import type { Day, Entry, ItemStatus } from "./apiTypes";
 
 // The day's summary groups what was worked on by the status each item ended the day with:

@@ -1,17 +1,12 @@
 import { useRef, useState } from "react";
 import { commands } from "./commands";
 import { Pages } from "./Coordination";
-import {
-  DraftField,
-  Empty,
-  ErrorMessage,
-  History,
-  ITEM_STATUSES,
-  Markdown,
-  RecoverRecords,
-  StatusSelect,
-  statusLabel,
-} from "./components";
+import { History } from "./sections/History";
+import { RecoverRecords } from "./sections/RecoverRecords";
+import { DraftField } from "./ui/DraftField";
+import { Markdown } from "./ui/Markdown";
+import { Empty, ErrorMessage } from "./ui/Messages";
+import { ITEM_STATUSES, statusLabel, StatusSelect } from "./ui/Status";
 import { useCommand, useData, useWrites } from "./hooks";
 import { Icon } from "./icons";
 import { LinkPicker } from "./LinkPicker";

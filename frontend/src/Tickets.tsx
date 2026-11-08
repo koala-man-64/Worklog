@@ -2,15 +2,11 @@ import { useState } from "react";
 import { commands } from "./commands";
 import { useCommand, useData, useWrites } from "./hooks";
 import { AgentTies } from "./AgentTies";
-import {
-  ChangeHistory,
-  DraftField,
-  Empty,
-  ErrorMessage,
-  Markdown,
-  STATUSES,
-  StatusSelect,
-} from "./components";
+import { ChangeHistory } from "./sections/History";
+import { DraftField } from "./ui/DraftField";
+import { Markdown } from "./ui/Markdown";
+import { Empty, ErrorMessage } from "./ui/Messages";
+import { STATUSES, StatusSelect } from "./ui/Status";
 import { Pages } from "./Coordination";
 import { RecordReminders } from "./RecordReminders";
 import { Avatar } from "./Avatar";

@@ -6,7 +6,8 @@ import { NamedRuns } from "./Coordination";
 import { ChatOutbox } from "./ChatOutbox";
 import { ChatAgents, RunningSessions } from "./ChatTies";
 import { RecordReminders } from "./RecordReminders";
-import { Empty, ErrorMessage, Markdown } from "./components";
+import { Markdown } from "./ui/Markdown";
+import { Empty, ErrorMessage } from "./ui/Messages";
 import { Icon, type IconName } from "./icons";
 import { localStore } from "./storage";
 import type {
