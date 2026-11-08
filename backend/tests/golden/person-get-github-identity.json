@@ -1,0 +1,18 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "ownerType": "item",
+    "ownerId": "<id2>",
+    "kind": "pr",
+    "url": "https://github.com/example/repo/pull/1",
+    "reference": "example/repo#1",
+    "title": "",
+    "description": "",
+    "chatId": null,
+    "archived": false,
+    "revision": 1,
+    "createdAt": "<time>",
+    "updatedAt": "<time>"
+  }
+}

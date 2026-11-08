@@ -1,0 +1,26 @@
+{
+  "status": 200,
+  "body": {
+    "items": [
+      {
+        "id": "local-user",
+        "label": "You",
+        "kind": "human",
+        "active": true,
+        "avatar": null
+      },
+      {
+        "id": "<id1>",
+        "label": "Builder",
+        "kind": "agent",
+        "active": true,
+        "avatar": "red-dots-antenna"
+      }
+    ],
+    "self": {
+      "id": "local-user",
+      "label": "You",
+      "kind": "human"
+    }
+  }
+}

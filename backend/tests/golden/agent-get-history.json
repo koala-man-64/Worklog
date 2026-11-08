@@ -1,0 +1,96 @@
+{
+  "status": 200,
+  "body": {
+    "items": [
+      {
+        "id": "<id1>",
+        "entityId": "<id2>",
+        "kind": "entry.upsert",
+        "actorId": "local-user",
+        "actorLabel": "You",
+        "actorKind": "human",
+        "createdAt": "<time>",
+        "localDate": "<today>",
+        "before": null,
+        "after": {
+          "id": "<id3>",
+          "date": "<today>",
+          "itemId": "<id2>",
+          "planned": true,
+          "worked": true,
+          "outcome": "Half done",
+          "position": 1,
+          "revision": 1
+        }
+      },
+      {
+        "id": "<id4>",
+        "entityId": "<id2>",
+        "kind": "item.update",
+        "actorId": "local-user",
+        "actorLabel": "You",
+        "actorKind": "human",
+        "createdAt": "<time>",
+        "localDate": "<today>",
+        "before": {
+          "id": "<id2>",
+          "title": "Parser",
+          "description": "Parse the plan",
+          "status": "open",
+          "adoUrl": null,
+          "roadmapId": null,
+          "stepId": null,
+          "backlogOrder": 1,
+          "archived": false,
+          "revision": 1,
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "repositoryIds": []
+        },
+        "after": {
+          "id": "<id2>",
+          "title": "Parser",
+          "description": "Parse the plan",
+          "status": "doing",
+          "adoUrl": null,
+          "roadmapId": null,
+          "stepId": null,
+          "backlogOrder": 1,
+          "archived": false,
+          "revision": 2,
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "repositoryIds": [],
+          "_statusChanged": true
+        }
+      },
+      {
+        "id": "<id5>",
+        "entityId": "<id2>",
+        "kind": "item.create",
+        "actorId": "local-user",
+        "actorLabel": "You",
+        "actorKind": "human",
+        "createdAt": "<time>",
+        "localDate": "<today>",
+        "before": null,
+        "after": {
+          "id": "<id2>",
+          "title": "Parser",
+          "description": "Parse the plan",
+          "status": "open",
+          "adoUrl": null,
+          "roadmapId": null,
+          "stepId": null,
+          "archived": false,
+          "backlogOrder": 1,
+          "revision": 1,
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "repositoryIds": [],
+          "_statusChanged": false
+        }
+      }
+    ]
+  }
+}

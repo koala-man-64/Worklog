@@ -520,9 +520,14 @@ What changed: Settings lists them under "Agent identities", each as "Identity" a
 
 #### 5.3 · Typed responses, then typed commands
 
-Status: Not started · Branch: — · PR: —
+Status: In progress · Branch: `claude/golden-responses` · PR: [#139](https://github.com/koala-man-64/Worklog/pull/139); typing follows route by route
 
 None of the 146 operations has a typed response; the frontend keeps seven hand-written type files and three data-access styles. Type responses route by route, under golden tests (see *Rules*), then route every write through typed commands and delete the hand-written types. Findings: A-03, A-13.
+
+Done so far:
+- **Golden responses** (`test_golden_responses.py`). A world built through the API holds a record of every kind. Every GET route is read as the person and as an agent, and the answer must equal its file in `backend/tests/golden`, with IDs, times, today's date, the avatar suggested and feed cursors as placeholders.
+  - That covers 65 reads, 130 answers. The two that send files, the export and an import's original, are pinned by their own tests.
+  - The script writes the files only when two worlds built apart give the same answers.
 
 #### 5.4 · Frontend layout
 
@@ -669,3 +674,4 @@ These look like consolidation candidates but stay:
 - 2026-11-07: Step 4.2 split into two PRs while building it: backups off the request path with cached hashes first, then the streaming export.
 - 2026-11-07: K16's second PR, with no schema change: the agent guide's rule 11 (announce your work in each repository's discussion and check for overlap first), the overlap check (`GET /coordination-overlaps`, `agent overlaps`), one participant's profile (`GET /discussions/participants/{id}`, `discussions participant`) and `--ask` on `discussions post` and `reply`. An acknowledgement request that names its own author is now refused, since it could never be met. Both routes start in the policy table as agent reads. Neither carries a tracked chat or a credential, so the Agents page stays the person's.
 - 2026-11-08: Step 4.4 split into two PRs while building it: the read-only doctor first, then the schema version with the constraints.
+- 2026-11-08: Step 5.3 split into PRs while building it: golden responses for every read first, then typed responses route by route, then typed commands.

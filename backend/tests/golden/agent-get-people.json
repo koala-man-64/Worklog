@@ -1,0 +1,27 @@
+{
+  "status": 200,
+  "body": {
+    "items": [
+      {
+        "id": "<id1>",
+        "name": "Ada",
+        "title": "Engineer",
+        "team": "",
+        "description": "",
+        "email": "",
+        "phone": "",
+        "chat": "",
+        "location": "",
+        "notes": "",
+        "archived": false,
+        "revision": 1,
+        "createdAt": "<time>",
+        "updatedAt": "<time>",
+        "workItemCount": 0,
+        "roadmapCount": 0,
+        "repositoryCount": 0
+      }
+    ],
+    "total": 1
+  }
+}

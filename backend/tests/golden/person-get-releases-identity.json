@@ -1,0 +1,58 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "title": "1.0",
+    "description": "",
+    "releaseDate": "2026-12-01",
+    "status": "planned",
+    "archived": false,
+    "revision": 1,
+    "createdAt": "<time>",
+    "updatedAt": "<time>",
+    "pastDue": false,
+    "items": [],
+    "roadmaps": [],
+    "steps": [],
+    "changes": [],
+    "checks": [
+      {
+        "id": "<id2>",
+        "releaseId": "<id1>",
+        "kind": "test",
+        "text": "Run the suite",
+        "details": "",
+        "personId": null,
+        "dueDate": null,
+        "status": "open",
+        "archived": false,
+        "revision": 1,
+        "createdAt": "<time>",
+        "updatedAt": "<time>",
+        "personName": null,
+        "personArchived": false,
+        "pastDue": false
+      }
+    ],
+    "history": [
+      {
+        "id": "<id3>",
+        "entityId": "<id2>",
+        "kind": "check.create",
+        "actorId": "local-user",
+        "actorLabel": "You",
+        "actorKind": "human",
+        "createdAt": "<time>"
+      },
+      {
+        "id": "<id4>",
+        "entityId": "<id1>",
+        "kind": "release.create",
+        "actorId": "local-user",
+        "actorLabel": "You",
+        "actorKind": "human",
+        "createdAt": "<time>"
+      }
+    ]
+  }
+}

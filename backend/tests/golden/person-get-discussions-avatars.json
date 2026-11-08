@@ -1,0 +1,969 @@
+{
+  "status": 200,
+  "body": {
+    "items": [
+      {
+        "name": "red-dots-antenna",
+        "available": false
+      },
+      {
+        "name": "red-dots-twin",
+        "available": true
+      },
+      {
+        "name": "red-dots-ears",
+        "available": true
+      },
+      {
+        "name": "red-dots-bare",
+        "available": true
+      },
+      {
+        "name": "red-visor-antenna",
+        "available": true
+      },
+      {
+        "name": "red-visor-twin",
+        "available": true
+      },
+      {
+        "name": "red-visor-ears",
+        "available": true
+      },
+      {
+        "name": "red-visor-bare",
+        "available": true
+      },
+      {
+        "name": "red-cyclops-antenna",
+        "available": true
+      },
+      {
+        "name": "red-cyclops-twin",
+        "available": true
+      },
+      {
+        "name": "red-cyclops-ears",
+        "available": true
+      },
+      {
+        "name": "red-cyclops-bare",
+        "available": true
+      },
+      {
+        "name": "red-sleepy-antenna",
+        "available": true
+      },
+      {
+        "name": "red-sleepy-twin",
+        "available": true
+      },
+      {
+        "name": "red-sleepy-ears",
+        "available": true
+      },
+      {
+        "name": "red-sleepy-bare",
+        "available": true
+      },
+      {
+        "name": "red-square-antenna",
+        "available": true
+      },
+      {
+        "name": "red-square-twin",
+        "available": true
+      },
+      {
+        "name": "red-square-ears",
+        "available": true
+      },
+      {
+        "name": "red-square-bare",
+        "available": true
+      },
+      {
+        "name": "orange-dots-antenna",
+        "available": true
+      },
+      {
+        "name": "orange-dots-twin",
+        "available": true
+      },
+      {
+        "name": "orange-dots-ears",
+        "available": true
+      },
+      {
+        "name": "orange-dots-bare",
+        "available": true
+      },
+      {
+        "name": "orange-visor-antenna",
+        "available": true
+      },
+      {
+        "name": "orange-visor-twin",
+        "available": true
+      },
+      {
+        "name": "orange-visor-ears",
+        "available": true
+      },
+      {
+        "name": "orange-visor-bare",
+        "available": true
+      },
+      {
+        "name": "orange-cyclops-antenna",
+        "available": true
+      },
+      {
+        "name": "orange-cyclops-twin",
+        "available": true
+      },
+      {
+        "name": "orange-cyclops-ears",
+        "available": true
+      },
+      {
+        "name": "orange-cyclops-bare",
+        "available": true
+      },
+      {
+        "name": "orange-sleepy-antenna",
+        "available": true
+      },
+      {
+        "name": "orange-sleepy-twin",
+        "available": true
+      },
+      {
+        "name": "orange-sleepy-ears",
+        "available": true
+      },
+      {
+        "name": "orange-sleepy-bare",
+        "available": true
+      },
+      {
+        "name": "orange-square-antenna",
+        "available": true
+      },
+      {
+        "name": "orange-square-twin",
+        "available": true
+      },
+      {
+        "name": "orange-square-ears",
+        "available": true
+      },
+      {
+        "name": "orange-square-bare",
+        "available": true
+      },
+      {
+        "name": "amber-dots-antenna",
+        "available": true
+      },
+      {
+        "name": "amber-dots-twin",
+        "available": true
+      },
+      {
+        "name": "amber-dots-ears",
+        "available": true
+      },
+      {
+        "name": "amber-dots-bare",
+        "available": true
+      },
+      {
+        "name": "amber-visor-antenna",
+        "available": true
+      },
+      {
+        "name": "amber-visor-twin",
+        "available": true
+      },
+      {
+        "name": "amber-visor-ears",
+        "available": true
+      },
+      {
+        "name": "amber-visor-bare",
+        "available": true
+      },
+      {
+        "name": "amber-cyclops-antenna",
+        "available": true
+      },
+      {
+        "name": "amber-cyclops-twin",
+        "available": true
+      },
+      {
+        "name": "amber-cyclops-ears",
+        "available": true
+      },
+      {
+        "name": "amber-cyclops-bare",
+        "available": true
+      },
+      {
+        "name": "amber-sleepy-antenna",
+        "available": true
+      },
+      {
+        "name": "amber-sleepy-twin",
+        "available": true
+      },
+      {
+        "name": "amber-sleepy-ears",
+        "available": true
+      },
+      {
+        "name": "amber-sleepy-bare",
+        "available": true
+      },
+      {
+        "name": "amber-square-antenna",
+        "available": true
+      },
+      {
+        "name": "amber-square-twin",
+        "available": true
+      },
+      {
+        "name": "amber-square-ears",
+        "available": true
+      },
+      {
+        "name": "amber-square-bare",
+        "available": true
+      },
+      {
+        "name": "lime-dots-antenna",
+        "available": true
+      },
+      {
+        "name": "lime-dots-twin",
+        "available": true
+      },
+      {
+        "name": "lime-dots-ears",
+        "available": true
+      },
+      {
+        "name": "lime-dots-bare",
+        "available": true
+      },
+      {
+        "name": "lime-visor-antenna",
+        "available": true
+      },
+      {
+        "name": "lime-visor-twin",
+        "available": true
+      },
+      {
+        "name": "lime-visor-ears",
+        "available": true
+      },
+      {
+        "name": "lime-visor-bare",
+        "available": true
+      },
+      {
+        "name": "lime-cyclops-antenna",
+        "available": true
+      },
+      {
+        "name": "lime-cyclops-twin",
+        "available": true
+      },
+      {
+        "name": "lime-cyclops-ears",
+        "available": true
+      },
+      {
+        "name": "lime-cyclops-bare",
+        "available": true
+      },
+      {
+        "name": "lime-sleepy-antenna",
+        "available": true
+      },
+      {
+        "name": "lime-sleepy-twin",
+        "available": true
+      },
+      {
+        "name": "lime-sleepy-ears",
+        "available": true
+      },
+      {
+        "name": "lime-sleepy-bare",
+        "available": true
+      },
+      {
+        "name": "lime-square-antenna",
+        "available": true
+      },
+      {
+        "name": "lime-square-twin",
+        "available": true
+      },
+      {
+        "name": "lime-square-ears",
+        "available": true
+      },
+      {
+        "name": "lime-square-bare",
+        "available": true
+      },
+      {
+        "name": "green-dots-antenna",
+        "available": true
+      },
+      {
+        "name": "green-dots-twin",
+        "available": true
+      },
+      {
+        "name": "green-dots-ears",
+        "available": true
+      },
+      {
+        "name": "green-dots-bare",
+        "available": true
+      },
+      {
+        "name": "green-visor-antenna",
+        "available": true
+      },
+      {
+        "name": "green-visor-twin",
+        "available": true
+      },
+      {
+        "name": "green-visor-ears",
+        "available": true
+      },
+      {
+        "name": "green-visor-bare",
+        "available": true
+      },
+      {
+        "name": "green-cyclops-antenna",
+        "available": true
+      },
+      {
+        "name": "green-cyclops-twin",
+        "available": true
+      },
+      {
+        "name": "green-cyclops-ears",
+        "available": true
+      },
+      {
+        "name": "green-cyclops-bare",
+        "available": true
+      },
+      {
+        "name": "green-sleepy-antenna",
+        "available": true
+      },
+      {
+        "name": "green-sleepy-twin",
+        "available": true
+      },
+      {
+        "name": "green-sleepy-ears",
+        "available": true
+      },
+      {
+        "name": "green-sleepy-bare",
+        "available": true
+      },
+      {
+        "name": "green-square-antenna",
+        "available": true
+      },
+      {
+        "name": "green-square-twin",
+        "available": true
+      },
+      {
+        "name": "green-square-ears",
+        "available": true
+      },
+      {
+        "name": "green-square-bare",
+        "available": true
+      },
+      {
+        "name": "teal-dots-antenna",
+        "available": true
+      },
+      {
+        "name": "teal-dots-twin",
+        "available": true
+      },
+      {
+        "name": "teal-dots-ears",
+        "available": true
+      },
+      {
+        "name": "teal-dots-bare",
+        "available": true
+      },
+      {
+        "name": "teal-visor-antenna",
+        "available": true
+      },
+      {
+        "name": "teal-visor-twin",
+        "available": true
+      },
+      {
+        "name": "teal-visor-ears",
+        "available": true
+      },
+      {
+        "name": "teal-visor-bare",
+        "available": true
+      },
+      {
+        "name": "teal-cyclops-antenna",
+        "available": true
+      },
+      {
+        "name": "teal-cyclops-twin",
+        "available": true
+      },
+      {
+        "name": "teal-cyclops-ears",
+        "available": true
+      },
+      {
+        "name": "teal-cyclops-bare",
+        "available": true
+      },
+      {
+        "name": "teal-sleepy-antenna",
+        "available": true
+      },
+      {
+        "name": "teal-sleepy-twin",
+        "available": true
+      },
+      {
+        "name": "teal-sleepy-ears",
+        "available": true
+      },
+      {
+        "name": "teal-sleepy-bare",
+        "available": true
+      },
+      {
+        "name": "teal-square-antenna",
+        "available": true
+      },
+      {
+        "name": "teal-square-twin",
+        "available": true
+      },
+      {
+        "name": "teal-square-ears",
+        "available": true
+      },
+      {
+        "name": "teal-square-bare",
+        "available": true
+      },
+      {
+        "name": "cyan-dots-antenna",
+        "available": true
+      },
+      {
+        "name": "cyan-dots-twin",
+        "available": true
+      },
+      {
+        "name": "cyan-dots-ears",
+        "available": true
+      },
+      {
+        "name": "cyan-dots-bare",
+        "available": true
+      },
+      {
+        "name": "cyan-visor-antenna",
+        "available": true
+      },
+      {
+        "name": "cyan-visor-twin",
+        "available": true
+      },
+      {
+        "name": "cyan-visor-ears",
+        "available": true
+      },
+      {
+        "name": "cyan-visor-bare",
+        "available": true
+      },
+      {
+        "name": "cyan-cyclops-antenna",
+        "available": true
+      },
+      {
+        "name": "cyan-cyclops-twin",
+        "available": true
+      },
+      {
+        "name": "cyan-cyclops-ears",
+        "available": true
+      },
+      {
+        "name": "cyan-cyclops-bare",
+        "available": true
+      },
+      {
+        "name": "cyan-sleepy-antenna",
+        "available": true
+      },
+      {
+        "name": "cyan-sleepy-twin",
+        "available": true
+      },
+      {
+        "name": "cyan-sleepy-ears",
+        "available": true
+      },
+      {
+        "name": "cyan-sleepy-bare",
+        "available": true
+      },
+      {
+        "name": "cyan-square-antenna",
+        "available": true
+      },
+      {
+        "name": "cyan-square-twin",
+        "available": true
+      },
+      {
+        "name": "cyan-square-ears",
+        "available": true
+      },
+      {
+        "name": "cyan-square-bare",
+        "available": true
+      },
+      {
+        "name": "sky-dots-antenna",
+        "available": true
+      },
+      {
+        "name": "sky-dots-twin",
+        "available": true
+      },
+      {
+        "name": "sky-dots-ears",
+        "available": true
+      },
+      {
+        "name": "sky-dots-bare",
+        "available": true
+      },
+      {
+        "name": "sky-visor-antenna",
+        "available": true
+      },
+      {
+        "name": "sky-visor-twin",
+        "available": true
+      },
+      {
+        "name": "sky-visor-ears",
+        "available": true
+      },
+      {
+        "name": "sky-visor-bare",
+        "available": true
+      },
+      {
+        "name": "sky-cyclops-antenna",
+        "available": true
+      },
+      {
+        "name": "sky-cyclops-twin",
+        "available": true
+      },
+      {
+        "name": "sky-cyclops-ears",
+        "available": true
+      },
+      {
+        "name": "sky-cyclops-bare",
+        "available": true
+      },
+      {
+        "name": "sky-sleepy-antenna",
+        "available": true
+      },
+      {
+        "name": "sky-sleepy-twin",
+        "available": true
+      },
+      {
+        "name": "sky-sleepy-ears",
+        "available": true
+      },
+      {
+        "name": "sky-sleepy-bare",
+        "available": true
+      },
+      {
+        "name": "sky-square-antenna",
+        "available": true
+      },
+      {
+        "name": "sky-square-twin",
+        "available": true
+      },
+      {
+        "name": "sky-square-ears",
+        "available": true
+      },
+      {
+        "name": "sky-square-bare",
+        "available": true
+      },
+      {
+        "name": "blue-dots-antenna",
+        "available": true
+      },
+      {
+        "name": "blue-dots-twin",
+        "available": true
+      },
+      {
+        "name": "blue-dots-ears",
+        "available": true
+      },
+      {
+        "name": "blue-dots-bare",
+        "available": true
+      },
+      {
+        "name": "blue-visor-antenna",
+        "available": true
+      },
+      {
+        "name": "blue-visor-twin",
+        "available": true
+      },
+      {
+        "name": "blue-visor-ears",
+        "available": true
+      },
+      {
+        "name": "blue-visor-bare",
+        "available": true
+      },
+      {
+        "name": "blue-cyclops-antenna",
+        "available": true
+      },
+      {
+        "name": "blue-cyclops-twin",
+        "available": true
+      },
+      {
+        "name": "blue-cyclops-ears",
+        "available": true
+      },
+      {
+        "name": "blue-cyclops-bare",
+        "available": true
+      },
+      {
+        "name": "blue-sleepy-antenna",
+        "available": true
+      },
+      {
+        "name": "blue-sleepy-twin",
+        "available": true
+      },
+      {
+        "name": "blue-sleepy-ears",
+        "available": true
+      },
+      {
+        "name": "blue-sleepy-bare",
+        "available": true
+      },
+      {
+        "name": "blue-square-antenna",
+        "available": true
+      },
+      {
+        "name": "blue-square-twin",
+        "available": true
+      },
+      {
+        "name": "blue-square-ears",
+        "available": true
+      },
+      {
+        "name": "blue-square-bare",
+        "available": true
+      },
+      {
+        "name": "indigo-dots-antenna",
+        "available": true
+      },
+      {
+        "name": "indigo-dots-twin",
+        "available": true
+      },
+      {
+        "name": "indigo-dots-ears",
+        "available": true
+      },
+      {
+        "name": "indigo-dots-bare",
+        "available": true
+      },
+      {
+        "name": "indigo-visor-antenna",
+        "available": true
+      },
+      {
+        "name": "indigo-visor-twin",
+        "available": true
+      },
+      {
+        "name": "indigo-visor-ears",
+        "available": true
+      },
+      {
+        "name": "indigo-visor-bare",
+        "available": true
+      },
+      {
+        "name": "indigo-cyclops-antenna",
+        "available": true
+      },
+      {
+        "name": "indigo-cyclops-twin",
+        "available": true
+      },
+      {
+        "name": "indigo-cyclops-ears",
+        "available": true
+      },
+      {
+        "name": "indigo-cyclops-bare",
+        "available": true
+      },
+      {
+        "name": "indigo-sleepy-antenna",
+        "available": true
+      },
+      {
+        "name": "indigo-sleepy-twin",
+        "available": true
+      },
+      {
+        "name": "indigo-sleepy-ears",
+        "available": true
+      },
+      {
+        "name": "indigo-sleepy-bare",
+        "available": true
+      },
+      {
+        "name": "indigo-square-antenna",
+        "available": true
+      },
+      {
+        "name": "indigo-square-twin",
+        "available": true
+      },
+      {
+        "name": "indigo-square-ears",
+        "available": true
+      },
+      {
+        "name": "indigo-square-bare",
+        "available": true
+      },
+      {
+        "name": "violet-dots-antenna",
+        "available": true
+      },
+      {
+        "name": "violet-dots-twin",
+        "available": true
+      },
+      {
+        "name": "violet-dots-ears",
+        "available": true
+      },
+      {
+        "name": "violet-dots-bare",
+        "available": true
+      },
+      {
+        "name": "violet-visor-antenna",
+        "available": true
+      },
+      {
+        "name": "violet-visor-twin",
+        "available": true
+      },
+      {
+        "name": "violet-visor-ears",
+        "available": true
+      },
+      {
+        "name": "violet-visor-bare",
+        "available": true
+      },
+      {
+        "name": "violet-cyclops-antenna",
+        "available": true
+      },
+      {
+        "name": "violet-cyclops-twin",
+        "available": true
+      },
+      {
+        "name": "violet-cyclops-ears",
+        "available": true
+      },
+      {
+        "name": "violet-cyclops-bare",
+        "available": true
+      },
+      {
+        "name": "violet-sleepy-antenna",
+        "available": true
+      },
+      {
+        "name": "violet-sleepy-twin",
+        "available": true
+      },
+      {
+        "name": "violet-sleepy-ears",
+        "available": true
+      },
+      {
+        "name": "violet-sleepy-bare",
+        "available": true
+      },
+      {
+        "name": "violet-square-antenna",
+        "available": true
+      },
+      {
+        "name": "violet-square-twin",
+        "available": true
+      },
+      {
+        "name": "violet-square-ears",
+        "available": true
+      },
+      {
+        "name": "violet-square-bare",
+        "available": true
+      },
+      {
+        "name": "pink-dots-antenna",
+        "available": true
+      },
+      {
+        "name": "pink-dots-twin",
+        "available": true
+      },
+      {
+        "name": "pink-dots-ears",
+        "available": true
+      },
+      {
+        "name": "pink-dots-bare",
+        "available": true
+      },
+      {
+        "name": "pink-visor-antenna",
+        "available": true
+      },
+      {
+        "name": "pink-visor-twin",
+        "available": true
+      },
+      {
+        "name": "pink-visor-ears",
+        "available": true
+      },
+      {
+        "name": "pink-visor-bare",
+        "available": true
+      },
+      {
+        "name": "pink-cyclops-antenna",
+        "available": true
+      },
+      {
+        "name": "pink-cyclops-twin",
+        "available": true
+      },
+      {
+        "name": "pink-cyclops-ears",
+        "available": true
+      },
+      {
+        "name": "pink-cyclops-bare",
+        "available": true
+      },
+      {
+        "name": "pink-sleepy-antenna",
+        "available": true
+      },
+      {
+        "name": "pink-sleepy-twin",
+        "available": true
+      },
+      {
+        "name": "pink-sleepy-ears",
+        "available": true
+      },
+      {
+        "name": "pink-sleepy-bare",
+        "available": true
+      },
+      {
+        "name": "pink-square-antenna",
+        "available": true
+      },
+      {
+        "name": "pink-square-twin",
+        "available": true
+      },
+      {
+        "name": "pink-square-ears",
+        "available": true
+      },
+      {
+        "name": "pink-square-bare",
+        "available": true
+      }
+    ],
+    "suggested": "<avatar>",
+    "current": null
+  }
+}

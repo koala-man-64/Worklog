@@ -1,0 +1,30 @@
+{
+  "status": 200,
+  "body": {
+    "chat": {
+      "id": "<id1>",
+      "ownerType": "item",
+      "ownerId": "<id2>",
+      "chatId": "chat-1",
+      "title": "Build",
+      "createdDate": "<today>",
+      "archived": false,
+      "revision": 1,
+      "createdAt": "<time>",
+      "updatedAt": "<time>",
+      "provider": "",
+      "model": "",
+      "repos": [],
+      "stepIds": [],
+      "repositoryIds": []
+    },
+    "found": false,
+    "source": null,
+    "lastActivityAt": null,
+    "state": "idle",
+    "threads": [],
+    "messages": [],
+    "total": 0,
+    "more": false
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "status": 200,
+  "body": {
+    "timezone": "America/Chicago",
+    "today": "<today>",
+    "version": "1.0.0",
+    "requireProposalApproval": true,
+    "agentRepositoryRegistration": true,
+    "credentials": [
+      {
+        "id": "<id1>",
+        "label": "Builder",
+        "createdAt": "<time>",
+        "revoked": false,
+        "agentId": "<id1>",
+        "registeredBy": null,
+        "chatId": null,
+        "registeredActive": 0
+      }
+    ],
+    "agents": [
+      {
+        "id": "<id1>",
+        "label": "Builder",
+        "avatar": "red-dots-antenna"
+      }
+    ],
+    "backups": [],
+    "storage": {
+      "databaseBytes": 892928,
+      "backupBytes": 0,
+      "warning": null
+    }
+  }
+}

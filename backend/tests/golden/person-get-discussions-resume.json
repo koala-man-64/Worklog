@@ -1,0 +1,79 @@
+{
+  "status": 200,
+  "body": {
+    "roles": [],
+    "discussions": [
+      {
+        "id": "<id1>",
+        "title": "Parser",
+        "archived": false,
+        "revision": 1,
+        "createdAt": "<time>",
+        "updatedAt": "<time>",
+        "pinned": false,
+        "pinnedAt": null,
+        "contexts": [
+          {
+            "type": "item",
+            "id": "<id2>",
+            "title": "Parser",
+            "archived": false,
+            "status": "doing",
+            "home": false,
+            "addedBy": {
+              "id": "local-user",
+              "label": "You",
+              "kind": "human"
+            },
+            "addedAt": "<time>"
+          }
+        ],
+        "repos": [],
+        "pendingCount": 0,
+        "repository": null
+      },
+      {
+        "id": "<id3>",
+        "title": "Repository: worklog",
+        "archived": false,
+        "revision": 1,
+        "createdAt": "<time>",
+        "updatedAt": "<time>",
+        "pinned": false,
+        "pinnedAt": null,
+        "contexts": [
+          {
+            "type": "repository",
+            "id": "<id4>",
+            "title": "worklog",
+            "archived": false,
+            "mergedInto": null,
+            "home": true,
+            "addedBy": {
+              "id": "local-user",
+              "label": "You",
+              "kind": "human"
+            },
+            "addedAt": "<time>"
+          }
+        ],
+        "repos": [],
+        "pendingCount": 0,
+        "repository": {
+          "id": "<id4>",
+          "name": "worklog"
+        }
+      }
+    ],
+    "requests": [],
+    "cursor": "<cursor>",
+    "counts": {
+      "roles": 0,
+      "discussions": 2,
+      "requests": 0
+    },
+    "limit": 50,
+    "offset": 0,
+    "hasMore": false
+  }
+}

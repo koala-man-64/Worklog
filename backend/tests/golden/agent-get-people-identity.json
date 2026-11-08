@@ -1,0 +1,51 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "name": "Ada",
+    "title": "Engineer",
+    "team": "",
+    "description": "",
+    "email": "",
+    "phone": "",
+    "chat": "",
+    "location": "",
+    "notes": "",
+    "archived": false,
+    "revision": 1,
+    "createdAt": "<time>",
+    "updatedAt": "<time>",
+    "roadmaps": [],
+    "workItems": [],
+    "repositories": [],
+    "history": [
+      {
+        "id": "<id2>",
+        "entityId": "<id1>",
+        "kind": "person.create",
+        "actorId": "local-user",
+        "actorLabel": "You",
+        "actorKind": "human",
+        "createdAt": "<time>",
+        "localDate": "<today>",
+        "before": null,
+        "after": {
+          "id": "<id1>",
+          "name": "Ada",
+          "title": "Engineer",
+          "team": "",
+          "description": "",
+          "email": "",
+          "phone": "",
+          "chat": "",
+          "location": "",
+          "notes": "",
+          "archived": false,
+          "revision": 1,
+          "createdAt": "<time>",
+          "updatedAt": "<time>"
+        }
+      }
+    ]
+  }
+}

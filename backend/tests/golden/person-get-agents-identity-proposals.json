@@ -1,0 +1,22 @@
+{
+  "status": 200,
+  "body": {
+    "items": [
+      {
+        "number": 1,
+        "id": "<id1>",
+        "title": "Rename",
+        "status": "draft",
+        "autoApproved": false,
+        "actorLabel": "Builder",
+        "agentId": "<id2>",
+        "createdAt": "<time>",
+        "submittedAt": null,
+        "appliedAt": null,
+        "updatedAt": "<time>",
+        "operationCount": 0
+      }
+    ],
+    "total": 1
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "number": 1,
+    "key": "T-1",
+    "title": "Crash on save",
+    "description": "",
+    "resolution": "",
+    "truncated": false,
+    "kind": "bug",
+    "priority": "normal",
+    "status": "open",
+    "labels": [],
+    "repositoryIds": [],
+    "itemId": null,
+    "item": null,
+    "assigneeId": null,
+    "assignee": null,
+    "author": {
+      "id": "local-user",
+      "label": "You",
+      "kind": "human",
+      "avatar": null
+    },
+    "commentCount": 0,
+    "archived": false,
+    "revision": 1,
+    "createdAt": "<time>",
+    "updatedAt": "<time>",
+    "closedAt": null,
+    "lastActivityAt": "<time>",
+    "comments": {
+      "items": [],
+      "total": 0
+    },
+    "history": [
+      {
+        "id": "<id2>",
+        "kind": "ticket.create",
+        "actorId": "local-user",
+        "actorLabel": "You",
+        "actorKind": "human",
+        "createdAt": "<time>"
+      }
+    ]
+  }
+}

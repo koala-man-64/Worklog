@@ -1,0 +1,19 @@
+{
+  "status": 200,
+  "body": {
+    "items": [
+      {
+        "id": "<id1>",
+        "title": "Plan 2",
+        "overview": "",
+        "parentId": null,
+        "revision": 2,
+        "archived": false,
+        "createdAt": "<time>",
+        "updatedAt": "<time>",
+        "people": []
+      }
+    ],
+    "total": 1
+  }
+}

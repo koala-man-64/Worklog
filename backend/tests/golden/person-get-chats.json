@@ -1,0 +1,40 @@
+{
+  "status": 200,
+  "body": {
+    "items": [
+      {
+        "id": "<id1>",
+        "ownerType": "item",
+        "ownerId": "<id2>",
+        "chatId": "chat-1",
+        "title": "Build",
+        "createdDate": "<today>",
+        "archived": false,
+        "revision": 1,
+        "createdAt": "<time>",
+        "updatedAt": "<time>",
+        "provider": "",
+        "model": "",
+        "repos": [],
+        "stepIds": [],
+        "repositoryIds": [],
+        "owner": {
+          "type": "item",
+          "id": "<id2>",
+          "title": "Parser",
+          "archived": false
+        },
+        "roadmaps": [],
+        "steps": [],
+        "agents": [],
+        "transcript": {
+          "found": false,
+          "source": null,
+          "lastActivityAt": null,
+          "state": "idle",
+          "threads": []
+        }
+      }
+    ]
+  }
+}
