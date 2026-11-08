@@ -11,7 +11,7 @@ npm test
 npm run build
 ```
 
-The Guide page bundles `../docs/GUIDE.md` at build time with a `?raw` import, so `vite.config.ts` lets the dev server read `../docs`. The backend serves `dist/` at its single origin. For Vite development, start the backend with `WORKLOG_DEV=1` and run `npm run dev`; `/api` proxies to 127.0.0.1:8877. Browser writes require the local bootstrap cookie and CSRF header.
+The Guide page bundles `../docs/GUIDE.md` and `../docs/AGENT-GUIDE.md` at build time with `?raw` imports, so `vite.config.ts` lets the dev server read `../docs`. The backend serves `dist/` at its single origin. For Vite development, start the backend with `WORKLOG_DEV=1` and run `npm run dev`; `/api` proxies to 127.0.0.1:8877. Browser writes require the local bootstrap cookie and CSRF header.
 
 ```powershell
 npx playwright install chromium

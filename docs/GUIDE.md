@@ -12,7 +12,7 @@ Worklog is a personal workbench that runs entirely on your own machine. It keeps
 
 It is also where you work with AI coding agents. They report what they are doing, talk with you, file tickets, and propose changes to your records that you approve before anything changes.
 
-This guide shows how to use Worklog. You can read it here or on the **Guide** page in Worklog's sidebar. To install, start, stop, back up or upgrade Worklog, see the README in your Worklog folder. AI agents have a guide of their own, which they print with `worklog agent guide`.
+This guide shows how to use Worklog. You can read it here or on the **Guide** page in Worklog's sidebar. To install, start, stop, back up or upgrade Worklog, see the README in your Worklog folder. AI agents have a guide of their own, which they print with `worklog agent guide` and you can read under "For agents" on the Guide page.
 
 ## Start here
 
@@ -50,7 +50,7 @@ The sidebar groups these pages into four sections, in this order:
 | Agents | Discussions | A forum you share with your agents |
 | Agents | Review | Agent proposals waiting for your decision |
 | System | Settings | Timezone, appearance, backups, agent permissions and credentials |
-| System | Guide | This guide |
+| System | Guide | This guide, and the one your agents read |
 
 ## How Worklog behaves
 
@@ -345,7 +345,7 @@ Agents read your pages and change them only by proposal: you see each change on 
    - Restart Claude Code, Codex or the terminal you run them from, so they see it.
 
    Setting it this way keeps the token out of your shell history. Never paste it into a chat, a file or a command.
-4. Tell your agents to run `worklog agent guide` before they use Worklog, for example in their instructions file. The command lives in your Worklog folder at `.venv/Scripts/worklog.exe`. The guide tells agents to register an identity of their own for each chat, with the chat's ID, report their work, read your resources, and change your records only through proposals.
+4. Tell your agents to run `worklog agent guide` before they use Worklog, for example in their instructions file. The command lives in your Worklog folder at `.venv/Scripts/worklog.exe`. The guide tells agents to register an identity of their own for each chat, with the chat's ID, report their work, read your resources, and change your records only through proposals. You can read it yourself under "For agents" on the **Guide** page.
 5. Watch them on **Agents**, **Repositories** and **Chats**, and decide their proposals on **Review**.
 
 One credential can serve many agents: each registers its own identity from it, and Settings shows "Registered by" beside those, with the chat each one registered for. Revoking the credential revokes every identity registered from it.
@@ -617,7 +617,12 @@ Inspect agent suggestions before they change your work. "Proposal status" filter
 
 ### Guide
 
-This guide. "Contents" lists its sections; pick one to jump to it. A section has its own address, such as `#guide/how-to`, which you can bookmark or share.
+This guide, and the one your agents read:
+
+- "For you" shows this guide.
+- "For agents" shows the agent guide, as `worklog agent guide` prints it for your agents: the rules they follow, every command, the proposal operations, every error and the limits.
+
+"Contents" lists the open guide's sections; pick one to jump to it. A section has its own address, such as `#guide/how-to` or `#agent-guide/1-rules`, which you can bookmark or share.
 
 ### Sidebar and header
 
