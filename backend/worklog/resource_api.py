@@ -10,6 +10,7 @@ from collections.abc import Callable
 from fastapi import FastAPI, Query, Request
 
 from . import models as m
+from . import responses as out
 from .common import AppError
 from .db import Database
 from .resources import ResourceService
@@ -25,7 +26,7 @@ def install_resource_routes(app: FastAPI, db: Database, mutate: Callable) -> Non
                   limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
         return read(lambda c: service.list(c, q=q, archived=archived, limit=limit, offset=offset))
 
-    @app.get("/api/v1/resources/{identity}")
+    @app.get("/api/v1/resources/{identity}", response_model=out.Resource)
     def resource(identity: str) -> dict:
         return read(lambda c: service.detail(c, identity))
 

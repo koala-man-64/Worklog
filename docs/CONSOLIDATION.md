@@ -529,6 +529,7 @@ Done so far:
   - That covers 65 reads, 130 answers. The two that send files, the export and an import's original, are pinned by their own tests.
   - The script writes the files only when two worlds built apart give the same answers.
 - **Typed responses, first batch.** `responses.py` types the eight reads of one supporting record: a note, task, file reference, link, tracked chat, GitHub reference, question or decision. Each model forbids keys it doesn't name, and takes the kinds its table's CHECK allows. Their golden files are unchanged; `docs/openapi.json` and `generatedApi.ts` now say what each returns.
+- **Typed responses, second batch.** A resource, a release check and a reminder, each with its own history. The golden world now ties its person to a work item, a roadmap and a repository, so each side's lists are pinned with one entry before they are typed.
 
 #### 5.4 · Frontend layout
 

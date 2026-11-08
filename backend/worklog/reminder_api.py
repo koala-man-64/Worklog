@@ -7,6 +7,7 @@ from typing import Literal
 from fastapi import FastAPI, Query, Request
 
 from . import models as m
+from . import responses as out
 from .common import AppError
 from .db import Database
 from .reminders import ReminderService
@@ -33,7 +34,7 @@ def install_reminder_routes(app: FastAPI, db: Database, mutate: Callable) -> Non
             c, state=state, date=date, until=until, target_type=targetType, target_id=targetId,
             q=q, archived=archived, limit=limit, offset=offset))
 
-    @app.get("/api/v1/reminders/{identity}")
+    @app.get("/api/v1/reminders/{identity}", response_model=out.Reminder)
     def reminder(identity: str) -> dict:
         return read(lambda c: service.detail(c, identity))
 
