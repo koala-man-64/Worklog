@@ -9,11 +9,14 @@ import {
 import { localStore } from "./storage";
 import type { ChatOverview } from "./types";
 import type {
-  AcknowledgementInputTarget,
   AcknowledgementMode,
   DiscussionParticipants,
   DiscussionRole,
-} from "./discussionTypes";
+  Schema,
+} from "./apiTypes";
+
+/** Someone a draft asks to acknowledge it, with the name the composer shows for them. */
+type AcknowledgementInputTarget = Schema["Target"] & { label?: string };
 
 type Draft = {
   title: string;

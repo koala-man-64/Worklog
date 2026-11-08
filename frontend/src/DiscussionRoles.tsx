@@ -7,7 +7,7 @@ import {
   type ContextChoice,
 } from "./discussionContexts";
 import { useAction } from "./hooks";
-import type { DiscussionParticipants, DiscussionRole } from "./discussionTypes";
+import type { DiscussionParticipants, DiscussionRole } from "./apiTypes";
 
 export function DiscussionRolesPanel({
   roles,

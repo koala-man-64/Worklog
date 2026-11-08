@@ -20,7 +20,7 @@ import {
   RepositoryPicker,
 } from "./RepositoryControls";
 import { Icon } from "./icons";
-import type { DiscussionParticipants } from "./discussionTypes";
+import type { DiscussionParticipants } from "./apiTypes";
 import type { Item, List } from "./types";
 import type {
   Answer,

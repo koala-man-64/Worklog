@@ -123,3 +123,34 @@ export type OutboxRun = Schema["ChatRecipient"];
 export type OutboxRecipient = Schema["BoundRecipient"];
 export type OutboxDelivery = Schema["ChatDelivery"];
 export type OutboxMessage = Schema["ChatMessageSent"];
+
+// Discussions.
+export type DiscussionContextType = Schema["ContextTag"]["type"];
+/** A thread's tag in one shape: what every kind has, and each kind's own fields where it has them. */
+export type DiscussionContext = Schema["ContextTag"] &
+  Partial<
+    Omit<
+      Schema["StepContextTag"] &
+        Schema["DecisionContextTag"] &
+        Schema["RepositoryContextTag"] &
+        Schema["TicketContextTag"] &
+        Schema["ReleaseContextTag"],
+      keyof Schema["ContextTag"]
+    >
+  >;
+export type DiscussionSummary = Schema["DiscussionSummary"];
+export type DiscussionList = Schema["Discussions"];
+export type DiscussionDetail = Schema["DiscussionThread"];
+export type DiscussionMessage = Schema["DiscussionMessage"];
+export type DiscussionParticipant = Schema["Participant"];
+export type DiscussionParticipants = Schema["Participants"];
+export type AvatarCatalog = Schema["Avatars"];
+export type AcknowledgementRequest = Schema["AcknowledgementRequest"];
+export type AcknowledgementTarget = Schema["AcknowledgementTarget"];
+export type AcknowledgementReceipt = Schema["AcknowledgementReceipt"];
+export type AcknowledgementMode = AcknowledgementRequest["mode"];
+export type AcknowledgementState = AcknowledgementRequest["state"];
+export type DiscussionRole = Schema["DiscussionRole"];
+export type DiscussionRoles = Schema["DiscussionRoles"];
+export type DiscussionResume = Schema["DiscussionResume"];
+export type SearchResults = Schema["SearchResults"];
