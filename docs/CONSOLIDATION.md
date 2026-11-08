@@ -590,6 +590,7 @@ Done so far:
 - **Typed commands, fifth batch.** Every write the frontend makes goes through a typed command in `commands.ts`, and `useAction`, which took any path and body, is gone.
   - A page's writes share one pending state and error (`useWrites`), and `mutateAsync` gives each command's own answer, so Settings reads a new token without a cast.
   - `useWrites` starts a write inside `mutate`. A mutation calls its function a few microtasks later, after React has put a controlled checkbox or select back to its rendered value. Started there, six writes would have sent the old value: Planned and Worked on Today, Settings' two switches, and a work item's step and a roadmap's parent. `hooks.test.tsx` pins it.
+  - Writes never wait for the browser to report itself online, since the server runs on this machine, and a write that throws before its request is under way fails as a refused one does. The review of this batch found both, and `hooks.test.tsx` pins them.
   - One command archives and recovers each kind whose routes are `/{kind}/{id}/archive` and `/recover` (`setArchived`). A tie's role and its Unlink pick the person's or the agent's route from the tie itself.
   - The context picker's choices are typed as the work items, roadmaps and steps it offers, which a role's context must be. The composer builds a thread's body as the schema types it.
   - The four writes that called `request` themselves go through commands too: a repository's fields, a day's reflection, an import's preview and a page view's count.

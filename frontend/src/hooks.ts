@@ -34,15 +34,27 @@ export function useData<T>(path: string, refreshMs?: number) {
     placeholderData: refreshMs ? keepPreviousData : undefined,
   });
 }
-/** A typed command, from commands.ts, that reads again what it may have changed. */
+/**
+ * A typed command, from commands.ts, that reads again what it may have changed. The server runs
+ * on this machine, so a write never waits for the browser to report itself online.
+ */
 export function useCommand<TBody, TResult>(
   command: (body: TBody) => Promise<TResult>,
 ) {
   const client = useQueryClient();
   return useMutation({
     mutationFn: command,
+    networkMode: "always",
     onSuccess: () => refreshAfterWrite(client),
   });
+}
+/** Starts a write; one that throws before its request is under way fails as a refused one does. */
+function start<T>(write: () => Promise<T>): Promise<T> {
+  try {
+    return write();
+  } catch (failure) {
+    return Promise.reject(failure);
+  }
 }
 /**
  * One pending state and error for a page's several writes, each a typed command:
@@ -61,11 +73,11 @@ export function useWrites() {
     mutate: (
       write: () => Promise<unknown>,
       options?: Parameters<typeof writes.mutate>[1],
-    ) => writes.mutate(write(), options),
+    ) => writes.mutate(start(write), options),
     mutateAsync: <T>(
       write: () => Promise<T>,
       options?: Parameters<typeof writes.mutateAsync>[1],
-    ) => writes.mutateAsync(write(), options) as Promise<T>,
+    ) => writes.mutateAsync(start(write), options) as Promise<T>,
   };
 }
 /**

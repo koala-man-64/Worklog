@@ -8,6 +8,7 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
+  onlineManager,
   QueryClient,
   QueryClientProvider,
   useQuery,
@@ -227,4 +228,40 @@ it("gives a write's own answer and follows it while it is pending", async () => 
   finish({ id: "note-1" });
   await expect(answered).resolves.toEqual({ id: "note-1" });
   await waitFor(() => expect(result.current.isPending).toBe(false));
+});
+
+it("fails a write that throws before its request starts, as a refused one does", async () => {
+  const { result } = renderHook(() => useWrites(), {
+    wrapper: wrapper(newClient()),
+  });
+  const broken = () => {
+    throw new Error("No file to send");
+  };
+  act(() => result.current.mutate(broken));
+  await waitFor(() =>
+    expect(result.current.error).toEqual(new Error("No file to send")),
+  );
+  await act(async () => {
+    await expect(result.current.mutateAsync(broken)).rejects.toThrow(
+      "No file to send",
+    );
+  });
+});
+
+it("writes while the browser reports itself offline, since the server is on this machine", async () => {
+  onlineManager.setOnline(false);
+  try {
+    const { result } = renderHook(() => useWrites(), {
+      wrapper: wrapper(newClient()),
+    });
+    let answered: Promise<string> = Promise.resolve("");
+    act(() => {
+      answered = result.current.mutateAsync(async () => "saved");
+    });
+    // A mutation that waited for the browser to come online would stay pending here.
+    await expect(answered).resolves.toBe("saved");
+    await waitFor(() => expect(result.current.isPending).toBe(false));
+  } finally {
+    onlineManager.setOnline(true);
+  }
 });
