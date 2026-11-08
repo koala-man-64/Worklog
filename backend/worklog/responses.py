@@ -178,10 +178,14 @@ class ReminderTarget(Answer):
     archived: bool
 
 
-class ReminderAuthor(Answer):
+class Author(Answer):
+    """Who wrote a reminder, a ticket or a ticket's comment, as written then, with the avatar their
+    agent identity has now."""
+
     id: str
     label: str
     kind: Literal["agent", "human"]
+    # Null for the person, and for an agent identity with none or that is gone.
     avatar: str | None
 
 
@@ -196,7 +200,7 @@ class ReminderListed(Answer):
     due: bool
     overdue: bool
     target: ReminderTarget | None
-    author: ReminderAuthor
+    author: Author
     archived: bool
     revision: int
     createdAt: str
@@ -439,8 +443,9 @@ class Person(Answer):
     history: list[Event]
 
 
-class RoadmapStep(Answer):
-    """A step as its roadmap lists it, with its notes and files. A parent's status is derived from its leaves."""
+class PlanStep(Answer):
+    """A step's own fields, as a roadmap's steps and its saved revisions give them. A parent's
+    status is derived from its leaves."""
 
     id: str
     title: str
@@ -451,6 +456,11 @@ class RoadmapStep(Answer):
     status: str
     revision: int
     retired: bool
+
+
+class RoadmapStep(PlanStep):
+    """A step as its roadmap lists it, with its notes and files."""
+
     notes: list[Note]
     attachments: list[Attachment]
 
@@ -814,3 +824,215 @@ class Settings(Answer):
     agents: list[SettingsAgent]
     backups: list[BackupFile]
     storage: Storage
+
+
+class RoadmapSnapshot(RoadmapVersion):
+    """A saved revision of a roadmap: its title, overview and steps as they stood then."""
+
+    title: str
+    overview: str
+    # The steps not retired then, each with its status then. plans._snapshot has written this
+    # shape since the first version, and nothing rewrites a revision.
+    steps: list[PlanStep]
+
+
+class ReleaseRecord(Answer):
+    """A release's own fields, as each read of it gives them."""
+
+    id: str
+    title: str
+    description: str
+    # A YYYY-MM-DD day; null while the release is not dated.
+    releaseDate: str | None
+    status: Literal["planned", "released", "cancelled"]
+    archived: bool
+    revision: int
+    createdAt: str
+    updatedAt: str
+    # Planned, with its date passed.
+    pastDue: bool
+
+
+class ReleaseCounts(Answer):
+    """A listed release's active work items and the done ones, its open checks of each kind, and
+    how many open checks are past due."""
+
+    items: int
+    itemsDone: int
+    notify: int
+    test: int
+    prepare: int
+    pastDue: int
+
+
+class ReleaseListed(ReleaseRecord):
+    counts: ReleaseCounts
+
+
+class Releases(Answer):
+    items: list[ReleaseListed]
+    total: int
+    limit: int
+    offset: int
+
+
+class ReleaseItem(Answer):
+    """A work item a release holds."""
+
+    id: str
+    title: str
+    status: Literal["open", "doing", "waiting", "blocked", "done"]
+    archived: bool
+    addedAt: str
+
+
+class ReleaseRoadmap(Answer):
+    """A roadmap a release holds, with its finished leaf steps out of all, as its progress bar counts them."""
+
+    id: str
+    title: str
+    archived: bool
+    addedAt: str
+    steps: int
+    stepsDone: int
+
+
+class ReleaseStep(Answer):
+    """A step a release holds, with its status as its roadmap shows it: a parent's follows its leaves."""
+
+    id: str
+    title: str
+    # steps.status has no CHECK.
+    status: str
+    retired: bool
+    roadmapId: str
+    roadmapTitle: str
+    roadmapArchived: bool
+    addedAt: str
+
+
+class ReleaseChange(Answer):
+    """A PR or commit: one the release holds itself (direct), or one on a work item or roadmap it holds."""
+
+    id: str
+    kind: Literal["commit", "pr"]
+    url: str
+    reference: str
+    title: str
+    ownerType: Literal["item", "roadmap"]
+    ownerId: str
+    # Null only if that work item or roadmap is missing, which `worklog doctor` reports.
+    ownerTitle: str | None
+    # The tracked chat that made it; all four are null when none did.
+    chatId: str | None
+    chatTitle: str | None
+    provider: str | None
+    model: str | None
+    direct: bool
+    # Archived itself, or on an archived work item or roadmap.
+    archived: bool
+    createdAt: str
+
+
+class ReleaseHistoryEntry(Answer):
+    """A change to a release or one of its checks, which entityId names, without its records:
+    /history has those."""
+
+    id: str
+    entityId: str
+    kind: str
+    actorId: str
+    actorLabel: str
+    # events.actor_kind has no CHECK.
+    actorKind: str
+    createdAt: str
+
+
+class Release(ReleaseRecord):
+    """A release with what it holds, its changes, every check and who changed them when."""
+
+    items: list[ReleaseItem]
+    roadmaps: list[ReleaseRoadmap]
+    steps: list[ReleaseStep]
+    changes: list[ReleaseChange]
+    # Every check, archived ones too, by due date (undated last), then as added.
+    checks: list[ReleaseCheck]
+    # The latest 100, newest first.
+    history: list[ReleaseHistoryEntry]
+
+
+class TicketWorkItem(Answer):
+    """The work item a ticket names."""
+
+    id: str
+    title: str
+    status: Literal["open", "doing", "waiting", "blocked", "done"]
+    archived: bool
+
+
+class TicketAssignee(Author):
+    """Who a ticket is assigned to, as they stand now: the person, or an agent identity."""
+
+    # Whether the agent identity holds a live credential; the person always does.
+    active: bool
+
+
+class TicketListed(Answer):
+    """A ticket as lists show it: its description and resolution cut to 1,000 characters each."""
+
+    id: str
+    number: int
+    key: str
+    title: str
+    description: str
+    resolution: str
+    # Whether either was cut; a ticket's own read cuts neither.
+    truncated: bool
+    kind: Literal["bug", "incident", "task"]
+    priority: Literal["low", "normal", "high", "urgent"]
+    status: Literal["open", "doing", "blocked", "done"]
+    labels: list[str]
+    repositoryIds: list[str]
+    itemId: str | None
+    # Null when the ticket names no work item, or one that is missing.
+    item: TicketWorkItem | None
+    assigneeId: str | None
+    # Null when it is assigned to no one. An agent identity that is gone reads as "Unknown agent".
+    assignee: TicketAssignee | None
+    author: Author
+    commentCount: int
+    archived: bool
+    revision: int
+    createdAt: str
+    updatedAt: str
+    closedAt: str | None
+    lastActivityAt: str
+
+
+class Tickets(Answer):
+    items: list[TicketListed]
+    total: int
+    limit: int
+    offset: int
+
+
+class TicketComment(Answer):
+    id: str
+    ticketId: str
+    text: str
+    createdAt: str
+    author: Author
+
+
+class TicketComments(Answer):
+    # The latest ones the read asked for (200 by default), oldest first; total counts them all.
+    items: list[TicketComment]
+    total: int
+
+
+class Ticket(TicketListed):
+    """A ticket whole, with its latest comments and who changed it when."""
+
+    comments: TicketComments
+    # The latest 100 changes, newest first, without their records: /history has those.
+    history: list[Change]

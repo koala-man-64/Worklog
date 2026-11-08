@@ -538,6 +538,9 @@ Done so far:
 - **Typed responses, eighth batch.** A record's history, a record's attachments, an address's repository resolution, an agent's ties, Settings and the health check.
   - A tied record takes one of the shapes `record_kinds.summary` gives, told apart by their keys.
   - The golden world now ties its agent to its work item, so a tie is pinned with an entry.
+- **Typed responses, ninth batch.** The list of releases and a release's read, the list of tickets and a ticket's read, and a roadmap's saved revision.
+  - A saved revision keeps the steps as written then. One function has written them, in one shape, since the first version, so they take a strict model too.
+  - The golden world's release now holds a work item, a roadmap, a step and a GitHub reference. Its ticket names a work item, a label and a repository, is assigned to the agent, and has the agent's comment.
 
 #### 5.4 · Frontend layout
 
