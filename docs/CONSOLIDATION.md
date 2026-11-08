@@ -437,9 +437,24 @@ What changed:
 
 #### 4.3 · Offline compact
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branch: `claude/offline-compact` · PR: PR_LINK
 
 Add `worklog compact`, with K6's retention, the allowlist from *Rules*, a purge of uncommitted plan imports, then `VACUUM`. It runs offline and takes a pre-compaction backup. Needs 1.3 and 4.1. Findings: B-04, B-12, REM-19, REM-20.
+
+What changed:
+- **`worklog compact`** (`compaction.py`; `Worklog.ps1 compact`) runs offline, under the server's lock.
+  - It refuses a database another process holds, one with a journal, WAL or SHM file or an interrupted restore beside it, and one not at the current schema version.
+  - It validates the database and takes a `pre-compact` backup, of which the three newest are kept.
+- **On a copy beside the database, in one transaction:**
+  - Events older than 90 days, of the display-only kinds, keep `{id, title, status, _statusChanged}`, and any other payload becomes null. The allowlist is work items, the day's plan and reflection, supporting records, and roadmaps with their steps, progress and imports.
+  - Every other kind keeps its payloads, and no event row goes.
+  - Each roadmap keeps its 20 newest versions.
+  - Plan imports never committed go 7 days after their preview, and receipts past their 14 days.
+- **Then the swap.** `VACUUM` runs, the copy is validated as restore validates a candidate, and only then is it renamed into the database's place. A failure before that leaves the database as it was. The README gives the way back: restore the pre-compaction backup.
+
+  `test_compaction.py` pins each of these. Today and every other table read the same afterwards, event order and the search index hold, and the kinds that hold state keep their payloads byte for byte.
+
+Not in this step: REM-19's limits on what an import preview parses (5,000 headings, 100,000 elements, 1,000-byte titles). Only the person previews imports, and the preview already takes at most 5 MB.
 
 #### 4.4 · Doctor, then constraints
 

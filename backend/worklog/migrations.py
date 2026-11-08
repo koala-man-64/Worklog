@@ -527,9 +527,10 @@ def add_proposal_targets(conn: sqlite3.Connection) -> None:
     proposal.approve event and after the approval before it: writes are serialized, an approval
     applies every change in its own transaction, and an agent creates work items and roadmaps only
     through proposals. History is read in the order it was written, by rowid, which no clock's
-    resolution or adjustment can reorder; Worklog never deletes events or vacuums. Where a
-    proposal's creations don't pair one for one with its creating changes, or the person wrote
-    the proposal, it keeps the targets its changes name. Nothing here fails startup: a change
+    resolution or adjustment can reorder; Worklog never deletes events, and compaction's VACUUM
+    keeps their order (test_compaction.py). Where a proposal's creations don't pair one for one
+    with its creating changes, or the person wrote the proposal, it keeps the targets its changes
+    name. Nothing here fails startup: a change
     that can't be read counts toward nothing, as approval refused it.
     """
     from .proposal_targets import record

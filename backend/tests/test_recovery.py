@@ -45,14 +45,15 @@ def test_backup_includes_live_wal_and_publishes_valid_snapshot(tmp_path):
         assert recovery.list_backups(tmp_path / "backups")[0]["name"] == backup.name
 
 
-def test_retention_daily_14_migration_3_manual_unpruned(tmp_path):
+def test_retention_daily_14_migration_and_compaction_3_manual_unpruned(tmp_path):
     source = make_database(tmp_path / "live.sqlite3")
     directory = tmp_path / "backups"
-    for kind, count in [("daily", 16), ("pre-migration", 5), ("manual", 4)]:
+    for kind, count in [("daily", 16), ("pre-migration", 5), ("pre-compact", 5), ("manual", 4)]:
         for _ in range(count):
             recovery.backup_database(source, directory, kind)
     assert len(list(directory.glob("worklog-daily-*.sqlite3"))) == 14
     assert len(list(directory.glob("worklog-pre-migration-*.sqlite3"))) == 3
+    assert len(list(directory.glob("worklog-pre-compact-*.sqlite3"))) == 3
     assert len(list(directory.glob("worklog-manual-*.sqlite3"))) == 4
 
 
