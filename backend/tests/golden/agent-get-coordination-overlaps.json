@@ -8,7 +8,7 @@
       {
         "id": "<id1>",
         "title": "Parser",
-        "pinned": false,
+        "pinned": true,
         "updatedAt": "<time>",
         "matched": [
           {

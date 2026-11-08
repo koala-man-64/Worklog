@@ -39,7 +39,7 @@
       {
         "id": "<id6>",
         "title": "Parser",
-        "pinned": false,
+        "pinned": true,
         "updatedAt": "<time>",
         "matched": [
           {

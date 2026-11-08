@@ -139,7 +139,8 @@
           "archived": false,
           "via": [
             "participation",
-            "update"
+            "update",
+            "message"
           ],
           "current": true,
           "lastAt": "<time>"
