@@ -3,8 +3,22 @@
   "body": {
     "items": [
       {
-        "number": 1,
+        "number": 2,
         "id": "<id1>",
+        "title": "Track the spec",
+        "status": "approved",
+        "autoApproved": false,
+        "actorLabel": "Builder",
+        "agentId": "<id2>",
+        "createdAt": "<time>",
+        "submittedAt": "<time>",
+        "appliedAt": "<time>",
+        "updatedAt": "<time>",
+        "operationCount": 2
+      },
+      {
+        "number": 1,
+        "id": "<id3>",
         "title": "Rename",
         "status": "draft",
         "autoApproved": false,
@@ -17,6 +31,6 @@
         "operationCount": 0
       }
     ],
-    "total": 1
+    "total": 2
   }
 }

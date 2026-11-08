@@ -1,7 +1,28 @@
 {
   "status": 200,
   "body": {
-    "items": [],
-    "total": 0
+    "items": [
+      {
+        "number": 1,
+        "id": "<id1>",
+        "title": "Track the spec",
+        "status": "approved",
+        "autoApproved": false,
+        "actorLabel": "Builder",
+        "agentId": "<id2>",
+        "createdAt": "<time>",
+        "submittedAt": "<time>",
+        "appliedAt": "<time>",
+        "updatedAt": "<time>",
+        "operationCount": 2,
+        "changes": [
+          {
+            "number": 1,
+            "action": "link.create"
+          }
+        ]
+      }
+    ],
+    "total": 1
   }
 }
