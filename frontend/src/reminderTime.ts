@@ -4,7 +4,7 @@ import type {
   Reminder,
   ReminderTarget,
   ReminderTargetType,
-} from "./reminderTypes";
+} from "./apiTypes";
 
 /**
  * The Worklog timezone, from the session the app opened with and Settings updates. Reading it

@@ -11,7 +11,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { setDataContext } from "./api";
 import { RecordReminders, TodayReminders } from "./RecordReminders";
-import type { Reminder } from "./reminderTypes";
+import type { Reminder } from "./apiTypes";
 
 const ITEM = "11111111-1111-4111-8111-111111111111";
 const ID = "22222222-2222-4222-8222-222222222222";

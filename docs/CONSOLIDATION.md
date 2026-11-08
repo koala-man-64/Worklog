@@ -570,6 +570,10 @@ Done so far:
 - **Typed writes, sixth batch.** Credentials, Settings, a manual backup and plan imports. Every route that answers with JSON is now typed; the page, an attachment's file, the export, an import's original and the session bootstrap answer otherwise.
   - A credential's token is null when the answer replays an earlier request with the same Idempotency-Key, since the receipt keeps no token.
   - The golden world now previews its plan import through its own write, so the preview is pinned.
+- **Typed commands, first batch.** The frontend reads each route's answer and body from the generated schema (`apiTypes.ts`: `Answer<path, method>`, `Body<path, method>`).
+  - The ticket, release, reminder and resource pages now make every write through `commands.ts`, under one pending state per page (`useWrites`), and read by route.
+  - Their four hand-written type files are gone.
+  - A new reminder's callback was typed with the page's detail, which has a history a create doesn't send; it now takes the record a create returns.
 
 #### 5.4 · Frontend layout
 

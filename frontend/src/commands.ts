@@ -1,5 +1,5 @@
 import { request } from "./api";
-import type { components } from "./generatedApi";
+import type { Answer, Schema } from "./apiTypes";
 import type {
   Item,
   Note,
@@ -13,12 +13,12 @@ import type {
   GithubRef,
   RankResult,
 } from "./types";
-import type { Release, ReleaseCheck } from "./releaseTypes";
-import type { ReminderDetail } from "./reminderTypes";
-import type { ResourcePage } from "./resourceTypes";
-import type { Ticket, TicketComment } from "./ticketTypes";
-type Schema = components["schemas"];
-/** Actual command payloads are checked against the exported backend OpenAPI schema. */
+/** A command archives a record, or recovers it. */
+const verb = (archived: boolean) => (archived ? "archive" : "recover");
+/**
+ * Every write a page makes, each with the body the backend's schema takes and the answer it
+ * gives. A page calls these, inside useCommand or useWrites, rather than a path of its own.
+ */
 export const commands = {
   createItem: (body: Schema["ItemCreate"]) =>
     request<Item>("/work-items", "POST", body),
@@ -64,35 +64,114 @@ export const commands = {
   updateGithubRef: (id: string, body: Schema["GithubRefUpdate"]) =>
     request<GithubRef>("/github/" + id, "PATCH", body),
   createTicket: (body: Schema["TicketCreate"]) =>
-    request<Ticket>("/tickets", "POST", body),
+    request<Answer<"/api/v1/tickets", "post">>("/tickets", "POST", body),
   updateTicket: (id: string, body: Schema["TicketUpdate"]) =>
-    request<Ticket>("/tickets/" + id, "PATCH", body),
+    request<Answer<"/api/v1/tickets/{ref}", "patch">>(
+      "/tickets/" + id,
+      "PATCH",
+      body,
+    ),
   commentOnTicket: (id: string, body: Schema["TicketCommentCreate"]) =>
-    request<TicketComment>(`/tickets/${id}/comments`, "POST", body),
+    request<Answer<"/api/v1/tickets/{ref}/comments", "post">>(
+      `/tickets/${id}/comments`,
+      "POST",
+      body,
+    ),
+  setTicketArchived: (id: string, archived: boolean, body: Schema["Expected"]) =>
+    request<Answer<"/api/v1/tickets/{ref}/{verb}", "post">>(
+      `/tickets/${id}/${verb(archived)}`,
+      "POST",
+      body,
+    ),
   createResource: (body: Schema["ResourceCreate"]) =>
-    request<ResourcePage>("/resources", "POST", body),
+    request<Answer<"/api/v1/resources", "post">>("/resources", "POST", body),
   updateResource: (id: string, body: Schema["ResourceUpdate"]) =>
-    request<ResourcePage>("/resources/" + id, "PATCH", body),
+    request<Answer<"/api/v1/resources/{identity}", "patch">>(
+      "/resources/" + id,
+      "PATCH",
+      body,
+    ),
+  setResourceArchived: (
+    id: string,
+    archived: boolean,
+    body: Schema["Expected"],
+  ) =>
+    request<Answer<"/api/v1/resources/{identity}/{verb}", "post">>(
+      `/resources/${id}/${verb(archived)}`,
+      "POST",
+      body,
+    ),
   /** Fields left out take their defaults: no date, planned. */
   createRelease: (
     body: Pick<Schema["ReleaseCreate"], "title"> &
       Partial<Schema["ReleaseCreate"]>,
-  ) => request<Release>("/releases", "POST", body),
+  ) => request<Answer<"/api/v1/releases", "post">>("/releases", "POST", body),
   updateRelease: (id: string, body: Schema["ReleaseUpdate"]) =>
-    request<Release>("/releases/" + id, "PATCH", body),
+    request<Answer<"/api/v1/releases/{identity}", "patch">>(
+      "/releases/" + id,
+      "PATCH",
+      body,
+    ),
+  setReleaseArchived: (id: string, archived: boolean, body: Schema["Expected"]) =>
+    request<Answer<"/api/v1/releases/{identity}/archive", "post">>(
+      `/releases/${id}/${verb(archived)}`,
+      "POST",
+      body,
+    ),
   /** Holds a work item, roadmap, step or GitHub reference; holding one twice changes nothing. */
   holdInRelease: (body: Schema["ReleaseContentChange"]) =>
-    request<{ changed: boolean }>("/release-contents", "POST", body),
+    request<Answer<"/api/v1/release-contents", "post">>(
+      "/release-contents",
+      "POST",
+      body,
+    ),
   removeFromRelease: (body: Schema["ReleaseContentChange"]) =>
-    request<{ changed: boolean }>("/release-contents/remove", "POST", body),
+    request<Answer<"/api/v1/release-contents/remove", "post">>(
+      "/release-contents/remove",
+      "POST",
+      body,
+    ),
   createReleaseCheck: (
     body: Pick<Schema["ReleaseCheckCreate"], "releaseId" | "kind" | "text"> &
       Partial<Schema["ReleaseCheckCreate"]>,
-  ) => request<ReleaseCheck>("/release-checks", "POST", body),
+  ) =>
+    request<Answer<"/api/v1/release-checks", "post">>(
+      "/release-checks",
+      "POST",
+      body,
+    ),
   updateReleaseCheck: (id: string, body: Schema["ReleaseCheckUpdate"]) =>
-    request<ReleaseCheck>("/release-checks/" + id, "PATCH", body),
+    request<Answer<"/api/v1/release-checks/{identity}", "patch">>(
+      "/release-checks/" + id,
+      "PATCH",
+      body,
+    ),
+  setReleaseCheckArchived: (
+    id: string,
+    archived: boolean,
+    body: Schema["Expected"],
+  ) =>
+    request<Answer<"/api/v1/release-checks/{identity}/archive", "post">>(
+      `/release-checks/${id}/${verb(archived)}`,
+      "POST",
+      body,
+    ),
   createReminder: (body: Schema["ReminderCreate"]) =>
-    request<ReminderDetail>("/reminders", "POST", body),
+    request<Answer<"/api/v1/reminders", "post">>("/reminders", "POST", body),
   updateReminder: (id: string, body: Schema["ReminderUpdate"]) =>
-    request<ReminderDetail>("/reminders/" + id, "PATCH", body),
+    request<Answer<"/api/v1/reminders/{identity}", "patch">>(
+      "/reminders/" + id,
+      "PATCH",
+      body,
+    ),
+  setReminderArchived: (
+    id: string,
+    archived: boolean,
+    body: Schema["Expected"],
+  ) =>
+    request<Answer<"/api/v1/reminders/{identity}/{verb}", "post">>(
+      `/reminders/${id}/${verb(archived)}`,
+      "POST",
+      body,
+    ),
 };

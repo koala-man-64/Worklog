@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setDataContext } from "./api";
 import { Tickets } from "./Tickets";
 import type { DiscussionParticipants } from "./discussionTypes";
-import type { Ticket, TicketDetail } from "./ticketTypes";
+import type { Ticket, TicketDetail } from "./apiTypes";
 
 const ID = "11111111-1111-4111-8111-111111111111";
 const agent = {
