@@ -295,21 +295,36 @@
           "kind": "bug",
           "priority": "normal",
           "status": "open",
-          "labels": [],
-          "repositoryIds": [],
-          "itemId": null,
-          "item": null,
-          "assigneeId": null,
-          "assignee": null,
+          "labels": [
+            "parser"
+          ],
+          "repositoryIds": [
+            "<id11>"
+          ],
+          "itemId": "<id2>",
+          "item": {
+            "id": "<id2>",
+            "title": "Parser",
+            "status": "doing",
+            "archived": false
+          },
+          "assigneeId": "<id10>",
+          "assignee": {
+            "id": "<id10>",
+            "label": "Builder",
+            "kind": "agent",
+            "avatar": "red-dots-antenna",
+            "active": true
+          },
           "author": {
             "id": "local-user",
             "label": "You",
             "kind": "human",
             "avatar": null
           },
-          "commentCount": 0,
+          "commentCount": 1,
           "archived": false,
-          "revision": 1,
+          "revision": 2,
           "createdAt": "<time>",
           "updatedAt": "<time>",
           "closedAt": null,
@@ -350,7 +365,7 @@
           "updatedAt": "<time>",
           "pastDue": false,
           "counts": {
-            "items": 0,
+            "items": 1,
             "itemsDone": 0,
             "notify": 0,
             "test": 1,

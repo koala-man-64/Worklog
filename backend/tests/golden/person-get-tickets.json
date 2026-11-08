@@ -13,21 +13,36 @@
         "kind": "bug",
         "priority": "normal",
         "status": "open",
-        "labels": [],
-        "repositoryIds": [],
-        "itemId": null,
-        "item": null,
-        "assigneeId": null,
-        "assignee": null,
+        "labels": [
+          "parser"
+        ],
+        "repositoryIds": [
+          "<id2>"
+        ],
+        "itemId": "<id3>",
+        "item": {
+          "id": "<id3>",
+          "title": "Parser",
+          "status": "doing",
+          "archived": false
+        },
+        "assigneeId": "<id4>",
+        "assignee": {
+          "id": "<id4>",
+          "label": "Builder",
+          "kind": "agent",
+          "avatar": "red-dots-antenna",
+          "active": true
+        },
         "author": {
           "id": "local-user",
           "label": "You",
           "kind": "human",
           "avatar": null
         },
-        "commentCount": 0,
+        "commentCount": 1,
         "archived": false,
-        "revision": 1,
+        "revision": 2,
         "createdAt": "<time>",
         "updatedAt": "<time>",
         "closedAt": null,

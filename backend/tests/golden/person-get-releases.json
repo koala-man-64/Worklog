@@ -14,7 +14,7 @@
         "updatedAt": "<time>",
         "pastDue": false,
         "counts": {
-          "items": 0,
+          "items": 1,
           "itemsDone": 0,
           "notify": 0,
           "test": 1,

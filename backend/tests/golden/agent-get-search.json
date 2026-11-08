@@ -46,8 +46,17 @@
         "ownerId": "<id1>",
         "routeType": "discussions",
         "routeId": "<id1>"
+      },
+      {
+        "id": "<id7>",
+        "type": "ticket",
+        "title": "T-1 Crash on save",
+        "snippet": "bug parser",
+        "ownerId": "<id7>",
+        "routeType": "tickets",
+        "routeId": "<id7>"
       }
     ],
-    "total": 5
+    "total": 6
   }
 }
