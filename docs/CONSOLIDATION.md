@@ -567,6 +567,9 @@ Done so far:
   - Registering a repository's address answers with the record that holds it and whether it is new.
 - **Typed writes, fourth batch.** Agent runs, participations and their updates, an agent's own tracked chat, chat messages and confirmations, the inbox, agent ties and agent registrations.
 - **Typed writes, fifth batch.** The discussions' commands (a new thread, messages, acknowledgements, tags, pins and roles) and the proposals' create, update and transitions.
+- **Typed writes, sixth batch.** Credentials, Settings, a manual backup and plan imports. Every route that answers with JSON is now typed; the page, an attachment's file, the export, an import's original and the session bootstrap answer otherwise.
+  - A credential's token is null when the answer replays an earlier request with the same Idempotency-Key, since the receipt keeps no token.
+  - The golden world now previews its plan import through its own write, so the preview is pinned.
 
 #### 5.4 · Frontend layout
 

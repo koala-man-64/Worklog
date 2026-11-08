@@ -4147,10 +4147,50 @@ export interface components {
             /** Avatar */
             avatar?: string | null;
         };
+        /**
+         * CredentialIssued
+         * @description A credential as issuing it returns it. Its token shows only here; Worklog keeps its hash.
+         */
+        CredentialIssued: {
+            /** Id */
+            id: string;
+            /** Agentid */
+            agentId: string;
+            /** Label */
+            label: string;
+            /** Avatar */
+            avatar: string | null;
+            /** Token */
+            token: string | null;
+        };
+        /** CredentialRevoked */
+        CredentialRevoked: {
+            /**
+             * Ok
+             * @constant
+             */
+            ok: true;
+            /** Registeredrevoked */
+            registeredRevoked: number;
+        };
         /** CredentialRotate */
         CredentialRotate: {
             /** Label */
             label?: string | null;
+        };
+        /**
+         * CredentialRotated
+         * @description The credential that replaces a rotated one, for the same agent identity, with its token.
+         */
+        CredentialRotated: {
+            /** Id */
+            id: string;
+            /** Agentid */
+            agentId: string;
+            /** Label */
+            label: string;
+            /** Token */
+            token: string | null;
         };
         /**
          * CredentialSponsor
@@ -4795,6 +4835,20 @@ export interface components {
             detail?: components["schemas"]["ValidationError"][];
         };
         /**
+         * HashedBackup
+         * @description A backup a person made, with its file's SHA-256.
+         */
+        HashedBackup: {
+            /** Name */
+            name: string;
+            /** Size */
+            size: number;
+            /** Createdat */
+            createdAt: string;
+            /** Sha256 */
+            sha256: string;
+        };
+        /**
          * Health
          * @description Whether this Worklog answers, and which instance and data it serves.
          */
@@ -4844,6 +4898,84 @@ export interface components {
             roadmapId?: string | null;
             /** Revision */
             revision?: number | null;
+        };
+        /**
+         * ImportPreview
+         * @description What committing an HTML plan would make: a roadmap's title, overview and steps.
+         */
+        ImportPreview: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Overview */
+            overview: string;
+            /** Steps */
+            steps: components["schemas"]["ImportStep"][];
+            /** Warnings */
+            warnings: string[];
+            /** Sha256 */
+            sha256: string;
+        };
+        /**
+         * ImportStep
+         * @description A step a plan import found under one of the page's headings.
+         */
+        ImportStep: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /** Parentid */
+            parentId: string | null;
+            /** Position */
+            position: number;
+        };
+        /**
+         * ImportedRoadmap
+         * @description The roadmap a plan import made or was attached to.
+         */
+        ImportedRoadmap: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Overview */
+            overview: string;
+            /** Parentid */
+            parentId: string | null;
+            /** Revision */
+            revision: number;
+            /** Archived */
+            archived: boolean;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Steps */
+            steps: components["schemas"]["PlanStep"][];
+            /** Versions */
+            versions: components["schemas"]["RoadmapVersion"][];
+            /** Notes */
+            notes: components["schemas"]["Note"][];
+            /** Attachments */
+            attachments: components["schemas"]["Attachment"][];
+            /** Links */
+            links: components["schemas"]["WebLink"][];
+            /** Chats */
+            chats: components["schemas"]["TrackedChat"][];
+            /** Github */
+            github: components["schemas"]["ListedGithubReference"][];
+            /** Questions */
+            questions: components["schemas"]["Question"][];
+            /** Decisions */
+            decisions: components["schemas"]["Decision"][];
+            /** History */
+            history: components["schemas"]["Event"][];
+            /** Importid */
+            importId: string;
         };
         /** Inbox */
         Inbox: {
@@ -11325,9 +11457,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ImportPreview"];
                 };
             };
             /** @description Validation Error */
@@ -11362,9 +11492,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ImportedRoadmap"];
                 };
             };
             /** @description Validation Error */
@@ -11752,9 +11880,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Settings"];
                 };
             };
             /** @description Validation Error */
@@ -11787,9 +11913,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["CredentialIssued"];
                 };
             };
             /** @description Validation Error */
@@ -11824,9 +11948,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["CredentialRotated"];
                 };
             };
             /** @description Validation Error */
@@ -11857,9 +11979,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["CredentialRevoked"];
                 };
             };
             /** @description Validation Error */
@@ -11888,9 +12008,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["HashedBackup"];
                 };
             };
         };

@@ -609,12 +609,12 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def step_history(identity: str) -> dict:
         return plans.history(identity)
 
-    @app.post("/api/v1/imports/preview")
+    @app.post("/api/v1/imports/preview", response_model=out.ImportPreview)
     async def import_preview(request: Request, name: str = "roadmap.html") -> dict:
         data = await bounded_body(request, HTML_LIMIT)
         return await run_in_threadpool(plans.preview, data, name, request.state.actor)
 
-    @app.post("/api/v1/imports/{identity}/commit")
+    @app.post("/api/v1/imports/{identity}/commit", response_model=out.ImportedRoadmap)
     def import_commit(identity: str, request: Request, body: m.ImportCommit) -> dict:
         payload = body.model_dump(exclude_none=True)
         def commit(c: sqlite3.Connection, actor: dict) -> dict:
@@ -728,7 +728,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                 "backups": backups, "storage": {"databaseBytes": size, "backupBytes": sum(b.get("size", 0) for b in backups),
                                                  "warning": app.state.backup_error or ("Primary data exceeds 2 GB; review retained files and backup capacity" if size > 2_000_000_000 else None)}}
 
-    @app.patch("/api/v1/settings", dependencies=[Depends(person_only)])
+    @app.patch("/api/v1/settings", dependencies=[Depends(person_only)], response_model=out.Settings)
     def settings_update(request: Request, body: m.SettingsUpdate) -> dict:
         if body.timezone is not None:
             try:
@@ -753,7 +753,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                 event(c, request.state.actor, "settings.agentRepositoryRegistration", "settings", was, body.agentRepositoryRegistration)
         return settings()
 
-    @app.post("/api/v1/credentials", dependencies=[Depends(person_only)])
+    @app.post("/api/v1/credentials", dependencies=[Depends(person_only)], response_model=out.CredentialIssued)
     def credential_create(request: Request, body: m.CredentialCreate) -> dict:
         def issue(c: sqlite3.Connection, actor: dict) -> dict:
             label, token, identity = text(body.label, "label", required=True, limit=200), secrets.token_urlsafe(32), uid()
@@ -764,7 +764,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             return {"id": identity, "agentId": agent["id"], "label": label, "avatar": agent["avatar"], "token": token}
         return mutate(request, body.model_dump(), issue, required_key=True, redact=("token",))
 
-    @app.post("/api/v1/credentials/{identity}/rotate", dependencies=[Depends(person_only)])
+    @app.post("/api/v1/credentials/{identity}/rotate", dependencies=[Depends(person_only)], response_model=out.CredentialRotated)
     def credential_rotate(identity: str, request: Request, body: m.CredentialRotate) -> dict:
         def rotate(c: sqlite3.Connection, actor: dict) -> dict:
             previous = c.execute("SELECT * FROM credentials WHERE id=?", (identity,)).fetchone()
@@ -787,7 +787,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             return {"id": replacement, "agentId": agent["id"], "label": label, "token": token}
         return mutate(request, body.model_dump(), rotate, required_key=True, redact=("token",))
 
-    @app.post("/api/v1/credentials/{identity}/revoke", dependencies=[Depends(person_only)])
+    @app.post("/api/v1/credentials/{identity}/revoke", dependencies=[Depends(person_only)], response_model=out.CredentialRevoked)
     def credential_revoke(identity: str, request: Request) -> dict:
         with db.transaction() as c:
             if not c.execute("UPDATE credentials SET revoked=1 WHERE id=?", (identity,)).rowcount:
@@ -798,7 +798,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             registered = revoke_registered(c, request.state.actor, identity)
         return {"ok": True, "registeredRevoked": registered}
 
-    @app.post("/api/v1/backups", dependencies=[Depends(person_only)])
+    @app.post("/api/v1/backups", dependencies=[Depends(person_only)], response_model=out.HashedBackup)
     def manual_backup() -> dict:
         result = backup_database(db.path, directory / "backups")
         app.state.backup_error = None

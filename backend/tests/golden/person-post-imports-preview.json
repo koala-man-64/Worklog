@@ -1,0 +1,28 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "title": "Imported plan",
+    "overview": "",
+    "steps": [
+      {
+        "id": "<id2>",
+        "title": "Imported plan",
+        "description": "",
+        "parentId": null,
+        "position": 0
+      },
+      {
+        "id": "<id3>",
+        "title": "First step",
+        "description": "Text",
+        "parentId": "<id2>",
+        "position": 1
+      }
+    ],
+    "warnings": [
+      "Review imported Markdown and select steps before committing."
+    ],
+    "sha256": "32f3c7df4e1aacbde664ba16a27082ddcab4b6b17fd330b6cc5eb0192ef70621"
+  }
+}
