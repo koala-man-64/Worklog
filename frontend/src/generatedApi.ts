@@ -4144,6 +4144,15 @@ export interface components {
             /** Rank */
             rank: number | null;
         };
+        /** DayReflection */
+        DayReflection: {
+            /** Date */
+            date: string;
+            /** Reflection */
+            reflection: string;
+            /** Revision */
+            revision: number;
+        };
         /** DaySummary */
         DaySummary: {
             /** Worked */
@@ -4458,6 +4467,17 @@ export interface components {
             limit: number;
             /** Offset */
             offset: number;
+        };
+        /**
+         * Done
+         * @description A command that changed what it was asked to, or found nothing to change, and names nothing back.
+         */
+        Done: {
+            /**
+             * Ok
+             * @constant
+             */
+            ok: true;
         };
         /** Empty */
         Empty: Record<string, never>;
@@ -5374,6 +5394,40 @@ export interface components {
             /** Repositorycount */
             repositoryCount: number;
         };
+        /**
+         * PersonRecord
+         * @description A person's own fields, as their commands return them.
+         */
+        PersonRecord: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Title */
+            title: string;
+            /** Team */
+            team: string;
+            /** Description */
+            description: string;
+            /** Email */
+            email: string;
+            /** Phone */
+            phone: string;
+            /** Chat */
+            chat: string;
+            /** Location */
+            location: string;
+            /** Notes */
+            notes: string;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+        };
         /** PersonRepository */
         PersonRepository: {
             /** Linkid */
@@ -5401,6 +5455,57 @@ export interface components {
             /** Createdat */
             createdAt: string;
             roadmap: components["schemas"]["RoadmapRecord"];
+        };
+        /**
+         * PersonTie
+         * @description A person's tie to a work item, roadmap or repository, as setting it returns it.
+         */
+        PersonTie: {
+            /** Id */
+            id: string;
+            /** Personid */
+            personId: string;
+            /** Name */
+            name: string;
+            /** Persontitle */
+            personTitle: string;
+            /** Personteam */
+            personTeam: string;
+            /** Relationship */
+            relationship: string;
+            /** Archived */
+            archived: boolean;
+            /** Createdat */
+            createdAt: string;
+            /**
+             * Targettype
+             * @enum {string}
+             */
+            targetType: "item" | "roadmap" | "repository";
+            /** Targetid */
+            targetId: string;
+        };
+        /**
+         * PersonUntied
+         * @description The tie a person no longer has.
+         */
+        PersonUntied: {
+            /**
+             * Ok
+             * @constant
+             */
+            ok: true;
+            /** Id */
+            id: string;
+            /** Personid */
+            personId: string;
+            /**
+             * Targettype
+             * @enum {string}
+             */
+            targetType: "item" | "roadmap" | "repository";
+            /** Targetid */
+            targetId: string;
         };
         /** PersonUpdate */
         PersonUpdate: {
@@ -5713,6 +5818,18 @@ export interface components {
             revision: number;
             /** Rank */
             rank: number;
+        };
+        /**
+         * RankResult
+         * @description A work item's stack rank after a move, 1 first, among how many ranked items.
+         */
+        RankResult: {
+            /** Id */
+            id: string;
+            /** Rank */
+            rank: number;
+            /** Rankedcount */
+            rankedCount: number;
         };
         /**
          * RecordHistory
@@ -6973,6 +7090,73 @@ export interface components {
             provider: string;
             /** Externalchatid */
             externalChatId?: string | null;
+        };
+        /**
+         * SavedRoadmap
+         * @description A roadmap as its commands return it: its steps, retired ones included, and versions. The
+         *     supporting lists are always empty here; its read fills them.
+         */
+        SavedRoadmap: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Overview */
+            overview: string;
+            /** Parentid */
+            parentId: string | null;
+            /** Revision */
+            revision: number;
+            /** Archived */
+            archived: boolean;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Steps */
+            steps: components["schemas"]["PlanStep"][];
+            /** Versions */
+            versions: components["schemas"]["RoadmapVersion"][];
+            /** Notes */
+            notes: components["schemas"]["Note"][];
+            /** Attachments */
+            attachments: components["schemas"]["Attachment"][];
+            /** Links */
+            links: components["schemas"]["WebLink"][];
+            /** Chats */
+            chats: components["schemas"]["TrackedChat"][];
+            /** Github */
+            github: components["schemas"]["ListedGithubReference"][];
+            /** Questions */
+            questions: components["schemas"]["Question"][];
+            /** Decisions */
+            decisions: components["schemas"]["Decision"][];
+            /** History */
+            history: components["schemas"]["Event"][];
+        };
+        /**
+         * SavedStep
+         * @description A step as its update returns it, with its roadmap.
+         */
+        SavedStep: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /** Parentid */
+            parentId: string | null;
+            /** Position */
+            position: number;
+            /** Status */
+            status: string;
+            /** Revision */
+            revision: number;
+            /** Retired */
+            retired: boolean;
+            /** Roadmapid */
+            roadmapId: string;
         };
         /** SearchResult */
         SearchResult: {
@@ -8261,9 +8445,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["WorkItemRecord"];
                 };
             };
             /** @description Validation Error */
@@ -8296,9 +8478,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Done"];
                 };
             };
             /** @description Validation Error */
@@ -8364,9 +8544,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["WorkItemRecord"];
                 };
             };
             /** @description Validation Error */
@@ -8401,9 +8579,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Done"];
                 };
             };
             /** @description Validation Error */
@@ -8438,9 +8614,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["RankResult"];
                 };
             };
             /** @description Validation Error */
@@ -8476,9 +8650,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["WorkItemRecord"];
                 };
             };
             /** @description Validation Error */
@@ -8545,9 +8717,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DailyEntry"];
                 };
             };
             /** @description Validation Error */
@@ -8583,9 +8753,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Done"];
                 };
             };
             /** @description Validation Error */
@@ -8620,9 +8788,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DayReflection"];
                 };
             };
             /** @description Validation Error */
@@ -8657,9 +8823,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Done"];
                 };
             };
             /** @description Validation Error */
@@ -8694,9 +8858,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DailyEntry"];
                 };
             };
             /** @description Validation Error */
@@ -10400,9 +10562,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SavedRoadmap"];
                 };
             };
             /** @description Validation Error */
@@ -10468,9 +10628,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SavedRoadmap"];
                 };
             };
             /** @description Validation Error */
@@ -10537,9 +10695,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SavedRoadmap"];
                 };
             };
             /** @description Validation Error */
@@ -10574,9 +10730,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SavedRoadmap"];
                 };
             };
             /** @description Validation Error */
@@ -10611,9 +10765,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["PlanStep"];
                 };
             };
             /** @description Validation Error */
@@ -10679,9 +10831,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SavedStep"];
                 };
             };
             /** @description Validation Error */
@@ -11388,9 +11538,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["PersonRecord"];
                 };
             };
             /** @description Validation Error */
@@ -11456,9 +11604,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["PersonRecord"];
                 };
             };
             /** @description Validation Error */
@@ -11494,9 +11640,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["PersonRecord"];
                 };
             };
             /** @description Validation Error */
@@ -11529,9 +11673,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["PersonTie"];
                 };
             };
             /** @description Validation Error */
@@ -11564,9 +11706,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["PersonUntied"];
                 };
             };
             /** @description Validation Error */
@@ -11602,9 +11742,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SavedRoadmap"];
                 };
             };
             /** @description Validation Error */

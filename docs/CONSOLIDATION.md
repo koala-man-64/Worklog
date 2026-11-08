@@ -559,6 +559,9 @@ Done so far:
   - The golden world's person now confirms the agent in the tracked chat.
 - **Typing changes no answer, in every test.** `conftest.py` compares each typed answer with what its route built, as JSON text, so a model that converts a value, such as 1 to `true`, fails the request in whatever test makes it. The golden test compares JSON text too, since Python holds `true` equal to 1.
 - **Typed writes, first batch.** The golden world now pins the first answer of each write route it calls, 42 of them. The writes of the nine supporting records (create, update, archive and recover, a task's move and an attachment's upload) answer with the record as its read gives it; a GitHub reference also names the chat that made it.
+- **Typed writes, second batch.** Work items, a day's entries and reflection, roadmaps, steps, people and their ties.
+  - A roadmap's commands answer with its steps and versions, and with supporting lists that are always empty, which its read fills.
+  - A command that names nothing back answers `{"ok": true}` (`Done`).
 
 #### 5.4 · Frontend layout
 

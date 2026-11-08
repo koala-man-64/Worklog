@@ -265,11 +265,11 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
               limit: int = Query(100, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
         return work.items.list(view=view, archived=archived, states=status, roadmap_id=roadmapId, person_id=personId, limit=limit, offset=offset, q=q, repository_id=repositoryId)
 
-    @app.post("/api/v1/work-items")
+    @app.post("/api/v1/work-items", response_model=out.WorkItemRecord)
     def create_item(request: Request, body: m.ItemCreate) -> dict:
         return apply(request, "item.create", body.model_dump(), create=True)
 
-    @app.post("/api/v1/work-items/reorder")
+    @app.post("/api/v1/work-items/reorder", response_model=out.Done)
     def reorder_items(request: Request, body: m.Reorder) -> dict:
         p = body.model_dump()
         return mutate(request, p, lambda c, a: work.items.reorder(c, a, p))
@@ -278,21 +278,21 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def item_detail(identity: str) -> dict:
         return work.items.detail(identity)
 
-    @app.patch("/api/v1/work-items/{identity}")
+    @app.patch("/api/v1/work-items/{identity}", response_model=out.WorkItemRecord)
     def update_item(identity: str, request: Request, body: m.ItemUpdate) -> dict:
         return apply(request, "item.update", {**body.model_dump(exclude_unset=True), "id": identity})
 
-    @app.post("/api/v1/work-items/{identity}/move")
+    @app.post("/api/v1/work-items/{identity}/move", response_model=out.Done)
     def move_item(identity: str, request: Request, body: m.Move) -> dict:
         p = body.model_dump()
         return mutate(request, p, lambda c, a: work.items.move_backlog(c, a, identity, p))
 
-    @app.post("/api/v1/work-items/{identity}/rank")
+    @app.post("/api/v1/work-items/{identity}/rank", response_model=out.RankResult)
     def rank_item(identity: str, request: Request, body: m.Rank) -> dict:
         p = body.model_dump()
         return mutate(request, p, lambda c, a: work.items.rank(c, a, identity, p))
 
-    @app.post("/api/v1/work-items/{identity}/{verb}")
+    @app.post("/api/v1/work-items/{identity}/{verb}", response_model=out.WorkItemRecord)
     def archive_item(identity: str, verb: str, request: Request, body: m.Expected) -> dict:
         if verb not in {"archive", "recover"}:
             raise AppError(404, "not_found", "Unknown command")
@@ -302,26 +302,26 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def day(date: str) -> dict:
         return work.items.day(date)
 
-    @app.put("/api/v1/days/{date}/entries/{item_id}")
+    @app.put("/api/v1/days/{date}/entries/{item_id}", response_model=out.DailyEntry)
     def update_entry(date: str, item_id: str, request: Request, body: m.EntryUpdate) -> dict:
         return apply(request, "entry.upsert", {**body.model_dump(exclude_unset=True), "date": date, "itemId": item_id})
 
-    @app.post("/api/v1/days/{date}/entries/{item_id}/remove")
+    @app.post("/api/v1/days/{date}/entries/{item_id}/remove", response_model=out.Done)
     def remove_entry(date: str, item_id: str, request: Request, body: m.Expected) -> dict:
         p = body.model_dump()
         return mutate(request, p, lambda c, a: work.items.remove_entry(c, a, date, item_id, p))
 
-    @app.put("/api/v1/days/{date}/reflection")
+    @app.put("/api/v1/days/{date}/reflection", response_model=out.DayReflection)
     def reflection(date: str, request: Request, body: m.Reflection) -> dict:
         p = body.model_dump()
         return mutate(request, p, lambda c, a: work.items.reflection(c, a, date, p))
 
-    @app.post("/api/v1/days/{date}/reorder")
+    @app.post("/api/v1/days/{date}/reorder", response_model=out.Done)
     def reorder_day(date: str, request: Request, body: m.Reorder) -> dict:
         p = body.model_dump()
         return mutate(request, p, lambda c, a: work.items.reorder(c, a, p, date))
 
-    @app.post("/api/v1/days/{date}/reschedule")
+    @app.post("/api/v1/days/{date}/reschedule", response_model=out.DailyEntry)
     def reschedule(date: str, request: Request, body: m.Reschedule) -> dict:
         p = body.model_dump()
         return mutate(request, p, lambda c, a: work.items.reschedule(c, a, date, p))
@@ -537,7 +537,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             enriched = [{**r, "people": people_map.get(r["id"], [])} for r in items_list]
         return {"items": enriched, "total": len(enriched)}
 
-    @app.post("/api/v1/roadmaps")
+    @app.post("/api/v1/roadmaps", response_model=out.SavedRoadmap)
     def roadmap_create(request: Request, body: m.RoadmapCreate) -> dict:
         return apply(request, "roadmap.create", body.model_dump(), create=True)
 
@@ -554,7 +554,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             result["imports"] = [{"id": r["id"], "name": r["name"], "sha256": r["sha256"], "createdAt": r["created_at"]} for r in c.execute("SELECT * FROM plan_imports WHERE roadmap_id=?", (identity,))]
         return result
 
-    @app.post("/api/v1/roadmaps/{identity}/revisions")
+    @app.post("/api/v1/roadmaps/{identity}/revisions", response_model=out.SavedRoadmap)
     def roadmap_revise(identity: str, request: Request, body: m.RoadmapRevision) -> dict:
         return apply(request, "roadmap.revise", {"id": identity, **body.model_dump()}, create=True)
 
@@ -562,19 +562,19 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def roadmap_version(identity: str, number: int) -> dict:
         return plans.version(identity, number)
 
-    @app.post("/api/v1/roadmaps/{identity}/restore")
+    @app.post("/api/v1/roadmaps/{identity}/restore", response_model=out.SavedRoadmap)
     def roadmap_restore(identity: str, request: Request, body: m.Restore) -> dict:
         return apply(request, "roadmap.restore", {"id": identity, **body.model_dump()})
 
-    @app.post("/api/v1/roadmaps/{identity}/move")
+    @app.post("/api/v1/roadmaps/{identity}/move", response_model=out.SavedRoadmap)
     def roadmap_move(identity: str, request: Request, body: m.RoadmapMove) -> dict:
         return apply(request, "roadmap.move", {"id": identity, **body.model_dump()})
 
-    @app.patch("/api/v1/steps/{identity}/progress")
+    @app.patch("/api/v1/steps/{identity}/progress", response_model=out.PlanStep)
     def progress(identity: str, request: Request, body: m.Progress) -> dict:
         return apply(request, "progress.set", {"id": identity, **body.model_dump()})
 
-    @app.patch("/api/v1/steps/{identity}")
+    @app.patch("/api/v1/steps/{identity}", response_model=out.SavedStep)
     def update_step(identity: str, request: Request, body: m.StepUpdate) -> dict:
         return apply(request, "step.update", {**body.model_dump(exclude_unset=True), "id": identity})
 
@@ -806,7 +806,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def people_list(archived: bool = False, q: str = "") -> dict:
         return work.people.list(archived=archived, q=q)
 
-    @app.post("/api/v1/people")
+    @app.post("/api/v1/people", response_model=out.PersonRecord)
     def person_create(request: Request, body: m.PersonCreate) -> dict:
         return apply(request, "person.create", body.model_dump(), create=True)
 
@@ -814,25 +814,25 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def person_detail(identity: str) -> dict:
         return work.people.detail(identity)
 
-    @app.patch("/api/v1/people/{identity}")
+    @app.patch("/api/v1/people/{identity}", response_model=out.PersonRecord)
     def person_update(identity: str, request: Request, body: m.PersonUpdate) -> dict:
         return apply(request, "person.update", {**body.model_dump(exclude_unset=True), "id": identity})
 
-    @app.post("/api/v1/people/{identity}/{verb}")
+    @app.post("/api/v1/people/{identity}/{verb}", response_model=out.PersonRecord)
     def person_archive(identity: str, verb: str, request: Request, body: m.Expected) -> dict:
         if verb not in {"archive", "recover"}:
             raise AppError(404, "not_found", "Unknown person command")
         return apply(request, "person." + verb, {"id": identity, **body.model_dump()})
 
-    @app.post("/api/v1/person-links")
+    @app.post("/api/v1/person-links", response_model=out.PersonTie)
     def person_link_create(request: Request, body: m.PersonLinkCreate) -> dict:
         return apply(request, "person.link", body.model_dump())
 
-    @app.post("/api/v1/person-links/unlink")
+    @app.post("/api/v1/person-links/unlink", response_model=out.PersonUntied)
     def person_link_remove(request: Request, body: m.PersonLinkRemove) -> dict:
         return apply(request, "person.unlink", body.model_dump())
 
-    @app.post("/api/v1/roadmaps/{identity}/{verb}")
+    @app.post("/api/v1/roadmaps/{identity}/{verb}", response_model=out.SavedRoadmap)
     def roadmap_archive(identity: str, verb: str, request: Request, body: m.Expected) -> dict:
         if verb not in {"archive", "recover"}:
             raise AppError(404, "not_found", "Unknown roadmap command")

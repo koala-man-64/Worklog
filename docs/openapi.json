@@ -209,9 +209,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Create Item Api V1 Work Items Post"
+                  "$ref": "#/components/schemas/WorkItemRecord"
                 }
               }
             }
@@ -249,9 +247,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Reorder Items Api V1 Work Items Reorder Post"
+                  "$ref": "#/components/schemas/Done"
                 }
               }
             }
@@ -337,9 +333,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Update Item Api V1 Work Items  Identity  Patch"
+                  "$ref": "#/components/schemas/WorkItemRecord"
                 }
               }
             }
@@ -388,9 +382,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Move Item Api V1 Work Items  Identity  Move Post"
+                  "$ref": "#/components/schemas/Done"
                 }
               }
             }
@@ -439,9 +431,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Rank Item Api V1 Work Items  Identity  Rank Post"
+                  "$ref": "#/components/schemas/RankResult"
                 }
               }
             }
@@ -499,9 +489,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Archive Item Api V1 Work Items  Identity   Verb  Post"
+                  "$ref": "#/components/schemas/WorkItemRecord"
                 }
               }
             }
@@ -598,9 +586,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Update Entry Api V1 Days  Date  Entries  Item Id  Put"
+                  "$ref": "#/components/schemas/DailyEntry"
                 }
               }
             }
@@ -658,9 +644,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Remove Entry Api V1 Days  Date  Entries  Item Id  Remove Post"
+                  "$ref": "#/components/schemas/Done"
                 }
               }
             }
@@ -709,9 +693,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Reflection Api V1 Days  Date  Reflection Put"
+                  "$ref": "#/components/schemas/DayReflection"
                 }
               }
             }
@@ -760,9 +742,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Reorder Day Api V1 Days  Date  Reorder Post"
+                  "$ref": "#/components/schemas/Done"
                 }
               }
             }
@@ -811,9 +791,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Reschedule Api V1 Days  Date  Reschedule Post"
+                  "$ref": "#/components/schemas/DailyEntry"
                 }
               }
             }
@@ -3127,9 +3105,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Roadmap Create Api V1 Roadmaps Post"
+                  "$ref": "#/components/schemas/SavedRoadmap"
                 }
               }
             }
@@ -3217,9 +3193,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Roadmap Revise Api V1 Roadmaps  Identity  Revisions Post"
+                  "$ref": "#/components/schemas/SavedRoadmap"
                 }
               }
             }
@@ -3316,9 +3290,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Roadmap Restore Api V1 Roadmaps  Identity  Restore Post"
+                  "$ref": "#/components/schemas/SavedRoadmap"
                 }
               }
             }
@@ -3367,9 +3339,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Roadmap Move Api V1 Roadmaps  Identity  Move Post"
+                  "$ref": "#/components/schemas/SavedRoadmap"
                 }
               }
             }
@@ -3418,9 +3388,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Progress Api V1 Steps  Identity  Progress Patch"
+                  "$ref": "#/components/schemas/PlanStep"
                 }
               }
             }
@@ -3469,9 +3437,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Update Step Api V1 Steps  Identity  Patch"
+                  "$ref": "#/components/schemas/SavedStep"
                 }
               }
             }
@@ -4575,9 +4541,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Person Create Api V1 People Post"
+                  "$ref": "#/components/schemas/PersonRecord"
                 }
               }
             }
@@ -4663,9 +4627,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Person Update Api V1 People  Identity  Patch"
+                  "$ref": "#/components/schemas/PersonRecord"
                 }
               }
             }
@@ -4723,9 +4685,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Person Archive Api V1 People  Identity   Verb  Post"
+                  "$ref": "#/components/schemas/PersonRecord"
                 }
               }
             }
@@ -4763,9 +4723,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Person Link Create Api V1 Person Links Post"
+                  "$ref": "#/components/schemas/PersonTie"
                 }
               }
             }
@@ -4803,9 +4761,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Person Link Remove Api V1 Person Links Unlink Post"
+                  "$ref": "#/components/schemas/PersonUntied"
                 }
               }
             }
@@ -4863,9 +4819,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Roadmap Archive Api V1 Roadmaps  Identity   Verb  Post"
+                  "$ref": "#/components/schemas/SavedRoadmap"
                 }
               }
             }
@@ -14080,6 +14034,30 @@
         ],
         "title": "DayItem"
       },
+      "DayReflection": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "title": "Date"
+          },
+          "reflection": {
+            "type": "string",
+            "title": "Reflection"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "date",
+          "reflection",
+          "revision"
+        ],
+        "title": "DayReflection"
+      },
       "DaySummary": {
         "properties": {
           "worked": {
@@ -15108,6 +15086,22 @@
           "offset"
         ],
         "title": "Discussions"
+      },
+      "Done": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "const": true,
+            "title": "Ok"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "Done",
+        "description": "A command that changed what it was asked to, or found nothing to change, and names nothing back."
       },
       "Empty": {
         "properties": {},
@@ -17618,6 +17612,86 @@
         "title": "PersonListed",
         "description": "A person as the people list shows them, with how many active records each kind ties them to."
       },
+      "PersonRecord": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "team": {
+            "type": "string",
+            "title": "Team"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "chat": {
+            "type": "string",
+            "title": "Chat"
+          },
+          "location": {
+            "type": "string",
+            "title": "Location"
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "title",
+          "team",
+          "description",
+          "email",
+          "phone",
+          "chat",
+          "location",
+          "notes",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "PersonRecord",
+        "description": "A person's own fields, as their commands return them."
+      },
       "PersonRepository": {
         "properties": {
           "linkId": {
@@ -17693,6 +17767,112 @@
           "roadmap"
         ],
         "title": "PersonRoadmap"
+      },
+      "PersonTie": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "personId": {
+            "type": "string",
+            "title": "Personid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "personTitle": {
+            "type": "string",
+            "title": "Persontitle"
+          },
+          "personTeam": {
+            "type": "string",
+            "title": "Personteam"
+          },
+          "relationship": {
+            "type": "string",
+            "title": "Relationship"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "targetType": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap",
+              "repository"
+            ],
+            "title": "Targettype"
+          },
+          "targetId": {
+            "type": "string",
+            "title": "Targetid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "personId",
+          "name",
+          "personTitle",
+          "personTeam",
+          "relationship",
+          "archived",
+          "createdAt",
+          "targetType",
+          "targetId"
+        ],
+        "title": "PersonTie",
+        "description": "A person's tie to a work item, roadmap or repository, as setting it returns it."
+      },
+      "PersonUntied": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "const": true,
+            "title": "Ok"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "personId": {
+            "type": "string",
+            "title": "Personid"
+          },
+          "targetType": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap",
+              "repository"
+            ],
+            "title": "Targettype"
+          },
+          "targetId": {
+            "type": "string",
+            "title": "Targetid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ok",
+          "id",
+          "personId",
+          "targetType",
+          "targetId"
+        ],
+        "title": "PersonUntied",
+        "description": "The tie a person no longer has."
       },
       "PersonUpdate": {
         "properties": {
@@ -18653,6 +18833,31 @@
         ],
         "title": "Rank",
         "description": "revision is the item's own; a rank past the last moves the item last."
+      },
+      "RankResult": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "rank": {
+            "type": "integer",
+            "title": "Rank"
+          },
+          "rankedCount": {
+            "type": "integer",
+            "title": "Rankedcount"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "rank",
+          "rankedCount"
+        ],
+        "title": "RankResult",
+        "description": "A work item's stack rank after a move, 1 first, among how many ranked items."
       },
       "RecordHistory": {
         "properties": {
@@ -22318,6 +22523,205 @@
           "displayName"
         ],
         "title": "RunCreate"
+      },
+      "SavedRoadmap": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "overview": {
+            "type": "string",
+            "title": "Overview"
+          },
+          "parentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parentid"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/PlanStep"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/RoadmapVersion"
+            },
+            "type": "array",
+            "title": "Versions"
+          },
+          "notes": {
+            "items": {
+              "$ref": "#/components/schemas/Note"
+            },
+            "type": "array",
+            "title": "Notes"
+          },
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/Attachment"
+            },
+            "type": "array",
+            "title": "Attachments"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/WebLink"
+            },
+            "type": "array",
+            "title": "Links"
+          },
+          "chats": {
+            "items": {
+              "$ref": "#/components/schemas/TrackedChat"
+            },
+            "type": "array",
+            "title": "Chats"
+          },
+          "github": {
+            "items": {
+              "$ref": "#/components/schemas/ListedGithubReference"
+            },
+            "type": "array",
+            "title": "Github"
+          },
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/Question"
+            },
+            "type": "array",
+            "title": "Questions"
+          },
+          "decisions": {
+            "items": {
+              "$ref": "#/components/schemas/Decision"
+            },
+            "type": "array",
+            "title": "Decisions"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            },
+            "type": "array",
+            "title": "History"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "overview",
+          "parentId",
+          "revision",
+          "archived",
+          "createdAt",
+          "updatedAt",
+          "steps",
+          "versions",
+          "notes",
+          "attachments",
+          "links",
+          "chats",
+          "github",
+          "questions",
+          "decisions",
+          "history"
+        ],
+        "title": "SavedRoadmap",
+        "description": "A roadmap as its commands return it: its steps, retired ones included, and versions. The\nsupporting lists are always empty here; its read fills them."
+      },
+      "SavedStep": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "parentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parentid"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "retired": {
+            "type": "boolean",
+            "title": "Retired"
+          },
+          "roadmapId": {
+            "type": "string",
+            "title": "Roadmapid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "description",
+          "parentId",
+          "position",
+          "status",
+          "revision",
+          "retired",
+          "roadmapId"
+        ],
+        "title": "SavedStep",
+        "description": "A step as its update returns it, with its roadmap."
       },
       "SearchResult": {
         "properties": {
