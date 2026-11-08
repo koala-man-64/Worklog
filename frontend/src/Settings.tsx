@@ -291,13 +291,16 @@ export function Settings() {
           </div>
         )}
         {data.agents.length > 0 && (
-          <div className="discussion-profile-list" aria-label="Agent profiles">
-            <h3>Stable discussion profiles</h3>
+          <div
+            className="discussion-profile-list"
+            aria-label="Agent identities"
+          >
+            <h3>Agent identities</h3>
             {data.agents.map((agent) => (
               <div className="line" key={agent.id}>
                 <Avatar name={agent.avatar} />
                 <strong>{agent.label}</strong>
-                <small>Profile {agent.id}</small>
+                <small>Identity {agent.id}</small>
               </div>
             ))}
           </div>
@@ -307,7 +310,7 @@ export function Settings() {
             <span className="credential-identity">
               <strong>{c.label}</strong>
               <small>
-                Discussion profile:{" "}
+                Agent identity:{" "}
                 {data.agents.find((agent) => agent.id === c.agentId)?.label ??
                   "Unavailable"}
               </small>
@@ -346,13 +349,13 @@ export function Settings() {
                   })
                   .then((result) => {
                     const issued = (result as { token?: unknown }).token;
-                    const profile = data.agents.find(
+                    const identity = data.agents.find(
                       (agent) => agent.id === c.agentId,
                     );
                     if (typeof issued === "string") {
                       setToken(issued);
                       setCredentialMessage(
-                        `Rotated ${c.label}; its discussion identity remains ${profile?.label ?? "the same profile"}. The old token was revoked.`,
+                        `Rotated ${c.label}; its agent identity remains ${identity?.label ?? "the same identity"}. The old token was revoked.`,
                       );
                     } else {
                       setCredentialMessage(

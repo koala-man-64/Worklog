@@ -512,9 +512,11 @@ What changed:
 
 #### 5.2 · One name for agent identities
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branch: `claude/agent-identity-name` · PR: [#138](https://github.com/koala-man-64/Worklog/pull/138)
 
 Settings calls them "Stable discussion profiles", while the guide says agent identity. The table keeps its name; only the interface and docs change. Findings: A-15.
+
+What changed: Settings lists them under "Agent identities", each as "Identity" and its ID, names each credential's "Agent identity", and says a rotated credential keeps its agent identity. The guide says the same. `communication_agents` and the CSS class names keep theirs.
 
 #### 5.3 · Typed responses, then typed commands
 
