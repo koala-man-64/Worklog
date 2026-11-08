@@ -161,7 +161,8 @@
           "ownerId": "<id4>",
           "ownerTitle": "Parser",
           "via": [
-            "message"
+            "message",
+            "confirmed"
           ],
           "current": false,
           "lastAt": "<time>"

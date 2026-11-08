@@ -194,6 +194,8 @@ class World:
                    {"targetIds": [asked["request"]["targets"][0]["id"]]})
         self.write(p, "POST", f"/discussions/{ids['discussion']}/messages", {
             "text": "Who reviews the parser?", "acknowledgement": {"targets": [{"kind": "role", "id": role["id"]}]}})
+        # The person confirms the agent in the tracked chat, so the chats list pins an agent tied to it.
+        self.write(p, "POST", f"/chats/{ids['chat']}/confirmations", {"agentId": ids["agent"]})
 
 
 def concrete(template: str, ids: dict[str, str], today: str) -> str:
