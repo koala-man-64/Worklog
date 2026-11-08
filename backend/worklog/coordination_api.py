@@ -19,12 +19,15 @@ from .coordination import (
     with_discussion,
 )
 from .db import Database
+from .discussions import communication_actor
 from .models import Expected
 from .records import people_on
+from .registry import OVERLAP_LIMIT, AgentRegistry
 
 
 def install_coordination_routes(app: FastAPI, db: Database, mutate: Callable) -> None:
     service = CoordinationService(db)
+    registry = AgentRegistry()
 
     read = db.snapshot
 
@@ -136,3 +139,13 @@ def install_coordination_routes(app: FastAPI, db: Database, mutate: Callable) ->
                 repositoryId: str | None = None, limit: int = Query(50, ge=1, le=200),
                 offset: int = Query(0, ge=0)) -> dict:
         return read(lambda c: service.updates(c, participationId, itemId, repositoryId, limit, offset))
+
+    # Who else works on these records, and what they announced: an agent checks it before it changes
+    # them (agent guide, rule 11). The caller's own reports and messages are left out.
+    @app.get("/api/v1/coordination-overlaps")
+    def overlaps(request: Request, repositoryId: list[str] = Query([]), itemId: list[str] = Query([]),
+                 stepId: list[str] = Query([]), ticketId: list[str] = Query([]),
+                 limit: int = Query(20, ge=1, le=OVERLAP_LIMIT)) -> dict:
+        return read(lambda c: registry.overlaps(c, communication_actor(c, request.state.actor)["id"],
+                                                repositories=repositoryId, items=itemId, steps=stepId,
+                                                tickets=ticketId, limit=limit))

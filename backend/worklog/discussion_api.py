@@ -9,10 +9,12 @@ from fastapi import FastAPI, Query, Request
 from . import discussion_models as m
 from .db import Database
 from .discussions import DiscussionService, communication_actor
+from .registry import AgentRegistry
 
 
 def install_discussion_routes(app: FastAPI, db: Database, mutate: Callable) -> None:
     service = DiscussionService(db)
+    registry = AgentRegistry()
 
     def read(request: Request, fn: Callable) -> dict:
         # One snapshot keeps role owners, receipts, content and the feed's high-water mark consistent,
@@ -25,6 +27,12 @@ def install_discussion_routes(app: FastAPI, db: Database, mutate: Callable) -> N
     @app.get("/api/v1/discussions/participants")
     def participants(request: Request) -> dict:
         return read(request, service.participants)
+
+    # One participant: what it reports working on and the roles it owns, never its credentials or the
+    # chats its runs report, which stay on the person's Agents page.
+    @app.get("/api/v1/discussions/participants/{identity}")
+    def participant(identity: str, request: Request) -> dict:
+        return read(request, lambda c, a: registry.profile(c, identity))
 
     @app.get("/api/v1/discussions/avatars")
     def avatars(request: Request) -> dict:
