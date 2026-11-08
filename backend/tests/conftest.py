@@ -37,7 +37,13 @@ class TypedAnswerChanged(AssertionError):
 
 
 def _text(answer: Any) -> str:
-    return json.dumps(answer, sort_keys=True, ensure_ascii=False)
+    """An answer as JSON text, keys sorted. A route's own answer is JSON already, so json.dumps
+    takes it as it is; jsonable_encoder, ten times slower, only takes what JSON can't, such as a
+    datetime."""
+    try:
+        return json.dumps(answer, sort_keys=True, ensure_ascii=False)
+    except TypeError:
+        return json.dumps(jsonable_encoder(answer), sort_keys=True, ensure_ascii=False)
 
 
 @pytest.fixture(autouse=True)
@@ -46,10 +52,11 @@ def _typed_answers_unchanged(monkeypatch: pytest.MonkeyPatch) -> None:
 
     async def checked(*, field: Any = None, response_content: Any = None, **options: Any) -> Any:
         typed = await original(field=field, response_content=response_content, **options)
-        if field is not None:
+        # A route typed only as a dict answers with what it built, so there is nothing to compare.
+        if field is not None and field.field_info.annotation is not dict:
             given = json.loads(typed) if isinstance(typed, (bytes, bytearray)) else typed
             # Compared as JSON text, keys sorted: Python holds True equal to 1, and JSON doesn't.
-            if _text(given) != _text(jsonable_encoder(response_content)):
+            if _text(given) != _text(response_content):
                 route = (options.get("endpoint_ctx") or {}).get("path", "a route")
                 raise TypedAnswerChanged(f"The response model of {route} changed its answer")
         return typed
