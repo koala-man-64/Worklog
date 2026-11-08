@@ -158,6 +158,14 @@ class World:
                              ("github", ids["github"])):
             self.write(p, "POST", "/release-contents", {"releaseId": release["id"], "targetType": kind,
                                                         "targetId": target})
+        # The agent proposes a link on the work item and a question on the roadmap, and the person
+        # approves it, so each record's proposal history lists one with its changes.
+        proposed = self.write(a, "POST", "/proposals", {"title": "Track the spec", "rationale": "One place", "operations": [
+            {"action": "link.create", "payload": {"ownerType": "item", "ownerId": item["id"],
+                                                  "url": "https://example.com/plan"}},
+            {"action": "question.create", "payload": {"roadmapId": roadmap["id"], "title": "Who reviews?"}}]})
+        submitted = self.write(a, "POST", f"/proposals/{proposed['id']}/submit", {"revision": proposed["revision"]})
+        self.write(p, "POST", f"/proposals/{proposed['id']}/approve", {"revision": submitted["revision"]})
 
 
 def concrete(template: str, ids: dict[str, str], today: str) -> str:

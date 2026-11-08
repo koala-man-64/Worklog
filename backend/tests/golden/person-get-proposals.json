@@ -18,8 +18,41 @@
         "updatedAt": "<time>",
         "submittedAt": null,
         "attachments": []
+      },
+      {
+        "id": "<id3>",
+        "title": "Track the spec",
+        "rationale": "One place",
+        "status": "approved",
+        "autoApproved": false,
+        "revision": 3,
+        "actorId": "<id2>",
+        "actorLabel": "Builder",
+        "actorDirectory": null,
+        "operations": [
+          {
+            "action": "link.create",
+            "payload": {
+              "ownerType": "item",
+              "ownerId": "<id4>",
+              "url": "https://example.com/plan"
+            }
+          },
+          {
+            "action": "question.create",
+            "payload": {
+              "roadmapId": "<id5>",
+              "title": "Who reviews?"
+            }
+          }
+        ],
+        "supersedesId": null,
+        "createdAt": "<time>",
+        "updatedAt": "<time>",
+        "submittedAt": "<time>",
+        "attachments": []
       }
     ],
-    "total": 1
+    "total": 2
   }
 }

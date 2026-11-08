@@ -2901,6 +2901,13 @@ export interface components {
              */
             relationship: string;
         };
+        /** AgentProposals */
+        AgentProposals: {
+            /** Items */
+            items: components["schemas"]["ProposalEntry"][];
+            /** Total */
+            total: number;
+        };
         /** AgentRegistration */
         AgentRegistration: {
             /** Label */
@@ -2961,6 +2968,52 @@ export interface components {
         AgentTies: {
             /** Items */
             items: components["schemas"]["AgentTie"][];
+            /** Total */
+            total: number;
+        };
+        /**
+         * AppliedChange
+         * @description One change of an applied proposal that was made to the record, by its number in the proposal.
+         */
+        AppliedChange: {
+            /** Number */
+            number: number;
+            /** Action */
+            action: string;
+        };
+        /** AppliedProposal */
+        AppliedProposal: {
+            /** Number */
+            number: number;
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Status */
+            status: string;
+            /** Autoapproved */
+            autoApproved: boolean;
+            /** Actorlabel */
+            actorLabel: string;
+            /** Agentid */
+            agentId: string | null;
+            /** Createdat */
+            createdAt: string;
+            /** Submittedat */
+            submittedAt: string | null;
+            /** Appliedat */
+            appliedAt: string | null;
+            /** Updatedat */
+            updatedAt: string;
+            /** Operationcount */
+            operationCount: number;
+            /** Changes */
+            changes: components["schemas"]["AppliedChange"][];
+        };
+        /** AppliedProposals */
+        AppliedProposals: {
+            /** Items */
+            items: components["schemas"]["AppliedProposal"][];
             /** Total */
             total: number;
         };
@@ -4167,6 +4220,44 @@ export interface components {
              */
             status: "open" | "doing" | "blocked" | "done";
         };
+        /**
+         * Proposal
+         * @description A proposal as its own read returns it, with its evidence files.
+         */
+        Proposal: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Rationale */
+            rationale: string;
+            /** Status */
+            status: string;
+            /** Autoapproved */
+            autoApproved: boolean;
+            /** Revision */
+            revision: number;
+            /** Actorid */
+            actorId: string;
+            /** Actorlabel */
+            actorLabel: string;
+            /** Actordirectory */
+            actorDirectory: string | null;
+            /** Operations */
+            operations: components["schemas"]["ProposalOperation"][];
+            /** Supersedesid */
+            supersedesId: string | null;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Submittedat */
+            submittedAt: string | null;
+            /** Attachments */
+            attachments: components["schemas"]["Attachment"][];
+            /** Notes */
+            notes: components["schemas"]["Note"][];
+        };
         /** ProposalCreate */
         ProposalCreate: {
             /** Title */
@@ -4178,6 +4269,84 @@ export interface components {
             /** Supersedesid */
             supersedesId?: string | null;
         };
+        /**
+         * ProposalEntry
+         * @description A proposal as a history lists it, the latest first, with the number of its changes.
+         */
+        ProposalEntry: {
+            /** Number */
+            number: number;
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Status */
+            status: string;
+            /** Autoapproved */
+            autoApproved: boolean;
+            /** Actorlabel */
+            actorLabel: string;
+            /** Agentid */
+            agentId: string | null;
+            /** Createdat */
+            createdAt: string;
+            /** Submittedat */
+            submittedAt: string | null;
+            /** Appliedat */
+            appliedAt: string | null;
+            /** Updatedat */
+            updatedAt: string;
+            /** Operationcount */
+            operationCount: number;
+        };
+        /**
+         * ProposalListed
+         * @description A proposal as GET /proposals and the context list it: whole, without its evidence files.
+         */
+        ProposalListed: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Rationale */
+            rationale: string;
+            /** Status */
+            status: string;
+            /** Autoapproved */
+            autoApproved: boolean;
+            /** Revision */
+            revision: number;
+            /** Actorid */
+            actorId: string;
+            /** Actorlabel */
+            actorLabel: string;
+            /** Actordirectory */
+            actorDirectory: string | null;
+            /** Operations */
+            operations: components["schemas"]["ProposalOperation"][];
+            /** Supersedesid */
+            supersedesId: string | null;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Submittedat */
+            submittedAt: string | null;
+            /** Attachments */
+            attachments: components["schemas"]["Attachment"][];
+        };
+        /**
+         * ProposalOperation
+         * @description One change a proposal makes, as its create or last update checked it.
+         */
+        ProposalOperation: {
+            /** Action */
+            action: string;
+            /** Payload */
+            payload: {
+                [key: string]: unknown;
+            };
+        };
         /** ProposalUpdate */
         ProposalUpdate: {
             /** Revision */
@@ -4188,6 +4357,13 @@ export interface components {
             rationale?: string | null;
             /** Operations */
             operations?: components["schemas"]["Operation"][] | null;
+        };
+        /** Proposals */
+        Proposals: {
+            /** Items */
+            items: components["schemas"]["ProposalListed"][];
+            /** Total */
+            total: number;
         };
         /** Question */
         Question: {
@@ -8862,9 +9038,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Proposals"];
                 };
             };
             /** @description Validation Error */
@@ -8930,9 +9104,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Proposal"];
                 };
             };
             /** @description Validation Error */
@@ -9003,9 +9175,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["AppliedProposals"];
                 };
             };
             /** @description Validation Error */
@@ -9039,9 +9209,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["AppliedProposals"];
                 };
             };
             /** @description Validation Error */
@@ -9075,9 +9243,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["AgentProposals"];
                 };
             };
             /** @description Validation Error */
