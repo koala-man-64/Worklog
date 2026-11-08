@@ -262,9 +262,15 @@ def test_every_read_answers_as_its_golden_file():
     current = built()
     files = {path.name for path in GOLDEN.glob("*.json")}
     assert files == {slug(key) for key in current}, "Write the golden files again: the reads have changed"
+    # Compared as JSON text with keys sorted: key order is not part of an answer, but Python holds
+    # true equal to 1 and false to 0, and an answer that turned one into the other has changed.
     changed = [key for key, answer in current.items()
-               if json.loads((GOLDEN / slug(key)).read_text(encoding="utf-8")) != answer]
+               if canonical(json.loads((GOLDEN / slug(key)).read_text(encoding="utf-8"))) != canonical(answer)]
     assert changed == [], f"These reads answer differently from their golden files: {changed}"
+
+
+def canonical(answer: object) -> str:
+    return json.dumps(answer, sort_keys=True, ensure_ascii=False)
 
 
 if __name__ == "__main__":
