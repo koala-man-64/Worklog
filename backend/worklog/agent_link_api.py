@@ -7,6 +7,7 @@ from collections.abc import Callable
 from fastapi import FastAPI, Query, Request
 
 from . import models as m
+from . import responses as out
 from .agent_links import remove_tie, set_tie, ties_of_agent, ties_on
 from .common import AppError
 from .db import Database
@@ -21,7 +22,7 @@ def install_agent_link_routes(app: FastAPI, db: Database, mutate: Callable) -> N
         # survive a token rotation, and a credential revoked while the call waited is refused.
         return mutate(request, payload, fn, required_key=True, communication=True)
 
-    @app.get("/api/v1/agent-links")
+    @app.get("/api/v1/agent-links", response_model=out.AgentTies)
     def agent_links(request: Request, agentId: str | None = None, targetType: m.AgentTieTarget | None = None,
                     targetId: list[str] = Query([])) -> dict:
         reader = request.state.actor

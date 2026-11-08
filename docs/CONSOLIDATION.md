@@ -535,6 +535,9 @@ Done so far:
 - **Typed responses, fifth batch.** A roadmap's read: its steps (a parent's status derived from its leaves), versions, supporting records, history, the roadmaps above and below it, its work items with their people, its people and its committed imports. The golden world now gives the roadmap a sub-roadmap.
 - **Typed responses, sixth batch.** A step's read and its history, and a day's read: its entries, each with its work item, rank, tab counts and status on the day, its summary and the next item to work on.
 - **Typed responses, seventh batch.** The lists of work items, roadmaps, people, repositories, resources and reminders, each item as its list shows it (a resource without its text, a reminder without its notes, a person with counts of what they are tied to).
+- **Typed responses, eighth batch.** A record's history, a record's attachments, an address's repository resolution, an agent's ties, Settings and the health check.
+  - A tied record takes one of the shapes `record_kinds.summary` gives, told apart by their keys.
+  - The golden world now ties its agent to its work item, so a tie is pinned with an entry.
 
 #### 5.4 · Frontend layout
 

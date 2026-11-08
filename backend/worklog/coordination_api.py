@@ -40,7 +40,7 @@ def install_coordination_routes(app: FastAPI, db: Database, mutate: Callable) ->
         return read(lambda c: service.repositories(c, archived, limit, offset, q))
 
     # Registered before /repositories/{identity}, which would otherwise take "resolve" as an ID.
-    @app.get("/api/v1/repositories/resolve")
+    @app.get("/api/v1/repositories/resolve", response_model=out.RepositoryResolution)
     def repository_resolve(url: str = Query(max_length=2000)) -> dict:
         return read(lambda c: repository_resolution(c, url))
 
