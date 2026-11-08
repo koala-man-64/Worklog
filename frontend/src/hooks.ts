@@ -5,8 +5,23 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import type { QueryClient, QueryFilters } from "@tanstack/react-query";
 import { request, contextStorageKey, getDataContext, ApiError } from "./api";
 import { localStore, readIdSet } from "./storage";
+// The session is left alone: reading it again would start a new one.
+const notSession: QueryFilters = {
+  predicate: (q) => q.queryKey[0] !== "session",
+};
+/**
+ * Reads again every view a write may have changed. Invalidating alone keeps a query's first
+ * fetch running, so a read that began before the write committed would keep its answer from
+ * before the write. Cancelling first makes every open view read again; a query no view shows
+ * goes back to idle and reads when a view opens it.
+ */
+export async function refreshAfterWrite(client: QueryClient) {
+  await client.cancelQueries(notSession);
+  await client.invalidateQueries(notSession);
+}
 /** `refreshMs` keeps a view of something that changes elsewhere current while it is open. */
 export function useData<T>(path: string, refreshMs?: number) {
   return useQuery({
@@ -28,10 +43,7 @@ export function useAction() {
       method?: string;
       body?: unknown;
     }) => request(path, method, body),
-    onSuccess: () =>
-      client.invalidateQueries({
-        predicate: (q) => q.queryKey[0] !== "session",
-      }),
+    onSuccess: () => refreshAfterWrite(client),
   });
 }
 export function useCommand<TBody, TResult>(
@@ -40,10 +52,7 @@ export function useCommand<TBody, TResult>(
   const client = useQueryClient();
   return useMutation({
     mutationFn: command,
-    onSuccess: () =>
-      client.invalidateQueries({
-        predicate: (q) => q.queryKey[0] !== "session",
-      }),
+    onSuccess: () => refreshAfterWrite(client),
   });
 }
 /**
@@ -209,14 +218,10 @@ export function useDraft(
           if (!localStore.write(baseKey, String(result.revision)))
             setStorageWarning(true);
         }
-        client.invalidateQueries({
-          predicate: (q) => q.queryKey[0] !== "session",
-        });
+        void refreshAfterWrite(client);
       })
       .catch((error) => {
-        client.invalidateQueries({
-          predicate: (q) => q.queryKey[0] !== "session",
-        });
+        void refreshAfterWrite(client);
         setState(
           error.status === 409
             ? "Conflict: draft kept. Reload to compare."

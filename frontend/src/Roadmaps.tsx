@@ -11,6 +11,7 @@ import { roadmapChildren } from "./RoadmapNav";
 import { ApiError, request, download, contextStorageKey } from "./api";
 import { commands } from "./commands";
 import {
+  refreshAfterWrite,
   useAction,
   useCollapsed,
   useCommand,
@@ -1300,9 +1301,7 @@ function StepTextForm({ step, onDone }: { step: Step; onDone: () => void }) {
           .catch((error) => {
             // The step changed elsewhere first: load it, keeping what was typed here.
             if (error instanceof ApiError && error.status === 409)
-              client.invalidateQueries({
-                predicate: (q) => q.queryKey[0] !== "session",
-              });
+              void refreshAfterWrite(client);
           });
       }}
     >
@@ -1559,9 +1558,7 @@ export function StructureEditor({
             // The roadmap moved past this draft's base. Refetching it remounts the
             // editor from the stored draft, which then offers a rebase.
             if (error instanceof ApiError && error.status === 409)
-              client.invalidateQueries({
-                predicate: (q) => q.queryKey[0] !== "session",
-              });
+              void refreshAfterWrite(client);
           });
       }}
     >

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { commands } from "./commands";
 import { ErrorMessage } from "./components";
+import { refreshAfterWrite } from "./hooks";
 import type { Item } from "./types";
 
 /**
@@ -21,10 +22,7 @@ export function useRank() {
       rank: number;
       revision: number;
     }) => commands.rankItem(id, { revision, rank }),
-    onSettled: () =>
-      client.invalidateQueries({
-        predicate: (q) => q.queryKey[0] !== "session",
-      }),
+    onSettled: () => refreshAfterWrite(client),
   });
 }
 
