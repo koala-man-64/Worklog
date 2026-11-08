@@ -19,7 +19,6 @@ import re
 import sys
 import tempfile
 import uuid
-from datetime import date
 from pathlib import Path
 
 if __name__ == "__main__":
@@ -57,6 +56,8 @@ class World:
         self.person.headers["Origin"] = ORIGIN
         boot = self.person.post("/api/v1/session/bootstrap", headers={"X-Worklog-Bootstrap": "1"}, json={})
         self.person.headers["X-CSRF-Token"] = boot.json()["csrfToken"]
+        # Worklog's today, in its own timezone, which the machine's date need not be (CI runs in UTC).
+        self.today: str = boot.json()["today"]
         issued = self.write(self.person, "POST", "/credentials", {"label": "Builder", "avatar": "red-dots-antenna"})
         self.agent.headers["Authorization"] = "Bearer " + issued["token"]
         self.ids["credential"] = issued["id"]
@@ -74,7 +75,7 @@ class World:
         return response.json()
 
     def build(self) -> None:
-        p, today = self.person, date.today().isoformat()
+        p, today = self.person, self.today
         ids = self.ids
         item = self.write(p, "POST", "/work-items", {"title": "Parser", "description": "Parse the plan"})
         ids["item"] = item["id"]
@@ -136,7 +137,7 @@ class World:
                                                                "operations": []})["id"]
 
 
-def concrete(template: str, ids: dict[str, str]) -> str:
+def concrete(template: str, ids: dict[str, str], today: str) -> str:
     """The template with this world's records in it, and the query parameters a read needs."""
     owner = {"/attachments": f"?ownerType=item&ownerId={ids['item']}", "/history": f"?entityId={ids['item']}",
              "/agent-links": f"?agentId={ids['agent']}", "/coordination-overlaps": f"?itemId={ids['item']}",
@@ -154,18 +155,17 @@ def concrete(template: str, ids: dict[str, str]) -> str:
     if "{identity}" in path:
         name = next((key for prefix, key in by_prefix if path.startswith(prefix)), None)
         path = path.replace("{identity}", ids.get(name or "", "00000000-0000-4000-8000-000000000000"))
-    path = path.replace("{date}", date.today().isoformat()).replace("{ref}", ids["ticketRef"]).replace("{number}", "1")
+    path = path.replace("{date}", today).replace("{ref}", ids["ticketRef"]).replace("{number}", "1")
     return path + owner.get(template, "")
 
 
-def normalized(value: object, names: dict[str, str]) -> object:
+def normalized(value: object, names: dict[str, str], today: str) -> object:
     """value with each ID named by its first appearance, each time as <time>, and today as <today>."""
-    today = date.today().isoformat()
     if isinstance(value, dict):
-        return {key: KEYED[key] if key in KEYED and isinstance(item, str) else normalized(item, names)
+        return {key: KEYED[key] if key in KEYED and isinstance(item, str) else normalized(item, names, today)
                 for key, item in value.items()}
     if isinstance(value, list):
-        return [normalized(item, names) for item in value]
+        return [normalized(item, names, today) for item in value]
     if isinstance(value, str):
         if TIME.match(value):
             return "<time>"
@@ -182,9 +182,9 @@ def answers(world: World) -> dict[str, dict]:
         if "get" not in operations or not template.startswith("/api/v1") or route in NOT_JSON:
             continue
         for actor, client in (("person", world.person), ("agent", world.agent)):
-            response = client.get("/api/v1" + concrete(route, world.ids))
+            response = client.get("/api/v1" + concrete(route, world.ids, world.today))
             body = response.json() if "json" in response.headers.get("content-type", "") else response.text
-            result[f"{actor} GET {route}"] = {"status": response.status_code, "body": normalized(body, {})}
+            result[f"{actor} GET {route}"] = {"status": response.status_code, "body": normalized(body, {}, world.today)}
     return result
 
 
