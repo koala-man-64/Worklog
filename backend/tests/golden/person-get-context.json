@@ -22,11 +22,11 @@
             "description": "Parse the plan",
             "status": "doing",
             "adoUrl": null,
-            "roadmapId": null,
-            "stepId": null,
+            "roadmapId": "<id3>",
+            "stepId": "<id4>",
             "backlogOrder": 1,
             "archived": false,
-            "revision": 2,
+            "revision": 3,
             "createdAt": "<time>",
             "updatedAt": "<time>",
             "repositoryIds": [],
@@ -63,11 +63,11 @@
           "description": "Parse the plan",
           "status": "doing",
           "adoUrl": null,
-          "roadmapId": null,
-          "stepId": null,
+          "roadmapId": "<id3>",
+          "stepId": "<id4>",
           "backlogOrder": 1,
           "archived": false,
-          "revision": 2,
+          "revision": 3,
           "createdAt": "<time>",
           "updatedAt": "<time>",
           "rank": 1,
@@ -75,8 +75,8 @@
           "isBacklog": false,
           "people": [
             {
-              "id": "<id3>",
-              "personId": "<id4>",
+              "id": "<id5>",
+              "personId": "<id6>",
               "name": "Ada",
               "personTitle": "Engineer",
               "personTeam": "",
@@ -87,7 +87,7 @@
           ]
         },
         {
-          "id": "<id5>",
+          "id": "<id7>",
           "title": "Release notes",
           "description": "",
           "status": "open",
@@ -107,12 +107,12 @@
       ],
       "total": 2,
       "rankedCount": 2,
-      "collectionRevision": 5
+      "collectionRevision": 6
     },
     "roadmaps": {
       "items": [
         {
-          "id": "<id6>",
+          "id": "<id3>",
           "title": "Plan 2",
           "overview": "",
           "parentId": null,
@@ -127,7 +127,7 @@
     "people": {
       "items": [
         {
-          "id": "<id4>",
+          "id": "<id6>",
           "name": "Ada",
           "title": "Engineer",
           "team": "",
@@ -151,13 +151,13 @@
     "proposals": {
       "items": [
         {
-          "id": "<id7>",
+          "id": "<id8>",
           "title": "Rename",
           "rationale": "Clearer",
           "status": "draft",
           "autoApproved": false,
           "revision": 1,
-          "actorId": "<id8>",
+          "actorId": "<id9>",
           "actorLabel": "Builder",
           "actorDirectory": null,
           "operations": [],
@@ -173,7 +173,7 @@
     "repositories": {
       "items": [
         {
-          "id": "<id9>",
+          "id": "<id10>",
           "name": "worklog",
           "url": "https://github.com/example/worklog",
           "remoteIdentity": "github.com/example/worklog",
@@ -190,7 +190,7 @@
           "revision": 1,
           "createdAt": "<time>",
           "updatedAt": "<time>",
-          "discussionId": "<id10>"
+          "discussionId": "<id11>"
         }
       ],
       "total": 1,
@@ -200,9 +200,9 @@
     "runs": {
       "items": [
         {
-          "id": "<id11>",
-          "agentId": "<id8>",
-          "credentialId": "<id8>",
+          "id": "<id12>",
+          "agentId": "<id9>",
+          "credentialId": "<id9>",
           "clientRunKey": "golden",
           "displayName": "Builder",
           "provider": "",
@@ -225,13 +225,13 @@
     "participations": {
       "items": [
         {
-          "id": "<id12>",
-          "runId": "<id11>",
+          "id": "<id13>",
+          "runId": "<id12>",
           "itemId": "<id2>",
           "description": "",
           "contexts": [
             {
-              "repositoryId": "<id9>",
+              "repositoryId": "<id10>",
               "repositoryName": "worklog",
               "archived": false,
               "checkoutPath": "",
@@ -247,9 +247,9 @@
           "releaseReason": null,
           "stale": false,
           "run": {
-            "id": "<id11>",
-            "agentId": "<id8>",
-            "credentialId": "<id8>",
+            "id": "<id12>",
+            "agentId": "<id9>",
+            "credentialId": "<id9>",
             "clientRunKey": "golden",
             "displayName": "Builder",
             "provider": "",
@@ -275,7 +275,7 @@
     "tickets": {
       "items": [
         {
-          "id": "<id13>",
+          "id": "<id14>",
           "number": 1,
           "key": "T-1",
           "title": "Crash on save",
@@ -313,7 +313,7 @@
     "resources": {
       "items": [
         {
-          "id": "<id14>",
+          "id": "<id15>",
           "title": "Style",
           "summary": "How we write",
           "archived": false,
@@ -329,7 +329,7 @@
     "releases": {
       "items": [
         {
-          "id": "<id15>",
+          "id": "<id16>",
           "title": "1.0",
           "description": "",
           "releaseDate": "2026-12-01",

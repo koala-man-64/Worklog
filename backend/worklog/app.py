@@ -274,7 +274,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         p = body.model_dump()
         return mutate(request, p, lambda c, a: work.items.reorder(c, a, p))
 
-    @app.get("/api/v1/work-items/{identity}")
+    @app.get("/api/v1/work-items/{identity}", response_model=out.WorkItem)
     def item_detail(identity: str) -> dict:
         return work.items.detail(identity)
 

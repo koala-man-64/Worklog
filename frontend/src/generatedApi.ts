@@ -2921,6 +2921,35 @@ export interface components {
             /** Archived */
             archived: boolean;
         };
+        /**
+         * Attachment
+         * @description An attached file's details; its bytes are read on their own.
+         */
+        Attachment: {
+            /** Id */
+            id: string;
+            /**
+             * Ownertype
+             * @enum {string}
+             */
+            ownerType: "item" | "roadmap" | "step" | "proposal" | "repository";
+            /** Ownerid */
+            ownerId: string;
+            /** Name */
+            name: string;
+            /** Mime */
+            mime: string;
+            /** Size */
+            size: number;
+            /** Sha256 */
+            sha256: string;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+        };
         /** AvatarChoice */
         AvatarChoice: {
             /** Avatar */
@@ -3078,6 +3107,25 @@ export interface components {
             /** Label */
             label?: string | null;
         };
+        /** DailyEntry */
+        DailyEntry: {
+            /** Id */
+            id: string;
+            /** Itemid */
+            itemId: string;
+            /** Date */
+            date: string;
+            /** Planned */
+            planned: boolean;
+            /** Worked */
+            worked: boolean;
+            /** Outcome */
+            outcome: string;
+            /** Position */
+            position: number;
+            /** Revision */
+            revision: number;
+        };
         /** Decision */
         Decision: {
             /** Id */
@@ -3152,6 +3200,32 @@ export interface components {
             worked?: boolean | null;
             /** Outcome */
             outcome?: string | null;
+        };
+        /**
+         * Event
+         * @description One entry of a record's history in full: the record before and after the change, as written then.
+         */
+        Event: {
+            /** Id */
+            id: string;
+            /** Entityid */
+            entityId: string;
+            /** Kind */
+            kind: string;
+            /** Actorid */
+            actorId: string;
+            /** Actorlabel */
+            actorLabel: string;
+            /** Actorkind */
+            actorKind: string;
+            /** Createdat */
+            createdAt: string;
+            /** Localdate */
+            localDate: string;
+            /** Before */
+            before: unknown;
+            /** After */
+            after: unknown;
         };
         /** Expected */
         Expected: {
@@ -3363,6 +3437,68 @@ export interface components {
             title?: string | null;
             /** Description */
             description?: string | null;
+        };
+        /** LinkedRoadmap */
+        LinkedRoadmap: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Archived */
+            archived: boolean;
+        };
+        /** LinkedStep */
+        LinkedStep: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Roadmapid */
+            roadmapId: string;
+            /** Roadmaptitle */
+            roadmapTitle: string;
+            /** Retired */
+            retired: boolean;
+        };
+        /**
+         * ListedGithubReference
+         * @description A GitHub reference as its owner lists it, with the title of the chat that made it.
+         */
+        ListedGithubReference: {
+            /** Id */
+            id: string;
+            /**
+             * Ownertype
+             * @enum {string}
+             */
+            ownerType: "item" | "roadmap";
+            /** Ownerid */
+            ownerId: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "commit" | "pr";
+            /** Url */
+            url: string;
+            /** Reference */
+            reference: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /** Chatid */
+            chatId: string | null;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Chattitle */
+            chatTitle: string | null;
         };
         /** MessageCreate */
         MessageCreate: {
@@ -3692,6 +3828,28 @@ export interface components {
             revision: number;
             /** Rank */
             rank: number;
+        };
+        /**
+         * RecordPerson
+         * @description A person tied to a work item, roadmap or repository, as that record lists them.
+         */
+        RecordPerson: {
+            /** Id */
+            id: string;
+            /** Personid */
+            personId: string;
+            /** Name */
+            name: string;
+            /** Persontitle */
+            personTitle: string;
+            /** Personteam */
+            personTeam: string;
+            /** Relationship */
+            relationship: string;
+            /** Archived */
+            archived: boolean;
+            /** Createdat */
+            createdAt: string;
         };
         /** ReferenceCreate */
         ReferenceCreate: {
@@ -4394,6 +4552,67 @@ export interface components {
             /** Updatedat */
             updatedAt: string;
         };
+        /**
+         * WorkItem
+         * @description A work item with everything its page shows.
+         */
+        WorkItem: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "doing" | "waiting" | "blocked" | "done";
+            /** Adourl */
+            adoUrl: string | null;
+            /** Roadmapid */
+            roadmapId: string | null;
+            /** Stepid */
+            stepId: string | null;
+            /** Backlogorder */
+            backlogOrder: number;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Rank */
+            rank: number | null;
+            /** Rankedcount */
+            rankedCount: number;
+            /** Repositoryids */
+            repositoryIds: string[];
+            /** Notes */
+            notes: components["schemas"]["Note"][];
+            /** Attachments */
+            attachments: components["schemas"]["Attachment"][];
+            /** Links */
+            links: components["schemas"]["WebLink"][];
+            /** Chats */
+            chats: components["schemas"]["TrackedChat"][];
+            /** Github */
+            github: components["schemas"]["ListedGithubReference"][];
+            /** Tasks */
+            tasks: components["schemas"]["Task"][];
+            /** References */
+            references: components["schemas"]["FileReference"][];
+            /** People */
+            people: components["schemas"]["RecordPerson"][];
+            /** Dailyentries */
+            dailyEntries: components["schemas"]["DailyEntry"][];
+            /** History */
+            history: components["schemas"]["Event"][];
+            linkedRoadmap: components["schemas"]["LinkedRoadmap"] | null;
+            linkedStep: components["schemas"]["LinkedStep"] | null;
+        };
     };
     responses: never;
     parameters: never;
@@ -4574,9 +4793,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["WorkItem"];
                 };
             };
             /** @description Validation Error */

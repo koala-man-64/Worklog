@@ -23,12 +23,16 @@
           "title": "Parser",
           "status": "doing",
           "archived": false,
-          "roadmapId": null
+          "roadmapId": "<id5>"
         },
-        "roadmap": null,
+        "roadmap": {
+          "id": "<id5>",
+          "title": "Plan 2",
+          "archived": false
+        },
         "contexts": [
           {
-            "repositoryId": "<id5>",
+            "repositoryId": "<id6>",
             "repositoryName": "worklog",
             "archived": false,
             "checkoutPath": "",

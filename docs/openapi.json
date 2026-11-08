@@ -294,9 +294,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Item Detail Api V1 Work Items  Identity  Get"
+                  "$ref": "#/components/schemas/WorkItem"
                 }
               }
             }
@@ -10675,6 +10673,73 @@
         ],
         "title": "Archive"
       },
+      "Attachment": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "ownerType": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap",
+              "step",
+              "proposal",
+              "repository"
+            ],
+            "title": "Ownertype"
+          },
+          "ownerId": {
+            "type": "string",
+            "title": "Ownerid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "mime": {
+            "type": "string",
+            "title": "Mime"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "sha256": {
+            "type": "string",
+            "title": "Sha256"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "ownerType",
+          "ownerId",
+          "name",
+          "mime",
+          "size",
+          "sha256",
+          "archived",
+          "revision",
+          "createdAt"
+        ],
+        "title": "Attachment",
+        "description": "An attached file's details; its bytes are read on their own."
+      },
       "AvatarChoice": {
         "properties": {
           "avatar": {
@@ -11124,6 +11189,55 @@
         "type": "object",
         "title": "CredentialRotate"
       },
+      "DailyEntry": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "itemId": {
+            "type": "string",
+            "title": "Itemid"
+          },
+          "date": {
+            "type": "string",
+            "title": "Date"
+          },
+          "planned": {
+            "type": "boolean",
+            "title": "Planned"
+          },
+          "worked": {
+            "type": "boolean",
+            "title": "Worked"
+          },
+          "outcome": {
+            "type": "string",
+            "title": "Outcome"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "itemId",
+          "date",
+          "planned",
+          "worked",
+          "outcome",
+          "position",
+          "revision"
+        ],
+        "title": "DailyEntry"
+      },
       "Decision": {
         "properties": {
           "id": {
@@ -11393,6 +11507,64 @@
           "revision"
         ],
         "title": "EntryUpdate"
+      },
+      "Event": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "entityId": {
+            "type": "string",
+            "title": "Entityid"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "actorId": {
+            "type": "string",
+            "title": "Actorid"
+          },
+          "actorLabel": {
+            "type": "string",
+            "title": "Actorlabel"
+          },
+          "actorKind": {
+            "type": "string",
+            "title": "Actorkind"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "localDate": {
+            "type": "string",
+            "title": "Localdate"
+          },
+          "before": {
+            "title": "Before"
+          },
+          "after": {
+            "title": "After"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "entityId",
+          "kind",
+          "actorId",
+          "actorLabel",
+          "actorKind",
+          "createdAt",
+          "localDate",
+          "before",
+          "after"
+        ],
+        "title": "Event",
+        "description": "One entry of a record's history in full: the record before and after the change, as written then."
       },
       "Expected": {
         "properties": {
@@ -12025,6 +12197,166 @@
           "revision"
         ],
         "title": "LinkUpdate"
+      },
+      "LinkedRoadmap": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "archived"
+        ],
+        "title": "LinkedRoadmap"
+      },
+      "LinkedStep": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "roadmapId": {
+            "type": "string",
+            "title": "Roadmapid"
+          },
+          "roadmapTitle": {
+            "type": "string",
+            "title": "Roadmaptitle"
+          },
+          "retired": {
+            "type": "boolean",
+            "title": "Retired"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "roadmapId",
+          "roadmapTitle",
+          "retired"
+        ],
+        "title": "LinkedStep"
+      },
+      "ListedGithubReference": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "ownerType": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap"
+            ],
+            "title": "Ownertype"
+          },
+          "ownerId": {
+            "type": "string",
+            "title": "Ownerid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "commit",
+              "pr"
+            ],
+            "title": "Kind"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "reference": {
+            "type": "string",
+            "title": "Reference"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "chatId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chatid"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "chatTitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chattitle"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "ownerType",
+          "ownerId",
+          "kind",
+          "url",
+          "reference",
+          "title",
+          "description",
+          "chatId",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "chatTitle"
+        ],
+        "title": "ListedGithubReference",
+        "description": "A GitHub reference as its owner lists it, with the title of the chat that made it."
       },
       "MessageCreate": {
         "properties": {
@@ -12980,6 +13312,56 @@
         ],
         "title": "Rank",
         "description": "revision is the item's own; a rank past the last moves the item last."
+      },
+      "RecordPerson": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "personId": {
+            "type": "string",
+            "title": "Personid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "personTitle": {
+            "type": "string",
+            "title": "Persontitle"
+          },
+          "personTeam": {
+            "type": "string",
+            "title": "Personteam"
+          },
+          "relationship": {
+            "type": "string",
+            "title": "Relationship"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "personId",
+          "name",
+          "personTitle",
+          "personTeam",
+          "relationship",
+          "archived",
+          "createdAt"
+        ],
+        "title": "RecordPerson",
+        "description": "A person tied to a work item, roadmap or repository, as that record lists them."
       },
       "ReferenceCreate": {
         "properties": {
@@ -15088,6 +15470,231 @@
           "updatedAt"
         ],
         "title": "WebLink"
+      },
+      "WorkItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "doing",
+              "waiting",
+              "blocked",
+              "done"
+            ],
+            "title": "Status"
+          },
+          "adoUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adourl"
+          },
+          "roadmapId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roadmapid"
+          },
+          "stepId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stepid"
+          },
+          "backlogOrder": {
+            "type": "integer",
+            "title": "Backlogorder"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank"
+          },
+          "rankedCount": {
+            "type": "integer",
+            "title": "Rankedcount"
+          },
+          "repositoryIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Repositoryids"
+          },
+          "notes": {
+            "items": {
+              "$ref": "#/components/schemas/Note"
+            },
+            "type": "array",
+            "title": "Notes"
+          },
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/Attachment"
+            },
+            "type": "array",
+            "title": "Attachments"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/WebLink"
+            },
+            "type": "array",
+            "title": "Links"
+          },
+          "chats": {
+            "items": {
+              "$ref": "#/components/schemas/TrackedChat"
+            },
+            "type": "array",
+            "title": "Chats"
+          },
+          "github": {
+            "items": {
+              "$ref": "#/components/schemas/ListedGithubReference"
+            },
+            "type": "array",
+            "title": "Github"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/Task"
+            },
+            "type": "array",
+            "title": "Tasks"
+          },
+          "references": {
+            "items": {
+              "$ref": "#/components/schemas/FileReference"
+            },
+            "type": "array",
+            "title": "References"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/RecordPerson"
+            },
+            "type": "array",
+            "title": "People"
+          },
+          "dailyEntries": {
+            "items": {
+              "$ref": "#/components/schemas/DailyEntry"
+            },
+            "type": "array",
+            "title": "Dailyentries"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            },
+            "type": "array",
+            "title": "History"
+          },
+          "linkedRoadmap": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LinkedRoadmap"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "linkedStep": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LinkedStep"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "description",
+          "status",
+          "adoUrl",
+          "roadmapId",
+          "stepId",
+          "backlogOrder",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "rank",
+          "rankedCount",
+          "repositoryIds",
+          "notes",
+          "attachments",
+          "links",
+          "chats",
+          "github",
+          "tasks",
+          "references",
+          "people",
+          "dailyEntries",
+          "history",
+          "linkedRoadmap",
+          "linkedStep"
+        ],
+        "title": "WorkItem",
+        "description": "A work item with everything its page shows."
       }
     }
   }

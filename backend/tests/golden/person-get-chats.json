@@ -24,7 +24,13 @@
           "title": "Parser",
           "archived": false
         },
-        "roadmaps": [],
+        "roadmaps": [
+          {
+            "id": "<id3>",
+            "title": "Plan 2",
+            "archived": false
+          }
+        ],
         "steps": [],
         "agents": [],
         "transcript": {

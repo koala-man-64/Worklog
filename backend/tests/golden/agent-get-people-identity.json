@@ -46,11 +46,11 @@
           "description": "Parse the plan",
           "status": "doing",
           "adoUrl": null,
-          "roadmapId": null,
-          "stepId": null,
+          "roadmapId": "<id3>",
+          "stepId": "<id6>",
           "backlogOrder": 1,
           "archived": false,
-          "revision": 2,
+          "revision": 3,
           "createdAt": "<time>",
           "updatedAt": "<time>",
           "repositoryIds": []
@@ -59,13 +59,13 @@
     ],
     "repositories": [
       {
-        "linkId": "<id6>",
+        "linkId": "<id7>",
         "personId": "<id1>",
-        "repositoryId": "<id7>",
+        "repositoryId": "<id8>",
         "relationship": "Reviewer",
         "createdAt": "<time>",
         "repository": {
-          "id": "<id7>",
+          "id": "<id8>",
           "name": "worklog",
           "url": "https://github.com/example/worklog",
           "remoteIdentity": "github.com/example/worklog",
@@ -87,7 +87,7 @@
     ],
     "history": [
       {
-        "id": "<id8>",
+        "id": "<id9>",
         "entityId": "<id1>",
         "kind": "person.link",
         "actorId": "local-user",
@@ -97,20 +97,20 @@
         "localDate": "<today>",
         "before": null,
         "after": {
-          "id": "<id6>",
+          "id": "<id7>",
           "personId": "<id1>",
           "name": "Ada",
           "personTitle": "Engineer",
           "personTeam": "",
           "targetType": "repository",
-          "targetId": "<id7>",
+          "targetId": "<id8>",
           "relationship": "Reviewer",
           "archived": false,
           "createdAt": "<time>"
         }
       },
       {
-        "id": "<id9>",
+        "id": "<id10>",
         "entityId": "<id1>",
         "kind": "person.link",
         "actorId": "local-user",
@@ -133,7 +133,7 @@
         }
       },
       {
-        "id": "<id10>",
+        "id": "<id11>",
         "entityId": "<id1>",
         "kind": "person.link",
         "actorId": "local-user",
@@ -156,7 +156,7 @@
         }
       },
       {
-        "id": "<id11>",
+        "id": "<id12>",
         "entityId": "<id1>",
         "kind": "person.create",
         "actorId": "local-user",

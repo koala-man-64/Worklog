@@ -8,11 +8,11 @@
         "description": "Parse the plan",
         "status": "doing",
         "adoUrl": null,
-        "roadmapId": null,
-        "stepId": null,
+        "roadmapId": "<id2>",
+        "stepId": "<id3>",
         "backlogOrder": 1,
         "archived": false,
-        "revision": 2,
+        "revision": 3,
         "createdAt": "<time>",
         "updatedAt": "<time>",
         "rank": 1,
@@ -20,8 +20,8 @@
         "isBacklog": false,
         "people": [
           {
-            "id": "<id2>",
-            "personId": "<id3>",
+            "id": "<id4>",
+            "personId": "<id5>",
             "name": "Ada",
             "personTitle": "Engineer",
             "personTeam": "",
@@ -32,7 +32,7 @@
         ]
       },
       {
-        "id": "<id4>",
+        "id": "<id6>",
         "title": "Release notes",
         "description": "",
         "status": "open",
@@ -52,6 +52,6 @@
     ],
     "total": 2,
     "rankedCount": 2,
-    "collectionRevision": 5
+    "collectionRevision": 6
   }
 }

@@ -139,7 +139,35 @@
     ],
     "ancestors": [],
     "children": [],
-    "workItems": [],
+    "workItems": [
+      {
+        "id": "<id11>",
+        "title": "Parser",
+        "description": "Parse the plan",
+        "status": "doing",
+        "adoUrl": null,
+        "roadmapId": "<id1>",
+        "stepId": "<id3>",
+        "backlogOrder": 1,
+        "archived": false,
+        "revision": 3,
+        "createdAt": "<time>",
+        "updatedAt": "<time>",
+        "repositoryIds": [],
+        "people": [
+          {
+            "id": "<id12>",
+            "personId": "<id8>",
+            "name": "Ada",
+            "personTitle": "Engineer",
+            "personTeam": "",
+            "relationship": "Reviewer",
+            "archived": false,
+            "createdAt": "<time>"
+          }
+        ]
+      }
+    ],
     "people": [
       {
         "id": "<id7>",

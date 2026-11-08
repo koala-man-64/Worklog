@@ -1,6 +1,58 @@
 {
   "status": 200,
   "body": {
-    "items": []
+    "items": [
+      {
+        "kind": "agent",
+        "id": "<id1>",
+        "label": "Builder",
+        "avatar": "red-dots-antenna",
+        "provider": "",
+        "model": "",
+        "ties": [
+          {
+            "stepId": "<id2>",
+            "via": "participation",
+            "item": {
+              "id": "<id3>",
+              "title": "Parser"
+            },
+            "chat": null,
+            "role": null,
+            "lastAt": "<time>",
+            "stale": false
+          }
+        ],
+        "lastAt": "<time>",
+        "stale": false
+      },
+      {
+        "kind": "chat",
+        "id": "<id4>",
+        "label": "Build",
+        "avatar": null,
+        "provider": "",
+        "model": "",
+        "ties": [
+          {
+            "stepId": "<id2>",
+            "via": "chat",
+            "item": {
+              "id": "<id3>",
+              "title": "Parser"
+            },
+            "chat": {
+              "id": "<id4>",
+              "title": "Build"
+            },
+            "role": null,
+            "lastAt": "<time>",
+            "stale": false
+          }
+        ],
+        "lastAt": "<time>",
+        "stale": false
+      }
+    ]
   }
 }
