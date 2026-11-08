@@ -67,6 +67,7 @@ SEALED_SCHEMAS: dict[int, frozenset[str]] = {
     20: frozenset({"c73937fd849b6e20cff7c2a1649ae026a1d429194852e424b547e786d8ef2540"}),  # reminders
     21: frozenset({"83c552ee5c0747fd90c7bffc3c2cf3bd589ee275f3b2901596da081feda61ad2"}),  # each day's reflection revision
     22: frozenset({"785c66e113042d83086be02da5a14f1edf58720a22843babb4a2000829f5a75d"}),  # discussion tags, pins and repository discussions
+    23: frozenset({"84d7fb11db635773807292341234aff05dbb191e36c6833dd940276b9ef63546"}),  # CHECKs on tasks, notes, file references and attachments
 }
 
 

@@ -79,7 +79,10 @@ def test_each_check_finds_what_the_schema_cannot_refuse(world):
     with closing(sqlite3.connect(database)) as conn:
         conn.row_factory = sqlite3.Row
         # A supporting record of a type its table never takes, and one whose owner is gone.
+        # Since v23 a CHECK refuses that type, so it is written as a tool ignoring CHECKs would write it.
+        conn.execute("PRAGMA ignore_check_constraints=ON")
         conn.execute("UPDATE notes SET owner_type='ticket' WHERE id=?", (names["note"],))
+        conn.execute("PRAGMA ignore_check_constraints=OFF")
         conn.execute("UPDATE web_links SET owner_id='gone-item' WHERE id=?", (names["link"],))
         # A step whose parent is gone, and the chat tracked twice on its work item.
         conn.execute("UPDATE steps SET parent_id='gone-step' WHERE id=?", (names["child"],))
@@ -103,7 +106,10 @@ def test_each_check_finds_what_the_schema_cannot_refuse(world):
     assert checks["steps"]["examples"] == [{"step": names["child"], "parent": "gone-step",
                                            "problem": "its parent is gone or on another roadmap"}]
     assert checks["trackedChats"]["examples"] == [{"ownerType": "item", "ownerId": names["item"], "chatId": "chat-1", "times": 2}]
-    assert [(e["table"], e["references"]) for e in checks["integrity"]["examples"]] == [("tasks", "work_items")]
+    # SQLite's own check finds the CHECK the note breaks, and the task's broken foreign key.
+    integrity = checks["integrity"]["examples"]
+    assert [e for e in integrity if isinstance(e, str) and "CHECK constraint failed in notes" in e]
+    assert [(e["table"], e["references"]) for e in integrity if isinstance(e, dict)] == [("tasks", "work_items")]
     keys = {(e.get("entityId"), e["problem"]) for e in checks["searchKeys"]["examples"]}
     assert (names["link"], "its row is gone") in keys
     assert ("stray", "a row with no key") in keys
