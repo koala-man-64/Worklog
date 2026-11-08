@@ -1,0 +1,40 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "runId": "<id2>",
+    "itemId": "<id3>",
+    "description": "",
+    "contexts": [
+      {
+        "repositoryId": "<id4>",
+        "repositoryName": "worklog",
+        "archived": false,
+        "checkoutPath": "",
+        "worktreePath": "",
+        "branch": ""
+      }
+    ],
+    "revision": 1,
+    "createdAt": "<time>",
+    "updatedAt": "<time>",
+    "lastSeenAt": "<time>",
+    "releasedAt": null,
+    "releaseReason": null,
+    "stale": false,
+    "run": {
+      "id": "<id2>",
+      "agentId": "<id5>",
+      "credentialId": "<id5>",
+      "clientRunKey": "golden",
+      "displayName": "Builder",
+      "provider": "",
+      "externalChatId": null,
+      "revision": 1,
+      "createdAt": "<time>",
+      "updatedAt": "<time>",
+      "endedAt": null,
+      "endReason": null
+    }
+  }
+}

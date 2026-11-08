@@ -385,36 +385,36 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                 raise AppError(404, "not_found", "Supporting record not found")
             return support.chat_records(c, [row])[0] if resource == "chats" else support_record(row)
 
-    @app.post("/api/v1/notes")
+    @app.post("/api/v1/notes", response_model=out.Note)
     def create_note(request: Request, body: m.NoteCreate) -> dict:
         return apply(request, "note.create", body.model_dump(), create=True)
 
-    @app.patch("/api/v1/notes/{identity}")
+    @app.patch("/api/v1/notes/{identity}", response_model=out.Note)
     def update_note(identity: str, request: Request, body: m.NoteUpdate) -> dict:
         return apply(request, "note.update", {**body.model_dump(exclude_unset=True), "id": identity})
 
-    @app.post("/api/v1/tasks")
+    @app.post("/api/v1/tasks", response_model=out.Task)
     def create_task(request: Request, body: m.TaskCreate) -> dict:
         return apply(request, "task.create", body.model_dump(), create=True)
 
-    @app.patch("/api/v1/tasks/{identity}")
+    @app.patch("/api/v1/tasks/{identity}", response_model=out.Task)
     def update_task(identity: str, request: Request, body: m.TaskUpdate) -> dict:
         return apply(request, "task.update", {**body.model_dump(exclude_unset=True), "id": identity})
 
-    @app.post("/api/v1/tasks/{identity}/move")
+    @app.post("/api/v1/tasks/{identity}/move", response_model=out.TaskPlace)
     def move_task(identity: str, request: Request, body: m.TaskMove) -> dict:
         p = body.model_dump()
         return mutate(request, p, lambda c, a: support.move_task(c, a, identity, p))
 
-    @app.post("/api/v1/references")
+    @app.post("/api/v1/references", response_model=out.FileReference)
     def create_reference(request: Request, body: m.ReferenceCreate) -> dict:
         return apply(request, "reference.create", body.model_dump(), create=True)
 
-    @app.post("/api/v1/links")
+    @app.post("/api/v1/links", response_model=out.WebLink)
     def create_link(request: Request, body: m.LinkCreate) -> dict:
         return apply(request, "link.create", body.model_dump(), create=True)
 
-    @app.patch("/api/v1/links/{identity}")
+    @app.patch("/api/v1/links/{identity}", response_model=out.WebLink)
     def update_link(identity: str, request: Request, body: m.LinkUpdate) -> dict:
         return apply(request, "link.update", {**body.model_dump(exclude_unset=True), "id": identity})
 
@@ -450,35 +450,35 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             labels = {r["chat_id"].strip().lower(): r["title"] for r in c.execute("SELECT chat_id,title FROM agent_chats WHERE archived=0")}
         return {"chat": chat, **transcripts.messages(chat["chatId"], limit=limit, thread=thread, labels=labels)}
 
-    @app.post("/api/v1/chats")
+    @app.post("/api/v1/chats", response_model=out.TrackedChat)
     def create_chat(request: Request, body: m.ChatCreate) -> dict:
         return apply(request, "chat.create", body.model_dump(), create=True)
 
-    @app.patch("/api/v1/chats/{identity}")
+    @app.patch("/api/v1/chats/{identity}", response_model=out.TrackedChat)
     def update_chat(identity: str, request: Request, body: m.ChatUpdate) -> dict:
         return apply(request, "chat.update", {**body.model_dump(exclude_unset=True), "id": identity})
 
-    @app.post("/api/v1/github")
+    @app.post("/api/v1/github", response_model=out.ListedGithubReference)
     def create_github_ref(request: Request, body: m.GithubRefCreate) -> dict:
         return apply(request, "github.create", body.model_dump(), create=True)
 
-    @app.patch("/api/v1/github/{identity}")
+    @app.patch("/api/v1/github/{identity}", response_model=out.ListedGithubReference)
     def update_github_ref(identity: str, request: Request, body: m.GithubRefUpdate) -> dict:
         return apply(request, "github.update", {**body.model_dump(exclude_unset=True), "id": identity})
 
-    @app.post("/api/v1/questions")
+    @app.post("/api/v1/questions", response_model=out.Question)
     def create_question(request: Request, body: m.QuestionCreate) -> dict:
         return apply(request, "question.create", body.model_dump(), create=True)
 
-    @app.patch("/api/v1/questions/{identity}")
+    @app.patch("/api/v1/questions/{identity}", response_model=out.Question)
     def update_question(identity: str, request: Request, body: m.QuestionUpdate) -> dict:
         return apply(request, "question.update", {**body.model_dump(exclude_unset=True), "id": identity})
 
-    @app.post("/api/v1/decisions")
+    @app.post("/api/v1/decisions", response_model=out.Decision)
     def create_decision(request: Request, body: m.DecisionCreate) -> dict:
         return apply(request, "decision.create", body.model_dump(), create=True)
 
-    @app.patch("/api/v1/decisions/{identity}")
+    @app.patch("/api/v1/decisions/{identity}", response_model=out.Decision)
     def update_decision(identity: str, request: Request, body: m.DecisionUpdate) -> dict:
         return apply(request, "decision.update", {**body.model_dump(exclude_unset=True), "id": identity})
 
@@ -489,12 +489,17 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
 
     # Each supporting record archives and recovers by its own literal route, so no route has to be
     # moved behind the others to keep from shadowing them.
+    # Each answers with the record as it stands after, as its read does; a GitHub reference also
+    # names the chat that made it, as its owner's list does.
+    written = {"note": out.Note, "task": out.Task, "reference": out.FileReference, "attachment": out.Attachment,
+               "link": out.WebLink, "chat": out.TrackedChat, "github": out.ListedGithubReference,
+               "question": out.Question, "decision": out.Decision}
     for resource, kind in {"notes": "note", "tasks": "task", "references": "reference", "attachments": "attachment",
                            "links": "link", "chats": "chat", "github": "github", "questions": "question",
                            "decisions": "decision"}.items():
         for verb in ("archive", "recover"):
             app.add_api_route(f"/api/v1/{resource}/{{identity}}/{verb}", support_command(kind, verb),
-                              methods=["POST"], name=f"{kind}_{verb}")
+                              methods=["POST"], name=f"{kind}_{verb}", response_model=written[kind])
 
     @app.get("/api/v1/attachments", response_model=out.Attachments)
     def attachments(request: Request, ownerType: str, ownerId: str, archived: bool = False) -> dict:
@@ -506,7 +511,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             records = [support_record(r) for r in c.execute("SELECT id,owner_type,owner_id,name,mime,size,sha256,archived,revision,created_at FROM attachments WHERE owner_type=? AND owner_id=? AND archived=? ORDER BY created_at,id", (ownerType, ownerId, int(archived)))]
             return {"items": records, "total": len(records)}
 
-    @app.post("/api/v1/attachments")
+    @app.post("/api/v1/attachments", response_model=out.Attachment)
     async def upload(request: Request, ownerType: str, ownerId: str, name: str) -> dict:
         data = await bounded_body(request, FILE_LIMIT)
         payload = {"ownerType": ownerType, "ownerId": ownerId, "name": name, "sha256": hashlib.sha256(data).hexdigest()}

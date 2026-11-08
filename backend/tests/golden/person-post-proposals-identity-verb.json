@@ -1,0 +1,36 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "title": "Track the spec",
+    "rationale": "One place",
+    "status": "approved",
+    "autoApproved": false,
+    "revision": 3,
+    "actorId": "<id2>",
+    "actorLabel": "Builder",
+    "actorDirectory": null,
+    "operations": [
+      {
+        "action": "link.create",
+        "payload": {
+          "ownerType": "item",
+          "ownerId": "<id3>",
+          "url": "https://example.com/plan"
+        }
+      },
+      {
+        "action": "question.create",
+        "payload": {
+          "roadmapId": "<id4>",
+          "title": "Who reviews?"
+        }
+      }
+    ],
+    "supersedesId": null,
+    "createdAt": "<time>",
+    "updatedAt": "<time>",
+    "submittedAt": "<time>",
+    "attachments": []
+  }
+}

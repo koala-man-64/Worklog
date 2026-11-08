@@ -1,0 +1,25 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "participationId": "<id2>",
+    "runId": "<id3>",
+    "agentId": "<id4>",
+    "credentialId": "<id4>",
+    "authorLabel": "Builder",
+    "kind": "update",
+    "text": "Parser half done",
+    "itemId": "<id5>",
+    "contexts": [
+      {
+        "repositoryId": "<id6>",
+        "repositoryName": "worklog",
+        "archived": false,
+        "checkoutPath": "",
+        "worktreePath": "",
+        "branch": ""
+      }
+    ],
+    "createdAt": "<time>"
+  }
+}

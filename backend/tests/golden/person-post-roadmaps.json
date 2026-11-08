@@ -1,0 +1,50 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "title": "Plan",
+    "overview": "",
+    "parentId": null,
+    "revision": 1,
+    "archived": false,
+    "createdAt": "<time>",
+    "updatedAt": "<time>",
+    "steps": [
+      {
+        "id": "<id2>",
+        "title": "Parent",
+        "description": "",
+        "parentId": null,
+        "position": 0,
+        "status": "open",
+        "revision": 1,
+        "retired": false
+      },
+      {
+        "id": "<id3>",
+        "title": "Child",
+        "description": "",
+        "parentId": "<id2>",
+        "position": 1,
+        "status": "open",
+        "revision": 1,
+        "retired": false
+      }
+    ],
+    "versions": [
+      {
+        "number": 1,
+        "createdAt": "<time>",
+        "note": "Created"
+      }
+    ],
+    "notes": [],
+    "attachments": [],
+    "links": [],
+    "chats": [],
+    "github": [],
+    "questions": [],
+    "decisions": [],
+    "history": []
+  }
+}

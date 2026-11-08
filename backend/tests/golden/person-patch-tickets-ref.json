@@ -1,0 +1,49 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "number": 1,
+    "key": "T-1",
+    "title": "Crash on save",
+    "description": "",
+    "resolution": "",
+    "truncated": false,
+    "kind": "bug",
+    "priority": "normal",
+    "status": "open",
+    "labels": [
+      "parser"
+    ],
+    "repositoryIds": [
+      "<id2>"
+    ],
+    "itemId": "<id3>",
+    "item": {
+      "id": "<id3>",
+      "title": "Parser",
+      "status": "doing",
+      "archived": false
+    },
+    "assigneeId": "<id4>",
+    "assignee": {
+      "id": "<id4>",
+      "label": "Builder",
+      "kind": "agent",
+      "avatar": "red-dots-antenna",
+      "active": true
+    },
+    "author": {
+      "id": "local-user",
+      "label": "You",
+      "kind": "human",
+      "avatar": null
+    },
+    "commentCount": 0,
+    "archived": false,
+    "revision": 2,
+    "createdAt": "<time>",
+    "updatedAt": "<time>",
+    "closedAt": null,
+    "lastActivityAt": "<time>"
+  }
+}

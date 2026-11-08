@@ -1,0 +1,11 @@
+{
+  "status": 200,
+  "body": {
+    "chat": {
+      "id": "<id1>",
+      "chatId": "chat-1"
+    },
+    "agentId": "<id2>",
+    "binding": "confirmed"
+  }
+}

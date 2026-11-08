@@ -1,0 +1,13 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "date": "<today>",
+    "itemId": "<id2>",
+    "planned": true,
+    "worked": true,
+    "outcome": "Half done",
+    "position": 1,
+    "revision": 1
+  }
+}

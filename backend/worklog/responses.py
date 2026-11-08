@@ -2153,3 +2153,10 @@ class WorkContext(Answer):
     tickets: Tickets
     resources: Resources
     releases: Releases
+
+
+class TaskPlace(Answer):
+    """Where a moved task now stands in its work item's list, 1 first."""
+
+    id: str
+    position: int

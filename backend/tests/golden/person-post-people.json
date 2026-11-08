@@ -1,0 +1,19 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "name": "Ada",
+    "title": "Engineer",
+    "team": "",
+    "description": "",
+    "email": "",
+    "phone": "",
+    "chat": "",
+    "location": "",
+    "notes": "",
+    "archived": false,
+    "revision": 1,
+    "createdAt": "<time>",
+    "updatedAt": "<time>"
+  }
+}

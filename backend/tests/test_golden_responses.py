@@ -1,12 +1,14 @@
-"""What every read returns, pinned before responses are typed (consolidation step 5.3, A-03).
+"""What every read returns, and every write the golden world makes, pinned before responses are typed
+(consolidation step 5.3, A-03).
 
 The plan's *Rules* say typed responses keep today's shapes: booleans stored as 0 or 1, timestamps
 with or without microseconds, columns holding JSON text, null and empty meaning different things,
 event payloads carrying `_statusChanged`. So each read is pinned first. A world built through the
 API holds a record of every kind; each GET route is read as the person, and as an agent, and its
 answer, with IDs, times and today's date replaced by placeholders, must equal its file in
-backend/tests/golden. Typing a route must leave its golden file as it is. After a deliberate change
-to what a read returns, write the files again with
+backend/tests/golden. Each write route the world calls is pinned the same way, by the answer of
+its first call. Typing a route must leave its golden file as it is. After a deliberate change to
+what a route returns, write the files again with
 
     ./.venv/Scripts/python.exe backend/tests/test_golden_responses.py
 
@@ -27,6 +29,7 @@ if __name__ == "__main__":
     for name in [key for key in os.environ if key.upper().startswith("WORKLOG_")]:
         del os.environ[name]
 
+from fastapi.routing import APIRoute  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from worklog.app import create_app  # noqa: E402
 
@@ -35,9 +38,9 @@ GOLDEN = Path(__file__).with_name("golden")
 UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 TIME = re.compile(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?([+-]\d\d:\d\d|Z)?$")
 HTML = b"<html><body><h1>Imported plan</h1><h2>First step</h2><p>Text</p></body></html>"
-# Values that change from world to world where no ID or time shows: a random avatar suggested, and a
-# feed cursor, which encodes the data ID.
-KEYED = {"suggested": "<avatar>", "cursor": "<cursor>"}
+# Values that change from world to world where no ID or time shows: a random avatar suggested, a
+# feed cursor, which encodes the data ID, and a credential's token.
+KEYED = {"suggested": "<avatar>", "cursor": "<cursor>", "token": "<token>"}
 # Reads whose answer is not JSON: files and archives, pinned by their own tests.
 NOT_JSON = {"/export", "/imports/{identity}/download"}
 
@@ -50,6 +53,8 @@ class World:
         self.person = TestClient(self.app, base_url=ORIGIN)
         self.agent = TestClient(self.app, base_url=ORIGIN)
         self.ids: dict[str, str] = {}
+        # The answer of the first call of each write route, by actor, method and route.
+        self.writes: dict[str, object] = {}
 
     def __enter__(self) -> "World":
         self.person.__enter__()
@@ -67,12 +72,22 @@ class World:
     def __exit__(self, *exc: object) -> None:
         self.person.__exit__(*exc)
 
-    @staticmethod
-    def write(client: TestClient, method: str, path: str, body: object = None, **options: object) -> dict:
+    def write(self, client: TestClient, method: str, path: str, body: object = None, **options: object) -> dict:
         headers = {"Idempotency-Key": str(uuid.uuid4()), **options.pop("headers", {})}  # type: ignore[dict-item]
         response = client.request(method, "/api/v1" + path, json=body, headers=headers, **options)  # type: ignore[arg-type]
         assert response.status_code == 200, (method, path, response.text)
+        if method != "GET":
+            actor = "agent" if client is self.agent else "person"
+            self.writes.setdefault(f"{actor} {method} {self.route(method, path)}", response.json())
         return response.json()
+
+    def route(self, method: str, path: str) -> str:
+        """The route a call reaches, as OpenAPI names it: the first that matches, as the router takes it."""
+        target = "/api/v1" + path.split("?", 1)[0]
+        for route in self.app.routes:
+            if isinstance(route, APIRoute) and method in route.methods and route.path_regex.match(target):
+                return route.path.removeprefix("/api/v1")
+        raise AssertionError(f"No route serves {method} {path}")
 
     def build(self) -> None:
         p, today = self.person, self.today
@@ -236,8 +251,10 @@ def normalized(value: object, names: dict[str, str], today: str) -> object:
 
 
 def answers(world: World) -> dict[str, dict]:
-    """Each GET route's answer, as the person and as the agent, keyed by actor and route."""
-    result: dict[str, dict] = {}
+    """Each GET route's answer, as the person and as the agent, and the first answer of each write
+    route the world called, keyed by actor, method and route."""
+    result: dict[str, dict] = {key: {"status": 200, "body": normalized(body, {}, world.today)}
+                               for key, body in world.writes.items()}
     for template, operations in sorted(world.app.openapi()["paths"].items()):
         route = template.removeprefix("/api/v1")
         if "get" not in operations or not template.startswith("/api/v1") or route in NOT_JSON:
