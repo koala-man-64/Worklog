@@ -25,6 +25,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import __version__, operations, policy, support
 from . import models as m
+from . import responses as out
 from .active_sessions import running_sessions
 from .agent_link_api import install_agent_link_routes
 from .agent_links import ties_of_agent, visible_history
@@ -341,14 +342,14 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             authorize_history(c, entityId, request.state.actor)
             return {"items": visible_history(c, entityId, limit, request.state.actor)}
 
-    @app.get("/api/v1/notes/{identity}")
-    @app.get("/api/v1/tasks/{identity}")
-    @app.get("/api/v1/references/{identity}")
-    @app.get("/api/v1/links/{identity}")
-    @app.get("/api/v1/chats/{identity}")
-    @app.get("/api/v1/github/{identity}")
-    @app.get("/api/v1/questions/{identity}")
-    @app.get("/api/v1/decisions/{identity}")
+    @app.get("/api/v1/notes/{identity}", response_model=out.Note)
+    @app.get("/api/v1/tasks/{identity}", response_model=out.Task)
+    @app.get("/api/v1/references/{identity}", response_model=out.FileReference)
+    @app.get("/api/v1/links/{identity}", response_model=out.WebLink)
+    @app.get("/api/v1/chats/{identity}", response_model=out.TrackedChat)
+    @app.get("/api/v1/github/{identity}", response_model=out.GithubReference)
+    @app.get("/api/v1/questions/{identity}", response_model=out.Question)
+    @app.get("/api/v1/decisions/{identity}", response_model=out.Decision)
     def supporting_detail(identity: str, request: Request) -> dict:
         resource = request.url.path.split("/")[-2]
         table = {

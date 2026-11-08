@@ -3060,6 +3060,27 @@ export interface components {
             /** Label */
             label?: string | null;
         };
+        /** Decision */
+        Decision: {
+            /** Id */
+            id: string;
+            /** Roadmapid */
+            roadmapId: string;
+            /** Title */
+            title: string;
+            /** Rationale */
+            rationale: string;
+            /** Decideddate */
+            decidedDate: string;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+        };
         /** DecisionCreate */
         DecisionCreate: {
             /** Roadmapid */
@@ -3119,6 +3140,21 @@ export interface components {
             /** Revision */
             revision: number;
         };
+        /** FileReference */
+        FileReference: {
+            /** Id */
+            id: string;
+            /** Itemid */
+            itemId: string;
+            /** Path */
+            path: string;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+        };
         /** GithubRefCreate */
         GithubRefCreate: {
             /**
@@ -3169,6 +3205,41 @@ export interface components {
             description?: string | null;
             /** Chatid */
             chatId?: string | null;
+        };
+        /** GithubReference */
+        GithubReference: {
+            /** Id */
+            id: string;
+            /**
+             * Ownertype
+             * @enum {string}
+             */
+            ownerType: "item" | "roadmap";
+            /** Ownerid */
+            ownerId: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "commit" | "pr";
+            /** Url */
+            url: string;
+            /** Reference */
+            reference: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /** Chatid */
+            chatId: string | null;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -3294,6 +3365,30 @@ export interface components {
              * @enum {string}
              */
             direction: "up" | "down";
+        };
+        /** Note */
+        Note: {
+            /** Id */
+            id: string;
+            /**
+             * Ownertype
+             * @enum {string}
+             */
+            ownerType: "item" | "roadmap" | "step";
+            /** Ownerid */
+            ownerId: string;
+            /** Title */
+            title: string;
+            /** Text */
+            text: string;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
         };
         /** NoteCreate */
         NoteCreate: {
@@ -3518,6 +3613,32 @@ export interface components {
             rationale?: string | null;
             /** Operations */
             operations?: components["schemas"]["Operation"][] | null;
+        };
+        /** Question */
+        Question: {
+            /** Id */
+            id: string;
+            /** Roadmapid */
+            roadmapId: string;
+            /** Title */
+            title: string;
+            /** Details */
+            details: string;
+            /** Answer */
+            answer: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "answered";
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
         };
         /** QuestionCreate */
         QuestionCreate: {
@@ -3931,6 +4052,25 @@ export interface components {
             /** Id */
             id: string;
         };
+        /** Task */
+        Task: {
+            /** Id */
+            id: string;
+            /** Itemid */
+            itemId: string;
+            /** Text */
+            text: string;
+            /** Done */
+            done: boolean;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+        };
         /** TaskCreate */
         TaskCreate: {
             /** Itemid */
@@ -4034,6 +4174,42 @@ export interface components {
             /** Assigneeid */
             assigneeId?: string | null;
         };
+        /** TrackedChat */
+        TrackedChat: {
+            /** Id */
+            id: string;
+            /**
+             * Ownertype
+             * @enum {string}
+             */
+            ownerType: "item" | "roadmap";
+            /** Ownerid */
+            ownerId: string;
+            /** Chatid */
+            chatId: string;
+            /** Title */
+            title: string;
+            /** Createddate */
+            createdDate: string;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Provider */
+            provider: string;
+            /** Model */
+            model: string;
+            /** Repos */
+            repos: string[];
+            /** Stepids */
+            stepIds: string[];
+            /** Repositoryids */
+            repositoryIds: string[];
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -4046,6 +4222,32 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /** WebLink */
+        WebLink: {
+            /** Id */
+            id: string;
+            /**
+             * Ownertype
+             * @enum {string}
+             */
+            ownerType: "item" | "roadmap";
+            /** Ownerid */
+            ownerId: string;
+            /** Url */
+            url: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
         };
     };
     responses: never;
@@ -4663,9 +4865,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Decision"];
                 };
             };
             /** @description Validation Error */
@@ -4733,9 +4933,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Question"];
                 };
             };
             /** @description Validation Error */
@@ -4803,9 +5001,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["GithubReference"];
                 };
             };
             /** @description Validation Error */
@@ -4873,9 +5069,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["TrackedChat"];
                 };
             };
             /** @description Validation Error */
@@ -4943,9 +5137,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["WebLink"];
                 };
             };
             /** @description Validation Error */
@@ -5013,9 +5205,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["FileReference"];
                 };
             };
             /** @description Validation Error */
@@ -5046,9 +5236,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Task"];
                 };
             };
             /** @description Validation Error */
@@ -5116,9 +5304,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Note"];
                 };
             };
             /** @description Validation Error */

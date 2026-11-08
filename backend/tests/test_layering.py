@@ -15,7 +15,7 @@ PACKAGE = Path(__file__).resolve().parents[1] / "worklog"
 ORDER = [
     # Nothing of Worklog's below them, the current schema and the route policy among them, then the
     # record kinds ties and discussion tags name.
-    "__init__", "common", "models", "avatars", "transcripts", "active_sessions", "maintenance", "schema", "policy",
+    "__init__", "common", "models", "responses", "avatars", "transcripts", "active_sessions", "maintenance", "schema", "policy",
     "record_kinds",
     # Search, scratchpads, repository links, request shapes, the operation registry, the names a
     # proposal gives its new records, and what an applied change counts toward.
