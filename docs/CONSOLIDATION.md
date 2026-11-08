@@ -566,6 +566,7 @@ Done so far:
   - A release's and a check's commands answer without the `pastDue` their reads add.
   - Registering a repository's address answers with the record that holds it and whether it is new.
 - **Typed writes, fourth batch.** Agent runs, participations and their updates, an agent's own tracked chat, chat messages and confirmations, the inbox, agent ties and agent registrations.
+- **Typed writes, fifth batch.** The discussions' commands (a new thread, messages, acknowledgements, tags, pins and roles) and the proposals' create, update and transitions.
 
 #### 5.4 · Frontend layout
 

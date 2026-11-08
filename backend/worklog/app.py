@@ -663,12 +663,12 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def agent_proposals(identity: str, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
         return proposals.from_agent(identity, limit, offset)
 
-    @app.post("/api/v1/proposals")
+    @app.post("/api/v1/proposals", response_model=out.ProposalListed)
     def proposal_create(request: Request, body: m.ProposalCreate) -> dict:
         p = body.model_dump()
         return mutate(request, p, lambda c, a: proposals.create(p, a, conn=c), required_key=True)
 
-    @app.patch("/api/v1/proposals/{identity}")
+    @app.patch("/api/v1/proposals/{identity}", response_model=out.ProposalListed)
     def proposal_update(identity: str, request: Request, body: m.ProposalUpdate) -> dict:
         return proposals.update(identity, body.model_dump(exclude_unset=True), request.state.actor)
 
@@ -855,7 +855,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             raise AppError(404, "not_found", "Unknown roadmap command")
         return apply(request, "roadmap." + verb, {"id": identity, **body.model_dump()})
 
-    @app.post("/api/v1/proposals/{identity}/{verb}")
+    @app.post("/api/v1/proposals/{identity}/{verb}", response_model=out.ProposalListed)
     def proposal_transition(identity: str, verb: str, request: Request, body: m.Expected) -> dict:
         if verb not in {"submit", "withdraw", "reopen", "approve", "reject"}:
             raise AppError(404, "not_found", "Unknown proposal command")

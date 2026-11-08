@@ -2349,3 +2349,10 @@ class Retirement(Answer):
     agentId: str
     retired: Literal[True]
     registeredRevoked: int
+
+
+class DiscussionStarted(Answer):
+    """A new discussion and its first message."""
+
+    discussion: DiscussionSummary
+    message: DiscussionMessage
