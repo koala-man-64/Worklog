@@ -26,6 +26,7 @@ from contextlib import closing
 from pathlib import Path
 from typing import Any
 
+from . import search
 from .migrations import SCHEMA_VERSION
 from .recovery import _readonly
 
@@ -148,11 +149,9 @@ def _tracked_chats(conn: sqlite3.Connection) -> dict[str, Any]:
 
 def _search_index(conn: sqlite3.Connection) -> dict[str, Any]:
     found = _Found()
-    try:
-        # Written as an INSERT, FTS5's own check needs a writable connection: the copy's.
-        conn.execute("INSERT INTO search_index(search_index) VALUES('integrity-check')")
-    except sqlite3.DatabaseError as exc:
-        found.add(str(exc))
+    # FTS5's check needs a writable connection: the copy's.
+    if problem := search.integrity_problem(conn):
+        found.add(problem)
     return found.report()
 
 
