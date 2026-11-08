@@ -39,6 +39,46 @@
         }
       }
     },
+    "/api/v1/page-views": {
+      "post": {
+        "summary": "Page View",
+        "operationId": "page_view_api_v1_page_views_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageView"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Page View Api V1 Page Views Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/work-items": {
       "get": {
         "summary": "Items",
@@ -16969,6 +17009,38 @@
         ],
         "title": "Overlaps",
         "description": "Who else is on the named records and what they said there, leaving out the caller's own."
+      },
+      "PageView": {
+        "properties": {
+          "page": {
+            "type": "string",
+            "enum": [
+              "today",
+              "work",
+              "tickets",
+              "reminders",
+              "roadmaps",
+              "releases",
+              "repositories",
+              "people",
+              "resources",
+              "agents",
+              "chats",
+              "discussions",
+              "review",
+              "settings",
+              "guide",
+              "agent-guide"
+            ],
+            "title": "Page"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "page"
+        ],
+        "title": "PageView"
       },
       "Participant": {
         "properties": {

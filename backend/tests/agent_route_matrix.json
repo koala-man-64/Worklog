@@ -145,6 +145,7 @@
   "POST /api/v1/notes": "refused",
   "POST /api/v1/notes/{identity}/archive": "refused",
   "POST /api/v1/notes/{identity}/recover": "refused",
+  "POST /api/v1/page-views": "refused",
   "POST /api/v1/participations": "reaches handler",
   "POST /api/v1/participations/{identity}/check-in": "reaches handler",
   "POST /api/v1/participations/{identity}/rejoin": "reaches handler",

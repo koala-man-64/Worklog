@@ -382,12 +382,15 @@ def _server(app: Any, port: int, grace: int = SHUTDOWN_GRACE_S) -> Any:
 def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
     """Private foreground entry point; start launches this in one hidden process."""
     from worklog.app import create_app, daily_backup
+    from worklog.usage import FLUSH_S, catalog
 
     os.environ["WORKLOG_DATA_DIR"] = str(directory)
     os.environ["WORKLOG_PORT"] = str(port)
     os.environ["WORKLOG_INSTANCE_ID"] = instance_id = str(uuid.uuid4())
     with InstanceLock(directory):
         app = create_app()
+        # What this version serves, so `usage` can tell what nothing used. A failure is only logged.
+        app.state.usage.describe(catalog(app.router.routes), __version__)
         with closing(sqlite3.connect(directory / "worklog.sqlite3")) as conn:
             data_id = json.loads(conn.execute("SELECT value FROM settings WHERE key='dataId'").fetchone()[0])
         identity = _process_identity(os.getpid())
@@ -405,6 +408,7 @@ def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
 
             next_backup = time.monotonic() + 60
             next_prune = time.monotonic() + 3600
+            next_usage = time.monotonic() + FLUSH_S
             while not finished.wait(0.2):
                 request = _json_file(marker)
                 if request.get("instanceId") == instance_id and request.get("dataId") == data_id:
@@ -424,6 +428,10 @@ def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
                         # A busy database waits for the next hour; startup prunes as well.
                         print(f"Pruning Worklog receipts failed: {type(exc).__name__}", file=sys.stderr, flush=True)
                     next_prune = time.monotonic() + 3600
+                if time.monotonic() >= next_usage:
+                    # Never raises: counts a write could not add wait for the next one.
+                    app.state.usage.flush()
+                    next_usage = time.monotonic() + FLUSH_S
 
         watcher = threading.Thread(target=watch, daemon=True)
         watcher.start()
@@ -432,6 +440,8 @@ def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
         finally:
             finished.set()
             watcher.join(timeout=1)
+            # The counts since the watcher's last write, without reading the timezone: none come after.
+            app.state.usage.flush(refresh_zone=False)
             marker.unlink(missing_ok=True)
             state_path = directory / "server-state.json"
             if _json_file(state_path).get("instanceId") == instance_id:
@@ -1488,14 +1498,23 @@ def _discussion_parser(actions: Any) -> None:
         write(command)
 
 
+def _report_days(value: str) -> int:
+    days = int(value)
+    if not 1 <= days <= 3650:
+        raise argparse.ArgumentTypeError("use 1 to 3650 days")
+    return days
+
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="worklog", description=__doc__)
     root.add_argument("--data-dir", help="Override persistent data directory")
     root.add_argument("--port", type=int, help=f"Loopback port (default: WORKLOG_PORT or {DEFAULT_PORT})")
     root.add_argument("--version", action="version", version=__version__)
     commands = root.add_subparsers(dest="command", required=True)
-    for command in ("start", "stop", "check", "serve", "backup", "backups", "restore", "export", "compact", "doctor"):
-        sub = commands.add_parser(command, help="Internal server entry" if command == "serve" else None)
+    for command in ("start", "stop", "check", "serve", "backup", "backups", "restore", "export", "compact", "doctor",
+                    "usage"):
+        sub = commands.add_parser(command, help={"serve": "Internal server entry",
+                                                 "usage": "Which pages and API calls were used, and which nothing used"}.get(command))
         sub.add_argument("--data-dir", default=argparse.SUPPRESS)
         if command in {"start", "stop", "check", "serve"}:
             sub.add_argument("--port", type=int, default=argparse.SUPPRESS)
@@ -1504,6 +1523,9 @@ def parser() -> argparse.ArgumentParser:
         if command == "backups":
             sub.add_argument("--verify", action="store_true",
                              help="Hash every file's bytes now; without it, a file unchanged since it was hashed shows that hash")
+        if command == "usage":
+            sub.add_argument("--days", type=_report_days, default=30,
+                             help="How many days to today the report covers (default 30)")
     agent = commands.add_parser(
         "agent", help="Agent commands; start with `worklog agent guide`",
         description="Commands for AI agents. `worklog agent guide` explains every one, with the rules agents follow.")
@@ -1655,6 +1677,12 @@ def main(argv: list[str] | None = None) -> int:
                 result = compact_database(database, directory / "backups")
             elif args.command == "doctor":
                 result = doctor_database(database)
+            elif args.command == "usage":
+                # Imported here: the API's modules would slow every other command's start.
+                from worklog.usage import FILE as USAGE_FILE
+                from worklog.usage import report
+
+                result = report(directory / USAGE_FILE, args.days)
             else:
                 output = Path(args.file).resolve()
                 _publish_new_file(output, lambda path: write_export(database, path))
