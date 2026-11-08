@@ -258,7 +258,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         response.set_cookie("worklog_session", session_id, httponly=True, samesite="strict", max_age=86400)
         return response
 
-    @app.get("/api/v1/work-items")
+    @app.get("/api/v1/work-items", response_model=out.WorkItems)
     def items(view: str = "all", archived: bool = False,
               status: list[str] | None = Query(None, description="Repeat to match any of several states"),
               roadmapId: str | None = None, personId: str | None = None, q: str = "", repositoryId: str | None = None,
@@ -298,7 +298,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             raise AppError(404, "not_found", "Unknown command")
         return apply(request, "item." + verb, {**body.model_dump(), "id": identity})
 
-    @app.get("/api/v1/days/{date}")
+    @app.get("/api/v1/days/{date}", response_model=out.Day)
     def day(date: str) -> dict:
         return work.items.day(date)
 
@@ -516,7 +516,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             inline = not download and row["mime"] in {"image/png", "image/jpeg", "image/gif", "image/webp", "image/avif", "image/bmp", "text/plain"}
             return download_response(row["content"], row["name"], row["mime"], inline)
 
-    @app.get("/api/v1/roadmaps")
+    @app.get("/api/v1/roadmaps", response_model=out.Roadmaps)
     def roadmap_list(archived: bool = False, personId: str | None = None, q: str = Query("", max_length=500)) -> dict:
         result = plans.list(archived)
         items_list = result["items"] if isinstance(result, dict) else result
@@ -573,7 +573,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def update_step(identity: str, request: Request, body: m.StepUpdate) -> dict:
         return apply(request, "step.update", {**body.model_dump(exclude_unset=True), "id": identity})
 
-    @app.get("/api/v1/steps/{identity}")
+    @app.get("/api/v1/steps/{identity}", response_model=out.Step)
     def step_detail(identity: str) -> dict:
         with db.read() as c:
             row = plans.get_step(c, identity)
@@ -583,7 +583,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                 current = {"id": row["id"], "title": row["title"], "description": row["description"], "parentId": row["parent_id"], "position": row["position"], "status": row["status"], "revision": row["revision"], "retired": True}
             return {**current, "roadmapId": row["roadmap_id"], **support.for_owner(c, "step", identity)}
 
-    @app.get("/api/v1/steps/{identity}/history")
+    @app.get("/api/v1/steps/{identity}/history", response_model=out.History)
     def step_history(identity: str) -> dict:
         return plans.history(identity)
 
@@ -797,7 +797,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         return TemporaryFileResponse(archive, media_type="application/zip",
                                      headers={"Content-Disposition": disposition("worklog-export.zip")})
 
-    @app.get("/api/v1/people")
+    @app.get("/api/v1/people", response_model=out.People)
     def people_list(archived: bool = False, q: str = "") -> dict:
         return work.people.list(archived=archived, q=q)
 
