@@ -107,7 +107,7 @@ export function Composer({
   participants?: DiscussionParticipants;
   roles: DiscussionRole[];
   chats: ChatOverview[];
-  onSubmit: (body: Record<string, unknown>) => Promise<unknown>;
+  onSubmit: (body: Schema["DiscussionCreate"]) => Promise<unknown>;
 }) {
   const { draft, update, clear, storageWarning, version } =
     useDiscussionDraft(scope);
@@ -180,8 +180,8 @@ export function Composer({
     );
   }
 
-  function buildBody(): Record<string, unknown> {
-    const body: Record<string, unknown> = {
+  function buildBody(): Schema["DiscussionCreate"] {
+    const body: Schema["DiscussionCreate"] = {
       text: draft.text.trim(),
       chatId: draft.chatId || null,
       acknowledgement: draft.askForAcknowledgement

@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { commands } from "./commands";
-import { useAction, useCommand, useData } from "./hooks";
+import { useCommand, useData, useWrites } from "./hooks";
 import { AgentTies } from "./AgentTies";
 import {
   DraftField,
@@ -107,7 +107,7 @@ function PeopleList() {
     `/people?archived=${archived}&q=${encodeURIComponent(q)}`,
   );
   const createPerson = useCommand(commands.createPerson);
-  const action = useAction();
+  const action = useWrites();
 
   return (
     <>
@@ -230,10 +230,11 @@ function PeopleList() {
               <button
                 className="quiet"
                 onClick={() =>
-                  action.mutate({
-                    path: `/people/${person.id}/${archived ? "recover" : "archive"}`,
-                    body: { revision: person.revision },
-                  })
+                  action.mutate(() =>
+                    commands.setPersonArchived(person.id, !archived, {
+                      revision: person.revision,
+                    }),
+                  )
                 }
               >
                 {archived ? "Recover" : "Archive"}
@@ -259,7 +260,7 @@ const FIELDS = [
 
 export function PersonDetailView({ id }: { id: string }) {
   const query = useData<PersonDetail>("/people/" + id);
-  const action = useAction();
+  const action = useWrites();
 
   const person = query.data;
   if (!person)
@@ -275,10 +276,14 @@ export function PersonDetailView({ id }: { id: string }) {
       commands.updatePerson(id, { revision, [field]: value });
   // Picking a match ties it at once; its role is set in its row.
   const tie = (targetType: TargetType, targetId: string) =>
-    action.mutate({
-      path: "/person-links",
-      body: { personId: id, targetType, targetId, relationship: "" },
-    });
+    action.mutate(() =>
+      commands.linkPerson({
+        personId: id,
+        targetType,
+        targetId,
+        relationship: "",
+      }),
+    );
   const tiedItems = new Set(person.workItems.map((link) => link.itemId));
   const tiedRoadmaps = new Set(person.roadmaps.map((link) => link.roadmapId));
   const tiedRepositories = new Set(
@@ -302,10 +307,11 @@ export function PersonDetailView({ id }: { id: string }) {
         <div className="toolbar">
           <button
             onClick={() =>
-              action.mutate({
-                path: `/people/${id}/${person.archived ? "recover" : "archive"}`,
-                body: { revision: person.revision },
-              })
+              action.mutate(() =>
+                commands.setPersonArchived(id, !person.archived, {
+                  revision: person.revision,
+                }),
+              )
             }
           >
             {person.archived ? "Recover" : "Archive"}
@@ -363,11 +369,12 @@ export function PersonDetailView({ id }: { id: string }) {
               value={link.item.status}
               options={ITEM_STATUSES}
               onChange={(status) =>
-                action.mutate({
-                  path: "/work-items/" + link.itemId,
-                  method: "PATCH",
-                  body: { revision: link.item.revision, status },
-                })
+                action.mutate(() =>
+                  commands.updateItem(link.itemId, {
+                    revision: link.item.revision,
+                    status,
+                  }),
+                )
               }
             />
             <TieRole

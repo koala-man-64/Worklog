@@ -2,7 +2,7 @@ import { Fragment, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { request, getDataContext } from "./api";
 import { commands } from "./commands";
-import { useAction, useData, useCommand } from "./hooks";
+import { useCommand, useData, useWrites } from "./hooks";
 import {
   AgentChatsSection,
   Checklist,
@@ -115,7 +115,7 @@ function WorkList() {
   const page = (from: number, limit: number) =>
     `/work-items?view=${view}&archived=${archived}&limit=${limit}&offset=${from}&q=${encodeURIComponent(q)}${statusQuery}${personId ? "&personId=" + encodeURIComponent(personId) : ""}${repositoryId ? "&repositoryId=" + encodeURIComponent(repositoryId) : ""}`;
   const list = useData<Answer<"/api/v1/work-items">>(page(offset, 100));
-  const action = useAction();
+  const action = useWrites();
   const rank = useRank();
   // One row's rank picker is open at a time.
   const [ranking, setRanking] = useState<string | null>(null);
@@ -318,11 +318,12 @@ function WorkList() {
                           value={item.status}
                           options={ITEM_STATUSES}
                           onChange={(status) =>
-                            action.mutate({
-                              path: `/work-items/${item.id}`,
-                              method: "PATCH",
-                              body: { revision: item.revision, status },
-                            })
+                            action.mutate(() =>
+                              commands.updateItem(item.id, {
+                                revision: item.revision,
+                                status,
+                              }),
+                            )
                           }
                         />
                       </td>
@@ -364,10 +365,11 @@ function WorkList() {
                         <button
                           className="quiet"
                           onClick={() =>
-                            action.mutate({
-                              path: `/work-items/${item.id}/${archived ? "recover" : "archive"}`,
-                              body: { revision: item.revision },
-                            })
+                            action.mutate(() =>
+                              commands.setItemArchived(item.id, !archived, {
+                                revision: item.revision,
+                              }),
+                            )
                           }
                         >
                           {archived ? "Recover" : "Archive"}
@@ -432,7 +434,7 @@ export function ItemDetail({ id }: { id: string }) {
     queryFn: () => request<Roadmap>("/roadmaps/" + activeRoadId),
     enabled: !!activeRoadId,
   });
-  const action = useAction();
+  const action = useWrites();
   const [ranking, setRanking] = useState(false);
   const [date, setDate] = useState("");
   if (!item)
@@ -443,11 +445,9 @@ export function ItemDetail({ id }: { id: string }) {
       </>
     );
   const patch = (fields: Record<string, unknown>) =>
-    action.mutate({
-      path: "/work-items/" + id,
-      method: "PATCH",
-      body: { revision: item.revision, ...fields },
-    });
+    action.mutate(() =>
+      commands.updateItem(id, { revision: item.revision, ...fields }),
+    );
   return (
     <>
       <a className="back" href="#work">
@@ -470,10 +470,11 @@ export function ItemDetail({ id }: { id: string }) {
           />
           <button
             onClick={() =>
-              action.mutate({
-                path: `/work-items/${id}/${item.archived ? "recover" : "archive"}`,
-                body: { revision: item.revision },
-              })
+              action.mutate(() =>
+                commands.setItemArchived(id, !item.archived, {
+                  revision: item.revision,
+                }),
+              )
             }
           >
             {item.archived ? "Recover" : "Archive"}
@@ -603,11 +604,9 @@ export function ItemDetail({ id }: { id: string }) {
             className="inline"
             onSubmit={(e) => {
               e.preventDefault();
-              action.mutate({
-                path: `/days/${date}/entries/${id}`,
-                method: "PUT",
-                body: { revision: 0, planned: true },
-              });
+              action.mutate(() =>
+                commands.upsertEntry(date, id, { revision: 0, planned: true }),
+              );
             }}
           >
             <input

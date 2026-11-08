@@ -12,11 +12,11 @@ import { ApiError, request, download, contextStorageKey } from "./api";
 import { commands } from "./commands";
 import {
   refreshAfterWrite,
-  useAction,
   useCollapsed,
   useCommand,
   useData,
   useStoredWidth,
+  useWrites,
 } from "./hooks";
 import {
   AgentChatsSection,
@@ -77,7 +77,7 @@ export function Roadmaps({
   const old = useData<Answer<"/api/v1/roadmaps">>(
     `/roadmaps?archived=true${personId ? "&personId=" + encodeURIComponent(personId) : ""}`,
   );
-  const action = useAction();
+  const action = useWrites();
   const [title, setTitle] = useState("");
   const { collapsed, toggle } = useCollapsed(
     contextStorageKey("roadmaps-collapsed", "list"),
@@ -123,10 +123,11 @@ export function Roadmaps({
             </div>
             <button
               onClick={() =>
-                action.mutate({
-                  path: `/roadmaps/${r.id}/${archive ? "recover" : "archive"}`,
-                  body: { revision: r.revision },
-                })
+                action.mutate(() =>
+                  commands.setRoadmapArchived(r.id, !archive, {
+                    revision: r.revision,
+                  }),
+                )
               }
             >
               {archive ? "Recover" : "Archive"}
@@ -185,10 +186,9 @@ export function Roadmaps({
             onSubmit={async (e) => {
               e.preventDefault();
               await action
-                .mutateAsync({
-                  path: "/roadmaps",
-                  body: { title, overview: "", steps: [] },
-                })
+                .mutateAsync(() =>
+                  commands.createRoadmap({ title, overview: "", steps: [] }),
+                )
                 .then(() => setTitle(""))
                 .catch(() => undefined);
             }}
@@ -212,7 +212,7 @@ function ImportRoadmap() {
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [error, setError] = useState("");
-  const action = useAction();
+  const action = useWrites();
   const roads = useData<Answer<"/api/v1/roadmaps">>("/roadmaps?archived=false");
   const [referenceTarget, setReferenceTarget] = useState("");
   return (
@@ -234,11 +234,7 @@ function ImportRoadmap() {
             return;
           }
           try {
-            const result = await request<ImportPreview>(
-              "/imports/preview?name=" + encodeURIComponent(file.name),
-              "POST",
-              file,
-            );
+            const result = await commands.previewImport(file);
             setPreview(result);
             setSelected(new Set(result.steps.map((s) => s.id)));
             setError("");
@@ -338,9 +334,8 @@ function ImportRoadmap() {
               disabled={action.isPending}
               onClick={async () => {
                 await action
-                  .mutateAsync({
-                    path: `/imports/${preview.id}/commit`,
-                    body: {
+                  .mutateAsync(() =>
+                    commands.commitImport(preview.id, {
                       title: preview.title,
                       overview: preview.overview,
                       steps: preview.steps.filter((s) => selected.has(s.id)),
@@ -352,8 +347,8 @@ function ImportRoadmap() {
                             )?.revision,
                           }
                         : {}),
-                    },
-                  })
+                    }),
+                  )
                   .then(() => setPreview(null))
                   .catch(() => undefined);
               }}
@@ -374,7 +369,7 @@ function ImportRoadmap() {
 }
 export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
   const query = useData<Roadmap>("/roadmaps/" + id);
-  const action = useAction();
+  const action = useWrites();
   const createItem = useCommand(commands.createItem);
   const [editing, setEditing] = useState(false);
   // The step whose own text is being edited, alone, apart from the structure editor.
@@ -517,11 +512,9 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
         value={item.status}
         options={ITEM_STATUSES}
         onChange={(status) =>
-          action.mutate({
-            path: "/work-items/" + item.id,
-            method: "PATCH",
-            body: { revision: item.revision, status },
-          })
+          action.mutate(() =>
+            commands.updateItem(item.id, { revision: item.revision, status }),
+          )
         }
       />
       <select
@@ -533,15 +526,13 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
             : ""
         }
         onChange={(e) =>
-          action.mutate({
-            path: "/work-items/" + item.id,
-            method: "PATCH",
-            body: {
+          action.mutate(() =>
+            commands.updateItem(item.id, {
               revision: item.revision,
               roadmapId: id,
               stepId: e.target.value || null,
-            },
-          })
+            }),
+          )
         }
       >
         <option value="">Roadmap (no specific step)</option>
@@ -557,15 +548,13 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
         disabled={road.archived}
         aria-label={"Unlink " + item.title}
         onClick={() =>
-          action.mutate({
-            path: "/work-items/" + item.id,
-            method: "PATCH",
-            body: {
+          action.mutate(() =>
+            commands.updateItem(item.id, {
               revision: item.revision,
               roadmapId: null,
               stepId: null,
-            },
-          })
+            }),
+          )
         }
       >
         Unlink
@@ -640,11 +629,12 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
                 value={s.status}
                 options={STATUSES}
                 onChange={(status) =>
-                  action.mutate({
-                    path: "/steps/" + s.id + "/progress",
-                    method: "PATCH",
-                    body: { revision: s.revision, status },
-                  })
+                  action.mutate(() =>
+                    commands.setStepProgress(s.id, {
+                      revision: s.revision,
+                      status,
+                    }),
+                  )
                 }
               />
             </div>
@@ -700,15 +690,14 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
             e.preventDefault();
             if (!subTitle.trim() || road.archived) return;
             await action
-              .mutateAsync({
-                path: "/roadmaps",
-                body: {
+              .mutateAsync(() =>
+                commands.createRoadmap({
                   title: subTitle,
                   overview: "",
                   steps: [],
                   parentId: id,
-                },
-              })
+                }),
+              )
               .then(() => setSubTitle(""))
               .catch(() => undefined);
           }}
@@ -735,13 +724,12 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
             value={road.parentId ?? ""}
             disabled={road.archived || action.isPending}
             onChange={(e) =>
-              action.mutate({
-                path: `/roadmaps/${id}/move`,
-                body: {
+              action.mutate(() =>
+                commands.moveRoadmap(id, {
                   revision: road.revision,
                   parentId: e.target.value || null,
-                },
-              })
+                }),
+              )
             }
           >
             <option value="">Top level</option>
@@ -820,15 +808,13 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
             );
             if (!chosen || road.archived) return;
             await action
-              .mutateAsync({
-                path: "/work-items/" + chosen.id,
-                method: "PATCH",
-                body: {
+              .mutateAsync(() =>
+                commands.updateItem(chosen.id, {
                   revision: chosen.revision,
                   roadmapId: id,
                   stepId: pickStepId || null,
-                },
-              })
+                }),
+              )
               .then(() => setPickItemId(""))
               .catch(() => undefined);
           }}
@@ -931,10 +917,12 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
             <small>{new Date(v.createdAt).toLocaleString()}</small>
             <button
               onClick={() =>
-                action.mutate({
-                  path: `/roadmaps/${id}/restore`,
-                  body: { revision: road.revision, number: v.number },
-                })
+                action.mutate(() =>
+                  commands.restoreRoadmap(id, {
+                    revision: road.revision,
+                    number: v.number,
+                  }),
+                )
               }
             >
               Restore as new version
@@ -1126,10 +1114,11 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
             </button>
             <button
               onClick={() =>
-                action.mutate({
-                  path: `/roadmaps/${id}/${road.archived ? "recover" : "archive"}`,
-                  body: { revision: road.revision },
-                })
+                action.mutate(() =>
+                  commands.setRoadmapArchived(id, !road.archived, {
+                    revision: road.revision,
+                  }),
+                )
               }
             >
               {road.archived ? "Recover" : "Archive"}
@@ -1270,7 +1259,7 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
  * so the rest of the plan, and other agents' changes to it, stay as they are.
  */
 function StepTextForm({ step, onDone }: { step: Step; onDone: () => void }) {
-  const action = useAction();
+  const action = useWrites();
   const client = useQueryClient();
   const [title, setTitle] = useState(step.title);
   const [description, setDescription] = useState(step.description);
@@ -1292,11 +1281,13 @@ function StepTextForm({ step, onDone }: { step: Step; onDone: () => void }) {
         e.preventDefault();
         if (!title.trim() || !changed) return;
         await action
-          .mutateAsync({
-            path: "/steps/" + step.id,
-            method: "PATCH",
-            body: { revision: step.revision, title: title.trim(), description },
-          })
+          .mutateAsync(() =>
+            commands.updateStep(step.id, {
+              revision: step.revision,
+              title: title.trim(),
+              description,
+            }),
+          )
           .then(onDone)
           .catch((error) => {
             // The step changed elsewhere first: load it, keeping what was typed here.
@@ -1417,7 +1408,7 @@ export function StructureEditor({
   const [keep, setKeep] = useState(() => new Set(serverOnly.map((s) => s.id)));
   const [note, setNote] = useState(draft?.note ?? "");
   const [storageWarning, setStorageWarning] = useState(!storedResult.ok);
-  const action = useAction();
+  const action = useWrites();
   const client = useQueryClient();
   const stale = revision !== roadmap.revision;
   function persist(
@@ -1534,9 +1525,8 @@ export function StructureEditor({
       onSubmit={async (e) => {
         e.preventDefault();
         await action
-          .mutateAsync({
-            path: `/roadmaps/${roadmap.id}/revisions`,
-            body: {
+          .mutateAsync(() =>
+            commands.reviseRoadmap(roadmap.id, {
               revision,
               title,
               overview,
@@ -1548,8 +1538,8 @@ export function StructureEditor({
                 position: index,
               })),
               note,
-            },
-          })
+            }),
+          )
           .then(() => {
             localStore.remove(key);
             onDone();

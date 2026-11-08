@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ApiError, download, request, getDataContext } from "./api";
-import { useAction, useData } from "./hooks";
+import { useData, useWrites } from "./hooks";
+import { commands } from "./commands";
 import { AgentTies } from "./AgentTies";
 import {
   Empty,
@@ -129,7 +130,7 @@ export function Review({ selectedId }: { selectedId?: string }) {
 }
 function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
   const query = useData<Proposal>("/proposals/" + id);
-  const action = useAction();
+  const action = useWrites();
   const [decision, setDecision] = useState<
     "approve" | "reopen" | "reject" | null
   >(null);
@@ -238,10 +239,11 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
                   disabled={action.isPending}
                   onClick={async () => {
                     await action
-                      .mutateAsync({
-                        path: `/proposals/${id}/${decision}`,
-                        body: { revision: p.revision },
-                      })
+                      .mutateAsync(() =>
+                        commands.transitionProposal(id, decision, {
+                          revision: p.revision,
+                        }),
+                      )
                       .then(() => setDecision(null))
                       .catch(() => undefined);
                   }}

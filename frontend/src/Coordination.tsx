@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useAction, useData } from "./hooks";
+import { useData, useWrites } from "./hooks";
+import { commands } from "./commands";
 import { Empty, ErrorMessage } from "./components";
 import { RepositoryBadges } from "./RepositoryControls";
 import type { AgentRun, Answer, CoordinationUpdate } from "./apiTypes";
@@ -10,7 +11,7 @@ function timestamp(value: string) {
   return <time dateTime={value}>{new Date(value).toLocaleString()}</time>;
 }
 export function EndRun({ run }: { run: AgentRun }) {
-  const action = useAction();
+  const action = useWrites();
   const [confirm, setConfirm] = useState(false);
   return (
     <>
@@ -23,10 +24,7 @@ export function EndRun({ run }: { run: AgentRun }) {
             disabled={action.isPending}
             onClick={() =>
               action.mutate(
-                {
-                  path: `/agent-runs/${run.id}/end`,
-                  body: { revision: run.revision },
-                },
+                () => commands.endAgentRun(run.id, { revision: run.revision }),
                 { onSuccess: () => setConfirm(false) },
               )
             }

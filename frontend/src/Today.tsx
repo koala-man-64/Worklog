@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { contextStorageKey, request, getDataContext } from "./api";
 import { commands } from "./commands";
-import { unsavedDraft, useAction, useCollapsed, useData } from "./hooks";
+import { unsavedDraft, useCollapsed, useData, useWrites } from "./hooks";
 import {
   Checklist,
   DraftField,
@@ -75,18 +75,19 @@ function counted(title: string, shown: string | false, spoken: string) {
 // The work item's repositories: linking or unlinking one replaces its set under the revision
 // the item was read at, so a change made elsewhere is refused, not lost.
 function ItemRepositories({ item }: { item: Detail }) {
-  const action = useAction();
+  const action = useWrites();
   return (
     <>
       <RepositoryPicker
         labelHidden
         value={item.repositoryIds ?? []}
         onChange={(repositoryIds) =>
-          action.mutate({
-            path: "/work-items/" + item.id,
-            method: "PATCH",
-            body: { revision: item.revision, repositoryIds },
-          })
+          action.mutate(() =>
+            commands.updateItem(item.id, {
+              revision: item.revision,
+              repositoryIds,
+            }),
+          )
         }
         disabled={!!item.archived || action.isPending}
       />
@@ -219,7 +220,7 @@ export function Today({
   const openWork = useData<Answer<"/api/v1/work-items">>(
     `/work-items?view=all&archived=false&limit=100${OPEN_STATES.map((s) => "&status=" + s).join("")}&q=${encodeURIComponent(workQuery)}`,
   );
-  const action = useAction();
+  const action = useWrites();
   // One entry's reschedule picker is open at a time.
   const [rescheduling, setRescheduling] = useState<string | null>(null);
   const [target, setTarget] = useState("");
@@ -260,10 +261,9 @@ export function Today({
     const to = from + delta;
     if (to < 0 || to >= ids.length) return;
     [ids[from], ids[to]] = [ids[to], ids[from]];
-    action.mutate({
-      path: `/days/${date}/reorder`,
-      body: { revision: data.revision, ids },
-    });
+    action.mutate(() =>
+      commands.reorderDay(date, { revision: data.revision, ids }),
+    );
   };
   const closeReschedule = () => {
     setRescheduling(null);
@@ -272,10 +272,8 @@ export function Today({
   // The item stays as it is; only this day's entry for it goes, and the item returns to Open work.
   const remove = (entry: Entry) =>
     action.mutate(
-      {
-        path: `/days/${date}/entries/${entry.itemId}/remove`,
-        body: { revision: entry.revision },
-      },
+      () =>
+        commands.removeEntry(date, entry.itemId, { revision: entry.revision }),
       { onSuccess: () => setRemoving(null) },
     );
   // Keeping the entry closes the question and returns to the button that asked it.
@@ -287,16 +285,15 @@ export function Today({
     if (!target || target === date) return;
     try {
       const other = await request<Day>("/days/" + target);
-      await action.mutateAsync({
-        path: `/days/${date}/reschedule`,
-        body: {
+      await action.mutateAsync(() =>
+        commands.rescheduleEntry(date, {
           itemId: entry.itemId,
           targetDate: target,
           revision: entry.revision,
           targetRevision:
             other.entries.find((e) => e.itemId === entry.itemId)?.revision ?? 0,
-        },
-      });
+        }),
+      );
       closeReschedule();
     } catch (error) {
       setRescheduleError(error);
@@ -427,10 +424,9 @@ export function Today({
                   if (from < 0 || to < 0 || from === to) return;
                   ids.splice(from, 1);
                   ids.splice(to, 0, transfer.entryId);
-                  action.mutate({
-                    path: `/days/${date}/reorder`,
-                    body: { revision: data.revision, ids },
-                  });
+                  action.mutate(() =>
+                    commands.reorderDay(date, { revision: data.revision, ids }),
+                  );
                 } catch (error) {
                   setRescheduleError(error);
                 }
@@ -545,14 +541,12 @@ export function Today({
                       checked={entry.planned}
                       disabled={entry.item.archived}
                       onChange={(e) =>
-                        action.mutate({
-                          path: `/days/${date}/entries/${entry.itemId}`,
-                          method: "PUT",
-                          body: {
+                        action.mutate(() =>
+                          commands.upsertEntry(date, entry.itemId, {
                             revision: entry.revision,
                             planned: e.target.checked,
-                          },
-                        })
+                          }),
+                        )
                       }
                     />{" "}
                     Planned
@@ -563,14 +557,12 @@ export function Today({
                       checked={entry.worked}
                       disabled={entry.item.archived}
                       onChange={(e) =>
-                        action.mutate({
-                          path: `/days/${date}/entries/${entry.itemId}`,
-                          method: "PUT",
-                          body: {
+                        action.mutate(() =>
+                          commands.upsertEntry(date, entry.itemId, {
                             revision: entry.revision,
                             worked: e.target.checked,
-                          },
-                        })
+                          }),
+                        )
                       }
                     />{" "}
                     Worked on
@@ -598,11 +590,12 @@ export function Today({
                     value={entry.item.status}
                     options={ITEM_STATUSES}
                     onChange={(status) =>
-                      action.mutate({
-                        path: "/work-items/" + entry.itemId,
-                        method: "PATCH",
-                        body: { revision: entry.item.revision, status },
-                      })
+                      action.mutate(() =>
+                        commands.updateItem(entry.itemId, {
+                          revision: entry.item.revision,
+                          status,
+                        }),
+                      )
                     }
                   />
                 </div>
@@ -725,11 +718,12 @@ export function Today({
                       aria-label={planFor(item.title)}
                       disabled={action.isPending}
                       onClick={() =>
-                        action.mutate({
-                          path: `/days/${date}/entries/${item.id}`,
-                          method: "PUT",
-                          body: { revision: 0, planned: true },
-                        })
+                        action.mutate(() =>
+                          commands.upsertEntry(date, item.id, {
+                            revision: 0,
+                            planned: true,
+                          }),
+                        )
                       }
                     >
                       {planLabel}
@@ -749,7 +743,7 @@ export function Today({
             initial={data.reflection}
             revision={data.reflectionRevision}
             save={(text, revision) =>
-              request(`/days/${date}/reflection`, "PUT", { revision, text })
+              commands.saveReflection(date, { revision, text })
             }
           />
         </>
