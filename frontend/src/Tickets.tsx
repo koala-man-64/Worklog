@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { request } from "./api";
 import { commands } from "./commands";
-import { useAction, useCommand, useData } from "./hooks";
+import { useCommand, useData, useWrites } from "./hooks";
 import { AgentTies } from "./AgentTies";
 import {
   ChangeHistory,
@@ -24,12 +23,14 @@ import { Icon } from "./icons";
 import type { DiscussionParticipants } from "./discussionTypes";
 import type { Item, List } from "./types";
 import type {
+  Answer,
+  Author,
+  Schema,
   Ticket,
   TicketDetail,
   TicketKind,
-  TicketPerson,
   TicketPriority,
-} from "./ticketTypes";
+} from "./apiTypes";
 
 const KINDS: TicketKind[] = ["bug", "incident", "task"];
 const PRIORITIES: TicketPriority[] = ["urgent", "high", "normal", "low"];
@@ -56,7 +57,7 @@ export function Tickets({ selected }: { selected?: string }) {
     <TicketList />
   );
 }
-function Who({ person }: { person: TicketPerson }) {
+function Who({ person }: { person: Author }) {
   return (
     <span className="ticket-person">
       <Avatar name={person.avatar} kind={person.kind} size={20} />
@@ -208,7 +209,9 @@ function TicketList() {
   };
   for (const [key, value] of Object.entries(filters))
     if (value) params.set(key, value);
-  const list = useData<List<Ticket>>("/tickets?" + params.toString());
+  const list = useData<Answer<"/api/v1/tickets">>(
+    "/tickets?" + params.toString(),
+  );
   const participants = useData<DiscussionParticipants>(
     "/discussions/participants",
   );
@@ -345,7 +348,7 @@ function TicketView({ id }: { id: string }) {
   const participants = useData<DiscussionParticipants>(
     "/discussions/participants",
   );
-  const action = useAction();
+  const action = useWrites();
   const ticket = query.data;
   if (!ticket)
     return (
@@ -355,12 +358,13 @@ function TicketView({ id }: { id: string }) {
       </>
     );
   const locked = ticket.archived || action.isPending;
-  const patch = (fields: Record<string, unknown>) =>
-    action.mutate({
-      path: "/tickets/" + ticket.id,
-      method: "PATCH",
-      body: { revision: ticket.revision, ...fields },
-    });
+  const patch = (fields: Omit<Schema["TicketUpdate"], "revision">) =>
+    action.mutate(() =>
+      commands.updateTicket(ticket.id, {
+        revision: ticket.revision,
+        ...fields,
+      }),
+    );
   // New assignments go to someone who can still act; a revoked assignee stays visible.
   const assignable = (participants.data?.items ?? []).filter(
     (p) => p.active || p.id === ticket.assigneeId,
@@ -385,10 +389,11 @@ function TicketView({ id }: { id: string }) {
           <button
             disabled={action.isPending}
             onClick={() =>
-              action.mutate({
-                path: `/tickets/${ticket.id}/${ticket.archived ? "recover" : "archive"}`,
-                body: { revision: ticket.revision },
-              })
+              action.mutate(() =>
+                commands.setTicketArchived(ticket.id, !ticket.archived, {
+                  revision: ticket.revision,
+                }),
+              )
             }
           >
             {ticket.archived ? "Recover ticket" : "Archive ticket"}
@@ -410,7 +415,7 @@ function TicketView({ id }: { id: string }) {
             aria-label="Kind"
             value={ticket.kind}
             disabled={locked}
-            onChange={(e) => patch({ kind: e.target.value })}
+            onChange={(e) => patch({ kind: e.target.value as TicketKind })}
           >
             {KINDS.map((k) => (
               <option key={k} value={k}>
@@ -425,7 +430,9 @@ function TicketView({ id }: { id: string }) {
             aria-label="Priority"
             value={ticket.priority}
             disabled={locked}
-            onChange={(e) => patch({ priority: e.target.value })}
+            onChange={(e) =>
+              patch({ priority: e.target.value as TicketPriority })
+            }
           >
             {PRIORITIES.map((p) => (
               <option key={p} value={p}>
@@ -488,10 +495,7 @@ function TicketView({ id }: { id: string }) {
           placeholder={placeholder}
           disabled={ticket.archived}
           save={(value, revision) =>
-            request<Ticket>("/tickets/" + ticket.id, "PATCH", {
-              revision,
-              [field]: value,
-            })
+            commands.updateTicket(ticket.id, { revision, [field]: value })
           }
         />
       ))}
@@ -702,7 +706,7 @@ export function TicketsSection({
   disabled?: boolean;
 }) {
   const [offset, setOffset] = useState(0);
-  const list = useData<List<Ticket>>(
+  const list = useData<Answer<"/api/v1/tickets">>(
     `/tickets?itemId=${encodeURIComponent(itemId)}&status=all&sort=recent&limit=${PAGE}&offset=${offset}`,
   );
   return (

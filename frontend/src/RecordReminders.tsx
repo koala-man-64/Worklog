@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { request } from "./api";
 import { Avatar } from "./Avatar";
 import { commands } from "./commands";
 import { ErrorMessage } from "./components";
@@ -13,13 +12,14 @@ import {
   whenLabel,
 } from "./reminderTime";
 import type {
+  Answer,
+  Author,
   Reminder,
-  ReminderAuthor,
-  ReminderDetail,
+  ReminderRecord,
   ReminderTarget,
   ReminderTargetType,
-} from "./reminderTypes";
-import type { List } from "./types";
+  Schema,
+} from "./apiTypes";
 
 /** The most open reminders a record's page or Today lists; the Reminders page has the rest. */
 const SHOWN = 50;
@@ -45,16 +45,11 @@ export function useReminderWrites(reminder: Pick<Reminder, "id" | "revision">) {
   useEffect(() => {
     revision.current = Math.max(revision.current, reminder.revision);
   }, [reminder.revision]);
-  const send = (path: string, method: string, fields: object) => {
+  const send = (write: (revision: number) => Promise<ReminderRecord>) => {
     setPending((n) => n + 1);
     const sent = chain.current
       .catch(() => undefined)
-      .then(() =>
-        request<ReminderDetail>(path, method, {
-          ...fields,
-          revision: revision.current,
-        }),
-      );
+      .then(() => write(revision.current));
     chain.current = sent
       .then(
         (saved) => {
@@ -70,10 +65,16 @@ export function useReminderWrites(reminder: Pick<Reminder, "id" | "revision">) {
     return chain.current;
   };
   return {
-    patch: (fields: object) =>
-      send("/reminders/" + reminder.id, "PATCH", fields),
+    patch: (fields: Omit<Schema["ReminderUpdate"], "revision">) =>
+      send((revision) =>
+        commands.updateReminder(reminder.id, { ...fields, revision }),
+      ),
     command: (verb: "archive" | "recover") =>
-      send(`/reminders/${reminder.id}/${verb}`, "POST", {}),
+      send((revision) =>
+        commands.setReminderArchived(reminder.id, verb === "archive", {
+          revision,
+        }),
+      ),
     pending: pending > 0,
     error,
   };
@@ -109,7 +110,7 @@ export function TargetLink({ target }: { target: ReminderTarget }) {
 }
 
 /** Who set a reminder, when it was an agent. */
-export function SetBy({ author }: { author: ReminderAuthor }) {
+export function SetBy({ author }: { author: Author }) {
   return author.kind === "agent" ? (
     <span className="reminder-setter">
       <Avatar name={author.avatar} kind="agent" size={16} />
@@ -188,7 +189,7 @@ export function NewReminder({
 }: {
   target?: { type: ReminderTargetType; id: string };
   today: string;
-  created?: (reminder: ReminderDetail) => void;
+  created?: (reminder: ReminderRecord) => void;
   disabled?: boolean;
 }) {
   const [title, setTitle] = useState("");
@@ -270,7 +271,7 @@ export function RecordReminders({
   heading?: "h2" | "h3";
 }) {
   const today = clockIn(useTimezone()).date;
-  const list = useData<List<Reminder>>(
+  const list = useData<Answer<"/api/v1/reminders">>(
     `/reminders?state=open&targetType=${targetType}&targetId=${encodeURIComponent(targetId)}&limit=${SHOWN}`,
     60_000,
   );
@@ -332,7 +333,7 @@ export function TodayReminders({
   date: string;
   today: string;
 }) {
-  const list = useData<List<Reminder>>(
+  const list = useData<Answer<"/api/v1/reminders">>(
     `/reminders?state=open&${date === today ? "until" : "date"}=${date}&limit=${SHOWN}`,
     60_000,
   );

@@ -14,10 +14,9 @@ import {
   exactDiscussionDate,
   formatDiscussionDate,
 } from "./discussionFormatting";
-import { useAction, useCommand, useData } from "./hooks";
+import { useCommand, useData, useWrites } from "./hooks";
 import { localStore } from "./storage";
-import type { List } from "./types";
-import type { Resource, ResourceDetail } from "./resourceTypes";
+import type { Answer, ResourceDetail } from "./apiTypes";
 
 // Pages advances 50 at a time.
 const PAGE = 50;
@@ -60,7 +59,7 @@ export function Resources({
   const [offset, setOffset] = useState(0);
   // The page being edited; any other page opens to be read.
   const [editing, setEditing] = useState<string | null>(null);
-  const list = useData<List<Resource>>(
+  const list = useData<Answer<"/api/v1/resources">>(
     `/resources?archived=${archived}&q=${encodeURIComponent(q)}&limit=${PAGE}&offset=${offset}`,
   );
   const items = list.data?.items ?? [];
@@ -226,7 +225,7 @@ function PageView({
   setEditing: (on: boolean) => void;
 }) {
   const query = useData<ResourceDetail>("/resources/" + id);
-  const action = useAction();
+  const action = useWrites();
   const page = query.data;
   const editor = page !== undefined && (editing || unsaved(id));
   const loaded = page !== undefined;
@@ -257,10 +256,11 @@ function PageView({
           <button
             disabled={action.isPending}
             onClick={() =>
-              action.mutate({
-                path: `/resources/${id}/${page.archived ? "recover" : "archive"}`,
-                body: { revision: page.revision },
-              })
+              action.mutate(() =>
+                commands.setResourceArchived(id, !page.archived, {
+                  revision: page.revision,
+                }),
+              )
             }
           >
             {page.archived ? "Recover" : "Archive"}

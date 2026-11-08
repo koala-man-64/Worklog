@@ -22,8 +22,7 @@ import {
   useTimezone,
   whenLabel,
 } from "./reminderTime";
-import type { Reminder, ReminderDetail } from "./reminderTypes";
-import type { List } from "./types";
+import type { Answer, ReminderDetail } from "./apiTypes";
 
 const PAGE = 50;
 // What the list shows: open reminders by when they come due, those due now, done ones, or all.
@@ -37,7 +36,7 @@ const REFRESH_MS = 60_000;
  * rather than naming it, so the link is "Reminders" whatever is due, like every other link.
  */
 export function RemindersLink({ current }: { current: boolean }) {
-  const due = useData<List<Reminder>>(
+  const due = useData<Answer<"/api/v1/reminders">>(
     "/reminders?state=due&limit=1",
     REFRESH_MS,
   );
@@ -75,7 +74,7 @@ export function Reminders({ selected }: { selected?: string }) {
   const [archived, setArchived] = useState(false);
   const [q, setQ] = useState("");
   const [offset, setOffset] = useState(0);
-  const list = useData<List<Reminder>>(
+  const list = useData<Answer<"/api/v1/reminders">>(
     `/reminders?state=${view}&archived=${archived}&q=${encodeURIComponent(q)}&limit=${PAGE}&offset=${offset}`,
     REFRESH_MS,
   );

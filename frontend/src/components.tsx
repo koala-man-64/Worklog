@@ -283,7 +283,8 @@ export const ITEM_STATUSES: readonly ItemStatus[] = [
   "blocked",
   "done",
 ];
-export const statusLabel = (status: ItemStatus) =>
+/** A status as a label; a step's may be any text, since steps.status has no CHECK. */
+export const statusLabel = (status: string) =>
   status[0].toUpperCase() + status.slice(1);
 /** A status menu over `options`: ITEM_STATUSES for work, STATUSES for tickets and steps. */
 export function StatusSelect<S extends ItemStatus>({

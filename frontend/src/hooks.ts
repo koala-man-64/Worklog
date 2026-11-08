@@ -59,6 +59,13 @@ export function useCommand<TBody, TResult>(
   });
 }
 /**
+ * One pending state and error for a page's several writes, each a typed command:
+ * `writes.mutate(() => commands.updateTicket(id, body))`.
+ */
+export function useWrites() {
+  return useCommand((write: () => Promise<unknown>) => write());
+}
+/**
  * Tree nodes the person collapsed, remembered in this browser. `reveal` opens
  * nodes for this view only, so a reload restores what the person chose.
  */

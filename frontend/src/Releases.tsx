@@ -12,11 +12,12 @@ import {
   StatusSelect,
   statusLabel,
 } from "./components";
-import { useAction, useCommand, useData } from "./hooks";
+import { useCommand, useData, useWrites } from "./hooks";
 import { Icon } from "./icons";
 import { LinkPicker } from "./LinkPicker";
 import type { Item, List, Person } from "./types";
 import type {
+  Answer,
   CheckKind,
   ReleaseCheck,
   ReleaseCounts,
@@ -24,7 +25,8 @@ import type {
   ReleaseRow,
   ReleaseStatus,
   ReleaseTarget,
-} from "./releaseTypes";
+  Schema,
+} from "./apiTypes";
 
 const PAGE = 50;
 const STATUSES: Record<ReleaseStatus, string> = {
@@ -199,7 +201,9 @@ function ReleaseList() {
     offset: String(offset),
   });
   if (q.trim()) params.set("q", q.trim());
-  const list = useData<List<ReleaseRow>>("/releases?" + params.toString());
+  const list = useData<Answer<"/api/v1/releases">>(
+    "/releases?" + params.toString(),
+  );
   const items = list.data?.items ?? [];
   // Upcoming releases come soonest first, then the ones not dated yet under their own heading.
   const grouped = view === "planned";
@@ -342,7 +346,7 @@ function DayInput({
 function ReleaseView({ id }: { id: string }) {
   const query = useData<ReleaseDetail>("/releases/" + id);
   const people = useData<List<Person>>("/people");
-  const action = useAction();
+  const action = useWrites();
   const release = query.data;
   if (!release)
     return (
@@ -352,22 +356,18 @@ function ReleaseView({ id }: { id: string }) {
       </>
     );
   const locked = release.archived || action.isPending;
-  const patch = (fields: Record<string, unknown>) =>
-    action.mutate({
-      path: "/releases/" + id,
-      method: "PATCH",
-      body: { revision: release.revision, ...fields },
-    });
+  const patch = (fields: Omit<Schema["ReleaseUpdate"], "revision">) =>
+    action.mutate(() =>
+      commands.updateRelease(id, { revision: release.revision, ...fields }),
+    );
   const hold = (targetType: ReleaseTarget, targetId: string) =>
-    action.mutate({
-      path: "/release-contents",
-      body: { releaseId: id, targetType, targetId },
-    });
+    action.mutate(() =>
+      commands.holdInRelease({ releaseId: id, targetType, targetId }),
+    );
   const remove = (targetType: ReleaseTarget, targetId: string) =>
-    action.mutate({
-      path: "/release-contents/remove",
-      body: { releaseId: id, targetType, targetId },
-    });
+    action.mutate(() =>
+      commands.removeFromRelease({ releaseId: id, targetType, targetId }),
+    );
   const removeButton = (
     targetType: ReleaseTarget,
     targetId: string,
@@ -404,7 +404,9 @@ function ReleaseView({ id }: { id: string }) {
             aria-label="Release status"
             value={release.status}
             disabled={locked}
-            onChange={(e) => patch({ status: e.target.value })}
+            onChange={(e) =>
+              patch({ status: e.target.value as ReleaseStatus })
+            }
           >
             {Object.entries(STATUSES).map(([value, text]) => (
               <option key={value} value={value}>
@@ -415,10 +417,11 @@ function ReleaseView({ id }: { id: string }) {
           <button
             disabled={action.isPending}
             onClick={() =>
-              action.mutate({
-                path: `/releases/${id}/${release.archived ? "recover" : "archive"}`,
-                body: { revision: release.revision },
-              })
+              action.mutate(() =>
+                commands.setReleaseArchived(id, !release.archived, {
+                  revision: release.revision,
+                }),
+              )
             }
           >
             {release.archived ? "Recover" : "Archive"}
@@ -742,14 +745,15 @@ function CheckRow({
   people: Person[];
   locked: boolean;
 }) {
-  const action = useAction();
+  const action = useWrites();
   const disabled = locked || action.isPending;
-  const patch = (fields: Record<string, unknown>) =>
-    action.mutate({
-      path: "/release-checks/" + check.id,
-      method: "PATCH",
-      body: { revision: check.revision, ...fields },
-    });
+  const patch = (fields: Omit<Schema["ReleaseCheckUpdate"], "revision">) =>
+    action.mutate(() =>
+      commands.updateReleaseCheck(check.id, {
+        revision: check.revision,
+        ...fields,
+      }),
+    );
   // The people one could name now, and whoever the check names already, archived or not.
   const named =
     check.personId && !people.some((person) => person.id === check.personId);
@@ -803,10 +807,11 @@ function CheckRow({
           aria-label={"Archive " + check.text}
           disabled={disabled}
           onClick={() =>
-            action.mutate({
-              path: `/release-checks/${check.id}/archive`,
-              body: { revision: check.revision },
-            })
+            action.mutate(() =>
+              commands.setReleaseCheckArchived(check.id, true, {
+                revision: check.revision,
+              }),
+            )
           }
         >
           Archive
@@ -862,13 +867,13 @@ export function ReleasesSection({
   targetId: string;
   disabled?: boolean;
 }) {
-  const held = useData<List<ReleaseRow>>(
+  const held = useData<Answer<"/api/v1/releases">>(
     `/releases?status=all&targetType=${targetType}&targetId=${encodeURIComponent(targetId)}&limit=200`,
   );
-  const upcoming = useData<List<ReleaseRow>>(
+  const upcoming = useData<Answer<"/api/v1/releases">>(
     "/releases?status=planned&limit=200",
   );
-  const action = useAction();
+  const action = useWrites();
   const [pick, setPick] = useState("");
   const holding = held.data?.items ?? [];
   const ids = new Set(holding.map((release) => release.id));
@@ -899,10 +904,13 @@ export function ReleasesSection({
               aria-label={`Remove from ${release.title}`}
               disabled={disabled || action.isPending}
               onClick={() =>
-                action.mutate({
-                  path: "/release-contents/remove",
-                  body: { releaseId: release.id, targetType, targetId },
-                })
+                action.mutate(() =>
+                  commands.removeFromRelease({
+                    releaseId: release.id,
+                    targetType,
+                    targetId,
+                  }),
+                )
               }
             >
               Remove
@@ -920,10 +928,8 @@ export function ReleasesSection({
             e.preventDefault();
             if (!pick) return;
             action.mutate(
-              {
-                path: "/release-contents",
-                body: { releaseId: pick, targetType, targetId },
-              },
+              () =>
+                commands.holdInRelease({ releaseId: pick, targetType, targetId }),
               { onSuccess: () => setPick("") },
             );
           }}
