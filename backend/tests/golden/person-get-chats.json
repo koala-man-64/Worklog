@@ -32,7 +32,16 @@
           }
         ],
         "steps": [],
-        "agents": [],
+        "agents": [
+          {
+            "id": "<id4>",
+            "label": "Builder",
+            "avatar": "red-dots-antenna",
+            "active": true,
+            "binding": "confirmed",
+            "chatId": "chat-1"
+          }
+        ],
         "transcript": {
           "found": false,
           "source": null,
