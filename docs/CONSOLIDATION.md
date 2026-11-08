@@ -458,7 +458,7 @@ Not in this step: REM-19's limits on what an import preview parses (5,000 headin
 
 #### 4.4 · Doctor, then constraints
 
-Status: Merged · Branches: `claude/worklog-doctor`, `claude/leaf-constraints` · PRs: [#135](https://github.com/koala-man-64/Worklog/pull/135), PR2_LINK
+Status: Merged · Branches: `claude/worklog-doctor`, `claude/leaf-constraints` · PRs: [#135](https://github.com/koala-man-64/Worklog/pull/135), [#136](https://github.com/koala-man-64/Worklog/pull/136)
 
 First a read-only `worklog doctor`, checking:
 
@@ -478,7 +478,7 @@ What changed:
   - It prints each check's count with up to five examples, and exits with 1 when it finds a problem.
 
   `test_doctor.py` plants each problem, and checks that a clean database reports none and is never written.
-- **Schema v23 (PR2_NUMBER)** has the four tables nothing references state what code alone kept true of them.
+- **Schema v23 (#136)** has the four tables nothing references state what code alone kept true of them.
   - `archived` is 0 or 1 in tasks, notes, file references and attachments.
   - A note's owner is a work item, roadmap or step, and an attachment's one of those or a proposal or repository.
   - No leaf table lacks a foreign key it can have: a note's or attachment's owner is of several kinds, which no foreign key can name, so the doctor checks those.
