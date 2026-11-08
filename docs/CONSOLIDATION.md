@@ -416,7 +416,7 @@ What changed:
 
 #### 4.2 · Backups off the request path
 
-Status: Merged · Branches: `claude/backup-off-requests`, `claude/streaming-export` · PRs: [#131](https://github.com/koala-man-64/Worklog/pull/131), PR2_LINK
+Status: Merged · Branches: `claude/backup-off-requests`, `claude/streaming-export` · PRs: [#131](https://github.com/koala-man-64/Worklog/pull/131), [#132](https://github.com/koala-man-64/Worklog/pull/132)
 
 The daily backup now runs from the watcher only, not on the first write of the day. Backup hashes are cached, and export streams instead of holding blobs twice in memory. Findings: B-05, C-17, REM-18.
 
@@ -427,7 +427,7 @@ What changed:
 - **Cached backup hashes (#131).** The CLI's `backups` listing takes each file's SHA-256 from `backups/backup-hashes.json` while the file keeps the size and modification time it was hashed at. Each new backup's hash goes there as it is made, and the hash of a file that has gone leaves.
 
   `test_backup_path.py` pins each of these.
-- **The streaming export (PR2_NUMBER).**
+- **The streaming export (#132).**
   - `recovery.write_export` writes the ZIP to a file a record and a BLOB at a time, from the same snapshot copy. It used to build the whole export in memory, with every BLOB in it twice.
   - Each table's records, and the Markdown, are written beside the snapshot and copied in after, since a ZIP takes one member at a time. Each BLOB they name goes in as it is met, once.
   - The members and manifest are byte for byte the ones before, apart from the manifest's time.
