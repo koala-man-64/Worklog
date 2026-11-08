@@ -528,6 +528,7 @@ Done so far:
 - **Golden responses** (`test_golden_responses.py`). A world built through the API holds a record of every kind. Every GET route is read as the person and as an agent, and the answer must equal its file in `backend/tests/golden`, with IDs, times, today's date, the avatar suggested and feed cursors as placeholders.
   - That covers 65 reads, 130 answers. The two that send files, the export and an import's original, are pinned by their own tests.
   - The script writes the files only when two worlds built apart give the same answers.
+- **Typed responses, first batch.** `responses.py` types the eight reads of one supporting record: a note, task, file reference, link, tracked chat, GitHub reference, question or decision. Each model forbids keys it doesn't name, and takes the kinds its table's CHECK allows. Their golden files are unchanged; `docs/openapi.json` and `generatedApi.ts` now say what each returns.
 
 #### 5.4 · Frontend layout
 

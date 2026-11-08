@@ -913,9 +913,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Supporting Detail Api V1 Decisions  Identity  Get"
+                  "$ref": "#/components/schemas/Decision"
                 }
               }
             }
@@ -1003,9 +1001,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Supporting Detail Api V1 Questions  Identity  Get"
+                  "$ref": "#/components/schemas/Question"
                 }
               }
             }
@@ -1093,9 +1089,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Supporting Detail Api V1 Github  Identity  Get"
+                  "$ref": "#/components/schemas/GithubReference"
                 }
               }
             }
@@ -1183,9 +1177,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Supporting Detail Api V1 Chats  Identity  Get"
+                  "$ref": "#/components/schemas/TrackedChat"
                 }
               }
             }
@@ -1273,9 +1265,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Supporting Detail Api V1 Links  Identity  Get"
+                  "$ref": "#/components/schemas/WebLink"
                 }
               }
             }
@@ -1363,9 +1353,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Supporting Detail Api V1 References  Identity  Get"
+                  "$ref": "#/components/schemas/FileReference"
                 }
               }
             }
@@ -1404,9 +1392,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Supporting Detail Api V1 Tasks  Identity  Get"
+                  "$ref": "#/components/schemas/Task"
                 }
               }
             }
@@ -1494,9 +1480,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Supporting Detail Api V1 Notes  Identity  Get"
+                  "$ref": "#/components/schemas/Note"
                 }
               }
             }
@@ -11106,6 +11090,60 @@
         "type": "object",
         "title": "CredentialRotate"
       },
+      "Decision": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "roadmapId": {
+            "type": "string",
+            "title": "Roadmapid"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "rationale": {
+            "type": "string",
+            "title": "Rationale"
+          },
+          "decidedDate": {
+            "type": "string",
+            "title": "Decideddate"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "roadmapId",
+          "title",
+          "rationale",
+          "decidedDate",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "Decision"
+      },
       "DecisionCreate": {
         "properties": {
           "roadmapId": {
@@ -11337,6 +11375,45 @@
         ],
         "title": "Expected"
       },
+      "FileReference": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "itemId": {
+            "type": "string",
+            "title": "Itemid"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "itemId",
+          "path",
+          "archived",
+          "revision",
+          "createdAt"
+        ],
+        "title": "FileReference"
+      },
       "GithubRefCreate": {
         "properties": {
           "ownerType": {
@@ -11484,6 +11561,95 @@
           "revision"
         ],
         "title": "GithubRefUpdate"
+      },
+      "GithubReference": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "ownerType": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap"
+            ],
+            "title": "Ownertype"
+          },
+          "ownerId": {
+            "type": "string",
+            "title": "Ownerid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "commit",
+              "pr"
+            ],
+            "title": "Kind"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "reference": {
+            "type": "string",
+            "title": "Reference"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "chatId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chatid"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "ownerType",
+          "ownerId",
+          "kind",
+          "url",
+          "reference",
+          "title",
+          "description",
+          "chatId",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "GithubReference"
       },
       "HTTPValidationError": {
         "properties": {
@@ -11900,6 +12066,65 @@
           "direction"
         ],
         "title": "Move"
+      },
+      "Note": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "ownerType": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap",
+              "step"
+            ],
+            "title": "Ownertype"
+          },
+          "ownerId": {
+            "type": "string",
+            "title": "Ownerid"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "ownerType",
+          "ownerId",
+          "title",
+          "text",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "Note"
       },
       "NoteCreate": {
         "properties": {
@@ -12549,6 +12774,69 @@
           "revision"
         ],
         "title": "ProposalUpdate"
+      },
+      "Question": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "roadmapId": {
+            "type": "string",
+            "title": "Roadmapid"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "details": {
+            "type": "string",
+            "title": "Details"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "answered"
+            ],
+            "title": "Status"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "roadmapId",
+          "title",
+          "details",
+          "answer",
+          "status",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "Question"
       },
       "QuestionCreate": {
         "properties": {
@@ -13808,6 +14096,55 @@
         ],
         "title": "Target"
       },
+      "Task": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "itemId": {
+            "type": "string",
+            "title": "Itemid"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "done": {
+            "type": "boolean",
+            "title": "Done"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "itemId",
+          "text",
+          "done",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "Task"
+      },
       "TaskCreate": {
         "properties": {
           "itemId": {
@@ -14151,6 +14488,103 @@
         ],
         "title": "TicketUpdate"
       },
+      "TrackedChat": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "ownerType": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap"
+            ],
+            "title": "Ownertype"
+          },
+          "ownerId": {
+            "type": "string",
+            "title": "Ownerid"
+          },
+          "chatId": {
+            "type": "string",
+            "title": "Chatid"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "createdDate": {
+            "type": "string",
+            "title": "Createddate"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "repos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Repos"
+          },
+          "stepIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stepids"
+          },
+          "repositoryIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Repositoryids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "ownerType",
+          "ownerId",
+          "chatId",
+          "title",
+          "createdDate",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "provider",
+          "model",
+          "repos",
+          "stepIds",
+          "repositoryIds"
+        ],
+        "title": "TrackedChat"
+      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -14190,6 +14624,69 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "WebLink": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "ownerType": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap"
+            ],
+            "title": "Ownertype"
+          },
+          "ownerId": {
+            "type": "string",
+            "title": "Ownerid"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "ownerType",
+          "ownerId",
+          "url",
+          "title",
+          "description",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "WebLink"
       }
     }
   }
