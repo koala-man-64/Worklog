@@ -421,7 +421,7 @@ class DiscussionService:
                   "on_behalf_of_role_id,ownership_generation) VALUES(?,?,?,?,?,?,?,?,?,?)", (identity, discussion_id, body, actor["id"], actor["label"], actor["kind"], at, chat, role_id, generation))
         ack = p.get("acknowledgement")
         if ack is not None:
-            self._create_request(c, identity, ack)
+            self._create_request(c, identity, ack, actor)
         if not first:
             c.execute("UPDATE discussions SET revision=revision+1,updated_at=? WHERE id=?", (at, discussion_id))
         search.put(c, identity, "discussion_message", discussion["title"], body, discussion_id, bool(discussion["archived"]),
@@ -430,7 +430,7 @@ class DiscussionService:
         self._emit(c, actor, "discussion.create" if first else "discussion.message", identity, None, result, discussion_id=discussion_id, message_id=identity)
         return result
 
-    def _create_request(self, c: sqlite3.Connection, message_id: str, ack: dict) -> None:
+    def _create_request(self, c: sqlite3.Connection, message_id: str, ack: dict, author: dict) -> None:
         mode = ack.get("mode", "all")
         targets = ack.get("targets", [])
         if mode not in {"all", "any", "any_agent", "anyone"} or ((mode in {"all", "any"}) != bool(targets)):
@@ -439,11 +439,15 @@ class DiscussionService:
         normalized = []
         if mode in {"any_agent", "anyone"}:
             normalized.append(("open_agent" if mode == "any_agent" else "open_any", ""))
-        for target in targets:
+        for index, target in enumerate(targets):
             kind, recipient = target["kind"], target["id"]
             if (kind, recipient) in seen:
                 raise AppError(422, "validation", "Choose each target only once")
             seen.add((kind, recipient))
+            # Nobody acknowledges their own message, so a request naming its author could never be met.
+            if (kind, recipient) == (author["kind"], author["id"]):
+                raise AppError(422, "validation", "Nobody acknowledges their own message; name someone else",
+                               {f"acknowledgement.targets.{index}.id": "self"})
             if kind == "agent":
                 self._agent(c, recipient)
             elif kind == "role":

@@ -14,13 +14,19 @@ from collections.abc import Callable, Iterable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from .common import LIVE_AGENT, AppError, rows_in
+from . import record_kinds
+from .common import LIVE_AGENT, AppError, rows_in, text
 from .coordination import CoordinationService
-from .discussions import registered_by, registered_chats
+from .discussions import LISTED, DiscussionService, registered_by, registered_chats
+from .tickets import TicketService
 
 STALE_AFTER = timedelta(hours=2)
 TIE_LIMIT = 200
 SNIPPET = 1000
+# An overlap check names at most this many records of each kind, and lists at most OVERLAP_LIMIT of
+# each kind of finding (per repository for announcements).
+OVERLAP_IDS = 20
+OVERLAP_LIMIT = 50
 # How an agent came to be tied to a record, in display order.
 VIA = ("participation", "role", "update", "message", "run", "confirmed", "chat")
 
@@ -377,3 +383,172 @@ class AgentRegistry:
                                "item": {"id": u["item_id"], "title": u["item_title"]} if u["item_id"] else None,
                                "contexts": json.loads(u["contexts_json"])})
         return {"items": result, "total": total, "limit": limit, "offset": offset}
+
+    def profile(self, c: sqlite3.Connection, identity: str) -> dict:
+        """One participant as any caller may see it: who it is, whether its credential is live, what it
+        reports working on, and the roles it owns, so an agent can tell whether the one whose work
+        overlaps its own is still at it before it writes to it. Unlike the Agents page, which is the
+        person's, it shows no credential and no chat its runs report."""
+        if identity == "local-user":
+            return {"id": "local-user", "label": "You", "kind": "human", "avatar": None, "active": True}
+        row = self._agent(c, identity)
+        return {**self._summaries(c, [row])[0], "kind": "agent", "avatar": row["avatar"]}
+
+    @staticmethod
+    def _identities(c: sqlite3.Connection, ids: Iterable[str]) -> dict[str, dict]:
+        """Agent identities as the participants list shows them."""
+        return {r["id"]: {"id": r["id"], "label": r["label"], "kind": "agent", "avatar": r["avatar"], "active": bool(r["active"])}
+                for r in rows_in(c, f"SELECT a.id,a.label,a.avatar,{LIVE_AGENT} AS active FROM communication_agents a "
+                                    "WHERE a.id IN ({})", ids)}
+
+    @staticmethod
+    def _named(values: Iterable[str], field: str) -> list[str]:
+        named = list(dict.fromkeys(text(value, field, required=True, limit=200) for value in values))
+        if len(named) > OVERLAP_IDS:
+            raise AppError(422, "validation", f"Name at most {OVERLAP_IDS} records of each kind", {field: "limit"})
+        return named
+
+    @staticmethod
+    def _existing(c: sqlite3.Connection, kind: str, ids: list[str], field: str) -> None:
+        found = {row["id"]: row for row in record_kinds.rows(c, kind, ids)}
+        for identity in ids:
+            if identity not in found:
+                raise AppError(404, "not_found", f"No {kind} has that id", {field: identity})
+            if kind == "repository" and found[identity]["mergedInto"]:
+                raise AppError(409, "repository_merged", f"{found[identity]['title']} was merged into another repository; "
+                               "check that one instead", {"repositoryId": found[identity]["mergedInto"]})
+
+    def overlaps(self, c: sqlite3.Connection, caller: str, *, repositories: Iterable[str] = (),
+                 items: Iterable[str] = (), steps: Iterable[str] = (), tickets: Iterable[str] = (),
+                 limit: int = 20) -> dict:
+        """Who else is on these records, and what they said about them: what an agent checks before it
+        changes them (the agent guide's rule 11). Leaving out what the caller itself did, it gives:
+        each repository with its own discussion; the latest messages there, the opening one aside,
+        each saying whether its author's credential is live and whether it reports work in that
+        repository now; active participation in those repositories, on those work items or on work
+        items on those steps; the other open threads tagged with any of the records where someone
+        besides the caller wrote, pinned first;
+        the roles others own on those work items and steps; others' ties to the records; and each
+        ticket's assignee. Like everything it gathers, it reserves nothing, and it shows no chat a run
+        reports, which is the person's to see (policy.py)."""
+        repos, work = self._named(repositories, "repositoryId"), self._named(items, "itemId")
+        step_ids, refs = self._named(steps, "stepId"), self._named(tickets, "ticketId")
+        if not (repos or work or step_ids or refs):
+            raise AppError(422, "validation", "Name a repository, work item, step or ticket to check")
+        for kind, ids, field in (("repository", repos, "repositoryId"), ("item", work, "itemId"), ("step", step_ids, "stepId")):
+            self._existing(c, kind, ids, field)
+        def ticket(ref: str) -> sqlite3.Row:
+            try:
+                return TicketService.resolve(c, ref)
+            except AppError as error:
+                if error.code != "not_found":
+                    raise
+                raise AppError(404, "not_found", "No ticket has that key, number or id", {"ticketId": ref}) from None
+
+        # A ticket named by its key and by its ID is one ticket.
+        ticket_rows = list({row["id"]: row for row in map(ticket, refs)}.values())
+        ticket_ids = [row["id"] for row in ticket_rows]
+
+        def marks(values: list[str]) -> str:
+            return ",".join("?" * len(values))
+
+        homes = DiscussionService.home_discussions(c, repos)
+        names = {row["id"]: row["title"] for row in record_kinds.rows(c, "repository", repos)} if repos else {}
+        agent_ids: set[str] = set()
+
+        # Participation in those repositories, or on that work, whether named or on those steps.
+        scopes, args = [], []
+        if repos:
+            scopes.append(f"EXISTS(SELECT 1 FROM participation_contexts pc WHERE pc.participation_id=p.id AND pc.repository_id IN ({marks(repos)}))")
+            args += repos
+        if work:
+            scopes.append(f"p.item_id IN ({marks(work)})")
+            args += work
+        if step_ids:
+            scopes.append(f"p.item_id IN (SELECT id FROM work_items WHERE step_id IN ({marks(step_ids)}))")
+            args += step_ids
+        participating = c.execute(
+            "SELECT p.*,ar.agent_id,ar.display_name FROM participations p JOIN agent_runs ar ON ar.id=p.run_id "
+            "WHERE p.released_at IS NULL AND ar.agent_id<>? AND (" + " OR ".join(scopes) + ") "
+            "ORDER BY p.last_seen_at DESC,p.id DESC LIMIT ?", [caller, *args, limit]).fetchall() if scopes else []
+        agent_ids |= {r["agent_id"] for r in participating}
+
+        # The latest messages in each repository's own discussion: its announcements.
+        posted: list[tuple[str, sqlite3.Row]] = []
+        reporting: dict[str, set[str]] = {}
+        for repository in repos:
+            discussion = homes.get(repository)
+            if discussion is None:
+                continue
+            opening = c.execute("SELECT id FROM discussion_messages WHERE discussion_id=? ORDER BY created_at,id LIMIT 1",
+                                (discussion,)).fetchone()
+            # A message holds up to 1,000,000 bytes: read only as much as the snippet shows.
+            posted += [(repository, m) for m in c.execute(
+                "SELECT id,discussion_id,author_id,author_label,author_kind,created_at,substr(text,1,?) AS text "
+                "FROM discussion_messages WHERE discussion_id=? AND author_id<>? AND id<>? ORDER BY created_at DESC,id DESC LIMIT ?",
+                (SNIPPET + 1, discussion, caller, opening[0] if opening else "", limit))]
+            # Reporting there now: unreleased participation in the repository, and not stale.
+            reporting[repository] = {r["agent_id"] for r in c.execute(
+                "SELECT ar.agent_id,p.last_seen_at FROM participations p JOIN agent_runs ar ON ar.id=p.run_id "
+                "JOIN participation_contexts pc ON pc.participation_id=p.id "
+                "WHERE p.released_at IS NULL AND pc.repository_id=?", (repository,)) if not _stale(r["last_seen_at"])}
+        agent_ids |= {m["author_id"] for _, m in posted if m["author_kind"] == "agent"}
+
+        # Other open threads tagged with any of the records, where someone besides the caller wrote.
+        tagged = [("repository", r) for r in repos] + [("item", i) for i in work] + [("step", s) for s in step_ids] + \
+                 [("ticket", t) for t in ticket_ids]
+        pairs = " OR ".join("(dc.context_type=? AND dc.context_id=?)" for _ in tagged)
+        flat = [value for pair in tagged for value in pair]
+        held = list(homes.values())
+        threads = c.execute(
+            "SELECT d.id,d.title,d.pinned_at,d.updated_at FROM discussions d WHERE d.archived=0 AND EXISTS(SELECT 1 FROM "
+            f"discussion_contexts dc WHERE dc.discussion_id=d.id AND ({pairs})) AND EXISTS(SELECT 1 FROM discussion_messages m "
+            "WHERE m.discussion_id=d.id AND m.author_id<>?)" + (f" AND d.id NOT IN ({marks(held)})" if held else "") +
+            " ORDER BY " + LISTED + " LIMIT ?", [*flat, caller, *held, limit]).fetchall()
+        matched: dict[str, list[dict]] = {}
+        for row in rows_in(c, "SELECT discussion_id,context_type,context_id FROM discussion_contexts WHERE discussion_id IN ({}) "
+                              "ORDER BY context_type,context_id", [t["id"] for t in threads]):
+            if (row["context_type"], row["context_id"]) in tagged:
+                matched.setdefault(row["discussion_id"], []).append({"type": row["context_type"], "id": row["context_id"]})
+
+        # Roles others own on the work, and others' ties to any of the records.
+        owned_on = [("item", i) for i in work] + [("step", s) for s in step_ids]
+        roles = c.execute(
+            "SELECT * FROM discussion_roles WHERE owner_id IS NOT NULL AND owner_id<>? AND (" +
+            " OR ".join("(context_type=? AND context_id=?)" for _ in owned_on) + ") ORDER BY context_type,context_id,label_key,id LIMIT ?",
+            [caller, *[value for pair in owned_on for value in pair], limit]).fetchall() if owned_on else []
+        ties = c.execute(
+            "SELECT * FROM agent_links WHERE agent_id<>? AND (" + " OR ".join("(target_type=? AND target_id=?)" for _ in tagged) +
+            ") ORDER BY target_type,target_id,agent_id LIMIT ?", [caller, *flat, limit]).fetchall()
+        agent_ids |= {r["owner_id"] for r in roles} | {r["agent_id"] for r in ties}
+        agent_ids |= {r["assignee_id"] for r in ticket_rows if r["assignee_id"] and r["assignee_id"] != "local-user"}
+
+        agents = self._identities(c, agent_ids)
+        person = {"id": "local-user", "label": "You", "kind": "human", "avatar": None, "active": True}
+        titles = self._work_titles(c, [r["item_id"] for r in participating if r["item_id"]])
+
+        def who(identity: str, kind: str = "agent") -> dict | None:
+            return person if kind == "human" or identity == "local-user" else agents.get(identity)
+
+        return {
+            "repositories": [{"id": r, "name": names[r], "discussionId": homes.get(r)} for r in repos],
+            "participations": [{
+                "participationId": r["id"], "agent": who(r["agent_id"]), "runId": r["run_id"], "runName": r["display_name"],
+                "description": r["description"], "lastSeenAt": r["last_seen_at"], "stale": _stale(r["last_seen_at"]),
+                "item": {k: titles[r["item_id"]][k] for k in ("id", "title", "status")} if r["item_id"] in titles else None,
+                "contexts": CoordinationService._contexts(c, r["id"])} for r in participating],
+            "announcements": [{
+                "repositoryId": repository, "discussionId": m["discussion_id"], "messageId": m["id"],
+                "author": who(m["author_id"], m["author_kind"]), "authorId": m["author_id"], "authorLabel": m["author_label"],
+                "authorReporting": m["author_id"] in reporting.get(repository, set()), "createdAt": m["created_at"],
+                "text": m["text"][:SNIPPET], "truncated": len(m["text"]) > SNIPPET}
+                for repository, m in sorted(posted, key=lambda entry: (entry[1]["created_at"], entry[1]["id"]), reverse=True)],
+            "discussions": [{"id": t["id"], "title": t["title"], "pinned": t["pinned_at"] is not None, "updatedAt": t["updated_at"],
+                             "matched": matched.get(t["id"], [])} for t in threads],
+            "roles": [{"id": r["id"], "label": r["label"], "contextType": r["context_type"], "contextId": r["context_id"],
+                       "owner": who(r["owner_id"])} for r in roles],
+            "ties": [{"agent": who(r["agent_id"]), "targetType": r["target_type"], "targetId": r["target_id"],
+                      "relationship": r["relationship"], "setBy": r["set_by"]} for r in ties],
+            "tickets": [{"id": r["id"], "number": r["number"], "title": r["title"], "status": r["status"],
+                         "assignee": who(r["assignee_id"]) if r["assignee_id"] else None} for r in ticket_rows],
+        }

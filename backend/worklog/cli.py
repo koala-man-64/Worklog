@@ -466,6 +466,9 @@ def _discussion_route_allowed(method: str, route: str) -> bool:
             return method == "POST"
         if parts[2] == "messages" and valid_id(parts[3]):
             return method == "GET"
+        # One participant's profile: an agent's identity, or the person.
+        if parts[2] == "participants" and (valid_id(parts[3]) or parts[3] == "local-user"):
+            return method == "GET"
     # Taking a tag off; pinning, like archiving, stays the person's.
     if len(parts) == 5 and parts[1] == "discussions" and valid_id(parts[2]) and parts[3:] == ["tags", "remove"]:
         return method == "POST"
@@ -484,6 +487,9 @@ def _coordination_route_allowed(method: str, route: str) -> bool:
     # Tracking your own chat on the work you do; the person's chat commands stay out of reach.
     if route in {"/repositories/ensure", "/chats/track"}:
         return method == "POST"
+    # Who else works where you will (overlaps), and which record holds a checkout's remote.
+    if route in {"/coordination-overlaps", "/repositories/resolve"}:
+        return method == "GET"
     if route in {"/repositories", "/agent-runs", "/participations", "/coordination-updates"}:
         return method == "GET" or (method == "POST" and route in {"/agent-runs", "/participations"})
     parts = route.strip("/").split("/")
@@ -798,6 +804,8 @@ def agent_command(args: argparse.Namespace, port: int, redact: list[str]) -> Any
                               request_id=args.request_id)
     if args.agent_action == "context":
         return client.request("GET", "/context" + _coordination_query(args, "date", "repositoryId", "itemId"))
+    if args.agent_action == "overlaps":
+        return overlaps_command(client, args)
     if args.agent_action == "search":
         return client.request("GET", "/search?" + urlencode({"q": args.query, "limit": args.limit,
                                                             "archived": str(args.archived).lower()}))
@@ -862,6 +870,24 @@ def _checkout_context(path: str) -> dict[str, str]:
         if Path(common).name == ".git":
             context["checkoutPath"] = str(Path(common).parent)
     return context
+
+
+def overlaps_command(client: AgentClient, args: argparse.Namespace) -> Any:
+    """Who else works on the repositories, work items, steps and tickets you name (rule 11). A
+    checkout is named by the catalog record that holds its origin remote."""
+    repositories = list(args.repo or [])
+    for path in args.checkout or []:
+        url = _checkout_context(path)["repositoryUrl"]
+        held = client.request("GET", "/repositories/resolve?" + urlencode({"url": url}))["repository"]
+        if held is None:
+            raise ValueError(f"No repository is registered for {path}'s origin remote; report it with "
+                             "`participation start --checkout` or `repositories ensure --checkout` first")
+        repositories.append(held["id"])
+    query = [("repositoryId", value) for value in repositories] + [("itemId", value) for value in args.item or []]
+    query += [("stepId", value) for value in args.step or []] + [("ticketId", value) for value in args.ticket or []]
+    if not query:
+        raise ValueError("Name a repository, checkout, work item, step or ticket to check")
+    return client.request("GET", "/coordination-overlaps?" + urlencode([*query, ("limit", args.limit)]))
 
 
 def coordination_command(client: AgentClient, args: argparse.Namespace) -> Any:
@@ -1309,6 +1335,8 @@ def discussion_command(client: AgentClient, args: argparse.Namespace) -> Any:
     base = "/discussions"
     if action == "participants":
         return client.request("GET", base + "/participants")
+    if action == "participant":
+        return client.request("GET", base + "/participants/" + args.id)
     if action == "avatars":
         return client.request("GET", base + "/avatars")
     if action == "avatar":
@@ -1345,7 +1373,14 @@ def discussion_command(client: AgentClient, args: argparse.Namespace) -> Any:
         payload = {"targetIds": args.target} if action == "ack" and args.target else {}
         route = base + "/messages/" + args.id + ("/acknowledge" if action == "ack" else "/cancel")
     else:
+        if args.ask and args.file:
+            raise ValueError("Give --ask with --text; a --file names its own acknowledgement")
         payload = _payload(args.file) if args.file else {"text": args.text}
+        if args.ask:
+            # Each named one must acknowledge: an agent by its identity, or the person, as person or local-user.
+            asked = dict.fromkeys("local-user" if who == "person" else who for who in args.ask)
+            payload["acknowledgement"] = {"mode": "all", "targets": [
+                {"kind": "human", "id": who} if who == "local-user" else {"kind": "agent", "id": who} for who in asked]}
         if args.as_role:
             payload["onBehalfOfRoleId"] = args.as_role
         if args.chat:
@@ -1378,6 +1413,9 @@ def _discussion_parser(actions: Any) -> None:
     def write(command: Any) -> None:
         command.add_argument("--request-id", help="Reuse this key and the same payload when retrying a write")
     commands.add_parser("participants")
+    participant = commands.add_parser("participant", help="One identity: whether it is active, what it reports working on, "
+                                                          "and the roles it owns")
+    participant.add_argument("id", help="An agentId, such as a message's authorId, or local-user for the person")
     commands.add_parser("avatars", help="List avatar names, which are free, and your current one")
     avatar = commands.add_parser("avatar", help="Show this avatar beside your name in discussions")
     avatar.add_argument("name", help="An available name from `avatars`, such as teal-visor-antenna")
@@ -1409,6 +1447,9 @@ def _discussion_parser(actions: Any) -> None:
         source.add_argument("--text")
         command.add_argument("--as-role")
         command.add_argument("--chat")
+        command.add_argument("--ask", action="append", metavar="AGENT_ID|person",
+                             help="Ask this agent, or the person (person or local-user), to acknowledge the message; "
+                                  "repeat for more")
         if verb == "post":
             command.add_argument("--title")
             command.add_argument("--context", action="append", metavar="TYPE:ID", help="Tag the thread with a record; repeat for more")
@@ -1492,6 +1533,14 @@ def parser() -> argparse.ArgumentParser:
     context.add_argument("--date")
     context.add_argument("--repo", dest="repositoryId", help="Canonical repository ID")
     context.add_argument("--item", dest="itemId", help="Work item ID")
+    overlaps = actions.add_parser("overlaps", help="Who else works on these repositories, work items, steps or tickets, "
+                                                   "and what they announced; check before you change them")
+    overlaps.add_argument("--repo", action="append", help="A repository's catalog ID; repeat for more")
+    overlaps.add_argument("--checkout", action="append", help="A local checkout, named by the record of its origin remote")
+    overlaps.add_argument("--item", action="append", help="A work item ID; repeat for more")
+    overlaps.add_argument("--step", action="append", help="A roadmap step ID; repeat for more")
+    overlaps.add_argument("--ticket", action="append", help="A ticket's key, number or ID; repeat for more")
+    overlaps.add_argument("--limit", type=int, default=20, help="The most of each kind of finding (at most 50)")
     search = actions.add_parser("search")
     search.add_argument("query")
     search.add_argument("--limit", type=int, default=50)
