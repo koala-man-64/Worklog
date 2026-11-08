@@ -512,7 +512,7 @@ What changed:
 
 #### 5.2 · One name for agent identities
 
-Status: Merged · Branch: `claude/agent-identity-name` · PR: PR_LINK
+Status: Merged · Branch: `claude/agent-identity-name` · PR: [#138](https://github.com/koala-man-64/Worklog/pull/138)
 
 Settings calls them "Stable discussion profiles", while the guide says agent identity. The table keeps its name; only the interface and docs change. Findings: A-15.
 
