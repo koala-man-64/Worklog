@@ -437,7 +437,7 @@ What changed:
 
 #### 4.3 · Offline compact
 
-Status: Merged · Branch: `claude/offline-compact` · PR: PR_LINK
+Status: Merged · Branch: `claude/offline-compact` · PR: [#133](https://github.com/koala-man-64/Worklog/pull/133)
 
 Add `worklog compact`, with K6's retention, the allowlist from *Rules*, a purge of uncommitted plan imports, then `VACUUM`. It runs offline and takes a pre-compaction backup. Needs 1.3 and 4.1. Findings: B-04, B-12, REM-19, REM-20.
 
