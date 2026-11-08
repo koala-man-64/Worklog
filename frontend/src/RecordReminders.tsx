@@ -4,7 +4,7 @@ import { request } from "./api";
 import { Avatar } from "./Avatar";
 import { commands } from "./commands";
 import { ErrorMessage } from "./components";
-import { useCommand, useData } from "./hooks";
+import { refreshAfterWrite, useCommand, useData } from "./hooks";
 import {
   clockIn,
   targetHref,
@@ -65,9 +65,7 @@ export function useReminderWrites(reminder: Pick<Reminder, "id" | "revision">) {
       )
       .finally(() => {
         setPending((n) => n - 1);
-        void client.invalidateQueries({
-          predicate: (q) => q.queryKey[0] !== "session",
-        });
+        void refreshAfterWrite(client);
       });
     return chain.current;
   };
