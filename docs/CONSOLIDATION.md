@@ -458,7 +458,7 @@ Not in this step: REM-19's limits on what an import preview parses (5,000 headin
 
 #### 4.4 · Doctor, then constraints
 
-Status: Not started · Branch: — · PR: —
+Status: In progress · Branch: `claude/worklog-doctor` · PR: [#135](https://github.com/koala-man-64/Worklog/pull/135); the constraints follow in their own PR
 
 First a read-only `worklog doctor`, checking:
 
@@ -468,6 +468,16 @@ First a read-only `worklog doctor`, checking:
 - search keys that disagree with their rows. Nothing in the schema ties `search_keys` to `search_index`, and restore checks only the schema (from the review of #96).
 
 Then a later schema version adds the missing CHECK and FK constraints to leaf tables only. Needs 2.2. Findings: B-09.
+
+Done so far:
+- **`worklog doctor`** (`doctor.py`; `Worklog.ps1 doctor`) reads a copy of the database, made as a backup is made, so it runs beside Worklog and changes nothing.
+  - It runs SQLite's integrity and foreign-key checks, and FTS5's own check of the search index.
+  - It finds records that name a type their table never takes, or a record that is gone: supporting records' owners, ties, tags, roles, reminders, release contents, person links and applied proposals' targets.
+  - It finds steps whose parent is gone or on another roadmap, and a chat tracked twice on one record.
+  - It checks every search key against its row, both ways, and against the record it names.
+  - It prints each check's count with up to five examples, and exits with 1 when it finds a problem.
+
+  `test_doctor.py` plants each problem, and checks that a clean database reports none and is never written.
 
 ### Phase 5 · Product surface and agent contract v2
 
@@ -640,3 +650,4 @@ These look like consolidation candidates but stay:
 - 2026-11-07: Schema v22, discussion tags, pins and each repository's own discussion, added outside the plan for a product request (K16), with its seal and documented way back. Built as v21 alongside #129, it became v22 when that merged first. It rebuilds `discussion_contexts` and `discussion_change_contexts` to take ten kinds of record, each tag saying who added it, and it is the first upgrade that adds records: it opens a discussion for each active repository. It also does K8's discussion half of step 5.6: a new thread takes no free-text repository label, and the upgrade tags each thread with the one repository a label of it names exactly; tracked chats' labels stay for 5.6. Its routes start in the policy table: agents tag and untag, and pinning is the person's. The overlap check and the announce rule are a second PR, and the app's tags and pins a third.
 - 2026-11-07: Step 4.2 split into two PRs while building it: backups off the request path with cached hashes first, then the streaming export.
 - 2026-11-07: K16's second PR, with no schema change: the agent guide's rule 11 (announce your work in each repository's discussion and check for overlap first), the overlap check (`GET /coordination-overlaps`, `agent overlaps`), one participant's profile (`GET /discussions/participants/{id}`, `discussions participant`) and `--ask` on `discussions post` and `reply`. An acknowledgement request that names its own author is now refused, since it could never be met. Both routes start in the policy table as agent reads. Neither carries a tracked chat or a credential, so the Agents page stays the person's.
+- 2026-11-08: Step 4.4 split into two PRs while building it: the read-only doctor first, then the schema version with the constraints.

@@ -27,8 +27,8 @@ ORDER = [
     "resources", "tickets", "reminders", "discussions", "chat_messages",
     # Agent runs and participations with the repository catalog, then agent registration.
     "coordination", "registration", "registry",
-    # Schema history, proposals, then backup and restore, and offline compaction.
-    "migrations", "proposals", "recovery", "compaction",
+    # Schema history, proposals, then backup and restore, offline compaction and the read-only doctor.
+    "migrations", "proposals", "recovery", "compaction", "doctor",
     # Work: the shapes the domains share, supporting records, work items, people, agent ties, releases,
     # and the router.
     "records", "support", "items", "people", "agent_links", "releases", "services",

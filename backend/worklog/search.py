@@ -50,6 +50,16 @@ def put(c: sqlite3.Connection, identity: str, kind: str, title: str, body: str,
     c.execute("INSERT INTO search_keys(entity_id,doc,type,owner_id) VALUES(?,?,?,?)", (identity, doc, kind, owner))
 
 
+def integrity_problem(c: sqlite3.Connection) -> str | None:
+    """FTS5's own check that the index matches its content: None, or what it found. It is written as
+    an INSERT and needs a writable connection, though it writes nothing; the doctor runs it on a copy."""
+    try:
+        c.execute("INSERT INTO search_index(search_index) VALUES('integrity-check')")
+    except sqlite3.DatabaseError as exc:
+        return str(exc)
+    return None
+
+
 def remove(c: sqlite3.Connection, identity: str) -> None:
     _delete(c, _docs(c, "entity_id=?", (identity,)))
 
