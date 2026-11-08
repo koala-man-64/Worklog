@@ -1036,3 +1036,92 @@ class Ticket(TicketListed):
     comments: TicketComments
     # The latest 100 changes, newest first, without their records: /history has those.
     history: list[Change]
+
+
+class ProposalOperation(Answer):
+    """One change a proposal makes, as its create or last update checked it."""
+
+    # An action operations.py defined when the proposal was written.
+    action: str
+    payload: dict[str, Any]
+
+
+class ProposalListed(Answer):
+    """A proposal as GET /proposals and the context list it: whole, without its evidence files."""
+
+    id: str
+    title: str
+    rationale: str
+    # proposals.status has no CHECK.
+    status: str
+    # Applied when its agent submitted it, because approval was off.
+    autoApproved: bool
+    revision: int
+    actorId: str
+    actorLabel: str
+    # The directory its agent identity registered from; null for the person, a credential issued
+    # in Settings, or an identity that registered without one.
+    actorDirectory: str | None
+    operations: list[ProposalOperation]
+    supersedesId: str | None
+    createdAt: str
+    updatedAt: str
+    # Null until it is first submitted, and for a draft.
+    submittedAt: str | None
+    # Always empty here: a proposal's own read lists its evidence files.
+    attachments: list[Attachment]
+
+
+class Proposals(Answer):
+    items: list[ProposalListed]
+    total: int
+
+
+class Proposal(ProposalListed):
+    """A proposal as its own read returns it, with its evidence files."""
+
+    # Always empty: notes belong to work items, roadmaps and steps.
+    notes: list[Note]
+
+
+class ProposalEntry(Answer):
+    """A proposal as a history lists it, the latest first, with the number of its changes."""
+
+    # Its place in the sequence, 1 the first.
+    number: int
+    id: str
+    title: str
+    # proposals.status has no CHECK.
+    status: str
+    autoApproved: bool
+    actorLabel: str
+    # The agent identity of the credential that made it; null for the person's.
+    agentId: str | None
+    createdAt: str
+    # Null for a draft and for one never submitted.
+    submittedAt: str | None
+    # Null unless it is approved.
+    appliedAt: str | None
+    updatedAt: str
+    operationCount: int
+
+
+class AgentProposals(Answer):
+    items: list[ProposalEntry]
+    total: int
+
+
+class AppliedChange(Answer):
+    """One change of an applied proposal that was made to the record, by its number in the proposal."""
+
+    number: int
+    action: str
+
+
+class AppliedProposal(ProposalEntry):
+    changes: list[AppliedChange]
+
+
+class AppliedProposals(Answer):
+    items: list[AppliedProposal]
+    total: int

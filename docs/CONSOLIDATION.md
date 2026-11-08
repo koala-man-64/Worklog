@@ -541,6 +541,9 @@ Done so far:
 - **Typed responses, ninth batch.** The list of releases and a release's read, the list of tickets and a ticket's read, and a roadmap's saved revision.
   - A saved revision keeps the steps as written then. One function has written them, in one shape, since the first version, so they take a strict model too.
   - The golden world's release now holds a work item, a roadmap, a step and a GitHub reference. Its ticket names a work item, a label and a repository, is assigned to the agent, and has the agent's comment.
+- **Typed responses, tenth batch.** The proposals: their list, one proposal's read, and the proposal histories of a work item, a roadmap and an agent.
+  - Each operation is an action and its payload, as the proposal's create or update checked it.
+  - The golden world now has an approved proposal that adds a link to the work item and a question to the roadmap, so both histories are pinned with an entry.
 
 #### 5.4 · Frontend layout
 

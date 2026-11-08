@@ -3822,9 +3822,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Proposal List Api V1 Proposals Get"
+                  "$ref": "#/components/schemas/Proposals"
                 }
               }
             }
@@ -3901,9 +3899,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Proposal Show Api V1 Proposals  Identity  Get"
+                  "$ref": "#/components/schemas/Proposal"
                 }
               }
             }
@@ -4014,9 +4010,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Item Proposals Api V1 Work Items  Identity  Proposals Get"
+                  "$ref": "#/components/schemas/AppliedProposals"
                 }
               }
             }
@@ -4078,9 +4072,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Roadmap Proposals Api V1 Roadmaps  Identity  Proposals Get"
+                  "$ref": "#/components/schemas/AppliedProposals"
                 }
               }
             }
@@ -4142,9 +4134,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Agent Proposals Api V1 Agents  Identity  Proposals Get"
+                  "$ref": "#/components/schemas/AgentProposals"
                 }
               }
             }
@@ -10552,6 +10542,28 @@
         "title": "AgentLinkSet",
         "description": "The person names the agent. An agent ties only itself, so it may leave agentId out."
       },
+      "AgentProposals": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProposalEntry"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "AgentProposals"
+      },
       "AgentRegistration": {
         "properties": {
           "label": {
@@ -10769,6 +10781,146 @@
           "total"
         ],
         "title": "AgentTies"
+      },
+      "AppliedChange": {
+        "properties": {
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "number",
+          "action"
+        ],
+        "title": "AppliedChange",
+        "description": "One change of an applied proposal that was made to the record, by its number in the proposal."
+      },
+      "AppliedProposal": {
+        "properties": {
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "autoApproved": {
+            "type": "boolean",
+            "title": "Autoapproved"
+          },
+          "actorLabel": {
+            "type": "string",
+            "title": "Actorlabel"
+          },
+          "agentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agentid"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "submittedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submittedat"
+          },
+          "appliedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Appliedat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "operationCount": {
+            "type": "integer",
+            "title": "Operationcount"
+          },
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/AppliedChange"
+            },
+            "type": "array",
+            "title": "Changes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "number",
+          "id",
+          "title",
+          "status",
+          "autoApproved",
+          "actorLabel",
+          "agentId",
+          "createdAt",
+          "submittedAt",
+          "appliedAt",
+          "updatedAt",
+          "operationCount",
+          "changes"
+        ],
+        "title": "AppliedProposal"
+      },
+      "AppliedProposals": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AppliedProposal"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "AppliedProposals"
       },
       "Archive": {
         "properties": {
@@ -14192,6 +14344,126 @@
         ],
         "title": "Progress"
       },
+      "Proposal": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "rationale": {
+            "type": "string",
+            "title": "Rationale"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "autoApproved": {
+            "type": "boolean",
+            "title": "Autoapproved"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "actorId": {
+            "type": "string",
+            "title": "Actorid"
+          },
+          "actorLabel": {
+            "type": "string",
+            "title": "Actorlabel"
+          },
+          "actorDirectory": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actordirectory"
+          },
+          "operations": {
+            "items": {
+              "$ref": "#/components/schemas/ProposalOperation"
+            },
+            "type": "array",
+            "title": "Operations"
+          },
+          "supersedesId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supersedesid"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "submittedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submittedat"
+          },
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/Attachment"
+            },
+            "type": "array",
+            "title": "Attachments"
+          },
+          "notes": {
+            "items": {
+              "$ref": "#/components/schemas/Note"
+            },
+            "type": "array",
+            "title": "Notes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "rationale",
+          "status",
+          "autoApproved",
+          "revision",
+          "actorId",
+          "actorLabel",
+          "actorDirectory",
+          "operations",
+          "supersedesId",
+          "createdAt",
+          "updatedAt",
+          "submittedAt",
+          "attachments",
+          "notes"
+        ],
+        "title": "Proposal",
+        "description": "A proposal as its own read returns it, with its evidence files."
+      },
       "ProposalCreate": {
         "properties": {
           "title": {
@@ -14228,6 +14500,230 @@
           "rationale"
         ],
         "title": "ProposalCreate"
+      },
+      "ProposalEntry": {
+        "properties": {
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "autoApproved": {
+            "type": "boolean",
+            "title": "Autoapproved"
+          },
+          "actorLabel": {
+            "type": "string",
+            "title": "Actorlabel"
+          },
+          "agentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agentid"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "submittedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submittedat"
+          },
+          "appliedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Appliedat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "operationCount": {
+            "type": "integer",
+            "title": "Operationcount"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "number",
+          "id",
+          "title",
+          "status",
+          "autoApproved",
+          "actorLabel",
+          "agentId",
+          "createdAt",
+          "submittedAt",
+          "appliedAt",
+          "updatedAt",
+          "operationCount"
+        ],
+        "title": "ProposalEntry",
+        "description": "A proposal as a history lists it, the latest first, with the number of its changes."
+      },
+      "ProposalListed": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "rationale": {
+            "type": "string",
+            "title": "Rationale"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "autoApproved": {
+            "type": "boolean",
+            "title": "Autoapproved"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "actorId": {
+            "type": "string",
+            "title": "Actorid"
+          },
+          "actorLabel": {
+            "type": "string",
+            "title": "Actorlabel"
+          },
+          "actorDirectory": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actordirectory"
+          },
+          "operations": {
+            "items": {
+              "$ref": "#/components/schemas/ProposalOperation"
+            },
+            "type": "array",
+            "title": "Operations"
+          },
+          "supersedesId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supersedesid"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "submittedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submittedat"
+          },
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/Attachment"
+            },
+            "type": "array",
+            "title": "Attachments"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "rationale",
+          "status",
+          "autoApproved",
+          "revision",
+          "actorId",
+          "actorLabel",
+          "actorDirectory",
+          "operations",
+          "supersedesId",
+          "createdAt",
+          "updatedAt",
+          "submittedAt",
+          "attachments"
+        ],
+        "title": "ProposalListed",
+        "description": "A proposal as GET /proposals and the context list it: whole, without its evidence files."
+      },
+      "ProposalOperation": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "action",
+          "payload"
+        ],
+        "title": "ProposalOperation",
+        "description": "One change a proposal makes, as its create or last update checked it."
       },
       "ProposalUpdate": {
         "properties": {
@@ -14279,6 +14775,28 @@
           "revision"
         ],
         "title": "ProposalUpdate"
+      },
+      "Proposals": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProposalListed"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "Proposals"
       },
       "Question": {
         "properties": {
