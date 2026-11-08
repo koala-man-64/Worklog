@@ -458,7 +458,7 @@ Not in this step: REM-19's limits on what an import preview parses (5,000 headin
 
 #### 4.4 · Doctor, then constraints
 
-Status: In progress · Branch: `claude/worklog-doctor` · PR: [#135](https://github.com/koala-man-64/Worklog/pull/135); the constraints follow in their own PR
+Status: Merged · Branches: `claude/worklog-doctor`, `claude/leaf-constraints` · PRs: [#135](https://github.com/koala-man-64/Worklog/pull/135), PR2_LINK
 
 First a read-only `worklog doctor`, checking:
 
@@ -469,8 +469,8 @@ First a read-only `worklog doctor`, checking:
 
 Then a later schema version adds the missing CHECK and FK constraints to leaf tables only. Needs 2.2. Findings: B-09.
 
-Done so far:
-- **`worklog doctor`** (`doctor.py`; `Worklog.ps1 doctor`) reads a copy of the database, made as a backup is made, so it runs beside Worklog and changes nothing.
+What changed:
+- **`worklog doctor` (#135)** (`doctor.py`; `Worklog.ps1 doctor`) reads a copy of the database, made as a backup is made, so it runs beside Worklog and changes nothing.
   - It runs SQLite's integrity and foreign-key checks, and FTS5's own check of the search index.
   - It finds records that name a type their table never takes, or a record that is gone: supporting records' owners, ties, tags, roles, reminders, release contents, person links and applied proposals' targets.
   - It finds steps whose parent is gone or on another roadmap, and a chat tracked twice on one record.
@@ -478,6 +478,14 @@ Done so far:
   - It prints each check's count with up to five examples, and exits with 1 when it finds a problem.
 
   `test_doctor.py` plants each problem, and checks that a clean database reports none and is never written.
+- **Schema v23 (PR2_NUMBER)** has the four tables nothing references state what code alone kept true of them.
+  - `archived` is 0 or 1 in tasks, notes, file references and attachments.
+  - A note's owner is a work item, roadmap or step, and an attachment's one of those or a proposal or repository.
+  - No leaf table lacks a foreign key it can have: a note's or attachment's owner is of several kinds, which no foreign key can name, so the doctor checks those.
+  - The upgrade builds each table again under its own name, keeping every row and its rowid, and changes no record. A row the new CHECKs would refuse stops it, naming the row, and nothing changes.
+  - The README gives the way back to v22, which the older way backs now start from.
+
+  `test_leaf_constraints.py` pins each of these.
 
 ### Phase 5 · Product surface and agent contract v2
 
