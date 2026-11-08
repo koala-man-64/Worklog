@@ -520,7 +520,7 @@ What changed: Settings lists them under "Agent identities", each as "Identity" a
 
 #### 5.3 · Typed responses, then typed commands
 
-Status: In progress · Branch: `claude/golden-responses` · PR: PR_LINK; typing follows route by route
+Status: In progress · Branch: `claude/golden-responses` · PR: [#139](https://github.com/koala-man-64/Worklog/pull/139); typing follows route by route
 
 None of the 146 operations has a typed response; the frontend keeps seven hand-written type files and three data-access styles. Type responses route by route, under golden tests (see *Rules*), then route every write through typed commands and delete the hand-written types. Findings: A-03, A-13.
 
