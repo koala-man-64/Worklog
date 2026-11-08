@@ -14,7 +14,7 @@ import {
   statusLabel,
 } from "./components";
 import { LinkPicker } from "./LinkPicker";
-import type { Repository } from "./repositoryTypes";
+import type { Repository } from "./apiTypes";
 import type { Item, List, Person, PersonDetail, Roadmap } from "./types";
 import { Icon } from "./icons";
 import { RecordReminders } from "./RecordReminders";

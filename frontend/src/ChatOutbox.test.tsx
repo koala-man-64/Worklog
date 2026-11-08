@@ -5,13 +5,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { contextStorageKey, setDataContext } from "./api";
 import { ChatOutbox, deliveryState } from "./ChatOutbox";
 import type {
-  DeliveryReason,
   Outbox,
   OutboxDelivery,
   OutboxMessage,
   OutboxRecipient,
   OutboxRun,
-} from "./outboxTypes";
+} from "./apiTypes";
+import type { DeliveryReason } from "./ChatOutbox";
 
 const CHAT = { id: "chat-1", chatId: "session-1" };
 const implementer: OutboxRecipient = {

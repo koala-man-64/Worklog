@@ -5,16 +5,27 @@ import { ErrorMessage, Markdown } from "./components";
 import { useAction, useData } from "./hooks";
 import { localStore } from "./storage";
 import type {
-  DeliveryReason,
   Outbox,
   OutboxDelivery,
   OutboxRecipient,
   OutboxRun,
-} from "./outboxTypes";
+} from "./apiTypes";
 
 const PAGE = 20;
 // The server's page limit: the most messages one request returns.
 const MOST = 200;
+/** Why a delivery ended without the agent receiving the message, among the reasons this page names. */
+export type DeliveryReason =
+  | "run_ended"
+  | "human_closed"
+  | "credential_revoked"
+  | "credential_rotated"
+  | "credential_retired"
+  | "chat_archived"
+  | "chat_changed"
+  | "restore"
+  | "unconfirmed"
+  | "not_picked_up";
 const REASONS: Record<DeliveryReason, string> = {
   run_ended: "the run ended",
   human_closed: "you ended the run",
@@ -38,7 +49,8 @@ export function deliveryState(
   // A reason this version doesn't know, from a newer one, reads as plain expiry.
   return (
     "Not delivered: " +
-    ((delivery.reason && REASONS[delivery.reason]) || "it expired")
+    ((delivery.reason && REASONS[delivery.reason as DeliveryReason]) ||
+      "it expired")
   );
 }
 

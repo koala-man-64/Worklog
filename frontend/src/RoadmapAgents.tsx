@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Avatar } from "./Avatar";
-import type { RoadmapTie, RoadmapWorker } from "./agentTypes";
+import type { RoadmapTie, RoadmapWorker } from "./apiTypes";
 
 /** A worker with the ties that place it on one part of a roadmap. */
 export type Placed = { worker: RoadmapWorker; ties: RoadmapTie[] };

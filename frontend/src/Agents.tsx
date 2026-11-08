@@ -12,8 +12,7 @@ import type {
   RegistryRole,
   RegistryWork,
   TieReason,
-  Ties,
-} from "./agentTypes";
+} from "./apiTypes";
 
 const PAGE = 50;
 const REFRESH = 30_000;
@@ -163,16 +162,24 @@ function Roles({ roles }: { roles: RegistryRole[] }) {
     </ul>
   ) : null;
 }
-function TieList<T extends { id: string; archived: boolean }>({
+/** What every list of an agent's ties holds: the record, and why and when it is tied. */
+type Tied = {
+  id: string;
+  archived: boolean;
+  via: TieReason[];
+  current: boolean;
+  lastAt: string | null;
+};
+function TieList<T extends Tied>({
   title,
   ties,
   empty,
   children,
 }: {
   title: string;
-  ties: Ties<T>;
+  ties: { items: T[]; total: number };
   empty: string;
-  children: (tie: Ties<T>["items"][number]) => ReactNode;
+  children: (tie: T) => ReactNode;
 }) {
   return (
     <section className="agent-ties" aria-label={title}>

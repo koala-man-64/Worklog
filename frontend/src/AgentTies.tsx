@@ -15,10 +15,10 @@ import {
   pickerPath,
   tieHref,
   tiesOn,
-  type AgentTie,
   type PickedRecord,
   type TieType,
-} from "./agentTieTypes";
+} from "./agentTieKinds";
+import type { AgentTie, TieTargetView } from "./apiTypes";
 import type { DiscussionParticipants } from "./discussionTypes";
 import type { List } from "./types";
 
@@ -361,7 +361,8 @@ export function AgentTiedTo({ agentId }: { agentId: string }) {
 }
 
 function TiedRecord({ tie }: { tie: AgentTie }) {
-  const target = tie.target;
+  // Each kind of record has its own shape; seen as one, the fields a kind lacks are absent.
+  const target: TieTargetView | null = tie.target;
   const title = target?.title ?? tie.targetId;
   return (
     <div className="line agent-tie-row">

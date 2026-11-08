@@ -5,8 +5,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { setDataContext } from "./api";
 import { AgentTieFold, AgentTiedTo, AgentTies, useTiesOn } from "./AgentTies";
-import { TIE_TYPES, pickerFilter, pickerPath, tieHref } from "./agentTieTypes";
-import type { AgentTie, TieType } from "./agentTieTypes";
+import { TIE_TYPES, pickerFilter, pickerPath, tieHref } from "./agentTieKinds";
+import type { TieType } from "./agentTieKinds";
+import type { AgentTie } from "./apiTypes";
 
 const ITEM_ID = "11111111-1111-4111-8111-111111111111";
 const BUILDER = "aaaaaaaa-0000-4000-8000-000000000001";

@@ -6,7 +6,7 @@ import { useAction, useData } from "./hooks";
 import { Icon } from "./icons";
 import { LinkPicker } from "./LinkPicker";
 import { localStore, readIdSet } from "./storage";
-import type { AgentSummary } from "./agentTypes";
+import type { AgentSummary } from "./apiTypes";
 import type {
   ChatAgent,
   ChatOverview,

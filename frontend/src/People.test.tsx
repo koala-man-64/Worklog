@@ -11,7 +11,7 @@ import {
   LinksSection,
   PeopleLinks,
 } from "./components";
-import type { Repository } from "./repositoryTypes";
+import type { Repository } from "./apiTypes";
 import type { Item, Person, PersonDetail, Roadmap } from "./types";
 
 const PERSON_ID = "33333333-3333-4333-8333-333333333333";
@@ -74,6 +74,8 @@ const sampleRepository = (id: string, name: string): Repository => ({
   registeredBy: null,
   reviewed: true,
   archived: false,
+  createdAt: "2026-11-01T09:00:00Z",
+  updatedAt: "2026-11-01T09:00:00Z",
 });
 
 const detail: PersonDetail = {

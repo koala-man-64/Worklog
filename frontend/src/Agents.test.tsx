@@ -3,7 +3,7 @@ import { render, screen, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setDataContext } from "./api";
 import { Agents } from "./Agents";
-import type { AgentActivity, AgentDetail, AgentSummary } from "./agentTypes";
+import type { AgentActivity, AgentDetail, AgentSummary } from "./apiTypes";
 
 const roadmap = { id: "road-1", title: "Platform", archived: false };
 const summary: AgentSummary = {
@@ -29,12 +29,16 @@ const summary: AgentSummary = {
         title: "Build the API",
         status: "doing",
         archived: false,
+        roadmapId: "roadmap-1",
       },
       roadmap,
       contexts: [
         {
           repositoryId: "repo-1",
           repositoryName: "Worklog",
+          archived: false,
+          checkoutPath: "",
+          worktreePath: "",
           branch: "claude/api",
         },
       ],
@@ -109,6 +113,7 @@ const detail: AgentDetail = {
         externalChatId: "c0ffee",
         revision: 1,
         createdAt: "2026-11-01T09:00:00Z",
+        updatedAt: "2026-11-01T09:00:00Z",
         endedAt: null,
         endReason: null,
         chats: [chat],
@@ -175,7 +180,16 @@ const activity: AgentActivity[] = [
     runName: "Implementation",
     participationId: "p-1",
     item: { id: "item-1", title: "Build the API" },
-    contexts: [{ repositoryId: "repo-1", repositoryName: "Worklog" }],
+    contexts: [
+      {
+        repositoryId: "repo-1",
+        repositoryName: "Worklog",
+        archived: false,
+        checkoutPath: "",
+        worktreePath: "",
+        branch: "",
+      },
+    ],
   },
 ];
 function show(component: React.ReactNode) {
