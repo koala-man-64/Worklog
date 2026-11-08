@@ -5,11 +5,11 @@
       "id": "<id1>",
       "title": "Parser",
       "archived": false,
-      "revision": 2,
+      "revision": 15,
       "createdAt": "<time>",
       "updatedAt": "<time>",
-      "pinned": false,
-      "pinnedAt": null,
+      "pinned": true,
+      "pinnedAt": "<time>",
       "contexts": [
         {
           "type": "item",
@@ -24,15 +24,145 @@
             "kind": "human"
           },
           "addedAt": "<time>"
+        },
+        {
+          "type": "roadmap",
+          "id": "<id3>",
+          "title": "Plan 2",
+          "archived": false,
+          "home": false,
+          "addedBy": {
+            "id": "local-user",
+            "label": "You",
+            "kind": "human"
+          },
+          "addedAt": "<time>"
+        },
+        {
+          "type": "step",
+          "id": "<id4>",
+          "title": "Child",
+          "archived": false,
+          "status": "open",
+          "roadmapId": "<id3>",
+          "roadmapTitle": "Plan 2",
+          "home": false,
+          "addedBy": {
+            "id": "local-user",
+            "label": "You",
+            "kind": "human"
+          },
+          "addedAt": "<time>"
+        },
+        {
+          "type": "repository",
+          "id": "<id5>",
+          "title": "worklog",
+          "archived": false,
+          "mergedInto": null,
+          "home": false,
+          "addedBy": {
+            "id": "local-user",
+            "label": "You",
+            "kind": "human"
+          },
+          "addedAt": "<time>"
+        },
+        {
+          "type": "ticket",
+          "id": "<id6>",
+          "title": "Crash on save",
+          "archived": false,
+          "status": "open",
+          "number": 1,
+          "home": false,
+          "addedBy": {
+            "id": "local-user",
+            "label": "You",
+            "kind": "human"
+          },
+          "addedAt": "<time>"
+        },
+        {
+          "type": "release",
+          "id": "<id7>",
+          "title": "1.0",
+          "archived": false,
+          "status": "planned",
+          "releaseDate": "2026-12-01",
+          "home": false,
+          "addedBy": {
+            "id": "local-user",
+            "label": "You",
+            "kind": "human"
+          },
+          "addedAt": "<time>"
+        },
+        {
+          "type": "person",
+          "id": "<id8>",
+          "title": "Ada",
+          "archived": false,
+          "home": false,
+          "addedBy": {
+            "id": "local-user",
+            "label": "You",
+            "kind": "human"
+          },
+          "addedAt": "<time>"
+        },
+        {
+          "type": "resource",
+          "id": "<id9>",
+          "title": "Style",
+          "archived": false,
+          "home": false,
+          "addedBy": {
+            "id": "local-user",
+            "label": "You",
+            "kind": "human"
+          },
+          "addedAt": "<time>"
+        },
+        {
+          "type": "question",
+          "id": "<id10>",
+          "title": "Which parser?",
+          "archived": false,
+          "status": "open",
+          "roadmapId": "<id3>",
+          "roadmapTitle": "Plan 2",
+          "home": false,
+          "addedBy": {
+            "id": "local-user",
+            "label": "You",
+            "kind": "human"
+          },
+          "addedAt": "<time>"
+        },
+        {
+          "type": "decision",
+          "id": "<id11>",
+          "title": "Use the HTML one",
+          "archived": false,
+          "roadmapId": "<id3>",
+          "roadmapTitle": "Plan 2",
+          "home": false,
+          "addedBy": {
+            "id": "local-user",
+            "label": "You",
+            "kind": "human"
+          },
+          "addedAt": "<time>"
         }
       ],
       "repos": [],
-      "pendingCount": 0,
+      "pendingCount": 1,
       "repository": null
     },
     "messages": [
       {
-        "id": "<id3>",
+        "id": "<id12>",
         "discussionId": "<id1>",
         "text": "Where do we start?",
         "authorId": "local-user",
@@ -45,10 +175,10 @@
         "request": null
       },
       {
-        "id": "<id4>",
+        "id": "<id13>",
         "discussionId": "<id1>",
         "text": "Starting with the tables",
-        "authorId": "<id5>",
+        "authorId": "<id14>",
         "authorLabel": "Builder",
         "authorKind": "agent",
         "createdAt": "<time>",
@@ -56,9 +186,109 @@
         "onBehalfOfRoleId": null,
         "ownershipGeneration": null,
         "request": null
+      },
+      {
+        "id": "<id15>",
+        "discussionId": "<id1>",
+        "text": "Confirm the table plan",
+        "authorId": "local-user",
+        "authorLabel": "You",
+        "authorKind": "human",
+        "createdAt": "<time>",
+        "chatId": null,
+        "onBehalfOfRoleId": null,
+        "ownershipGeneration": null,
+        "request": {
+          "id": "<id15>",
+          "mode": "all",
+          "state": "satisfied",
+          "targets": [
+            {
+              "id": "<id16>",
+              "kind": "agent",
+              "recipientId": "<id14>",
+              "label": "Builder",
+              "ownerId": null,
+              "ownershipGeneration": null,
+              "acknowledged": true,
+              "acknowledgedBy": "<id14>"
+            }
+          ],
+          "receipts": [
+            {
+              "id": "<id17>",
+              "targetId": "<id16>",
+              "actorId": "<id14>",
+              "actorLabel": "Builder",
+              "actorKind": "agent",
+              "roleId": null,
+              "ownershipGeneration": null,
+              "createdAt": "<time>",
+              "late": false
+            }
+          ],
+          "actionableTargetIds": [],
+          "canCancel": false,
+          "canRelease": false,
+          "classifications": [
+            "personal",
+            "managed"
+          ],
+          "reason": null,
+          "terminalAt": "<time>",
+          "terminalActorId": "<id14>",
+          "terminalActorLabel": "Builder",
+          "terminalActorKind": "agent",
+          "authorityRoleId": null,
+          "authorityGeneration": null
+        }
+      },
+      {
+        "id": "<id18>",
+        "discussionId": "<id1>",
+        "text": "Who reviews the parser?",
+        "authorId": "local-user",
+        "authorLabel": "You",
+        "authorKind": "human",
+        "createdAt": "<time>",
+        "chatId": null,
+        "onBehalfOfRoleId": null,
+        "ownershipGeneration": null,
+        "request": {
+          "id": "<id18>",
+          "mode": "all",
+          "state": "pending",
+          "targets": [
+            {
+              "id": "<id19>",
+              "kind": "role",
+              "recipientId": "<id20>",
+              "label": "Parser owner",
+              "ownerId": "<id14>",
+              "ownershipGeneration": 1,
+              "acknowledged": false,
+              "acknowledgedBy": null
+            }
+          ],
+          "receipts": [],
+          "actionableTargetIds": [],
+          "canCancel": true,
+          "canRelease": true,
+          "classifications": [
+            "personal",
+            "managed"
+          ],
+          "reason": null,
+          "terminalAt": null,
+          "terminalActorId": null,
+          "terminalActorLabel": null,
+          "terminalActorKind": null,
+          "authorityRoleId": null,
+          "authorityGeneration": null
+        }
       }
     ],
-    "total": 2,
+    "total": 4,
     "limit": 50,
     "offset": 0
   }

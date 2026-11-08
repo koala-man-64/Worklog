@@ -176,6 +176,24 @@ class World:
         self.write(a, "POST", f"/discussions/roles/{role['id']}/claim", {"revision": role["revision"]})
         self.write(a, "POST", f"/discussions/{ids['discussion']}/messages", {"text": "Starting with the tables",
                                                                               "chatId": "chat-1"})
+        # The work item's discussion is tagged with a record of every other kind it takes and pinned.
+        # It asks the agent to acknowledge one message, which the agent does, and the agent's role to
+        # acknowledge another, which stays pending: the discussion reads then pin each shape of tag, a
+        # met request with its receipt and a pending one. A request's slots list in the order of their
+        # random IDs, so each names one.
+        for kind, target in (("roadmap", roadmap["id"]), ("step", child), ("repository", ids["repository"]),
+                             ("ticket", ids["ticket"]), ("release", release["id"]), ("person", ids["person"]),
+                             ("resource", ids["resource"]), ("question", ids["question"]),
+                             ("decision", ids["decision"])):
+            self.write(p, "POST", f"/discussions/{ids['discussion']}/tags", {"type": kind, "id": target})
+        thread = self.write(p, "GET", f"/discussions/{ids['discussion']}")["discussion"]
+        self.write(p, "POST", f"/discussions/{ids['discussion']}/pin", {"revision": thread["revision"], "pinned": True})
+        asked = self.write(p, "POST", f"/discussions/{ids['discussion']}/messages", {
+            "text": "Confirm the table plan", "acknowledgement": {"targets": [{"kind": "agent", "id": ids["agent"]}]}})
+        self.write(a, "POST", f"/discussions/messages/{asked['id']}/acknowledge",
+                   {"targetIds": [asked["request"]["targets"][0]["id"]]})
+        self.write(p, "POST", f"/discussions/{ids['discussion']}/messages", {
+            "text": "Who reviews the parser?", "acknowledgement": {"targets": [{"kind": "role", "id": role["id"]}]}})
 
 
 def concrete(template: str, ids: dict[str, str], today: str) -> str:

@@ -2869,6 +2869,114 @@ export interface components {
             /** Targets */
             targets?: components["schemas"]["Target"][];
         };
+        /** AcknowledgementReceipt */
+        AcknowledgementReceipt: {
+            /** Id */
+            id: string;
+            /** Targetid */
+            targetId: string;
+            /** Actorid */
+            actorId: string;
+            /** Actorlabel */
+            actorLabel: string;
+            /**
+             * Actorkind
+             * @enum {string}
+             */
+            actorKind: "agent" | "human";
+            /** Roleid */
+            roleId: string | null;
+            /** Ownershipgeneration */
+            ownershipGeneration: number | null;
+            /** Createdat */
+            createdAt: string;
+            /** Late */
+            late: boolean;
+        };
+        /**
+         * AcknowledgementRequest
+         * @description A message's request to be acknowledged, as the caller sees it.
+         */
+        AcknowledgementRequest: {
+            /** Id */
+            id: string;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "all" | "any" | "any_agent" | "anyone";
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "pending" | "satisfied" | "released_by_human" | "cancelled";
+            /** Targets */
+            targets: components["schemas"]["AcknowledgementTarget"][];
+            /** Receipts */
+            receipts: components["schemas"]["AcknowledgementReceipt"][];
+            /** Actionabletargetids */
+            actionableTargetIds: string[];
+            /** Cancancel */
+            canCancel: boolean;
+            /** Canrelease */
+            canRelease: boolean;
+            /** Classifications */
+            classifications: ("personal" | "managed" | "predecessor" | "actionable" | "unassigned")[];
+            /** Reason */
+            reason: string | null;
+            /** Terminalat */
+            terminalAt: string | null;
+            /** Terminalactorid */
+            terminalActorId: string | null;
+            /** Terminalactorlabel */
+            terminalActorLabel: string | null;
+            /** Terminalactorkind */
+            terminalActorKind: string | null;
+            /** Authorityroleid */
+            authorityRoleId: string | null;
+            /** Authoritygeneration */
+            authorityGeneration: number | null;
+        };
+        /**
+         * AcknowledgementTarget
+         * @description One slot of an acknowledgement request: a named participant, a role, or any agent or anyone.
+         */
+        AcknowledgementTarget: {
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "agent" | "human" | "role" | "open_agent" | "open_any";
+            /** Recipientid */
+            recipientId: string;
+            /** Label */
+            label: string;
+            /** Ownerid */
+            ownerId: string | null;
+            /** Ownershipgeneration */
+            ownershipGeneration: number | null;
+            /** Acknowledged */
+            acknowledged: boolean;
+            /** Acknowledgedby */
+            acknowledgedBy: string | null;
+        };
+        /**
+         * Actor
+         * @description The person or an agent identity, by the label it has now.
+         */
+        Actor: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "human" | "agent";
+        };
         /**
          * Agent
          * @description An agent identity with its credentials, its runs and what it is tied to, and why.
@@ -3366,6 +3474,22 @@ export interface components {
             /** Avatar */
             avatar: string;
         };
+        /** AvatarOption */
+        AvatarOption: {
+            /** Name */
+            name: string;
+            /** Available */
+            available: boolean;
+        };
+        /** Avatars */
+        Avatars: {
+            /** Items */
+            items: components["schemas"]["AvatarOption"][];
+            /** Suggested */
+            suggested: string;
+            /** Current */
+            current: string | null;
+        };
         /**
          * BackupFile
          * @description A backup or raw recovery file, by its file's metadata; Settings reads no hashes.
@@ -3506,6 +3630,29 @@ export interface components {
             type: "item" | "roadmap" | "step" | "repository" | "ticket" | "release" | "person" | "resource" | "question" | "decision";
             /** Id */
             id: string;
+        };
+        /**
+         * ContextTag
+         * @description A record a discussion is tagged with, or that a role in it brings in, as record_kinds.summary
+         *     gives it, with who added the tag and when. A missing record has a null title.
+         */
+        ContextTag: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "item" | "roadmap" | "step" | "repository" | "ticket" | "release" | "person" | "resource" | "question" | "decision";
+            /** Id */
+            id: string;
+            /** Title */
+            title: string | null;
+            /** Archived */
+            archived: boolean;
+            /** Home */
+            home: boolean;
+            addedBy: components["schemas"]["Actor"] | null;
+            /** Addedat */
+            addedAt: string | null;
         };
         /**
          * CoordinationUpdate
@@ -3704,6 +3851,29 @@ export interface components {
             /** Updatedat */
             updatedAt: string;
         };
+        /** DecisionContextTag */
+        DecisionContextTag: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "item" | "roadmap" | "step" | "repository" | "ticket" | "release" | "person" | "resource" | "question" | "decision";
+            /** Id */
+            id: string;
+            /** Title */
+            title: string | null;
+            /** Archived */
+            archived: boolean;
+            /** Home */
+            home: boolean;
+            addedBy: components["schemas"]["Actor"] | null;
+            /** Addedat */
+            addedAt: string | null;
+            /** Roadmapid */
+            roadmapId: string;
+            /** Roadmaptitle */
+            roadmapTitle: string;
+        };
         /** DecisionCreate */
         DecisionCreate: {
             /** Roadmapid */
@@ -3775,6 +3945,39 @@ export interface components {
             /** Discussionid */
             discussionId: string | null;
         };
+        /**
+         * DiscussionChange
+         * @description One change in the discussions feed, after the cursor it was read from.
+         */
+        DiscussionChange: {
+            /** Seq */
+            seq: number;
+            /** Kind */
+            kind: string;
+            /** Discussionid */
+            discussionId: string | null;
+            /** Messageid */
+            messageId: string | null;
+            /** Roleid */
+            roleId: string | null;
+            /** Actorid */
+            actorId: string;
+            /** Actorlabel */
+            actorLabel: string;
+            /** Actorkind */
+            actorKind: string;
+            /** Createdat */
+            createdAt: string;
+        };
+        /** DiscussionChanges */
+        DiscussionChanges: {
+            /** Items */
+            items: components["schemas"]["DiscussionChange"][];
+            /** Cursor */
+            cursor: string;
+            /** Hasmore */
+            hasMore: boolean;
+        };
         /** DiscussionCreate */
         DiscussionCreate: {
             /** Text */
@@ -3790,6 +3993,148 @@ export interface components {
             contexts?: components["schemas"]["Context"][];
             /** Repos */
             repos?: string[];
+        };
+        /** DiscussionMessage */
+        DiscussionMessage: {
+            /** Id */
+            id: string;
+            /** Discussionid */
+            discussionId: string;
+            /** Text */
+            text: string;
+            /** Authorid */
+            authorId: string;
+            /** Authorlabel */
+            authorLabel: string;
+            /**
+             * Authorkind
+             * @enum {string}
+             */
+            authorKind: "agent" | "human";
+            /** Createdat */
+            createdAt: string;
+            /** Chatid */
+            chatId: string | null;
+            /** Onbehalfofroleid */
+            onBehalfOfRoleId: string | null;
+            /** Ownershipgeneration */
+            ownershipGeneration: number | null;
+            request: components["schemas"]["AcknowledgementRequest"] | null;
+        };
+        /**
+         * DiscussionResume
+         * @description What an agent needs to pick up a work context's discussions: roles, threads, pending requests and a feed cursor.
+         */
+        DiscussionResume: {
+            /** Roles */
+            roles: components["schemas"]["DiscussionRole"][];
+            /** Discussions */
+            discussions: components["schemas"]["DiscussionSummary"][];
+            /** Requests */
+            requests: components["schemas"]["DiscussionMessage"][];
+            /** Cursor */
+            cursor: string;
+            counts: components["schemas"]["ResumeCounts"];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Hasmore */
+            hasMore: boolean;
+        };
+        /**
+         * DiscussionRole
+         * @description A responsibility role on a work item, roadmap or step, with its owner and any pending offer.
+         */
+        DiscussionRole: {
+            /** Id */
+            id: string;
+            /**
+             * Contexttype
+             * @enum {string}
+             */
+            contextType: "item" | "roadmap" | "step";
+            /** Contextid */
+            contextId: string;
+            /** Label */
+            label: string;
+            /** Contexttitle */
+            contextTitle: string;
+            /** Ownerid */
+            ownerId: string | null;
+            /** Ownerlabel */
+            ownerLabel: string | null;
+            /** Revision */
+            revision: number;
+            /** Generation */
+            generation: number;
+            offer: components["schemas"]["RoleOfferOpen"] | null;
+        };
+        /** DiscussionRoles */
+        DiscussionRoles: {
+            /** Items */
+            items: components["schemas"]["DiscussionRole"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /**
+         * DiscussionSummary
+         * @description A discussion as lists show it: its tags and how many acknowledgement requests are pending.
+         */
+        DiscussionSummary: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Pinned */
+            pinned: boolean;
+            /** Pinnedat */
+            pinnedAt: string | null;
+            /** Contexts */
+            contexts: (components["schemas"]["ContextTag"] | components["schemas"]["StatusContextTag"] | components["schemas"]["StepContextTag"] | components["schemas"]["DecisionContextTag"] | components["schemas"]["RepositoryContextTag"] | components["schemas"]["TicketContextTag"] | components["schemas"]["ReleaseContextTag"])[];
+            /** Repos */
+            repos: string[];
+            /** Pendingcount */
+            pendingCount: number;
+            repository: components["schemas"]["HomeRepository"] | null;
+        };
+        /**
+         * DiscussionThread
+         * @description A discussion with a page of its messages, oldest first.
+         */
+        DiscussionThread: {
+            discussion: components["schemas"]["DiscussionSummary"];
+            /** Messages */
+            messages: components["schemas"]["DiscussionMessage"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** Discussions */
+        Discussions: {
+            /** Items */
+            items: components["schemas"]["DiscussionSummary"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
         };
         /** Empty */
         Empty: Record<string, never>;
@@ -3975,6 +4320,16 @@ export interface components {
             items: components["schemas"]["Event"][];
             /** Total */
             total: number;
+        };
+        /**
+         * HomeRepository
+         * @description The repository whose own discussion this is.
+         */
+        HomeRepository: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string | null;
         };
         /** ImportCommit */
         ImportCommit: {
@@ -4416,6 +4771,15 @@ export interface components {
             avatar: string | null;
             /** Active */
             active: boolean;
+        };
+        /**
+         * Participants
+         * @description Everyone who can take part in a discussion: the person first, then each agent identity.
+         */
+        Participants: {
+            /** Items */
+            items: components["schemas"]["Participant"][];
+            self: components["schemas"]["Actor"];
         };
         /**
          * Participation
@@ -5260,6 +5624,29 @@ export interface components {
             /** Targetid */
             targetId: string;
         };
+        /** ReleaseContextTag */
+        ReleaseContextTag: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "item" | "roadmap" | "step" | "repository" | "ticket" | "release" | "person" | "resource" | "question" | "decision";
+            /** Id */
+            id: string;
+            /** Title */
+            title: string | null;
+            /** Archived */
+            archived: boolean;
+            /** Home */
+            home: boolean;
+            addedBy: components["schemas"]["Actor"] | null;
+            /** Addedat */
+            addedAt: string | null;
+            /** Status */
+            status: string;
+            /** Releasedate */
+            releaseDate: string | null;
+        };
         /**
          * ReleaseCounts
          * @description A listed release's active work items and the done ones, its open checks of each kind, and
@@ -5618,6 +6005,27 @@ export interface components {
             /** Updatedat */
             updatedAt: string;
         };
+        /** RepositoryContextTag */
+        RepositoryContextTag: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "item" | "roadmap" | "step" | "repository" | "ticket" | "release" | "person" | "resource" | "question" | "decision";
+            /** Id */
+            id: string;
+            /** Title */
+            title: string | null;
+            /** Archived */
+            archived: boolean;
+            /** Home */
+            home: boolean;
+            addedBy: components["schemas"]["Actor"] | null;
+            /** Addedat */
+            addedAt: string | null;
+            /** Mergedinto */
+            mergedInto: string | null;
+        };
         /** RepositoryCreate */
         RepositoryCreate: {
             /** Name */
@@ -5829,6 +6237,15 @@ export interface components {
             revision: number;
             /** Number */
             number: number;
+        };
+        /** ResumeCounts */
+        ResumeCounts: {
+            /** Roles */
+            roles: number;
+            /** Discussions */
+            discussions: number;
+            /** Requests */
+            requests: number;
         };
         /**
          * Roadmap
@@ -6161,6 +6578,22 @@ export interface components {
              */
             note: string;
         };
+        /**
+         * RoleOfferOpen
+         * @description A role's pending offer to another agent identity.
+         */
+        RoleOfferOpen: {
+            /** Id */
+            id: string;
+            /** Fromid */
+            fromId: string;
+            /** Toid */
+            toId: string;
+            /** Tolabel */
+            toLabel: string;
+            /** Note */
+            note: string;
+        };
         /** RoleReassign */
         RoleReassign: {
             /** Revision */
@@ -6246,6 +6679,30 @@ export interface components {
             agentRepositoryRegistration?: boolean | null;
         };
         /**
+         * StatusContextTag
+         * @description A work item's tag.
+         */
+        StatusContextTag: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "item" | "roadmap" | "step" | "repository" | "ticket" | "release" | "person" | "resource" | "question" | "decision";
+            /** Id */
+            id: string;
+            /** Title */
+            title: string | null;
+            /** Archived */
+            archived: boolean;
+            /** Home */
+            home: boolean;
+            addedBy: components["schemas"]["Actor"] | null;
+            /** Addedat */
+            addedAt: string | null;
+            /** Status */
+            status: string;
+        };
+        /**
          * StatusSummary
          * @description A work item or proposal. A proposal is never archived; its status says where it got to.
          */
@@ -6286,6 +6743,34 @@ export interface components {
             attachments: components["schemas"]["Attachment"][];
             /** Roadmapid */
             roadmapId: string;
+        };
+        /**
+         * StepContextTag
+         * @description A step's or a question's tag, with the roadmap it opens on.
+         */
+        StepContextTag: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "item" | "roadmap" | "step" | "repository" | "ticket" | "release" | "person" | "resource" | "question" | "decision";
+            /** Id */
+            id: string;
+            /** Title */
+            title: string | null;
+            /** Archived */
+            archived: boolean;
+            /** Home */
+            home: boolean;
+            addedBy: components["schemas"]["Actor"] | null;
+            /** Addedat */
+            addedAt: string | null;
+            /** Status */
+            status: string;
+            /** Roadmapid */
+            roadmapId: string;
+            /** Roadmaptitle */
+            roadmapTitle: string;
         };
         /**
          * StepSummary
@@ -6489,6 +6974,29 @@ export interface components {
             items: components["schemas"]["TicketComment"][];
             /** Total */
             total: number;
+        };
+        /** TicketContextTag */
+        TicketContextTag: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "item" | "roadmap" | "step" | "repository" | "ticket" | "release" | "person" | "resource" | "question" | "decision";
+            /** Id */
+            id: string;
+            /** Title */
+            title: string | null;
+            /** Archived */
+            archived: boolean;
+            /** Home */
+            home: boolean;
+            addedBy: components["schemas"]["Actor"] | null;
+            /** Addedat */
+            addedAt: string | null;
+            /** Status */
+            status: string;
+            /** Number */
+            number: number;
         };
         /** TicketCreate */
         TicketCreate: {
@@ -12906,9 +13414,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Participants"];
                 };
             };
         };
@@ -12959,9 +13465,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Avatars"];
                 };
             };
         };
@@ -13021,9 +13525,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DiscussionRoles"];
                 };
             };
             /** @description Validation Error */
@@ -13351,9 +13853,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DiscussionChanges"];
                 };
             };
             /** @description Validation Error */
@@ -13387,9 +13887,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DiscussionResume"];
                 };
             };
             /** @description Validation Error */
@@ -13420,9 +13918,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DiscussionMessage"];
                 };
             };
             /** @description Validation Error */
@@ -13571,9 +14067,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Discussions"];
                 };
             };
             /** @description Validation Error */
@@ -13642,9 +14136,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DiscussionThread"];
                 };
             };
             /** @description Validation Error */

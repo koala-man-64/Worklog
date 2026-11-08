@@ -1572,3 +1572,283 @@ class AgentProfile(AgentListed):
 
     kind: Literal["agent"]
     avatar: str | None
+
+
+class Actor(Answer):
+    """The person or an agent identity, by the label it has now."""
+
+    id: str
+    label: str
+    kind: Literal["human", "agent"]
+
+
+class Participants(Answer):
+    """Everyone who can take part in a discussion: the person first, then each agent identity."""
+
+    items: list[Participant]
+    # The caller.
+    self: Actor
+
+
+class AvatarOption(Answer):
+    name: str
+    # Whether no other agent identity shows it now.
+    available: bool
+
+
+class Avatars(Answer):
+    items: list[AvatarOption]
+    # The least-used avatar, chosen afresh on each read.
+    suggested: str
+    # The calling agent identity's own; null for the person and for an identity with none.
+    current: str | None
+
+
+class RoleOfferOpen(Answer):
+    """A role's pending offer to another agent identity."""
+
+    id: str
+    fromId: str
+    toId: str
+    toLabel: str
+    note: str
+
+
+class DiscussionRole(Answer):
+    """A responsibility role on a work item, roadmap or step, with its owner and any pending offer."""
+
+    id: str
+    contextType: Literal["item", "roadmap", "step"]
+    contextId: str
+    label: str
+    # The record's title; its id when the record is missing.
+    contextTitle: str
+    # Null while no agent identity owns it.
+    ownerId: str | None
+    ownerLabel: str | None
+    revision: int
+    # Counts its owners: a message sent on its behalf names the generation that sent it.
+    generation: int
+    offer: RoleOfferOpen | None
+
+
+class DiscussionRoles(Answer):
+    items: list[DiscussionRole]
+    total: int
+    limit: int
+    offset: int
+
+
+TagKind = Literal["item", "roadmap", "step", "repository", "ticket", "release", "person", "resource", "question",
+                  "decision"]
+
+
+class ContextTag(Answer):
+    """A record a discussion is tagged with, or that a role in it brings in, as record_kinds.summary
+    gives it, with who added the tag and when. A missing record has a null title."""
+
+    type: TagKind
+    id: str
+    title: str | None
+    archived: bool
+    # Whether it makes the thread its repository's own discussion.
+    home: bool
+    # Both null for a context a role brings in with no tag of its own. addedBy is null too when
+    # the agent identity that added it is gone.
+    addedBy: Actor | None
+    addedAt: str | None
+
+
+class StatusContextTag(ContextTag):
+    """A work item's tag."""
+
+    status: str
+
+
+class StepContextTag(StatusContextTag):
+    """A step's or a question's tag, with the roadmap it opens on."""
+
+    roadmapId: str
+    roadmapTitle: str
+
+
+class DecisionContextTag(ContextTag):
+    roadmapId: str
+    roadmapTitle: str
+
+
+class RepositoryContextTag(ContextTag):
+    # The repository it was merged into; null while it stands on its own.
+    mergedInto: str | None
+
+
+class TicketContextTag(StatusContextTag):
+    number: int
+
+
+class ReleaseContextTag(StatusContextTag):
+    releaseDate: str | None
+
+
+# One shape per kind of record, told apart by their keys, since each model forbids the keys it doesn't name.
+DescribedContext = (ContextTag | StatusContextTag | StepContextTag | DecisionContextTag | RepositoryContextTag
+                    | TicketContextTag | ReleaseContextTag)
+
+
+class HomeRepository(Answer):
+    """The repository whose own discussion this is."""
+
+    id: str
+    # Null only if that repository is missing.
+    name: str | None
+
+
+class DiscussionSummary(Answer):
+    """A discussion as lists show it: its tags and how many acknowledgement requests are pending."""
+
+    id: str
+    title: str
+    archived: bool
+    revision: int
+    createdAt: str
+    updatedAt: str
+    pinned: bool
+    pinnedAt: str | None
+    contexts: list[DescribedContext]
+    # Free-text repository labels from before the catalog, read only (K8).
+    repos: list[str]
+    pendingCount: int
+    # Null unless it is a repository's own discussion.
+    repository: HomeRepository | None
+
+
+class Discussions(Answer):
+    # Pinned first, the latest pinned first, then the most recently active.
+    items: list[DiscussionSummary]
+    total: int
+    limit: int
+    offset: int
+
+
+class AcknowledgementTarget(Answer):
+    """One slot of an acknowledgement request: a named participant, a role, or any agent or anyone."""
+
+    id: str
+    kind: Literal["agent", "human", "role", "open_agent", "open_any"]
+    # Empty for an open slot.
+    recipientId: str
+    label: str
+    # A role's owner and generation now; null for other slots.
+    ownerId: str | None
+    ownershipGeneration: int | None
+    acknowledged: bool
+    # The first to acknowledge it.
+    acknowledgedBy: str | None
+
+
+class AcknowledgementReceipt(Answer):
+    id: str
+    targetId: str
+    actorId: str
+    actorLabel: str
+    actorKind: Literal["agent", "human"]
+    # The role it acknowledged for, and that role's generation then.
+    roleId: str | None
+    ownershipGeneration: int | None
+    createdAt: str
+    # Given after the request ended, or for a slot already acknowledged.
+    late: bool
+
+
+class AcknowledgementRequest(Answer):
+    """A message's request to be acknowledged, as the caller sees it."""
+
+    # The message's id.
+    id: str
+    mode: Literal["all", "any", "any_agent", "anyone"]
+    state: Literal["pending", "satisfied", "released_by_human", "cancelled"]
+    targets: list[AcknowledgementTarget]
+    receipts: list[AcknowledgementReceipt]
+    # The slots the caller may acknowledge now.
+    actionableTargetIds: list[str]
+    canCancel: bool
+    canRelease: bool
+    classifications: list[Literal["personal", "managed", "predecessor", "actionable", "unassigned"]]
+    # Set when the request ends: why, when and by whom.
+    reason: str | None
+    terminalAt: str | None
+    terminalActorId: str | None
+    terminalActorLabel: str | None
+    terminalActorKind: str | None
+    # The role that cancelled it on its behalf, and that role's generation then.
+    authorityRoleId: str | None
+    authorityGeneration: int | None
+
+
+class DiscussionMessage(Answer):
+    id: str
+    discussionId: str
+    text: str
+    authorId: str
+    authorLabel: str
+    authorKind: Literal["agent", "human"]
+    createdAt: str
+    # The chat its author reported; null when it named none.
+    chatId: str | None
+    # The role it was sent on behalf of, and that role's generation then.
+    onBehalfOfRoleId: str | None
+    ownershipGeneration: int | None
+    # Null unless it asks to be acknowledged.
+    request: AcknowledgementRequest | None
+
+
+class DiscussionThread(Answer):
+    """A discussion with a page of its messages, oldest first."""
+
+    discussion: DiscussionSummary
+    messages: list[DiscussionMessage]
+    total: int
+    limit: int
+    offset: int
+
+
+class DiscussionChange(Answer):
+    """One change in the discussions feed, after the cursor it was read from."""
+
+    seq: int
+    kind: str
+    discussionId: str | None
+    messageId: str | None
+    roleId: str | None
+    actorId: str
+    actorLabel: str
+    # events.actor_kind has no CHECK.
+    actorKind: str
+    createdAt: str
+
+
+class DiscussionChanges(Answer):
+    items: list[DiscussionChange]
+    # Where to read on from; opaque.
+    cursor: str
+    hasMore: bool
+
+
+class ResumeCounts(Answer):
+    roles: int
+    discussions: int
+    requests: int
+
+
+class DiscussionResume(Answer):
+    """What an agent needs to pick up a work context's discussions: roles, threads, pending requests and a feed cursor."""
+
+    roles: list[DiscussionRole]
+    discussions: list[DiscussionSummary]
+    # Messages whose requests are pending, oldest first.
+    requests: list[DiscussionMessage]
+    cursor: str
+    counts: ResumeCounts
+    limit: int
+    offset: int
+    hasMore: bool

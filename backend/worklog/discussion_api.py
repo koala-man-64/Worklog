@@ -25,7 +25,7 @@ def install_discussion_routes(app: FastAPI, db: Database, mutate: Callable) -> N
     def write(request: Request, body: m.Command, fn: Callable) -> dict:
         return mutate(request, body.model_dump(), fn, required_key=True)
 
-    @app.get("/api/v1/discussions/participants")
+    @app.get("/api/v1/discussions/participants", response_model=out.Participants)
     def participants(request: Request) -> dict:
         return read(request, service.participants)
 
@@ -35,7 +35,7 @@ def install_discussion_routes(app: FastAPI, db: Database, mutate: Callable) -> N
     def participant(identity: str, request: Request) -> dict:
         return read(request, lambda c, a: registry.profile(c, identity))
 
-    @app.get("/api/v1/discussions/avatars")
+    @app.get("/api/v1/discussions/avatars", response_model=out.Avatars)
     def avatars(request: Request) -> dict:
         return read(request, service.avatars)
 
@@ -43,7 +43,7 @@ def install_discussion_routes(app: FastAPI, db: Database, mutate: Callable) -> N
     def choose_avatar(request: Request, body: m.AvatarChoice) -> dict:
         return write(request, body, lambda c, a: service.choose_avatar(c, a, body.model_dump()))
 
-    @app.get("/api/v1/discussions/roles")
+    @app.get("/api/v1/discussions/roles", response_model=out.DiscussionRoles)
     def roles(request: Request, contextType: m.RoleContextType | None = None,
               contextId: str | None = None, limit: int = Query(50, ge=1, le=200),
               offset: int = Query(0, ge=0)) -> dict:
@@ -81,19 +81,19 @@ def install_discussion_routes(app: FastAPI, db: Database, mutate: Callable) -> N
     def reassign_role(identity: str, request: Request, body: m.RoleReassign) -> dict:
         return write(request, body, lambda c, a: service.change_role(c, a, identity, "reassign", body.model_dump()))
 
-    @app.get("/api/v1/discussions/changes")
+    @app.get("/api/v1/discussions/changes", response_model=out.DiscussionChanges)
     def changes(request: Request, cursor: str | None = None,
                 contextType: m.ContextType | None = None, contextId: str | None = None,
                 limit: int = Query(50, ge=1, le=200)) -> dict:
         return read(request, lambda c, a: service.changes(c, cursor=cursor, context_type=contextType, context_id=contextId, limit=limit))
 
-    @app.get("/api/v1/discussions/resume")
+    @app.get("/api/v1/discussions/resume", response_model=out.DiscussionResume)
     def resume(request: Request, contextType: m.ContextType | None = None,
                contextId: str | None = None, limit: int = Query(50, ge=1, le=200),
                offset: int = Query(0, ge=0)) -> dict:
         return read(request, lambda c, a: service.resume(c, a, context_type=contextType, context_id=contextId, limit=limit, offset=offset))
 
-    @app.get("/api/v1/discussions/messages/{identity}")
+    @app.get("/api/v1/discussions/messages/{identity}", response_model=out.DiscussionMessage)
     def message(identity: str, request: Request) -> dict:
         return read(request, lambda c, a: service.message(c, identity, a))
 
@@ -109,7 +109,7 @@ def install_discussion_routes(app: FastAPI, db: Database, mutate: Callable) -> N
     def release_request(identity: str, request: Request, body: m.ReleaseRequest) -> dict:
         return write(request, body, lambda c, a: service.finish_request(c, a, identity, "release", body.model_dump()))
 
-    @app.get("/api/v1/discussions")
+    @app.get("/api/v1/discussions", response_model=out.Discussions)
     def list_discussions(request: Request, view: Literal["all", "awaiting", "archived"] = "all",
                          q: str = "", contextType: m.ContextType | None = None,
                          contextId: str | None = None, repo: str | None = None, pinned: bool | None = None,
@@ -121,7 +121,7 @@ def install_discussion_routes(app: FastAPI, db: Database, mutate: Callable) -> N
     def create_discussion(request: Request, body: m.DiscussionCreate) -> dict:
         return write(request, body, lambda c, a: service.create(c, a, body.model_dump()))
 
-    @app.get("/api/v1/discussions/{identity}")
+    @app.get("/api/v1/discussions/{identity}", response_model=out.DiscussionThread)
     def read_discussion(identity: str, request: Request, limit: int = Query(50, ge=1, le=200),
                         offset: int = Query(0, ge=0)) -> dict:
         return read(request, lambda c, a: service.read(c, a, identity, limit, offset))
