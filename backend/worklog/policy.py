@@ -168,6 +168,8 @@ ROUTES: dict[str, dict[str, str | Only]] = {
 
     "/openapi.json": {"GET": HUMAN},
 
+    "/page-views": {"POST": HUMAN},
+
     "/participations": {"GET": READ, "POST": COORDINATE},
     "/participations/{identity}": {"GET": READ, "PATCH": COORDINATE},
     "/participations/{identity}/check-in": {"POST": COORDINATE},

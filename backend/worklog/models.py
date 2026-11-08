@@ -502,3 +502,14 @@ class SettingsUpdate(Command):
     requireProposalApproval: StrictBool | None = None
     # False keeps agents from registering repositories; they propose repository.create instead.
     agentRepositoryRegistration: StrictBool | None = None
+
+
+# The pages the browser counts as the person opens them (usage.py): the sidebar's
+# (frontend/src/navigation.ts), then the Guide page's view for agents (frontend/src/Guide.tsx);
+# test_usage.py keeps the lists equal.
+Page = Literal["today", "work", "tickets", "reminders", "roadmaps", "releases", "repositories", "people",
+               "resources", "agents", "chats", "discussions", "review", "settings", "guide", "agent-guide"]
+
+
+class PageView(Command):
+    page: Page

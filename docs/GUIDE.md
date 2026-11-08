@@ -97,7 +97,7 @@ Tick "Search archived records" to search the archive instead. Agent proposals ar
 
 ### Where your data lives
 
-Everything lives in one database file, `worklog.sqlite3`, in your data folder: your records, every attached file and every imported plan. The folder is `%LOCALAPPDATA%/Worklog` unless you chose another with `WORKLOG_DATA_DIR`. Worklog backs it up when it starts and once a day while it runs. Drafts belong to one data folder: after a restore or a switch of folder, old drafts stay in the browser but are never applied, and Settings says so.
+Everything lives in one database file, `worklog.sqlite3`, in your data folder: your records, every attached file and every imported plan. The folder is `%LOCALAPPDATA%/Worklog` unless you chose another with `WORKLOG_DATA_DIR`. Worklog backs it up when it starts and once a day while it runs. Beside it, `usage.sqlite3` counts which pages you open and which features you and your agents use, by name and day alone; the `worklog usage` command shows what was used and what wasn't (see *See what you use* in the README). Drafts belong to one data folder: after a restore or a switch of folder, old drafts stay in the browser but are never applied, and Settings says so.
 
 ### What agents can change
 

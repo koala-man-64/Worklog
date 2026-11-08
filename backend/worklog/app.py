@@ -69,6 +69,8 @@ from .services import WorkService
 from .ticket_api import install_ticket_routes
 from .tickets import TicketService
 from .transcripts import MESSAGE_LIMIT, TranscriptReader, TranscriptRoots
+from .usage import FILE as USAGE_FILE
+from .usage import Usage, UsageMiddleware
 
 logger = logging.getLogger("worklog")
 
@@ -189,6 +191,15 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         logger.error("Storage request failed (%s)", type(exc).__name__)
         return error_response(AppError(503, "storage_error", "Storage operation failed. Check free disk space and folder permissions, then retry."))
 
+    def worklog_timezone() -> str:
+        with db.read() as c:
+            return setting(c, "timezone", "America/Chicago")
+
+    # Which features get used, counted by name and day (usage.py). Added before the guard, so it runs
+    # inside it and counts only the calls the guard lets through. Nothing here writes the counts:
+    # the serve process does, every minute and when it stops.
+    app.state.usage = Usage(directory / USAGE_FILE, worklog_timezone)
+    app.add_middleware(UsageMiddleware, usage=app.state.usage)
     # Host, origin, the caller and the route policy, a bounded JSON body, and the security headers on
     # every response (guard.py).
     app.add_middleware(RequestGuard, owner=app, db=db, hosts=allowed_hosts, origins=allowed_origins)
@@ -257,6 +268,12 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         response = JSONResponse({"csrfToken": token, "today": today(tz), "timezone": tz, "dataId": data_id})
         response.set_cookie("worklog_session", session_id, httponly=True, samesite="strict", max_age=86400)
         return response
+
+    @app.post("/api/v1/page-views")
+    def page_view(body: m.PageView) -> dict:
+        # The browser counts each sidebar page the person opens, by its name alone (usage.py).
+        app.state.usage.record("page", body.page, "person")
+        return {"ok": True}
 
     @app.get("/api/v1/work-items", response_model=out.WorkItems)
     def items(view: str = "all", archived: bool = False,
