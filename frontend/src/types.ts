@@ -1,4 +1,4 @@
-import type { Repository } from "./repositoryTypes";
+import type { Repository } from "./apiTypes";
 
 /** A ticket's or a roadmap step's status. */
 export type Status = "open" | "doing" | "blocked" | "done";

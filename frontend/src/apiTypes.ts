@@ -76,3 +76,50 @@ export type ReminderTargetType = ReminderTarget["type"];
 export type Resource = Schema["ResourceListed"];
 export type ResourcePage = Schema["ResourcePage"];
 export type ResourceDetail = Schema["Resource"];
+
+// Repositories and coordination.
+/** A repository as other records embed it. */
+export type Repository = Schema["Repository"];
+/** A repository as its list and an address's resolution show it, with its own discussion. */
+export type DiscussedRepository = Schema["DiscussedRepository"];
+export type RepositoryDetail = Schema["RepositoryDetail"];
+export type RepositoryRegistration = Schema["EnsuredRepository"];
+export type RepositoryResolution = Schema["RepositoryResolution"];
+export type AgentRun = Schema["AgentRun"];
+export type Participation = Schema["Participation"];
+export type ParticipationRepository = Schema["ParticipationRepository"];
+export type CoordinationUpdate = Schema["CoordinationUpdate"];
+
+// The agent registry.
+export type AgentSummary = Schema["AgentListed"];
+export type AgentDetail = Schema["Agent"];
+export type RegistryWork = Schema["AgentWork"];
+export type RegistryRole = Schema["AgentRole"];
+export type TieReason = Schema["TiedWorkItem"]["via"][number];
+/** A tracked chat whose chat ID the agent reported. */
+export type TiedChat = Schema["TiedChat"];
+export type RoadmapTie = Schema["RoadmapTie"];
+export type RoadmapWorker = Schema["RoadmapWorker"];
+export type AgentActivity = Schema["AgentActivity"]["items"][number];
+
+// Agent ties.
+export type AgentTie = Schema["AgentTie"];
+export type TiedAgent = Schema["TieAgent"];
+/** A tied record in one shape: what every kind has, and each kind's own fields where it has them. */
+export type TieTargetView = Schema["RecordSummary"] &
+  Partial<
+    Omit<
+      Schema["StepSummary"] &
+        Schema["RepositorySummary"] &
+        Schema["TicketSummary"] &
+        Schema["AgentSummary"],
+      keyof Schema["RecordSummary"]
+    >
+  >;
+
+// A chat's outbox.
+export type Outbox = Schema["ChatMessages"];
+export type OutboxRun = Schema["ChatRecipient"];
+export type OutboxRecipient = Schema["BoundRecipient"];
+export type OutboxDelivery = Schema["ChatDelivery"];
+export type OutboxMessage = Schema["ChatMessageSent"];

@@ -7,7 +7,7 @@ import type {
   AgentRun,
   CoordinationUpdate,
   Participation,
-} from "./repositoryTypes";
+} from "./apiTypes";
 
 const PAGE = 50;
 const REFRESH = 30_000;

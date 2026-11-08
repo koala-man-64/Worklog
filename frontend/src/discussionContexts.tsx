@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { TIE_TYPES, tieHref, type TieType } from "./agentTieTypes";
+import { TIE_TYPES, tieHref, type TieType } from "./agentTieKinds";
 import { getDataContext, request } from "./api";
 import type {
   DiscussionContext,
@@ -129,12 +129,7 @@ function contextHref(
   if (context.type === "step" && !roadmapId) return undefined;
   if (!(TIE_TYPES as readonly string[]).includes(context.type))
     return undefined;
-  return tieHref(context.type as TieType, context.id, {
-    id: context.id,
-    title: context.title ?? "",
-    archived: !!context.archived,
-    roadmapId,
-  });
+  return tieHref(context.type as TieType, context.id, { roadmapId });
 }
 
 export function ContextReference({

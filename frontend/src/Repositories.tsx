@@ -15,7 +15,11 @@ import { Coordination, OpenRuns, Pages } from "./Coordination";
 import { LinkPicker } from "./LinkPicker";
 import { RecordReminders } from "./RecordReminders";
 import { RepositoryName } from "./RepositoryControls";
-import type { Repository, RepositoryRegistration } from "./repositoryTypes";
+import type {
+  Repository,
+  RepositoryDetail,
+  RepositoryRegistration,
+} from "./apiTypes";
 import type { Attachment, Item, List } from "./types";
 
 export function Repositories({ selected }: { selected?: string }) {
@@ -288,7 +292,7 @@ function MergeConfirm({
   source: Repository;
   targetId: string;
 }) {
-  const target = useData<Repository>("/repositories/" + targetId);
+  const target = useData<RepositoryDetail>("/repositories/" + targetId);
   const action = useAction();
   const [confirm, setConfirm] = useState(false);
   const into = target.data;
@@ -440,7 +444,7 @@ function RepositoryFiles({ repo }: { repo: Repository }) {
   );
 }
 function RepositoryDetail({ id }: { id: string }) {
-  const query = useData<Repository>("/repositories/" + id);
+  const query = useData<RepositoryDetail>("/repositories/" + id);
   const action = useAction();
   const repo = query.data;
   if (!repo)

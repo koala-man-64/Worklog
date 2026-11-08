@@ -16,7 +16,7 @@ import type {
   RunningSession,
   Transcript,
 } from "./types";
-import type { Outbox } from "./outboxTypes";
+import type { Outbox } from "./apiTypes";
 
 const ROADMAP_ID = "22222222-2222-4222-8222-222222222222";
 const API_ID = "33333333-3333-4333-8333-333333333333";

@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setDataContext } from "./api";
 import { RoadmapDetail } from "./Roadmaps";
-import type { RoadmapTie, RoadmapWorker } from "./agentTypes";
+import type { RoadmapTie, RoadmapWorker } from "./apiTypes";
 import type { AgentChat, Roadmap, Step } from "./types";
 
 const ROADMAP = "22222222-2222-4222-8222-222222222222";

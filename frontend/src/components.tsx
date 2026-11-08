@@ -13,7 +13,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { slugger } from "./guideAnchors";
 import { RepositoryBadges, RepositoryPicker } from "./RepositoryControls";
-import type { TieType } from "./agentTieTypes";
+import type { TieType } from "./agentTieKinds";
 import { download, getDataContext } from "./api";
 import { commands } from "./commands";
 import {

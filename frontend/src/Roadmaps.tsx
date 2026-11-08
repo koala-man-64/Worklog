@@ -43,7 +43,7 @@ import { AgentChips, workersOn } from "./RoadmapAgents";
 import { AppliedProposals } from "./ProposalHistory";
 import { RecordReminders } from "./RecordReminders";
 import { ReleasesSection } from "./Releases";
-import type { RoadmapWorker } from "./agentTypes";
+import type { RoadmapWorker } from "./apiTypes";
 import type { Item, List, Person, Roadmap, Step } from "./types";
 import { Icon } from "./icons";
 // Matches the outline column's clamp in styles.css: the outline never narrower

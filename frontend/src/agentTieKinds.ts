@@ -18,41 +18,6 @@ export const TIE_TYPES = [
 ] as const;
 export type TieType = (typeof TIE_TYPES)[number];
 
-/**
- * The tied record as Worklog found it: its title and whether it is archived (a step
- * retired, a repository merged, an agent with no live credential), with what a page
- * needs to link to it.
- */
-export type TieTarget = {
-  id: string;
-  title: string;
-  archived: boolean;
-  status?: string;
-  roadmapId?: string;
-  roadmapTitle?: string;
-  number?: number;
-  mergedInto?: string | null;
-  avatar?: string | null;
-};
-export type TiedAgent = {
-  id: string;
-  label: string;
-  avatar: string | null;
-  active: boolean;
-};
-export type AgentTie = {
-  id: string;
-  agentId: string;
-  agent: TiedAgent | null;
-  targetType: TieType;
-  targetId: string;
-  target: TieTarget | null;
-  relationship: string;
-  /** "human" when the person set the tie or last changed it; "agent" when the agent did. */
-  setBy: "human" | "agent";
-  createdAt: string;
-};
-
 export const TIE_LABELS: Record<TieType, { one: string; many: string }> = {
   item: { one: "Work item", many: "Work items" },
   roadmap: { one: "Roadmap", many: "Roadmaps" },
@@ -72,7 +37,7 @@ export const TIE_LABELS: Record<TieType, { one: string; many: string }> = {
 export function tieHref(
   type: TieType,
   id: string,
-  target: TieTarget | null,
+  target: { roadmapId?: string | null } | null,
 ): string {
   const roadmap = target?.roadmapId
     ? "#roadmaps/" + target.roadmapId

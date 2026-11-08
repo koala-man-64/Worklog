@@ -574,6 +574,9 @@ Done so far:
   - The ticket, release, reminder and resource pages now make every write through `commands.ts`, under one pending state per page (`useWrites`), and read by route.
   - Their four hand-written type files are gone.
   - A new reminder's callback was typed with the page's detail, which has a history a create doesn't send; it now takes the record a create returns.
+- **Typed commands, second batch.** Repositories, coordination, the agent registry, agent ties and a chat's outbox read the generated types. `repositoryTypes.ts`, `agentTypes.ts` and `outboxTypes.ts` are gone. `agentTieTypes.ts` becomes `agentTieKinds.ts`, the tie kinds and link helpers it held, without answer types.
+  - A tied record reads through one view of its kinds' shapes (`TieTargetView`).
+  - The test fixtures now carry every field the answers do.
 
 #### 5.4 · Frontend layout
 

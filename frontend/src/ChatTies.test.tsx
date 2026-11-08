@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { setDataContext } from "./api";
 import { ChatAgents, RunningSessions, runsIn, sessionState } from "./ChatTies";
-import type { AgentSummary } from "./agentTypes";
+import type { AgentSummary } from "./apiTypes";
 import type {
   ChatAgent,
   ChatOverview,

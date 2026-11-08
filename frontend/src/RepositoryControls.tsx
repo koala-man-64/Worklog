@@ -2,7 +2,7 @@ import { useId, useState } from "react";
 import { useData } from "./hooks";
 import { LinkPicker } from "./LinkPicker";
 import type { List } from "./types";
-import type { Repository } from "./repositoryTypes";
+import type { Repository } from "./apiTypes";
 
 export function RepositoryBadges({
   ids = [],

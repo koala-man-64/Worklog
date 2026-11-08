@@ -6,7 +6,7 @@ import { setDataContext } from "./api";
 import { Repositories } from "./Repositories";
 import { Coordination } from "./Coordination";
 import { RepositoryPicker } from "./RepositoryControls";
-import type { AgentRun, Participation, Repository } from "./repositoryTypes";
+import type { AgentRun, Participation, Repository } from "./apiTypes";
 import type { Attachment } from "./types";
 
 const repo: Repository = {
@@ -21,6 +21,8 @@ const repo: Repository = {
   reviewed: true,
   revision: 1,
   archived: false,
+  createdAt: "2026-11-01T09:00:00Z",
+  updatedAt: "2026-11-01T09:00:00Z",
 };
 const run: AgentRun = {
   id: "run-1",
@@ -31,6 +33,8 @@ const run: AgentRun = {
   provider: "OpenAI",
   externalChatId: "chat",
   revision: 2,
+  createdAt: "2026-11-01T09:00:00Z",
+  updatedAt: "2026-11-01T10:00:00Z",
   endedAt: null,
   endReason: null,
 };
@@ -41,9 +45,18 @@ const report: Participation = {
   description: "Reviewing transactions",
   itemId: null,
   contexts: [
-    { repositoryId: repo.id, worktreePath: "C:/work/api", branch: "codex/api" },
+    {
+      repositoryId: repo.id,
+      repositoryName: repo.name,
+      archived: false,
+      checkoutPath: "",
+      worktreePath: "C:/work/api",
+      branch: "codex/api",
+    },
   ],
   revision: 1,
+  createdAt: "2026-11-01T09:00:00Z",
+  updatedAt: "2026-11-01T10:00:00Z",
   lastSeenAt: "2026-11-01T10:00:00Z",
   stale: true,
   releasedAt: null,

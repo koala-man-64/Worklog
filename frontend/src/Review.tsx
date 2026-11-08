@@ -19,7 +19,7 @@ import type {
   Proposal,
   Settings,
 } from "./types";
-import type { Repository, RepositoryResolution } from "./repositoryTypes";
+import type { Repository, RepositoryResolution } from "./apiTypes";
 import { Icon } from "./icons";
 import { statusLabel } from "./ProposalHistory";
 import { Pages } from "./Coordination";
