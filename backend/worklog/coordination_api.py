@@ -78,12 +78,12 @@ def install_coordination_routes(app: FastAPI, db: Database, mutate: Callable) ->
             raise AppError(404, "not_found", "Unknown repository command")
         return write(request, body, lambda c, a: repository_apply(c, a, "repository." + verb, {"id": identity, **body.model_dump()}))
 
-    @app.get("/api/v1/agent-runs")
+    @app.get("/api/v1/agent-runs", response_model=out.AgentRuns)
     def runs(includeEnded: bool = False, externalChatId: str | None = None,
              limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
         return read(lambda c: service.runs(c, includeEnded, externalChatId, limit, offset))
 
-    @app.get("/api/v1/agent-runs/{identity}")
+    @app.get("/api/v1/agent-runs/{identity}", response_model=out.AgentRun)
     def run(identity: str) -> dict:
         return read(lambda c: service.run_record(_get(c, "agent_runs", identity)))
 
@@ -95,13 +95,13 @@ def install_coordination_routes(app: FastAPI, db: Database, mutate: Callable) ->
     def run_end(identity: str, request: Request, body: Expected) -> dict:
         return write(request, body, lambda c, a: service.end_run(c, a, identity, body.model_dump()))
 
-    @app.get("/api/v1/participations")
+    @app.get("/api/v1/participations", response_model=out.Participations)
     def participations(itemId: str | None = None, repositoryId: str | None = None,
                        runId: str | None = None, includeReleased: bool = False,
                        limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
         return read(lambda c: service.participations(c, itemId, repositoryId, runId, includeReleased, limit, offset))
 
-    @app.get("/api/v1/participations/{identity}")
+    @app.get("/api/v1/participations/{identity}", response_model=out.Participation)
     def participation(identity: str) -> dict:
         return read(lambda c: service.participation_record(c, _get(c, "participations", identity)))
 
@@ -135,7 +135,7 @@ def install_coordination_routes(app: FastAPI, db: Database, mutate: Callable) ->
     def chat_track(request: Request, body: m.ChatTrack) -> dict:
         return write(request, body, lambda c, a: support.track_own_chat(c, a, body.model_dump()))
 
-    @app.get("/api/v1/coordination-updates")
+    @app.get("/api/v1/coordination-updates", response_model=out.CoordinationUpdates)
     def updates(participationId: str | None = None, itemId: str | None = None,
                 repositoryId: str | None = None, limit: int = Query(50, ge=1, le=200),
                 offset: int = Query(0, ge=0)) -> dict:

@@ -5525,9 +5525,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Runs Api V1 Agent Runs Get"
+                  "$ref": "#/components/schemas/AgentRuns"
                 }
               }
             }
@@ -5604,9 +5602,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Run Api V1 Agent Runs  Identity  Get"
+                  "$ref": "#/components/schemas/AgentRun"
                 }
               }
             }
@@ -5768,9 +5764,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Participations Api V1 Participations Get"
+                  "$ref": "#/components/schemas/Participations"
                 }
               }
             }
@@ -5847,9 +5841,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Participation Api V1 Participations  Identity  Get"
+                  "$ref": "#/components/schemas/Participation"
                 }
               }
             }
@@ -6243,9 +6235,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Updates Api V1 Coordination Updates Get"
+                  "$ref": "#/components/schemas/CoordinationUpdates"
                 }
               }
             }
@@ -10619,6 +10609,129 @@
         ],
         "title": "AgentRegistration"
       },
+      "AgentRun": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "agentId": {
+            "type": "string",
+            "title": "Agentid"
+          },
+          "credentialId": {
+            "type": "string",
+            "title": "Credentialid"
+          },
+          "clientRunKey": {
+            "type": "string",
+            "title": "Clientrunkey"
+          },
+          "displayName": {
+            "type": "string",
+            "title": "Displayname"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "externalChatId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Externalchatid"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "endedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endedat"
+          },
+          "endReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endreason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "agentId",
+          "credentialId",
+          "clientRunKey",
+          "displayName",
+          "provider",
+          "externalChatId",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "endedAt",
+          "endReason"
+        ],
+        "title": "AgentRun",
+        "description": "A run: one stretch of an agent's work under one credential, as it reported it."
+      },
+      "AgentRuns": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AgentRun"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "AgentRuns"
+      },
       "AgentSummary": {
         "properties": {
           "id": {
@@ -11477,6 +11590,86 @@
         "title": "Context",
         "description": "A tag: a record of one kind by its id, or a ticket by its key or number."
       },
+      "CoordinationUpdate": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "participationId": {
+            "type": "string",
+            "title": "Participationid"
+          },
+          "runId": {
+            "type": "string",
+            "title": "Runid"
+          },
+          "agentId": {
+            "type": "string",
+            "title": "Agentid"
+          },
+          "credentialId": {
+            "type": "string",
+            "title": "Credentialid"
+          },
+          "authorLabel": {
+            "type": "string",
+            "title": "Authorlabel"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "update",
+              "blocker",
+              "handoff"
+            ],
+            "title": "Kind"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "itemId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Itemid"
+          },
+          "contexts": {
+            "items": {
+              "$ref": "#/components/schemas/ParticipationRepository"
+            },
+            "type": "array",
+            "title": "Contexts"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "participationId",
+          "runId",
+          "agentId",
+          "credentialId",
+          "authorLabel",
+          "kind",
+          "text",
+          "itemId",
+          "contexts",
+          "createdAt"
+        ],
+        "title": "CoordinationUpdate",
+        "description": "A status update a run posted on its participation."
+      },
       "CoordinationUpdateCreate": {
         "properties": {
           "kind": {
@@ -11500,6 +11693,38 @@
           "text"
         ],
         "title": "CoordinationUpdateCreate"
+      },
+      "CoordinationUpdates": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CoordinationUpdate"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "CoordinationUpdates"
       },
       "CredentialCreate": {
         "properties": {
@@ -13533,6 +13758,104 @@
         ],
         "title": "Operation"
       },
+      "Participation": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "runId": {
+            "type": "string",
+            "title": "Runid"
+          },
+          "itemId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Itemid"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "contexts": {
+            "items": {
+              "$ref": "#/components/schemas/ParticipationRepository"
+            },
+            "type": "array",
+            "title": "Contexts"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "lastSeenAt": {
+            "type": "string",
+            "title": "Lastseenat"
+          },
+          "releasedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Releasedat"
+          },
+          "releaseReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Releasereason"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale"
+          },
+          "run": {
+            "$ref": "#/components/schemas/AgentRun"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "runId",
+          "itemId",
+          "description",
+          "contexts",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "lastSeenAt",
+          "releasedAt",
+          "releaseReason",
+          "stale",
+          "run"
+        ],
+        "title": "Participation",
+        "description": "What a run reports working on: a work item or none, and the repositories it works in."
+      },
       "ParticipationContext": {
         "properties": {
           "repositoryId": {
@@ -13615,6 +13938,46 @@
         ],
         "title": "ParticipationCreate"
       },
+      "ParticipationRepository": {
+        "properties": {
+          "repositoryId": {
+            "type": "string",
+            "title": "Repositoryid"
+          },
+          "repositoryName": {
+            "type": "string",
+            "title": "Repositoryname"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "checkoutPath": {
+            "type": "string",
+            "title": "Checkoutpath"
+          },
+          "worktreePath": {
+            "type": "string",
+            "title": "Worktreepath"
+          },
+          "branch": {
+            "type": "string",
+            "title": "Branch"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "repositoryId",
+          "repositoryName",
+          "archived",
+          "checkoutPath",
+          "worktreePath",
+          "branch"
+        ],
+        "title": "ParticipationRepository",
+        "description": "A repository a participation reports working in, and where."
+      },
       "ParticipationUpdate": {
         "properties": {
           "revision": {
@@ -13666,6 +14029,38 @@
           "revision"
         ],
         "title": "ParticipationUpdate"
+      },
+      "Participations": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Participation"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Participations"
       },
       "People": {
         "properties": {
