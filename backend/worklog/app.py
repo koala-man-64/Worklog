@@ -22,7 +22,6 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from starlette.background import BackgroundTask
 
 from . import __version__, operations, policy, support
 from . import models as m
@@ -99,6 +98,17 @@ async def bounded_body(request: Request, maximum: int) -> bytes:
     """A body the guard leaves to its route (guard.STREAMED, and the bootstrap), read as the guard reads
     JSON, to the route's own limit. A client that leaves before it arrives is answered nothing."""
     return await read_body(request.receive, request.headers, maximum)
+
+
+class TemporaryFileResponse(FileResponse):
+    """A file response that removes its file once sent, or once sending stops part way, as when
+    `stop` cuts a download short after its grace period (from the review of step 4.2)."""
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        try:
+            await super().__call__(scope, receive, send)
+        finally:
+            Path(self.path).unlink(missing_ok=True)
 
 
 def person_only(request: Request) -> None:
@@ -783,9 +793,8 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         except BaseException:
             archive.unlink(missing_ok=True)
             raise
-        return FileResponse(archive, media_type="application/zip",
-                            headers={"Content-Disposition": disposition("worklog-export.zip")},
-                            background=BackgroundTask(archive.unlink, missing_ok=True))
+        return TemporaryFileResponse(archive, media_type="application/zip",
+                                     headers={"Content-Disposition": disposition("worklog-export.zip")})
 
     @app.get("/api/v1/people")
     def people_list(archived: bool = False, q: str = "") -> dict:

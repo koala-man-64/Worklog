@@ -4,6 +4,7 @@ Its members and manifest are those it always had: each table's records laid out 
 out a list of them, every member in the manifest with its true size and hash, and each BLOB once.
 The HTTP export is sent from a file, which is removed afterwards, after a failure too."""
 
+import asyncio
 import hashlib
 import io
 import json
@@ -68,6 +69,10 @@ def test_the_records_are_laid_out_as_ever_and_each_member_matches_the_manifest(c
     assert files[same] == SAME
     titles = [record["title"] for record in json.loads(files["records/work_items.json"])]
     assert titles == ["A line separator, \"quotes\" and\na break"]
+    # The Markdown, line by line as ever: a heading per table, then one per record with its fields.
+    markdown = files["worklog.md"].decode("utf-8")
+    assert markdown.startswith("# Worklog export\n\nAll records are in records/*.json. Binary content is in blobs/.\n\n## ")
+    assert f"## work_items\n\n### {titles[0]}\n\n- id: " in markdown
     assert list(scratch.iterdir()) == []
 
 
@@ -76,6 +81,40 @@ def test_the_http_export_is_sent_from_a_file_that_is_then_removed(client, scratc
     assert response.status_code == 200 and response.headers["content-type"] == "application/zip"
     assert response.headers["content-disposition"].startswith('attachment; filename="worklog-export.zip"')
     assert "manifest.json" in members(response.content)
+    assert list(scratch.iterdir()) == []
+
+
+class SendFailed(Exception):
+    """A send that fails part way; an OSError would meet the app's storage handler instead."""
+
+
+@pytest.mark.parametrize("cut", [SendFailed("the client went away"), asyncio.CancelledError()])
+def test_an_export_cut_short_while_it_is_sent_still_removes_its_file(client, scratch, cut):
+    # From the review of step 4.2: `stop` cancels a request still sending after its grace period.
+    read = []
+
+    async def receive():
+        # The request, then, as from a server, nothing until the client goes, which the response
+        # listens for while it sends.
+        if not read:
+            read.append(True)
+            return {"type": "http.request", "body": b"", "more_body": False}
+        await asyncio.Event().wait()
+
+    async def send(message):
+        if message["type"] == "http.response.body":
+            raise cut
+
+    scope = {"type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1", "method": "GET", "scheme": "http",
+             "path": "/api/v1/export", "raw_path": b"/api/v1/export", "root_path": "", "query_string": b"",
+             "headers": [(b"host", b"127.0.0.1:8877"),
+                         (b"cookie", b"worklog_session=" + client.cookies["worklog_session"].encode())],
+             "client": ("127.0.0.1", 50000), "server": ("127.0.0.1", 8877)}
+    # The response's own task group takes a cancellation in, and a failure goes on to the server.
+    try:
+        asyncio.run(client.app(scope, receive, send))
+    except (SendFailed, asyncio.CancelledError):
+        pass
     assert list(scratch.iterdir()) == []
 
 
