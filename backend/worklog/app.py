@@ -805,7 +805,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def person_create(request: Request, body: m.PersonCreate) -> dict:
         return apply(request, "person.create", body.model_dump(), create=True)
 
-    @app.get("/api/v1/people/{identity}")
+    @app.get("/api/v1/people/{identity}", response_model=out.Person)
     def person_detail(identity: str) -> dict:
         return work.people.detail(identity)
 

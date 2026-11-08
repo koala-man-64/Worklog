@@ -531,6 +531,7 @@ Done so far:
 - **Typed responses, first batch.** `responses.py` types the eight reads of one supporting record: a note, task, file reference, link, tracked chat, GitHub reference, question or decision. Each model forbids keys it doesn't name, and takes the kinds its table's CHECK allows. Their golden files are unchanged; `docs/openapi.json` and `generatedApi.ts` now say what each returns.
 - **Typed responses, second batch.** A resource, a release check and a reminder, each with its own history. The golden world now ties its person to a work item, a roadmap and a repository, so each side's lists are pinned with one entry before they are typed.
 - **Typed responses, third batch.** A work item's read, with its supporting records, people, daily entries, full history (`Event`, whose before and after stay any JSON, as compaction may thin them) and the roadmap and step it belongs to. Its GitHub references carry the title of the chat that made each. The golden world now puts its work item on its roadmap's child step, so both are pinned.
+- **Typed responses, fourth batch.** A person's read, with the work items, roadmaps and repositories tied to them, each embedded as its own record (`WorkItemRecord`, `RoadmapRecord`, `Repository`), and a repository's read, with its discussion and people.
 
 #### 5.4 · Frontend layout
 

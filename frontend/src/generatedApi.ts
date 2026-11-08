@@ -3632,6 +3632,48 @@ export interface components {
             /** Contexts */
             contexts?: components["schemas"]["ParticipationContext"][] | null;
         };
+        /**
+         * Person
+         * @description A person with what they are tied to and their history.
+         */
+        Person: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Title */
+            title: string;
+            /** Team */
+            team: string;
+            /** Description */
+            description: string;
+            /** Email */
+            email: string;
+            /** Phone */
+            phone: string;
+            /** Chat */
+            chat: string;
+            /** Location */
+            location: string;
+            /** Notes */
+            notes: string;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Roadmaps */
+            roadmaps: components["schemas"]["PersonRoadmap"][];
+            /** Workitems */
+            workItems: components["schemas"]["PersonWorkItem"][];
+            /** Repositories */
+            repositories: components["schemas"]["PersonRepository"][];
+            /** History */
+            history: components["schemas"]["Event"][];
+        };
         /** PersonCreate */
         PersonCreate: {
             /** Name */
@@ -3706,6 +3748,34 @@ export interface components {
             /** Targetid */
             targetId: string;
         };
+        /** PersonRepository */
+        PersonRepository: {
+            /** Linkid */
+            linkId: string;
+            /** Personid */
+            personId: string;
+            /** Repositoryid */
+            repositoryId: string;
+            /** Relationship */
+            relationship: string;
+            /** Createdat */
+            createdAt: string;
+            repository: components["schemas"]["Repository"];
+        };
+        /** PersonRoadmap */
+        PersonRoadmap: {
+            /** Linkid */
+            linkId: string;
+            /** Personid */
+            personId: string;
+            /** Roadmapid */
+            roadmapId: string;
+            /** Relationship */
+            relationship: string;
+            /** Createdat */
+            createdAt: string;
+            roadmap: components["schemas"]["RoadmapRecord"];
+        };
         /** PersonUpdate */
         PersonUpdate: {
             /** Revision */
@@ -3728,6 +3798,20 @@ export interface components {
             location?: string | null;
             /** Notes */
             notes?: string | null;
+        };
+        /** PersonWorkItem */
+        PersonWorkItem: {
+            /** Linkid */
+            linkId: string;
+            /** Personid */
+            personId: string;
+            /** Itemid */
+            itemId: string;
+            /** Relationship */
+            relationship: string;
+            /** Createdat */
+            createdAt: string;
+            item: components["schemas"]["WorkItemRecord"];
         };
         /** Pin */
         Pin: {
@@ -3864,6 +3948,15 @@ export interface components {
             revision: number;
             /** Text */
             text: string;
+        };
+        /** RegisteredBy */
+        RegisteredBy: {
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string;
+            /** Agentid */
+            agentId: string | null;
         };
         /** ReleaseCheck */
         ReleaseCheck: {
@@ -4107,6 +4200,37 @@ export interface components {
             /** Ids */
             ids: string[];
         };
+        /**
+         * Repository
+         * @description A repository of the catalog, as other records embed it.
+         */
+        Repository: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Url */
+            url: string;
+            /** Remoteidentity */
+            remoteIdentity: string;
+            /** Duplicateof */
+            duplicateOf: string | null;
+            /** Mergedinto */
+            mergedInto: string | null;
+            /** Description */
+            description: string;
+            /** Archived */
+            archived: boolean;
+            registeredBy: components["schemas"]["RegisteredBy"] | null;
+            /** Reviewed */
+            reviewed: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+        };
         /** RepositoryCreate */
         RepositoryCreate: {
             /** Name */
@@ -4121,6 +4245,41 @@ export interface components {
              * @default
              */
             description: string;
+        };
+        /**
+         * RepositoryDetail
+         * @description A repository as its own read returns it: with its discussion (v22) and the people tied to it.
+         */
+        RepositoryDetail: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Url */
+            url: string;
+            /** Remoteidentity */
+            remoteIdentity: string;
+            /** Duplicateof */
+            duplicateOf: string | null;
+            /** Mergedinto */
+            mergedInto: string | null;
+            /** Description */
+            description: string;
+            /** Archived */
+            archived: boolean;
+            registeredBy: components["schemas"]["RegisteredBy"] | null;
+            /** Reviewed */
+            reviewed: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Discussionid */
+            discussionId: string | null;
+            /** People */
+            people: components["schemas"]["RecordPerson"][];
         };
         /**
          * RepositoryEnsure
@@ -4250,6 +4409,26 @@ export interface components {
             revision: number;
             /** Parentid */
             parentId: string | null;
+        };
+        /**
+         * RoadmapRecord
+         * @description A roadmap's own fields, as other records embed it.
+         */
+        RoadmapRecord: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Overview */
+            overview: string;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
         };
         /** RoadmapRevision */
         RoadmapRevision: {
@@ -4612,6 +4791,41 @@ export interface components {
             history: components["schemas"]["Event"][];
             linkedRoadmap: components["schemas"]["LinkedRoadmap"] | null;
             linkedStep: components["schemas"]["LinkedStep"] | null;
+        };
+        /**
+         * WorkItemRecord
+         * @description A work item's own fields, as other records embed it.
+         */
+        WorkItemRecord: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "doing" | "waiting" | "blocked" | "done";
+            /** Adourl */
+            adoUrl: string | null;
+            /** Roadmapid */
+            roadmapId: string | null;
+            /** Stepid */
+            stepId: string | null;
+            /** Backlogorder */
+            backlogOrder: number;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Repositoryids */
+            repositoryIds: string[];
         };
     };
     responses: never;
@@ -7995,9 +8209,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Person"];
                 };
             };
             /** @description Validation Error */
@@ -8353,9 +8565,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["RepositoryDetail"];
                 };
             };
             /** @description Validation Error */

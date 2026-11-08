@@ -5,6 +5,7 @@ from collections.abc import Callable
 from fastapi import FastAPI, Query, Request
 
 from . import coordination_models as m
+from . import responses as out
 from . import support
 from .common import AppError
 from .coordination import (
@@ -43,7 +44,7 @@ def install_coordination_routes(app: FastAPI, db: Database, mutate: Callable) ->
     def repository_resolve(url: str = Query(max_length=2000)) -> dict:
         return read(lambda c: repository_resolution(c, url))
 
-    @app.get("/api/v1/repositories/{identity}")
+    @app.get("/api/v1/repositories/{identity}", response_model=out.RepositoryDetail)
     def repository(identity: str) -> dict:
         # As on a work item or roadmap, the people tied to it come with the record.
         return read(lambda c: {**with_discussion(c, repository_record(_get(c, "repositories", identity))),

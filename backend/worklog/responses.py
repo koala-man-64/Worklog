@@ -307,3 +307,117 @@ class WorkItem(Answer):
     history: list[Event]
     linkedRoadmap: LinkedRoadmap | None
     linkedStep: LinkedStep | None
+
+
+class RegisteredBy(Answer):
+    # repositories.registered_by_kind has no CHECK. A repository with none recorded has no registrant at all.
+    kind: str
+    label: str
+    agentId: str | None
+
+
+class Repository(Answer):
+    """A repository of the catalog, as other records embed it."""
+
+    id: str
+    name: str
+    url: str
+    remoteIdentity: str
+    duplicateOf: str | None
+    mergedInto: str | None
+    description: str
+    archived: bool
+    # Null when no registrant is recorded: coordination.repository_record gives none for an empty kind.
+    registeredBy: RegisteredBy | None
+    reviewed: bool
+    revision: int
+    createdAt: str
+    updatedAt: str
+
+
+class RepositoryDetail(Repository):
+    """A repository as its own read returns it: with its discussion (v22) and the people tied to it."""
+
+    # Null for a repository archived before v22 and not recovered since.
+    discussionId: str | None
+    people: list[RecordPerson]
+
+
+class WorkItemRecord(Answer):
+    """A work item's own fields, as other records embed it."""
+
+    id: str
+    title: str
+    description: str
+    status: Literal["open", "doing", "waiting", "blocked", "done"]
+    adoUrl: str | None
+    roadmapId: str | None
+    stepId: str | None
+    backlogOrder: int
+    archived: bool
+    revision: int
+    createdAt: str
+    updatedAt: str
+    repositoryIds: list[str]
+
+
+class RoadmapRecord(Answer):
+    """A roadmap's own fields, as other records embed it."""
+
+    id: str
+    title: str
+    overview: str
+    archived: bool
+    revision: int
+    createdAt: str
+    updatedAt: str
+
+
+class PersonWorkItem(Answer):
+    linkId: str
+    personId: str
+    itemId: str
+    relationship: str
+    createdAt: str
+    item: WorkItemRecord
+
+
+class PersonRoadmap(Answer):
+    linkId: str
+    personId: str
+    roadmapId: str
+    relationship: str
+    createdAt: str
+    roadmap: RoadmapRecord
+
+
+class PersonRepository(Answer):
+    linkId: str
+    personId: str
+    repositoryId: str
+    relationship: str
+    createdAt: str
+    repository: Repository
+
+
+class Person(Answer):
+    """A person with what they are tied to and their history."""
+
+    id: str
+    name: str
+    title: str
+    team: str
+    description: str
+    email: str
+    phone: str
+    chat: str
+    location: str
+    notes: str
+    archived: bool
+    revision: int
+    createdAt: str
+    updatedAt: str
+    roadmaps: list[PersonRoadmap]
+    workItems: list[PersonWorkItem]
+    repositories: list[PersonRepository]
+    history: list[Event]
