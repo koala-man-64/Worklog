@@ -59,9 +59,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Page View Api V1 Page Views Post"
+                  "$ref": "#/components/schemas/Done"
                 }
               }
             }

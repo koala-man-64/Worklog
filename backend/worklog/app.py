@@ -269,7 +269,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         response.set_cookie("worklog_session", session_id, httponly=True, samesite="strict", max_age=86400)
         return response
 
-    @app.post("/api/v1/page-views")
+    @app.post("/api/v1/page-views", response_model=out.Done)
     def page_view(body: m.PageView) -> dict:
         # The browser counts each sidebar page the person opens, by its name alone (usage.py).
         app.state.usage.record("page", body.page, "person")
