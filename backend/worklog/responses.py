@@ -420,8 +420,8 @@ class PersonRepository(Answer):
     repository: Repository
 
 
-class Person(Answer):
-    """A person with what they are tied to and their history."""
+class PersonRecord(Answer):
+    """A person's own fields, as their commands return them."""
 
     id: str
     name: str
@@ -437,6 +437,11 @@ class Person(Answer):
     revision: int
     createdAt: str
     updatedAt: str
+
+
+class Person(PersonRecord):
+    """A person with what they are tied to and their history."""
+
     roadmaps: list[PersonRoadmap]
     workItems: list[PersonWorkItem]
     repositories: list[PersonRepository]
@@ -581,23 +586,9 @@ class Day(Answer):
     nextItemId: str | None
 
 
-class PersonListed(Answer):
+class PersonListed(PersonRecord):
     """A person as the people list shows them, with how many active records each kind ties them to."""
 
-    id: str
-    name: str
-    title: str
-    team: str
-    description: str
-    email: str
-    phone: str
-    chat: str
-    location: str
-    notes: str
-    archived: bool
-    revision: int
-    createdAt: str
-    updatedAt: str
     workItemCount: int
     roadmapCount: int
     repositoryCount: int
@@ -2160,3 +2151,63 @@ class TaskPlace(Answer):
 
     id: str
     position: int
+
+
+class Done(Answer):
+    """A command that changed what it was asked to, or found nothing to change, and names nothing back."""
+
+    ok: Literal[True]
+
+
+class RankResult(Answer):
+    """A work item's stack rank after a move, 1 first, among how many ranked items."""
+
+    id: str
+    rank: int
+    rankedCount: int
+
+
+class DayReflection(Answer):
+    date: str
+    reflection: str
+    # The reflection's own revision (v21), which its next save checks.
+    revision: int
+
+
+class SavedRoadmap(PlanRoadmap):
+    """A roadmap as its commands return it: its steps, retired ones included, and versions. The
+    supporting lists are always empty here; its read fills them."""
+
+    steps: list[PlanStep]
+    versions: list[RoadmapVersion]
+    notes: list[Note]
+    attachments: list[Attachment]
+    links: list[WebLink]
+    chats: list[TrackedChat]
+    github: list[ListedGithubReference]
+    questions: list[Question]
+    decisions: list[Decision]
+    history: list[Event]
+
+
+class SavedStep(PlanStep):
+    """A step as its update returns it, with its roadmap."""
+
+    roadmapId: str
+
+
+class PersonTie(RecordPerson):
+    """A person's tie to a work item, roadmap or repository, as setting it returns it."""
+
+    targetType: Literal["item", "roadmap", "repository"]
+    targetId: str
+
+
+class PersonUntied(Answer):
+    """The tie a person no longer has."""
+
+    ok: Literal[True]
+    id: str
+    personId: str
+    targetType: Literal["item", "roadmap", "repository"]
+    targetId: str
