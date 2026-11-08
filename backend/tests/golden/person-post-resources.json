@@ -1,0 +1,13 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "title": "Style",
+    "summary": "How we write",
+    "archived": false,
+    "revision": 1,
+    "createdAt": "<time>",
+    "updatedAt": "<time>",
+    "body": "Plain words"
+  }
+}

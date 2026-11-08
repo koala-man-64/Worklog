@@ -1,0 +1,47 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "discussionId": "<id2>",
+    "text": "Confirm the table plan",
+    "authorId": "local-user",
+    "authorLabel": "You",
+    "authorKind": "human",
+    "createdAt": "<time>",
+    "chatId": null,
+    "onBehalfOfRoleId": null,
+    "ownershipGeneration": null,
+    "request": {
+      "id": "<id1>",
+      "mode": "all",
+      "state": "pending",
+      "targets": [
+        {
+          "id": "<id3>",
+          "kind": "agent",
+          "recipientId": "<id4>",
+          "label": "Builder",
+          "ownerId": null,
+          "ownershipGeneration": null,
+          "acknowledged": false,
+          "acknowledgedBy": null
+        }
+      ],
+      "receipts": [],
+      "actionableTargetIds": [],
+      "canCancel": true,
+      "canRelease": true,
+      "classifications": [
+        "personal",
+        "managed"
+      ],
+      "reason": null,
+      "terminalAt": null,
+      "terminalActorId": null,
+      "terminalActorLabel": null,
+      "terminalActorKind": null,
+      "authorityRoleId": null,
+      "authorityGeneration": null
+    }
+  }
+}

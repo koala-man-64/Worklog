@@ -1,0 +1,14 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "title": "1.0",
+    "description": "",
+    "releaseDate": "2026-12-01",
+    "status": "planned",
+    "archived": false,
+    "revision": 1,
+    "createdAt": "<time>",
+    "updatedAt": "<time>"
+  }
+}

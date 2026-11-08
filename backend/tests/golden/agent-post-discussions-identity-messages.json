@@ -1,0 +1,16 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "discussionId": "<id2>",
+    "text": "Starting with the tables",
+    "authorId": "<id3>",
+    "authorLabel": "Builder",
+    "authorKind": "agent",
+    "createdAt": "<time>",
+    "chatId": "chat-1",
+    "onBehalfOfRoleId": null,
+    "ownershipGeneration": null,
+    "request": null
+  }
+}

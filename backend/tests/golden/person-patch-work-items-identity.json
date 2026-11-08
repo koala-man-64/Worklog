@@ -1,0 +1,18 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "title": "Parser",
+    "description": "Parse the plan",
+    "status": "doing",
+    "adoUrl": null,
+    "roadmapId": null,
+    "stepId": null,
+    "backlogOrder": 1,
+    "archived": false,
+    "revision": 2,
+    "createdAt": "<time>",
+    "updatedAt": "<time>",
+    "repositoryIds": []
+  }
+}

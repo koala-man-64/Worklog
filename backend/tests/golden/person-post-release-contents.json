@@ -1,0 +1,10 @@
+{
+  "status": 200,
+  "body": {
+    "releaseId": "<id1>",
+    "targetType": "item",
+    "targetId": "<id2>",
+    "createdAt": "<time>",
+    "changed": true
+  }
+}

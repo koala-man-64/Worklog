@@ -1,0 +1,15 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "ticketId": "<id2>",
+    "text": "Seen it",
+    "createdAt": "<time>",
+    "author": {
+      "id": "<id3>",
+      "label": "Builder",
+      "kind": "agent",
+      "avatar": "red-dots-antenna"
+    }
+  }
+}
