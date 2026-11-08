@@ -99,6 +99,10 @@ class World:
                                                                        "steps": [{"id": parent, "title": "Parent"},
                                                                                  {"id": child, "title": "Child",
                                                                                   "parentId": parent}]})
+        # The work item belongs to the roadmap's child step, so both sides show the link.
+        current = self.write(p, "GET", f"/work-items/{item['id']}")
+        self.write(p, "PATCH", f"/work-items/{item['id']}", {"revision": current["revision"], "roadmapId": roadmap["id"],
+                                                             "stepId": child})
         ids["question"] = self.write(p, "POST", "/questions", {"roadmapId": roadmap["id"], "title": "Which parser?"})["id"]
         ids["decision"] = self.write(p, "POST", "/decisions", {"roadmapId": roadmap["id"], "title": "Use the HTML one",
                                                                "decidedDate": "2026-01-05"})["id"]

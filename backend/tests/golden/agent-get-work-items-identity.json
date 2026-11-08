@@ -6,11 +6,11 @@
     "description": "Parse the plan",
     "status": "doing",
     "adoUrl": null,
-    "roadmapId": null,
-    "stepId": null,
+    "roadmapId": "<id2>",
+    "stepId": "<id3>",
     "backlogOrder": 1,
     "archived": false,
-    "revision": 2,
+    "revision": 3,
     "createdAt": "<time>",
     "updatedAt": "<time>",
     "rank": 1,
@@ -18,7 +18,7 @@
     "repositoryIds": [],
     "notes": [
       {
-        "id": "<id2>",
+        "id": "<id4>",
         "ownerType": "item",
         "ownerId": "<id1>",
         "title": "Scratch",
@@ -31,7 +31,7 @@
     ],
     "attachments": [
       {
-        "id": "<id3>",
+        "id": "<id5>",
         "ownerType": "item",
         "ownerId": "<id1>",
         "name": "a.txt",
@@ -45,7 +45,7 @@
     ],
     "links": [
       {
-        "id": "<id4>",
+        "id": "<id6>",
         "ownerType": "item",
         "ownerId": "<id1>",
         "url": "https://example.com/spec",
@@ -59,7 +59,7 @@
     ],
     "chats": [
       {
-        "id": "<id5>",
+        "id": "<id7>",
         "ownerType": "item",
         "ownerId": "<id1>",
         "chatId": "chat-1",
@@ -78,7 +78,7 @@
     ],
     "github": [
       {
-        "id": "<id6>",
+        "id": "<id8>",
         "ownerType": "item",
         "ownerId": "<id1>",
         "kind": "pr",
@@ -96,7 +96,7 @@
     ],
     "tasks": [
       {
-        "id": "<id7>",
+        "id": "<id9>",
         "itemId": "<id1>",
         "text": "Write the tests",
         "done": false,
@@ -108,7 +108,7 @@
     ],
     "references": [
       {
-        "id": "<id8>",
+        "id": "<id10>",
         "itemId": "<id1>",
         "path": "C:/work/spec.md",
         "archived": false,
@@ -118,8 +118,8 @@
     ],
     "people": [
       {
-        "id": "<id9>",
-        "personId": "<id10>",
+        "id": "<id11>",
+        "personId": "<id12>",
         "name": "Ada",
         "personTitle": "Engineer",
         "personTeam": "",
@@ -130,7 +130,7 @@
     ],
     "dailyEntries": [
       {
-        "id": "<id11>",
+        "id": "<id13>",
         "itemId": "<id1>",
         "date": "<today>",
         "planned": true,
@@ -142,7 +142,7 @@
     ],
     "history": [
       {
-        "id": "<id12>",
+        "id": "<id14>",
         "entityId": "<id1>",
         "kind": "person.link",
         "actorId": "local-user",
@@ -152,8 +152,8 @@
         "localDate": "<today>",
         "before": null,
         "after": {
-          "id": "<id9>",
-          "personId": "<id10>",
+          "id": "<id11>",
+          "personId": "<id12>",
           "name": "Ada",
           "personTitle": "Engineer",
           "personTeam": "",
@@ -165,7 +165,48 @@
         }
       },
       {
-        "id": "<id13>",
+        "id": "<id15>",
+        "entityId": "<id1>",
+        "kind": "item.update",
+        "actorId": "local-user",
+        "actorLabel": "You",
+        "actorKind": "human",
+        "createdAt": "<time>",
+        "localDate": "<today>",
+        "before": {
+          "id": "<id1>",
+          "title": "Parser",
+          "description": "Parse the plan",
+          "status": "doing",
+          "adoUrl": null,
+          "roadmapId": null,
+          "stepId": null,
+          "backlogOrder": 1,
+          "archived": false,
+          "revision": 2,
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "repositoryIds": []
+        },
+        "after": {
+          "id": "<id1>",
+          "title": "Parser",
+          "description": "Parse the plan",
+          "status": "doing",
+          "adoUrl": null,
+          "roadmapId": "<id2>",
+          "stepId": "<id3>",
+          "backlogOrder": 1,
+          "archived": false,
+          "revision": 3,
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "repositoryIds": [],
+          "_statusChanged": false
+        }
+      },
+      {
+        "id": "<id16>",
         "entityId": "<id1>",
         "kind": "entry.upsert",
         "actorId": "local-user",
@@ -175,7 +216,7 @@
         "localDate": "<today>",
         "before": null,
         "after": {
-          "id": "<id11>",
+          "id": "<id13>",
           "date": "<today>",
           "itemId": "<id1>",
           "planned": true,
@@ -186,7 +227,7 @@
         }
       },
       {
-        "id": "<id14>",
+        "id": "<id17>",
         "entityId": "<id1>",
         "kind": "item.update",
         "actorId": "local-user",
@@ -227,7 +268,7 @@
         }
       },
       {
-        "id": "<id15>",
+        "id": "<id18>",
         "entityId": "<id1>",
         "kind": "item.create",
         "actorId": "local-user",
@@ -254,7 +295,17 @@
         }
       }
     ],
-    "linkedRoadmap": null,
-    "linkedStep": null
+    "linkedRoadmap": {
+      "id": "<id2>",
+      "title": "Plan 2",
+      "archived": false
+    },
+    "linkedStep": {
+      "id": "<id3>",
+      "title": "Child",
+      "roadmapId": "<id2>",
+      "roadmapTitle": "Plan 2",
+      "retired": false
+    }
   }
 }

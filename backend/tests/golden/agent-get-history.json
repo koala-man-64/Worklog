@@ -28,6 +28,47 @@
       {
         "id": "<id5>",
         "entityId": "<id2>",
+        "kind": "item.update",
+        "actorId": "local-user",
+        "actorLabel": "You",
+        "actorKind": "human",
+        "createdAt": "<time>",
+        "localDate": "<today>",
+        "before": {
+          "id": "<id2>",
+          "title": "Parser",
+          "description": "Parse the plan",
+          "status": "doing",
+          "adoUrl": null,
+          "roadmapId": null,
+          "stepId": null,
+          "backlogOrder": 1,
+          "archived": false,
+          "revision": 2,
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "repositoryIds": []
+        },
+        "after": {
+          "id": "<id2>",
+          "title": "Parser",
+          "description": "Parse the plan",
+          "status": "doing",
+          "adoUrl": null,
+          "roadmapId": "<id6>",
+          "stepId": "<id7>",
+          "backlogOrder": 1,
+          "archived": false,
+          "revision": 3,
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "repositoryIds": [],
+          "_statusChanged": false
+        }
+      },
+      {
+        "id": "<id8>",
+        "entityId": "<id2>",
         "kind": "entry.upsert",
         "actorId": "local-user",
         "actorLabel": "You",
@@ -36,7 +77,7 @@
         "localDate": "<today>",
         "before": null,
         "after": {
-          "id": "<id6>",
+          "id": "<id9>",
           "date": "<today>",
           "itemId": "<id2>",
           "planned": true,
@@ -47,7 +88,7 @@
         }
       },
       {
-        "id": "<id7>",
+        "id": "<id10>",
         "entityId": "<id2>",
         "kind": "item.update",
         "actorId": "local-user",
@@ -88,7 +129,7 @@
         }
       },
       {
-        "id": "<id8>",
+        "id": "<id11>",
         "entityId": "<id2>",
         "kind": "item.create",
         "actorId": "local-user",
