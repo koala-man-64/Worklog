@@ -4730,9 +4730,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Person Detail Api V1 People  Identity  Get"
+                  "$ref": "#/components/schemas/Person"
                 }
               }
             }
@@ -5235,9 +5233,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Repository Api V1 Repositories  Identity  Get"
+                  "$ref": "#/components/schemas/RepositoryDetail"
                 }
               }
             }
@@ -12776,6 +12772,118 @@
         ],
         "title": "ParticipationUpdate"
       },
+      "Person": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "team": {
+            "type": "string",
+            "title": "Team"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "chat": {
+            "type": "string",
+            "title": "Chat"
+          },
+          "location": {
+            "type": "string",
+            "title": "Location"
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "roadmaps": {
+            "items": {
+              "$ref": "#/components/schemas/PersonRoadmap"
+            },
+            "type": "array",
+            "title": "Roadmaps"
+          },
+          "workItems": {
+            "items": {
+              "$ref": "#/components/schemas/PersonWorkItem"
+            },
+            "type": "array",
+            "title": "Workitems"
+          },
+          "repositories": {
+            "items": {
+              "$ref": "#/components/schemas/PersonRepository"
+            },
+            "type": "array",
+            "title": "Repositories"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            },
+            "type": "array",
+            "title": "History"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "title",
+          "team",
+          "description",
+          "email",
+          "phone",
+          "chat",
+          "location",
+          "notes",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "roadmaps",
+          "workItems",
+          "repositories",
+          "history"
+        ],
+        "title": "Person",
+        "description": "A person with what they are tied to and their history."
+      },
       "PersonCreate": {
         "properties": {
           "name": {
@@ -12893,6 +13001,82 @@
         ],
         "title": "PersonLinkRemove"
       },
+      "PersonRepository": {
+        "properties": {
+          "linkId": {
+            "type": "string",
+            "title": "Linkid"
+          },
+          "personId": {
+            "type": "string",
+            "title": "Personid"
+          },
+          "repositoryId": {
+            "type": "string",
+            "title": "Repositoryid"
+          },
+          "relationship": {
+            "type": "string",
+            "title": "Relationship"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "repository": {
+            "$ref": "#/components/schemas/Repository"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "linkId",
+          "personId",
+          "repositoryId",
+          "relationship",
+          "createdAt",
+          "repository"
+        ],
+        "title": "PersonRepository"
+      },
+      "PersonRoadmap": {
+        "properties": {
+          "linkId": {
+            "type": "string",
+            "title": "Linkid"
+          },
+          "personId": {
+            "type": "string",
+            "title": "Personid"
+          },
+          "roadmapId": {
+            "type": "string",
+            "title": "Roadmapid"
+          },
+          "relationship": {
+            "type": "string",
+            "title": "Relationship"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "roadmap": {
+            "$ref": "#/components/schemas/RoadmapRecord"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "linkId",
+          "personId",
+          "roadmapId",
+          "relationship",
+          "createdAt",
+          "roadmap"
+        ],
+        "title": "PersonRoadmap"
+      },
       "PersonUpdate": {
         "properties": {
           "revision": {
@@ -13006,6 +13190,44 @@
           "revision"
         ],
         "title": "PersonUpdate"
+      },
+      "PersonWorkItem": {
+        "properties": {
+          "linkId": {
+            "type": "string",
+            "title": "Linkid"
+          },
+          "personId": {
+            "type": "string",
+            "title": "Personid"
+          },
+          "itemId": {
+            "type": "string",
+            "title": "Itemid"
+          },
+          "relationship": {
+            "type": "string",
+            "title": "Relationship"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "item": {
+            "$ref": "#/components/schemas/WorkItemRecord"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "linkId",
+          "personId",
+          "itemId",
+          "relationship",
+          "createdAt",
+          "item"
+        ],
+        "title": "PersonWorkItem"
       },
       "Pin": {
         "properties": {
@@ -13401,6 +13623,37 @@
           "text"
         ],
         "title": "Reflection"
+      },
+      "RegisteredBy": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "agentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agentid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "label",
+          "agentId"
+        ],
+        "title": "RegisteredBy"
       },
       "ReleaseCheck": {
         "properties": {
@@ -14215,6 +14468,101 @@
         ],
         "title": "Reorder"
       },
+      "Repository": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "remoteIdentity": {
+            "type": "string",
+            "title": "Remoteidentity"
+          },
+          "duplicateOf": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duplicateof"
+          },
+          "mergedInto": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mergedinto"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "registeredBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RegisteredBy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reviewed": {
+            "type": "boolean",
+            "title": "Reviewed"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "url",
+          "remoteIdentity",
+          "duplicateOf",
+          "mergedInto",
+          "description",
+          "archived",
+          "registeredBy",
+          "reviewed",
+          "revision",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "Repository",
+        "description": "A repository of the catalog, as other records embed it."
+      },
       "RepositoryCreate": {
         "properties": {
           "name": {
@@ -14238,6 +14586,121 @@
           "name"
         ],
         "title": "RepositoryCreate"
+      },
+      "RepositoryDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "remoteIdentity": {
+            "type": "string",
+            "title": "Remoteidentity"
+          },
+          "duplicateOf": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duplicateof"
+          },
+          "mergedInto": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mergedinto"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "registeredBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RegisteredBy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reviewed": {
+            "type": "boolean",
+            "title": "Reviewed"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "discussionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discussionid"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/RecordPerson"
+            },
+            "type": "array",
+            "title": "People"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "url",
+          "remoteIdentity",
+          "duplicateOf",
+          "mergedInto",
+          "description",
+          "archived",
+          "registeredBy",
+          "reviewed",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "discussionId",
+          "people"
+        ],
+        "title": "RepositoryDetail",
+        "description": "A repository as its own read returns it: with its discussion (v22) and the people tied to it."
       },
       "RepositoryEnsure": {
         "properties": {
@@ -14590,6 +15053,51 @@
           "parentId"
         ],
         "title": "RoadmapMove"
+      },
+      "RoadmapRecord": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "overview": {
+            "type": "string",
+            "title": "Overview"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "overview",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "RoadmapRecord",
+        "description": "A roadmap's own fields, as other records embed it."
       },
       "RoadmapRevision": {
         "properties": {
@@ -15695,6 +16203,112 @@
         ],
         "title": "WorkItem",
         "description": "A work item with everything its page shows."
+      },
+      "WorkItemRecord": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "doing",
+              "waiting",
+              "blocked",
+              "done"
+            ],
+            "title": "Status"
+          },
+          "adoUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adourl"
+          },
+          "roadmapId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roadmapid"
+          },
+          "stepId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stepid"
+          },
+          "backlogOrder": {
+            "type": "integer",
+            "title": "Backlogorder"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "repositoryIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Repositoryids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "description",
+          "status",
+          "adoUrl",
+          "roadmapId",
+          "stepId",
+          "backlogOrder",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "repositoryIds"
+        ],
+        "title": "WorkItemRecord",
+        "description": "A work item's own fields, as other records embed it."
       }
     }
   }
