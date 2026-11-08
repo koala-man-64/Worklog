@@ -38,22 +38,22 @@ def install_ticket_routes(app: FastAPI, db: Database, mutate: Callable) -> None:
     def ticket(ref: str, comments: int = Query(200, ge=1, le=1000)) -> dict:
         return read(lambda c: service.detail(c, ref, comments))
 
-    @app.post("/api/v1/tickets")
+    @app.post("/api/v1/tickets", response_model=out.TicketListed)
     def ticket_create(request: Request, body: m.TicketCreate) -> dict:
         p = body.model_dump()
         return write(request, p, lambda c, a: service.create(c, a, p))
 
-    @app.patch("/api/v1/tickets/{ref}")
+    @app.patch("/api/v1/tickets/{ref}", response_model=out.TicketListed)
     def ticket_update(ref: str, request: Request, body: m.TicketUpdate) -> dict:
         p = body.model_dump(exclude_unset=True)
         return write(request, p, lambda c, a: service.update(c, a, ref, p), required_key=False)
 
-    @app.post("/api/v1/tickets/{ref}/comments")
+    @app.post("/api/v1/tickets/{ref}/comments", response_model=out.TicketComment)
     def ticket_comment(ref: str, request: Request, body: m.TicketCommentCreate) -> dict:
         p = body.model_dump()
         return write(request, p, lambda c, a: service.comment(c, a, ref, p))
 
-    @app.post("/api/v1/tickets/{ref}/{verb}")
+    @app.post("/api/v1/tickets/{ref}/{verb}", response_model=out.TicketListed)
     def ticket_archive(ref: str, verb: str, request: Request, body: m.Expected) -> dict:
         if verb not in {"archive", "recover"}:
             raise AppError(404, "not_found", "Unknown ticket command")

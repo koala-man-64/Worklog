@@ -38,17 +38,17 @@ def install_reminder_routes(app: FastAPI, db: Database, mutate: Callable) -> Non
     def reminder(identity: str) -> dict:
         return read(lambda c: service.detail(c, identity))
 
-    @app.post("/api/v1/reminders")
+    @app.post("/api/v1/reminders", response_model=out.ReminderRecord)
     def reminder_create(request: Request, body: m.ReminderCreate) -> dict:
         p = body.model_dump()
         return write(request, p, lambda c, a: service.create(c, a, p), required_key=True)
 
-    @app.patch("/api/v1/reminders/{identity}")
+    @app.patch("/api/v1/reminders/{identity}", response_model=out.ReminderRecord)
     def reminder_update(identity: str, request: Request, body: m.ReminderUpdate) -> dict:
         p = body.model_dump(exclude_unset=True)
         return write(request, p, lambda c, a: service.update(c, a, identity, p))
 
-    @app.post("/api/v1/reminders/{identity}/{verb}")
+    @app.post("/api/v1/reminders/{identity}/{verb}", response_model=out.ReminderRecord)
     def reminder_archive(identity: str, verb: str, request: Request, body: m.Expected) -> dict:
         if verb not in {"archive", "recover"}:
             raise AppError(404, "not_found", "Unknown reminder command")

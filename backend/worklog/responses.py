@@ -148,12 +148,19 @@ class ResourceListed(Answer):
     updatedAt: str
 
 
-class Resource(ResourceListed):
+class ResourcePage(ResourceListed):
+    """A resource with its page's text, as its commands return it."""
+
     body: str
+
+
+class Resource(ResourcePage):
     history: list[Change]
 
 
-class ReleaseCheck(Answer):
+class ReleaseCheckRecord(Answer):
+    """A release check as its commands return it, with the person it names."""
+
     id: str
     releaseId: str
     kind: Literal["notify", "test", "prepare"]
@@ -168,6 +175,9 @@ class ReleaseCheck(Answer):
     updatedAt: str
     personName: str | None
     personArchived: bool
+
+
+class ReleaseCheck(ReleaseCheckRecord):
     pastDue: bool
 
 
@@ -208,10 +218,15 @@ class ReminderListed(Answer):
     doneAt: str | None
 
 
-class Reminder(ReminderListed):
-    """A reminder with its notes and history, as its own read returns it."""
+class ReminderRecord(ReminderListed):
+    """A reminder with its notes, as its commands return it."""
 
     notes: str
+
+
+class Reminder(ReminderRecord):
+    """A reminder with its notes and history, as its own read returns it."""
+
     history: list[Change]
 
 
@@ -837,8 +852,8 @@ class RoadmapSnapshot(RoadmapVersion):
     steps: list[PlanStep]
 
 
-class ReleaseRecord(Answer):
-    """A release's own fields, as each read of it gives them."""
+class ReleaseFields(Answer):
+    """A release's own fields, as its commands return them."""
 
     id: str
     title: str
@@ -850,6 +865,11 @@ class ReleaseRecord(Answer):
     revision: int
     createdAt: str
     updatedAt: str
+
+
+class ReleaseRecord(ReleaseFields):
+    """A release's own fields, as each read of it gives them."""
+
     # Planned, with its date passed.
     pastDue: bool
 
@@ -2211,3 +2231,31 @@ class PersonUntied(Answer):
     personId: str
     targetType: Literal["item", "roadmap", "repository"]
     targetId: str
+
+
+class ReleaseHolding(Answer):
+    """A record a release holds, as holding it returns it."""
+
+    releaseId: str
+    targetType: Literal["item", "roadmap", "step", "github"]
+    targetId: str
+    createdAt: str
+    # False when the release held it already, and nothing was written.
+    changed: bool
+
+
+class ReleaseUnheld(Answer):
+    """A record a release no longer holds."""
+
+    releaseId: str
+    targetType: Literal["item", "roadmap", "step", "github"]
+    targetId: str
+    # False when the release held no such record.
+    changed: bool
+
+
+class EnsuredRepository(DiscussedRepository):
+    """A repository as registering its address returns it: the record that holds it, new or not."""
+
+    # False when a record already held the address.
+    created: bool

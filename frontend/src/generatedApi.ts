@@ -4498,6 +4498,41 @@ export interface components {
         };
         /** Empty */
         Empty: Record<string, never>;
+        /**
+         * EnsuredRepository
+         * @description A repository as registering its address returns it: the record that holds it, new or not.
+         */
+        EnsuredRepository: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Url */
+            url: string;
+            /** Remoteidentity */
+            remoteIdentity: string;
+            /** Duplicateof */
+            duplicateOf: string | null;
+            /** Mergedinto */
+            mergedInto: string | null;
+            /** Description */
+            description: string;
+            /** Archived */
+            archived: boolean;
+            registeredBy: components["schemas"]["RegisteredBy"] | null;
+            /** Reviewed */
+            reviewed: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Discussionid */
+            discussionId: string | null;
+            /** Created */
+            created: boolean;
+        };
         /** EntryUpdate */
         EntryUpdate: {
             /** Revision */
@@ -6089,6 +6124,46 @@ export interface components {
              */
             status: "open" | "doing" | "waiting" | "blocked" | "done";
         };
+        /**
+         * ReleaseCheckRecord
+         * @description A release check as its commands return it, with the person it names.
+         */
+        ReleaseCheckRecord: {
+            /** Id */
+            id: string;
+            /** Releaseid */
+            releaseId: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "notify" | "test" | "prepare";
+            /** Text */
+            text: string;
+            /** Details */
+            details: string;
+            /** Personid */
+            personId: string | null;
+            /** Duedate */
+            dueDate: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "doing" | "waiting" | "blocked" | "done";
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Personname */
+            personName: string | null;
+            /** Personarchived */
+            personArchived: boolean;
+        };
         /** ReleaseCheckUpdate */
         ReleaseCheckUpdate: {
             /** Revision */
@@ -6179,6 +6254,33 @@ export interface components {
             status: "planned" | "released" | "cancelled";
         };
         /**
+         * ReleaseFields
+         * @description A release's own fields, as its commands return them.
+         */
+        ReleaseFields: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /** Releasedate */
+            releaseDate: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "planned" | "released" | "cancelled";
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+        };
+        /**
          * ReleaseHistoryEntry
          * @description A change to a release or one of its checks, which entityId names, without its records:
          *     /history has those.
@@ -6198,6 +6300,25 @@ export interface components {
             actorKind: string;
             /** Createdat */
             createdAt: string;
+        };
+        /**
+         * ReleaseHolding
+         * @description A record a release holds, as holding it returns it.
+         */
+        ReleaseHolding: {
+            /** Releaseid */
+            releaseId: string;
+            /**
+             * Targettype
+             * @enum {string}
+             */
+            targetType: "item" | "roadmap" | "step" | "github";
+            /** Targetid */
+            targetId: string;
+            /** Createdat */
+            createdAt: string;
+            /** Changed */
+            changed: boolean;
         };
         /**
          * ReleaseItem
@@ -6289,6 +6410,23 @@ export interface components {
             roadmapArchived: boolean;
             /** Addedat */
             addedAt: string;
+        };
+        /**
+         * ReleaseUnheld
+         * @description A record a release no longer holds.
+         */
+        ReleaseUnheld: {
+            /** Releaseid */
+            releaseId: string;
+            /**
+             * Targettype
+             * @enum {string}
+             */
+            targetType: "item" | "roadmap" | "step" | "github";
+            /** Targetid */
+            targetId: string;
+            /** Changed */
+            changed: boolean;
         };
         /** ReleaseUpdate */
         ReleaseUpdate: {
@@ -6405,6 +6543,43 @@ export interface components {
             updatedAt: string;
             /** Doneat */
             doneAt: string | null;
+        };
+        /**
+         * ReminderRecord
+         * @description A reminder with its notes, as its commands return it.
+         */
+        ReminderRecord: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Date */
+            date: string;
+            /** Time */
+            time: string | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "open" | "done";
+            /** Due */
+            due: boolean;
+            /** Overdue */
+            overdue: boolean;
+            target: components["schemas"]["ReminderTarget"] | null;
+            author: components["schemas"]["Author"];
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Doneat */
+            doneAt: string | null;
+            /** Notes */
+            notes: string;
         };
         /** ReminderTarget */
         ReminderTarget: {
@@ -6702,6 +6877,28 @@ export interface components {
             createdAt: string;
             /** Updatedat */
             updatedAt: string;
+        };
+        /**
+         * ResourcePage
+         * @description A resource with its page's text, as its commands return it.
+         */
+        ResourcePage: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Summary */
+            summary: string;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Body */
+            body: string;
         };
         /** ResourceUpdate */
         ResourceUpdate: {
@@ -11905,9 +12102,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["EnsuredRepository"];
                 };
             };
             /** @description Validation Error */
@@ -12004,9 +12199,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DiscussedRepository"];
                 };
             };
             /** @description Validation Error */
@@ -12039,9 +12232,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["EnsuredRepository"];
                 };
             };
             /** @description Validation Error */
@@ -12076,9 +12267,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DiscussedRepository"];
                 };
             };
             /** @description Validation Error */
@@ -12113,9 +12302,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DiscussedRepository"];
                 };
             };
             /** @description Validation Error */
@@ -12151,9 +12338,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DiscussedRepository"];
                 };
             };
             /** @description Validation Error */
@@ -13007,9 +13192,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["TicketListed"];
                 };
             };
             /** @description Validation Error */
@@ -13077,9 +13260,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["TicketListed"];
                 };
             };
             /** @description Validation Error */
@@ -13114,9 +13295,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["TicketComment"];
                 };
             };
             /** @description Validation Error */
@@ -13152,9 +13331,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["TicketListed"];
                 };
             };
             /** @description Validation Error */
@@ -13324,9 +13501,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ResourcePage"];
                 };
             };
             /** @description Validation Error */
@@ -13392,9 +13567,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ResourcePage"];
                 };
             };
             /** @description Validation Error */
@@ -13430,9 +13603,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ResourcePage"];
                 };
             };
             /** @description Validation Error */
@@ -13504,9 +13675,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ReleaseFields"];
                 };
             };
             /** @description Validation Error */
@@ -13572,9 +13741,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ReleaseFields"];
                 };
             };
             /** @description Validation Error */
@@ -13609,9 +13776,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ReleaseFields"];
                 };
             };
             /** @description Validation Error */
@@ -13646,9 +13811,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ReleaseFields"];
                 };
             };
             /** @description Validation Error */
@@ -13681,9 +13844,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ReleaseHolding"];
                 };
             };
             /** @description Validation Error */
@@ -13716,9 +13877,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ReleaseUnheld"];
                 };
             };
             /** @description Validation Error */
@@ -13751,9 +13910,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ReleaseCheckRecord"];
                 };
             };
             /** @description Validation Error */
@@ -13819,9 +13976,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ReleaseCheckRecord"];
                 };
             };
             /** @description Validation Error */
@@ -13856,9 +14011,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ReleaseCheckRecord"];
                 };
             };
             /** @description Validation Error */
@@ -13893,9 +14046,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ReleaseCheckRecord"];
                 };
             };
             /** @description Validation Error */
@@ -13969,9 +14120,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ReminderRecord"];
                 };
             };
             /** @description Validation Error */
@@ -14037,9 +14186,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ReminderRecord"];
                 };
             };
             /** @description Validation Error */
@@ -14075,9 +14222,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ReminderRecord"];
                 };
             };
             /** @description Validation Error */

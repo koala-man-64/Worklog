@@ -29,7 +29,7 @@ def install_release_routes(app: FastAPI, db: Database, apply: Callable) -> None:
         return read(lambda c: service.list(c, status=status, archived=archived, q=q, target_type=targetType,
                                            target_id=targetId, limit=limit, offset=offset))
 
-    @app.post("/api/v1/releases")
+    @app.post("/api/v1/releases", response_model=out.ReleaseFields)
     def release_create(request: Request, body: m.ReleaseCreate) -> dict:
         return apply(request, "release.create", body.model_dump(), create=True)
 
@@ -37,27 +37,27 @@ def install_release_routes(app: FastAPI, db: Database, apply: Callable) -> None:
     def release(identity: str) -> dict:
         return read(lambda c: service.detail(c, identity))
 
-    @app.patch("/api/v1/releases/{identity}")
+    @app.patch("/api/v1/releases/{identity}", response_model=out.ReleaseFields)
     def release_update(identity: str, request: Request, body: m.ReleaseUpdate) -> dict:
         return apply(request, "release.update", {**body.model_dump(exclude_unset=True), "id": identity})
 
-    @app.post("/api/v1/releases/{identity}/archive")
+    @app.post("/api/v1/releases/{identity}/archive", response_model=out.ReleaseFields)
     def release_archive(identity: str, request: Request, body: m.Expected) -> dict:
         return apply(request, "release.archive", {**body.model_dump(), "id": identity})
 
-    @app.post("/api/v1/releases/{identity}/recover")
+    @app.post("/api/v1/releases/{identity}/recover", response_model=out.ReleaseFields)
     def release_recover(identity: str, request: Request, body: m.Expected) -> dict:
         return apply(request, "release.recover", {**body.model_dump(), "id": identity})
 
-    @app.post("/api/v1/release-contents")
+    @app.post("/api/v1/release-contents", response_model=out.ReleaseHolding)
     def release_add(request: Request, body: m.ReleaseContentChange) -> dict:
         return apply(request, "release.add", body.model_dump())
 
-    @app.post("/api/v1/release-contents/remove")
+    @app.post("/api/v1/release-contents/remove", response_model=out.ReleaseUnheld)
     def release_remove(request: Request, body: m.ReleaseContentChange) -> dict:
         return apply(request, "release.remove", body.model_dump())
 
-    @app.post("/api/v1/release-checks")
+    @app.post("/api/v1/release-checks", response_model=out.ReleaseCheckRecord)
     def check_create(request: Request, body: m.ReleaseCheckCreate) -> dict:
         return apply(request, "check.create", body.model_dump(), create=True)
 
@@ -65,14 +65,14 @@ def install_release_routes(app: FastAPI, db: Database, apply: Callable) -> None:
     def check(identity: str) -> dict:
         return read(lambda c: service.check(c, identity))
 
-    @app.patch("/api/v1/release-checks/{identity}")
+    @app.patch("/api/v1/release-checks/{identity}", response_model=out.ReleaseCheckRecord)
     def check_update(identity: str, request: Request, body: m.ReleaseCheckUpdate) -> dict:
         return apply(request, "check.update", {**body.model_dump(exclude_unset=True), "id": identity})
 
-    @app.post("/api/v1/release-checks/{identity}/archive")
+    @app.post("/api/v1/release-checks/{identity}/archive", response_model=out.ReleaseCheckRecord)
     def check_archive(identity: str, request: Request, body: m.Expected) -> dict:
         return apply(request, "check.archive", {**body.model_dump(), "id": identity})
 
-    @app.post("/api/v1/release-checks/{identity}/recover")
+    @app.post("/api/v1/release-checks/{identity}/recover", response_model=out.ReleaseCheckRecord)
     def check_recover(identity: str, request: Request, body: m.Expected) -> dict:
         return apply(request, "check.recover", {**body.model_dump(), "id": identity})

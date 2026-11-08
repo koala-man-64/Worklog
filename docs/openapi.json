@@ -5026,9 +5026,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Repository Create Api V1 Repositories Post"
+                  "$ref": "#/components/schemas/EnsuredRepository"
                 }
               }
             }
@@ -5154,9 +5152,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Repository Update Api V1 Repositories  Identity  Patch"
+                  "$ref": "#/components/schemas/DiscussedRepository"
                 }
               }
             }
@@ -5194,9 +5190,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Repository Ensure Route Api V1 Repositories Ensure Post"
+                  "$ref": "#/components/schemas/EnsuredRepository"
                 }
               }
             }
@@ -5245,9 +5239,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Repository Merge Into Api V1 Repositories  Identity  Merge Post"
+                  "$ref": "#/components/schemas/DiscussedRepository"
                 }
               }
             }
@@ -5296,9 +5288,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Repository Confirm Route Api V1 Repositories  Identity  Confirm Post"
+                  "$ref": "#/components/schemas/DiscussedRepository"
                 }
               }
             }
@@ -5356,9 +5346,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Repository Archive Api V1 Repositories  Identity   Verb  Post"
+                  "$ref": "#/components/schemas/DiscussedRepository"
                 }
               }
             }
@@ -6822,9 +6810,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Ticket Create Api V1 Tickets Post"
+                  "$ref": "#/components/schemas/TicketListed"
                 }
               }
             }
@@ -6922,9 +6908,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Ticket Update Api V1 Tickets  Ref  Patch"
+                  "$ref": "#/components/schemas/TicketListed"
                 }
               }
             }
@@ -6973,9 +6957,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Ticket Comment Api V1 Tickets  Ref  Comments Post"
+                  "$ref": "#/components/schemas/TicketComment"
                 }
               }
             }
@@ -7033,9 +7015,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Ticket Archive Api V1 Tickets  Ref   Verb  Post"
+                  "$ref": "#/components/schemas/TicketListed"
                 }
               }
             }
@@ -7311,9 +7291,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Resource Create Api V1 Resources Post"
+                  "$ref": "#/components/schemas/ResourcePage"
                 }
               }
             }
@@ -7399,9 +7377,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Resource Update Api V1 Resources  Identity  Patch"
+                  "$ref": "#/components/schemas/ResourcePage"
                 }
               }
             }
@@ -7459,9 +7435,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Resource Archive Api V1 Resources  Identity   Verb  Post"
+                  "$ref": "#/components/schemas/ResourcePage"
                 }
               }
             }
@@ -7616,9 +7590,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Release Create Api V1 Releases Post"
+                  "$ref": "#/components/schemas/ReleaseFields"
                 }
               }
             }
@@ -7704,9 +7676,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Release Update Api V1 Releases  Identity  Patch"
+                  "$ref": "#/components/schemas/ReleaseFields"
                 }
               }
             }
@@ -7755,9 +7725,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Release Archive Api V1 Releases  Identity  Archive Post"
+                  "$ref": "#/components/schemas/ReleaseFields"
                 }
               }
             }
@@ -7806,9 +7774,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Release Recover Api V1 Releases  Identity  Recover Post"
+                  "$ref": "#/components/schemas/ReleaseFields"
                 }
               }
             }
@@ -7846,9 +7812,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Release Add Api V1 Release Contents Post"
+                  "$ref": "#/components/schemas/ReleaseHolding"
                 }
               }
             }
@@ -7886,9 +7850,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Release Remove Api V1 Release Contents Remove Post"
+                  "$ref": "#/components/schemas/ReleaseUnheld"
                 }
               }
             }
@@ -7926,9 +7888,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Check Create Api V1 Release Checks Post"
+                  "$ref": "#/components/schemas/ReleaseCheckRecord"
                 }
               }
             }
@@ -8014,9 +7974,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Check Update Api V1 Release Checks  Identity  Patch"
+                  "$ref": "#/components/schemas/ReleaseCheckRecord"
                 }
               }
             }
@@ -8065,9 +8023,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Check Archive Api V1 Release Checks  Identity  Archive Post"
+                  "$ref": "#/components/schemas/ReleaseCheckRecord"
                 }
               }
             }
@@ -8116,9 +8072,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Check Recover Api V1 Release Checks  Identity  Recover Post"
+                  "$ref": "#/components/schemas/ReleaseCheckRecord"
                 }
               }
             }
@@ -8320,9 +8274,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Reminder Create Api V1 Reminders Post"
+                  "$ref": "#/components/schemas/ReminderRecord"
                 }
               }
             }
@@ -8408,9 +8360,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Reminder Update Api V1 Reminders  Identity  Patch"
+                  "$ref": "#/components/schemas/ReminderRecord"
                 }
               }
             }
@@ -8468,9 +8418,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Reminder Archive Api V1 Reminders  Identity   Verb  Post"
+                  "$ref": "#/components/schemas/ReminderRecord"
                 }
               }
             }
@@ -15147,6 +15095,118 @@
         "type": "object",
         "title": "Empty"
       },
+      "EnsuredRepository": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "remoteIdentity": {
+            "type": "string",
+            "title": "Remoteidentity"
+          },
+          "duplicateOf": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duplicateof"
+          },
+          "mergedInto": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mergedinto"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "registeredBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RegisteredBy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reviewed": {
+            "type": "boolean",
+            "title": "Reviewed"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "discussionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discussionid"
+          },
+          "created": {
+            "type": "boolean",
+            "title": "Created"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "url",
+          "remoteIdentity",
+          "duplicateOf",
+          "mergedInto",
+          "description",
+          "archived",
+          "registeredBy",
+          "reviewed",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "discussionId",
+          "created"
+        ],
+        "title": "EnsuredRepository",
+        "description": "A repository as registering its address returns it: the record that holds it, new or not."
+      },
       "EntryUpdate": {
         "properties": {
           "revision": {
@@ -19574,6 +19634,119 @@
         ],
         "title": "ReleaseCheckCreate"
       },
+      "ReleaseCheckRecord": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "releaseId": {
+            "type": "string",
+            "title": "Releaseid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "notify",
+              "test",
+              "prepare"
+            ],
+            "title": "Kind"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "details": {
+            "type": "string",
+            "title": "Details"
+          },
+          "personId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Personid"
+          },
+          "dueDate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duedate"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "doing",
+              "waiting",
+              "blocked",
+              "done"
+            ],
+            "title": "Status"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "personName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Personname"
+          },
+          "personArchived": {
+            "type": "boolean",
+            "title": "Personarchived"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "releaseId",
+          "kind",
+          "text",
+          "details",
+          "personId",
+          "dueDate",
+          "status",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "personName",
+          "personArchived"
+        ],
+        "title": "ReleaseCheckRecord",
+        "description": "A release check as its commands return it, with the person it names."
+      },
       "ReleaseCheckUpdate": {
         "properties": {
           "revision": {
@@ -19870,6 +20043,73 @@
         ],
         "title": "ReleaseCreate"
       },
+      "ReleaseFields": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "releaseDate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Releasedate"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "released",
+              "cancelled"
+            ],
+            "title": "Status"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "description",
+          "releaseDate",
+          "status",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "ReleaseFields",
+        "description": "A release's own fields, as its commands return them."
+      },
       "ReleaseHistoryEntry": {
         "properties": {
           "id": {
@@ -19914,6 +20154,47 @@
         ],
         "title": "ReleaseHistoryEntry",
         "description": "A change to a release or one of its checks, which entityId names, without its records:\n/history has those."
+      },
+      "ReleaseHolding": {
+        "properties": {
+          "releaseId": {
+            "type": "string",
+            "title": "Releaseid"
+          },
+          "targetType": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap",
+              "step",
+              "github"
+            ],
+            "title": "Targettype"
+          },
+          "targetId": {
+            "type": "string",
+            "title": "Targetid"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "changed": {
+            "type": "boolean",
+            "title": "Changed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "releaseId",
+          "targetType",
+          "targetId",
+          "createdAt",
+          "changed"
+        ],
+        "title": "ReleaseHolding",
+        "description": "A record a release holds, as holding it returns it."
       },
       "ReleaseItem": {
         "properties": {
@@ -20137,6 +20418,42 @@
         ],
         "title": "ReleaseStep",
         "description": "A step a release holds, with its status as its roadmap shows it: a parent's follows its leaves."
+      },
+      "ReleaseUnheld": {
+        "properties": {
+          "releaseId": {
+            "type": "string",
+            "title": "Releaseid"
+          },
+          "targetType": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap",
+              "step",
+              "github"
+            ],
+            "title": "Targettype"
+          },
+          "targetId": {
+            "type": "string",
+            "title": "Targetid"
+          },
+          "changed": {
+            "type": "boolean",
+            "title": "Changed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "releaseId",
+          "targetType",
+          "targetId",
+          "changed"
+        ],
+        "title": "ReleaseUnheld",
+        "description": "A record a release no longer holds."
       },
       "ReleaseUpdate": {
         "properties": {
@@ -20517,6 +20834,114 @@
         ],
         "title": "ReminderListed",
         "description": "A reminder as lists show it, without its notes or history."
+      },
+      "ReminderRecord": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "date": {
+            "type": "string",
+            "title": "Date"
+          },
+          "time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "open",
+              "done"
+            ],
+            "title": "State"
+          },
+          "due": {
+            "type": "boolean",
+            "title": "Due"
+          },
+          "overdue": {
+            "type": "boolean",
+            "title": "Overdue"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReminderTarget"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "author": {
+            "$ref": "#/components/schemas/Author"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "doneAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doneat"
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "date",
+          "time",
+          "state",
+          "due",
+          "overdue",
+          "target",
+          "author",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "doneAt",
+          "notes"
+        ],
+        "title": "ReminderRecord",
+        "description": "A reminder with its notes, as its commands return it."
       },
       "ReminderTarget": {
         "properties": {
@@ -21398,6 +21823,56 @@
         ],
         "title": "ResourceListed",
         "description": "A resource as lists show it, without the page's text."
+      },
+      "ResourcePage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "summary",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "body"
+        ],
+        "title": "ResourcePage",
+        "description": "A resource with its page's text, as its commands return it."
       },
       "ResourceUpdate": {
         "properties": {
