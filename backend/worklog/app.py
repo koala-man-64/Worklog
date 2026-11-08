@@ -83,12 +83,13 @@ BACKUP_FAILED = "Automatic backup failed. Check free disk space and retry a manu
 def daily_backup(app: FastAPI) -> bool:
     """Take the day's automatic backup unless it has one, and show a failure in Settings until one
     succeeds. Startup and the serve watcher call this, never a request (consolidation step 4.2,
-    B-05): the first write of a day used to wait for the whole database to be copied."""
+    B-05): the first write of a day used to wait for the whole database to be copied. Any failure
+    is shown and logged rather than raised, so neither a start nor the watcher stops on one."""
     try:
         automatic_backup(app.state.db.path, app.state.db.path.parent / "backups")
-    except (OSError, sqlite3.Error, ValueError, RuntimeError):
+    except Exception:
         app.state.backup_error = BACKUP_FAILED
-        logger.warning("Automatic backup failed; see storage settings")
+        logger.warning("Automatic backup failed; see storage settings", exc_info=True)
         return False
     app.state.backup_error = None
     return True

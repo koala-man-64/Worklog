@@ -238,18 +238,21 @@ def _cached_hash(path: Path, cache: dict[str, Any]) -> str:
     return digest
 
 
-def list_backups(backup_dir: Path | str, *, hashed: bool = True) -> list[dict[str, Any]]:
+def list_backups(backup_dir: Path | str, *, hashed: bool = True, verify: bool = False) -> list[dict[str, Any]]:
     """Backups and raw recovery evidence, newest first.
 
     With hashed=False the listing reads file metadata only: hashing reads every byte of
     every file, which Settings would otherwise pay on each load. The CLI keeps the hashes,
-    each worked out once and cached while its file is unchanged (HASH_CACHE).
+    each worked out once and cached while its file keeps its size and modification time
+    (HASH_CACHE). So a cached hash is the one the file had when it was hashed: damage that
+    keeps both, or a copy that keeps the modification time, would not show. With verify,
+    every file is hashed now, and the cache takes those hashes.
     """
     directory = Path(backup_dir)
     if not directory.exists():
         return []
     files = [*directory.glob("worklog-*.sqlite3"), *directory.glob("worklog-pre-restore-raw-*.zip")]
-    cache = _hash_cache(directory) if hashed else None
+    cache = ({} if verify else _hash_cache(directory)) if hashed else None
     before = json.dumps(cache, sort_keys=True)
     listed = [_metadata(path, hashed=hashed, cache=cache) for path in sorted(files, reverse=True)
               if path.is_file()]

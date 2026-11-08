@@ -6,7 +6,9 @@ param(
     [string]$DataDir,
     [ValidateRange(1, 65535)][int]$Port,
     [Parameter(Position=1)][string]$File,
-    [switch]$NoBrowser
+    [switch]$NoBrowser,
+    # With backups: hash every file's bytes now rather than showing the hash each had when last hashed.
+    [switch]$Verify
 )
 $ErrorActionPreference = "Stop"
 # Windows PowerShell 5.1 turns native stderr into a terminating error under "Stop" when output is
@@ -25,6 +27,7 @@ if ($DataDir) { $worklogArgs += @("--data-dir", $DataDir) }
 if ($Port) { $worklogArgs += @("--port", "$Port") }
 $worklogArgs += $Command
 if ($File) { $worklogArgs += $File }
+if ($Verify) { $worklogArgs += "--verify" }
 Invoke-Native { & $pythonPath @worklogArgs }
 $worklogExitCode = $LASTEXITCODE
 if ($Command -eq "start" -and $worklogExitCode -eq 0 -and -not $NoBrowser) {

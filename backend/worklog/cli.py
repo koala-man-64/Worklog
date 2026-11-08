@@ -409,14 +409,10 @@ def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
                     server.should_exit = True
                     return
                 if time.monotonic() >= next_backup and os.environ.get("WORKLOG_AUTO_BACKUP") != "0":
-                    # The day's automatic backup is taken here and at startup, never by a request; a
-                    # failure shows in Settings until one succeeds.
-                    try:
-                        if not daily_backup(app):
-                            print("Automatic Worklog backup failed; Settings shows it", file=sys.stderr, flush=True)
-                    except Exception as exc:
-                        # Preserve service availability but make a failed backup visible in server.log.
-                        print(f"Automatic Worklog backup failed: {type(exc).__name__}", file=sys.stderr, flush=True)
+                    # The day's automatic backup is taken here and at startup, never by a request. A
+                    # failure, whatever it is, shows in Settings until one succeeds, and in server.log.
+                    if not daily_backup(app):
+                        print("Automatic Worklog backup failed; Settings shows it", file=sys.stderr, flush=True)
                     next_backup = time.monotonic() + 60
                 if time.monotonic() >= next_prune:
                     try:
@@ -1462,6 +1458,9 @@ def parser() -> argparse.ArgumentParser:
             sub.add_argument("--port", type=int, default=argparse.SUPPRESS)
         if command in {"restore", "export"}:
             sub.add_argument("file")
+        if command == "backups":
+            sub.add_argument("--verify", action="store_true",
+                             help="Hash every file's bytes now; without it, a file unchanged since it was hashed shows that hash")
     agent = commands.add_parser(
         "agent", help="Agent commands; start with `worklog agent guide`",
         description="Commands for AI agents. `worklog agent guide` explains every one, with the rules agents follow.")
@@ -1598,7 +1597,7 @@ def main(argv: list[str] | None = None) -> int:
             elif args.command == "backup":
                 result = backup_database(database, directory / "backups")
             elif args.command == "backups":
-                result = list_backups(directory / "backups")
+                result = list_backups(directory / "backups", verify=args.verify)
             elif args.command == "restore":
                 result = restore_database(database, Path(args.file), directory / "backups")
             else:

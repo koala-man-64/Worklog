@@ -6,12 +6,13 @@ as long as the file is unchanged."""
 
 import hashlib
 import json
+import os
 import secrets
 import uuid
 
 from fastapi.testclient import TestClient
 from worklog import app as app_module
-from worklog import recovery
+from worklog import cli, recovery
 from worklog.app import BACKUP_FAILED, create_app, daily_backup
 from worklog.db import Database
 from worklog.transcripts import TranscriptRoots
@@ -63,6 +64,43 @@ def test_a_failed_daily_backup_shows_in_settings_until_one_succeeds(tmp_path, mo
         monkeypatch.setattr(app_module, "automatic_backup", lambda db, backups: None)
         assert daily_backup(app) is True
         assert ok(person.get("/api/v1/settings"))["storage"]["warning"] is None
+
+
+def test_any_failure_of_the_daily_backup_is_shown_not_raised(tmp_path, monkeypatch):
+    # From the review of #131: the serve watcher's own catch-all used to leave Settings blank.
+    app = create_app(tmp_path, testing=True)
+
+    def broken(db, backups):
+        raise KeyError("dataId")
+
+    monkeypatch.setattr(app_module, "automatic_backup", broken)
+    assert daily_backup(app) is False and app.state.backup_error == BACKUP_FAILED
+
+
+def test_verify_hashes_every_backup_now_and_corrects_the_cache(tmp_path, monkeypatch):
+    # From the review of #131: a cached hash is the one taken while the file kept its size and
+    # modification time, so damage that keeps both shows only when the bytes are hashed again.
+    db, backups = tmp_path / "worklog.sqlite3", tmp_path / "backups"
+    Database(db).initialize()
+    made = recovery.backup_database(db, backups)
+    path = backups / made["name"]
+    stat = path.stat()
+    data = bytearray(path.read_bytes())
+    data[-1] ^= 0xFF
+    path.write_bytes(bytes(data))
+    os.utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+    assert recovery.list_backups(backups)[0]["sha256"] == made["sha256"]
+    damaged = hashlib.sha256(bytes(data)).hexdigest()
+    assert recovery.list_backups(backups, verify=True)[0]["sha256"] == damaged
+    assert recovery.list_backups(backups)[0]["sha256"] == damaged
+
+
+def test_the_backups_command_verifies_only_when_asked(tmp_path, monkeypatch, capsys):
+    seen = []
+    monkeypatch.setattr(cli, "list_backups", lambda directory, verify=False: seen.append(verify) or [])
+    for argv in (["backups", "--verify"], ["backups"]):
+        assert cli.main(["--data-dir", str(tmp_path / "data"), *argv]) == 0
+    assert seen == [True, False]
 
 
 def test_a_listing_hashes_each_backup_once_while_it_is_unchanged(tmp_path, monkeypatch):
