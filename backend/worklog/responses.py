@@ -2259,3 +2259,93 @@ class EnsuredRepository(DiscussedRepository):
 
     # False when a record already held the address.
     created: bool
+
+
+class ChatTracked(TrackedChat):
+    """An agent's own chat as tracking it returns it: the record that tracks it, new or not."""
+
+    # False when a record already tracked the chat there.
+    created: bool
+
+
+class ChatPlace(Answer):
+    id: str
+    chatId: str
+
+
+class ChatBinding(Answer):
+    """How an agent identity is bound to a tracked chat after the person confirms it there, or not."""
+
+    chat: ChatPlace
+    agentId: str
+    # Null when it is bound there no longer.
+    binding: Literal["registered", "confirmed"] | None
+
+
+class ChatIdBinding(Answer):
+    """How an agent identity is bound to a chat ID after the person confirms it there, or not."""
+
+    chatId: str
+    agentId: str
+    binding: Literal["registered", "confirmed"] | None
+
+
+class InboxChat(Answer):
+    id: str
+    chatId: str
+    title: str
+
+
+class InboxMessage(Answer):
+    """A message the person wrote into a chat, handed to the calling credential once."""
+
+    id: str
+    text: str
+    authorKind: Literal["human"]
+    authorId: str
+    authorLabel: str
+    sentAt: str
+    chat: InboxChat
+    # The credential's open runs on the chat that it was delivered to.
+    runIds: list[str]
+
+
+class Inbox(Answer):
+    # Oldest first.
+    items: list[InboxMessage]
+    total: int
+
+
+class AgentUntied(Answer):
+    """The tie an agent identity no longer has."""
+
+    ok: Literal[True]
+    id: str
+    agentId: str
+    targetType: Literal["item", "roadmap", "step", "repository", "person", "resource", "discussion", "proposal",
+                        "ticket", "agent", "question", "decision"]
+    targetId: str
+
+
+class Registration(Answer):
+    """A credential an agent registered for itself, and the identity it holds."""
+
+    id: str
+    agentId: str
+    label: str
+    avatar: str | None
+    # The chat its registration named; null when it named none.
+    chatId: str | None
+    # The agent that registered it; null for one issued in Settings.
+    registeredBy: CredentialSponsor | None
+    # The directory it registered from; null when it named none.
+    directory: str | None
+
+
+class Retirement(Answer):
+    """An agent's own credential, retired, with how many credentials it had registered went with it."""
+
+    id: str
+    agentId: str
+    retired: Literal[True]
+    registeredRevoked: int

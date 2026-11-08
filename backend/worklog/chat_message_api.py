@@ -18,31 +18,31 @@ def install_chat_message_routes(app: FastAPI, db: Database, mutate: Callable) ->
     def chat_messages(identity: str, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
         return db.snapshot(lambda c: service.messages(c, identity, limit, offset))
 
-    @app.post("/api/v1/chats/{identity}/messages")
+    @app.post("/api/v1/chats/{identity}/messages", response_model=out.ChatMessageSent)
     def chat_message_create(identity: str, request: Request, body: m.ChatMessageCreate) -> dict:
         return mutate(request, body.model_dump(), lambda c, a: service.post(c, a, identity, body.model_dump()), required_key=True)
 
     # The person's word on who works in a chat; agents are refused before reaching these.
-    @app.post("/api/v1/chats/{identity}/confirmations")
+    @app.post("/api/v1/chats/{identity}/confirmations", response_model=out.ChatBinding)
     def chat_confirmation_create(identity: str, request: Request, body: m.ChatConfirmation) -> dict:
         return mutate(request, body.model_dump(), lambda c, a: service.confirm(c, a, identity, body.model_dump()), required_key=True)
 
-    @app.post("/api/v1/chats/{identity}/confirmations/remove")
+    @app.post("/api/v1/chats/{identity}/confirmations/remove", response_model=out.ChatBinding)
     def chat_confirmation_remove(identity: str, request: Request, body: m.ChatConfirmation) -> dict:
         return mutate(request, body.model_dump(), lambda c, a: service.unconfirm(c, a, identity, body.model_dump()), required_key=True)
 
     # The same by a chat's ID, for a chat no record tracks yet, such as a session running on this machine.
-    @app.post("/api/v1/chat-confirmations")
+    @app.post("/api/v1/chat-confirmations", response_model=out.ChatIdBinding)
     def chat_id_confirmation_create(request: Request, body: m.ChatIdConfirmation) -> dict:
         return mutate(request, body.model_dump(), lambda c, a: service.confirm_chat_id(c, a, body.model_dump(), confirmed=True),
                       required_key=True)
 
-    @app.post("/api/v1/chat-confirmations/remove")
+    @app.post("/api/v1/chat-confirmations/remove", response_model=out.ChatIdBinding)
     def chat_id_confirmation_remove(request: Request, body: m.ChatIdConfirmation) -> dict:
         return mutate(request, body.model_dump(), lambda c, a: service.confirm_chat_id(c, a, body.model_dump(), confirmed=False),
                       required_key=True)
 
-    @app.post("/api/v1/inbox/receive")
+    @app.post("/api/v1/inbox/receive", response_model=out.Inbox)
     def inbox_receive(request: Request, body: m.InboxReceive) -> dict:
         # An empty receive changes nothing, so polling leaves no receipts behind.
         return mutate(request, body.model_dump(), lambda c, a: service.receive(c, a, body.model_dump()),

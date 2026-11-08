@@ -5461,9 +5461,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Run Create Api V1 Agent Runs Post"
+                  "$ref": "#/components/schemas/AgentRun"
                 }
               }
             }
@@ -5551,9 +5549,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Run End Api V1 Agent Runs  Identity  End Post"
+                  "$ref": "#/components/schemas/AgentRun"
                 }
               }
             }
@@ -5700,9 +5696,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Participation Create Api V1 Participations Post"
+                  "$ref": "#/components/schemas/Participation"
                 }
               }
             }
@@ -5788,9 +5782,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Participation Update Api V1 Participations  Identity  Patch"
+                  "$ref": "#/components/schemas/Participation"
                 }
               }
             }
@@ -5839,9 +5831,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Participation Release Api V1 Participations  Identity  Release Post"
+                  "$ref": "#/components/schemas/Participation"
                 }
               }
             }
@@ -5890,9 +5880,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Participation Rejoin Api V1 Participations  Identity  Rejoin Post"
+                  "$ref": "#/components/schemas/Participation"
                 }
               }
             }
@@ -5941,9 +5929,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Participation Checkin Api V1 Participations  Identity  Check In Post"
+                  "$ref": "#/components/schemas/Participation"
                 }
               }
             }
@@ -5992,9 +5978,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Post Update Api V1 Participations  Identity  Updates Post"
+                  "$ref": "#/components/schemas/CoordinationUpdate"
                 }
               }
             }
@@ -6032,9 +6016,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Chat Track Api V1 Chats Track Post"
+                  "$ref": "#/components/schemas/ChatTracked"
                 }
               }
             }
@@ -6338,9 +6320,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Chat Message Create Api V1 Chats  Identity  Messages Post"
+                  "$ref": "#/components/schemas/ChatMessageSent"
                 }
               }
             }
@@ -6389,9 +6369,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Chat Confirmation Create Api V1 Chats  Identity  Confirmations Post"
+                  "$ref": "#/components/schemas/ChatBinding"
                 }
               }
             }
@@ -6440,9 +6418,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Chat Confirmation Remove Api V1 Chats  Identity  Confirmations Remove Post"
+                  "$ref": "#/components/schemas/ChatBinding"
                 }
               }
             }
@@ -6480,9 +6456,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Chat Id Confirmation Create Api V1 Chat Confirmations Post"
+                  "$ref": "#/components/schemas/ChatIdBinding"
                 }
               }
             }
@@ -6520,9 +6494,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Chat Id Confirmation Remove Api V1 Chat Confirmations Remove Post"
+                  "$ref": "#/components/schemas/ChatIdBinding"
                 }
               }
             }
@@ -6560,9 +6532,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Inbox Receive Api V1 Inbox Receive Post"
+                  "$ref": "#/components/schemas/Inbox"
                 }
               }
             }
@@ -7140,9 +7110,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Agent Link Set Api V1 Agent Links Post"
+                  "$ref": "#/components/schemas/AgentTie"
                 }
               }
             }
@@ -7180,9 +7148,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Agent Link Remove Api V1 Agent Links Unlink Post"
+                  "$ref": "#/components/schemas/AgentUntied"
                 }
               }
             }
@@ -9964,9 +9930,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Register Agent Api V1 Agent Registrations Post"
+                  "$ref": "#/components/schemas/Registration"
                 }
               }
             }
@@ -9994,9 +9958,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Retire Agent Api V1 Agent Registrations Retire Post"
+                  "$ref": "#/components/schemas/Retirement"
                 }
               }
             }
@@ -11731,6 +11693,56 @@
         ],
         "title": "AgentTies"
       },
+      "AgentUntied": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "const": true,
+            "title": "Ok"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "agentId": {
+            "type": "string",
+            "title": "Agentid"
+          },
+          "targetType": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap",
+              "step",
+              "repository",
+              "person",
+              "resource",
+              "discussion",
+              "proposal",
+              "ticket",
+              "agent",
+              "question",
+              "decision"
+            ],
+            "title": "Targettype"
+          },
+          "targetId": {
+            "type": "string",
+            "title": "Targetid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ok",
+          "id",
+          "agentId",
+          "targetType",
+          "targetId"
+        ],
+        "title": "AgentUntied",
+        "description": "The tie an agent identity no longer has."
+      },
       "AgentWork": {
         "properties": {
           "participationId": {
@@ -12528,6 +12540,41 @@
         "title": "ChatAgent",
         "description": "An agent identity tied to a chat ID, by its closest tie."
       },
+      "ChatBinding": {
+        "properties": {
+          "chat": {
+            "$ref": "#/components/schemas/ChatPlace"
+          },
+          "agentId": {
+            "type": "string",
+            "title": "Agentid"
+          },
+          "binding": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "registered",
+                  "confirmed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Binding"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "chat",
+          "agentId",
+          "binding"
+        ],
+        "title": "ChatBinding",
+        "description": "How an agent identity is bound to a tracked chat after the person confirms it there, or not."
+      },
       "ChatConfirmation": {
         "properties": {
           "agentId": {
@@ -12711,6 +12758,42 @@
           "expiredAt"
         ],
         "title": "ChatDelivery"
+      },
+      "ChatIdBinding": {
+        "properties": {
+          "chatId": {
+            "type": "string",
+            "title": "Chatid"
+          },
+          "agentId": {
+            "type": "string",
+            "title": "Agentid"
+          },
+          "binding": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "registered",
+                  "confirmed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Binding"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "chatId",
+          "agentId",
+          "binding"
+        ],
+        "title": "ChatIdBinding",
+        "description": "How an agent identity is bound to a chat ID after the person confirms it there, or not."
       },
       "ChatIdConfirmation": {
         "properties": {
@@ -13024,6 +13107,25 @@
         "title": "ChatOwner",
         "description": "The work item or roadmap a tracked chat belongs to; empty if that record is missing."
       },
+      "ChatPlace": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "chatId": {
+            "type": "string",
+            "title": "Chatid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "chatId"
+        ],
+        "title": "ChatPlace"
+      },
       "ChatRecipient": {
         "properties": {
           "runId": {
@@ -13169,6 +13271,109 @@
         ],
         "title": "ChatTrack",
         "description": "Track the chat the calling agent registered with on a work item or roadmap, and on steps\nof that roadmap. Worklog takes the chat's ID from the identity, never from the request."
+      },
+      "ChatTracked": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "ownerType": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap"
+            ],
+            "title": "Ownertype"
+          },
+          "ownerId": {
+            "type": "string",
+            "title": "Ownerid"
+          },
+          "chatId": {
+            "type": "string",
+            "title": "Chatid"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "createdDate": {
+            "type": "string",
+            "title": "Createddate"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "repos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Repos"
+          },
+          "stepIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stepids"
+          },
+          "repositoryIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Repositoryids"
+          },
+          "created": {
+            "type": "boolean",
+            "title": "Created"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "ownerType",
+          "ownerId",
+          "chatId",
+          "title",
+          "createdDate",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "provider",
+          "model",
+          "repos",
+          "stepIds",
+          "repositoryIds",
+          "created"
+        ],
+        "title": "ChatTracked",
+        "description": "An agent's own chat as tracking it returns it: the record that tracks it, new or not."
       },
       "ChatUpdate": {
         "properties": {
@@ -15782,6 +15987,105 @@
           "title"
         ],
         "title": "ImportCommit"
+      },
+      "Inbox": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/InboxMessage"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "Inbox"
+      },
+      "InboxChat": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "chatId": {
+            "type": "string",
+            "title": "Chatid"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "chatId",
+          "title"
+        ],
+        "title": "InboxChat"
+      },
+      "InboxMessage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "authorKind": {
+            "type": "string",
+            "const": "human",
+            "title": "Authorkind"
+          },
+          "authorId": {
+            "type": "string",
+            "title": "Authorid"
+          },
+          "authorLabel": {
+            "type": "string",
+            "title": "Authorlabel"
+          },
+          "sentAt": {
+            "type": "string",
+            "title": "Sentat"
+          },
+          "chat": {
+            "$ref": "#/components/schemas/InboxChat"
+          },
+          "runIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Runids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "authorKind",
+          "authorId",
+          "authorLabel",
+          "sentAt",
+          "chat",
+          "runIds"
+        ],
+        "title": "InboxMessage",
+        "description": "A message the person wrote into a chat, handed to the calling credential once."
       },
       "InboxReceive": {
         "properties": {
@@ -19152,6 +19456,78 @@
         ],
         "title": "RegisteredBy"
       },
+      "Registration": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "agentId": {
+            "type": "string",
+            "title": "Agentid"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          },
+          "chatId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chatid"
+          },
+          "registeredBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CredentialSponsor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "directory": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Directory"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "agentId",
+          "label",
+          "avatar",
+          "chatId",
+          "registeredBy",
+          "directory"
+        ],
+        "title": "Registration",
+        "description": "A credential an agent registered for itself, and the identity it holds."
+      },
       "RegistryWorkItem": {
         "properties": {
           "id": {
@@ -21998,6 +22374,37 @@
           "requests"
         ],
         "title": "ResumeCounts"
+      },
+      "Retirement": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "agentId": {
+            "type": "string",
+            "title": "Agentid"
+          },
+          "retired": {
+            "type": "boolean",
+            "const": true,
+            "title": "Retired"
+          },
+          "registeredRevoked": {
+            "type": "integer",
+            "title": "Registeredrevoked"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "agentId",
+          "retired",
+          "registeredRevoked"
+        ],
+        "title": "Retirement",
+        "description": "An agent's own credential, retired, with how many credentials it had registered went with it."
       },
       "Roadmap": {
         "properties": {

@@ -3353,6 +3353,28 @@ export interface components {
             total: number;
         };
         /**
+         * AgentUntied
+         * @description The tie an agent identity no longer has.
+         */
+        AgentUntied: {
+            /**
+             * Ok
+             * @constant
+             */
+            ok: true;
+            /** Id */
+            id: string;
+            /** Agentid */
+            agentId: string;
+            /**
+             * Targettype
+             * @enum {string}
+             */
+            targetType: "item" | "roadmap" | "step" | "repository" | "person" | "resource" | "discussion" | "proposal" | "ticket" | "agent" | "question" | "decision";
+            /** Targetid */
+            targetId: string;
+        };
+        /**
          * AgentWork
          * @description Open participation an agent reports: the work and the repositories it is at now.
          */
@@ -3646,6 +3668,17 @@ export interface components {
             /** Chatid */
             chatId: string;
         };
+        /**
+         * ChatBinding
+         * @description How an agent identity is bound to a tracked chat after the person confirms it there, or not.
+         */
+        ChatBinding: {
+            chat: components["schemas"]["ChatPlace"];
+            /** Agentid */
+            agentId: string;
+            /** Binding */
+            binding: ("registered" | "confirmed") | null;
+        };
         /** ChatConfirmation */
         ChatConfirmation: {
             /** Agentid */
@@ -3708,6 +3741,18 @@ export interface components {
             deliveredAt: string | null;
             /** Expiredat */
             expiredAt: string | null;
+        };
+        /**
+         * ChatIdBinding
+         * @description How an agent identity is bound to a chat ID after the person confirms it there, or not.
+         */
+        ChatIdBinding: {
+            /** Chatid */
+            chatId: string;
+            /** Agentid */
+            agentId: string;
+            /** Binding */
+            binding: ("registered" | "confirmed") | null;
         };
         /** ChatIdConfirmation */
         ChatIdConfirmation: {
@@ -3825,6 +3870,13 @@ export interface components {
             /** Archived */
             archived: boolean;
         };
+        /** ChatPlace */
+        ChatPlace: {
+            /** Id */
+            id: string;
+            /** Chatid */
+            chatId: string;
+        };
         /**
          * ChatRecipient
          * @description An open run that reports a chat's ID, and its agent identity.
@@ -3887,6 +3939,47 @@ export interface components {
              * @default
              */
             model: string;
+        };
+        /**
+         * ChatTracked
+         * @description An agent's own chat as tracking it returns it: the record that tracks it, new or not.
+         */
+        ChatTracked: {
+            /** Id */
+            id: string;
+            /**
+             * Ownertype
+             * @enum {string}
+             */
+            ownerType: "item" | "roadmap";
+            /** Ownerid */
+            ownerId: string;
+            /** Chatid */
+            chatId: string;
+            /** Title */
+            title: string;
+            /** Createddate */
+            createdDate: string;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Provider */
+            provider: string;
+            /** Model */
+            model: string;
+            /** Repos */
+            repos: string[];
+            /** Stepids */
+            stepIds: string[];
+            /** Repositoryids */
+            repositoryIds: string[];
+            /** Created */
+            created: boolean;
         };
         /** ChatUpdate */
         ChatUpdate: {
@@ -4743,6 +4836,46 @@ export interface components {
             roadmapId?: string | null;
             /** Revision */
             revision?: number | null;
+        };
+        /** Inbox */
+        Inbox: {
+            /** Items */
+            items: components["schemas"]["InboxMessage"][];
+            /** Total */
+            total: number;
+        };
+        /** InboxChat */
+        InboxChat: {
+            /** Id */
+            id: string;
+            /** Chatid */
+            chatId: string;
+            /** Title */
+            title: string;
+        };
+        /**
+         * InboxMessage
+         * @description A message the person wrote into a chat, handed to the calling credential once.
+         */
+        InboxMessage: {
+            /** Id */
+            id: string;
+            /** Text */
+            text: string;
+            /**
+             * Authorkind
+             * @constant
+             */
+            authorKind: "human";
+            /** Authorid */
+            authorId: string;
+            /** Authorlabel */
+            authorLabel: string;
+            /** Sentat */
+            sentAt: string;
+            chat: components["schemas"]["InboxChat"];
+            /** Runids */
+            runIds: string[];
         };
         /** InboxReceive */
         InboxReceive: {
@@ -5957,6 +6090,25 @@ export interface components {
             agentId: string | null;
         };
         /**
+         * Registration
+         * @description A credential an agent registered for itself, and the identity it holds.
+         */
+        Registration: {
+            /** Id */
+            id: string;
+            /** Agentid */
+            agentId: string;
+            /** Label */
+            label: string;
+            /** Avatar */
+            avatar: string | null;
+            /** Chatid */
+            chatId: string | null;
+            registeredBy: components["schemas"]["CredentialSponsor"] | null;
+            /** Directory */
+            directory: string | null;
+        };
+        /**
          * RegistryWorkItem
          * @description A work item as the registry names it, with the roadmap its step, or it, sits on.
          */
@@ -6937,6 +7089,23 @@ export interface components {
             discussions: number;
             /** Requests */
             requests: number;
+        };
+        /**
+         * Retirement
+         * @description An agent's own credential, retired, with how many credentials it had registered went with it.
+         */
+        Retirement: {
+            /** Id */
+            id: string;
+            /** Agentid */
+            agentId: string;
+            /**
+             * Retired
+             * @constant
+             */
+            retired: true;
+            /** Registeredrevoked */
+            registeredRevoked: number;
         };
         /**
          * Roadmap
@@ -12405,9 +12574,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["AgentRun"];
                 };
             };
             /** @description Validation Error */
@@ -12473,9 +12640,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["AgentRun"];
                 };
             };
             /** @description Validation Error */
@@ -12544,9 +12709,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Participation"];
                 };
             };
             /** @description Validation Error */
@@ -12612,9 +12775,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Participation"];
                 };
             };
             /** @description Validation Error */
@@ -12649,9 +12810,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Participation"];
                 };
             };
             /** @description Validation Error */
@@ -12686,9 +12845,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Participation"];
                 };
             };
             /** @description Validation Error */
@@ -12723,9 +12880,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Participation"];
                 };
             };
             /** @description Validation Error */
@@ -12760,9 +12915,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["CoordinationUpdate"];
                 };
             };
             /** @description Validation Error */
@@ -12795,9 +12948,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ChatTracked"];
                 };
             };
             /** @description Validation Error */
@@ -12936,9 +13087,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ChatMessageSent"];
                 };
             };
             /** @description Validation Error */
@@ -12973,9 +13122,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ChatBinding"];
                 };
             };
             /** @description Validation Error */
@@ -13010,9 +13157,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ChatBinding"];
                 };
             };
             /** @description Validation Error */
@@ -13045,9 +13190,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ChatIdBinding"];
                 };
             };
             /** @description Validation Error */
@@ -13080,9 +13223,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ChatIdBinding"];
                 };
             };
             /** @description Validation Error */
@@ -13115,9 +13256,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Inbox"];
                 };
             };
             /** @description Validation Error */
@@ -13397,9 +13536,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["AgentTie"];
                 };
             };
             /** @description Validation Error */
@@ -13432,9 +13569,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["AgentUntied"];
                 };
             };
             /** @description Validation Error */
@@ -15191,9 +15326,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Registration"];
                 };
             };
             /** @description Validation Error */
@@ -15222,9 +15355,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Retirement"];
                 };
             };
         };

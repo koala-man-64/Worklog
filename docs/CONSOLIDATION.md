@@ -565,6 +565,7 @@ Done so far:
 - **Typed writes, third batch.** Resources, reminders, releases with their contents and checks, tickets with their comments, and repositories.
   - A release's and a check's commands answer without the `pastDue` their reads add.
   - Registering a repository's address answers with the record that holds it and whether it is new.
+- **Typed writes, fourth batch.** Agent runs, participations and their updates, an agent's own tracked chat, chat messages and confirmations, the inbox, agent ties and agent registrations.
 
 #### 5.4 · Frontend layout
 

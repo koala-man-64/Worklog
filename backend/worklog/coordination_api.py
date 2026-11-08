@@ -87,11 +87,11 @@ def install_coordination_routes(app: FastAPI, db: Database, mutate: Callable) ->
     def run(identity: str) -> dict:
         return read(lambda c: service.run_record(_get(c, "agent_runs", identity)))
 
-    @app.post("/api/v1/agent-runs")
+    @app.post("/api/v1/agent-runs", response_model=out.AgentRun)
     def run_create(request: Request, body: m.RunCreate) -> dict:
         return write(request, body, lambda c, a: service.create_run(c, a, body.model_dump()))
 
-    @app.post("/api/v1/agent-runs/{identity}/end")
+    @app.post("/api/v1/agent-runs/{identity}/end", response_model=out.AgentRun)
     def run_end(identity: str, request: Request, body: Expected) -> dict:
         return write(request, body, lambda c, a: service.end_run(c, a, identity, body.model_dump()))
 
@@ -105,33 +105,33 @@ def install_coordination_routes(app: FastAPI, db: Database, mutate: Callable) ->
     def participation(identity: str) -> dict:
         return read(lambda c: service.participation_record(c, _get(c, "participations", identity)))
 
-    @app.post("/api/v1/participations")
+    @app.post("/api/v1/participations", response_model=out.Participation)
     def participation_create(request: Request, body: m.ParticipationCreate) -> dict:
         return write(request, body, lambda c, a: service.create_participation(c, a, body.model_dump()))
 
-    @app.patch("/api/v1/participations/{identity}")
+    @app.patch("/api/v1/participations/{identity}", response_model=out.Participation)
     def participation_update(identity: str, request: Request, body: m.ParticipationUpdate) -> dict:
         return write(request, body, lambda c, a: service.change_participation(c, a, identity, body.model_dump(exclude_unset=True)), required_key=False, exclude_unset=True)
 
-    @app.post("/api/v1/participations/{identity}/release")
+    @app.post("/api/v1/participations/{identity}/release", response_model=out.Participation)
     def participation_release(identity: str, request: Request, body: Expected) -> dict:
         return write(request, body, lambda c, a: service.change_participation(c, a, identity, body.model_dump(), "release"))
 
-    @app.post("/api/v1/participations/{identity}/rejoin")
+    @app.post("/api/v1/participations/{identity}/rejoin", response_model=out.Participation)
     def participation_rejoin(identity: str, request: Request, body: Expected) -> dict:
         return write(request, body, lambda c, a: service.change_participation(c, a, identity, body.model_dump(), "rejoin"))
 
-    @app.post("/api/v1/participations/{identity}/check-in")
+    @app.post("/api/v1/participations/{identity}/check-in", response_model=out.Participation)
     def participation_checkin(identity: str, request: Request, body: Expected) -> dict:
         return write(request, body, lambda c, a: service.change_participation(c, a, identity, body.model_dump(), "check-in"))
 
-    @app.post("/api/v1/participations/{identity}/updates")
+    @app.post("/api/v1/participations/{identity}/updates", response_model=out.CoordinationUpdate)
     def post_update(identity: str, request: Request, body: m.CoordinationUpdateCreate) -> dict:
         return write(request, body, lambda c, a: service.post_update(c, a, identity, body.model_dump()))
 
     # An agent tracks its own chat on the work it does, as its reported work does; the person adds
     # any chat with POST /chats.
-    @app.post("/api/v1/chats/track")
+    @app.post("/api/v1/chats/track", response_model=out.ChatTracked)
     def chat_track(request: Request, body: m.ChatTrack) -> dict:
         return write(request, body, lambda c, a: support.track_own_chat(c, a, body.model_dump()))
 
