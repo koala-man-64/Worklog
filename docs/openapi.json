@@ -950,9 +950,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Update Decision Api V1 Decisions  Identity  Patch"
+                  "$ref": "#/components/schemas/Decision"
                 }
               }
             }
@@ -1038,9 +1036,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Update Question Api V1 Questions  Identity  Patch"
+                  "$ref": "#/components/schemas/Question"
                 }
               }
             }
@@ -1126,9 +1122,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Update Github Ref Api V1 Github  Identity  Patch"
+                  "$ref": "#/components/schemas/ListedGithubReference"
                 }
               }
             }
@@ -1214,9 +1208,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Update Chat Api V1 Chats  Identity  Patch"
+                  "$ref": "#/components/schemas/TrackedChat"
                 }
               }
             }
@@ -1302,9 +1294,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Update Link Api V1 Links  Identity  Patch"
+                  "$ref": "#/components/schemas/WebLink"
                 }
               }
             }
@@ -1429,9 +1419,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Update Task Api V1 Tasks  Identity  Patch"
+                  "$ref": "#/components/schemas/Task"
                 }
               }
             }
@@ -1517,9 +1505,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Update Note Api V1 Notes  Identity  Patch"
+                  "$ref": "#/components/schemas/Note"
                 }
               }
             }
@@ -1557,9 +1543,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Create Note Api V1 Notes Post"
+                  "$ref": "#/components/schemas/Note"
                 }
               }
             }
@@ -1597,9 +1581,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Create Task Api V1 Tasks Post"
+                  "$ref": "#/components/schemas/Task"
                 }
               }
             }
@@ -1648,9 +1630,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Move Task Api V1 Tasks  Identity  Move Post"
+                  "$ref": "#/components/schemas/TaskPlace"
                 }
               }
             }
@@ -1688,9 +1668,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Create Reference Api V1 References Post"
+                  "$ref": "#/components/schemas/FileReference"
                 }
               }
             }
@@ -1728,9 +1706,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Create Link Api V1 Links Post"
+                  "$ref": "#/components/schemas/WebLink"
                 }
               }
             }
@@ -1806,9 +1782,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Create Chat Api V1 Chats Post"
+                  "$ref": "#/components/schemas/TrackedChat"
                 }
               }
             }
@@ -1932,9 +1906,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Create Github Ref Api V1 Github Post"
+                  "$ref": "#/components/schemas/ListedGithubReference"
                 }
               }
             }
@@ -1972,9 +1944,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Create Question Api V1 Questions Post"
+                  "$ref": "#/components/schemas/Question"
                 }
               }
             }
@@ -2012,9 +1982,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Create Decision Api V1 Decisions Post"
+                  "$ref": "#/components/schemas/Decision"
                 }
               }
             }
@@ -2063,9 +2031,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Note Archive Api V1 Notes  Identity  Archive Post"
+                  "$ref": "#/components/schemas/Note"
                 }
               }
             }
@@ -2114,9 +2080,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Note Recover Api V1 Notes  Identity  Recover Post"
+                  "$ref": "#/components/schemas/Note"
                 }
               }
             }
@@ -2165,9 +2129,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Task Archive Api V1 Tasks  Identity  Archive Post"
+                  "$ref": "#/components/schemas/Task"
                 }
               }
             }
@@ -2216,9 +2178,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Task Recover Api V1 Tasks  Identity  Recover Post"
+                  "$ref": "#/components/schemas/Task"
                 }
               }
             }
@@ -2267,9 +2227,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Reference Archive Api V1 References  Identity  Archive Post"
+                  "$ref": "#/components/schemas/FileReference"
                 }
               }
             }
@@ -2318,9 +2276,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Reference Recover Api V1 References  Identity  Recover Post"
+                  "$ref": "#/components/schemas/FileReference"
                 }
               }
             }
@@ -2369,9 +2325,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Attachment Archive Api V1 Attachments  Identity  Archive Post"
+                  "$ref": "#/components/schemas/Attachment"
                 }
               }
             }
@@ -2420,9 +2374,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Attachment Recover Api V1 Attachments  Identity  Recover Post"
+                  "$ref": "#/components/schemas/Attachment"
                 }
               }
             }
@@ -2471,9 +2423,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Link Archive Api V1 Links  Identity  Archive Post"
+                  "$ref": "#/components/schemas/WebLink"
                 }
               }
             }
@@ -2522,9 +2472,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Link Recover Api V1 Links  Identity  Recover Post"
+                  "$ref": "#/components/schemas/WebLink"
                 }
               }
             }
@@ -2573,9 +2521,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Chat Archive Api V1 Chats  Identity  Archive Post"
+                  "$ref": "#/components/schemas/TrackedChat"
                 }
               }
             }
@@ -2624,9 +2570,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Chat Recover Api V1 Chats  Identity  Recover Post"
+                  "$ref": "#/components/schemas/TrackedChat"
                 }
               }
             }
@@ -2675,9 +2619,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Github Archive Api V1 Github  Identity  Archive Post"
+                  "$ref": "#/components/schemas/ListedGithubReference"
                 }
               }
             }
@@ -2726,9 +2668,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Github Recover Api V1 Github  Identity  Recover Post"
+                  "$ref": "#/components/schemas/ListedGithubReference"
                 }
               }
             }
@@ -2777,9 +2717,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Question Archive Api V1 Questions  Identity  Archive Post"
+                  "$ref": "#/components/schemas/Question"
                 }
               }
             }
@@ -2828,9 +2766,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Question Recover Api V1 Questions  Identity  Recover Post"
+                  "$ref": "#/components/schemas/Question"
                 }
               }
             }
@@ -2879,9 +2815,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Decision Archive Api V1 Decisions  Identity  Archive Post"
+                  "$ref": "#/components/schemas/Decision"
                 }
               }
             }
@@ -2930,9 +2864,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Decision Recover Api V1 Decisions  Identity  Recover Post"
+                  "$ref": "#/components/schemas/Decision"
                 }
               }
             }
@@ -3045,9 +2977,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Upload Api V1 Attachments Post"
+                  "$ref": "#/components/schemas/Attachment"
                 }
               }
             }
@@ -23286,6 +23216,26 @@
         ],
         "title": "TaskMove",
         "description": "revision is the task's own; position is its new place among the work item's active tasks,\n1 first, and a place past the last moves it last."
+      },
+      "TaskPlace": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "position"
+        ],
+        "title": "TaskPlace",
+        "description": "Where a moved task now stands in its work item's list, 1 first."
       },
       "TaskUpdate": {
         "properties": {

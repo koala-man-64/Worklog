@@ -7282,6 +7282,16 @@ export interface components {
             /** Position */
             position: number;
         };
+        /**
+         * TaskPlace
+         * @description Where a moved task now stands in its work item's list, 1 first.
+         */
+        TaskPlace: {
+            /** Id */
+            id: string;
+            /** Position */
+            position: number;
+        };
         /** TaskUpdate */
         TaskUpdate: {
             /** Revision */
@@ -8784,9 +8794,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Decision"];
                 };
             };
             /** @description Validation Error */
@@ -8852,9 +8860,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Question"];
                 };
             };
             /** @description Validation Error */
@@ -8920,9 +8926,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ListedGithubReference"];
                 };
             };
             /** @description Validation Error */
@@ -8988,9 +8992,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["TrackedChat"];
                 };
             };
             /** @description Validation Error */
@@ -9056,9 +9058,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["WebLink"];
                 };
             };
             /** @description Validation Error */
@@ -9155,9 +9155,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Task"];
                 };
             };
             /** @description Validation Error */
@@ -9223,9 +9221,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Note"];
                 };
             };
             /** @description Validation Error */
@@ -9258,9 +9254,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Note"];
                 };
             };
             /** @description Validation Error */
@@ -9293,9 +9287,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Task"];
                 };
             };
             /** @description Validation Error */
@@ -9330,9 +9322,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["TaskPlace"];
                 };
             };
             /** @description Validation Error */
@@ -9365,9 +9355,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["FileReference"];
                 };
             };
             /** @description Validation Error */
@@ -9400,9 +9388,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["WebLink"];
                 };
             };
             /** @description Validation Error */
@@ -9466,9 +9452,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["TrackedChat"];
                 };
             };
             /** @description Validation Error */
@@ -9555,9 +9539,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ListedGithubReference"];
                 };
             };
             /** @description Validation Error */
@@ -9590,9 +9572,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Question"];
                 };
             };
             /** @description Validation Error */
@@ -9625,9 +9605,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Decision"];
                 };
             };
             /** @description Validation Error */
@@ -9662,9 +9640,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Note"];
                 };
             };
             /** @description Validation Error */
@@ -9699,9 +9675,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Note"];
                 };
             };
             /** @description Validation Error */
@@ -9736,9 +9710,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Task"];
                 };
             };
             /** @description Validation Error */
@@ -9773,9 +9745,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Task"];
                 };
             };
             /** @description Validation Error */
@@ -9810,9 +9780,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["FileReference"];
                 };
             };
             /** @description Validation Error */
@@ -9847,9 +9815,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["FileReference"];
                 };
             };
             /** @description Validation Error */
@@ -9884,9 +9850,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Attachment"];
                 };
             };
             /** @description Validation Error */
@@ -9921,9 +9885,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Attachment"];
                 };
             };
             /** @description Validation Error */
@@ -9958,9 +9920,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["WebLink"];
                 };
             };
             /** @description Validation Error */
@@ -9995,9 +9955,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["WebLink"];
                 };
             };
             /** @description Validation Error */
@@ -10032,9 +9990,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["TrackedChat"];
                 };
             };
             /** @description Validation Error */
@@ -10069,9 +10025,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["TrackedChat"];
                 };
             };
             /** @description Validation Error */
@@ -10106,9 +10060,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ListedGithubReference"];
                 };
             };
             /** @description Validation Error */
@@ -10143,9 +10095,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ListedGithubReference"];
                 };
             };
             /** @description Validation Error */
@@ -10180,9 +10130,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Question"];
                 };
             };
             /** @description Validation Error */
@@ -10217,9 +10165,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Question"];
                 };
             };
             /** @description Validation Error */
@@ -10254,9 +10200,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Decision"];
                 };
             };
             /** @description Validation Error */
@@ -10291,9 +10235,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Decision"];
                 };
             };
             /** @description Validation Error */
@@ -10359,9 +10301,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Attachment"];
                 };
             };
             /** @description Validation Error */
