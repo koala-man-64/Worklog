@@ -1125,3 +1125,93 @@ class AppliedProposal(ProposalEntry):
 class AppliedProposals(Answer):
     items: list[AppliedProposal]
     total: int
+
+
+class AgentRun(Answer):
+    """A run: one stretch of an agent's work under one credential, as it reported it."""
+
+    id: str
+    agentId: str
+    credentialId: str
+    clientRunKey: str
+    displayName: str
+    # Empty when the run named none.
+    provider: str
+    # The chat it reported, or the one its identity registered with; null when neither names one.
+    externalChatId: str | None
+    revision: int
+    createdAt: str
+    updatedAt: str
+    # Both null while the run is open. agent_runs.end_reason has no CHECK.
+    endedAt: str | None
+    endReason: str | None
+
+
+class AgentRuns(Answer):
+    items: list[AgentRun]
+    total: int
+    limit: int
+    offset: int
+
+
+class ParticipationRepository(Answer):
+    """A repository a participation reports working in, and where."""
+
+    repositoryId: str
+    repositoryName: str
+    archived: bool
+    checkoutPath: str
+    worktreePath: str
+    branch: str
+
+
+class Participation(Answer):
+    """What a run reports working on: a work item or none, and the repositories it works in."""
+
+    id: str
+    runId: str
+    itemId: str | None
+    description: str
+    contexts: list[ParticipationRepository]
+    revision: int
+    createdAt: str
+    updatedAt: str
+    lastSeenAt: str
+    # Both null while it is held. participations.release_reason has no CHECK.
+    releasedAt: str | None
+    releaseReason: str | None
+    # Not seen for two hours.
+    stale: bool
+    run: AgentRun
+
+
+class Participations(Answer):
+    items: list[Participation]
+    total: int
+    limit: int
+    offset: int
+
+
+class CoordinationUpdate(Answer):
+    """A status update a run posted on its participation."""
+
+    id: str
+    participationId: str
+    runId: str
+    agentId: str
+    credentialId: str
+    # The run's display name when it posted.
+    authorLabel: str
+    kind: Literal["update", "blocker", "handoff"]
+    text: str
+    itemId: str | None
+    # The participation's contexts when it posted, as coordination.post_update wrote them.
+    contexts: list[ParticipationRepository]
+    createdAt: str
+
+
+class CoordinationUpdates(Answer):
+    items: list[CoordinationUpdate]
+    total: int
+    limit: int
+    offset: int

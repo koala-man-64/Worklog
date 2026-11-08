@@ -2922,6 +2922,47 @@ export interface components {
             directory?: string | null;
         };
         /**
+         * AgentRun
+         * @description A run: one stretch of an agent's work under one credential, as it reported it.
+         */
+        AgentRun: {
+            /** Id */
+            id: string;
+            /** Agentid */
+            agentId: string;
+            /** Credentialid */
+            credentialId: string;
+            /** Clientrunkey */
+            clientRunKey: string;
+            /** Displayname */
+            displayName: string;
+            /** Provider */
+            provider: string;
+            /** Externalchatid */
+            externalChatId: string | null;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Endedat */
+            endedAt: string | null;
+            /** Endreason */
+            endReason: string | null;
+        };
+        /** AgentRuns */
+        AgentRuns: {
+            /** Items */
+            items: components["schemas"]["AgentRun"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /**
          * AgentSummary
          * @description An agent identity, by its label. One without a live credential reads as archived.
          */
@@ -3224,6 +3265,37 @@ export interface components {
             /** Id */
             id: string;
         };
+        /**
+         * CoordinationUpdate
+         * @description A status update a run posted on its participation.
+         */
+        CoordinationUpdate: {
+            /** Id */
+            id: string;
+            /** Participationid */
+            participationId: string;
+            /** Runid */
+            runId: string;
+            /** Agentid */
+            agentId: string;
+            /** Credentialid */
+            credentialId: string;
+            /** Authorlabel */
+            authorLabel: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "update" | "blocker" | "handoff";
+            /** Text */
+            text: string;
+            /** Itemid */
+            itemId: string | null;
+            /** Contexts */
+            contexts: components["schemas"]["ParticipationRepository"][];
+            /** Createdat */
+            createdAt: string;
+        };
         /** CoordinationUpdateCreate */
         CoordinationUpdateCreate: {
             /**
@@ -3234,6 +3306,17 @@ export interface components {
             kind: "update" | "blocker" | "handoff";
             /** Text */
             text: string;
+        };
+        /** CoordinationUpdates */
+        CoordinationUpdates: {
+            /** Items */
+            items: components["schemas"]["CoordinationUpdate"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
         };
         /** CredentialCreate */
         CredentialCreate: {
@@ -3905,6 +3988,37 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /**
+         * Participation
+         * @description What a run reports working on: a work item or none, and the repositories it works in.
+         */
+        Participation: {
+            /** Id */
+            id: string;
+            /** Runid */
+            runId: string;
+            /** Itemid */
+            itemId: string | null;
+            /** Description */
+            description: string;
+            /** Contexts */
+            contexts: components["schemas"]["ParticipationRepository"][];
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Lastseenat */
+            lastSeenAt: string;
+            /** Releasedat */
+            releasedAt: string | null;
+            /** Releasereason */
+            releaseReason: string | null;
+            /** Stale */
+            stale: boolean;
+            run: components["schemas"]["AgentRun"];
+        };
         /** ParticipationContext */
         ParticipationContext: {
             /** Repositoryid */
@@ -3941,6 +4055,24 @@ export interface components {
             /** Contexts */
             contexts?: components["schemas"]["ParticipationContext"][];
         };
+        /**
+         * ParticipationRepository
+         * @description A repository a participation reports working in, and where.
+         */
+        ParticipationRepository: {
+            /** Repositoryid */
+            repositoryId: string;
+            /** Repositoryname */
+            repositoryName: string;
+            /** Archived */
+            archived: boolean;
+            /** Checkoutpath */
+            checkoutPath: string;
+            /** Worktreepath */
+            worktreePath: string;
+            /** Branch */
+            branch: string;
+        };
         /** ParticipationUpdate */
         ParticipationUpdate: {
             /** Revision */
@@ -3951,6 +4083,17 @@ export interface components {
             itemId?: string | null;
             /** Contexts */
             contexts?: components["schemas"]["ParticipationContext"][] | null;
+        };
+        /** Participations */
+        Participations: {
+            /** Items */
+            items: components["schemas"]["Participation"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
         };
         /** People */
         People: {
@@ -10187,9 +10330,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["AgentRuns"];
                 };
             };
             /** @description Validation Error */
@@ -10255,9 +10396,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["AgentRun"];
                 };
             };
             /** @description Validation Error */
@@ -10330,9 +10469,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Participations"];
                 };
             };
             /** @description Validation Error */
@@ -10398,9 +10535,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Participation"];
                 };
             };
             /** @description Validation Error */
@@ -10655,9 +10790,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["CoordinationUpdates"];
                 };
             };
             /** @description Validation Error */
