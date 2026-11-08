@@ -1770,9 +1770,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Chat List Api V1 Chats Get"
+                  "$ref": "#/components/schemas/Chats"
                 }
               }
             }
@@ -1839,9 +1837,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Claude Sessions Api V1 Claude Sessions Get"
+                  "$ref": "#/components/schemas/ClaudeSessions"
                 }
               }
             }
@@ -1898,9 +1894,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Chat Transcript Api V1 Chats  Identity  Transcript Get"
+                  "$ref": "#/components/schemas/Transcript"
                 }
               }
             }
@@ -4240,9 +4234,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Search Api V1 Search Get"
+                  "$ref": "#/components/schemas/SearchResults"
                 }
               }
             }
@@ -4343,9 +4335,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Context Api V1 Context Get"
+                  "$ref": "#/components/schemas/WorkContext"
                 }
               }
             }
@@ -6391,9 +6381,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Chat Messages Api V1 Chats  Identity  Messages Get"
+                  "$ref": "#/components/schemas/ChatMessages"
                 }
               }
             }
@@ -11142,6 +11130,98 @@
         "title": "AgentListed",
         "description": "An agent identity as the Agents page lists it, gathered from what it wrote."
       },
+      "AgentMessage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "thread": {
+            "type": "string",
+            "title": "Thread"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "truncated": {
+            "type": "boolean",
+            "title": "Truncated"
+          },
+          "author": {
+            "type": "string",
+            "title": "Author"
+          },
+          "kind": {
+            "type": "string",
+            "const": "agent",
+            "title": "Kind"
+          },
+          "authorThread": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authorthread"
+          },
+          "recipient": {
+            "type": "string",
+            "title": "Recipient"
+          },
+          "messageType": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Messagetype"
+          },
+          "encrypted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Encrypted"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "thread",
+          "at",
+          "text",
+          "truncated",
+          "author",
+          "kind",
+          "authorThread",
+          "recipient"
+        ],
+        "title": "AgentMessage",
+        "description": "A message one agent of the chat sent another, or one received from outside it."
+      },
       "AgentProfile": {
         "properties": {
           "id": {
@@ -12109,6 +12189,63 @@
         ],
         "title": "Archive"
       },
+      "AssistantMessage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "thread": {
+            "type": "string",
+            "title": "Thread"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "truncated": {
+            "type": "boolean",
+            "title": "Truncated"
+          },
+          "author": {
+            "type": "string",
+            "title": "Author"
+          },
+          "kind": {
+            "type": "string",
+            "const": "assistant",
+            "title": "Kind"
+          },
+          "authorThread": {
+            "type": "string",
+            "title": "Authorthread"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "thread",
+          "at",
+          "text",
+          "truncated",
+          "author",
+          "kind",
+          "authorThread"
+        ],
+        "title": "AssistantMessage"
+      },
       "Attachment": {
         "properties": {
           "id": {
@@ -12333,6 +12470,78 @@
         "title": "BackupFile",
         "description": "A backup or raw recovery file, by its file's metadata; Settings reads no hashes."
       },
+      "BoundRecipient": {
+        "properties": {
+          "runId": {
+            "type": "string",
+            "title": "Runid"
+          },
+          "runName": {
+            "type": "string",
+            "title": "Runname"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "startedAt": {
+            "type": "string",
+            "title": "Startedat"
+          },
+          "agentId": {
+            "type": "string",
+            "title": "Agentid"
+          },
+          "agentLabel": {
+            "type": "string",
+            "title": "Agentlabel"
+          },
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          },
+          "registeredBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CredentialSponsor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "binding": {
+            "type": "string",
+            "enum": [
+              "registered",
+              "confirmed"
+            ],
+            "title": "Binding"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "runId",
+          "runName",
+          "provider",
+          "startedAt",
+          "agentId",
+          "agentLabel",
+          "avatar",
+          "registeredBy",
+          "binding"
+        ],
+        "title": "BoundRecipient",
+        "description": "A run a message sent now would reach: its identity registered with the chat or was confirmed in it."
+      },
       "Change": {
         "properties": {
           "id": {
@@ -12372,6 +12581,82 @@
         ],
         "title": "Change",
         "description": "One entry of a record's history as the record's own read lists it: who changed it, how and when."
+      },
+      "ChatAddress": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "chatId": {
+            "type": "string",
+            "title": "Chatid"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "chatId",
+          "archived"
+        ],
+        "title": "ChatAddress"
+      },
+      "ChatAgent": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          },
+          "binding": {
+            "type": "string",
+            "enum": [
+              "registered",
+              "confirmed",
+              "run"
+            ],
+            "title": "Binding"
+          },
+          "chatId": {
+            "type": "string",
+            "title": "Chatid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "avatar",
+          "active",
+          "binding",
+          "chatId"
+        ],
+        "title": "ChatAgent",
+        "description": "An agent identity tied to a chat ID, by its closest tie."
       },
       "ChatConfirmation": {
         "properties": {
@@ -12465,6 +12750,98 @@
         ],
         "title": "ChatCreate"
       },
+      "ChatDelivery": {
+        "properties": {
+          "runId": {
+            "type": "string",
+            "title": "Runid"
+          },
+          "runName": {
+            "type": "string",
+            "title": "Runname"
+          },
+          "agentId": {
+            "type": "string",
+            "title": "Agentid"
+          },
+          "agentLabel": {
+            "type": "string",
+            "title": "Agentlabel"
+          },
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "delivered",
+              "expired"
+            ],
+            "title": "Status"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "expiresAt": {
+            "type": "string",
+            "title": "Expiresat"
+          },
+          "deliveredAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deliveredat"
+          },
+          "expiredAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expiredat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "runId",
+          "runName",
+          "agentId",
+          "agentLabel",
+          "avatar",
+          "status",
+          "reason",
+          "expiresAt",
+          "deliveredAt",
+          "expiredAt"
+        ],
+        "title": "ChatDelivery"
+      },
       "ChatIdConfirmation": {
         "properties": {
           "agentId": {
@@ -12488,6 +12865,144 @@
         ],
         "title": "ChatIdConfirmation"
       },
+      "ChatListed": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "ownerType": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap"
+            ],
+            "title": "Ownertype"
+          },
+          "ownerId": {
+            "type": "string",
+            "title": "Ownerid"
+          },
+          "chatId": {
+            "type": "string",
+            "title": "Chatid"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "createdDate": {
+            "type": "string",
+            "title": "Createddate"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "repos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Repos"
+          },
+          "stepIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stepids"
+          },
+          "repositoryIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Repositoryids"
+          },
+          "owner": {
+            "$ref": "#/components/schemas/ChatOwner"
+          },
+          "roadmaps": {
+            "items": {
+              "$ref": "#/components/schemas/RecordSummary"
+            },
+            "type": "array",
+            "title": "Roadmaps"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/ChatStep"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/ChatAgent"
+            },
+            "type": "array",
+            "title": "Agents"
+          },
+          "transcript": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TranscriptSummary"
+              },
+              {
+                "$ref": "#/components/schemas/UnreadTranscript"
+              }
+            ],
+            "title": "Transcript"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "ownerType",
+          "ownerId",
+          "chatId",
+          "title",
+          "createdDate",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "provider",
+          "model",
+          "repos",
+          "stepIds",
+          "repositoryIds",
+          "owner",
+          "roadmaps",
+          "steps",
+          "agents",
+          "transcript"
+        ],
+        "title": "ChatListed",
+        "description": "A tracked chat as the Chats page lists it."
+      },
       "ChatMessageCreate": {
         "properties": {
           "text": {
@@ -12503,6 +13018,234 @@
           "text"
         ],
         "title": "ChatMessageCreate"
+      },
+      "ChatMessageSent": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "chatId": {
+            "type": "string",
+            "title": "Chatid"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "authorId": {
+            "type": "string",
+            "title": "Authorid"
+          },
+          "authorLabel": {
+            "type": "string",
+            "title": "Authorlabel"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "deliveries": {
+            "items": {
+              "$ref": "#/components/schemas/ChatDelivery"
+            },
+            "type": "array",
+            "title": "Deliveries"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "chatId",
+          "text",
+          "authorId",
+          "authorLabel",
+          "createdAt",
+          "deliveries"
+        ],
+        "title": "ChatMessageSent",
+        "description": "A message the person wrote into a chat, with each recipient's delivery as it stands now."
+      },
+      "ChatMessages": {
+        "properties": {
+          "chat": {
+            "$ref": "#/components/schemas/ChatAddress"
+          },
+          "recipients": {
+            "items": {
+              "$ref": "#/components/schemas/BoundRecipient"
+            },
+            "type": "array",
+            "title": "Recipients"
+          },
+          "unconfirmed": {
+            "items": {
+              "$ref": "#/components/schemas/ChatRecipient"
+            },
+            "type": "array",
+            "title": "Unconfirmed"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ChatMessageSent"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "chat",
+          "recipients",
+          "unconfirmed",
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "ChatMessages",
+        "description": "A tracked chat's messages, newest first, with who a message sent now would reach."
+      },
+      "ChatOwner": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap"
+            ],
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "id",
+          "title",
+          "archived"
+        ],
+        "title": "ChatOwner",
+        "description": "The work item or roadmap a tracked chat belongs to; empty if that record is missing."
+      },
+      "ChatRecipient": {
+        "properties": {
+          "runId": {
+            "type": "string",
+            "title": "Runid"
+          },
+          "runName": {
+            "type": "string",
+            "title": "Runname"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "startedAt": {
+            "type": "string",
+            "title": "Startedat"
+          },
+          "agentId": {
+            "type": "string",
+            "title": "Agentid"
+          },
+          "agentLabel": {
+            "type": "string",
+            "title": "Agentlabel"
+          },
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          },
+          "registeredBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CredentialSponsor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "runId",
+          "runName",
+          "provider",
+          "startedAt",
+          "agentId",
+          "agentLabel",
+          "avatar",
+          "registeredBy"
+        ],
+        "title": "ChatRecipient",
+        "description": "An open run that reports a chat's ID, and its agent identity."
+      },
+      "ChatStep": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "retired": {
+            "type": "boolean",
+            "title": "Retired"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "status",
+          "retired"
+        ],
+        "title": "ChatStep",
+        "description": "A step a tracked chat works on, with its status as its roadmap shows it."
       },
       "ChatTrack": {
         "properties": {
@@ -12662,6 +13405,157 @@
           "revision"
         ],
         "title": "ChatUpdate"
+      },
+      "Chats": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ChatListed"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "Chats"
+      },
+      "ClaudeSession": {
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "title": "Sessionid"
+          },
+          "hostSessionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hostsessionid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "cwd": {
+            "type": "string",
+            "title": "Cwd"
+          },
+          "entrypoint": {
+            "type": "string",
+            "title": "Entrypoint"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "waiting",
+              "working",
+              "idle"
+            ],
+            "title": "Status"
+          },
+          "waitingFor": {
+            "type": "string",
+            "title": "Waitingfor"
+          },
+          "startedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Startedat"
+          },
+          "statusAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Statusat"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "chatId": {
+            "type": "string",
+            "title": "Chatid"
+          },
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/ChatAgent"
+            },
+            "type": "array",
+            "title": "Agents"
+          },
+          "tracked": {
+            "items": {
+              "$ref": "#/components/schemas/SessionChat"
+            },
+            "type": "array",
+            "title": "Tracked"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sessionId",
+          "hostSessionId",
+          "name",
+          "cwd",
+          "entrypoint",
+          "kind",
+          "status",
+          "waitingFor",
+          "startedAt",
+          "statusAt",
+          "version",
+          "chatId",
+          "agents",
+          "tracked",
+          "model"
+        ],
+        "title": "ClaudeSession",
+        "description": "A Claude Code session running on this machine, with the chats and agents tied to it."
+      },
+      "ClaudeSessions": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ClaudeSession"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "ClaudeSessions"
       },
       "Context": {
         "properties": {
@@ -17042,6 +17936,85 @@
         ],
         "title": "Pin"
       },
+      "PlanRoadmap": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "overview": {
+            "type": "string",
+            "title": "Overview"
+          },
+          "parentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parentid"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "overview",
+          "parentId",
+          "revision",
+          "archived",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "PlanRoadmap",
+        "description": "A roadmap's own fields as plans.list gives them, which the context lists."
+      },
+      "PlanRoadmaps": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PlanRoadmap"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "PlanRoadmaps"
+      },
       "PlanStep": {
         "properties": {
           "id": {
@@ -21416,6 +22389,155 @@
         ],
         "title": "RunCreate"
       },
+      "SearchResult": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "item",
+              "step",
+              "roadmap",
+              "note",
+              "attachment",
+              "link",
+              "chat",
+              "github",
+              "question",
+              "decision",
+              "person",
+              "ticket",
+              "ticket_comment",
+              "discussion",
+              "discussion_message",
+              "resource",
+              "release",
+              "release_check",
+              "reminder"
+            ],
+            "title": "Type"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "snippet": {
+            "type": "string",
+            "title": "Snippet"
+          },
+          "ownerId": {
+            "type": "string",
+            "title": "Ownerid"
+          },
+          "routeType": {
+            "type": "string",
+            "enum": [
+              "resources",
+              "reminders",
+              "discussions",
+              "tickets",
+              "releases",
+              "work",
+              "people",
+              "repositories",
+              "roadmaps"
+            ],
+            "title": "Routetype"
+          },
+          "routeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Routeid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "title",
+          "snippet",
+          "ownerId",
+          "routeType",
+          "routeId"
+        ],
+        "title": "SearchResult"
+      },
+      "SearchResults": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SearchResult"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "SearchResults"
+      },
+      "SessionChat": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "ownerType": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap"
+            ],
+            "title": "Ownertype"
+          },
+          "ownerId": {
+            "type": "string",
+            "title": "Ownerid"
+          },
+          "ownerTitle": {
+            "type": "string",
+            "title": "Ownertitle"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "archived",
+          "ownerType",
+          "ownerId",
+          "ownerTitle"
+        ],
+        "title": "SessionChat",
+        "description": "A tracked chat that follows a running session."
+      },
       "Settings": {
         "properties": {
           "timezone": {
@@ -23561,6 +24683,98 @@
         ],
         "title": "TiedWorkItems"
       },
+      "ToolCall": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "summary"
+        ],
+        "title": "ToolCall"
+      },
+      "ToolsMessage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "thread": {
+            "type": "string",
+            "title": "Thread"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "kind": {
+            "type": "string",
+            "const": "tools",
+            "title": "Kind"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "tools": {
+            "items": {
+              "$ref": "#/components/schemas/ToolCall"
+            },
+            "type": "array",
+            "title": "Tools"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Until"
+          },
+          "author": {
+            "type": "string",
+            "title": "Author"
+          },
+          "authorThread": {
+            "type": "string",
+            "title": "Authorthread"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "thread",
+          "at",
+          "kind",
+          "count",
+          "tools",
+          "until",
+          "author",
+          "authorThread"
+        ],
+        "title": "ToolsMessage",
+        "description": "A run of tool calls between messages, as one line of activity."
+      },
       "TrackedChat": {
         "properties": {
           "id": {
@@ -23658,6 +24872,282 @@
         ],
         "title": "TrackedChat"
       },
+      "Transcript": {
+        "properties": {
+          "found": {
+            "type": "boolean",
+            "title": "Found"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "lastActivityAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastactivityat"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "working",
+              "idle"
+            ],
+            "title": "State"
+          },
+          "threads": {
+            "items": {
+              "$ref": "#/components/schemas/TranscriptThread"
+            },
+            "type": "array",
+            "title": "Threads"
+          },
+          "chat": {
+            "$ref": "#/components/schemas/TrackedChat"
+          },
+          "messages": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/UserMessage"
+                },
+                {
+                  "$ref": "#/components/schemas/AssistantMessage"
+                },
+                {
+                  "$ref": "#/components/schemas/AgentMessage"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolsMessage"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Messages"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "more": {
+            "type": "boolean",
+            "title": "More"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "found",
+          "source",
+          "lastActivityAt",
+          "state",
+          "threads",
+          "chat",
+          "messages",
+          "total",
+          "more"
+        ],
+        "title": "Transcript",
+        "description": "A tracked chat's latest transcript messages, oldest first, with its agents."
+      },
+      "TranscriptSummary": {
+        "properties": {
+          "found": {
+            "type": "boolean",
+            "title": "Found"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "lastActivityAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastactivityat"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "working",
+              "idle"
+            ],
+            "title": "State"
+          },
+          "threads": {
+            "items": {
+              "$ref": "#/components/schemas/TranscriptThread"
+            },
+            "type": "array",
+            "title": "Threads"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "found",
+          "source",
+          "lastActivityAt",
+          "state",
+          "threads"
+        ],
+        "title": "TranscriptSummary",
+        "description": "A chat's agents and their latest activity, read from the tool's transcript files on this machine."
+      },
+      "TranscriptThread": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "task": {
+            "type": "string",
+            "title": "Task"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "working",
+              "idle"
+            ],
+            "title": "State"
+          },
+          "lastActivityAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastactivityat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "key",
+          "name",
+          "title",
+          "task",
+          "parent",
+          "model",
+          "state",
+          "lastActivityAt"
+        ],
+        "title": "TranscriptThread",
+        "description": "One agent's transcript in a chat: the chat itself or a subagent it started."
+      },
+      "UnreadTranscript": {
+        "properties": {
+          "found": {
+            "type": "boolean",
+            "title": "Found"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "lastActivityAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastactivityat"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "working",
+              "idle"
+            ],
+            "title": "State"
+          },
+          "threads": {
+            "items": {
+              "$ref": "#/components/schemas/TranscriptThread"
+            },
+            "type": "array",
+            "title": "Threads"
+          },
+          "error": {
+            "type": "string",
+            "title": "Error"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "found",
+          "source",
+          "lastActivityAt",
+          "state",
+          "threads",
+          "error"
+        ],
+        "title": "UnreadTranscript",
+        "description": "A chat's summary when its transcript could not be read: it never fails the list."
+      },
       "UpdateActivity": {
         "properties": {
           "kind": {
@@ -23732,6 +25222,58 @@
         ],
         "title": "UpdateActivity",
         "description": "A status update one of the agent's runs posted."
+      },
+      "UserMessage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "thread": {
+            "type": "string",
+            "title": "Thread"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "truncated": {
+            "type": "boolean",
+            "title": "Truncated"
+          },
+          "author": {
+            "type": "string",
+            "title": "Author"
+          },
+          "kind": {
+            "type": "string",
+            "const": "user",
+            "title": "Kind"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "thread",
+          "at",
+          "text",
+          "truncated",
+          "author",
+          "kind"
+        ],
+        "title": "UserMessage"
       },
       "ValidationError": {
         "properties": {
@@ -23835,6 +25377,68 @@
           "updatedAt"
         ],
         "title": "WebLink"
+      },
+      "WorkContext": {
+        "properties": {
+          "day": {
+            "$ref": "#/components/schemas/Day"
+          },
+          "workItems": {
+            "$ref": "#/components/schemas/WorkItems"
+          },
+          "roadmaps": {
+            "$ref": "#/components/schemas/PlanRoadmaps"
+          },
+          "people": {
+            "$ref": "#/components/schemas/People"
+          },
+          "proposals": {
+            "$ref": "#/components/schemas/Proposals"
+          },
+          "repositories": {
+            "$ref": "#/components/schemas/Repositories"
+          },
+          "runs": {
+            "$ref": "#/components/schemas/AgentRuns"
+          },
+          "ties": {
+            "$ref": "#/components/schemas/AgentTies"
+          },
+          "participations": {
+            "$ref": "#/components/schemas/Participations"
+          },
+          "updates": {
+            "$ref": "#/components/schemas/CoordinationUpdates"
+          },
+          "tickets": {
+            "$ref": "#/components/schemas/Tickets"
+          },
+          "resources": {
+            "$ref": "#/components/schemas/Resources"
+          },
+          "releases": {
+            "$ref": "#/components/schemas/Releases"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "day",
+          "workItems",
+          "roadmaps",
+          "people",
+          "proposals",
+          "repositories",
+          "runs",
+          "ties",
+          "participations",
+          "updates",
+          "tickets",
+          "resources",
+          "releases"
+        ],
+        "title": "WorkContext",
+        "description": "What an agent reads before it starts: the day, the work, the plans, the people, the proposals,\nwho is at work where, and the tickets, resources and releases."
       },
       "WorkItem": {
         "properties": {

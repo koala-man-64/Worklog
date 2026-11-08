@@ -6,6 +6,7 @@ from collections.abc import Callable
 from fastapi import FastAPI, Query, Request
 
 from . import models as m
+from . import responses as out
 from .chat_messages import ChatMessageService
 from .db import Database
 
@@ -13,7 +14,7 @@ from .db import Database
 def install_chat_message_routes(app: FastAPI, db: Database, mutate: Callable) -> None:
     service = ChatMessageService()
 
-    @app.get("/api/v1/chats/{identity}/messages")
+    @app.get("/api/v1/chats/{identity}/messages", response_model=out.ChatMessages)
     def chat_messages(identity: str, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
         return db.snapshot(lambda c: service.messages(c, identity, limit, offset))
 
