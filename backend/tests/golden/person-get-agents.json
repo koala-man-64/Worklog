@@ -1,0 +1,50 @@
+{
+  "status": 200,
+  "body": {
+    "items": [
+      {
+        "id": "<id1>",
+        "label": "Builder",
+        "active": true,
+        "createdAt": "<time>",
+        "lastActivityAt": "<time>",
+        "providers": [],
+        "openRuns": 1,
+        "runCount": 1,
+        "messageCount": 0,
+        "working": [
+          {
+            "participationId": "<id2>",
+            "runId": "<id3>",
+            "runName": "Builder",
+            "description": "",
+            "lastSeenAt": "<time>",
+            "stale": false,
+            "item": {
+              "id": "<id4>",
+              "title": "Parser",
+              "status": "doing",
+              "archived": false,
+              "roadmapId": null
+            },
+            "roadmap": null,
+            "contexts": [
+              {
+                "repositoryId": "<id5>",
+                "repositoryName": "worklog",
+                "archived": false,
+                "checkoutPath": "",
+                "worktreePath": "",
+                "branch": ""
+              }
+            ]
+          }
+        ],
+        "roles": []
+      }
+    ],
+    "total": 1,
+    "limit": 50,
+    "offset": 0
+  }
+}

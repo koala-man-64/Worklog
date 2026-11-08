@@ -1,0 +1,113 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "label": "Builder",
+    "active": true,
+    "createdAt": "<time>",
+    "lastActivityAt": "<time>",
+    "providers": [],
+    "openRuns": 1,
+    "runCount": 1,
+    "messageCount": 0,
+    "working": [
+      {
+        "participationId": "<id2>",
+        "runId": "<id3>",
+        "runName": "Builder",
+        "description": "",
+        "lastSeenAt": "<time>",
+        "stale": false,
+        "item": {
+          "id": "<id4>",
+          "title": "Parser",
+          "status": "doing",
+          "archived": false,
+          "roadmapId": null
+        },
+        "roadmap": null,
+        "contexts": [
+          {
+            "repositoryId": "<id5>",
+            "repositoryName": "worklog",
+            "archived": false,
+            "checkoutPath": "",
+            "worktreePath": "",
+            "branch": ""
+          }
+        ]
+      }
+    ],
+    "roles": [],
+    "credentials": [
+      {
+        "id": "<id1>",
+        "label": "Builder",
+        "createdAt": "<time>",
+        "revoked": false,
+        "registeredBy": null,
+        "chatId": null
+      }
+    ],
+    "runs": {
+      "items": [
+        {
+          "id": "<id3>",
+          "agentId": "<id1>",
+          "credentialId": "<id1>",
+          "clientRunKey": "golden",
+          "displayName": "Builder",
+          "provider": "",
+          "externalChatId": null,
+          "revision": 1,
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "endedAt": null,
+          "endReason": null,
+          "chats": []
+        }
+      ],
+      "total": 1
+    },
+    "workItems": {
+      "items": [
+        {
+          "id": "<id4>",
+          "title": "Parser",
+          "status": "doing",
+          "archived": false,
+          "roadmap": null,
+          "via": [
+            "participation"
+          ],
+          "current": true,
+          "lastAt": "<time>"
+        }
+      ],
+      "total": 1
+    },
+    "roadmaps": {
+      "items": [],
+      "total": 0
+    },
+    "repositories": {
+      "items": [
+        {
+          "id": "<id5>",
+          "name": "worklog",
+          "archived": false,
+          "via": [
+            "participation"
+          ],
+          "current": true,
+          "lastAt": "<time>"
+        }
+      ],
+      "total": 1
+    },
+    "chats": {
+      "items": [],
+      "total": 0
+    }
+  }
+}

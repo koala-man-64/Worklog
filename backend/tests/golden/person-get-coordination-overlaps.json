@@ -1,0 +1,43 @@
+{
+  "status": 200,
+  "body": {
+    "repositories": [],
+    "participations": [
+      {
+        "participationId": "<id1>",
+        "agent": {
+          "id": "<id2>",
+          "label": "Builder",
+          "kind": "agent",
+          "avatar": "red-dots-antenna",
+          "active": true
+        },
+        "runId": "<id3>",
+        "runName": "Builder",
+        "description": "",
+        "lastSeenAt": "<time>",
+        "stale": false,
+        "item": {
+          "id": "<id4>",
+          "title": "Parser",
+          "status": "doing"
+        },
+        "contexts": [
+          {
+            "repositoryId": "<id5>",
+            "repositoryName": "worklog",
+            "archived": false,
+            "checkoutPath": "",
+            "worktreePath": "",
+            "branch": ""
+          }
+        ]
+      }
+    ],
+    "announcements": [],
+    "discussions": [],
+    "roles": [],
+    "ties": [],
+    "tickets": []
+  }
+}

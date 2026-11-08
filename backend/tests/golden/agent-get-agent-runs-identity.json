@@ -1,0 +1,17 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "agentId": "<id2>",
+    "credentialId": "<id2>",
+    "clientRunKey": "golden",
+    "displayName": "Builder",
+    "provider": "",
+    "externalChatId": null,
+    "revision": 1,
+    "createdAt": "<time>",
+    "updatedAt": "<time>",
+    "endedAt": null,
+    "endReason": null
+  }
+}

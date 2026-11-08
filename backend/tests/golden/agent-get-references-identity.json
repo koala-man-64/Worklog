@@ -1,0 +1,11 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "itemId": "<id2>",
+    "path": "C:/work/spec.md",
+    "archived": false,
+    "revision": 1,
+    "createdAt": "<time>"
+  }
+}

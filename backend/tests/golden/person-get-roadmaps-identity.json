@@ -1,0 +1,123 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "title": "Plan 2",
+    "overview": "",
+    "parentId": null,
+    "revision": 2,
+    "archived": false,
+    "createdAt": "<time>",
+    "updatedAt": "<time>",
+    "steps": [
+      {
+        "id": "<id2>",
+        "title": "Parent",
+        "description": "",
+        "parentId": null,
+        "position": 0,
+        "status": "open",
+        "revision": 1,
+        "retired": false,
+        "notes": [],
+        "attachments": []
+      },
+      {
+        "id": "<id3>",
+        "title": "Child",
+        "description": "",
+        "parentId": "<id2>",
+        "position": 1,
+        "status": "open",
+        "revision": 1,
+        "retired": false,
+        "notes": [],
+        "attachments": []
+      }
+    ],
+    "versions": [
+      {
+        "number": 1,
+        "createdAt": "<time>",
+        "note": "Created"
+      },
+      {
+        "number": 2,
+        "createdAt": "<time>",
+        "note": ""
+      }
+    ],
+    "notes": [],
+    "attachments": [],
+    "links": [],
+    "chats": [],
+    "github": [],
+    "questions": [
+      {
+        "id": "<id4>",
+        "roadmapId": "<id1>",
+        "title": "Which parser?",
+        "details": "",
+        "answer": "",
+        "status": "open",
+        "archived": false,
+        "revision": 1,
+        "createdAt": "<time>",
+        "updatedAt": "<time>"
+      }
+    ],
+    "decisions": [
+      {
+        "id": "<id5>",
+        "roadmapId": "<id1>",
+        "title": "Use the HTML one",
+        "rationale": "",
+        "decidedDate": "2026-01-05",
+        "archived": false,
+        "revision": 1,
+        "createdAt": "<time>",
+        "updatedAt": "<time>"
+      }
+    ],
+    "history": [
+      {
+        "id": "<id6>",
+        "entityId": "<id1>",
+        "kind": "roadmap.revise",
+        "actorId": "local-user",
+        "actorLabel": "You",
+        "actorKind": "human",
+        "createdAt": "<time>",
+        "localDate": "<today>",
+        "before": null,
+        "after": {
+          "versionNumber": 2,
+          "changedStepIds": []
+        }
+      },
+      {
+        "id": "<id7>",
+        "entityId": "<id1>",
+        "kind": "roadmap.create",
+        "actorId": "local-user",
+        "actorLabel": "You",
+        "actorKind": "human",
+        "createdAt": "<time>",
+        "localDate": "<today>",
+        "before": null,
+        "after": {
+          "versionNumber": 1,
+          "changedStepIds": [
+            "<id2>",
+            "<id3>"
+          ]
+        }
+      }
+    ],
+    "ancestors": [],
+    "children": [],
+    "workItems": [],
+    "people": [],
+    "imports": []
+  }
+}

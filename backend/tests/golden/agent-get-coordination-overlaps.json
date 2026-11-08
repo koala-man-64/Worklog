@@ -1,0 +1,25 @@
+{
+  "status": 200,
+  "body": {
+    "repositories": [],
+    "participations": [],
+    "announcements": [],
+    "discussions": [
+      {
+        "id": "<id1>",
+        "title": "Parser",
+        "pinned": false,
+        "updatedAt": "<time>",
+        "matched": [
+          {
+            "type": "item",
+            "id": "<id2>"
+          }
+        ]
+      }
+    ],
+    "roles": [],
+    "ties": [],
+    "tickets": []
+  }
+}

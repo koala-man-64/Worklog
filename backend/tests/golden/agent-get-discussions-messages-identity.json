@@ -1,0 +1,16 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "discussionId": "<id2>",
+    "text": "Where do we start?",
+    "authorId": "local-user",
+    "authorLabel": "You",
+    "authorKind": "human",
+    "createdAt": "<time>",
+    "chatId": null,
+    "onBehalfOfRoleId": null,
+    "ownershipGeneration": null,
+    "request": null
+  }
+}

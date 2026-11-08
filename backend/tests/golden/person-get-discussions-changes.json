@@ -1,0 +1,31 @@
+{
+  "status": 200,
+  "body": {
+    "items": [
+      {
+        "seq": 1,
+        "kind": "discussion.create",
+        "discussionId": "<id1>",
+        "messageId": "<id2>",
+        "roleId": null,
+        "actorId": "local-user",
+        "actorLabel": "You",
+        "actorKind": "human",
+        "createdAt": "<time>"
+      },
+      {
+        "seq": 2,
+        "kind": "discussion.create",
+        "discussionId": "<id3>",
+        "messageId": "<id4>",
+        "roleId": null,
+        "actorId": "local-user",
+        "actorLabel": "You",
+        "actorKind": "human",
+        "createdAt": "<time>"
+      }
+    ],
+    "cursor": "<cursor>",
+    "hasMore": false
+  }
+}

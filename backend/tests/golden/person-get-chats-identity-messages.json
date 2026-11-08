@@ -1,0 +1,16 @@
+{
+  "status": 200,
+  "body": {
+    "chat": {
+      "id": "<id1>",
+      "chatId": "chat-1",
+      "archived": false
+    },
+    "recipients": [],
+    "unconfirmed": [],
+    "items": [],
+    "total": 0,
+    "limit": 50,
+    "offset": 0
+  }
+}

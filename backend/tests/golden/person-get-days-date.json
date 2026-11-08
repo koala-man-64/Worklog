@@ -1,0 +1,57 @@
+{
+  "status": 200,
+  "body": {
+    "date": "<today>",
+    "revision": 2,
+    "reflection": "",
+    "reflectionRevision": 0,
+    "entries": [
+      {
+        "id": "<id1>",
+        "itemId": "<id2>",
+        "date": "<today>",
+        "planned": true,
+        "worked": true,
+        "outcome": "Half done",
+        "position": 1,
+        "revision": 1,
+        "item": {
+          "id": "<id2>",
+          "title": "Parser",
+          "description": "Parse the plan",
+          "status": "doing",
+          "adoUrl": null,
+          "roadmapId": null,
+          "stepId": null,
+          "backlogOrder": 1,
+          "archived": false,
+          "revision": 2,
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "repositoryIds": [],
+          "rank": 1
+        },
+        "counts": {
+          "tasks": 1,
+          "tasksDone": 0,
+          "links": 1,
+          "files": 2,
+          "scratchpad": true
+        },
+        "statusOnDay": "doing"
+      }
+    ],
+    "summary": {
+      "worked": [
+        {
+          "id": "<id2>",
+          "title": "Parser",
+          "outcome": "Half done"
+        }
+      ],
+      "completed": [],
+      "blocked": []
+    },
+    "nextItemId": "<id2>"
+  }
+}

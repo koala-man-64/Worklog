@@ -1,0 +1,53 @@
+{
+  "status": 200,
+  "body": {
+    "items": [
+      {
+        "id": "<id1>",
+        "type": "discussion",
+        "title": "Parser",
+        "snippet": "",
+        "ownerId": "<id1>",
+        "routeType": "discussions",
+        "routeId": "<id1>"
+      },
+      {
+        "id": "<id2>",
+        "type": "question",
+        "title": "Which parser?",
+        "snippet": "",
+        "ownerId": "<id3>",
+        "routeType": "roadmaps",
+        "routeId": "<id3>"
+      },
+      {
+        "id": "<id4>",
+        "type": "reminder",
+        "title": "Check the parser",
+        "snippet": "",
+        "ownerId": "<id4>",
+        "routeType": "reminders",
+        "routeId": "<id4>"
+      },
+      {
+        "id": "<id5>",
+        "type": "item",
+        "title": "Parser",
+        "snippet": "Parse the plan",
+        "ownerId": "<id5>",
+        "routeType": "work",
+        "routeId": "<id5>"
+      },
+      {
+        "id": "<id6>",
+        "type": "discussion_message",
+        "title": "Parser",
+        "snippet": "Where do we start?",
+        "ownerId": "<id1>",
+        "routeType": "discussions",
+        "routeId": "<id1>"
+      }
+    ],
+    "total": 5
+  }
+}
