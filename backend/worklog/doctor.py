@@ -36,8 +36,8 @@ TABLES = {"item": "work_items", "roadmap": "roadmaps", "step": "steps", "reposit
           "person": "people", "resource": "resources", "discussion": "discussions", "proposal": "proposals",
           "ticket": "tickets", "agent": "communication_agents", "question": "roadmap_questions",
           "decision": "roadmap_decisions", "release": "releases", "github": "github_refs", "chat": "agent_chats"}
-# What names a record by type and id, with the types each takes: its CHECK's, or for notes and
-# attachments, which have none, those Worklog writes (records.SUPPORT_OWNERS and FILE_OWNERS).
+# What names a record by type and id, with the types each takes: those its CHECK allows (since v23,
+# notes and attachments have one too), which test_doctor.py keeps equal.
 REFERENCES = [
     ("notes", "owner_type", "owner_id", ("item", "roadmap", "step")),
     ("attachments", "owner_type", "owner_id", ("item", "roadmap", "step", "proposal", "repository")),

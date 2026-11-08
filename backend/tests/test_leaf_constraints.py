@@ -4,6 +4,7 @@ attachment names an owner of a kind it can have. The upgrade changes no record, 
 refuses a row the new CHECKs would refuse and changes nothing then, and the documented way back gives
 v22's exact shape."""
 
+import hashlib
 import sqlite3
 import uuid
 from contextlib import closing
@@ -136,6 +137,21 @@ def test_a_row_the_checks_refuse_stops_the_upgrade_and_changes_nothing(tmp_path,
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 22
         assert recovery._schema_signature(conn) == sealed.shape(22)
     assert leaves(database) == before
+
+
+def test_restore_refuses_a_backup_with_a_row_the_checks_refuse_and_changes_nothing(tmp_path):
+    # The refusal is a ValueError, so `worklog restore` prints it rather than failing (from the review).
+    candidate = populated(tmp_path / "old")
+    to_v22(candidate)
+    with closing(sqlite3.connect(candidate)) as conn:
+        conn.execute("UPDATE tasks SET archived=2")
+        conn.commit()
+    target = populated(tmp_path / "live")
+    original = hashlib.sha256(target.read_bytes()).hexdigest()
+    with pytest.raises(ValueError, match="break rules this version adds"):
+        recovery.restore_database(target, candidate, tmp_path / "live" / "backups")
+    assert hashlib.sha256(target.read_bytes()).hexdigest() == original
+    assert [p.name for p in target.parent.iterdir() if p.name.startswith(".restore")] == []
 
 
 def test_the_documented_way_back_to_v22_gives_its_exact_shape_and_upgrades_again(tmp_path):
