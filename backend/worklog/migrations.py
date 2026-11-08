@@ -14,9 +14,9 @@ import sqlite3
 
 from .common import now, setting, today, uid
 
-SCHEMA_VERSION = 22
+SCHEMA_VERSION = 23
 # Older versions that startup and offline restore upgrade in one transaction.
-UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21})
+UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22})
 
 # v1 grew in place before versions were counted: _upgrade_v1 adds whichever of these a v1 database
 # lacks. People as v1 had them; v10 renames role to team, adds person details and lets links name
@@ -760,6 +760,68 @@ def _open_repository_discussions(conn: sqlite3.Connection) -> None:
                      (seq, repository))
 
 
+
+# v23 (consolidation step 4.4, B-09): four tables nothing references state what Worklog's code alone
+# kept true of them. archived is 0 or 1, and a note or an attachment names an owner of a kind it can
+# have (NoteCreate's kinds, and records.FILE_OWNERS). Each table's definition, its columns, its
+# indexes and the rows its new CHECKs refuse, the definition and indexes as schema.BASELINE has them.
+LEAF_TABLES = {
+    "tasks": ("CREATE TABLE tasks(id TEXT PRIMARY KEY,item_id TEXT NOT NULL REFERENCES work_items(id),text TEXT NOT NULL,"
+              "done INTEGER NOT NULL DEFAULT 0 CHECK(done IN(0,1)),archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),"
+              "revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,"
+              "position INTEGER NOT NULL DEFAULT 0 CHECK(position>=0))",
+              "id,item_id,text,done,archived,revision,created_at,updated_at,position",
+              "CREATE INDEX tasks_item ON tasks(item_id,archived);",
+              "archived NOT IN (0,1)"),
+    "notes": ("CREATE TABLE notes(id TEXT PRIMARY KEY,owner_type TEXT NOT NULL CHECK(owner_type IN('item','roadmap','step')),"
+              "owner_id TEXT NOT NULL,title TEXT NOT NULL,text TEXT NOT NULL,archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),"
+              "revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL)",
+              "id,owner_type,owner_id,title,text,archived,revision,created_at,updated_at",
+              "CREATE UNIQUE INDEX notes_item_scratchpad ON notes(owner_id) WHERE owner_type='item' AND archived=0;"
+              "CREATE INDEX notes_owner ON notes(owner_type,owner_id,archived);",
+              "archived NOT IN (0,1) OR owner_type NOT IN ('item','roadmap','step')"),
+    "file_references": ("CREATE TABLE file_references(id TEXT PRIMARY KEY,item_id TEXT NOT NULL REFERENCES work_items(id),"
+                        "path TEXT NOT NULL,archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),"
+                        "revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL)",
+                        "id,item_id,path,archived,revision,created_at",
+                        "CREATE INDEX file_references_item ON file_references(item_id,archived);",
+                        "archived NOT IN (0,1)"),
+    "attachments": ("CREATE TABLE attachments(id TEXT PRIMARY KEY,"
+                    "owner_type TEXT NOT NULL CHECK(owner_type IN('item','roadmap','step','proposal','repository')),"
+                    "owner_id TEXT NOT NULL,name TEXT NOT NULL,mime TEXT NOT NULL,size INTEGER NOT NULL,sha256 TEXT NOT NULL,"
+                    "content BLOB NOT NULL,archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),"
+                    "revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL)",
+                    "id,owner_type,owner_id,name,mime,size,sha256,content,archived,revision,created_at",
+                    "CREATE INDEX files_owner ON attachments(owner_type,owner_id,archived);",
+                    "archived NOT IN (0,1) OR owner_type NOT IN ('item','roadmap','step','proposal','repository')"),
+}
+
+
+def add_leaf_constraints(conn: sqlite3.Connection) -> None:
+    """Add LEAF_TABLES' CHECKs. No record changes: every row, rowid included, is as it was.
+
+    A row the new CHECKs would refuse stops the upgrade, naming it, and nothing changes: Worklog never
+    writes one, so it would come from outside Worklog. SQLite cannot add a CHECK to a table, so each
+    table is renamed aside, made again under its own name, given its rows, then the old one is dropped
+    with its indexes. Nothing references these tables, so the rename moves no reference. The copy
+    leaves the old rows' pages free in the file, attachments' content among them, until
+    `worklog compact` gives the space back.
+    """
+    refused = [f"{table} {identity}" for table, (_, _, _, rule) in LEAF_TABLES.items()
+               for (identity,) in conn.execute(f"SELECT id FROM {table} WHERE {rule} ORDER BY id")]
+    if refused:
+        # A ValueError, as upgrade's own refusal is, so `worklog restore` says it rather than failing.
+        raise ValueError(f"{len(refused)} records break rules this version adds, so the database was not changed: "
+                         + ", ".join(refused[:5]) + (" and more" if len(refused) > 5 else "")
+                         + ". Each must be archived 0 or 1, and a note or attachment needs an owner type it can have")
+    for table, (definition, columns, indexes, _) in LEAF_TABLES.items():
+        conn.execute(f"ALTER TABLE {table} RENAME TO {table}_v22")
+        conn.execute(definition)
+        conn.execute(f"INSERT INTO {table}(rowid,{columns}) SELECT rowid,{columns} FROM {table}_v22 ORDER BY rowid")
+        conn.execute(f"DROP TABLE {table}_v22")  # and its indexes
+        execute_schema(conn, indexes)
+
+
 def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
     """Unlike executescript, preserve the caller's transaction and rollback boundary."""
     for statement in filter(str.strip, schema.split(";")):
@@ -782,7 +844,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
     reflection its own revision, starting at the day's, and changes no record. v22 lets a discussion
     be tagged with more kinds of record and pinned, tags each discussion with the one repository a
     repository label of it names exactly, and is the first to add records: it opens the discussion
-    of each repository that takes changes.
+    of each repository that takes changes. v23 adds CHECKs to tasks, notes, file references and
+    attachments, and changes no record.
     """
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version == SCHEMA_VERSION:
@@ -836,6 +899,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
         add_reflection_revisions(conn)
     if version < 22:
         add_discussion_tags(conn)
+    if version < 23:
+        add_leaf_constraints(conn)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 

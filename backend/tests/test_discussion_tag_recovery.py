@@ -50,7 +50,10 @@ OPENED = ["repo-a", "repo-d", "repo-e1", "repo-e2"]  # active and not merged, in
 
 
 def to_v21(path):
-    """Take a current database back to the v21 shape the documented way."""
+    """Take a current database back to the v21 shape the documented way: to version 22 first."""
+    from test_leaf_constraints import to_v22
+
+    to_v22(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK)
 
