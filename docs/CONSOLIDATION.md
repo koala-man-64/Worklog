@@ -557,6 +557,7 @@ Done so far:
   - What the transcripts and session files hold is normalized as it is read, so it takes strict models too. A chat whose transcript can't be read says so in its own shape, and a Codex message's type and encryption appear only when it has them.
   - The context lists the roadmaps without the people tied to each, unlike the list of roadmaps, so it has a model of its own for them.
   - The golden world's person now confirms the agent in the tracked chat.
+- **Typing changes no answer, in every test.** `conftest.py` compares each typed answer with what its route built, as JSON text, so a model that converts a value, such as 1 to `true`, fails the request in whatever test makes it. The golden test compares JSON text too, since Python holds `true` equal to 1.
 
 #### 5.4 · Frontend layout
 
