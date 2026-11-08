@@ -494,3 +494,62 @@ class Roadmap(Answer):
     workItems: list[RoadmapWorkItem]
     people: list[RecordPerson]
     imports: list[RoadmapImport]
+
+
+class Step(RoadmapStep):
+    """A step as its own read returns it: with its roadmap, and retired or not."""
+
+    roadmapId: str
+
+
+class History(Answer):
+    items: list[Event]
+    total: int
+
+
+class TabCounts(Answer):
+    """What a work item's tabs on Today hold, so they say so before the item is read."""
+
+    tasks: int
+    tasksDone: int
+    links: int
+    files: int
+    scratchpad: bool
+
+
+class DayItem(WorkItemRecord):
+    rank: int | None
+
+
+class DayEntry(DailyEntry):
+    item: DayItem
+    counts: TabCounts
+    # The status the item ended the day with, from its history; its status now when it has none by then.
+    statusOnDay: str
+
+
+class WorkedOn(Answer):
+    id: str
+    title: str
+    outcome: str
+
+
+class Named(Answer):
+    id: str
+    title: str
+
+
+class DaySummary(Answer):
+    worked: list[WorkedOn]
+    completed: list[Named]
+    blocked: list[Named]
+
+
+class Day(Answer):
+    date: str
+    revision: int
+    reflection: str
+    reflectionRevision: int
+    entries: list[DayEntry]
+    summary: DaySummary
+    nextItemId: str | None

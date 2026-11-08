@@ -544,9 +544,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Day Api V1 Days  Date  Get"
+                  "$ref": "#/components/schemas/Day"
                 }
               }
             }
@@ -3598,9 +3596,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Step Detail Api V1 Steps  Identity  Get"
+                  "$ref": "#/components/schemas/Step"
                 }
               }
             }
@@ -3639,9 +3635,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Step History Api V1 Steps  Identity  History Get"
+                  "$ref": "#/components/schemas/History"
                 }
               }
             }
@@ -11232,6 +11226,271 @@
         ],
         "title": "DailyEntry"
       },
+      "Day": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "title": "Date"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "reflection": {
+            "type": "string",
+            "title": "Reflection"
+          },
+          "reflectionRevision": {
+            "type": "integer",
+            "title": "Reflectionrevision"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/DayEntry"
+            },
+            "type": "array",
+            "title": "Entries"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/DaySummary"
+          },
+          "nextItemId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nextitemid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "date",
+          "revision",
+          "reflection",
+          "reflectionRevision",
+          "entries",
+          "summary",
+          "nextItemId"
+        ],
+        "title": "Day"
+      },
+      "DayEntry": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "itemId": {
+            "type": "string",
+            "title": "Itemid"
+          },
+          "date": {
+            "type": "string",
+            "title": "Date"
+          },
+          "planned": {
+            "type": "boolean",
+            "title": "Planned"
+          },
+          "worked": {
+            "type": "boolean",
+            "title": "Worked"
+          },
+          "outcome": {
+            "type": "string",
+            "title": "Outcome"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "item": {
+            "$ref": "#/components/schemas/DayItem"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/TabCounts"
+          },
+          "statusOnDay": {
+            "type": "string",
+            "title": "Statusonday"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "itemId",
+          "date",
+          "planned",
+          "worked",
+          "outcome",
+          "position",
+          "revision",
+          "item",
+          "counts",
+          "statusOnDay"
+        ],
+        "title": "DayEntry"
+      },
+      "DayItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "doing",
+              "waiting",
+              "blocked",
+              "done"
+            ],
+            "title": "Status"
+          },
+          "adoUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adourl"
+          },
+          "roadmapId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roadmapid"
+          },
+          "stepId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stepid"
+          },
+          "backlogOrder": {
+            "type": "integer",
+            "title": "Backlogorder"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "repositoryIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Repositoryids"
+          },
+          "rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "description",
+          "status",
+          "adoUrl",
+          "roadmapId",
+          "stepId",
+          "backlogOrder",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "repositoryIds",
+          "rank"
+        ],
+        "title": "DayItem"
+      },
+      "DaySummary": {
+        "properties": {
+          "worked": {
+            "items": {
+              "$ref": "#/components/schemas/WorkedOn"
+            },
+            "type": "array",
+            "title": "Worked"
+          },
+          "completed": {
+            "items": {
+              "$ref": "#/components/schemas/Named"
+            },
+            "type": "array",
+            "title": "Completed"
+          },
+          "blocked": {
+            "items": {
+              "$ref": "#/components/schemas/Named"
+            },
+            "type": "array",
+            "title": "Blocked"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "worked",
+          "completed",
+          "blocked"
+        ],
+        "title": "DaySummary"
+      },
       "Decision": {
         "properties": {
           "id": {
@@ -11889,6 +12148,28 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "History": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "History"
+      },
       "ImportCommit": {
         "properties": {
           "title": {
@@ -12451,6 +12732,25 @@
           "direction"
         ],
         "title": "Move"
+      },
+      "Named": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "Named"
       },
       "Note": {
         "properties": {
@@ -15764,6 +16064,84 @@
         "type": "object",
         "title": "SettingsUpdate"
       },
+      "Step": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "parentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parentid"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "retired": {
+            "type": "boolean",
+            "title": "Retired"
+          },
+          "notes": {
+            "items": {
+              "$ref": "#/components/schemas/Note"
+            },
+            "type": "array",
+            "title": "Notes"
+          },
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/Attachment"
+            },
+            "type": "array",
+            "title": "Attachments"
+          },
+          "roadmapId": {
+            "type": "string",
+            "title": "Roadmapid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "description",
+          "parentId",
+          "position",
+          "status",
+          "revision",
+          "retired",
+          "notes",
+          "attachments",
+          "roadmapId"
+        ],
+        "title": "Step",
+        "description": "A step as its own read returns it: with its roadmap, and retired or not."
+      },
       "StepUpdate": {
         "properties": {
           "revision": {
@@ -15801,6 +16179,41 @@
         ],
         "title": "StepUpdate",
         "description": "revision is the step's own. A field given replaces the step's text; one left out keeps it."
+      },
+      "TabCounts": {
+        "properties": {
+          "tasks": {
+            "type": "integer",
+            "title": "Tasks"
+          },
+          "tasksDone": {
+            "type": "integer",
+            "title": "Tasksdone"
+          },
+          "links": {
+            "type": "integer",
+            "title": "Links"
+          },
+          "files": {
+            "type": "integer",
+            "title": "Files"
+          },
+          "scratchpad": {
+            "type": "boolean",
+            "title": "Scratchpad"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tasks",
+          "tasksDone",
+          "links",
+          "files",
+          "scratchpad"
+        ],
+        "title": "TabCounts",
+        "description": "What a work item's tabs on Today hold, so they say so before the item is read."
       },
       "Target": {
         "properties": {
@@ -16750,6 +17163,30 @@
         ],
         "title": "WorkItemRecord",
         "description": "A work item's own fields, as other records embed it."
+      },
+      "WorkedOn": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "outcome": {
+            "type": "string",
+            "title": "Outcome"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "outcome"
+        ],
+        "title": "WorkedOn"
       }
     }
   }

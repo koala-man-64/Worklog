@@ -298,7 +298,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             raise AppError(404, "not_found", "Unknown command")
         return apply(request, "item." + verb, {**body.model_dump(), "id": identity})
 
-    @app.get("/api/v1/days/{date}")
+    @app.get("/api/v1/days/{date}", response_model=out.Day)
     def day(date: str) -> dict:
         return work.items.day(date)
 
@@ -573,7 +573,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def update_step(identity: str, request: Request, body: m.StepUpdate) -> dict:
         return apply(request, "step.update", {**body.model_dump(exclude_unset=True), "id": identity})
 
-    @app.get("/api/v1/steps/{identity}")
+    @app.get("/api/v1/steps/{identity}", response_model=out.Step)
     def step_detail(identity: str) -> dict:
         with db.read() as c:
             row = plans.get_step(c, identity)
@@ -583,7 +583,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                 current = {"id": row["id"], "title": row["title"], "description": row["description"], "parentId": row["parent_id"], "position": row["position"], "status": row["status"], "revision": row["revision"], "retired": True}
             return {**current, "roadmapId": row["roadmap_id"], **support.for_owner(c, "step", identity)}
 
-    @app.get("/api/v1/steps/{identity}/history")
+    @app.get("/api/v1/steps/{identity}/history", response_model=out.History)
     def step_history(identity: str) -> dict:
         return plans.history(identity)
 

@@ -3126,6 +3126,88 @@ export interface components {
             /** Revision */
             revision: number;
         };
+        /** Day */
+        Day: {
+            /** Date */
+            date: string;
+            /** Revision */
+            revision: number;
+            /** Reflection */
+            reflection: string;
+            /** Reflectionrevision */
+            reflectionRevision: number;
+            /** Entries */
+            entries: components["schemas"]["DayEntry"][];
+            summary: components["schemas"]["DaySummary"];
+            /** Nextitemid */
+            nextItemId: string | null;
+        };
+        /** DayEntry */
+        DayEntry: {
+            /** Id */
+            id: string;
+            /** Itemid */
+            itemId: string;
+            /** Date */
+            date: string;
+            /** Planned */
+            planned: boolean;
+            /** Worked */
+            worked: boolean;
+            /** Outcome */
+            outcome: string;
+            /** Position */
+            position: number;
+            /** Revision */
+            revision: number;
+            item: components["schemas"]["DayItem"];
+            counts: components["schemas"]["TabCounts"];
+            /** Statusonday */
+            statusOnDay: string;
+        };
+        /** DayItem */
+        DayItem: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "doing" | "waiting" | "blocked" | "done";
+            /** Adourl */
+            adoUrl: string | null;
+            /** Roadmapid */
+            roadmapId: string | null;
+            /** Stepid */
+            stepId: string | null;
+            /** Backlogorder */
+            backlogOrder: number;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Repositoryids */
+            repositoryIds: string[];
+            /** Rank */
+            rank: number | null;
+        };
+        /** DaySummary */
+        DaySummary: {
+            /** Worked */
+            worked: components["schemas"]["WorkedOn"][];
+            /** Completed */
+            completed: components["schemas"]["Named"][];
+            /** Blocked */
+            blocked: components["schemas"]["Named"][];
+        };
         /** Decision */
         Decision: {
             /** Id */
@@ -3350,6 +3432,13 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** History */
+        History: {
+            /** Items */
+            items: components["schemas"]["Event"][];
+            /** Total */
+            total: number;
+        };
         /** ImportCommit */
         ImportCommit: {
             /** Title */
@@ -3531,6 +3620,13 @@ export interface components {
              * @enum {string}
              */
             direction: "up" | "down";
+        };
+        /** Named */
+        Named: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
         };
         /** Note */
         Note: {
@@ -4663,6 +4759,34 @@ export interface components {
             agentRepositoryRegistration?: boolean | null;
         };
         /**
+         * Step
+         * @description A step as its own read returns it: with its roadmap, and retired or not.
+         */
+        Step: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /** Parentid */
+            parentId: string | null;
+            /** Position */
+            position: number;
+            /** Status */
+            status: string;
+            /** Revision */
+            revision: number;
+            /** Retired */
+            retired: boolean;
+            /** Notes */
+            notes: components["schemas"]["Note"][];
+            /** Attachments */
+            attachments: components["schemas"]["Attachment"][];
+            /** Roadmapid */
+            roadmapId: string;
+        };
+        /**
          * StepUpdate
          * @description revision is the step's own. A field given replaces the step's text; one left out keeps it.
          */
@@ -4673,6 +4797,22 @@ export interface components {
             title?: string | null;
             /** Description */
             description?: string | null;
+        };
+        /**
+         * TabCounts
+         * @description What a work item's tabs on Today hold, so they say so before the item is read.
+         */
+        TabCounts: {
+            /** Tasks */
+            tasks: number;
+            /** Tasksdone */
+            tasksDone: number;
+            /** Links */
+            links: number;
+            /** Files */
+            files: number;
+            /** Scratchpad */
+            scratchpad: boolean;
         };
         /** Target */
         Target: {
@@ -4976,6 +5116,15 @@ export interface components {
             updatedAt: string;
             /** Repositoryids */
             repositoryIds: string[];
+        };
+        /** WorkedOn */
+        WorkedOn: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Outcome */
+            outcome: string;
         };
     };
     responses: never;
@@ -5337,9 +5486,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Day"];
                 };
             };
             /** @description Validation Error */
@@ -7558,9 +7705,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Step"];
                 };
             };
             /** @description Validation Error */
@@ -7628,9 +7773,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["History"];
                 };
             };
             /** @description Validation Error */
