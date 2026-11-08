@@ -145,6 +145,8 @@ class World:
             "runId": run["id"], "itemId": item["id"], "contexts": [{"repositoryId": ids["repository"]}]})["id"]
         ids["proposal"] = self.write(a, "POST", "/proposals", {"title": "Rename", "rationale": "Clearer",
                                                                "operations": []})["id"]
+        # The agent ties itself to the work item, so the agent's ties list one.
+        self.write(a, "POST", "/agent-links", {"targetType": "item", "targetId": item["id"], "relationship": "Builds it"})
 
 
 def concrete(template: str, ids: dict[str, str], today: str) -> str:

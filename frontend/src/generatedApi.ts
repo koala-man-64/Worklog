@@ -2914,6 +2914,56 @@ export interface components {
             /** Directory */
             directory?: string | null;
         };
+        /**
+         * AgentSummary
+         * @description An agent identity, by its label. One without a live credential reads as archived.
+         */
+        AgentSummary: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Archived */
+            archived: boolean;
+            /** Avatar */
+            avatar: string | null;
+        };
+        /**
+         * AgentTie
+         * @description An agent's tie to a record, with the agent and the record as they stand now.
+         */
+        AgentTie: {
+            /** Id */
+            id: string;
+            /** Agentid */
+            agentId: string;
+            agent: components["schemas"]["TieAgent"] | null;
+            /**
+             * Targettype
+             * @enum {string}
+             */
+            targetType: "item" | "roadmap" | "step" | "repository" | "person" | "resource" | "discussion" | "proposal" | "ticket" | "agent" | "question" | "decision";
+            /** Targetid */
+            targetId: string;
+            /** Target */
+            target: components["schemas"]["RecordSummary"] | components["schemas"]["StatusSummary"] | components["schemas"]["StepSummary"] | components["schemas"]["DecisionSummary"] | components["schemas"]["RepositorySummary"] | components["schemas"]["TicketSummary"] | components["schemas"]["AgentSummary"] | null;
+            /** Relationship */
+            relationship: string;
+            /**
+             * Setby
+             * @enum {string}
+             */
+            setBy: "human" | "agent";
+            /** Createdat */
+            createdAt: string;
+        };
+        /** AgentTies */
+        AgentTies: {
+            /** Items */
+            items: components["schemas"]["AgentTie"][];
+            /** Total */
+            total: number;
+        };
         /** Archive */
         Archive: {
             /** Revision */
@@ -2950,10 +3000,29 @@ export interface components {
             /** Createdat */
             createdAt: string;
         };
+        /** Attachments */
+        Attachments: {
+            /** Items */
+            items: components["schemas"]["Attachment"][];
+            /** Total */
+            total: number;
+        };
         /** AvatarChoice */
         AvatarChoice: {
             /** Avatar */
             avatar: string;
+        };
+        /**
+         * BackupFile
+         * @description A backup or raw recovery file, by its file's metadata; Settings reads no hashes.
+         */
+        BackupFile: {
+            /** Name */
+            name: string;
+            /** Size */
+            size: number;
+            /** Createdat */
+            createdAt: string;
         };
         /**
          * Change
@@ -3107,6 +3176,16 @@ export interface components {
             /** Label */
             label?: string | null;
         };
+        /**
+         * CredentialSponsor
+         * @description The agent that registered a credential, by its label then.
+         */
+        CredentialSponsor: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+        };
         /** DailyEntry */
         DailyEntry: {
             /** Id */
@@ -3243,6 +3322,19 @@ export interface components {
             /** Decideddate */
             decidedDate?: string | null;
         };
+        /** DecisionSummary */
+        DecisionSummary: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Archived */
+            archived: boolean;
+            /** Roadmapid */
+            roadmapId: string;
+            /** Roadmaptitle */
+            roadmapTitle: string;
+        };
         /** DecisionUpdate */
         DecisionUpdate: {
             /** Revision */
@@ -3253,6 +3345,39 @@ export interface components {
             rationale?: string | null;
             /** Decideddate */
             decidedDate?: string | null;
+        };
+        /**
+         * DiscussedRepository
+         * @description A repository with its own discussion's id (v22), as the list, its read and a resolved address show it.
+         */
+        DiscussedRepository: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Url */
+            url: string;
+            /** Remoteidentity */
+            remoteIdentity: string;
+            /** Duplicateof */
+            duplicateOf: string | null;
+            /** Mergedinto */
+            mergedInto: string | null;
+            /** Description */
+            description: string;
+            /** Archived */
+            archived: boolean;
+            registeredBy: components["schemas"]["RegisteredBy"] | null;
+            /** Reviewed */
+            reviewed: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Discussionid */
+            discussionId: string | null;
         };
         /** DiscussionCreate */
         DiscussionCreate: {
@@ -3431,6 +3556,22 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * Health
+         * @description Whether this Worklog answers, and which instance and data it serves.
+         */
+        Health: {
+            /** App */
+            app: string;
+            /** Version */
+            version: string;
+            /** Instanceid */
+            instanceId: string;
+            /** Dataid */
+            dataId: string | null;
+            /** Ready */
+            ready: boolean;
         };
         /** History */
         History: {
@@ -4069,6 +4210,14 @@ export interface components {
             rank: number;
         };
         /**
+         * RecordHistory
+         * @description A record's latest history entries the reader may see.
+         */
+        RecordHistory: {
+            /** Items */
+            items: components["schemas"]["Event"][];
+        };
+        /**
          * RecordPerson
          * @description A person tied to a work item, roadmap or repository, as that record lists them.
          */
@@ -4089,6 +4238,18 @@ export interface components {
             archived: boolean;
             /** Createdat */
             createdAt: string;
+        };
+        /**
+         * RecordSummary
+         * @description A roadmap, person, resource or discussion.
+         */
+        RecordSummary: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Archived */
+            archived: boolean;
         };
         /** ReferenceCreate */
         ReferenceCreate: {
@@ -4404,7 +4565,7 @@ export interface components {
         /** Repositories */
         Repositories: {
             /** Items */
-            items: components["schemas"]["RepositoryListed"][];
+            items: components["schemas"]["DiscussedRepository"][];
             /** Total */
             total: number;
             /** Limit */
@@ -4460,7 +4621,7 @@ export interface components {
         };
         /**
          * RepositoryDetail
-         * @description A repository as its own read returns it: with its discussion (v22) and the people tied to it.
+         * @description A repository as its own read returns it: with its discussion and the people tied to it.
          */
         RepositoryDetail: {
             /** Id */
@@ -4508,36 +4669,6 @@ export interface components {
              */
             description: string;
         };
-        /** RepositoryListed */
-        RepositoryListed: {
-            /** Id */
-            id: string;
-            /** Name */
-            name: string;
-            /** Url */
-            url: string;
-            /** Remoteidentity */
-            remoteIdentity: string;
-            /** Duplicateof */
-            duplicateOf: string | null;
-            /** Mergedinto */
-            mergedInto: string | null;
-            /** Description */
-            description: string;
-            /** Archived */
-            archived: boolean;
-            registeredBy: components["schemas"]["RegisteredBy"] | null;
-            /** Reviewed */
-            reviewed: boolean;
-            /** Revision */
-            revision: number;
-            /** Createdat */
-            createdAt: string;
-            /** Updatedat */
-            updatedAt: string;
-            /** Discussionid */
-            discussionId: string | null;
-        };
         /**
          * RepositoryMerge
          * @description Merge the addressed repository into `intoId`; both revisions must be current.
@@ -4549,6 +4680,31 @@ export interface components {
             intoId: string;
             /** Intorevision */
             intoRevision: number;
+        };
+        /**
+         * RepositoryResolution
+         * @description What registering an address would do: link to the record holding its remote, or add one.
+         */
+        RepositoryResolution: {
+            /** Url */
+            url: string;
+            /** Remoteidentity */
+            remoteIdentity: string;
+            repository: components["schemas"]["DiscussedRepository"] | null;
+        };
+        /**
+         * RepositorySummary
+         * @description A repository, by its name. A merged one reads as archived.
+         */
+        RepositorySummary: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Archived */
+            archived: boolean;
+            /** Mergedinto */
+            mergedInto: string | null;
         };
         /** RepositoryUpdate */
         RepositoryUpdate: {
@@ -4942,6 +5098,53 @@ export interface components {
             /** Externalchatid */
             externalChatId?: string | null;
         };
+        /** Settings */
+        Settings: {
+            /** Timezone */
+            timezone: string;
+            /** Today */
+            today: string;
+            /** Version */
+            version: string;
+            /** Requireproposalapproval */
+            requireProposalApproval: boolean;
+            /** Agentrepositoryregistration */
+            agentRepositoryRegistration: boolean;
+            /** Credentials */
+            credentials: components["schemas"]["SettingsCredential"][];
+            /** Agents */
+            agents: components["schemas"]["SettingsAgent"][];
+            /** Backups */
+            backups: components["schemas"]["BackupFile"][];
+            storage: components["schemas"]["Storage"];
+        };
+        /** SettingsAgent */
+        SettingsAgent: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Avatar */
+            avatar: string | null;
+        };
+        /** SettingsCredential */
+        SettingsCredential: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Createdat */
+            createdAt: string;
+            /** Revoked */
+            revoked: boolean;
+            /** Agentid */
+            agentId: string | null;
+            registeredBy: components["schemas"]["CredentialSponsor"] | null;
+            /** Chatid */
+            chatId: string | null;
+            /** Registeredactive */
+            registeredActive: number;
+        };
         /** SettingsUpdate */
         SettingsUpdate: {
             /** Timezone */
@@ -4950,6 +5153,20 @@ export interface components {
             requireProposalApproval?: boolean | null;
             /** Agentrepositoryregistration */
             agentRepositoryRegistration?: boolean | null;
+        };
+        /**
+         * StatusSummary
+         * @description A work item or proposal. A proposal is never archived; its status says where it got to.
+         */
+        StatusSummary: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Archived */
+            archived: boolean;
+            /** Status */
+            status: string;
         };
         /**
          * Step
@@ -4980,6 +5197,24 @@ export interface components {
             roadmapId: string;
         };
         /**
+         * StepSummary
+         * @description A step or question, with its roadmap. A retired step reads as archived.
+         */
+        StepSummary: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Archived */
+            archived: boolean;
+            /** Status */
+            status: string;
+            /** Roadmapid */
+            roadmapId: string;
+            /** Roadmaptitle */
+            roadmapTitle: string;
+        };
+        /**
          * StepUpdate
          * @description revision is the step's own. A field given replaces the step's text; one left out keeps it.
          */
@@ -4990,6 +5225,15 @@ export interface components {
             title?: string | null;
             /** Description */
             description?: string | null;
+        };
+        /** Storage */
+        Storage: {
+            /** Databasebytes */
+            databaseBytes: number;
+            /** Backupbytes */
+            backupBytes: number;
+            /** Warning */
+            warning: string | null;
         };
         /**
          * TabCounts
@@ -5114,6 +5358,19 @@ export interface components {
             /** Assigneeid */
             assigneeId?: string | null;
         };
+        /** TicketSummary */
+        TicketSummary: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Archived */
+            archived: boolean;
+            /** Status */
+            status: string;
+            /** Number */
+            number: number;
+        };
         /** TicketUpdate */
         TicketUpdate: {
             /** Revision */
@@ -5138,6 +5395,20 @@ export interface components {
             itemId?: string | null;
             /** Assigneeid */
             assigneeId?: string | null;
+        };
+        /**
+         * TieAgent
+         * @description An agent as its ties show it.
+         */
+        TieAgent: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Avatar */
+            avatar: string | null;
+            /** Active */
+            active: boolean;
         };
         /** TrackedChat */
         TrackedChat: {
@@ -5392,9 +5663,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Health"];
                 };
             };
         };
@@ -5945,9 +6214,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["RecordHistory"];
                 };
             };
             /** @description Validation Error */
@@ -7561,9 +7828,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Attachments"];
                 };
             };
             /** @description Validation Error */
@@ -8463,9 +8728,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Settings"];
                 };
             };
         };
@@ -9057,9 +9320,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["RepositoryResolution"];
                 };
             };
             /** @description Validation Error */
@@ -10326,9 +10587,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["AgentTies"];
                 };
             };
             /** @description Validation Error */

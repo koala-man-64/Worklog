@@ -345,11 +345,17 @@ class Repository(Answer):
     updatedAt: str
 
 
-class RepositoryDetail(Repository):
-    """A repository as its own read returns it: with its discussion (v22) and the people tied to it."""
+class DiscussedRepository(Repository):
+    """A repository with its own discussion's id (v22), as the list, its read and a resolved address show it."""
 
-    # Null for a repository archived before v22 and not recovered since.
+    # Null for a merged repository, whose discussion is tagged with the survivor now, and for one
+    # archived before v22 and not recovered since (coordination.with_discussion).
     discussionId: str | None
+
+
+class RepositoryDetail(DiscussedRepository):
+    """A repository as its own read returns it: with its discussion and the people tied to it."""
+
     people: list[RecordPerson]
 
 
@@ -637,12 +643,174 @@ class Roadmaps(Answer):
     total: int
 
 
-class RepositoryListed(Repository):
-    discussionId: str | None
-
-
 class Repositories(Answer):
-    items: list[RepositoryListed]
+    items: list[DiscussedRepository]
     total: int
     limit: int
     offset: int
+
+
+class RepositoryResolution(Answer):
+    """What registering an address would do: link to the record holding its remote, or add one."""
+
+    url: str
+    remoteIdentity: str
+    # Null when no record holds the address's remote yet.
+    repository: DiscussedRepository | None
+
+
+class Health(Answer):
+    """Whether this Worklog answers, and which instance and data it serves."""
+
+    app: str
+    version: str
+    instanceId: str
+    # Null only for a database without one in its settings.
+    dataId: str | None
+    ready: bool
+
+
+class RecordHistory(Answer):
+    """A record's latest history entries the reader may see."""
+
+    items: list[Event]
+
+
+class Attachments(Answer):
+    items: list[Attachment]
+    total: int
+
+
+class TieAgent(Answer):
+    """An agent as its ties show it."""
+
+    id: str
+    label: str
+    avatar: str | None
+    # Whether it holds a credential that isn't revoked.
+    active: bool
+
+
+# A tied record as record_kinds.summary gives it: one shape per kind, told apart by their keys, since
+# each model forbids the keys it doesn't name.
+class RecordSummary(Answer):
+    """A roadmap, person, resource or discussion."""
+
+    id: str
+    title: str
+    archived: bool
+
+
+class StatusSummary(RecordSummary):
+    """A work item or proposal. A proposal is never archived; its status says where it got to."""
+
+    status: str
+
+
+class StepSummary(StatusSummary):
+    """A step or question, with its roadmap. A retired step reads as archived."""
+
+    roadmapId: str
+    roadmapTitle: str
+
+
+class DecisionSummary(RecordSummary):
+    roadmapId: str
+    roadmapTitle: str
+
+
+class RepositorySummary(RecordSummary):
+    """A repository, by its name. A merged one reads as archived."""
+
+    mergedInto: str | None
+
+
+class TicketSummary(StatusSummary):
+    number: int
+
+
+class AgentSummary(RecordSummary):
+    """An agent identity, by its label. One without a live credential reads as archived."""
+
+    avatar: str | None
+
+
+TiedRecord = RecordSummary | StatusSummary | StepSummary | DecisionSummary | RepositorySummary | TicketSummary | AgentSummary
+
+
+class AgentTie(Answer):
+    """An agent's tie to a record, with the agent and the record as they stand now."""
+
+    id: str
+    agentId: str
+    # Null if the agent identity is gone.
+    agent: TieAgent | None
+    targetType: Literal["item", "roadmap", "step", "repository", "person", "resource", "discussion", "proposal",
+                        "ticket", "agent", "question", "decision"]
+    targetId: str
+    # Null if the record is gone. A draft proposal the reader may not see leaves its tie out.
+    target: TiedRecord | None
+    relationship: str
+    setBy: Literal["human", "agent"]
+    createdAt: str
+
+
+class AgentTies(Answer):
+    # The first 500 (agent_links.READ_LIMIT); total counts them all.
+    items: list[AgentTie]
+    total: int
+
+
+class CredentialSponsor(Answer):
+    """The agent that registered a credential, by its label then."""
+
+    id: str
+    label: str
+
+
+class SettingsCredential(Answer):
+    id: str
+    label: str
+    createdAt: str
+    revoked: bool
+    # Null for a credential no agent identity is bound to.
+    agentId: str | None
+    # Null for one issued in Settings.
+    registeredBy: CredentialSponsor | None
+    # The chat its identity works in; null when its registration named none.
+    chatId: str | None
+    # The active registrations its identity holds.
+    registeredActive: int
+
+
+class SettingsAgent(Answer):
+    id: str
+    label: str
+    avatar: str | None
+
+
+class BackupFile(Answer):
+    """A backup or raw recovery file, by its file's metadata; Settings reads no hashes."""
+
+    name: str
+    size: int
+    createdAt: str
+
+
+class Storage(Answer):
+    databaseBytes: int
+    backupBytes: int
+    # Null unless the last automatic backup failed or the database is past 2 GB.
+    warning: str | None
+
+
+class Settings(Answer):
+    timezone: str
+    today: str
+    version: str
+    requireProposalApproval: bool
+    agentRepositoryRegistration: bool
+    credentials: list[SettingsCredential]
+    agents: list[SettingsAgent]
+    backups: list[BackupFile]
+    storage: Storage

@@ -15,9 +15,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Health Health Get"
+                  "$ref": "#/components/schemas/Health"
                 }
               }
             }
@@ -866,9 +864,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response History Api V1 History Get"
+                  "$ref": "#/components/schemas/RecordHistory"
                 }
               }
             }
@@ -3000,9 +2996,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Attachments Api V1 Attachments Get"
+                  "$ref": "#/components/schemas/Attachments"
                 }
               }
             }
@@ -4391,9 +4385,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Settings Api V1 Settings Get"
+                  "$ref": "#/components/schemas/Settings"
                 }
               }
             }
@@ -5176,9 +5168,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Repository Resolve Api V1 Repositories Resolve Get"
+                  "$ref": "#/components/schemas/RepositoryResolution"
                 }
               }
             }
@@ -7252,9 +7242,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Agent Links Api V1 Agent Links Get"
+                  "$ref": "#/components/schemas/AgentTies"
                 }
               }
             }
@@ -10629,6 +10617,169 @@
         ],
         "title": "AgentRegistration"
       },
+      "AgentSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "archived",
+          "avatar"
+        ],
+        "title": "AgentSummary",
+        "description": "An agent identity, by its label. One without a live credential reads as archived."
+      },
+      "AgentTie": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "agentId": {
+            "type": "string",
+            "title": "Agentid"
+          },
+          "agent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TieAgent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "targetType": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap",
+              "step",
+              "repository",
+              "person",
+              "resource",
+              "discussion",
+              "proposal",
+              "ticket",
+              "agent",
+              "question",
+              "decision"
+            ],
+            "title": "Targettype"
+          },
+          "targetId": {
+            "type": "string",
+            "title": "Targetid"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecordSummary"
+              },
+              {
+                "$ref": "#/components/schemas/StatusSummary"
+              },
+              {
+                "$ref": "#/components/schemas/StepSummary"
+              },
+              {
+                "$ref": "#/components/schemas/DecisionSummary"
+              },
+              {
+                "$ref": "#/components/schemas/RepositorySummary"
+              },
+              {
+                "$ref": "#/components/schemas/TicketSummary"
+              },
+              {
+                "$ref": "#/components/schemas/AgentSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          },
+          "relationship": {
+            "type": "string",
+            "title": "Relationship"
+          },
+          "setBy": {
+            "type": "string",
+            "enum": [
+              "human",
+              "agent"
+            ],
+            "title": "Setby"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "agentId",
+          "agent",
+          "targetType",
+          "targetId",
+          "target",
+          "relationship",
+          "setBy",
+          "createdAt"
+        ],
+        "title": "AgentTie",
+        "description": "An agent's tie to a record, with the agent and the record as they stand now."
+      },
+      "AgentTies": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AgentTie"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "AgentTies"
+      },
       "Archive": {
         "properties": {
           "revision": {
@@ -10716,6 +10867,28 @@
         "title": "Attachment",
         "description": "An attached file's details; its bytes are read on their own."
       },
+      "Attachments": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Attachment"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "Attachments"
+      },
       "AvatarChoice": {
         "properties": {
           "avatar": {
@@ -10731,6 +10904,31 @@
           "avatar"
         ],
         "title": "AvatarChoice"
+      },
+      "BackupFile": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "size",
+          "createdAt"
+        ],
+        "title": "BackupFile",
+        "description": "A backup or raw recovery file, by its file's metadata; Settings reads no hashes."
       },
       "Change": {
         "properties": {
@@ -11165,6 +11363,26 @@
         "type": "object",
         "title": "CredentialRotate"
       },
+      "CredentialSponsor": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "CredentialSponsor",
+        "description": "The agent that registered a credential, by its label then."
+      },
       "DailyEntry": {
         "properties": {
           "id": {
@@ -11568,6 +11786,40 @@
         ],
         "title": "DecisionCreate"
       },
+      "DecisionSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "roadmapId": {
+            "type": "string",
+            "title": "Roadmapid"
+          },
+          "roadmapTitle": {
+            "type": "string",
+            "title": "Roadmaptitle"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "archived",
+          "roadmapId",
+          "roadmapTitle"
+        ],
+        "title": "DecisionSummary"
+      },
       "DecisionUpdate": {
         "properties": {
           "revision": {
@@ -11615,6 +11867,113 @@
           "revision"
         ],
         "title": "DecisionUpdate"
+      },
+      "DiscussedRepository": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "remoteIdentity": {
+            "type": "string",
+            "title": "Remoteidentity"
+          },
+          "duplicateOf": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duplicateof"
+          },
+          "mergedInto": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mergedinto"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "registeredBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RegisteredBy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reviewed": {
+            "type": "boolean",
+            "title": "Reviewed"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "discussionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discussionid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "url",
+          "remoteIdentity",
+          "duplicateOf",
+          "mergedInto",
+          "description",
+          "archived",
+          "registeredBy",
+          "reviewed",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "discussionId"
+        ],
+        "title": "DiscussedRepository",
+        "description": "A repository with its own discussion's id (v22), as the list, its read and a resolved address show it."
       },
       "DiscussionCreate": {
         "properties": {
@@ -12135,6 +12494,48 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "Health": {
+        "properties": {
+          "app": {
+            "type": "string",
+            "title": "App"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "instanceId": {
+            "type": "string",
+            "title": "Instanceid"
+          },
+          "dataId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataid"
+          },
+          "ready": {
+            "type": "boolean",
+            "title": "Ready"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "app",
+          "version",
+          "instanceId",
+          "dataId",
+          "ready"
+        ],
+        "title": "Health",
+        "description": "Whether this Worklog answers, and which instance and data it serves."
       },
       "History": {
         "properties": {
@@ -13963,6 +14364,24 @@
         "title": "Rank",
         "description": "revision is the item's own; a rank past the last moves the item last."
       },
+      "RecordHistory": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "RecordHistory",
+        "description": "A record's latest history entries the reader may see."
+      },
       "RecordPerson": {
         "properties": {
           "id": {
@@ -14012,6 +14431,31 @@
         ],
         "title": "RecordPerson",
         "description": "A person tied to a work item, roadmap or repository, as that record lists them."
+      },
+      "RecordSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "archived"
+        ],
+        "title": "RecordSummary",
+        "description": "A roadmap, person, resource or discussion."
       },
       "ReferenceCreate": {
         "properties": {
@@ -15035,7 +15479,7 @@
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/RepositoryListed"
+              "$ref": "#/components/schemas/DiscussedRepository"
             },
             "type": "array",
             "title": "Items"
@@ -15295,7 +15739,7 @@
           "people"
         ],
         "title": "RepositoryDetail",
-        "description": "A repository as its own read returns it: with its discussion (v22) and the people tied to it."
+        "description": "A repository as its own read returns it: with its discussion and the people tied to it."
       },
       "RepositoryEnsure": {
         "properties": {
@@ -15328,112 +15772,6 @@
         "title": "RepositoryEnsure",
         "description": "Register a remote, or find the record that already holds it."
       },
-      "RepositoryListed": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "url": {
-            "type": "string",
-            "title": "Url"
-          },
-          "remoteIdentity": {
-            "type": "string",
-            "title": "Remoteidentity"
-          },
-          "duplicateOf": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Duplicateof"
-          },
-          "mergedInto": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mergedinto"
-          },
-          "description": {
-            "type": "string",
-            "title": "Description"
-          },
-          "archived": {
-            "type": "boolean",
-            "title": "Archived"
-          },
-          "registeredBy": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/RegisteredBy"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "reviewed": {
-            "type": "boolean",
-            "title": "Reviewed"
-          },
-          "revision": {
-            "type": "integer",
-            "title": "Revision"
-          },
-          "createdAt": {
-            "type": "string",
-            "title": "Createdat"
-          },
-          "updatedAt": {
-            "type": "string",
-            "title": "Updatedat"
-          },
-          "discussionId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Discussionid"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "name",
-          "url",
-          "remoteIdentity",
-          "duplicateOf",
-          "mergedInto",
-          "description",
-          "archived",
-          "registeredBy",
-          "reviewed",
-          "revision",
-          "createdAt",
-          "updatedAt",
-          "discussionId"
-        ],
-        "title": "RepositoryListed"
-      },
       "RepositoryMerge": {
         "properties": {
           "revision": {
@@ -15460,6 +15798,74 @@
         ],
         "title": "RepositoryMerge",
         "description": "Merge the addressed repository into `intoId`; both revisions must be current."
+      },
+      "RepositoryResolution": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "remoteIdentity": {
+            "type": "string",
+            "title": "Remoteidentity"
+          },
+          "repository": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiscussedRepository"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "url",
+          "remoteIdentity",
+          "repository"
+        ],
+        "title": "RepositoryResolution",
+        "description": "What registering an address would do: link to the record holding its remote, or add one."
+      },
+      "RepositorySummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "mergedInto": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mergedinto"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "archived",
+          "mergedInto"
+        ],
+        "title": "RepositorySummary",
+        "description": "A repository, by its name. A merged one reads as archived."
       },
       "RepositoryUpdate": {
         "properties": {
@@ -16565,6 +16971,168 @@
         ],
         "title": "RunCreate"
       },
+      "Settings": {
+        "properties": {
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          },
+          "today": {
+            "type": "string",
+            "title": "Today"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "requireProposalApproval": {
+            "type": "boolean",
+            "title": "Requireproposalapproval"
+          },
+          "agentRepositoryRegistration": {
+            "type": "boolean",
+            "title": "Agentrepositoryregistration"
+          },
+          "credentials": {
+            "items": {
+              "$ref": "#/components/schemas/SettingsCredential"
+            },
+            "type": "array",
+            "title": "Credentials"
+          },
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/SettingsAgent"
+            },
+            "type": "array",
+            "title": "Agents"
+          },
+          "backups": {
+            "items": {
+              "$ref": "#/components/schemas/BackupFile"
+            },
+            "type": "array",
+            "title": "Backups"
+          },
+          "storage": {
+            "$ref": "#/components/schemas/Storage"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "timezone",
+          "today",
+          "version",
+          "requireProposalApproval",
+          "agentRepositoryRegistration",
+          "credentials",
+          "agents",
+          "backups",
+          "storage"
+        ],
+        "title": "Settings"
+      },
+      "SettingsAgent": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "avatar"
+        ],
+        "title": "SettingsAgent"
+      },
+      "SettingsCredential": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "revoked": {
+            "type": "boolean",
+            "title": "Revoked"
+          },
+          "agentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agentid"
+          },
+          "registeredBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CredentialSponsor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "chatId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chatid"
+          },
+          "registeredActive": {
+            "type": "integer",
+            "title": "Registeredactive"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "createdAt",
+          "revoked",
+          "agentId",
+          "registeredBy",
+          "chatId",
+          "registeredActive"
+        ],
+        "title": "SettingsCredential"
+      },
       "SettingsUpdate": {
         "properties": {
           "timezone": {
@@ -16604,6 +17172,36 @@
         "additionalProperties": false,
         "type": "object",
         "title": "SettingsUpdate"
+      },
+      "StatusSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "archived",
+          "status"
+        ],
+        "title": "StatusSummary",
+        "description": "A work item or proposal. A proposal is never archived; its status says where it got to."
       },
       "Step": {
         "properties": {
@@ -16683,6 +17281,46 @@
         "title": "Step",
         "description": "A step as its own read returns it: with its roadmap, and retired or not."
       },
+      "StepSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "roadmapId": {
+            "type": "string",
+            "title": "Roadmapid"
+          },
+          "roadmapTitle": {
+            "type": "string",
+            "title": "Roadmaptitle"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "archived",
+          "status",
+          "roadmapId",
+          "roadmapTitle"
+        ],
+        "title": "StepSummary",
+        "description": "A step or question, with its roadmap. A retired step reads as archived."
+      },
       "StepUpdate": {
         "properties": {
           "revision": {
@@ -16720,6 +17358,37 @@
         ],
         "title": "StepUpdate",
         "description": "revision is the step's own. A field given replaces the step's text; one left out keeps it."
+      },
+      "Storage": {
+        "properties": {
+          "databaseBytes": {
+            "type": "integer",
+            "title": "Databasebytes"
+          },
+          "backupBytes": {
+            "type": "integer",
+            "title": "Backupbytes"
+          },
+          "warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warning"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "databaseBytes",
+          "backupBytes",
+          "warning"
+        ],
+        "title": "Storage"
       },
       "TabCounts": {
         "properties": {
@@ -17024,6 +17693,40 @@
         ],
         "title": "TicketCreate"
       },
+      "TicketSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "archived",
+          "status",
+          "number"
+        ],
+        "title": "TicketSummary"
+      },
       "TicketUpdate": {
         "properties": {
           "revision": {
@@ -17173,6 +17876,43 @@
           "revision"
         ],
         "title": "TicketUpdate"
+      },
+      "TieAgent": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "avatar",
+          "active"
+        ],
+        "title": "TieAgent",
+        "description": "An agent as its ties show it."
       },
       "TrackedChat": {
         "properties": {

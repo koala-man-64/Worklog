@@ -230,7 +230,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def apply(request: Request, action: str, payload: dict, *, create: bool = False) -> dict:
         return mutate(request, payload, lambda c, a: work.apply(c, a, action, payload), required_key=create)
 
-    @app.get("/health")
+    @app.get("/health", response_model=out.Health)
     def health() -> dict:
         with db.read() as c:
             return {"app": "worklog", "version": __version__, "instanceId": app.state.instance_id,
@@ -336,7 +336,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         if attachment and attachment["owner_type"] == "proposal":
             proposals.detail(attachment["owner_id"], actor)
 
-    @app.get("/api/v1/history")
+    @app.get("/api/v1/history", response_model=out.RecordHistory)
     def history(request: Request, entityId: str, limit: int = Query(100, ge=1, le=200)) -> dict:
         with db.read() as c:
             authorize_history(c, entityId, request.state.actor)
@@ -479,7 +479,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             app.add_api_route(f"/api/v1/{resource}/{{identity}}/{verb}", support_command(kind, verb),
                               methods=["POST"], name=f"{kind}_{verb}")
 
-    @app.get("/api/v1/attachments")
+    @app.get("/api/v1/attachments", response_model=out.Attachments)
     def attachments(request: Request, ownerType: str, ownerId: str, archived: bool = False) -> dict:
         with db.read() as c:
             if ownerType == "proposal":
@@ -683,7 +683,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                 "roadmaps": plans.list(), "people": work.people.list(), "proposals": proposals.list(request.state.actor),
                 **activity}
 
-    @app.get("/api/v1/settings", dependencies=[Depends(person_only)])
+    @app.get("/api/v1/settings", dependencies=[Depends(person_only)], response_model=out.Settings)
     def settings() -> dict:
         with db.read() as c:
             tz = setting(c, "timezone", "America/Chicago")
