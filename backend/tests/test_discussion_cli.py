@@ -110,8 +110,8 @@ def test_reply_from_stdin_keeps_role_and_uses_message_route(transport, monkeypat
     (["post", "--text", "Hello"], "/discussions", {"text": "Hello"}),
     (["avatar", "teal-visor-antenna"], "/discussions/avatar", {"avatar": "teal-visor-antenna"}),
     (["reply", DISCUSSION, "--text", "Response"], f"/discussions/{DISCUSSION}/messages", {"text": "Response"}),
-    # --ask names who must acknowledge, each once: an agent by its identity, or the person.
-    (["reply", DISCUSSION, "--text", "We both change the lexer", "--ask", AGENT, "--ask", "person", "--ask", AGENT],
+    # --ask names who must acknowledge, each once: an agent by its identity, or the person by either name.
+    (["reply", DISCUSSION, "--text", "We both change the lexer", "--ask", AGENT, "--ask", "person", "--ask", AGENT, "--ask", "local-user"],
      f"/discussions/{DISCUSSION}/messages", {"text": "We both change the lexer", "acknowledgement": {"mode": "all", "targets": [
          {"kind": "agent", "id": AGENT}, {"kind": "human", "id": "local-user"}]}}),
     (["post", "--text", "Who owns the lexer?", "--ask", "person", "--context", f"item:{DISCUSSION}"], "/discussions",

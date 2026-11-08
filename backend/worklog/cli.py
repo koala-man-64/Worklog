@@ -1379,10 +1379,10 @@ def discussion_command(client: AgentClient, args: argparse.Namespace) -> Any:
             raise ValueError("Give --ask with --text; a --file names its own acknowledgement")
         payload = _payload(args.file) if args.file else {"text": args.text}
         if args.ask:
-            # Each named one must acknowledge: an agent by its identity, or the person.
+            # Each named one must acknowledge: an agent by its identity, or the person, as person or local-user.
+            asked = dict.fromkeys("local-user" if who == "person" else who for who in args.ask)
             payload["acknowledgement"] = {"mode": "all", "targets": [
-                {"kind": "human", "id": "local-user"} if who == "person" else {"kind": "agent", "id": who}
-                for who in dict.fromkeys(args.ask)]}
+                {"kind": "human", "id": who} if who == "local-user" else {"kind": "agent", "id": who} for who in asked]}
         if args.as_role:
             payload["onBehalfOfRoleId"] = args.as_role
         if args.chat:
@@ -1450,7 +1450,8 @@ def _discussion_parser(actions: Any) -> None:
         command.add_argument("--as-role")
         command.add_argument("--chat")
         command.add_argument("--ask", action="append", metavar="AGENT_ID|person",
-                             help="Ask this agent, or the person, to acknowledge the message; repeat for more")
+                             help="Ask this agent, or the person (person or local-user), to acknowledge the message; "
+                                  "repeat for more")
         if verb == "post":
             command.add_argument("--title")
             command.add_argument("--context", action="append", metavar="TYPE:ID", help="Tag the thread with a record; repeat for more")

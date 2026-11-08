@@ -2,14 +2,18 @@
 what they announced (the agent guide's rule 11): `GET /coordination-overlaps`. The check gathers what
 others already recorded, leaves out what the caller did itself, and reserves nothing."""
 
+import io
+import json
 import uuid
 from datetime import UTC, datetime, timedelta
-from urllib.parse import urlencode
+from urllib.error import HTTPError
+from urllib.parse import urlencode, urlsplit
 
 import pytest
 from test_discussion_pins import pin
 from test_discussion_tags import credential, error, ok, person, read, start, write
 from test_repository_discussions import repository
+from worklog import cli
 
 KEYS = {"repositories", "participations", "announcements", "discussions", "roles", "ties", "tickets"}
 
@@ -84,6 +88,12 @@ def test_an_agent_sees_who_else_works_in_a_repository_and_what_they_announced(cl
     assert [a["authorLabel"] for a in mine["announcements"]] == ["Reviewer"]
     # The person checks too, and sees every agent's.
     assert {a["authorLabel"] for a in check(client, repos=[repo["id"]])["announcements"]} == {"Builder", "Reviewer"}
+    # An announcement shows its first 1,000 characters, counted as characters, not bytes.
+    reply(client, repo["discussionId"], "x" * 1000, builder)
+    reply(client, repo["discussionId"], "é" * 1001, builder)
+    longer, exact = check(client, reviewer, repos=[repo["id"]])["announcements"][:2]
+    assert (longer["text"], longer["truncated"]) == ("é" * 1000, True)
+    assert (exact["text"], exact["truncated"]) == ("x" * 1000, False)
 
 
 def test_each_announcement_says_whether_its_author_is_still_at_it(client):
@@ -99,8 +109,12 @@ def test_each_announcement_says_whether_its_author_is_still_at_it(client):
 
     with client.app.state.db.transaction() as c:
         c.execute("UPDATE participations SET last_seen_at=?", ((datetime.now(UTC) - timedelta(hours=3)).isoformat(),))
-    assert check(client, reviewer, repos=[repo["id"]])["participations"][0]["stale"]
-    ok(write(client, "POST", f"/participations/{reported['id']}/release", {"revision": reported["revision"]}, builder))
+    # Stale work is still listed, and its author no longer counts as reporting there until it reports again.
+    stale = check(client, reviewer, repos=[repo["id"]])
+    assert stale["participations"][0]["stale"] and [a["authorReporting"] for a in stale["announcements"]] == [False, False]
+    checked = ok(write(client, "POST", f"/participations/{reported['id']}/check-in", {"revision": reported["revision"]}, builder))
+    assert [a["authorReporting"] for a in check(client, reviewer, repos=[repo["id"]])["announcements"]] == [False, True]
+    ok(write(client, "POST", f"/participations/{reported['id']}/release", {"revision": checked["revision"]}, builder))
     found = check(client, reviewer, repos=[repo["id"]])
     assert found["participations"] == []
     assert [a["authorReporting"] for a in found["announcements"]] == [False, False]
@@ -143,6 +157,12 @@ def test_work_on_named_items_or_on_a_steps_items_and_threads_tagged_with_them_ar
         ("API naming", False, [{"type": "step", "id": step["id"]}])]
     assert [d["title"] for d in check(client, reviewer, items=[on_step["id"]], steps=[step["id"]], limit=1)["discussions"]] == [
         "Splitting the API"]
+    # A thread only the caller wrote in is left out of its own check, and shown to the others.
+    own = start(client, reviewer, title="Reviewing the API", contexts=[{"type": "step", "id": step["id"]}])
+    assert own["id"] not in [d["id"] for d in check(client, reviewer, steps=[step["id"]])["discussions"]]
+    assert [d["title"] for d in check(client, builder, steps=[step["id"]])["discussions"]] == ["Reviewing the API"]
+    reply(client, own["id"], "The routes look right", builder)
+    assert own["id"] in [d["id"] for d in check(client, reviewer, steps=[step["id"]])["discussions"]]
 
 
 def test_roles_ties_and_ticket_assignees_name_the_agents_on_the_records(client):
@@ -179,9 +199,10 @@ def test_roles_ties_and_ticket_assignees_name_the_agents_on_the_records(client):
 def test_a_check_names_records_that_exist_and_not_too_many_of_them(client):
     reviewer = credential(client, "Reviewer")
     error(overlaps(client, reviewer), 422, "validation")
-    for named in ({"repos": [str(uuid.uuid4())]}, {"items": [str(uuid.uuid4())]}, {"steps": [str(uuid.uuid4())]},
-                  {"tickets": ["T-99"]}):
-        error(overlaps(client, reviewer, **named), 404, "not_found")
+    missing = str(uuid.uuid4())
+    for named, fields in (({"repos": [missing]}, {"repositoryId": missing}), ({"items": [missing]}, {"itemId": missing}),
+                          ({"steps": [missing]}, {"stepId": missing}), ({"tickets": ["T-99"]}, {"ticketId": "T-99"})):
+        assert error(overlaps(client, reviewer, **named), 404, "not_found")["fields"] == fields
     many = [str(uuid.uuid4()) for _ in range(21)]
     assert error(overlaps(client, reviewer, items=many), 422, "validation")["fields"] == {"itemId": "limit"}
     error(overlaps(client, reviewer, items=["   "]), 422, "validation")
@@ -197,3 +218,67 @@ def test_a_check_names_records_that_exist_and_not_too_many_of_them(client):
     before = read(client, "/discussions/changes", reviewer)
     check(client, reviewer, repos=[new["id"]], items=[work["id"]])
     assert read(client, "/discussions/changes", reviewer) == before
+    # A revoked identity checks nothing.
+    gone = credential(client, "Gone")
+    ok(write(client, "POST", f"/credentials/{gone['id']}/revoke"))
+    error(overlaps(client, gone, items=[work["id"]]), 401, "authentication")
+
+
+def through(c, monkeypatch, agent):
+    """Send the command line's requests to the test server, with the agent's credential."""
+    monkeypatch.setenv("WORKLOG_AGENT_TOKEN", agent["token"])
+
+    def forward(request, **options):
+        url = urlsplit(request.full_url)
+        response = c.request(request.get_method(), url.path + (f"?{url.query}" if url.query else ""),
+                             headers=dict(request.header_items()), content=request.data)
+        if response.status_code >= 400:
+            raise HTTPError(request.full_url, response.status_code, "refused", response.headers, io.BytesIO(response.content))
+        return io.BytesIO(response.content)
+
+    monkeypatch.setattr(cli, "_open", forward)
+
+
+def agent_command(capsys, *argv):
+    code = cli.main(["agent", *argv])
+    out, err = capsys.readouterr()
+    return json.loads(out) if code == 0 else (code, err)
+
+
+def test_rule_11_from_the_command_line_an_agent_asks_the_one_whose_work_overlaps_and_it_answers(client, monkeypatch, capsys):
+    repo = repository(client)
+    builder, reviewer = credential(client, "Builder"), credential(client, "Reviewer")
+    report(client, builder, repositories=[repo])
+    reply(client, repo["discussionId"], "Changing src/parser/lexer.py on claude/lexer", builder)
+
+    # The reviewer checks, finds the builder's announcement, looks the builder up and asks it where it announced.
+    through(client, monkeypatch, reviewer)
+    [said] = agent_command(capsys, "overlaps", "--repo", repo["id"])["announcements"]
+    profile = agent_command(capsys, "discussions", "participant", said["authorId"])
+    assert (profile["label"], profile["active"], profile["working"][0]["contexts"][0]["repositoryId"]) == ("Builder", True, repo["id"])
+    asked = agent_command(capsys, "discussions", "reply", said["discussionId"], "--text", "I change the lexer too; may I take the reader?",
+                          "--ask", said["authorId"], "--request-id", "overlap-ask-1")
+    assert [(t["kind"], t["recipientId"]) for t in asked["request"]["targets"]] == [("agent", builder["agentId"])]
+    assert [d["id"] for d in read(client, "/discussions?view=awaiting", reviewer)["items"]] == [repo["discussionId"]]
+
+    # The builder finds the request waiting on it, answers in the thread and acknowledges it.
+    assert [d["id"] for d in read(client, "/discussions?view=awaiting", builder)["items"]] == [repo["discussionId"]]
+    reply(client, repo["discussionId"], "Yes: I keep the lexer, you take the reader.", builder)
+    slots = read(client, f"/discussions/messages/{asked['id']}", builder)["request"]["actionableTargetIds"]
+    done = ok(write(client, "POST", f"/discussions/messages/{asked['id']}/acknowledge", {"targetIds": slots}, builder))
+    assert done["request"]["state"] == "satisfied"
+    assert read(client, "/discussions?view=awaiting", builder)["items"] == []
+
+    # The person is asked by either name, and nobody can ask themselves.
+    person_asked = agent_command(capsys, "discussions", "reply", repo["discussionId"], "--text", "Which of us takes the parser docs?",
+                                 "--ask", "person", "--ask", "local-user", "--request-id", "overlap-ask-person")
+    assert [(t["kind"], t["recipientId"]) for t in person_asked["request"]["targets"]] == [("human", "local-user")]
+    assert [d["id"] for d in read(client, "/discussions?view=awaiting")["items"]] == [repo["discussionId"]]
+    code, refused = agent_command(capsys, "discussions", "reply", repo["discussionId"], "--text", "Note to self",
+                                  "--ask", reviewer["agentId"], "--request-id", "overlap-ask-self")
+    assert code == 1 and "HTTP 422 validation: Nobody acknowledges their own message" in refused
+    assert '"acknowledgement.targets.0.id":"self"' in refused
+    mine = {"text": "Me?", "acknowledgement": {"mode": "any", "targets": [{"kind": "agent", "id": builder["agentId"]},
+                                                                         {"kind": "human", "id": "local-user"}]}}
+    assert error(write(client, "POST", f"/discussions/{repo['discussionId']}/messages", mine), 422, "validation")["fields"] == {
+        "acknowledgement.targets.1.id": "self"}

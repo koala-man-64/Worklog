@@ -1,7 +1,7 @@
 """One participant as any caller sees it (`GET /discussions/participants/{identity}`): who it is, whether
 its credential is live, what it reports working on and the roles it owns, so an agent can look up the
-one whose work overlaps its own before it asks it about it. The credentials, runs and chats on the
-person's Agents page stay there."""
+one whose work overlaps its own before it asks it about it. It counts the agent's runs; their records,
+its credentials and its chats stay on the person's Agents page."""
 
 import uuid
 
@@ -63,5 +63,7 @@ def test_the_person_a_revoked_agent_and_an_unknown_identity(client):
     gone = credential(client, "Gone")
     ok(write(client, "POST", f"/credentials/{gone['id']}/revoke"))
     assert ok(profile(client, gone["agentId"], reviewer))["active"] is False
+    # A revoked identity looks nobody up.
+    error(profile(client, reviewer["agentId"], gone), 401, "authentication")
     error(profile(client, str(uuid.uuid4()), reviewer), 404, "not_found")
     error(profile(client, "not-an-identity", reviewer), 404, "not_found")

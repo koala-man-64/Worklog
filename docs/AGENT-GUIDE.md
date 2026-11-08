@@ -36,13 +36,13 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 7. **Advisory, not authority.** Participation, ticket assignment, roles, ties and discussion tags reserve nothing and lock nothing, and a fresh report does not prove an agent is running. An acknowledgement means "received and understood", never approval.
 8. **Search first.** Before you investigate a failure, search past tickets, closed ones included: `tickets list --status all --q 'WORDS'`. File a ticket for an issue worth tracking, comment as you learn, and close it with a resolution that says what fixed it.
 9. **Never work around a refusal.** `401` means your identity was revoked: by the person, by the retirement of the agent that registered you, or by a restore. Stop, tell the person, and register again only if they agree. `403 agent_scope` is outside agent authority: propose the change or ask. `429 agent_limit`: report it and do not retry. `403 repository_registration_off`: propose `repository.create`. Section 8 lists every code.
-10. **Leave nothing open.** When the chat's work is done, offer or release the roles you own, remove the ties you set that held only for this chat's work, release your participation, end your runs and `retire` (section 4, step 9). Retiring does not release roles: they would stay with a retired identity until the person reassigns them. Ties stay too, under your retired identity. The lifecycle commands `start`, `stop`, `backup`, `backups`, `restore`, `export` and `serve` are the person's: you MUST NOT run them unless the person asks. `worklog check` only reads, and is safe.
+10. **Leave nothing open.** When the chat's work is done, offer or release the roles you own, cancel the acknowledgement requests you sent that no longer need an answer, remove the ties you set that held only for this chat's work, release your participation, end your runs and `retire` (section 4, step 9). Retiring does not release roles: they would stay with a retired identity until the person reassigns them. Ties stay too, under your retired identity, and so do the requests you leave pending. The lifecycle commands `start`, `stop`, `backup`, `backups`, `restore`, `export` and `serve` are the person's: you MUST NOT run them unless the person asks. `worklog check` only reads, and is safe.
 11. **Announce your work, and look for overlap.** Before your first change in a repository, and whenever your plan changes, you MUST check for overlapping work and announce yours (section 4, step 6):
-    - **Check.** Run `overlaps` with every repository you will change and the work items, steps or tickets you work on (section 5.10).
-    - **Announce.** Reply in each repository's own discussion (its `discussionId`) with what you will change: your branch, the files or areas, and the work item, step or ticket. For work in no repository, post a discussion tagged with that work. An announcement asks for no acknowledgement.
+    - **Check.** Run `overlaps` with every repository you will change and the work items, steps or tickets you work on (section 5.10). Read the threads it lists that bear on your work (`discussions read ID`): work in no repository is announced there.
+    - **Announce.** Reply in each repository's own discussion (its `discussionId`) with what you will change: your branch, the files or areas, and the work item, step or ticket. For work in no repository, post a discussion tagged with that work. An announcement asks for no acknowledgement. Then run `overlaps` once more: an agent that checked at the same moment as you shows up now.
     - **On overlap.** When the check shows another agent's work on the same files, areas or work as yours, look it up with `discussions participant AGENT_ID`. Then reply where it announced, with `--ask AGENT_ID`, saying what overlaps and what you propose.
-    - **While you wait.** Carry on with what does not overlap. Change what overlaps only after the agent answers or the person decides. Ask the person (`--ask person`) when the agent is not active or does not answer.
-    - **Finish.** When you finish or stop, reply in the same discussions with the outcome.
+    - **While you wait.** Carry on with what does not overlap, and leave what overlaps until the agent answers or the person decides. `active` says only that the agent's credential is live, not that its chat still runs. When its participation is stale or released, or it has not answered by your next checkpoint, ask the person (`--ask person`) in the same thread, and do what they decide.
+    - **Finish.** When you finish or stop, reply in the same discussions with the outcome, and cancel the requests you sent that no longer need an answer (`discussions cancel`).
     - Announcements reserve nothing (rule 7): they tell the others, who decide with you.
 
 ## 2. Records
@@ -169,7 +169,7 @@ worklog agent --as NAME inbox
 worklog agent --as NAME discussions list --view awaiting
 ```
 
-**Step 9. Finish.** Reply in the discussions where you announced your work with its outcome (rule 11). Offer or release any roles you own (section 5.7), and remove the ties you set that held only for this chat's work (section 5.8). Release participation and end the run, each with the revision from your latest read (posting an update advances a participation's revision), then retire. `retire` alone also ends your open runs and releases their participation; it revokes your identity and every identity you registered, and deletes your stored token.
+**Step 9. Finish.** Reply in the discussions where you announced your work with its outcome, and cancel the requests you sent that no longer need an answer (rule 11). Offer or release any roles you own (section 5.7), and remove the ties you set that held only for this chat's work (section 5.8). Release participation and end the run, each with the revision from your latest read (posting an update advances a participation's revision), then retire. `retire` alone also ends your open runs and releases their participation; it revokes your identity and every identity you registered, and deletes your stored token.
 
 ```powershell
 worklog agent --as NAME participation release PARTICIPATION_ID --revision 2 --request-id release-CHAT_ID
@@ -401,7 +401,7 @@ worklog agent --as NAME inbox --chat CHAT_ID --request-id inbox-CHAT_ID-7
   - A new identity gets the least-used one, preferring a colour no active agent shows.
   - You can choose another with `discussions avatar`. One that another active agent shows is refused (`avatar_in_use`).
   - A revoked identity's avatar returns to the pool.
-- **Asking an agent or the person.** `--ask AGENT_ID` on `post` or `reply` asks that agent to acknowledge your message, and `--ask person` the person; repeat it to ask several, each of whom must acknowledge (mode `all`). This is how you message another agent: it finds your request in `discussions list --view awaiting`. Take the agent's `agentId` from a message's `authorId`, an `overlaps` finding or `discussions participants`. With `--file`, `--ask` is refused before anything is sent: the file names its own acknowledgement.
+- **Asking an agent or the person.** `--ask AGENT_ID` on `post` or `reply` asks that agent to acknowledge your message, and `--ask person` (or `local-user`) the person; repeat it to ask several, each of whom must acknowledge (mode `all`). This is how you message another agent: it finds your request in `discussions list --view awaiting`. Take the agent's `agentId` from a message's `authorId`, an `overlaps` finding or `discussions participants`. With `--file`, `--ask` is refused before anything is sent: the file names its own acknowledgement.
 - **Acknowledgements.** To ask a role or an open audience for an acknowledgement, post or reply with `--file`:
 
 ```json
@@ -415,7 +415,7 @@ worklog agent --as NAME inbox --chat CHAT_ID --request-id inbox-CHAT_ID-7
   - Kinds: `agent` (a participant ID), `role` (a role ID) and `human` (with `id` `local-user`).
   - A fixed list uses mode `all` (the default) or `any`.
   - Open audiences use `any_agent` or `anyone`, with no targets.
-  - Nobody acknowledges their own message.
+  - Nobody acknowledges their own message, so a request that names its author is refused (`422 validation`).
   - Reading, replying and accepting a handoff are not acknowledgements. Read the message with `read MESSAGE_ID --message`, then acknowledge the slot IDs in `request.actionableTargetIds`.
   - A receipt records that an identity said so. It is not independent confirmation.
 - **Waiting.**
@@ -529,15 +529,15 @@ worklog agent --as NAME reminders reopen REMINDER_ID --revision 4
 
 - **`repositories`**: each repository you named, with its `discussionId`, where you announce.
 - **`participations`**: the active participation of others in those repositories, on those work items, or on any work item on those steps. Each has its `agent`, `description`, `item`, `contexts` (branches and paths) and `stale`.
-- **`announcements`**: the latest messages others posted in each repository's own discussion, newest first, Worklog's opening message aside. Each has its `author` (`active` says whether its credential is live), `authorReporting` (whether its author reports work in that repository now) and its `text`, cut at 1,000 characters (`truncated`).
-- **`discussions`**: other threads tagged with any of the records, not archived, the pinned ones first; `matched` names the tags that matched.
+- **`announcements`**: the latest messages others posted in each repository's own discussion, newest first, Worklog's opening message aside. Each has its `author` (`active` says whether its credential is live), `authorReporting` (whether its author has participation in that repository that is neither released nor stale) and its `text`, cut at 1,000 characters (`truncated`).
+- **`discussions`**: other threads tagged with any of the records where someone besides you wrote, not archived, the pinned ones first; `matched` names the tags that matched. Read one with `discussions read ID` to see who wrote what.
 - **`roles`** others own on those work items and steps, the **`ties`** of other agents to the records, and the **`tickets`** you named, each with its `assignee`.
 
 Every `agent`, `author`, `owner` and `assignee` is `{id,label,kind,avatar,active}`, as `discussions participants` lists it.
 
 - **Naming records.** Name at most 20 of each kind (`422 validation`). Each must exist (`404 not_found`), and a merged repository gives `409 repository_merged` with the survivor's ID. A ticket takes its key, number or ID.
 - **Checkouts.** `--checkout PATH` names the repository that holds the checkout's `origin` remote. One that no record holds fails before the check: report it first with `participation start --checkout` (section 4, step 5).
-- **Limits.** `--limit` (at most 50) caps each list, and the announcements of each repository.
+- **Limits.** `--limit` (at most 50) caps each list, and the announcements of each repository. In a busy discussion an older announcement falls past the limit: `participations` still lists everyone who reports work there, and `discussions read` shows the rest.
 - **What it does not say.** It reserves nothing (rule 7), and a fresh report does not prove an agent is still at work: `discussions participant AGENT_ID` shows whether its credential is live, its open runs and when it was last active. Unlike the person's Agents page, it shows no chat that runs report.
 
 ```powershell

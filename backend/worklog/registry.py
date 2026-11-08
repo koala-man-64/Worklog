@@ -426,7 +426,8 @@ class AgentRegistry:
         each repository with its own discussion; the latest messages there, the opening one aside,
         each saying whether its author's credential is live and whether it reports work in that
         repository now; active participation in those repositories, on those work items or on work
-        items on those steps; the other open threads tagged with any of the records, pinned first;
+        items on those steps; the other open threads tagged with any of the records where someone
+        besides the caller wrote, pinned first;
         the roles others own on those work items and steps; others' ties to the records; and each
         ticket's assignee. Like everything it gathers, it reserves nothing, and it shows no chat a run
         reports, which is the person's to see (policy.py)."""
@@ -436,8 +437,16 @@ class AgentRegistry:
             raise AppError(422, "validation", "Name a repository, work item, step or ticket to check")
         for kind, ids, field in (("repository", repos, "repositoryId"), ("item", work, "itemId"), ("step", step_ids, "stepId")):
             self._existing(c, kind, ids, field)
+        def ticket(ref: str) -> sqlite3.Row:
+            try:
+                return TicketService.resolve(c, ref)
+            except AppError as error:
+                if error.code != "not_found":
+                    raise
+                raise AppError(404, "not_found", "No ticket has that key, number or id", {"ticketId": ref}) from None
+
         # A ticket named by its key and by its ID is one ticket.
-        ticket_rows = list({row["id"]: row for row in (TicketService.resolve(c, ref) for ref in refs)}.values())
+        ticket_rows = list({row["id"]: row for row in map(ticket, refs)}.values())
         ticket_ids = [row["id"] for row in ticket_rows]
 
         def marks(values: list[str]) -> str:
@@ -448,15 +457,16 @@ class AgentRegistry:
         agent_ids: set[str] = set()
 
         # Participation in those repositories, or on that work, whether named or on those steps.
-        on_steps = [row[0] for row in rows_in(c, "SELECT id FROM work_items WHERE step_id IN ({})", step_ids)]
-        work_scope = list(dict.fromkeys([*work, *on_steps]))
         scopes, args = [], []
         if repos:
             scopes.append(f"EXISTS(SELECT 1 FROM participation_contexts pc WHERE pc.participation_id=p.id AND pc.repository_id IN ({marks(repos)}))")
             args += repos
-        if work_scope:
-            scopes.append(f"p.item_id IN ({marks(work_scope)})")
-            args += work_scope
+        if work:
+            scopes.append(f"p.item_id IN ({marks(work)})")
+            args += work
+        if step_ids:
+            scopes.append(f"p.item_id IN (SELECT id FROM work_items WHERE step_id IN ({marks(step_ids)}))")
+            args += step_ids
         participating = c.execute(
             "SELECT p.*,ar.agent_id,ar.display_name FROM participations p JOIN agent_runs ar ON ar.id=p.run_id "
             "WHERE p.released_at IS NULL AND ar.agent_id<>? AND (" + " OR ".join(scopes) + ") "
@@ -472,16 +482,19 @@ class AgentRegistry:
                 continue
             opening = c.execute("SELECT id FROM discussion_messages WHERE discussion_id=? ORDER BY created_at,id LIMIT 1",
                                 (discussion,)).fetchone()
+            # A message holds up to 1,000,000 bytes: read only as much as the snippet shows.
             posted += [(repository, m) for m in c.execute(
-                "SELECT * FROM discussion_messages WHERE discussion_id=? AND author_id<>? AND id<>? "
-                "ORDER BY created_at DESC,id DESC LIMIT ?", (discussion, caller, opening[0] if opening else "", limit))]
-            reporting[repository] = {r[0] for r in c.execute(
-                "SELECT DISTINCT ar.agent_id FROM participations p JOIN agent_runs ar ON ar.id=p.run_id "
+                "SELECT id,discussion_id,author_id,author_label,author_kind,created_at,substr(text,1,?) AS text "
+                "FROM discussion_messages WHERE discussion_id=? AND author_id<>? AND id<>? ORDER BY created_at DESC,id DESC LIMIT ?",
+                (SNIPPET + 1, discussion, caller, opening[0] if opening else "", limit))]
+            # Reporting there now: unreleased participation in the repository, and not stale.
+            reporting[repository] = {r["agent_id"] for r in c.execute(
+                "SELECT ar.agent_id,p.last_seen_at FROM participations p JOIN agent_runs ar ON ar.id=p.run_id "
                 "JOIN participation_contexts pc ON pc.participation_id=p.id "
-                "WHERE p.released_at IS NULL AND pc.repository_id=?", (repository,))}
+                "WHERE p.released_at IS NULL AND pc.repository_id=?", (repository,)) if not _stale(r["last_seen_at"])}
         agent_ids |= {m["author_id"] for _, m in posted if m["author_kind"] == "agent"}
 
-        # Other open threads tagged with any of the records.
+        # Other open threads tagged with any of the records, where someone besides the caller wrote.
         tagged = [("repository", r) for r in repos] + [("item", i) for i in work] + [("step", s) for s in step_ids] + \
                  [("ticket", t) for t in ticket_ids]
         pairs = " OR ".join("(dc.context_type=? AND dc.context_id=?)" for _ in tagged)
@@ -489,8 +502,9 @@ class AgentRegistry:
         held = list(homes.values())
         threads = c.execute(
             "SELECT d.id,d.title,d.pinned_at,d.updated_at FROM discussions d WHERE d.archived=0 AND EXISTS(SELECT 1 FROM "
-            f"discussion_contexts dc WHERE dc.discussion_id=d.id AND ({pairs}))" + (f" AND d.id NOT IN ({marks(held)})" if held else "") +
-            " ORDER BY " + LISTED + " LIMIT ?", [*flat, *held, limit]).fetchall()
+            f"discussion_contexts dc WHERE dc.discussion_id=d.id AND ({pairs})) AND EXISTS(SELECT 1 FROM discussion_messages m "
+            "WHERE m.discussion_id=d.id AND m.author_id<>?)" + (f" AND d.id NOT IN ({marks(held)})" if held else "") +
+            " ORDER BY " + LISTED + " LIMIT ?", [*flat, caller, *held, limit]).fetchall()
         matched: dict[str, list[dict]] = {}
         for row in rows_in(c, "SELECT discussion_id,context_type,context_id FROM discussion_contexts WHERE discussion_id IN ({}) "
                               "ORDER BY context_type,context_id", [t["id"] for t in threads]):
