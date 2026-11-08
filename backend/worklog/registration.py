@@ -21,6 +21,7 @@ from pathlib import PurePosixPath, PureWindowsPath
 from fastapi import FastAPI, Request
 from pydantic import Field
 
+from . import responses as out
 from .common import AppError, event, now, setting, shows_as_written, text, today, uid
 from .coordination import close_credential_runs
 from .db import Database
@@ -179,10 +180,10 @@ def install_registration_routes(app: FastAPI, db: Database) -> None:
         with db.transaction() as c:
             return fn(c, request.state.actor)
 
-    @app.post("/api/v1/agent-registrations")
+    @app.post("/api/v1/agent-registrations", response_model=out.Registration)
     def register_agent(request: Request, body: AgentRegistration) -> dict:
         return write(request, lambda c, actor: register(c, actor, body.model_dump()))
 
-    @app.post("/api/v1/agent-registrations/retire")
+    @app.post("/api/v1/agent-registrations/retire", response_model=out.Retirement)
     def retire_agent(request: Request) -> dict:
         return write(request, retire)

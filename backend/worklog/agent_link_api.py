@@ -39,12 +39,12 @@ def install_agent_link_routes(app: FastAPI, db: Database, mutate: Callable) -> N
             raise AppError(422, "validation", "Give agentId, or targetType with targetId")
         return read(find)
 
-    @app.post("/api/v1/agent-links")
+    @app.post("/api/v1/agent-links", response_model=out.AgentTie)
     def agent_link_set(request: Request, body: m.AgentLinkSet) -> dict:
         p, reader = body.model_dump(), request.state.actor
         return write(request, p, lambda c, actor: set_tie(c, actor, p, reader=reader))
 
-    @app.post("/api/v1/agent-links/unlink")
+    @app.post("/api/v1/agent-links/unlink", response_model=out.AgentUntied)
     def agent_link_remove(request: Request, body: m.AgentLinkRemove) -> dict:
         p, reader = body.model_dump(), request.state.actor
         return write(request, p, lambda c, actor: remove_tie(c, actor, p, reader=reader))
