@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { destinations } from "../src/navigation";
+import { destinations, sections } from "../src/navigation";
 
 test("every sidebar link stays reachable beside a long roadmap list in a short window", async ({
   page,
@@ -75,4 +75,36 @@ test("every sidebar link stays reachable beside a long roadmap list in a short w
     for (const { id, revision } of roadmaps)
       await write(`/roadmaps/${id}/archive`, { revision });
   }
+});
+
+test("the sidebar groups its pages into Plan, Directory, Agents and System", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/");
+  const nav = page
+    .getByRole("complementary")
+    .getByRole("navigation", { name: "Main navigation" });
+  expect(sections.map(({ label }) => label)).toEqual([
+    "Plan",
+    "Directory",
+    "Agents",
+    "System",
+  ]);
+  for (const { label, destinations: pages } of sections) {
+    // Each section is a group its label names, holding its own pages.
+    const group = nav.getByRole("group", { name: label, exact: true });
+    await expect(group).toBeVisible();
+    for (const { label: name } of pages)
+      await expect(
+        group.getByRole("link", { name, exact: true }),
+      ).toBeVisible();
+  }
+  // On a phone the stacked sidebar keeps one grid of links, without the labels.
+  await page.setViewportSize({ width: 375, height: 812 });
+  await expect(page.locator("#nav-section-directory")).toBeHidden();
+  for (const { label } of destinations)
+    await expect(
+      nav.getByRole("link", { name: label, exact: true }),
+    ).toBeVisible();
 });

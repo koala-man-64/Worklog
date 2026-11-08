@@ -27,7 +27,7 @@ import { Review } from "./Review";
 import { Settings } from "./Settings";
 import { Guide } from "./Guide";
 import { Icon, type IconName } from "./icons";
-import { destinations } from "./navigation";
+import { sections } from "./navigation";
 import type { List } from "./types";
 // The narrowest sidebar still fits the brand; the widest leaves the workspace room.
 const SIDEBAR_MIN = 190;
@@ -118,50 +118,68 @@ export default function App() {
         </a>
         <div className="sidebar-scroll">
           <nav aria-label="Main navigation">
-            {destinations.map(({ route, icon, label }) => (
-              <Fragment key={route}>
-                {route === "roadmaps" ? (
-                  <div className="nav-row">
-                    {link(route, icon, label)}
-                    <button
-                      type="button"
-                      className="nav-toggle"
-                      aria-expanded={roadmapsOpen}
-                      aria-controls="roadmap-subnav"
-                      aria-label={
-                        roadmapsOpen ? "Collapse roadmaps" : "Expand roadmaps"
-                      }
-                      onClick={() => {
-                        localStore.write(
-                          "nav-roadmaps",
-                          roadmapsOpen ? "closed" : "open",
-                        );
-                        setRoadmapsOpen(!roadmapsOpen);
-                      }}
-                    >
-                      <Icon
-                        name={roadmapsOpen ? "collapse" : "expand"}
-                        size={14}
+            {sections.map((section) => (
+              // Each section is a group its label names, so a screen reader announces it on entry.
+              <div
+                key={section.label}
+                className="nav-section"
+                role="group"
+                aria-labelledby={`nav-section-${section.label.toLowerCase()}`}
+              >
+                <p
+                  className="nav-section-label"
+                  id={`nav-section-${section.label.toLowerCase()}`}
+                >
+                  {section.label}
+                </p>
+                {section.destinations.map(({ route, icon, label }) => (
+                  <Fragment key={route}>
+                    {route === "roadmaps" ? (
+                      <div className="nav-row">
+                        {link(route, icon, label)}
+                        <button
+                          type="button"
+                          className="nav-toggle"
+                          aria-expanded={roadmapsOpen}
+                          aria-controls="roadmap-subnav"
+                          aria-label={
+                            roadmapsOpen
+                              ? "Collapse roadmaps"
+                              : "Expand roadmaps"
+                          }
+                          onClick={() => {
+                            localStore.write(
+                              "nav-roadmaps",
+                              roadmapsOpen ? "closed" : "open",
+                            );
+                            setRoadmapsOpen(!roadmapsOpen);
+                          }}
+                        >
+                          <Icon
+                            name={roadmapsOpen ? "collapse" : "expand"}
+                            size={14}
+                          />
+                        </button>
+                      </div>
+                    ) : route === "reminders" && session.data ? (
+                      // Counting what is due needs the session.
+                      <RemindersLink
+                        key={session.data.dataId}
+                        current={page === route}
                       />
-                    </button>
-                  </div>
-                ) : route === "reminders" && session.data ? (
-                  // Counting what is due needs the session.
-                  <RemindersLink
-                    key={session.data.dataId}
-                    current={page === route}
-                  />
-                ) : (
-                  link(route, icon, label)
-                )}
-                {route === "roadmaps" && session.data && (
-                  <RoadmapNav
-                    key={session.data.dataId}
-                    open={roadmapsOpen}
-                    selected={page === "roadmaps" ? id : undefined}
-                  />
-                )}
-              </Fragment>
+                    ) : (
+                      link(route, icon, label)
+                    )}
+                    {route === "roadmaps" && session.data && (
+                      <RoadmapNav
+                        key={session.data.dataId}
+                        open={roadmapsOpen}
+                        selected={page === "roadmaps" ? id : undefined}
+                      />
+                    )}
+                  </Fragment>
+                ))}
+              </div>
             ))}
           </nav>
           <div className="sidebar-note">

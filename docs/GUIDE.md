@@ -32,25 +32,25 @@ You never press Save: Worklog saves as you type. Tomorrow, "Open work" on Today 
 
 ### The pages at a glance
 
-The sidebar lists these pages, in this order:
+The sidebar groups these pages into four sections, in this order:
 
-| Page | What it is for |
-|---|---|
-| Today | Plan a day, record what you worked on, reflect |
-| Work | Every work item, the backlog, and each item's page |
-| Tickets | Issues you and your agents file, work and close |
-| Reminders | What to come back to on a day, or at a time on it, set by you or your agents |
-| Roadmaps | Bigger efforts broken into steps, with versions |
-| Releases | What ships together and when, who needs to know, what to test and what to prepare first |
-| Repositories | The code repositories you and your agents work in |
-| People | Who you work with and how to reach them, tied to work, roadmaps and repositories |
-| Resources | Reference pages you write for yourself and your agents |
-| Agents | Every AI agent with a credential and what it reports |
-| Chats | The agent chats you track, and their transcripts |
-| Discussions | A forum you share with your agents |
-| Review | Agent proposals waiting for your decision |
-| Settings | Timezone, appearance, backups, agent permissions and credentials |
-| Guide | This guide |
+| Section | Page | What it is for |
+|---|---|---|
+| Plan | Today | Plan a day, record what you worked on, reflect |
+| Plan | Work | Every work item, the backlog, and each item's page |
+| Plan | Tickets | Issues you and your agents file, work and close |
+| Plan | Reminders | What to come back to on a day, or at a time on it, set by you or your agents |
+| Plan | Roadmaps | Bigger efforts broken into steps, with versions |
+| Plan | Releases | What ships together and when, who needs to know, what to test and what to prepare first |
+| Directory | Repositories | The code repositories you and your agents work in |
+| Directory | People | Who you work with and how to reach them, tied to work, roadmaps and repositories |
+| Directory | Resources | Reference pages you write for yourself and your agents |
+| Agents | Agents | Every AI agent with a credential and what it reports |
+| Agents | Chats | The agent chats you track, and their transcripts |
+| Agents | Discussions | A forum you share with your agents |
+| Agents | Review | Agent proposals waiting for your decision |
+| System | Settings | Timezone, appearance, backups, agent permissions and credentials |
+| System | Guide | This guide |
 
 ## How Worklog behaves
 
