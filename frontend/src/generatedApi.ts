@@ -3740,6 +3740,13 @@ export interface components {
             /** Contexts */
             contexts?: components["schemas"]["ParticipationContext"][] | null;
         };
+        /** People */
+        People: {
+            /** Items */
+            items: components["schemas"]["PersonListed"][];
+            /** Total */
+            total: number;
+        };
         /**
          * Person
          * @description A person with what they are tied to and their history.
@@ -3855,6 +3862,46 @@ export interface components {
             targetType: "item" | "roadmap" | "repository";
             /** Targetid */
             targetId: string;
+        };
+        /**
+         * PersonListed
+         * @description A person as the people list shows them, with how many active records each kind ties them to.
+         */
+        PersonListed: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Title */
+            title: string;
+            /** Team */
+            team: string;
+            /** Description */
+            description: string;
+            /** Email */
+            email: string;
+            /** Phone */
+            phone: string;
+            /** Chat */
+            chat: string;
+            /** Location */
+            location: string;
+            /** Notes */
+            notes: string;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Workitemcount */
+            workItemCount: number;
+            /** Roadmapcount */
+            roadmapCount: number;
+            /** Repositorycount */
+            repositoryCount: number;
         };
         /** PersonRepository */
         PersonRepository: {
@@ -4268,6 +4315,41 @@ export interface components {
             /** Targetid */
             targetId?: string | null;
         };
+        /**
+         * ReminderListed
+         * @description A reminder as lists show it, without its notes or history.
+         */
+        ReminderListed: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Date */
+            date: string;
+            /** Time */
+            time: string | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "open" | "done";
+            /** Due */
+            due: boolean;
+            /** Overdue */
+            overdue: boolean;
+            target: components["schemas"]["ReminderTarget"] | null;
+            author: components["schemas"]["ReminderAuthor"];
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Doneat */
+            doneAt: string | null;
+        };
         /** ReminderTarget */
         ReminderTarget: {
             /**
@@ -4301,12 +4383,34 @@ export interface components {
             /** Targetid */
             targetId?: string | null;
         };
+        /** Reminders */
+        Reminders: {
+            /** Items */
+            items: components["schemas"]["ReminderListed"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
         /** Reorder */
         Reorder: {
             /** Revision */
             revision: number;
             /** Ids */
             ids: string[];
+        };
+        /** Repositories */
+        Repositories: {
+            /** Items */
+            items: components["schemas"]["RepositoryListed"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
         };
         /**
          * Repository
@@ -4404,6 +4508,36 @@ export interface components {
              */
             description: string;
         };
+        /** RepositoryListed */
+        RepositoryListed: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Url */
+            url: string;
+            /** Remoteidentity */
+            remoteIdentity: string;
+            /** Duplicateof */
+            duplicateOf: string | null;
+            /** Mergedinto */
+            mergedInto: string | null;
+            /** Description */
+            description: string;
+            /** Archived */
+            archived: boolean;
+            registeredBy: components["schemas"]["RegisteredBy"] | null;
+            /** Reviewed */
+            reviewed: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Discussionid */
+            discussionId: string | null;
+        };
         /**
          * RepositoryMerge
          * @description Merge the addressed repository into `intoId`; both revisions must be current.
@@ -4477,6 +4611,26 @@ export interface components {
              */
             body: string;
         };
+        /**
+         * ResourceListed
+         * @description A resource as lists show it, without the page's text.
+         */
+        ResourceListed: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Summary */
+            summary: string;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+        };
         /** ResourceUpdate */
         ResourceUpdate: {
             /** Revision */
@@ -4487,6 +4641,17 @@ export interface components {
             summary?: string | null;
             /** Body */
             body?: string | null;
+        };
+        /** Resources */
+        Resources: {
+            /** Items */
+            items: components["schemas"]["ResourceListed"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
         };
         /** Restore */
         Restore: {
@@ -4576,6 +4741,27 @@ export interface components {
             sha256: string;
             /** Createdat */
             createdAt: string;
+        };
+        /** RoadmapListed */
+        RoadmapListed: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Overview */
+            overview: string;
+            /** Parentid */
+            parentId: string | null;
+            /** Revision */
+            revision: number;
+            /** Archived */
+            archived: boolean;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** People */
+            people: components["schemas"]["RecordPerson"][];
         };
         /** RoadmapMove */
         RoadmapMove: {
@@ -4696,6 +4882,13 @@ export interface components {
             repositoryIds: string[];
             /** People */
             people: components["schemas"]["RecordPerson"][];
+        };
+        /** Roadmaps */
+        Roadmaps: {
+            /** Items */
+            items: components["schemas"]["RoadmapListed"][];
+            /** Total */
+            total: number;
         };
         /** RoleCreate */
         RoleCreate: {
@@ -5082,6 +5275,44 @@ export interface components {
             linkedRoadmap: components["schemas"]["LinkedRoadmap"] | null;
             linkedStep: components["schemas"]["LinkedStep"] | null;
         };
+        /** WorkItemListed */
+        WorkItemListed: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "doing" | "waiting" | "blocked" | "done";
+            /** Adourl */
+            adoUrl: string | null;
+            /** Roadmapid */
+            roadmapId: string | null;
+            /** Stepid */
+            stepId: string | null;
+            /** Backlogorder */
+            backlogOrder: number;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Repositoryids */
+            repositoryIds: string[];
+            /** Rank */
+            rank: number | null;
+            /** Isbacklog */
+            isBacklog: boolean;
+            /** People */
+            people: components["schemas"]["RecordPerson"][];
+        };
         /**
          * WorkItemRecord
          * @description A work item's own fields, as other records embed it.
@@ -5116,6 +5347,17 @@ export interface components {
             updatedAt: string;
             /** Repositoryids */
             repositoryIds: string[];
+        };
+        /** WorkItems */
+        WorkItems: {
+            /** Items */
+            items: components["schemas"]["WorkItemListed"][];
+            /** Total */
+            total: number;
+            /** Rankedcount */
+            rankedCount: number;
+            /** Collectionrevision */
+            collectionRevision: number;
         };
         /** WorkedOn */
         WorkedOn: {
@@ -5203,9 +5445,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["WorkItems"];
                 };
             };
             /** @description Validation Error */
@@ -7424,9 +7664,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Roadmaps"];
                 };
             };
             /** @description Validation Error */
@@ -8432,9 +8670,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["People"];
                 };
             };
             /** @description Validation Error */
@@ -8755,9 +8991,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Repositories"];
                 };
             };
             /** @description Validation Error */
@@ -10198,9 +10432,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Resources"];
                 };
             };
             /** @description Validation Error */
@@ -10849,9 +11081,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Reminders"];
                 };
             };
             /** @description Validation Error */

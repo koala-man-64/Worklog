@@ -258,7 +258,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         response.set_cookie("worklog_session", session_id, httponly=True, samesite="strict", max_age=86400)
         return response
 
-    @app.get("/api/v1/work-items")
+    @app.get("/api/v1/work-items", response_model=out.WorkItems)
     def items(view: str = "all", archived: bool = False,
               status: list[str] | None = Query(None, description="Repeat to match any of several states"),
               roadmapId: str | None = None, personId: str | None = None, q: str = "", repositoryId: str | None = None,
@@ -516,7 +516,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             inline = not download and row["mime"] in {"image/png", "image/jpeg", "image/gif", "image/webp", "image/avif", "image/bmp", "text/plain"}
             return download_response(row["content"], row["name"], row["mime"], inline)
 
-    @app.get("/api/v1/roadmaps")
+    @app.get("/api/v1/roadmaps", response_model=out.Roadmaps)
     def roadmap_list(archived: bool = False, personId: str | None = None, q: str = Query("", max_length=500)) -> dict:
         result = plans.list(archived)
         items_list = result["items"] if isinstance(result, dict) else result
@@ -797,7 +797,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         return TemporaryFileResponse(archive, media_type="application/zip",
                                      headers={"Content-Disposition": disposition("worklog-export.zip")})
 
-    @app.get("/api/v1/people")
+    @app.get("/api/v1/people", response_model=out.People)
     def people_list(archived: bool = False, q: str = "") -> dict:
         return work.people.list(archived=archived, q=q)
 

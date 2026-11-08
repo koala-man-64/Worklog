@@ -23,7 +23,7 @@ def install_reminder_routes(app: FastAPI, db: Database, mutate: Callable) -> Non
         # survive a token rotation; a revoked credential is refused inside the write lock.
         return mutate(request, payload, fn, required_key=required_key, communication=True)
 
-    @app.get("/api/v1/reminders")
+    @app.get("/api/v1/reminders", response_model=out.Reminders)
     def reminders(state: Literal["open", "due", "upcoming", "done", "all"] = "open",
                   date: str | None = Query(None, description="Only those due on this day, YYYY-MM-DD"),
                   until: str | None = Query(None, description="Only those due on or before this day, YYYY-MM-DD"),

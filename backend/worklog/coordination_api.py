@@ -35,7 +35,7 @@ def install_coordination_routes(app: FastAPI, db: Database, mutate: Callable) ->
     def write(request: Request, body, fn: Callable, *, required_key=True, exclude_unset=False) -> dict:
         return mutate(request, body.model_dump(exclude_unset=exclude_unset), fn, required_key=required_key)
 
-    @app.get("/api/v1/repositories")
+    @app.get("/api/v1/repositories", response_model=out.Repositories)
     def repositories(archived: bool = False, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0), q: str = "") -> dict:
         return read(lambda c: service.repositories(c, archived, limit, offset, q))
 

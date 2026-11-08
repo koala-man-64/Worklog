@@ -175,9 +175,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Items Api V1 Work Items Get"
+                  "$ref": "#/components/schemas/WorkItems"
                 }
               }
             }
@@ -3175,9 +3173,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Roadmap List Api V1 Roadmaps Get"
+                  "$ref": "#/components/schemas/Roadmaps"
                 }
               }
             }
@@ -4643,9 +4639,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response People List Api V1 People Get"
+                  "$ref": "#/components/schemas/People"
                 }
               }
             }
@@ -5104,9 +5098,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Repositories Api V1 Repositories Get"
+                  "$ref": "#/components/schemas/Repositories"
                 }
               }
             }
@@ -7413,9 +7405,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Resources Api V1 Resources Get"
+                  "$ref": "#/components/schemas/Resources"
                 }
               }
             }
@@ -8428,9 +8418,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Reminders Api V1 Reminders Get"
+                  "$ref": "#/components/schemas/Reminders"
                 }
               }
             }
@@ -13095,6 +13083,28 @@
         ],
         "title": "ParticipationUpdate"
       },
+      "People": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PersonListed"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "People"
+      },
       "Person": {
         "properties": {
           "id": {
@@ -13323,6 +13333,101 @@
           "targetId"
         ],
         "title": "PersonLinkRemove"
+      },
+      "PersonListed": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "team": {
+            "type": "string",
+            "title": "Team"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "chat": {
+            "type": "string",
+            "title": "Chat"
+          },
+          "location": {
+            "type": "string",
+            "title": "Location"
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "workItemCount": {
+            "type": "integer",
+            "title": "Workitemcount"
+          },
+          "roadmapCount": {
+            "type": "integer",
+            "title": "Roadmapcount"
+          },
+          "repositoryCount": {
+            "type": "integer",
+            "title": "Repositorycount"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "title",
+          "team",
+          "description",
+          "email",
+          "phone",
+          "chat",
+          "location",
+          "notes",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "workItemCount",
+          "roadmapCount",
+          "repositoryCount"
+        ],
+        "title": "PersonListed",
+        "description": "A person as the people list shows them, with how many active records each kind ties them to."
       },
       "PersonRepository": {
         "properties": {
@@ -14627,6 +14732,109 @@
         ],
         "title": "ReminderCreate"
       },
+      "ReminderListed": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "date": {
+            "type": "string",
+            "title": "Date"
+          },
+          "time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "open",
+              "done"
+            ],
+            "title": "State"
+          },
+          "due": {
+            "type": "boolean",
+            "title": "Due"
+          },
+          "overdue": {
+            "type": "boolean",
+            "title": "Overdue"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReminderTarget"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "author": {
+            "$ref": "#/components/schemas/ReminderAuthor"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "doneAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doneat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "date",
+          "time",
+          "state",
+          "due",
+          "overdue",
+          "target",
+          "author",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "doneAt"
+        ],
+        "title": "ReminderListed",
+        "description": "A reminder as lists show it, without its notes or history."
+      },
       "ReminderTarget": {
         "properties": {
           "type": {
@@ -14768,6 +14976,38 @@
         ],
         "title": "ReminderUpdate"
       },
+      "Reminders": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReminderListed"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Reminders"
+      },
       "Reorder": {
         "properties": {
           "revision": {
@@ -14790,6 +15030,38 @@
           "ids"
         ],
         "title": "Reorder"
+      },
+      "Repositories": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RepositoryListed"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Repositories"
       },
       "Repository": {
         "properties": {
@@ -15056,6 +15328,112 @@
         "title": "RepositoryEnsure",
         "description": "Register a remote, or find the record that already holds it."
       },
+      "RepositoryListed": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "remoteIdentity": {
+            "type": "string",
+            "title": "Remoteidentity"
+          },
+          "duplicateOf": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duplicateof"
+          },
+          "mergedInto": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mergedinto"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "registeredBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RegisteredBy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reviewed": {
+            "type": "boolean",
+            "title": "Reviewed"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "discussionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discussionid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "url",
+          "remoteIdentity",
+          "duplicateOf",
+          "mergedInto",
+          "description",
+          "archived",
+          "registeredBy",
+          "reviewed",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "discussionId"
+        ],
+        "title": "RepositoryListed"
+      },
       "RepositoryMerge": {
         "properties": {
           "revision": {
@@ -15243,6 +15621,51 @@
         ],
         "title": "ResourceCreate"
       },
+      "ResourceListed": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "summary",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "ResourceListed",
+        "description": "A resource as lists show it, without the page's text."
+      },
       "ResourceUpdate": {
         "properties": {
           "revision": {
@@ -15290,6 +15713,38 @@
           "revision"
         ],
         "title": "ResourceUpdate"
+      },
+      "Resources": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ResourceListed"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Resources"
       },
       "Restore": {
         "properties": {
@@ -15556,6 +16011,70 @@
         ],
         "title": "RoadmapImport",
         "description": "A plan import committed to the roadmap; its original is read on its own."
+      },
+      "RoadmapListed": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "overview": {
+            "type": "string",
+            "title": "Overview"
+          },
+          "parentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parentid"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/RecordPerson"
+            },
+            "type": "array",
+            "title": "People"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "overview",
+          "parentId",
+          "revision",
+          "archived",
+          "createdAt",
+          "updatedAt",
+          "people"
+        ],
+        "title": "RoadmapListed"
       },
       "RoadmapMove": {
         "properties": {
@@ -15877,6 +16396,28 @@
         ],
         "title": "RoadmapWorkItem",
         "description": "A work item on the roadmap or one of its steps, with the people tied to it."
+      },
+      "Roadmaps": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RoadmapListed"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "Roadmaps"
       },
       "RoleCreate": {
         "properties": {
@@ -17058,6 +17599,136 @@
         "title": "WorkItem",
         "description": "A work item with everything its page shows."
       },
+      "WorkItemListed": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "doing",
+              "waiting",
+              "blocked",
+              "done"
+            ],
+            "title": "Status"
+          },
+          "adoUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adourl"
+          },
+          "roadmapId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roadmapid"
+          },
+          "stepId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stepid"
+          },
+          "backlogOrder": {
+            "type": "integer",
+            "title": "Backlogorder"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "repositoryIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Repositoryids"
+          },
+          "rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank"
+          },
+          "isBacklog": {
+            "type": "boolean",
+            "title": "Isbacklog"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/RecordPerson"
+            },
+            "type": "array",
+            "title": "People"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "description",
+          "status",
+          "adoUrl",
+          "roadmapId",
+          "stepId",
+          "backlogOrder",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "repositoryIds",
+          "rank",
+          "isBacklog",
+          "people"
+        ],
+        "title": "WorkItemListed"
+      },
       "WorkItemRecord": {
         "properties": {
           "id": {
@@ -17163,6 +17834,38 @@
         ],
         "title": "WorkItemRecord",
         "description": "A work item's own fields, as other records embed it."
+      },
+      "WorkItems": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WorkItemListed"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "rankedCount": {
+            "type": "integer",
+            "title": "Rankedcount"
+          },
+          "collectionRevision": {
+            "type": "integer",
+            "title": "Collectionrevision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "rankedCount",
+          "collectionRevision"
+        ],
+        "title": "WorkItems"
       },
       "WorkedOn": {
         "properties": {

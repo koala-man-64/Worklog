@@ -136,7 +136,9 @@ class Change(Answer):
     createdAt: str
 
 
-class Resource(Answer):
+class ResourceListed(Answer):
+    """A resource as lists show it, without the page's text."""
+
     id: str
     title: str
     summary: str
@@ -144,6 +146,9 @@ class Resource(Answer):
     revision: int
     createdAt: str
     updatedAt: str
+
+
+class Resource(ResourceListed):
     body: str
     history: list[Change]
 
@@ -180,8 +185,8 @@ class ReminderAuthor(Answer):
     avatar: str | None
 
 
-class Reminder(Answer):
-    """A reminder with its notes and history, as its own read returns it."""
+class ReminderListed(Answer):
+    """A reminder as lists show it, without its notes or history."""
 
     id: str
     title: str
@@ -197,6 +202,11 @@ class Reminder(Answer):
     createdAt: str
     updatedAt: str
     doneAt: str | None
+
+
+class Reminder(ReminderListed):
+    """A reminder with its notes and history, as its own read returns it."""
+
     notes: str
     history: list[Change]
 
@@ -553,3 +563,86 @@ class Day(Answer):
     entries: list[DayEntry]
     summary: DaySummary
     nextItemId: str | None
+
+
+class PersonListed(Answer):
+    """A person as the people list shows them, with how many active records each kind ties them to."""
+
+    id: str
+    name: str
+    title: str
+    team: str
+    description: str
+    email: str
+    phone: str
+    chat: str
+    location: str
+    notes: str
+    archived: bool
+    revision: int
+    createdAt: str
+    updatedAt: str
+    workItemCount: int
+    roadmapCount: int
+    repositoryCount: int
+
+
+class People(Answer):
+    items: list[PersonListed]
+    total: int
+
+
+class Resources(Answer):
+    items: list[ResourceListed]
+    total: int
+    limit: int
+    offset: int
+
+
+class Reminders(Answer):
+    items: list[ReminderListed]
+    total: int
+    limit: int
+    offset: int
+
+
+class WorkItemListed(WorkItemRecord):
+    rank: int | None
+    isBacklog: bool
+    people: list[RecordPerson]
+
+
+class WorkItems(Answer):
+    items: list[WorkItemListed]
+    total: int
+    rankedCount: int
+    # The backlog's revision, which a reorder checks.
+    collectionRevision: int
+
+
+class RoadmapListed(Answer):
+    id: str
+    title: str
+    overview: str
+    parentId: str | None
+    revision: int
+    archived: bool
+    createdAt: str
+    updatedAt: str
+    people: list[RecordPerson]
+
+
+class Roadmaps(Answer):
+    items: list[RoadmapListed]
+    total: int
+
+
+class RepositoryListed(Repository):
+    discussionId: str | None
+
+
+class Repositories(Answer):
+    items: list[RepositoryListed]
+    total: int
+    limit: int
+    offset: int
