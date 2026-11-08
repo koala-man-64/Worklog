@@ -536,7 +536,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def roadmap_create(request: Request, body: m.RoadmapCreate) -> dict:
         return apply(request, "roadmap.create", body.model_dump(), create=True)
 
-    @app.get("/api/v1/roadmaps/{identity}")
+    @app.get("/api/v1/roadmaps/{identity}", response_model=out.Roadmap)
     def roadmap_detail(identity: str) -> dict:
         result = plans.detail(identity)
         with db.read() as c:

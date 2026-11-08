@@ -421,3 +421,76 @@ class Person(Answer):
     workItems: list[PersonWorkItem]
     repositories: list[PersonRepository]
     history: list[Event]
+
+
+class RoadmapStep(Answer):
+    """A step as its roadmap lists it, with its notes and files. A parent's status is derived from its leaves."""
+
+    id: str
+    title: str
+    description: str
+    parentId: str | None
+    position: int
+    # steps.status has no CHECK.
+    status: str
+    revision: int
+    retired: bool
+    notes: list[Note]
+    attachments: list[Attachment]
+
+
+class RoadmapVersion(Answer):
+    number: int
+    createdAt: str
+    note: str
+
+
+class RoadmapImport(Answer):
+    """A plan import committed to the roadmap; its original is read on its own."""
+
+    id: str
+    name: str
+    sha256: str
+    createdAt: str
+
+
+class FamilyRoadmap(Answer):
+    """A roadmap above or below another, as that one lists it."""
+
+    id: str
+    title: str
+    archived: bool
+
+
+class RoadmapWorkItem(WorkItemRecord):
+    """A work item on the roadmap or one of its steps, with the people tied to it."""
+
+    people: list[RecordPerson]
+
+
+class Roadmap(Answer):
+    """A roadmap with everything its page shows."""
+
+    id: str
+    title: str
+    overview: str
+    parentId: str | None
+    revision: int
+    archived: bool
+    createdAt: str
+    updatedAt: str
+    steps: list[RoadmapStep]
+    versions: list[RoadmapVersion]
+    notes: list[Note]
+    attachments: list[Attachment]
+    links: list[WebLink]
+    chats: list[TrackedChat]
+    github: list[ListedGithubReference]
+    questions: list[Question]
+    decisions: list[Decision]
+    history: list[Event]
+    ancestors: list[FamilyRoadmap]
+    children: list[FamilyRoadmap]
+    workItems: list[RoadmapWorkItem]
+    people: list[RecordPerson]
+    imports: list[RoadmapImport]
