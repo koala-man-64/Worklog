@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import logging
 import os
 import sqlite3
 import tempfile
@@ -17,6 +18,8 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from .migrations import SCHEMA_VERSION, UPGRADABLE_VERSIONS
+
+logger = logging.getLogger("worklog")
 
 REQUIRED_TABLES = frozenset(
     {"work_items", "days", "daily_entries", "notes", "tasks", "attachments",
@@ -180,12 +183,12 @@ def _snapshot(source: Path, destination: Path) -> None:
         os.fsync(stream.fileno())
 
 
-def _metadata(path: Path, *, hashed: bool = True) -> dict[str, Any]:
+def _metadata(path: Path, *, hashed: bool = True, cache: dict[str, Any] | None = None) -> dict[str, Any]:
     stat = path.stat()
     record: dict[str, Any] = {"name": path.name, "size": stat.st_size,
                               "createdAt": datetime.fromtimestamp(stat.st_mtime, UTC).isoformat()}
     if hashed:
-        record["sha256"] = _file_hash(path)
+        record["sha256"] = _file_hash(path) if cache is None else _cached_hash(path, cache)
     return record
 
 
@@ -194,18 +197,68 @@ def _file_hash(path: Path) -> str:
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def list_backups(backup_dir: Path | str, *, hashed: bool = True) -> list[dict[str, Any]]:
+# Each backup's SHA-256 is worked out once and kept beside the backups, for as long as the file has
+# the size and modification time it was hashed at (consolidation step 4.2, B-05): the CLI's listing
+# read every byte of every backup on each call.
+HASH_CACHE = "backup-hashes.json"
+
+
+def _hash_cache(directory: Path) -> dict[str, Any]:
+    try:
+        cache = json.loads((directory / HASH_CACHE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return cache if isinstance(cache, dict) else {}
+
+
+def _save_hash_cache(directory: Path, cache: dict[str, Any]) -> None:
+    """Keep the hashes of the files still there, written whole by a rename. A cache that can't be
+    written costs only a hash on the next listing."""
+    kept = {name: entry for name, entry in cache.items() if (directory / name).is_file()}
+    temporary = directory / (".hashes-" + uuid.uuid4().hex + ".tmp")
+    try:
+        temporary.write_text(json.dumps(kept, sort_keys=True), encoding="utf-8")
+        os.replace(temporary, directory / HASH_CACHE)
+    except OSError:
+        logger.warning("Backup hashes could not be cached; they are worked out again next time")
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _cached_hash(path: Path, cache: dict[str, Any]) -> str:
+    """The file's SHA-256 from the cache while the file is as it was hashed, or worked out now and
+    put in the cache."""
+    stat = path.stat()
+    stamp = [stat.st_size, stat.st_mtime_ns]
+    entry = cache.get(path.name)
+    if isinstance(entry, dict) and entry.get("stat") == stamp and isinstance(entry.get("sha256"), str):
+        return entry["sha256"]
+    digest = _file_hash(path)
+    cache[path.name] = {"stat": stamp, "sha256": digest}
+    return digest
+
+
+def list_backups(backup_dir: Path | str, *, hashed: bool = True, verify: bool = False) -> list[dict[str, Any]]:
     """Backups and raw recovery evidence, newest first.
 
     With hashed=False the listing reads file metadata only: hashing reads every byte of
-    every file, which Settings would otherwise pay on each load. The CLI keeps the hashes.
+    every file, which Settings would otherwise pay on each load. The CLI keeps the hashes,
+    each worked out once and cached while its file keeps its size and modification time
+    (HASH_CACHE). So a cached hash is the one the file had when it was hashed: damage that
+    keeps both, or a copy that keeps the modification time, would not show. With verify,
+    every file is hashed now, and the cache takes those hashes.
     """
     directory = Path(backup_dir)
     if not directory.exists():
         return []
     files = [*directory.glob("worklog-*.sqlite3"), *directory.glob("worklog-pre-restore-raw-*.zip")]
-    return [_metadata(path, hashed=hashed) for path in sorted(files, reverse=True)
-            if path.is_file()]
+    cache = ({} if verify else _hash_cache(directory)) if hashed else None
+    before = json.dumps(cache, sort_keys=True)
+    listed = [_metadata(path, hashed=hashed, cache=cache) for path in sorted(files, reverse=True)
+              if path.is_file()]
+    if cache is not None and json.dumps(cache, sort_keys=True) != before:
+        _save_hash_cache(directory, cache)
+    return listed
 
 
 def backup_database(db_path: Path | str, backup_dir: Path | str,
@@ -230,7 +283,11 @@ def backup_database(db_path: Path | str, backup_dir: Path | str,
     if keep is not None:
         for old in sorted(directory.glob(f"worklog-{kind}-*.sqlite3"), reverse=True)[keep:]:
             old.unlink()
-    return _metadata(target)
+    # The new backup is hashed for its metadata anyway, so the next listing need not hash it again.
+    cache = _hash_cache(directory)
+    result = _metadata(target, cache=cache)
+    _save_hash_cache(directory, cache)
+    return result
 
 
 def automatic_backup(db_path: Path | str, backup_dir: Path | str) -> dict[str, Any] | None:

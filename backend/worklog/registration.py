@@ -173,10 +173,9 @@ def retire(c: sqlite3.Connection, actor: dict) -> dict:
     return {"id": actor["id"], "agentId": agent["id"], "retired": True, "registeredRevoked": revoke_registered(c, actor, actor["id"])}
 
 
-def install_registration_routes(app: FastAPI, db: Database, before_write: Callable[[], None]) -> None:
+def install_registration_routes(app: FastAPI, db: Database) -> None:
     def write(request: Request, fn: Callable[[sqlite3.Connection, dict], dict]) -> dict:
         # Not a receipt-backed mutation: a receipt's request hash would be derived from the token.
-        before_write()
         with db.transaction() as c:
             return fn(c, request.state.actor)
 
