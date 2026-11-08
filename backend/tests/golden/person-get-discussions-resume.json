@@ -1,13 +1,26 @@
 {
   "status": 200,
   "body": {
-    "roles": [],
-    "discussions": [
+    "roles": [
       {
         "id": "<id1>",
+        "contextType": "item",
+        "contextId": "<id2>",
+        "label": "Parser owner",
+        "contextTitle": "Parser",
+        "ownerId": "<id3>",
+        "ownerLabel": "Builder",
+        "revision": 2,
+        "generation": 1,
+        "offer": null
+      }
+    ],
+    "discussions": [
+      {
+        "id": "<id4>",
         "title": "Parser",
         "archived": false,
-        "revision": 1,
+        "revision": 2,
         "createdAt": "<time>",
         "updatedAt": "<time>",
         "pinned": false,
@@ -33,7 +46,7 @@
         "repository": null
       },
       {
-        "id": "<id3>",
+        "id": "<id5>",
         "title": "Repository: worklog",
         "archived": false,
         "revision": 1,
@@ -44,7 +57,7 @@
         "contexts": [
           {
             "type": "repository",
-            "id": "<id4>",
+            "id": "<id6>",
             "title": "worklog",
             "archived": false,
             "mergedInto": null,
@@ -60,7 +73,7 @@
         "repos": [],
         "pendingCount": 0,
         "repository": {
-          "id": "<id4>",
+          "id": "<id6>",
           "name": "worklog"
         }
       }
@@ -68,7 +81,7 @@
     "requests": [],
     "cursor": "<cursor>",
     "counts": {
-      "roles": 0,
+      "roles": 1,
       "discussions": 2,
       "requests": 0
     },

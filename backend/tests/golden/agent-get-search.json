@@ -49,14 +49,23 @@
       },
       {
         "id": "<id7>",
+        "type": "discussion_message",
+        "title": "Parser",
+        "snippet": "Starting with the tables",
+        "ownerId": "<id1>",
+        "routeType": "discussions",
+        "routeId": "<id1>"
+      },
+      {
+        "id": "<id8>",
         "type": "ticket",
         "title": "T-1 Crash on save",
         "snippet": "bug parser",
-        "ownerId": "<id7>",
+        "ownerId": "<id8>",
         "routeType": "tickets",
-        "routeId": "<id7>"
+        "routeId": "<id8>"
       }
     ],
-    "total": 6
+    "total": 7
   }
 }

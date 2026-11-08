@@ -7,6 +7,7 @@ from typing import Literal
 from fastapi import FastAPI, Query, Request
 
 from . import discussion_models as m
+from . import responses as out
 from .db import Database
 from .discussions import DiscussionService, communication_actor
 from .registry import AgentRegistry
@@ -30,7 +31,7 @@ def install_discussion_routes(app: FastAPI, db: Database, mutate: Callable) -> N
 
     # One participant: what it reports working on and the roles it owns, never its credentials or the
     # chats its runs report, which stay on the person's Agents page.
-    @app.get("/api/v1/discussions/participants/{identity}")
+    @app.get("/api/v1/discussions/participants/{identity}", response_model=out.Participant | out.AgentProfile)
     def participant(identity: str, request: Request) -> dict:
         return read(request, lambda c, a: registry.profile(c, identity))
 

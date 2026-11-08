@@ -23,6 +23,39 @@
         "actorLabel": "You",
         "actorKind": "human",
         "createdAt": "<time>"
+      },
+      {
+        "seq": 3,
+        "kind": "discussion.role.create",
+        "discussionId": null,
+        "messageId": null,
+        "roleId": "<id5>",
+        "actorId": "<id6>",
+        "actorLabel": "Builder",
+        "actorKind": "agent",
+        "createdAt": "<time>"
+      },
+      {
+        "seq": 4,
+        "kind": "discussion.role.claim",
+        "discussionId": null,
+        "messageId": null,
+        "roleId": "<id5>",
+        "actorId": "<id6>",
+        "actorLabel": "Builder",
+        "actorKind": "agent",
+        "createdAt": "<time>"
+      },
+      {
+        "seq": 5,
+        "kind": "discussion.message",
+        "discussionId": "<id3>",
+        "messageId": "<id7>",
+        "roleId": null,
+        "actorId": "<id6>",
+        "actorLabel": "Builder",
+        "actorKind": "agent",
+        "createdAt": "<time>"
       }
     ],
     "cursor": "<cursor>",

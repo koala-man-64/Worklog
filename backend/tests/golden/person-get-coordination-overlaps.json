@@ -35,8 +35,35 @@
       }
     ],
     "announcements": [],
-    "discussions": [],
-    "roles": [],
+    "discussions": [
+      {
+        "id": "<id6>",
+        "title": "Parser",
+        "pinned": false,
+        "updatedAt": "<time>",
+        "matched": [
+          {
+            "type": "item",
+            "id": "<id4>"
+          }
+        ]
+      }
+    ],
+    "roles": [
+      {
+        "id": "<id7>",
+        "label": "Parser owner",
+        "contextType": "item",
+        "contextId": "<id4>",
+        "owner": {
+          "id": "<id2>",
+          "label": "Builder",
+          "kind": "agent",
+          "avatar": "red-dots-antenna",
+          "active": true
+        }
+      }
+    ],
     "ties": [
       {
         "agent": {

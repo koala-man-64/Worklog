@@ -970,8 +970,9 @@ class TicketWorkItem(Answer):
     archived: bool
 
 
-class TicketAssignee(Author):
-    """Who a ticket is assigned to, as they stand now: the person, or an agent identity."""
+class Participant(Author):
+    """The person or an agent identity as they stand now: who a ticket is assigned to, or who is
+    on the records an overlap check names."""
 
     # Whether the agent identity holds a live credential; the person always does.
     active: bool
@@ -998,7 +999,7 @@ class TicketListed(Answer):
     item: TicketWorkItem | None
     assigneeId: str | None
     # Null when it is assigned to no one. An agent identity that is gone reads as "Unknown agent".
-    assignee: TicketAssignee | None
+    assignee: Participant | None
     author: Author
     commentCount: int
     archived: bool
@@ -1215,3 +1216,359 @@ class CoordinationUpdates(Answer):
     total: int
     limit: int
     offset: int
+
+
+class RegistryWorkItem(Answer):
+    """A work item as the registry names it, with the roadmap its step, or it, sits on."""
+
+    id: str
+    title: str
+    status: Literal["open", "doing", "waiting", "blocked", "done"]
+    archived: bool
+    roadmapId: str | None
+
+
+class AgentWork(Answer):
+    """Open participation an agent reports: the work and the repositories it is at now."""
+
+    participationId: str
+    runId: str
+    runName: str
+    description: str
+    lastSeenAt: str
+    # Not seen for two hours.
+    stale: bool
+    item: RegistryWorkItem | None
+    roadmap: RecordSummary | None
+    contexts: list[ParticipationRepository]
+
+
+class AgentRole(Answer):
+    """A responsibility role an agent owns, with the roadmap it sits within."""
+
+    id: str
+    label: str
+    contextType: Literal["item", "roadmap", "step"]
+    contextId: str
+    # The record's title; its id when the record is missing.
+    contextTitle: str
+    roadmap: RecordSummary | None
+    updatedAt: str
+
+
+class AgentListed(Answer):
+    """An agent identity as the Agents page lists it, gathered from what it wrote."""
+
+    id: str
+    label: str
+    # Whether it holds a live credential.
+    active: bool
+    createdAt: str
+    # The latest of its runs, check-ins, updates and messages; null before any.
+    lastActivityAt: str | None
+    providers: list[str]
+    openRuns: int
+    runCount: int
+    messageCount: int
+    working: list[AgentWork]
+    roles: list[AgentRole]
+
+
+class Agents(Answer):
+    items: list[AgentListed]
+    total: int
+    limit: int
+    offset: int
+
+
+class AgentCredential(Answer):
+    id: str
+    label: str
+    createdAt: str
+    revoked: bool
+    # Null for one issued in Settings.
+    registeredBy: CredentialSponsor | None
+    # The chat its registration named; null when it named none.
+    chatId: str | None
+
+
+class TiedChat(Answer):
+    """A tracked chat whose chat ID the agent reported."""
+
+    id: str
+    chatId: str
+    title: str
+    provider: str
+    model: str
+    archived: bool
+    ownerType: Literal["item", "roadmap"]
+    ownerId: str
+    ownerTitle: str
+
+
+class AgentRunWithChats(AgentRun):
+    """A run with the tracked chats that carry the chat ID it reported."""
+
+    chats: list[TiedChat]
+
+
+class AgentRunsListed(Answer):
+    # The latest 200; total counts them all.
+    items: list[AgentRunWithChats]
+    total: int
+
+
+TieReason = Literal["participation", "role", "update", "message", "run", "confirmed", "chat"]
+
+
+class TiedWorkItem(Answer):
+    id: str
+    title: str
+    status: Literal["open", "doing", "waiting", "blocked", "done"]
+    archived: bool
+    roadmap: RecordSummary | None
+    # Every reason that ties the agent to it, in display order.
+    via: list[TieReason]
+    # Tied by something still open: participation, a role, an open run.
+    current: bool
+    lastAt: str | None
+
+
+class TiedRoadmap(RecordSummary):
+    via: list[TieReason]
+    current: bool
+    lastAt: str | None
+
+
+class TiedRepository(Answer):
+    id: str
+    name: str
+    archived: bool
+    via: list[TieReason]
+    current: bool
+    lastAt: str | None
+
+
+class TiedChatEntry(TiedChat):
+    via: list[TieReason]
+    current: bool
+    lastAt: str | None
+
+
+class TiedWorkItems(Answer):
+    # Current ties first, then the latest; the first 200, and total counts them all.
+    items: list[TiedWorkItem]
+    total: int
+
+
+class TiedRoadmaps(Answer):
+    items: list[TiedRoadmap]
+    total: int
+
+
+class TiedRepositories(Answer):
+    items: list[TiedRepository]
+    total: int
+
+
+class TiedChats(Answer):
+    items: list[TiedChatEntry]
+    total: int
+
+
+class Agent(AgentListed):
+    """An agent identity with its credentials, its runs and what it is tied to, and why."""
+
+    credentials: list[AgentCredential]
+    runs: AgentRunsListed
+    workItems: TiedWorkItems
+    roadmaps: TiedRoadmaps
+    repositories: TiedRepositories
+    chats: TiedChats
+
+
+class MessageActivity(Answer):
+    """A discussion message the agent posted."""
+
+    kind: Literal["message"]
+    id: str
+    createdAt: str
+    # The first 1,000 characters.
+    text: str
+    truncated: bool
+    discussionId: str
+    discussionTitle: str
+    # The chat it reported; null when it named none.
+    chatId: str | None
+    # The tracked chats that carry that chat ID.
+    chats: list[Named]
+
+
+class UpdateActivity(Answer):
+    """A status update one of the agent's runs posted."""
+
+    kind: Literal["update"]
+    id: str
+    createdAt: str
+    # The first 1,000 characters.
+    text: str
+    truncated: bool
+    updateKind: Literal["update", "blocker", "handoff"]
+    runName: str
+    participationId: str
+    item: Named | None
+    contexts: list[ParticipationRepository]
+
+
+class AgentActivity(Answer):
+    # The newest first.
+    items: list[MessageActivity | UpdateActivity]
+    total: int
+    limit: int
+    offset: int
+
+
+class RoleName(Answer):
+    id: str
+    label: str
+
+
+class RoadmapTie(Answer):
+    """What ties a worker to a roadmap's step now, or to the roadmap itself with a null stepId."""
+
+    stepId: str | None
+    via: Literal["participation", "role", "chat"]
+    item: Named | None
+    chat: Named | None
+    role: RoleName | None
+    lastAt: str | None
+    stale: bool
+
+
+class RoadmapWorker(Answer):
+    """An agent at work on the roadmap, or a tracked chat that stands for itself."""
+
+    kind: Literal["agent", "chat"]
+    id: str
+    label: str
+    # An agent identity's avatar; null for a chat.
+    avatar: str | None
+    # A chat's provider and model; empty for an agent.
+    provider: str
+    model: str
+    # The latest first.
+    ties: list[RoadmapTie]
+    lastAt: str | None
+    # Every tie is stale.
+    stale: bool
+
+
+class RoadmapAgents(Answer):
+    # Fresh work first, then the latest.
+    items: list[RoadmapWorker]
+
+
+class OverlapRepository(Answer):
+    id: str
+    name: str
+    # Its own discussion; null for one merged into another or archived before v22.
+    discussionId: str | None
+
+
+class OverlapWorkItem(Answer):
+    id: str
+    title: str
+    status: Literal["open", "doing", "waiting", "blocked", "done"]
+
+
+class OverlapParticipation(Answer):
+    """Another agent's open participation in the repositories, on the work items, or on work on the steps."""
+
+    participationId: str
+    # Null if the agent identity is gone.
+    agent: Participant | None
+    runId: str
+    runName: str
+    description: str
+    lastSeenAt: str
+    stale: bool
+    item: OverlapWorkItem | None
+    contexts: list[ParticipationRepository]
+
+
+class Announcement(Answer):
+    """A message someone else posted in a repository's own discussion, the opening one aside."""
+
+    repositoryId: str
+    discussionId: str
+    messageId: str
+    # As the author stands now; null if their agent identity is gone.
+    author: Participant | None
+    authorId: str
+    authorLabel: str
+    # Whether the author reports work in that repository now.
+    authorReporting: bool
+    createdAt: str
+    # The first 1,000 characters.
+    text: str
+    truncated: bool
+
+
+class OverlapTag(Answer):
+    """One of the named records a thread is tagged with."""
+
+    type: Literal["repository", "item", "step", "ticket"]
+    id: str
+
+
+class OverlapDiscussion(Answer):
+    """Another open thread tagged with a named record, where someone besides the caller wrote."""
+
+    id: str
+    title: str
+    pinned: bool
+    updatedAt: str
+    matched: list[OverlapTag]
+
+
+class OverlapRole(Answer):
+    id: str
+    label: str
+    contextType: Literal["item", "step"]
+    contextId: str
+    owner: Participant | None
+
+
+class OverlapTie(Answer):
+    agent: Participant | None
+    targetType: Literal["repository", "item", "step", "ticket"]
+    targetId: str
+    relationship: str
+    setBy: Literal["human", "agent"]
+
+
+class OverlapTicket(Answer):
+    id: str
+    number: int
+    title: str
+    status: Literal["open", "doing", "blocked", "done"]
+    assignee: Participant | None
+
+
+class Overlaps(Answer):
+    """Who else is on the named records and what they said there, leaving out the caller's own."""
+
+    repositories: list[OverlapRepository]
+    participations: list[OverlapParticipation]
+    announcements: list[Announcement]
+    discussions: list[OverlapDiscussion]
+    roles: list[OverlapRole]
+    ties: list[OverlapTie]
+    tickets: list[OverlapTicket]
+
+
+class AgentProfile(AgentListed):
+    """An agent identity as a participant's profile shows it, to any caller."""
+
+    kind: Literal["agent"]
+    avatar: str | None

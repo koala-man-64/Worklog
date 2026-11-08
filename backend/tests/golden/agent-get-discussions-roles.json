@@ -1,8 +1,21 @@
 {
   "status": 200,
   "body": {
-    "items": [],
-    "total": 0,
+    "items": [
+      {
+        "id": "<id1>",
+        "contextType": "item",
+        "contextId": "<id2>",
+        "label": "Parser owner",
+        "contextTitle": "Parser",
+        "ownerId": "<id3>",
+        "ownerLabel": "Builder",
+        "revision": 2,
+        "generation": 1,
+        "offer": null
+      }
+    ],
+    "total": 1,
     "limit": 50,
     "offset": 0
   }

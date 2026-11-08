@@ -6329,9 +6329,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Overlaps Api V1 Coordination Overlaps Get"
+                  "$ref": "#/components/schemas/Overlaps"
                 }
               }
             }
@@ -8621,8 +8619,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/Participant"
+                    },
+                    {
+                      "$ref": "#/components/schemas/AgentProfile"
+                    }
+                  ],
                   "title": "Response Participant Api V1 Discussions Participants  Identity  Get"
                 }
               }
@@ -10204,9 +10208,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Agents Api V1 Agents Get"
+                  "$ref": "#/components/schemas/Agents"
                 }
               }
             }
@@ -10245,9 +10247,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Agent Api V1 Agents  Identity  Get"
+                  "$ref": "#/components/schemas/Agent"
                 }
               }
             }
@@ -10309,9 +10309,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Activity Api V1 Agents  Identity  Activity Get"
+                  "$ref": "#/components/schemas/AgentActivity"
                 }
               }
             }
@@ -10350,9 +10348,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Roadmap Agents Api V1 Roadmaps  Identity  Agents Get"
+                  "$ref": "#/components/schemas/RoadmapAgents"
                 }
               }
             }
@@ -10437,6 +10433,206 @@
         "additionalProperties": false,
         "type": "object",
         "title": "Acknowledgement"
+      },
+      "Agent": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "lastActivityAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastactivityat"
+          },
+          "providers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Providers"
+          },
+          "openRuns": {
+            "type": "integer",
+            "title": "Openruns"
+          },
+          "runCount": {
+            "type": "integer",
+            "title": "Runcount"
+          },
+          "messageCount": {
+            "type": "integer",
+            "title": "Messagecount"
+          },
+          "working": {
+            "items": {
+              "$ref": "#/components/schemas/AgentWork"
+            },
+            "type": "array",
+            "title": "Working"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/AgentRole"
+            },
+            "type": "array",
+            "title": "Roles"
+          },
+          "credentials": {
+            "items": {
+              "$ref": "#/components/schemas/AgentCredential"
+            },
+            "type": "array",
+            "title": "Credentials"
+          },
+          "runs": {
+            "$ref": "#/components/schemas/AgentRunsListed"
+          },
+          "workItems": {
+            "$ref": "#/components/schemas/TiedWorkItems"
+          },
+          "roadmaps": {
+            "$ref": "#/components/schemas/TiedRoadmaps"
+          },
+          "repositories": {
+            "$ref": "#/components/schemas/TiedRepositories"
+          },
+          "chats": {
+            "$ref": "#/components/schemas/TiedChats"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "active",
+          "createdAt",
+          "lastActivityAt",
+          "providers",
+          "openRuns",
+          "runCount",
+          "messageCount",
+          "working",
+          "roles",
+          "credentials",
+          "runs",
+          "workItems",
+          "roadmaps",
+          "repositories",
+          "chats"
+        ],
+        "title": "Agent",
+        "description": "An agent identity with its credentials, its runs and what it is tied to, and why."
+      },
+      "AgentActivity": {
+        "properties": {
+          "items": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/MessageActivity"
+                },
+                {
+                  "$ref": "#/components/schemas/UpdateActivity"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "AgentActivity"
+      },
+      "AgentCredential": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "revoked": {
+            "type": "boolean",
+            "title": "Revoked"
+          },
+          "registeredBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CredentialSponsor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "chatId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chatid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "createdAt",
+          "revoked",
+          "registeredBy",
+          "chatId"
+        ],
+        "title": "AgentCredential"
       },
       "AgentLinkRemove": {
         "properties": {
@@ -10532,6 +10728,186 @@
         "title": "AgentLinkSet",
         "description": "The person names the agent. An agent ties only itself, so it may leave agentId out."
       },
+      "AgentListed": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "lastActivityAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastactivityat"
+          },
+          "providers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Providers"
+          },
+          "openRuns": {
+            "type": "integer",
+            "title": "Openruns"
+          },
+          "runCount": {
+            "type": "integer",
+            "title": "Runcount"
+          },
+          "messageCount": {
+            "type": "integer",
+            "title": "Messagecount"
+          },
+          "working": {
+            "items": {
+              "$ref": "#/components/schemas/AgentWork"
+            },
+            "type": "array",
+            "title": "Working"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/AgentRole"
+            },
+            "type": "array",
+            "title": "Roles"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "active",
+          "createdAt",
+          "lastActivityAt",
+          "providers",
+          "openRuns",
+          "runCount",
+          "messageCount",
+          "working",
+          "roles"
+        ],
+        "title": "AgentListed",
+        "description": "An agent identity as the Agents page lists it, gathered from what it wrote."
+      },
+      "AgentProfile": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "lastActivityAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastactivityat"
+          },
+          "providers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Providers"
+          },
+          "openRuns": {
+            "type": "integer",
+            "title": "Openruns"
+          },
+          "runCount": {
+            "type": "integer",
+            "title": "Runcount"
+          },
+          "messageCount": {
+            "type": "integer",
+            "title": "Messagecount"
+          },
+          "working": {
+            "items": {
+              "$ref": "#/components/schemas/AgentWork"
+            },
+            "type": "array",
+            "title": "Working"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/AgentRole"
+            },
+            "type": "array",
+            "title": "Roles"
+          },
+          "kind": {
+            "type": "string",
+            "const": "agent",
+            "title": "Kind"
+          },
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "active",
+          "createdAt",
+          "lastActivityAt",
+          "providers",
+          "openRuns",
+          "runCount",
+          "messageCount",
+          "working",
+          "roles",
+          "kind",
+          "avatar"
+        ],
+        "title": "AgentProfile",
+        "description": "An agent identity as a participant's profile shows it, to any caller."
+      },
       "AgentProposals": {
         "properties": {
           "items": {
@@ -10608,6 +10984,62 @@
           "chatId"
         ],
         "title": "AgentRegistration"
+      },
+      "AgentRole": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "contextType": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap",
+              "step"
+            ],
+            "title": "Contexttype"
+          },
+          "contextId": {
+            "type": "string",
+            "title": "Contextid"
+          },
+          "contextTitle": {
+            "type": "string",
+            "title": "Contexttitle"
+          },
+          "roadmap": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecordSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "contextType",
+          "contextId",
+          "contextTitle",
+          "roadmap",
+          "updatedAt"
+        ],
+        "title": "AgentRole",
+        "description": "A responsibility role an agent owns, with the roadmap it sits within."
       },
       "AgentRun": {
         "properties": {
@@ -10700,6 +11132,105 @@
         "title": "AgentRun",
         "description": "A run: one stretch of an agent's work under one credential, as it reported it."
       },
+      "AgentRunWithChats": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "agentId": {
+            "type": "string",
+            "title": "Agentid"
+          },
+          "credentialId": {
+            "type": "string",
+            "title": "Credentialid"
+          },
+          "clientRunKey": {
+            "type": "string",
+            "title": "Clientrunkey"
+          },
+          "displayName": {
+            "type": "string",
+            "title": "Displayname"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "externalChatId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Externalchatid"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "endedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endedat"
+          },
+          "endReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endreason"
+          },
+          "chats": {
+            "items": {
+              "$ref": "#/components/schemas/TiedChat"
+            },
+            "type": "array",
+            "title": "Chats"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "agentId",
+          "credentialId",
+          "clientRunKey",
+          "displayName",
+          "provider",
+          "externalChatId",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "endedAt",
+          "endReason",
+          "chats"
+        ],
+        "title": "AgentRunWithChats",
+        "description": "A run with the tracked chats that carry the chat ID it reported."
+      },
       "AgentRuns": {
         "properties": {
           "items": {
@@ -10731,6 +11262,28 @@
           "offset"
         ],
         "title": "AgentRuns"
+      },
+      "AgentRunsListed": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AgentRunWithChats"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "AgentRunsListed"
       },
       "AgentSummary": {
         "properties": {
@@ -10894,6 +11447,174 @@
           "total"
         ],
         "title": "AgentTies"
+      },
+      "AgentWork": {
+        "properties": {
+          "participationId": {
+            "type": "string",
+            "title": "Participationid"
+          },
+          "runId": {
+            "type": "string",
+            "title": "Runid"
+          },
+          "runName": {
+            "type": "string",
+            "title": "Runname"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "lastSeenAt": {
+            "type": "string",
+            "title": "Lastseenat"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale"
+          },
+          "item": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RegistryWorkItem"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "roadmap": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecordSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contexts": {
+            "items": {
+              "$ref": "#/components/schemas/ParticipationRepository"
+            },
+            "type": "array",
+            "title": "Contexts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "participationId",
+          "runId",
+          "runName",
+          "description",
+          "lastSeenAt",
+          "stale",
+          "item",
+          "roadmap",
+          "contexts"
+        ],
+        "title": "AgentWork",
+        "description": "Open participation an agent reports: the work and the repositories it is at now."
+      },
+      "Agents": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AgentListed"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Agents"
+      },
+      "Announcement": {
+        "properties": {
+          "repositoryId": {
+            "type": "string",
+            "title": "Repositoryid"
+          },
+          "discussionId": {
+            "type": "string",
+            "title": "Discussionid"
+          },
+          "messageId": {
+            "type": "string",
+            "title": "Messageid"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Participant"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "authorId": {
+            "type": "string",
+            "title": "Authorid"
+          },
+          "authorLabel": {
+            "type": "string",
+            "title": "Authorlabel"
+          },
+          "authorReporting": {
+            "type": "boolean",
+            "title": "Authorreporting"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "truncated": {
+            "type": "boolean",
+            "title": "Truncated"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "repositoryId",
+          "discussionId",
+          "messageId",
+          "author",
+          "authorId",
+          "authorLabel",
+          "authorReporting",
+          "createdAt",
+          "text",
+          "truncated"
+        ],
+        "title": "Announcement",
+        "description": "A message someone else posted in a repository's own discussion, the opening one aside."
       },
       "AppliedChange": {
         "properties": {
@@ -13455,6 +14176,72 @@
         "title": "ListedGithubReference",
         "description": "A GitHub reference as its owner lists it, with the title of the chat that made it."
       },
+      "MessageActivity": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "message",
+            "title": "Kind"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "truncated": {
+            "type": "boolean",
+            "title": "Truncated"
+          },
+          "discussionId": {
+            "type": "string",
+            "title": "Discussionid"
+          },
+          "discussionTitle": {
+            "type": "string",
+            "title": "Discussiontitle"
+          },
+          "chatId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chatid"
+          },
+          "chats": {
+            "items": {
+              "$ref": "#/components/schemas/Named"
+            },
+            "type": "array",
+            "title": "Chats"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "id",
+          "createdAt",
+          "text",
+          "truncated",
+          "discussionId",
+          "discussionTitle",
+          "chatId",
+          "chats"
+        ],
+        "title": "MessageActivity",
+        "description": "A discussion message the agent posted."
+      },
       "MessageCreate": {
         "properties": {
           "text": {
@@ -13757,6 +14544,454 @@
           "payload"
         ],
         "title": "Operation"
+      },
+      "OverlapDiscussion": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "pinned": {
+            "type": "boolean",
+            "title": "Pinned"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "matched": {
+            "items": {
+              "$ref": "#/components/schemas/OverlapTag"
+            },
+            "type": "array",
+            "title": "Matched"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "pinned",
+          "updatedAt",
+          "matched"
+        ],
+        "title": "OverlapDiscussion",
+        "description": "Another open thread tagged with a named record, where someone besides the caller wrote."
+      },
+      "OverlapParticipation": {
+        "properties": {
+          "participationId": {
+            "type": "string",
+            "title": "Participationid"
+          },
+          "agent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Participant"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "runId": {
+            "type": "string",
+            "title": "Runid"
+          },
+          "runName": {
+            "type": "string",
+            "title": "Runname"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "lastSeenAt": {
+            "type": "string",
+            "title": "Lastseenat"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale"
+          },
+          "item": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OverlapWorkItem"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contexts": {
+            "items": {
+              "$ref": "#/components/schemas/ParticipationRepository"
+            },
+            "type": "array",
+            "title": "Contexts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "participationId",
+          "agent",
+          "runId",
+          "runName",
+          "description",
+          "lastSeenAt",
+          "stale",
+          "item",
+          "contexts"
+        ],
+        "title": "OverlapParticipation",
+        "description": "Another agent's open participation in the repositories, on the work items, or on work on the steps."
+      },
+      "OverlapRepository": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "discussionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discussionid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "discussionId"
+        ],
+        "title": "OverlapRepository"
+      },
+      "OverlapRole": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "contextType": {
+            "type": "string",
+            "enum": [
+              "item",
+              "step"
+            ],
+            "title": "Contexttype"
+          },
+          "contextId": {
+            "type": "string",
+            "title": "Contextid"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Participant"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "contextType",
+          "contextId",
+          "owner"
+        ],
+        "title": "OverlapRole"
+      },
+      "OverlapTag": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "repository",
+              "item",
+              "step",
+              "ticket"
+            ],
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "id"
+        ],
+        "title": "OverlapTag",
+        "description": "One of the named records a thread is tagged with."
+      },
+      "OverlapTicket": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "doing",
+              "blocked",
+              "done"
+            ],
+            "title": "Status"
+          },
+          "assignee": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Participant"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "number",
+          "title",
+          "status",
+          "assignee"
+        ],
+        "title": "OverlapTicket"
+      },
+      "OverlapTie": {
+        "properties": {
+          "agent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Participant"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "targetType": {
+            "type": "string",
+            "enum": [
+              "repository",
+              "item",
+              "step",
+              "ticket"
+            ],
+            "title": "Targettype"
+          },
+          "targetId": {
+            "type": "string",
+            "title": "Targetid"
+          },
+          "relationship": {
+            "type": "string",
+            "title": "Relationship"
+          },
+          "setBy": {
+            "type": "string",
+            "enum": [
+              "human",
+              "agent"
+            ],
+            "title": "Setby"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "agent",
+          "targetType",
+          "targetId",
+          "relationship",
+          "setBy"
+        ],
+        "title": "OverlapTie"
+      },
+      "OverlapWorkItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "doing",
+              "waiting",
+              "blocked",
+              "done"
+            ],
+            "title": "Status"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "status"
+        ],
+        "title": "OverlapWorkItem"
+      },
+      "Overlaps": {
+        "properties": {
+          "repositories": {
+            "items": {
+              "$ref": "#/components/schemas/OverlapRepository"
+            },
+            "type": "array",
+            "title": "Repositories"
+          },
+          "participations": {
+            "items": {
+              "$ref": "#/components/schemas/OverlapParticipation"
+            },
+            "type": "array",
+            "title": "Participations"
+          },
+          "announcements": {
+            "items": {
+              "$ref": "#/components/schemas/Announcement"
+            },
+            "type": "array",
+            "title": "Announcements"
+          },
+          "discussions": {
+            "items": {
+              "$ref": "#/components/schemas/OverlapDiscussion"
+            },
+            "type": "array",
+            "title": "Discussions"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/OverlapRole"
+            },
+            "type": "array",
+            "title": "Roles"
+          },
+          "ties": {
+            "items": {
+              "$ref": "#/components/schemas/OverlapTie"
+            },
+            "type": "array",
+            "title": "Ties"
+          },
+          "tickets": {
+            "items": {
+              "$ref": "#/components/schemas/OverlapTicket"
+            },
+            "type": "array",
+            "title": "Tickets"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "repositories",
+          "participations",
+          "announcements",
+          "discussions",
+          "roles",
+          "ties",
+          "tickets"
+        ],
+        "title": "Overlaps",
+        "description": "Who else is on the named records and what they said there, leaving out the caller's own."
+      },
+      "Participant": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "agent",
+              "human"
+            ],
+            "title": "Kind"
+          },
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "kind",
+          "avatar",
+          "active"
+        ],
+        "title": "Participant",
+        "description": "The person or an agent identity as they stand now: who a ticket is assigned to, or who is\non the records an overlap check names."
       },
       "Participation": {
         "properties": {
@@ -15527,6 +16762,55 @@
           "agentId"
         ],
         "title": "RegisteredBy"
+      },
+      "RegistryWorkItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "doing",
+              "waiting",
+              "blocked",
+              "done"
+            ],
+            "title": "Status"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "roadmapId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roadmapid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "status",
+          "archived",
+          "roadmapId"
+        ],
+        "title": "RegistryWorkItem",
+        "description": "A work item as the registry names it, with the roadmap its step, or it, sits on."
       },
       "Release": {
         "properties": {
@@ -17883,6 +19167,23 @@
         "title": "Roadmap",
         "description": "A roadmap with everything its page shows."
       },
+      "RoadmapAgents": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RoadmapWorker"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "RoadmapAgents"
+      },
       "RoadmapCreate": {
         "properties": {
           "title": {
@@ -18241,6 +19542,88 @@
         "title": "RoadmapStep",
         "description": "A step as its roadmap lists it, with its notes and files."
       },
+      "RoadmapTie": {
+        "properties": {
+          "stepId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stepid"
+          },
+          "via": {
+            "type": "string",
+            "enum": [
+              "participation",
+              "role",
+              "chat"
+            ],
+            "title": "Via"
+          },
+          "item": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Named"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "chat": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Named"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RoleName"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lastAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastat"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "stepId",
+          "via",
+          "item",
+          "chat",
+          "role",
+          "lastAt",
+          "stale"
+        ],
+        "title": "RoadmapTie",
+        "description": "What ties a worker to a roadmap's step now, or to the roadmap itself with a null stepId."
+      },
       "RoadmapVersion": {
         "properties": {
           "number": {
@@ -18379,6 +19762,82 @@
         "title": "RoadmapWorkItem",
         "description": "A work item on the roadmap or one of its steps, with the people tied to it."
       },
+      "RoadmapWorker": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "agent",
+              "chat"
+            ],
+            "title": "Kind"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "ties": {
+            "items": {
+              "$ref": "#/components/schemas/RoadmapTie"
+            },
+            "type": "array",
+            "title": "Ties"
+          },
+          "lastAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastat"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "id",
+          "label",
+          "avatar",
+          "provider",
+          "model",
+          "ties",
+          "lastAt",
+          "stale"
+        ],
+        "title": "RoadmapWorker",
+        "description": "An agent at work on the roadmap, or a tracked chat that stands for itself."
+      },
       "Roadmaps": {
         "properties": {
           "items": {
@@ -18433,6 +19892,25 @@
           "label"
         ],
         "title": "RoleCreate"
+      },
+      "RoleName": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "RoleName"
       },
       "RoleOffer": {
         "properties": {
@@ -19267,7 +20745,7 @@
           "assignee": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/TicketAssignee"
+                "$ref": "#/components/schemas/Participant"
               },
               {
                 "type": "null"
@@ -19355,52 +20833,6 @@
         ],
         "title": "Ticket",
         "description": "A ticket whole, with its latest comments and who changed it when."
-      },
-      "TicketAssignee": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "label": {
-            "type": "string",
-            "title": "Label"
-          },
-          "kind": {
-            "type": "string",
-            "enum": [
-              "agent",
-              "human"
-            ],
-            "title": "Kind"
-          },
-          "avatar": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Avatar"
-          },
-          "active": {
-            "type": "boolean",
-            "title": "Active"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "label",
-          "kind",
-          "avatar",
-          "active"
-        ],
-        "title": "TicketAssignee",
-        "description": "Who a ticket is assigned to, as they stand now: the person, or an agent identity."
       },
       "TicketComment": {
         "properties": {
@@ -19675,7 +21107,7 @@
           "assignee": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/TicketAssignee"
+                "$ref": "#/components/schemas/Participant"
               },
               {
                 "type": "null"
@@ -20042,6 +21474,442 @@
         "title": "TieAgent",
         "description": "An agent as its ties show it."
       },
+      "TiedChat": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "chatId": {
+            "type": "string",
+            "title": "Chatid"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "ownerType": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap"
+            ],
+            "title": "Ownertype"
+          },
+          "ownerId": {
+            "type": "string",
+            "title": "Ownerid"
+          },
+          "ownerTitle": {
+            "type": "string",
+            "title": "Ownertitle"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "chatId",
+          "title",
+          "provider",
+          "model",
+          "archived",
+          "ownerType",
+          "ownerId",
+          "ownerTitle"
+        ],
+        "title": "TiedChat",
+        "description": "A tracked chat whose chat ID the agent reported."
+      },
+      "TiedChatEntry": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "chatId": {
+            "type": "string",
+            "title": "Chatid"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "ownerType": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap"
+            ],
+            "title": "Ownertype"
+          },
+          "ownerId": {
+            "type": "string",
+            "title": "Ownerid"
+          },
+          "ownerTitle": {
+            "type": "string",
+            "title": "Ownertitle"
+          },
+          "via": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "participation",
+                "role",
+                "update",
+                "message",
+                "run",
+                "confirmed",
+                "chat"
+              ]
+            },
+            "type": "array",
+            "title": "Via"
+          },
+          "current": {
+            "type": "boolean",
+            "title": "Current"
+          },
+          "lastAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "chatId",
+          "title",
+          "provider",
+          "model",
+          "archived",
+          "ownerType",
+          "ownerId",
+          "ownerTitle",
+          "via",
+          "current",
+          "lastAt"
+        ],
+        "title": "TiedChatEntry"
+      },
+      "TiedChats": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TiedChatEntry"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "TiedChats"
+      },
+      "TiedRepositories": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TiedRepository"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "TiedRepositories"
+      },
+      "TiedRepository": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "via": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "participation",
+                "role",
+                "update",
+                "message",
+                "run",
+                "confirmed",
+                "chat"
+              ]
+            },
+            "type": "array",
+            "title": "Via"
+          },
+          "current": {
+            "type": "boolean",
+            "title": "Current"
+          },
+          "lastAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "archived",
+          "via",
+          "current",
+          "lastAt"
+        ],
+        "title": "TiedRepository"
+      },
+      "TiedRoadmap": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "via": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "participation",
+                "role",
+                "update",
+                "message",
+                "run",
+                "confirmed",
+                "chat"
+              ]
+            },
+            "type": "array",
+            "title": "Via"
+          },
+          "current": {
+            "type": "boolean",
+            "title": "Current"
+          },
+          "lastAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "archived",
+          "via",
+          "current",
+          "lastAt"
+        ],
+        "title": "TiedRoadmap"
+      },
+      "TiedRoadmaps": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TiedRoadmap"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "TiedRoadmaps"
+      },
+      "TiedWorkItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "doing",
+              "waiting",
+              "blocked",
+              "done"
+            ],
+            "title": "Status"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "roadmap": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecordSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "via": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "participation",
+                "role",
+                "update",
+                "message",
+                "run",
+                "confirmed",
+                "chat"
+              ]
+            },
+            "type": "array",
+            "title": "Via"
+          },
+          "current": {
+            "type": "boolean",
+            "title": "Current"
+          },
+          "lastAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "status",
+          "archived",
+          "roadmap",
+          "via",
+          "current",
+          "lastAt"
+        ],
+        "title": "TiedWorkItem"
+      },
+      "TiedWorkItems": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TiedWorkItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "TiedWorkItems"
+      },
       "TrackedChat": {
         "properties": {
           "id": {
@@ -20138,6 +22006,81 @@
           "repositoryIds"
         ],
         "title": "TrackedChat"
+      },
+      "UpdateActivity": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "update",
+            "title": "Kind"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "truncated": {
+            "type": "boolean",
+            "title": "Truncated"
+          },
+          "updateKind": {
+            "type": "string",
+            "enum": [
+              "update",
+              "blocker",
+              "handoff"
+            ],
+            "title": "Updatekind"
+          },
+          "runName": {
+            "type": "string",
+            "title": "Runname"
+          },
+          "participationId": {
+            "type": "string",
+            "title": "Participationid"
+          },
+          "item": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Named"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contexts": {
+            "items": {
+              "$ref": "#/components/schemas/ParticipationRepository"
+            },
+            "type": "array",
+            "title": "Contexts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "id",
+          "createdAt",
+          "text",
+          "truncated",
+          "updateKind",
+          "runName",
+          "participationId",
+          "item",
+          "contexts"
+        ],
+        "title": "UpdateActivity",
+        "description": "A status update one of the agent's runs posted."
       },
       "ValidationError": {
         "properties": {

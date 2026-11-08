@@ -11,7 +11,7 @@
         "providers": [],
         "openRuns": 1,
         "runCount": 1,
-        "messageCount": 0,
+        "messageCount": 1,
         "working": [
           {
             "participationId": "<id2>",
@@ -44,7 +44,21 @@
             ]
           }
         ],
-        "roles": []
+        "roles": [
+          {
+            "id": "<id7>",
+            "label": "Parser owner",
+            "contextType": "item",
+            "contextId": "<id4>",
+            "contextTitle": "Parser",
+            "roadmap": {
+              "id": "<id5>",
+              "title": "Plan 2",
+              "archived": false
+            },
+            "updatedAt": "<time>"
+          }
+        ]
       }
     ],
     "total": 1,

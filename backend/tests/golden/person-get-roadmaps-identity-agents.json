@@ -12,9 +12,21 @@
         "ties": [
           {
             "stepId": "<id2>",
+            "via": "role",
+            "item": null,
+            "chat": null,
+            "role": {
+              "id": "<id3>",
+              "label": "Parser owner"
+            },
+            "lastAt": "<time>",
+            "stale": false
+          },
+          {
+            "stepId": "<id2>",
             "via": "participation",
             "item": {
-              "id": "<id3>",
+              "id": "<id4>",
               "title": "Parser"
             },
             "chat": null,
@@ -28,7 +40,7 @@
       },
       {
         "kind": "chat",
-        "id": "<id4>",
+        "id": "<id5>",
         "label": "Build",
         "avatar": null,
         "provider": "",
@@ -38,11 +50,11 @@
             "stepId": "<id2>",
             "via": "chat",
             "item": {
-              "id": "<id3>",
+              "id": "<id4>",
               "title": "Parser"
             },
             "chat": {
-              "id": "<id4>",
+              "id": "<id5>",
               "title": "Build"
             },
             "role": null,
