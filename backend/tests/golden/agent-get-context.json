@@ -229,13 +229,35 @@
       "offset": 0
     },
     "ties": {
-      "items": [],
-      "total": 0
+      "items": [
+        {
+          "id": "<id14>",
+          "agentId": "<id10>",
+          "agent": {
+            "id": "<id10>",
+            "label": "Builder",
+            "avatar": "red-dots-antenna",
+            "active": true
+          },
+          "targetType": "item",
+          "targetId": "<id2>",
+          "target": {
+            "id": "<id2>",
+            "title": "Parser",
+            "archived": false,
+            "status": "doing"
+          },
+          "relationship": "Builds it",
+          "setBy": "agent",
+          "createdAt": "<time>"
+        }
+      ],
+      "total": 1
     },
     "participations": {
       "items": [
         {
-          "id": "<id14>",
+          "id": "<id15>",
           "runId": "<id13>",
           "itemId": "<id2>",
           "description": "",
@@ -285,7 +307,7 @@
     "tickets": {
       "items": [
         {
-          "id": "<id15>",
+          "id": "<id16>",
           "number": 1,
           "key": "T-1",
           "title": "Crash on save",
@@ -323,7 +345,7 @@
     "resources": {
       "items": [
         {
-          "id": "<id16>",
+          "id": "<id17>",
           "title": "Style",
           "summary": "How we write",
           "archived": false,
@@ -339,7 +361,7 @@
     "releases": {
       "items": [
         {
-          "id": "<id17>",
+          "id": "<id18>",
           "title": "1.0",
           "description": "",
           "releaseDate": "2026-12-01",

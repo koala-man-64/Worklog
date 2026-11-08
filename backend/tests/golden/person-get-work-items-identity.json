@@ -144,6 +144,28 @@
       {
         "id": "<id14>",
         "entityId": "<id1>",
+        "kind": "agent.link",
+        "actorId": "<id15>",
+        "actorLabel": "Builder",
+        "actorKind": "agent",
+        "createdAt": "<time>",
+        "localDate": "<today>",
+        "before": null,
+        "after": {
+          "id": "<id16>",
+          "agentId": "<id15>",
+          "agentLabel": "Builder",
+          "targetType": "item",
+          "targetId": "<id1>",
+          "targetTitle": "Parser",
+          "relationship": "Builds it",
+          "setBy": "agent",
+          "createdAt": "<time>"
+        }
+      },
+      {
+        "id": "<id17>",
+        "entityId": "<id1>",
         "kind": "person.link",
         "actorId": "local-user",
         "actorLabel": "You",
@@ -165,7 +187,7 @@
         }
       },
       {
-        "id": "<id15>",
+        "id": "<id18>",
         "entityId": "<id1>",
         "kind": "item.update",
         "actorId": "local-user",
@@ -206,7 +228,7 @@
         }
       },
       {
-        "id": "<id16>",
+        "id": "<id19>",
         "entityId": "<id1>",
         "kind": "entry.upsert",
         "actorId": "local-user",
@@ -227,7 +249,7 @@
         }
       },
       {
-        "id": "<id17>",
+        "id": "<id20>",
         "entityId": "<id1>",
         "kind": "item.update",
         "actorId": "local-user",
@@ -268,7 +290,7 @@
         }
       },
       {
-        "id": "<id18>",
+        "id": "<id21>",
         "entityId": "<id1>",
         "kind": "item.create",
         "actorId": "local-user",
