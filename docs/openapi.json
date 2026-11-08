@@ -8588,9 +8588,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Participants Api V1 Discussions Participants Get"
+                  "$ref": "#/components/schemas/Participants"
                 }
               }
             }
@@ -8655,9 +8653,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Avatars Api V1 Discussions Avatars Get"
+                  "$ref": "#/components/schemas/Avatars"
                 }
               }
             }
@@ -8777,9 +8773,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Roles Api V1 Discussions Roles Get"
+                  "$ref": "#/components/schemas/DiscussionRoles"
                 }
               }
             }
@@ -9276,9 +9270,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Changes Api V1 Discussions Changes Get"
+                  "$ref": "#/components/schemas/DiscussionChanges"
                 }
               }
             }
@@ -9375,9 +9367,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Resume Api V1 Discussions Resume Get"
+                  "$ref": "#/components/schemas/DiscussionResume"
                 }
               }
             }
@@ -9416,9 +9406,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Message Api V1 Discussions Messages  Identity  Get"
+                  "$ref": "#/components/schemas/DiscussionMessage"
                 }
               }
             }
@@ -9725,9 +9713,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response List Discussions Api V1 Discussions Get"
+                  "$ref": "#/components/schemas/Discussions"
                 }
               }
             }
@@ -9827,9 +9813,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Read Discussion Api V1 Discussions  Identity  Get"
+                  "$ref": "#/components/schemas/DiscussionThread"
                 }
               }
             }
@@ -10433,6 +10417,355 @@
         "additionalProperties": false,
         "type": "object",
         "title": "Acknowledgement"
+      },
+      "AcknowledgementReceipt": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "targetId": {
+            "type": "string",
+            "title": "Targetid"
+          },
+          "actorId": {
+            "type": "string",
+            "title": "Actorid"
+          },
+          "actorLabel": {
+            "type": "string",
+            "title": "Actorlabel"
+          },
+          "actorKind": {
+            "type": "string",
+            "enum": [
+              "agent",
+              "human"
+            ],
+            "title": "Actorkind"
+          },
+          "roleId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roleid"
+          },
+          "ownershipGeneration": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ownershipgeneration"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "late": {
+            "type": "boolean",
+            "title": "Late"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "targetId",
+          "actorId",
+          "actorLabel",
+          "actorKind",
+          "roleId",
+          "ownershipGeneration",
+          "createdAt",
+          "late"
+        ],
+        "title": "AcknowledgementReceipt"
+      },
+      "AcknowledgementRequest": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "all",
+              "any",
+              "any_agent",
+              "anyone"
+            ],
+            "title": "Mode"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "satisfied",
+              "released_by_human",
+              "cancelled"
+            ],
+            "title": "State"
+          },
+          "targets": {
+            "items": {
+              "$ref": "#/components/schemas/AcknowledgementTarget"
+            },
+            "type": "array",
+            "title": "Targets"
+          },
+          "receipts": {
+            "items": {
+              "$ref": "#/components/schemas/AcknowledgementReceipt"
+            },
+            "type": "array",
+            "title": "Receipts"
+          },
+          "actionableTargetIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Actionabletargetids"
+          },
+          "canCancel": {
+            "type": "boolean",
+            "title": "Cancancel"
+          },
+          "canRelease": {
+            "type": "boolean",
+            "title": "Canrelease"
+          },
+          "classifications": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "personal",
+                "managed",
+                "predecessor",
+                "actionable",
+                "unassigned"
+              ]
+            },
+            "type": "array",
+            "title": "Classifications"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "terminalAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terminalat"
+          },
+          "terminalActorId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terminalactorid"
+          },
+          "terminalActorLabel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terminalactorlabel"
+          },
+          "terminalActorKind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terminalactorkind"
+          },
+          "authorityRoleId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authorityroleid"
+          },
+          "authorityGeneration": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authoritygeneration"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "mode",
+          "state",
+          "targets",
+          "receipts",
+          "actionableTargetIds",
+          "canCancel",
+          "canRelease",
+          "classifications",
+          "reason",
+          "terminalAt",
+          "terminalActorId",
+          "terminalActorLabel",
+          "terminalActorKind",
+          "authorityRoleId",
+          "authorityGeneration"
+        ],
+        "title": "AcknowledgementRequest",
+        "description": "A message's request to be acknowledged, as the caller sees it."
+      },
+      "AcknowledgementTarget": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "agent",
+              "human",
+              "role",
+              "open_agent",
+              "open_any"
+            ],
+            "title": "Kind"
+          },
+          "recipientId": {
+            "type": "string",
+            "title": "Recipientid"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "ownerId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ownerid"
+          },
+          "ownershipGeneration": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ownershipgeneration"
+          },
+          "acknowledged": {
+            "type": "boolean",
+            "title": "Acknowledged"
+          },
+          "acknowledgedBy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acknowledgedby"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "recipientId",
+          "label",
+          "ownerId",
+          "ownershipGeneration",
+          "acknowledged",
+          "acknowledgedBy"
+        ],
+        "title": "AcknowledgementTarget",
+        "description": "One slot of an acknowledgement request: a named participant, a role, or any agent or anyone."
+      },
+      "Actor": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "human",
+              "agent"
+            ],
+            "title": "Kind"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "kind"
+        ],
+        "title": "Actor",
+        "description": "The person or an agent identity, by the label it has now."
       },
       "Agent": {
         "properties": {
@@ -11922,6 +12255,59 @@
         ],
         "title": "AvatarChoice"
       },
+      "AvatarOption": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "available"
+        ],
+        "title": "AvatarOption"
+      },
+      "Avatars": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AvatarOption"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "suggested": {
+            "type": "string",
+            "title": "Suggested"
+          },
+          "current": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "suggested",
+          "current"
+        ],
+        "title": "Avatars"
+      },
       "BackupFile": {
         "properties": {
           "name": {
@@ -12310,6 +12696,83 @@
         ],
         "title": "Context",
         "description": "A tag: a record of one kind by its id, or a ticket by its key or number."
+      },
+      "ContextTag": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap",
+              "step",
+              "repository",
+              "ticket",
+              "release",
+              "person",
+              "resource",
+              "question",
+              "decision"
+            ],
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "home": {
+            "type": "boolean",
+            "title": "Home"
+          },
+          "addedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Actor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "addedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Addedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "id",
+          "title",
+          "archived",
+          "home",
+          "addedBy",
+          "addedAt"
+        ],
+        "title": "ContextTag",
+        "description": "A record a discussion is tagged with, or that a role in it brings in, as record_kinds.summary\ngives it, with who added the tag and when. A missing record has a null title."
       },
       "CoordinationUpdate": {
         "properties": {
@@ -12880,6 +13343,92 @@
         ],
         "title": "Decision"
       },
+      "DecisionContextTag": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap",
+              "step",
+              "repository",
+              "ticket",
+              "release",
+              "person",
+              "resource",
+              "question",
+              "decision"
+            ],
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "home": {
+            "type": "boolean",
+            "title": "Home"
+          },
+          "addedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Actor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "addedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Addedat"
+          },
+          "roadmapId": {
+            "type": "string",
+            "title": "Roadmapid"
+          },
+          "roadmapTitle": {
+            "type": "string",
+            "title": "Roadmaptitle"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "id",
+          "title",
+          "archived",
+          "home",
+          "addedBy",
+          "addedAt",
+          "roadmapId",
+          "roadmapTitle"
+        ],
+        "title": "DecisionContextTag"
+      },
       "DecisionCreate": {
         "properties": {
           "roadmapId": {
@@ -13104,6 +13653,109 @@
         "title": "DiscussedRepository",
         "description": "A repository with its own discussion's id (v22), as the list, its read and a resolved address show it."
       },
+      "DiscussionChange": {
+        "properties": {
+          "seq": {
+            "type": "integer",
+            "title": "Seq"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "discussionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discussionid"
+          },
+          "messageId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Messageid"
+          },
+          "roleId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roleid"
+          },
+          "actorId": {
+            "type": "string",
+            "title": "Actorid"
+          },
+          "actorLabel": {
+            "type": "string",
+            "title": "Actorlabel"
+          },
+          "actorKind": {
+            "type": "string",
+            "title": "Actorkind"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "seq",
+          "kind",
+          "discussionId",
+          "messageId",
+          "roleId",
+          "actorId",
+          "actorLabel",
+          "actorKind",
+          "createdAt"
+        ],
+        "title": "DiscussionChange",
+        "description": "One change in the discussions feed, after the cursor it was read from."
+      },
+      "DiscussionChanges": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DiscussionChange"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "cursor": {
+            "type": "string",
+            "title": "Cursor"
+          },
+          "hasMore": {
+            "type": "boolean",
+            "title": "Hasmore"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "cursor",
+          "hasMore"
+        ],
+        "title": "DiscussionChanges"
+      },
       "DiscussionCreate": {
         "properties": {
           "text": {
@@ -13182,6 +13834,456 @@
           "text"
         ],
         "title": "DiscussionCreate"
+      },
+      "DiscussionMessage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "discussionId": {
+            "type": "string",
+            "title": "Discussionid"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "authorId": {
+            "type": "string",
+            "title": "Authorid"
+          },
+          "authorLabel": {
+            "type": "string",
+            "title": "Authorlabel"
+          },
+          "authorKind": {
+            "type": "string",
+            "enum": [
+              "agent",
+              "human"
+            ],
+            "title": "Authorkind"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "chatId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chatid"
+          },
+          "onBehalfOfRoleId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Onbehalfofroleid"
+          },
+          "ownershipGeneration": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ownershipgeneration"
+          },
+          "request": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AcknowledgementRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "discussionId",
+          "text",
+          "authorId",
+          "authorLabel",
+          "authorKind",
+          "createdAt",
+          "chatId",
+          "onBehalfOfRoleId",
+          "ownershipGeneration",
+          "request"
+        ],
+        "title": "DiscussionMessage"
+      },
+      "DiscussionResume": {
+        "properties": {
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/DiscussionRole"
+            },
+            "type": "array",
+            "title": "Roles"
+          },
+          "discussions": {
+            "items": {
+              "$ref": "#/components/schemas/DiscussionSummary"
+            },
+            "type": "array",
+            "title": "Discussions"
+          },
+          "requests": {
+            "items": {
+              "$ref": "#/components/schemas/DiscussionMessage"
+            },
+            "type": "array",
+            "title": "Requests"
+          },
+          "cursor": {
+            "type": "string",
+            "title": "Cursor"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/ResumeCounts"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "hasMore": {
+            "type": "boolean",
+            "title": "Hasmore"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "roles",
+          "discussions",
+          "requests",
+          "cursor",
+          "counts",
+          "limit",
+          "offset",
+          "hasMore"
+        ],
+        "title": "DiscussionResume",
+        "description": "What an agent needs to pick up a work context's discussions: roles, threads, pending requests and a feed cursor."
+      },
+      "DiscussionRole": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "contextType": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap",
+              "step"
+            ],
+            "title": "Contexttype"
+          },
+          "contextId": {
+            "type": "string",
+            "title": "Contextid"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "contextTitle": {
+            "type": "string",
+            "title": "Contexttitle"
+          },
+          "ownerId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ownerid"
+          },
+          "ownerLabel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ownerlabel"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "generation": {
+            "type": "integer",
+            "title": "Generation"
+          },
+          "offer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RoleOfferOpen"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "contextType",
+          "contextId",
+          "label",
+          "contextTitle",
+          "ownerId",
+          "ownerLabel",
+          "revision",
+          "generation",
+          "offer"
+        ],
+        "title": "DiscussionRole",
+        "description": "A responsibility role on a work item, roadmap or step, with its owner and any pending offer."
+      },
+      "DiscussionRoles": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DiscussionRole"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "DiscussionRoles"
+      },
+      "DiscussionSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "pinned": {
+            "type": "boolean",
+            "title": "Pinned"
+          },
+          "pinnedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pinnedat"
+          },
+          "contexts": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ContextTag"
+                },
+                {
+                  "$ref": "#/components/schemas/StatusContextTag"
+                },
+                {
+                  "$ref": "#/components/schemas/StepContextTag"
+                },
+                {
+                  "$ref": "#/components/schemas/DecisionContextTag"
+                },
+                {
+                  "$ref": "#/components/schemas/RepositoryContextTag"
+                },
+                {
+                  "$ref": "#/components/schemas/TicketContextTag"
+                },
+                {
+                  "$ref": "#/components/schemas/ReleaseContextTag"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Contexts"
+          },
+          "repos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Repos"
+          },
+          "pendingCount": {
+            "type": "integer",
+            "title": "Pendingcount"
+          },
+          "repository": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HomeRepository"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "pinned",
+          "pinnedAt",
+          "contexts",
+          "repos",
+          "pendingCount",
+          "repository"
+        ],
+        "title": "DiscussionSummary",
+        "description": "A discussion as lists show it: its tags and how many acknowledgement requests are pending."
+      },
+      "DiscussionThread": {
+        "properties": {
+          "discussion": {
+            "$ref": "#/components/schemas/DiscussionSummary"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/DiscussionMessage"
+            },
+            "type": "array",
+            "title": "Messages"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "discussion",
+          "messages",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "DiscussionThread",
+        "description": "A discussion with a page of its messages, oldest first."
+      },
+      "Discussions": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DiscussionSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Discussions"
       },
       "Empty": {
         "properties": {},
@@ -13687,6 +14789,33 @@
           "total"
         ],
         "title": "History"
+      },
+      "HomeRepository": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "HomeRepository",
+        "description": "The repository whose own discussion this is."
       },
       "ImportCommit": {
         "properties": {
@@ -14992,6 +16121,28 @@
         ],
         "title": "Participant",
         "description": "The person or an agent identity as they stand now: who a ticket is assigned to, or who is\non the records an overlap check names."
+      },
+      "Participants": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Participant"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "self": {
+            "$ref": "#/components/schemas/Actor"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "self"
+        ],
+        "title": "Participants",
+        "description": "Everyone who can take part in a discussion: the person first, then each agent identity."
       },
       "Participation": {
         "properties": {
@@ -17368,6 +18519,99 @@
         ],
         "title": "ReleaseContentChange"
       },
+      "ReleaseContextTag": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap",
+              "step",
+              "repository",
+              "ticket",
+              "release",
+              "person",
+              "resource",
+              "question",
+              "decision"
+            ],
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "home": {
+            "type": "boolean",
+            "title": "Home"
+          },
+          "addedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Actor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "addedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Addedat"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "releaseDate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Releasedate"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "id",
+          "title",
+          "archived",
+          "home",
+          "addedBy",
+          "addedAt",
+          "status",
+          "releaseDate"
+        ],
+        "title": "ReleaseContextTag"
+      },
       "ReleaseCounts": {
         "properties": {
           "items": {
@@ -18419,6 +19663,94 @@
         "title": "Repository",
         "description": "A repository of the catalog, as other records embed it."
       },
+      "RepositoryContextTag": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap",
+              "step",
+              "repository",
+              "ticket",
+              "release",
+              "person",
+              "resource",
+              "question",
+              "decision"
+            ],
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "home": {
+            "type": "boolean",
+            "title": "Home"
+          },
+          "addedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Actor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "addedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Addedat"
+          },
+          "mergedInto": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mergedinto"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "id",
+          "title",
+          "archived",
+          "home",
+          "addedBy",
+          "addedAt",
+          "mergedInto"
+        ],
+        "title": "RepositoryContextTag"
+      },
       "RepositoryCreate": {
         "properties": {
           "name": {
@@ -18989,6 +20321,30 @@
           "number"
         ],
         "title": "Restore"
+      },
+      "ResumeCounts": {
+        "properties": {
+          "roles": {
+            "type": "integer",
+            "title": "Roles"
+          },
+          "discussions": {
+            "type": "integer",
+            "title": "Discussions"
+          },
+          "requests": {
+            "type": "integer",
+            "title": "Requests"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "roles",
+          "discussions",
+          "requests"
+        ],
+        "title": "ResumeCounts"
       },
       "Roadmap": {
         "properties": {
@@ -19940,6 +21296,41 @@
         ],
         "title": "RoleOffer"
       },
+      "RoleOfferOpen": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "fromId": {
+            "type": "string",
+            "title": "Fromid"
+          },
+          "toId": {
+            "type": "string",
+            "title": "Toid"
+          },
+          "toLabel": {
+            "type": "string",
+            "title": "Tolabel"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "fromId",
+          "toId",
+          "toLabel",
+          "note"
+        ],
+        "title": "RoleOfferOpen",
+        "description": "A role's pending offer to another agent identity."
+      },
       "RoleReassign": {
         "properties": {
           "revision": {
@@ -20227,6 +21618,88 @@
         "type": "object",
         "title": "SettingsUpdate"
       },
+      "StatusContextTag": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap",
+              "step",
+              "repository",
+              "ticket",
+              "release",
+              "person",
+              "resource",
+              "question",
+              "decision"
+            ],
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "home": {
+            "type": "boolean",
+            "title": "Home"
+          },
+          "addedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Actor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "addedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Addedat"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "id",
+          "title",
+          "archived",
+          "home",
+          "addedBy",
+          "addedAt",
+          "status"
+        ],
+        "title": "StatusContextTag",
+        "description": "A work item's tag."
+      },
       "StatusSummary": {
         "properties": {
           "id": {
@@ -20334,6 +21807,98 @@
         ],
         "title": "Step",
         "description": "A step as its own read returns it: with its roadmap, and retired or not."
+      },
+      "StepContextTag": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap",
+              "step",
+              "repository",
+              "ticket",
+              "release",
+              "person",
+              "resource",
+              "question",
+              "decision"
+            ],
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "home": {
+            "type": "boolean",
+            "title": "Home"
+          },
+          "addedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Actor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "addedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Addedat"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "roadmapId": {
+            "type": "string",
+            "title": "Roadmapid"
+          },
+          "roadmapTitle": {
+            "type": "string",
+            "title": "Roadmaptitle"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "id",
+          "title",
+          "archived",
+          "home",
+          "addedBy",
+          "addedAt",
+          "status",
+          "roadmapId",
+          "roadmapTitle"
+        ],
+        "title": "StepContextTag",
+        "description": "A step's or a question's tag, with the roadmap it opens on."
       },
       "StepSummary": {
         "properties": {
@@ -20904,6 +22469,92 @@
           "total"
         ],
         "title": "TicketComments"
+      },
+      "TicketContextTag": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap",
+              "step",
+              "repository",
+              "ticket",
+              "release",
+              "person",
+              "resource",
+              "question",
+              "decision"
+            ],
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "home": {
+            "type": "boolean",
+            "title": "Home"
+          },
+          "addedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Actor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "addedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Addedat"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "id",
+          "title",
+          "archived",
+          "home",
+          "addedBy",
+          "addedAt",
+          "status",
+          "number"
+        ],
+        "title": "TicketContextTag"
       },
       "TicketCreate": {
         "properties": {

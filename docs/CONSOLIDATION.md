@@ -550,6 +550,9 @@ Done so far:
 - **Typed responses, twelfth batch.** The agent registry: the list of agents, an agent's page and activity, a roadmap's agents, the overlap check and one participant's profile.
   - A participant's profile takes one of two shapes, the person's or an agent's, told apart by their keys.
   - The golden world's agent now owns a role on its work item and replies in its discussion from the tracked chat.
+- **Typed responses, thirteenth batch.** The discussions: their list, a thread's read, one message, the participants, the avatars, the roles, the change feed and what an agent resumes from.
+  - A tag takes one of the shapes `record_kinds.summary` gives, told apart by their keys. A tag of a missing record has a null title.
+  - The golden world's discussion is now tagged with a record of every kind it takes, pinned, and holds a met request to acknowledge and a pending one.
 
 #### 5.4 · Frontend layout
 
