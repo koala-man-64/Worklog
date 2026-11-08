@@ -1,14 +1,16 @@
 [CmdletBinding()]
 param(
     [Parameter(Position=0)]
-    [ValidateSet("start", "stop", "check", "backup", "backups", "restore", "export", "compact", "doctor")]
+    [ValidateSet("start", "stop", "check", "backup", "backups", "restore", "export", "compact", "doctor", "usage")]
     [string]$Command = "start",
     [string]$DataDir,
     [ValidateRange(1, 65535)][int]$Port,
     [Parameter(Position=1)][string]$File,
     [switch]$NoBrowser,
     # With backups: hash every file's bytes now rather than showing the hash each had when last hashed.
-    [switch]$Verify
+    [switch]$Verify,
+    # With usage: how many days to today the report covers (default 30).
+    [ValidateRange(1, 3650)][int]$Days
 )
 $ErrorActionPreference = "Stop"
 # Windows PowerShell 5.1 turns native stderr into a terminating error under "Stop" when output is
@@ -28,6 +30,7 @@ if ($Port) { $worklogArgs += @("--port", "$Port") }
 $worklogArgs += $Command
 if ($File) { $worklogArgs += $File }
 if ($Verify) { $worklogArgs += "--verify" }
+if ($Days) { $worklogArgs += @("--days", "$Days") }
 Invoke-Native { & $pythonPath @worklogArgs }
 $worklogExitCode = $LASTEXITCODE
 if ($Command -eq "start" -and $worklogExitCode -eq 0 -and -not $NoBrowser) {

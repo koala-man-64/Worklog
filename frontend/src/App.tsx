@@ -29,6 +29,7 @@ import { Guide, guideRoutes } from "./Guide";
 import { Icon, type IconName } from "./icons";
 import { sections } from "./navigation";
 import type { List } from "./types";
+import { countPageView } from "./usage";
 // The narrowest sidebar still fits the brand; the widest leaves the workspace room.
 const SIDEBAR_MIN = 190;
 const SIDEBAR_MAX = 420;
@@ -72,6 +73,12 @@ export default function App() {
   const [page, id, sub] = route.split("/");
   // The agent guide is the Guide page's other view, so the sidebar marks Guide for it too.
   const destination = guideRoutes.includes(page) ? "guide" : page;
+  const dataId = session.data?.dataId;
+  // Each page the person opens counts once, by its name alone, and each Guide view on its own;
+  // moving between a page's records or sections doesn't.
+  useEffect(() => {
+    if (dataId) countPageView(page);
+  }, [page, dataId]);
   const link = (route: string, icon: IconName, label: string) => (
     <a
       href={"#" + route}

@@ -65,7 +65,7 @@ The default port is 8877. Choose another loopback port with `-Port` (launcher), 
 ./scripts/Worklog.ps1 stop -Port 8878 -DataDir 'D:/Scratch/worklog-test'
 ```
 
-Data defaults to **`%LOCALAPPDATA%/Worklog`**, outside the checkout. The SQLite database (`worklog.sqlite3`) includes attachment and import bytes. Backups, log, lock, and launcher state files live alongside it. Do not put a live database in a network share or cloud-sync folder. Choose a data directory consistently for every command:
+Data defaults to **`%LOCALAPPDATA%/Worklog`**, outside the checkout. The SQLite database (`worklog.sqlite3`) includes attachment and import bytes. Backups, usage counts, log, lock, and launcher state files live alongside it. Do not put a live database in a network share or cloud-sync folder. Choose a data directory consistently for every command:
 
 ```powershell
 $env:WORKLOG_DATA_DIR = 'D:/Private/Worklog'
@@ -86,6 +86,21 @@ Only one managed server or offline restore can own a data directory. OS locks re
 ## Working with agents
 
 Create a labeled credential in Settings and give its one-time token to your agents through the `WORKLOG_AGENT_TOKEN` environment variable, never in a command argument, file, log or shell history. Then tell each agent to run `worklog agent guide` before it uses Worklog. Agents register an identity of their own for each chat, report their runs and repository activity, put their own chat on the work they do, write tickets, reminders and discussions, and change your work, days, roadmaps, people, repositories and resources only through proposals you approve on Review, unless you turn approval off. The guide's *Bring an AI agent in* walks through it. Revoke a credential in Settings when its agents no longer need access.
+
+## See what you use
+
+Worklog counts which of its features get used, so you can see what earns its place and what nothing uses. Every API call counts once for its method and route, such as `POST /work-items` or `POST /proposals/{identity}/approve`, as yours or an agent's, and as failed when it is answered with an error. A call refused before it reaches a route, such as one without a session or an agent's call to a route that is yours alone, counts for nothing. Each visit to a page counts once, however you get there, and the Guide's views for you and for agents count apart; moving between a page's records or sections doesn't. A count holds the feature's name and the day, never a record, its text, a search or anything else you typed.
+
+Worklog keeps the counts in memory and adds them to `usage.sqlite3` in the data directory every minute and when it stops, so a crash loses at most a minute of them. That file is not the database: backups, exports and restores leave it out, and deleting it while Worklog is stopped starts the counts over.
+
+```powershell
+./scripts/Worklog.ps1 usage
+./scripts/Worklog.ps1 usage -Days 7
+# Equivalent installed CLI:
+./.venv/Scripts/worklog.exe usage --days 7
+```
+
+`usage` reads that file, whether Worklog runs or not, changes nothing, and prints JSON for the 30 days to today, or the number of days you give. Under `pages` and `calls`, `used` lists each page with its views, and each call with how often you and your agents made it and how often it failed, the most used first. `unused` lists what the version that last ran serves that nothing used in those days. Each entry has the last day anything used it, `null` if nothing ever did, and each call its `scope` from the route policy: `human` for yours alone, `public` for the session start, or the agent scope that lets agents make some or all of those calls too, `null` for a call that version no longer serves. That version writes its list of features to the file when it starts; if it could not (`server.log` says why), the report goes by the list an earlier start wrote, and with none, `unused` is empty and every `scope` is `null`. `recordedSince` is the first day counted, so a window that starts before it covers fewer days. Pages read what they show on their own, and refresh it, such as the sidebar's count of due reminders on every page, so a read's count says less about what you use than page views and changes do.
 
 ## Backup, export, restore, and upgrade
 
