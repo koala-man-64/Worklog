@@ -143,7 +143,7 @@ class World:
                                                                "targetType": "item", "targetId": item["id"]})["id"]
         release = self.write(p, "POST", "/releases", {"title": "1.0", "releaseDate": "2026-12-01"})
         ids["release"] = release["id"]
-        preview = self.person.post("/api/v1/imports/preview?name=plan.html", content=HTML).json()
+        preview = self.write(p, "POST", "/imports/preview?name=plan.html", content=HTML)
         ids["import"] = preview["id"]
         discussion = self.write(p, "POST", "/discussions", {"title": "Parser", "text": "Where do we start?",
                                                             "contexts": [{"type": "item", "id": item["id"]}]})
