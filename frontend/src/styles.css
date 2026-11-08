@@ -2335,7 +2335,7 @@ button.agent-chip.more {
 .chat-history-head h2 {
   margin: 0;
 }
-/* Toggle filters: Discussions' threads and the Work list's states. */
+/* Toggle filters: Discussions' threads and the Work list's states. The Guide's views are links in the same look, since each has an address. */
 .thread-filter,
 .status-toggles {
   display: flex;
@@ -2343,7 +2343,8 @@ button.agent-chip.more {
   gap: 6px;
 }
 .thread-filter button,
-.status-toggles button {
+.status-toggles button,
+.status-toggles .button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -2352,7 +2353,8 @@ button.agent-chip.more {
   font-size: 12px;
 }
 .thread-filter button[aria-pressed="true"],
-.status-toggles button[aria-pressed="true"] {
+.status-toggles button[aria-pressed="true"],
+.status-toggles .button[aria-current] {
   border-color: var(--teal);
   background: var(--teal-wash);
   color: var(--teal);
@@ -3794,6 +3796,9 @@ code {
 }
 .guide .markdown h2:first-child {
   margin-top: 0;
+}
+.guide-views {
+  margin-top: 12px;
 }
 /* Resources: the person's reference pages, named and summarised, beside the page they open. */
 .resource-tools,
