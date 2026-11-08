@@ -136,7 +136,9 @@ class Change(Answer):
     createdAt: str
 
 
-class Resource(Answer):
+class ResourceListed(Answer):
+    """A resource as lists show it, without the page's text."""
+
     id: str
     title: str
     summary: str
@@ -144,6 +146,9 @@ class Resource(Answer):
     revision: int
     createdAt: str
     updatedAt: str
+
+
+class Resource(ResourceListed):
     body: str
     history: list[Change]
 
@@ -180,8 +185,8 @@ class ReminderAuthor(Answer):
     avatar: str | None
 
 
-class Reminder(Answer):
-    """A reminder with its notes and history, as its own read returns it."""
+class ReminderListed(Answer):
+    """A reminder as lists show it, without its notes or history."""
 
     id: str
     title: str
@@ -197,6 +202,11 @@ class Reminder(Answer):
     createdAt: str
     updatedAt: str
     doneAt: str | None
+
+
+class Reminder(ReminderListed):
+    """A reminder with its notes and history, as its own read returns it."""
+
     notes: str
     history: list[Change]
 
@@ -421,3 +431,218 @@ class Person(Answer):
     workItems: list[PersonWorkItem]
     repositories: list[PersonRepository]
     history: list[Event]
+
+
+class RoadmapStep(Answer):
+    """A step as its roadmap lists it, with its notes and files. A parent's status is derived from its leaves."""
+
+    id: str
+    title: str
+    description: str
+    parentId: str | None
+    position: int
+    # steps.status has no CHECK.
+    status: str
+    revision: int
+    retired: bool
+    notes: list[Note]
+    attachments: list[Attachment]
+
+
+class RoadmapVersion(Answer):
+    number: int
+    createdAt: str
+    note: str
+
+
+class RoadmapImport(Answer):
+    """A plan import committed to the roadmap; its original is read on its own."""
+
+    id: str
+    name: str
+    sha256: str
+    createdAt: str
+
+
+class FamilyRoadmap(Answer):
+    """A roadmap above or below another, as that one lists it."""
+
+    id: str
+    title: str
+    archived: bool
+
+
+class RoadmapWorkItem(WorkItemRecord):
+    """A work item on the roadmap or one of its steps, with the people tied to it."""
+
+    people: list[RecordPerson]
+
+
+class Roadmap(Answer):
+    """A roadmap with everything its page shows."""
+
+    id: str
+    title: str
+    overview: str
+    parentId: str | None
+    revision: int
+    archived: bool
+    createdAt: str
+    updatedAt: str
+    steps: list[RoadmapStep]
+    versions: list[RoadmapVersion]
+    notes: list[Note]
+    attachments: list[Attachment]
+    links: list[WebLink]
+    chats: list[TrackedChat]
+    github: list[ListedGithubReference]
+    questions: list[Question]
+    decisions: list[Decision]
+    history: list[Event]
+    ancestors: list[FamilyRoadmap]
+    children: list[FamilyRoadmap]
+    workItems: list[RoadmapWorkItem]
+    people: list[RecordPerson]
+    imports: list[RoadmapImport]
+
+
+class Step(RoadmapStep):
+    """A step as its own read returns it: with its roadmap, and retired or not."""
+
+    roadmapId: str
+
+
+class History(Answer):
+    items: list[Event]
+    total: int
+
+
+class TabCounts(Answer):
+    """What a work item's tabs on Today hold, so they say so before the item is read."""
+
+    tasks: int
+    tasksDone: int
+    links: int
+    files: int
+    scratchpad: bool
+
+
+class DayItem(WorkItemRecord):
+    rank: int | None
+
+
+class DayEntry(DailyEntry):
+    item: DayItem
+    counts: TabCounts
+    # The status the item ended the day with, from its history; its status now when it has none by then.
+    statusOnDay: str
+
+
+class WorkedOn(Answer):
+    id: str
+    title: str
+    outcome: str
+
+
+class Named(Answer):
+    id: str
+    title: str
+
+
+class DaySummary(Answer):
+    worked: list[WorkedOn]
+    completed: list[Named]
+    blocked: list[Named]
+
+
+class Day(Answer):
+    date: str
+    revision: int
+    reflection: str
+    reflectionRevision: int
+    entries: list[DayEntry]
+    summary: DaySummary
+    nextItemId: str | None
+
+
+class PersonListed(Answer):
+    """A person as the people list shows them, with how many active records each kind ties them to."""
+
+    id: str
+    name: str
+    title: str
+    team: str
+    description: str
+    email: str
+    phone: str
+    chat: str
+    location: str
+    notes: str
+    archived: bool
+    revision: int
+    createdAt: str
+    updatedAt: str
+    workItemCount: int
+    roadmapCount: int
+    repositoryCount: int
+
+
+class People(Answer):
+    items: list[PersonListed]
+    total: int
+
+
+class Resources(Answer):
+    items: list[ResourceListed]
+    total: int
+    limit: int
+    offset: int
+
+
+class Reminders(Answer):
+    items: list[ReminderListed]
+    total: int
+    limit: int
+    offset: int
+
+
+class WorkItemListed(WorkItemRecord):
+    rank: int | None
+    isBacklog: bool
+    people: list[RecordPerson]
+
+
+class WorkItems(Answer):
+    items: list[WorkItemListed]
+    total: int
+    rankedCount: int
+    # The backlog's revision, which a reorder checks.
+    collectionRevision: int
+
+
+class RoadmapListed(Answer):
+    id: str
+    title: str
+    overview: str
+    parentId: str | None
+    revision: int
+    archived: bool
+    createdAt: str
+    updatedAt: str
+    people: list[RecordPerson]
+
+
+class Roadmaps(Answer):
+    items: list[RoadmapListed]
+    total: int
+
+
+class RepositoryListed(Repository):
+    discussionId: str | None
+
+
+class Repositories(Answer):
+    items: list[RepositoryListed]
+    total: int
+    limit: int
+    offset: int

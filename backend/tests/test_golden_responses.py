@@ -99,6 +99,8 @@ class World:
                                                                        "steps": [{"id": parent, "title": "Parent"},
                                                                                  {"id": child, "title": "Child",
                                                                                   "parentId": parent}]})
+        # A sub-roadmap, so the roadmap lists a child.
+        ids["subroadmap"] = self.write(p, "POST", "/roadmaps", {"title": "Sub-plan", "parentId": roadmap["id"]})["id"]
         # The work item belongs to the roadmap's child step, so both sides show the link.
         current = self.write(p, "GET", f"/work-items/{item['id']}")
         self.write(p, "PATCH", f"/work-items/{item['id']}", {"revision": current["revision"], "roadmapId": roadmap["id"],

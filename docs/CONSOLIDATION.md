@@ -532,6 +532,9 @@ Done so far:
 - **Typed responses, second batch.** A resource, a release check and a reminder, each with its own history. The golden world now ties its person to a work item, a roadmap and a repository, so each side's lists are pinned with one entry before they are typed.
 - **Typed responses, third batch.** A work item's read, with its supporting records, people, daily entries, full history (`Event`, whose before and after stay any JSON, as compaction may thin them) and the roadmap and step it belongs to. Its GitHub references carry the title of the chat that made each. The golden world now puts its work item on its roadmap's child step, so both are pinned.
 - **Typed responses, fourth batch.** A person's read, with the work items, roadmaps and repositories tied to them, each embedded as its own record (`WorkItemRecord`, `RoadmapRecord`, `Repository`), and a repository's read, with its discussion and people.
+- **Typed responses, fifth batch.** A roadmap's read: its steps (a parent's status derived from its leaves), versions, supporting records, history, the roadmaps above and below it, its work items with their people, its people and its committed imports. The golden world now gives the roadmap a sub-roadmap.
+- **Typed responses, sixth batch.** A step's read and its history, and a day's read: its entries, each with its work item, rank, tab counts and status on the day, its summary and the next item to work on.
+- **Typed responses, seventh batch.** The lists of work items, roadmaps, people, repositories, resources and reminders, each item as its list shows it (a resource without its text, a reminder without its notes, a person with counts of what they are tied to).
 
 #### 5.4 · Frontend layout
 

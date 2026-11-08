@@ -21,7 +21,7 @@ def install_resource_routes(app: FastAPI, db: Database, mutate: Callable) -> Non
 
     read = db.snapshot
 
-    @app.get("/api/v1/resources")
+    @app.get("/api/v1/resources", response_model=out.Resources)
     def resources(q: str = "", archived: bool = False,
                   limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
         return read(lambda c: service.list(c, q=q, archived=archived, limit=limit, offset=offset))

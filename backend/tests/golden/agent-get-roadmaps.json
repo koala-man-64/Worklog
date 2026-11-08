@@ -23,8 +23,19 @@
             "createdAt": "<time>"
           }
         ]
+      },
+      {
+        "id": "<id4>",
+        "title": "Sub-plan",
+        "overview": "",
+        "parentId": "<id1>",
+        "revision": 1,
+        "archived": false,
+        "createdAt": "<time>",
+        "updatedAt": "<time>",
+        "people": []
       }
     ],
-    "total": 1
+    "total": 2
   }
 }

@@ -138,10 +138,16 @@
       }
     ],
     "ancestors": [],
-    "children": [],
-    "workItems": [
+    "children": [
       {
         "id": "<id11>",
+        "title": "Sub-plan",
+        "archived": false
+      }
+    ],
+    "workItems": [
+      {
+        "id": "<id12>",
         "title": "Parser",
         "description": "Parse the plan",
         "status": "doing",
@@ -156,7 +162,7 @@
         "repositoryIds": [],
         "people": [
           {
-            "id": "<id12>",
+            "id": "<id13>",
             "personId": "<id8>",
             "name": "Ada",
             "personTitle": "Engineer",
