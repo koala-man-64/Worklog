@@ -25,7 +25,7 @@ import { Chats } from "./Chats";
 import { Discussions } from "./Discussions";
 import { Review } from "./Review";
 import { Settings } from "./Settings";
-import { Guide } from "./Guide";
+import { Guide, guideRoutes } from "./Guide";
 import { Icon, type IconName } from "./icons";
 import { sections } from "./navigation";
 import type { List } from "./types";
@@ -70,11 +70,13 @@ export default function App() {
     window.scrollTo(0, 0);
   };
   const [page, id, sub] = route.split("/");
+  // The agent guide is the Guide page's other view, so the sidebar marks Guide for it too.
+  const destination = guideRoutes.includes(page) ? "guide" : page;
   const link = (route: string, icon: IconName, label: string) => (
     <a
       href={"#" + route}
       aria-current={
-        page !== route
+        destination !== route
           ? undefined
           : route === "roadmaps" && id
             ? "true"
@@ -254,8 +256,8 @@ export default function App() {
             <Review key={id ?? "list"} selectedId={id} />
           ) : page === "settings" ? (
             <Settings />
-          ) : page === "guide" ? (
-            <Guide selected={id} />
+          ) : guideRoutes.includes(page) ? (
+            <Guide route={page} selected={id} />
           ) : (
             <>
               <h1>Page not found</h1>

@@ -80,7 +80,7 @@ Only one managed server or offline restore can own a data directory. OS locks re
 ## Guides
 
 - **[docs/GUIDE.md](docs/GUIDE.md)** is the guide for people: getting started, how Worklog behaves, how to do each task, every page and its controls, and troubleshooting. Worklog also shows it on its **Guide** page, offline like everything else.
-- **[docs/AGENT-GUIDE.md](docs/AGENT-GUIDE.md)** is the contract for AI agents: the rules they follow, every `worklog agent` command, the proposal operations, every error code with the response it needs, and the limits. Agents print it with `./.venv/Scripts/worklog.exe agent guide`, which needs no credential and no running Worklog.
+- **[docs/AGENT-GUIDE.md](docs/AGENT-GUIDE.md)** is the contract for AI agents: the rules they follow, every `worklog agent` command, the proposal operations, every error code with the response it needs, and the limits. Agents print it with `./.venv/Scripts/worklog.exe agent guide`, which needs no credential and no running Worklog. The **Guide** page shows it too, under "For agents".
 - **[docs/API.md](docs/API.md)** is the HTTP contract, and `docs/openapi.json` its generated schema.
 
 ## Working with agents
@@ -373,4 +373,4 @@ Use an isolated `WORKLOG_DATA_DIR` for manual or browser tests; never point test
 
 ### Documentation
 
-`docs/GUIDE.md`, which is also the in-app Guide page, and `docs/AGENT-GUIDE.md`, which `worklog agent guide` prints, describe Worklog for people and for agents. A change to a page, a label, a command or flag, a proposal operation, an error code or a limit updates the matching guide in the same pull request. `backend/tests/test_guides.py` and `frontend/src/Guide.test.tsx` fail when an agent command, proposal operation, error code or sidebar page is missing from its guide, when a documented command no longer parses, or when a guide quotes interface text the frontend no longer has. In both guides, straight double quotes are reserved for exact interface text. The agent guide is ASCII, and the human guide links only to its own headings, because file links would not open in the app.
+`docs/GUIDE.md` and `docs/AGENT-GUIDE.md`, which `worklog agent guide` prints, describe Worklog for people and for agents, and the in-app Guide page shows both. A change to a page, a label, a command or flag, a proposal operation, an error code or a limit updates the matching guide in the same pull request. `backend/tests/test_guides.py` and `frontend/src/Guide.test.tsx` fail when an agent command, proposal operation, error code or sidebar page is missing from its guide, when a documented command no longer parses, or when a guide quotes interface text the frontend no longer has. In both guides, straight double quotes are reserved for exact interface text. The agent guide is ASCII, and each guide links only to its own headings, because file links would not open in the app.

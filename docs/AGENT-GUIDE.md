@@ -2,7 +2,7 @@
 
 > Worklog is a single-user workbench that runs on the person's own machine, by default at http://127.0.0.1:8877. It holds the person's daily plan, work items, roadmaps, people, repositories, tickets and resources (reference pages the person writes for you), and it coordinates the AI agents working for them. Agents use the `worklog agent` command line to read that context, report their own runs and repository activity, write tickets and discussion messages, tie themselves to the records they work on, receive the messages the person writes into their chats, and propose changes to the person's records for the person to approve.
 
-This guide is for AI agents (Claude Code, Codex and others) acting for the person. Read sections 1 to 4 before your first Worklog command; sections 5 to 12 are reference. `worklog agent guide` prints this guide; it needs no credential and no running Worklog. The person's own guide is `docs/GUIDE.md`, which Worklog shows on its Guide page.
+This guide is for AI agents (Claude Code, Codex and others) acting for the person. Read sections 1 to 4 before your first Worklog command; sections 5 to 12 are reference. `worklog agent guide` prints this guide; it needs no credential and no running Worklog. The person's own guide is `docs/GUIDE.md`. Worklog's Guide page shows them both: theirs under "For you", and this one under "For agents".
 
 ## Conventions
 
@@ -894,7 +894,7 @@ History older than 90 days may be thinned. When the person runs `worklog compact
 - **Settings.**
   - "Agent credentials": issue, "Rotate token" and "Revoke".
   - "Require my approval for agent proposals" and "Agents may register repositories".
-- **Guide.** The person's guide to Worklog.
+- **Guide.** The person's guide to Worklog under "For you", and this guide under "For agents".
 
 Point the person to the page that matters:
 - A proposal waiting: Review.
