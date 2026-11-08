@@ -491,7 +491,7 @@ What changed:
 
 #### 5.1 · Grouped sidebar
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branch: `claude/grouped-sidebar` · PR: PR_LINK
 
 Group the sidebar into four sections:
 
@@ -501,6 +501,14 @@ Group the sidebar into four sections:
 - System: Settings, Guide
 
 Implements K7. Findings: A-10.
+
+What changed:
+- `navigation.sections` lists the four sections and their pages, and `destinations` follows from it. The sidebar shows each section as a group of links under its label, which a screen reader announces.
+- Reminders and Releases, added after K7, plan work as Tickets and Roadmaps do, so they sit in Plan, where the sidebar already listed them.
+- On a phone the stacked sidebar keeps its one grid of links, without the labels.
+- The guide's table of pages names each page's section.
+
+  `navigation.test.ts` and `e2e/sidebar.spec.ts` pin each of these.
 
 #### 5.2 · One name for agent identities
 

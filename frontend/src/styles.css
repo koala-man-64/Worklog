@@ -414,6 +414,24 @@ small {
 .sidebar nav :focus-visible {
   outline-offset: -3px;
 }
+/* The sidebar's sections (K7), each a group of links under a small label. */
+.sidebar nav .nav-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+}
+.sidebar nav .nav-section + .nav-section {
+  margin-top: 14px;
+}
+.sidebar nav .nav-section-label {
+  margin: 0 0 4px;
+  padding: 0 14px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
 .sidebar nav .subnav[hidden] {
   display: none;
 }
@@ -3497,6 +3515,13 @@ code {
     padding: 7px 8px;
     gap: 6px;
     white-space: nowrap;
+  }
+  /* The stacked sidebar keeps one grid of links, so the sections and their labels give way to it. */
+  .sidebar nav .nav-section {
+    display: contents;
+  }
+  .sidebar nav .nav-section-label {
+    display: none;
   }
   .sidebar nav .subnav {
     display: none;
