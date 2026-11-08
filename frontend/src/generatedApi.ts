@@ -3007,6 +3007,24 @@ export interface components {
             /** Total */
             total: number;
         };
+        /**
+         * Author
+         * @description Who wrote a reminder, a ticket or a ticket's comment, as written then, with the avatar their
+         *     agent identity has now.
+         */
+        Author: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "agent" | "human";
+            /** Avatar */
+            avatar: string | null;
+        };
         /** AvatarChoice */
         AvatarChoice: {
             /** Avatar */
@@ -4116,6 +4134,29 @@ export interface components {
             /** Pinned */
             pinned: boolean;
         };
+        /**
+         * PlanStep
+         * @description A step's own fields, as a roadmap's steps and its saved revisions give them. A parent's
+         *     status is derived from its leaves.
+         */
+        PlanStep: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /** Parentid */
+            parentId: string | null;
+            /** Position */
+            position: number;
+            /** Status */
+            status: string;
+            /** Revision */
+            revision: number;
+            /** Retired */
+            retired: boolean;
+        };
         /** Progress */
         Progress: {
             /** Revision */
@@ -4274,6 +4315,89 @@ export interface components {
             /** Agentid */
             agentId: string | null;
         };
+        /**
+         * Release
+         * @description A release with what it holds, its changes, every check and who changed them when.
+         */
+        Release: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /** Releasedate */
+            releaseDate: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "planned" | "released" | "cancelled";
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Pastdue */
+            pastDue: boolean;
+            /** Items */
+            items: components["schemas"]["ReleaseItem"][];
+            /** Roadmaps */
+            roadmaps: components["schemas"]["ReleaseRoadmap"][];
+            /** Steps */
+            steps: components["schemas"]["ReleaseStep"][];
+            /** Changes */
+            changes: components["schemas"]["ReleaseChange"][];
+            /** Checks */
+            checks: components["schemas"]["ReleaseCheck"][];
+            /** History */
+            history: components["schemas"]["ReleaseHistoryEntry"][];
+        };
+        /**
+         * ReleaseChange
+         * @description A PR or commit: one the release holds itself (direct), or one on a work item or roadmap it holds.
+         */
+        ReleaseChange: {
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "commit" | "pr";
+            /** Url */
+            url: string;
+            /** Reference */
+            reference: string;
+            /** Title */
+            title: string;
+            /**
+             * Ownertype
+             * @enum {string}
+             */
+            ownerType: "item" | "roadmap";
+            /** Ownerid */
+            ownerId: string;
+            /** Ownertitle */
+            ownerTitle: string | null;
+            /** Chatid */
+            chatId: string | null;
+            /** Chattitle */
+            chatTitle: string | null;
+            /** Provider */
+            provider: string | null;
+            /** Model */
+            model: string | null;
+            /** Direct */
+            direct: boolean;
+            /** Archived */
+            archived: boolean;
+            /** Createdat */
+            createdAt: string;
+        };
         /** ReleaseCheck */
         ReleaseCheck: {
             /** Id */
@@ -4369,6 +4493,25 @@ export interface components {
             /** Targetid */
             targetId: string;
         };
+        /**
+         * ReleaseCounts
+         * @description A listed release's active work items and the done ones, its open checks of each kind, and
+         *     how many open checks are past due.
+         */
+        ReleaseCounts: {
+            /** Items */
+            items: number;
+            /** Itemsdone */
+            itemsDone: number;
+            /** Notify */
+            notify: number;
+            /** Test */
+            test: number;
+            /** Prepare */
+            prepare: number;
+            /** Pastdue */
+            pastDue: number;
+        };
         /** ReleaseCreate */
         ReleaseCreate: {
             /** Title */
@@ -4387,10 +4530,117 @@ export interface components {
              */
             status: "planned" | "released" | "cancelled";
         };
+        /**
+         * ReleaseHistoryEntry
+         * @description A change to a release or one of its checks, which entityId names, without its records:
+         *     /history has those.
+         */
+        ReleaseHistoryEntry: {
+            /** Id */
+            id: string;
+            /** Entityid */
+            entityId: string;
+            /** Kind */
+            kind: string;
+            /** Actorid */
+            actorId: string;
+            /** Actorlabel */
+            actorLabel: string;
+            /** Actorkind */
+            actorKind: string;
+            /** Createdat */
+            createdAt: string;
+        };
+        /**
+         * ReleaseItem
+         * @description A work item a release holds.
+         */
+        ReleaseItem: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "doing" | "waiting" | "blocked" | "done";
+            /** Archived */
+            archived: boolean;
+            /** Addedat */
+            addedAt: string;
+        };
+        /** ReleaseListed */
+        ReleaseListed: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /** Releasedate */
+            releaseDate: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "planned" | "released" | "cancelled";
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Pastdue */
+            pastDue: boolean;
+            counts: components["schemas"]["ReleaseCounts"];
+        };
         /** ReleaseRequest */
         ReleaseRequest: {
             /** Reason */
             reason: string;
+        };
+        /**
+         * ReleaseRoadmap
+         * @description A roadmap a release holds, with its finished leaf steps out of all, as its progress bar counts them.
+         */
+        ReleaseRoadmap: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Archived */
+            archived: boolean;
+            /** Addedat */
+            addedAt: string;
+            /** Steps */
+            steps: number;
+            /** Stepsdone */
+            stepsDone: number;
+        };
+        /**
+         * ReleaseStep
+         * @description A step a release holds, with its status as its roadmap shows it: a parent's follows its leaves.
+         */
+        ReleaseStep: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Status */
+            status: string;
+            /** Retired */
+            retired: boolean;
+            /** Roadmapid */
+            roadmapId: string;
+            /** Roadmaptitle */
+            roadmapTitle: string;
+            /** Roadmaparchived */
+            roadmapArchived: boolean;
+            /** Addedat */
+            addedAt: string;
         };
         /** ReleaseUpdate */
         ReleaseUpdate: {
@@ -4404,6 +4654,17 @@ export interface components {
             releaseDate?: string | null;
             /** Status */
             status?: ("planned" | "released" | "cancelled") | null;
+        };
+        /** Releases */
+        Releases: {
+            /** Items */
+            items: components["schemas"]["ReleaseListed"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
         };
         /**
          * Reminder
@@ -4428,7 +4689,7 @@ export interface components {
             /** Overdue */
             overdue: boolean;
             target: components["schemas"]["ReminderTarget"] | null;
-            author: components["schemas"]["ReminderAuthor"];
+            author: components["schemas"]["Author"];
             /** Archived */
             archived: boolean;
             /** Revision */
@@ -4443,20 +4704,6 @@ export interface components {
             notes: string;
             /** History */
             history: components["schemas"]["Change"][];
-        };
-        /** ReminderAuthor */
-        ReminderAuthor: {
-            /** Id */
-            id: string;
-            /** Label */
-            label: string;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "agent" | "human";
-            /** Avatar */
-            avatar: string | null;
         };
         /** ReminderCreate */
         ReminderCreate: {
@@ -4499,7 +4746,7 @@ export interface components {
             /** Overdue */
             overdue: boolean;
             target: components["schemas"]["ReminderTarget"] | null;
-            author: components["schemas"]["ReminderAuthor"];
+            author: components["schemas"]["Author"];
             /** Archived */
             archived: boolean;
             /** Revision */
@@ -4968,8 +5215,26 @@ export interface components {
             note: string;
         };
         /**
+         * RoadmapSnapshot
+         * @description A saved revision of a roadmap: its title, overview and steps as they stood then.
+         */
+        RoadmapSnapshot: {
+            /** Number */
+            number: number;
+            /** Createdat */
+            createdAt: string;
+            /** Note */
+            note: string;
+            /** Title */
+            title: string;
+            /** Overview */
+            overview: string;
+            /** Steps */
+            steps: components["schemas"]["PlanStep"][];
+        };
+        /**
          * RoadmapStep
-         * @description A step as its roadmap lists it, with its notes and files. A parent's status is derived from its leaves.
+         * @description A step as its roadmap lists it, with its notes and files.
          */
         RoadmapStep: {
             /** Id */
@@ -5312,10 +5577,111 @@ export interface components {
             /** Done */
             done?: boolean | null;
         };
+        /**
+         * Ticket
+         * @description A ticket whole, with its latest comments and who changed it when.
+         */
+        Ticket: {
+            /** Id */
+            id: string;
+            /** Number */
+            number: number;
+            /** Key */
+            key: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /** Resolution */
+            resolution: string;
+            /** Truncated */
+            truncated: boolean;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "bug" | "incident" | "task";
+            /**
+             * Priority
+             * @enum {string}
+             */
+            priority: "low" | "normal" | "high" | "urgent";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "doing" | "blocked" | "done";
+            /** Labels */
+            labels: string[];
+            /** Repositoryids */
+            repositoryIds: string[];
+            /** Itemid */
+            itemId: string | null;
+            item: components["schemas"]["TicketWorkItem"] | null;
+            /** Assigneeid */
+            assigneeId: string | null;
+            assignee: components["schemas"]["TicketAssignee"] | null;
+            author: components["schemas"]["Author"];
+            /** Commentcount */
+            commentCount: number;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Closedat */
+            closedAt: string | null;
+            /** Lastactivityat */
+            lastActivityAt: string;
+            comments: components["schemas"]["TicketComments"];
+            /** History */
+            history: components["schemas"]["Change"][];
+        };
+        /**
+         * TicketAssignee
+         * @description Who a ticket is assigned to, as they stand now: the person, or an agent identity.
+         */
+        TicketAssignee: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "agent" | "human";
+            /** Avatar */
+            avatar: string | null;
+            /** Active */
+            active: boolean;
+        };
+        /** TicketComment */
+        TicketComment: {
+            /** Id */
+            id: string;
+            /** Ticketid */
+            ticketId: string;
+            /** Text */
+            text: string;
+            /** Createdat */
+            createdAt: string;
+            author: components["schemas"]["Author"];
+        };
         /** TicketCommentCreate */
         TicketCommentCreate: {
             /** Text */
             text: string;
+        };
+        /** TicketComments */
+        TicketComments: {
+            /** Items */
+            items: components["schemas"]["TicketComment"][];
+            /** Total */
+            total: number;
         };
         /** TicketCreate */
         TicketCreate: {
@@ -5358,6 +5724,66 @@ export interface components {
             /** Assigneeid */
             assigneeId?: string | null;
         };
+        /**
+         * TicketListed
+         * @description A ticket as lists show it: its description and resolution cut to 1,000 characters each.
+         */
+        TicketListed: {
+            /** Id */
+            id: string;
+            /** Number */
+            number: number;
+            /** Key */
+            key: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /** Resolution */
+            resolution: string;
+            /** Truncated */
+            truncated: boolean;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "bug" | "incident" | "task";
+            /**
+             * Priority
+             * @enum {string}
+             */
+            priority: "low" | "normal" | "high" | "urgent";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "doing" | "blocked" | "done";
+            /** Labels */
+            labels: string[];
+            /** Repositoryids */
+            repositoryIds: string[];
+            /** Itemid */
+            itemId: string | null;
+            item: components["schemas"]["TicketWorkItem"] | null;
+            /** Assigneeid */
+            assigneeId: string | null;
+            assignee: components["schemas"]["TicketAssignee"] | null;
+            author: components["schemas"]["Author"];
+            /** Commentcount */
+            commentCount: number;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Closedat */
+            closedAt: string | null;
+            /** Lastactivityat */
+            lastActivityAt: string;
+        };
         /** TicketSummary */
         TicketSummary: {
             /** Id */
@@ -5395,6 +5821,34 @@ export interface components {
             itemId?: string | null;
             /** Assigneeid */
             assigneeId?: string | null;
+        };
+        /**
+         * TicketWorkItem
+         * @description The work item a ticket names.
+         */
+        TicketWorkItem: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "doing" | "waiting" | "blocked" | "done";
+            /** Archived */
+            archived: boolean;
+        };
+        /** Tickets */
+        Tickets: {
+            /** Items */
+            items: components["schemas"]["TicketListed"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
         };
         /**
          * TieAgent
@@ -8064,9 +8518,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["RoadmapSnapshot"];
                 };
             };
             /** @description Validation Error */
@@ -10370,9 +10822,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Tickets"];
                 };
             };
             /** @description Validation Error */
@@ -10440,9 +10890,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Ticket"];
                 };
             };
             /** @description Validation Error */
@@ -10871,9 +11319,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Releases"];
                 };
             };
             /** @description Validation Error */
@@ -10939,9 +11385,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Release"];
                 };
             };
             /** @description Validation Error */

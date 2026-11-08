@@ -7,6 +7,7 @@ from typing import Literal
 from fastapi import FastAPI, Query, Request
 
 from . import models as m
+from . import responses as out
 from .common import AppError
 from .db import Database
 from .tickets import TicketService
@@ -22,7 +23,7 @@ def install_ticket_routes(app: FastAPI, db: Database, mutate: Callable) -> None:
         # survive a token rotation; a revoked credential is refused inside the write lock.
         return mutate(request, payload, fn, required_key=required_key, communication=True)
 
-    @app.get("/api/v1/tickets")
+    @app.get("/api/v1/tickets", response_model=out.Tickets)
     def tickets(status: Literal["active", "open", "doing", "blocked", "done", "all"] = "active", q: str = "",
                 kind: m.TicketKind | None = None, priority: m.TicketPriority | None = None,
                 label: str | None = None, repositoryId: str | None = None, itemId: str | None = None,
@@ -33,7 +34,7 @@ def install_ticket_routes(app: FastAPI, db: Database, mutate: Callable) -> None:
             c, status=status, q=q, kind=kind, priority=priority, label=label, repository_id=repositoryId,
             item_id=itemId, assignee_id=assigneeId, archived=archived, sort=sort, limit=limit, offset=offset))
 
-    @app.get("/api/v1/tickets/{ref}")
+    @app.get("/api/v1/tickets/{ref}", response_model=out.Ticket)
     def ticket(ref: str, comments: int = Query(200, ge=1, le=1000)) -> dict:
         return read(lambda c: service.detail(c, ref, comments))
 

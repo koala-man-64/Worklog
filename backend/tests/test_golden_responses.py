@@ -147,6 +147,17 @@ class World:
                                                                "operations": []})["id"]
         # The agent ties itself to the work item, so the agent's ties list one.
         self.write(a, "POST", "/agent-links", {"targetType": "item", "targetId": item["id"], "relationship": "Builds it"})
+        # The ticket names the work item, a label and the repository and is the agent's, which
+        # comments on it, so the ticket's list and read pin each with an entry.
+        self.write(p, "PATCH", f"/tickets/{ids['ticket']}", {
+            "revision": ticket["revision"], "itemId": item["id"], "labels": ["parser"],
+            "repositoryIds": [ids["repository"]], "assigneeId": ids["agent"]})
+        self.write(a, "POST", f"/tickets/{ids['ticket']}/comments", {"text": "Seen it"})
+        # The release holds the work item, the roadmap, its child step and the GitHub reference.
+        for kind, target in (("item", item["id"]), ("roadmap", roadmap["id"]), ("step", child),
+                             ("github", ids["github"])):
+            self.write(p, "POST", "/release-contents", {"releaseId": release["id"], "targetType": kind,
+                                                        "targetId": target})
 
 
 def concrete(template: str, ids: dict[str, str], today: str) -> str:

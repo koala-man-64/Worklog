@@ -3343,9 +3343,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Roadmap Version Api V1 Roadmaps  Identity  Revisions  Number  Get"
+                  "$ref": "#/components/schemas/RoadmapSnapshot"
                 }
               }
             }
@@ -6900,9 +6898,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Tickets Api V1 Tickets Get"
+                  "$ref": "#/components/schemas/Tickets"
                 }
               }
             }
@@ -6991,9 +6987,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Ticket Api V1 Tickets  Ref  Get"
+                  "$ref": "#/components/schemas/Ticket"
                 }
               }
             }
@@ -7698,9 +7692,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Releases Api V1 Releases Get"
+                  "$ref": "#/components/schemas/Releases"
                 }
               }
             }
@@ -7777,9 +7769,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Release Api V1 Releases  Identity  Get"
+                  "$ref": "#/components/schemas/Release"
                 }
               }
             }
@@ -10888,6 +10878,47 @@
           "total"
         ],
         "title": "Attachments"
+      },
+      "Author": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "agent",
+              "human"
+            ],
+            "title": "Kind"
+          },
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "kind",
+          "avatar"
+        ],
+        "title": "Author",
+        "description": "Who wrote a reminder, a ticket or a ticket's comment, as written then, with the avatar their\nagent identity has now."
       },
       "AvatarChoice": {
         "properties": {
@@ -14078,6 +14109,63 @@
         ],
         "title": "Pin"
       },
+      "PlanStep": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "parentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parentid"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "retired": {
+            "type": "boolean",
+            "title": "Retired"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "description",
+          "parentId",
+          "position",
+          "status",
+          "revision",
+          "retired"
+        ],
+        "title": "PlanStep",
+        "description": "A step's own fields, as a roadmap's steps and its saved revisions give them. A parent's\nstatus is derived from its leaves."
+      },
       "Progress": {
         "properties": {
           "revision": {
@@ -14527,6 +14615,254 @@
         ],
         "title": "RegisteredBy"
       },
+      "Release": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "releaseDate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Releasedate"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "released",
+              "cancelled"
+            ],
+            "title": "Status"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "pastDue": {
+            "type": "boolean",
+            "title": "Pastdue"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReleaseItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "roadmaps": {
+            "items": {
+              "$ref": "#/components/schemas/ReleaseRoadmap"
+            },
+            "type": "array",
+            "title": "Roadmaps"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/ReleaseStep"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/ReleaseChange"
+            },
+            "type": "array",
+            "title": "Changes"
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/ReleaseCheck"
+            },
+            "type": "array",
+            "title": "Checks"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/ReleaseHistoryEntry"
+            },
+            "type": "array",
+            "title": "History"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "description",
+          "releaseDate",
+          "status",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "pastDue",
+          "items",
+          "roadmaps",
+          "steps",
+          "changes",
+          "checks",
+          "history"
+        ],
+        "title": "Release",
+        "description": "A release with what it holds, its changes, every check and who changed them when."
+      },
+      "ReleaseChange": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "commit",
+              "pr"
+            ],
+            "title": "Kind"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "reference": {
+            "type": "string",
+            "title": "Reference"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "ownerType": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap"
+            ],
+            "title": "Ownertype"
+          },
+          "ownerId": {
+            "type": "string",
+            "title": "Ownerid"
+          },
+          "ownerTitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ownertitle"
+          },
+          "chatId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chatid"
+          },
+          "chatTitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chattitle"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "direct": {
+            "type": "boolean",
+            "title": "Direct"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "url",
+          "reference",
+          "title",
+          "ownerType",
+          "ownerId",
+          "ownerTitle",
+          "chatId",
+          "chatTitle",
+          "provider",
+          "model",
+          "direct",
+          "archived",
+          "createdAt"
+        ],
+        "title": "ReleaseChange",
+        "description": "A PR or commit: one the release holds itself (direct), or one on a work item or roadmap it holds."
+      },
       "ReleaseCheck": {
         "properties": {
           "id": {
@@ -14835,6 +15171,46 @@
         ],
         "title": "ReleaseContentChange"
       },
+      "ReleaseCounts": {
+        "properties": {
+          "items": {
+            "type": "integer",
+            "title": "Items"
+          },
+          "itemsDone": {
+            "type": "integer",
+            "title": "Itemsdone"
+          },
+          "notify": {
+            "type": "integer",
+            "title": "Notify"
+          },
+          "test": {
+            "type": "integer",
+            "title": "Test"
+          },
+          "prepare": {
+            "type": "integer",
+            "title": "Prepare"
+          },
+          "pastDue": {
+            "type": "integer",
+            "title": "Pastdue"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "itemsDone",
+          "notify",
+          "test",
+          "prepare",
+          "pastDue"
+        ],
+        "title": "ReleaseCounts",
+        "description": "A listed release's active work items and the done ones, its open checks of each kind, and\nhow many open checks are past due."
+      },
       "ReleaseCreate": {
         "properties": {
           "title": {
@@ -14875,6 +15251,168 @@
         ],
         "title": "ReleaseCreate"
       },
+      "ReleaseHistoryEntry": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "entityId": {
+            "type": "string",
+            "title": "Entityid"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "actorId": {
+            "type": "string",
+            "title": "Actorid"
+          },
+          "actorLabel": {
+            "type": "string",
+            "title": "Actorlabel"
+          },
+          "actorKind": {
+            "type": "string",
+            "title": "Actorkind"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "entityId",
+          "kind",
+          "actorId",
+          "actorLabel",
+          "actorKind",
+          "createdAt"
+        ],
+        "title": "ReleaseHistoryEntry",
+        "description": "A change to a release or one of its checks, which entityId names, without its records:\n/history has those."
+      },
+      "ReleaseItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "doing",
+              "waiting",
+              "blocked",
+              "done"
+            ],
+            "title": "Status"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "addedAt": {
+            "type": "string",
+            "title": "Addedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "status",
+          "archived",
+          "addedAt"
+        ],
+        "title": "ReleaseItem",
+        "description": "A work item a release holds."
+      },
+      "ReleaseListed": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "releaseDate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Releasedate"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "released",
+              "cancelled"
+            ],
+            "title": "Status"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "pastDue": {
+            "type": "boolean",
+            "title": "Pastdue"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/ReleaseCounts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "description",
+          "releaseDate",
+          "status",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "pastDue",
+          "counts"
+        ],
+        "title": "ReleaseListed"
+      },
       "ReleaseRequest": {
         "properties": {
           "reason": {
@@ -14890,6 +15428,96 @@
           "reason"
         ],
         "title": "ReleaseRequest"
+      },
+      "ReleaseRoadmap": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "addedAt": {
+            "type": "string",
+            "title": "Addedat"
+          },
+          "steps": {
+            "type": "integer",
+            "title": "Steps"
+          },
+          "stepsDone": {
+            "type": "integer",
+            "title": "Stepsdone"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "archived",
+          "addedAt",
+          "steps",
+          "stepsDone"
+        ],
+        "title": "ReleaseRoadmap",
+        "description": "A roadmap a release holds, with its finished leaf steps out of all, as its progress bar counts them."
+      },
+      "ReleaseStep": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "retired": {
+            "type": "boolean",
+            "title": "Retired"
+          },
+          "roadmapId": {
+            "type": "string",
+            "title": "Roadmapid"
+          },
+          "roadmapTitle": {
+            "type": "string",
+            "title": "Roadmaptitle"
+          },
+          "roadmapArchived": {
+            "type": "boolean",
+            "title": "Roadmaparchived"
+          },
+          "addedAt": {
+            "type": "string",
+            "title": "Addedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "status",
+          "retired",
+          "roadmapId",
+          "roadmapTitle",
+          "roadmapArchived",
+          "addedAt"
+        ],
+        "title": "ReleaseStep",
+        "description": "A step a release holds, with its status as its roadmap shows it: a parent's follows its leaves."
       },
       "ReleaseUpdate": {
         "properties": {
@@ -14955,6 +15583,38 @@
         ],
         "title": "ReleaseUpdate"
       },
+      "Releases": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReleaseListed"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Releases"
+      },
       "Reminder": {
         "properties": {
           "id": {
@@ -15007,7 +15667,7 @@
             ]
           },
           "author": {
-            "$ref": "#/components/schemas/ReminderAuthor"
+            "$ref": "#/components/schemas/Author"
           },
           "archived": {
             "type": "boolean",
@@ -15070,46 +15730,6 @@
         ],
         "title": "Reminder",
         "description": "A reminder with its notes and history, as its own read returns it."
-      },
-      "ReminderAuthor": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "label": {
-            "type": "string",
-            "title": "Label"
-          },
-          "kind": {
-            "type": "string",
-            "enum": [
-              "agent",
-              "human"
-            ],
-            "title": "Kind"
-          },
-          "avatar": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Avatar"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "label",
-          "kind",
-          "avatar"
-        ],
-        "title": "ReminderAuthor"
       },
       "ReminderCreate": {
         "properties": {
@@ -15228,7 +15848,7 @@
             ]
           },
           "author": {
-            "$ref": "#/components/schemas/ReminderAuthor"
+            "$ref": "#/components/schemas/Author"
           },
           "archived": {
             "type": "boolean",
@@ -16592,6 +17212,49 @@
         ],
         "title": "RoadmapRevision"
       },
+      "RoadmapSnapshot": {
+        "properties": {
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "overview": {
+            "type": "string",
+            "title": "Overview"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/PlanStep"
+            },
+            "type": "array",
+            "title": "Steps"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "number",
+          "createdAt",
+          "note",
+          "title",
+          "overview",
+          "steps"
+        ],
+        "title": "RoadmapSnapshot",
+        "description": "A saved revision of a roadmap: its title, overview and steps as they stood then."
+      },
       "RoadmapStep": {
         "properties": {
           "id": {
@@ -16663,7 +17326,7 @@
           "attachments"
         ],
         "title": "RoadmapStep",
-        "description": "A step as its roadmap lists it, with its notes and files. A parent's status is derived from its leaves."
+        "description": "A step as its roadmap lists it, with its notes and files."
       },
       "RoadmapVersion": {
         "properties": {
@@ -17583,6 +18246,282 @@
         ],
         "title": "TaskUpdate"
       },
+      "Ticket": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "resolution": {
+            "type": "string",
+            "title": "Resolution"
+          },
+          "truncated": {
+            "type": "boolean",
+            "title": "Truncated"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "bug",
+              "incident",
+              "task"
+            ],
+            "title": "Kind"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "normal",
+              "high",
+              "urgent"
+            ],
+            "title": "Priority"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "doing",
+              "blocked",
+              "done"
+            ],
+            "title": "Status"
+          },
+          "labels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Labels"
+          },
+          "repositoryIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Repositoryids"
+          },
+          "itemId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Itemid"
+          },
+          "item": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TicketWorkItem"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "assigneeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigneeid"
+          },
+          "assignee": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TicketAssignee"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "author": {
+            "$ref": "#/components/schemas/Author"
+          },
+          "commentCount": {
+            "type": "integer",
+            "title": "Commentcount"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "closedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closedat"
+          },
+          "lastActivityAt": {
+            "type": "string",
+            "title": "Lastactivityat"
+          },
+          "comments": {
+            "$ref": "#/components/schemas/TicketComments"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/Change"
+            },
+            "type": "array",
+            "title": "History"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "number",
+          "key",
+          "title",
+          "description",
+          "resolution",
+          "truncated",
+          "kind",
+          "priority",
+          "status",
+          "labels",
+          "repositoryIds",
+          "itemId",
+          "item",
+          "assigneeId",
+          "assignee",
+          "author",
+          "commentCount",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "closedAt",
+          "lastActivityAt",
+          "comments",
+          "history"
+        ],
+        "title": "Ticket",
+        "description": "A ticket whole, with its latest comments and who changed it when."
+      },
+      "TicketAssignee": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "agent",
+              "human"
+            ],
+            "title": "Kind"
+          },
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "kind",
+          "avatar",
+          "active"
+        ],
+        "title": "TicketAssignee",
+        "description": "Who a ticket is assigned to, as they stand now: the person, or an agent identity."
+      },
+      "TicketComment": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "ticketId": {
+            "type": "string",
+            "title": "Ticketid"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "author": {
+            "$ref": "#/components/schemas/Author"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "ticketId",
+          "text",
+          "createdAt",
+          "author"
+        ],
+        "title": "TicketComment"
+      },
       "TicketCommentCreate": {
         "properties": {
           "text": {
@@ -17598,6 +18537,28 @@
           "text"
         ],
         "title": "TicketCommentCreate"
+      },
+      "TicketComments": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TicketComment"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "TicketComments"
       },
       "TicketCreate": {
         "properties": {
@@ -17692,6 +18653,191 @@
           "title"
         ],
         "title": "TicketCreate"
+      },
+      "TicketListed": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "resolution": {
+            "type": "string",
+            "title": "Resolution"
+          },
+          "truncated": {
+            "type": "boolean",
+            "title": "Truncated"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "bug",
+              "incident",
+              "task"
+            ],
+            "title": "Kind"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "normal",
+              "high",
+              "urgent"
+            ],
+            "title": "Priority"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "doing",
+              "blocked",
+              "done"
+            ],
+            "title": "Status"
+          },
+          "labels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Labels"
+          },
+          "repositoryIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Repositoryids"
+          },
+          "itemId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Itemid"
+          },
+          "item": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TicketWorkItem"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "assigneeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigneeid"
+          },
+          "assignee": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TicketAssignee"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "author": {
+            "$ref": "#/components/schemas/Author"
+          },
+          "commentCount": {
+            "type": "integer",
+            "title": "Commentcount"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "closedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closedat"
+          },
+          "lastActivityAt": {
+            "type": "string",
+            "title": "Lastactivityat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "number",
+          "key",
+          "title",
+          "description",
+          "resolution",
+          "truncated",
+          "kind",
+          "priority",
+          "status",
+          "labels",
+          "repositoryIds",
+          "itemId",
+          "item",
+          "assigneeId",
+          "assignee",
+          "author",
+          "commentCount",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "closedAt",
+          "lastActivityAt"
+        ],
+        "title": "TicketListed",
+        "description": "A ticket as lists show it: its description and resolution cut to 1,000 characters each."
       },
       "TicketSummary": {
         "properties": {
@@ -17876,6 +19022,75 @@
           "revision"
         ],
         "title": "TicketUpdate"
+      },
+      "TicketWorkItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "doing",
+              "waiting",
+              "blocked",
+              "done"
+            ],
+            "title": "Status"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "status",
+          "archived"
+        ],
+        "title": "TicketWorkItem",
+        "description": "The work item a ticket names."
+      },
+      "Tickets": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TicketListed"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Tickets"
       },
       "TieAgent": {
         "properties": {

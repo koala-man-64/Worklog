@@ -19,7 +19,7 @@ def install_release_routes(app: FastAPI, db: Database, apply: Callable) -> None:
     service = ReleaseService()
     read = db.snapshot
 
-    @app.get("/api/v1/releases")
+    @app.get("/api/v1/releases", response_model=out.Releases)
     def releases(status: str = Query("planned", description="planned, released, cancelled or all"),
                  archived: bool = False, q: str = "",
                  targetType: str | None = Query(None, description="item, roadmap, step or github, with targetId: "
@@ -33,7 +33,7 @@ def install_release_routes(app: FastAPI, db: Database, apply: Callable) -> None:
     def release_create(request: Request, body: m.ReleaseCreate) -> dict:
         return apply(request, "release.create", body.model_dump(), create=True)
 
-    @app.get("/api/v1/releases/{identity}")
+    @app.get("/api/v1/releases/{identity}", response_model=out.Release)
     def release(identity: str) -> dict:
         return read(lambda c: service.detail(c, identity))
 

@@ -553,7 +553,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def roadmap_revise(identity: str, request: Request, body: m.RoadmapRevision) -> dict:
         return apply(request, "roadmap.revise", {"id": identity, **body.model_dump()}, create=True)
 
-    @app.get("/api/v1/roadmaps/{identity}/revisions/{number}")
+    @app.get("/api/v1/roadmaps/{identity}/revisions/{number}", response_model=out.RoadmapSnapshot)
     def roadmap_version(identity: str, number: int) -> dict:
         return plans.version(identity, number)
 
