@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useData } from "./hooks";
 import { ErrorMessage } from "./components";
 import { Pages } from "./Coordination";
-import type { List, ProposalEntry } from "./types";
+import type { Answer, ProposalEntry } from "./apiTypes";
 
 const PAGE = 50;
 
@@ -93,7 +93,7 @@ export function AppliedProposals({
   noun: string;
 }) {
   const [offset, setOffset] = useState(0);
-  const query = useData<List<ProposalEntry>>(
+  const query = useData<Answer<"/api/v1/work-items/{identity}/proposals">>(
     `${path}/proposals?limit=${PAGE}&offset=${offset}`,
   );
   const entries = query.data?.items ?? [];
@@ -127,7 +127,7 @@ export function AppliedProposals({
 /** Everything an agent proposed, under any of its credentials, the latest first. */
 export function AgentProposals({ id }: { id: string }) {
   const [offset, setOffset] = useState(0);
-  const query = useData<List<ProposalEntry>>(
+  const query = useData<Answer<"/api/v1/agents/{identity}/proposals">>(
     `/agents/${encodeURIComponent(id)}/proposals?limit=${PAGE}&offset=${offset}`,
   );
   const entries = query.data?.items ?? [];

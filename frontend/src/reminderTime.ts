@@ -1,10 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { bootstrap } from "./api";
-import type {
-  Reminder,
-  ReminderTarget,
-  ReminderTargetType,
-} from "./apiTypes";
+import type { Reminder, ReminderTarget, ReminderTargetType } from "./apiTypes";
 
 /**
  * The Worklog timezone, from the session the app opened with and Settings updates. Reading it

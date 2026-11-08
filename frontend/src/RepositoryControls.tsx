@@ -1,8 +1,7 @@
 import { useId, useState } from "react";
 import { useData } from "./hooks";
 import { LinkPicker } from "./LinkPicker";
-import type { List } from "./types";
-import type { Repository } from "./apiTypes";
+import type { Answer, Repository } from "./apiTypes";
 
 export function RepositoryBadges({
   ids = [],
@@ -157,7 +156,7 @@ export function RepositoryFilter({
 }) {
   const [q, setQ] = useState("");
   const [offset, setOffset] = useState(0);
-  const query = useData<List<Repository>>(
+  const query = useData<Answer<"/api/v1/repositories">>(
     `/repositories?limit=50&offset=${offset}&q=${encodeURIComponent(q)}`,
   );
   return (

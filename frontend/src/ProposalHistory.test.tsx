@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setDataContext } from "./api";
 import { AgentProposals, AppliedProposals } from "./ProposalHistory";
-import type { ProposalEntry } from "./types";
+import type { ProposalEntry } from "./apiTypes";
 
 const applied: ProposalEntry = {
   number: 2,

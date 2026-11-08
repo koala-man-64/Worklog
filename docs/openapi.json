@@ -26515,7 +26515,11 @@
           "source": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "claude",
+                  "codex"
+                ]
               },
               {
                 "type": "null"
@@ -26606,7 +26610,11 @@
           "source": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "claude",
+                  "codex"
+                ]
               },
               {
                 "type": "null"
@@ -26730,7 +26738,11 @@
           "source": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "claude",
+                  "codex"
+                ]
               },
               {
                 "type": "null"

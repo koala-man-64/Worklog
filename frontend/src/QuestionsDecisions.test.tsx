@@ -4,7 +4,8 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setDataContext } from "./api";
 import { RoadmapDetail } from "./Roadmaps";
-import type { Roadmap, RoadmapDecision, RoadmapQuestion } from "./types";
+import type { Roadmap, RoadmapDecision, RoadmapQuestion } from "./apiTypes";
+import { aRoadmap, MADE } from "./fixtures";
 
 const ROADMAP = "33333333-3333-4333-8333-333333333333";
 const OPEN = "dddddddd-0000-4000-8000-000000000001";
@@ -23,6 +24,8 @@ const question = (
   status: "open",
   revision: 1,
   archived: false,
+  createdAt: MADE,
+  updatedAt: MADE,
   ...fields,
 });
 const decision = (
@@ -37,18 +40,12 @@ const decision = (
   decidedDate: "2026-09-01",
   revision: 1,
   archived: false,
+  createdAt: MADE,
+  updatedAt: MADE,
   ...fields,
 });
 const road: Roadmap = {
-  id: ROADMAP,
-  revision: 1,
-  title: "Storage",
-  overview: "",
-  steps: [],
-  versions: [],
-  notes: [],
-  attachments: [],
-  history: [],
+  ...aRoadmap({ id: ROADMAP, title: "Storage" }),
   questions: [
     question(OPEN, "Which region hosts replicas?", {
       details: "Latency budget is **40 ms**.",

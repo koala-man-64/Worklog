@@ -13,7 +13,8 @@ import {
 import { setDataContext } from "./api";
 import { commands } from "./commands";
 import { useStoredWidth } from "./hooks";
-import type { Note } from "./types";
+import type { Note } from "./apiTypes";
+import { aNote } from "./fixtures";
 function wrapper({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider
@@ -480,13 +481,7 @@ it("ignores a stored width outside the panel's limits", () => {
   expect(screen.getByTestId("panel").style.width).toBe("");
 });
 const note = (fields: Partial<Note>): Note => ({
-  id: "pad",
-  revision: 1,
-  archived: false,
-  title: "Scratchpad",
-  text: "",
-  ownerType: "item",
-  ownerId: "item",
+  ...aNote({ id: "pad", title: "Scratchpad", ownerId: "item" }),
   ...fields,
 });
 it("creates the scratchpad on its first save and updates that note after", async () => {

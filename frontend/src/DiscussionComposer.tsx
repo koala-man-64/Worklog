@@ -7,9 +7,9 @@ import {
   type ContextChoice,
 } from "./discussionContexts";
 import { localStore } from "./storage";
-import type { ChatOverview } from "./types";
 import type {
   AcknowledgementMode,
+  ChatOverview,
   DiscussionParticipants,
   DiscussionRole,
   Schema,

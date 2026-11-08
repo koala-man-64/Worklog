@@ -4,7 +4,8 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiError, setDataContext } from "./api";
 import { commands } from "./commands";
-import type { Detail } from "./types";
+import type { Detail } from "./apiTypes";
+import { aNote, anAttachment, anItem } from "./fixtures";
 import { ItemDetail, Work } from "./Work";
 
 const state = vi.hoisted(() => ({
@@ -36,18 +37,21 @@ const STAMPS = {
 };
 function item(fields: Partial<Detail>): Detail {
   return {
-    id: ID,
-    revision: 3,
-    archived: false,
-    title: "Release checks",
-    description: "",
-    status: "open",
-    adoUrl: "https://dev.azure.com/a",
-    stepId: null,
+    ...anItem({
+      id: ID,
+      revision: 3,
+      title: "Release checks",
+      adoUrl: "https://dev.azure.com/a",
+      ...STAMPS,
+    }),
+    linkedRoadmap: null,
     linkedStep: null,
     notes: [],
     tasks: [],
     attachments: [],
+    links: [],
+    chats: [],
+    github: [],
     references: [],
     history: [],
     dailyEntries: [],
@@ -702,30 +706,30 @@ it("attaches a copy by default and saves only the path for a local file", async 
 it("lists attached copies and local paths together, oldest first", async () => {
   state.item = item({
     attachments: [
-      {
+      anAttachment({
         id: "a1",
+        ownerId: ID,
         revision: 2,
         archived: true,
         name: "old.txt",
         mime: "text/plain",
         size: 3,
-        sha256: "",
         createdAt: "2026-11-01T08:00:00+00:00",
-      },
-      {
+      }),
+      anAttachment({
         id: "a2",
-        revision: 1,
+        ownerId: ID,
         name: "evidence.txt",
         mime: "text/plain",
         size: 14,
-        sha256: "",
         createdAt: "2026-11-02T10:00:00+00:00",
-      },
+      }),
     ],
     references: [
       {
         id: "r1",
         revision: 1,
+        archived: false,
         itemId: ID,
         path: "C:\\Projects\\spec.docx",
         createdAt: "2026-11-02T09:00:00+00:00",
@@ -747,15 +751,13 @@ it("lists attached copies and local paths together, oldest first", async () => {
 it("gives the work item one scratchpad instead of a list of notes", () => {
   state.item = item({
     notes: [
-      {
+      aNote({
         id: "pad",
         revision: 2,
-        archived: false,
         title: "Scratchpad",
         text: "Running notes",
-        ownerType: "item",
         ownerId: ID,
-      },
+      }),
     ],
   });
   render(view(newClient()));
@@ -865,6 +867,7 @@ it("links a work item directly to a roadmap without requiring a step", async () 
     linkedRoadmap: {
       id: "22222222-2222-4222-8222-222222222222",
       title: "Platform roadmap",
+      archived: false,
     },
   });
   render(view(newClient()));

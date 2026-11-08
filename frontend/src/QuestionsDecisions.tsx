@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AgentTieFold, useTiesOn } from "./AgentTies";
 import { ErrorMessage, Markdown } from "./components";
 import { useAction } from "./hooks";
-import type { RoadmapDecision, RoadmapQuestion } from "./types";
+import type { RoadmapDecision, RoadmapQuestion } from "./apiTypes";
 
 /** A roadmap's questions: open ones first, then the answered ones with their answers. */
 export function QuestionsSection({

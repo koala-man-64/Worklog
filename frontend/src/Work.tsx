@@ -21,7 +21,13 @@ import {
   StatusSelect,
   statusLabel,
 } from "./components";
-import type { Detail, Item, ItemStatus, List, Person, Roadmap } from "./types";
+import type {
+  Answer,
+  Detail,
+  ItemListed,
+  ItemStatus,
+  Roadmap,
+} from "./apiTypes";
 import {
   RepositoryBadges,
   RepositoryPicker,
@@ -101,14 +107,14 @@ function WorkList() {
   const [view, setView] = useState("all");
   const [offset, setOffset] = useState(0);
   const [q, setQ] = useState("");
-  const people = useData<List<Person>>("/people?archived=false");
+  const people = useData<Answer<"/api/v1/people">>("/people?archived=false");
   // In a fixed order, so the same states always make the same query.
   const statusQuery = ITEM_STATUSES.filter((s) => statuses.includes(s))
     .map((s) => "&status=" + s)
     .join("");
   const page = (from: number, limit: number) =>
     `/work-items?view=${view}&archived=${archived}&limit=${limit}&offset=${from}&q=${encodeURIComponent(q)}${statusQuery}${personId ? "&personId=" + encodeURIComponent(personId) : ""}${repositoryId ? "&repositoryId=" + encodeURIComponent(repositoryId) : ""}`;
-  const list = useData<List<Item>>(page(offset, 100));
+  const list = useData<Answer<"/api/v1/work-items">>(page(offset, 100));
   const action = useAction();
   const rank = useRank();
   // One row's rank picker is open at a time.
@@ -126,12 +132,13 @@ function WorkList() {
     const item = items[index];
     if (!item.rank) return;
     setSeekError(null);
-    let beside: Item | undefined = items[index + delta];
+    let beside: ItemListed | undefined = items[index + delta];
     const at = offset + index + delta;
     if (!beside && at >= 0 && at < total) {
       setSeeking(true);
       try {
-        beside = (await request<List<Item>>(page(at, 1))).items[0];
+        beside = (await request<Answer<"/api/v1/work-items">>(page(at, 1)))
+          .items[0];
       } catch (error) {
         setSeekError(error);
         return;
@@ -415,7 +422,7 @@ function WorkList() {
 }
 export function ItemDetail({ id }: { id: string }) {
   const query = useData<Detail>("/work-items/" + id);
-  const roads = useData<List<Roadmap>>("/roadmaps?archived=false");
+  const roads = useData<Answer<"/api/v1/roadmaps">>("/roadmaps?archived=false");
   const [selectedRoad, setSelectedRoad] = useState<string | null>(null);
   const item = query.data;
   const activeRoadId =

@@ -14,8 +14,14 @@ import {
   statusLabel,
 } from "./components";
 import { LinkPicker } from "./LinkPicker";
-import type { Repository } from "./apiTypes";
-import type { Item, List, Person, PersonDetail, Roadmap } from "./types";
+import type {
+  Answer,
+  Item,
+  PersonDetail,
+  PersonRecord,
+  Repository,
+  Roadmap,
+} from "./apiTypes";
 import { Icon } from "./icons";
 import { RecordReminders } from "./RecordReminders";
 
@@ -45,7 +51,7 @@ export function telephone(phone: string) {
 }
 
 /** How to reach someone: email and phone open the mail app and the dialer. */
-export function Contact({ person }: { person: Person }) {
+export function Contact({ person }: { person: PersonRecord }) {
   const dial = telephone(person.phone);
   const parts: ReactNode[] = [];
   if (person.email)
@@ -97,7 +103,7 @@ function PeopleList() {
   const [name, setName] = useState("");
   const [title, setTitle] = useState("");
   const [team, setTeam] = useState("");
-  const list = useData<List<Person>>(
+  const list = useData<Answer<"/api/v1/people">>(
     `/people?archived=${archived}&q=${encodeURIComponent(q)}`,
   );
   const createPerson = useCommand(commands.createPerson);

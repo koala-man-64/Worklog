@@ -1,19 +1,20 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { ErrorMessage, Markdown, statusLabel } from "./components";
-import type { Day, Entry, ItemStatus } from "./types";
+import type { Day, Entry, ItemStatus } from "./apiTypes";
 
 // The day's summary groups what was worked on by the status each item ended the day with:
 // finished work first, then what waits on others, and blockers last, as a standup reads.
-// Every status needs a place here, so a new one can't drop its work from the summary.
-const ORDER: Record<ItemStatus, number> = {
+// Every status needs a place here, so a new one can't drop its work from the summary. A day's
+// status comes from the item's history, which may hold one this version doesn't know.
+const ORDER: Partial<Record<string, number>> = {
   done: 0,
   doing: 1,
   open: 2,
   waiting: 3,
   blocked: 4,
-};
+} satisfies Record<ItemStatus, number>;
 const GROUP_LAST = Object.keys(ORDER).length;
-const statusOf = (entry: Entry) => entry.statusOnDay ?? entry.item.status;
+const statusOf = (entry: Entry) => entry.statusOnDay;
 
 /** A title as plain text on one line: Markdown characters in it stay as typed. */
 function literal(title: string) {

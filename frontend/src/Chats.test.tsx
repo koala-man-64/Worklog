@@ -13,10 +13,11 @@ import { Chats, ago, tallyText, toolText } from "./Chats";
 import type {
   ChatOverview,
   ChatThread,
+  Outbox,
   RunningSession,
   Transcript,
-} from "./types";
-import type { Outbox } from "./apiTypes";
+} from "./apiTypes";
+import { aChat } from "./fixtures";
 
 const ROADMAP_ID = "22222222-2222-4222-8222-222222222222";
 const API_ID = "33333333-3333-4333-8333-333333333333";
@@ -50,17 +51,15 @@ function overview(
   fields: Partial<ChatOverview> = {},
 ): ChatOverview {
   return {
-    id,
-    revision: 1,
-    ownerType: "roadmap",
-    ownerId: ROADMAP_ID,
-    chatId: id + "-chat",
-    title,
-    createdDate: "2026-11-01",
-    provider: "OpenAI",
-    model: "gpt-6.1-sol",
-    repos: [],
-    stepIds: [],
+    ...aChat({
+      id,
+      ownerType: "roadmap",
+      ownerId: ROADMAP_ID,
+      chatId: id + "-chat",
+      title,
+      provider: "OpenAI",
+      model: "gpt-6.1-sol",
+    }),
     owner: {
       type: "roadmap",
       id: ROADMAP_ID,

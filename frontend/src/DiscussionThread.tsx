@@ -11,10 +11,10 @@ import {
   exactDiscussionDate,
   formatDiscussionDate,
 } from "./discussionFormatting";
-import type { ChatOverview } from "./types";
 import type {
   AcknowledgementMode,
   AcknowledgementRequest,
+  ChatOverview,
   DiscussionDetail,
   DiscussionMessage,
   DiscussionParticipants,

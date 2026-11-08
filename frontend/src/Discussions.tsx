@@ -14,8 +14,8 @@ import { DiscussionRolesPanel } from "./DiscussionRoles";
 import { DiscussionThread } from "./DiscussionThread";
 import { formatDiscussionDate } from "./discussionFormatting";
 import { useAction, useData } from "./hooks";
-import type { ChatOverview, List } from "./types";
 import type {
+  Answer,
   DiscussionList,
   DiscussionParticipants,
   DiscussionRoles,
@@ -84,7 +84,7 @@ export function Discussions({ selected }: { selected?: string }) {
     `/discussions/roles?limit=${ROLE_PAGE}&offset=${roleOffset}`,
     REFRESH_MS,
   );
-  const chats = useData<List<ChatOverview>>("/chats?archived=false");
+  const chats = useData<Answer<"/api/v1/chats">>("/chats?archived=false");
   const [contextQuery, setContextQuery] = useState("");
   const contextSearch = useContextSearch(contextQuery);
   const items = list.data?.items ?? [];

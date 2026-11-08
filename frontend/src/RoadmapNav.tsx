@@ -2,7 +2,7 @@ import { useState } from "react";
 import { contextStorageKey } from "./api";
 import { useCollapsed, useData } from "./hooks";
 import { Icon } from "./icons";
-import type { List, Roadmap } from "./types";
+import type { Answer } from "./apiTypes";
 
 /**
  * Groups roadmaps under their parents, keeping list order. A roadmap whose parent
@@ -28,7 +28,7 @@ export function RoadmapNav({
   selected?: string;
   open?: boolean;
 }) {
-  const roads = useData<List<Roadmap>>("/roadmaps?archived=false");
+  const roads = useData<Answer<"/api/v1/roadmaps">>("/roadmaps?archived=false");
   const { collapsed, toggle, reveal } = useCollapsed(
     contextStorageKey("roadmaps-collapsed", "nav"),
   );

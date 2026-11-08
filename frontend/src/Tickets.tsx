@@ -20,11 +20,10 @@ import {
   RepositoryPicker,
 } from "./RepositoryControls";
 import { Icon } from "./icons";
-import type { DiscussionParticipants } from "./apiTypes";
-import type { Item, List } from "./types";
 import type {
   Answer,
   Author,
+  DiscussionParticipants,
   Schema,
   Ticket,
   TicketDetail,
@@ -605,7 +604,7 @@ function WorkPicker({
 }) {
   const [q, setQ] = useState("");
   const [pick, setPick] = useState("");
-  const work = useData<List<Item>>(
+  const work = useData<Answer<"/api/v1/work-items">>(
     `/work-items?view=all&archived=false&limit=100&q=${encodeURIComponent(q)}`,
   );
   return (

@@ -5,8 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setDataContext } from "./api";
 import { AVATAR_COLORS } from "./Avatar";
 import { Settings } from "./Settings";
-import type { AvatarCatalog } from "./apiTypes";
-import type { Settings as SettingsData } from "./types";
+import type { AvatarCatalog, Settings as SettingsData } from "./apiTypes";
 
 const settings: SettingsData = {
   timezone: "America/Chicago",

@@ -6,15 +6,15 @@ import { useAction, useData } from "./hooks";
 import { Icon } from "./icons";
 import { LinkPicker } from "./LinkPicker";
 import { localStore, readIdSet } from "./storage";
-import type { AgentSummary } from "./apiTypes";
 import type {
+  AgentSummary,
+  Answer,
   ChatAgent,
   ChatOverview,
   Item,
-  List,
   Roadmap,
   RunningSession,
-} from "./types";
+} from "./apiTypes";
 
 // Where Claude Code runs a session, as its record names it.
 const ENTRYPOINTS: Record<string, string> = {
@@ -243,7 +243,10 @@ export function RunningSessions({
   closed: boolean;
   toggle: () => void;
 }) {
-  const running = useData<List<RunningSession>>("/claude-sessions", refreshMs);
+  const running = useData<Answer<"/api/v1/claude-sessions">>(
+    "/claude-sessions",
+    refreshMs,
+  );
   const hiddenKey = contextStorageKey("chats-hidden-sessions", "list");
   const [hidden, setHidden] = useState(() => readIdSet(hiddenKey));
   const [showHidden, setShowHidden] = useState(false);

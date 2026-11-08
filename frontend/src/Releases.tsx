@@ -15,10 +15,11 @@ import {
 import { useCommand, useData, useWrites } from "./hooks";
 import { Icon } from "./icons";
 import { LinkPicker } from "./LinkPicker";
-import type { Item, List, Person } from "./types";
 import type {
   Answer,
   CheckKind,
+  Item,
+  Person,
   ReleaseCheck,
   ReleaseCounts,
   ReleaseDetail,
@@ -345,7 +346,7 @@ function DayInput({
 
 function ReleaseView({ id }: { id: string }) {
   const query = useData<ReleaseDetail>("/releases/" + id);
-  const people = useData<List<Person>>("/people");
+  const people = useData<Answer<"/api/v1/people">>("/people");
   const action = useWrites();
   const release = query.data;
   if (!release)
@@ -404,9 +405,7 @@ function ReleaseView({ id }: { id: string }) {
             aria-label="Release status"
             value={release.status}
             disabled={locked}
-            onChange={(e) =>
-              patch({ status: e.target.value as ReleaseStatus })
-            }
+            onChange={(e) => patch({ status: e.target.value as ReleaseStatus })}
           >
             {Object.entries(STATUSES).map(([value, text]) => (
               <option key={value} value={value}>
@@ -929,7 +928,11 @@ export function ReleasesSection({
             if (!pick) return;
             action.mutate(
               () =>
-                commands.holdInRelease({ releaseId: pick, targetType, targetId }),
+                commands.holdInRelease({
+                  releaseId: pick,
+                  targetType,
+                  targetId,
+                }),
               { onSuccess: () => setPick("") },
             );
           }}

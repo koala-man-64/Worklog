@@ -8521,7 +8521,7 @@ export interface components {
             /** Found */
             found: boolean;
             /** Source */
-            source: string | null;
+            source: ("claude" | "codex") | null;
             /** Lastactivityat */
             lastActivityAt: string | null;
             /**
@@ -8547,7 +8547,7 @@ export interface components {
             /** Found */
             found: boolean;
             /** Source */
-            source: string | null;
+            source: ("claude" | "codex") | null;
             /** Lastactivityat */
             lastActivityAt: string | null;
             /**
@@ -8591,7 +8591,7 @@ export interface components {
             /** Found */
             found: boolean;
             /** Source */
-            source: string | null;
+            source: ("claude" | "codex") | null;
             /** Lastactivityat */
             lastActivityAt: string | null;
             /**

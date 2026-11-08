@@ -1,18 +1,5 @@
 import { request } from "./api";
 import type { Answer, Schema } from "./apiTypes";
-import type {
-  Item,
-  Note,
-  Task,
-  Roadmap,
-  Entry,
-  Person,
-  PersonAssignment,
-  WebLink,
-  AgentChat,
-  GithubRef,
-  RankResult,
-} from "./types";
 /** A command archives a record, or recovers it. */
 const verb = (archived: boolean) => (archived ? "archive" : "recover");
 /**
@@ -21,48 +8,96 @@ const verb = (archived: boolean) => (archived ? "archive" : "recover");
  */
 export const commands = {
   createItem: (body: Schema["ItemCreate"]) =>
-    request<Item>("/work-items", "POST", body),
+    request<Answer<"/api/v1/work-items", "post">>("/work-items", "POST", body),
   updateItem: (id: string, body: Schema["ItemUpdate"]) =>
-    request<Item>("/work-items/" + id, "PATCH", body),
+    request<Answer<"/api/v1/work-items/{identity}", "patch">>(
+      "/work-items/" + id,
+      "PATCH",
+      body,
+    ),
   rankItem: (id: string, body: Schema["Rank"]) =>
-    request<RankResult>(`/work-items/${id}/rank`, "POST", body),
+    request<Answer<"/api/v1/work-items/{identity}/rank", "post">>(
+      `/work-items/${id}/rank`,
+      "POST",
+      body,
+    ),
   upsertEntry: (date: string, id: string, body: Schema["EntryUpdate"]) =>
-    request<Entry>(`/days/${date}/entries/${id}`, "PUT", body),
+    request<Answer<"/api/v1/days/{date}/entries/{item_id}", "put">>(
+      `/days/${date}/entries/${id}`,
+      "PUT",
+      body,
+    ),
   createNote: (body: Schema["NoteCreate"]) =>
-    request<Note>("/notes", "POST", body),
+    request<Answer<"/api/v1/notes", "post">>("/notes", "POST", body),
   updateNote: (id: string, body: Schema["NoteUpdate"]) =>
-    request<Note>("/notes/" + id, "PATCH", body),
+    request<Answer<"/api/v1/notes/{identity}", "patch">>(
+      "/notes/" + id,
+      "PATCH",
+      body,
+    ),
   createTask: (body: Schema["TaskCreate"]) =>
-    request<Task>("/tasks", "POST", body),
+    request<Answer<"/api/v1/tasks", "post">>("/tasks", "POST", body),
   updateTask: (id: string, body: Schema["TaskUpdate"]) =>
-    request<Task>("/tasks/" + id, "PATCH", body),
+    request<Answer<"/api/v1/tasks/{identity}", "patch">>(
+      "/tasks/" + id,
+      "PATCH",
+      body,
+    ),
   createRoadmap: (body: Schema["RoadmapCreate"]) =>
-    request<Roadmap>("/roadmaps", "POST", body),
+    request<Answer<"/api/v1/roadmaps", "post">>("/roadmaps", "POST", body),
   reviseRoadmap: (id: string, body: Schema["RoadmapRevision"]) =>
-    request<Roadmap>(`/roadmaps/${id}/revisions`, "POST", body),
+    request<Answer<"/api/v1/roadmaps/{identity}/revisions", "post">>(
+      `/roadmaps/${id}/revisions`,
+      "POST",
+      body,
+    ),
   /** Fields left out start empty. */
   createPerson: (
     body: Pick<Schema["PersonCreate"], "name"> &
       Partial<Schema["PersonCreate"]>,
-  ) => request<Person>("/people", "POST", body),
+  ) => request<Answer<"/api/v1/people", "post">>("/people", "POST", body),
   updatePerson: (id: string, body: Schema["PersonUpdate"]) =>
-    request<Person>("/people/" + id, "PATCH", body),
+    request<Answer<"/api/v1/people/{identity}", "patch">>(
+      "/people/" + id,
+      "PATCH",
+      body,
+    ),
   linkPerson: (body: Schema["PersonLinkCreate"]) =>
-    request<PersonAssignment>("/person-links", "POST", body),
+    request<Answer<"/api/v1/person-links", "post">>(
+      "/person-links",
+      "POST",
+      body,
+    ),
   unlinkPerson: (body: Schema["PersonLinkRemove"]) =>
-    request<{ ok: boolean }>("/person-links/unlink", "POST", body),
+    request<Answer<"/api/v1/person-links/unlink", "post">>(
+      "/person-links/unlink",
+      "POST",
+      body,
+    ),
   createLink: (body: Schema["LinkCreate"]) =>
-    request<WebLink>("/links", "POST", body),
+    request<Answer<"/api/v1/links", "post">>("/links", "POST", body),
   updateLink: (id: string, body: Schema["LinkUpdate"]) =>
-    request<WebLink>("/links/" + id, "PATCH", body),
+    request<Answer<"/api/v1/links/{identity}", "patch">>(
+      "/links/" + id,
+      "PATCH",
+      body,
+    ),
   createChat: (body: Schema["ChatCreate"]) =>
-    request<AgentChat>("/chats", "POST", body),
+    request<Answer<"/api/v1/chats", "post">>("/chats", "POST", body),
   updateChat: (id: string, body: Schema["ChatUpdate"]) =>
-    request<AgentChat>("/chats/" + id, "PATCH", body),
+    request<Answer<"/api/v1/chats/{identity}", "patch">>(
+      "/chats/" + id,
+      "PATCH",
+      body,
+    ),
   createGithubRef: (body: Schema["GithubRefCreate"]) =>
-    request<GithubRef>("/github", "POST", body),
+    request<Answer<"/api/v1/github", "post">>("/github", "POST", body),
   updateGithubRef: (id: string, body: Schema["GithubRefUpdate"]) =>
-    request<GithubRef>("/github/" + id, "PATCH", body),
+    request<Answer<"/api/v1/github/{identity}", "patch">>(
+      "/github/" + id,
+      "PATCH",
+      body,
+    ),
   createTicket: (body: Schema["TicketCreate"]) =>
     request<Answer<"/api/v1/tickets", "post">>("/tickets", "POST", body),
   updateTicket: (id: string, body: Schema["TicketUpdate"]) =>
@@ -77,7 +112,11 @@ export const commands = {
       "POST",
       body,
     ),
-  setTicketArchived: (id: string, archived: boolean, body: Schema["Expected"]) =>
+  setTicketArchived: (
+    id: string,
+    archived: boolean,
+    body: Schema["Expected"],
+  ) =>
     request<Answer<"/api/v1/tickets/{ref}/{verb}", "post">>(
       `/tickets/${id}/${verb(archived)}`,
       "POST",
@@ -112,7 +151,11 @@ export const commands = {
       "PATCH",
       body,
     ),
-  setReleaseArchived: (id: string, archived: boolean, body: Schema["Expected"]) =>
+  setReleaseArchived: (
+    id: string,
+    archived: boolean,
+    body: Schema["Expected"],
+  ) =>
     request<Answer<"/api/v1/releases/{identity}/archive", "post">>(
       `/releases/${id}/${verb(archived)}`,
       "POST",
