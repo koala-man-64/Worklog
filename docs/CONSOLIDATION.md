@@ -458,7 +458,7 @@ Not in this step: REM-19's limits on what an import preview parses (5,000 headin
 
 #### 4.4 · Doctor, then constraints
 
-Status: In progress · Branch: `claude/worklog-doctor` · PR: PR_LINK; the constraints follow in their own PR
+Status: In progress · Branch: `claude/worklog-doctor` · PR: [#135](https://github.com/koala-man-64/Worklog/pull/135); the constraints follow in their own PR
 
 First a read-only `worklog doctor`, checking:
 
