@@ -3098,6 +3098,37 @@ export interface components {
             roles: components["schemas"]["AgentRole"][];
         };
         /**
+         * AgentMessage
+         * @description A message one agent of the chat sent another, or one received from outside it.
+         */
+        AgentMessage: {
+            /** Id */
+            id: string;
+            /** Thread */
+            thread: string;
+            /** At */
+            at: string | null;
+            /** Text */
+            text: string;
+            /** Truncated */
+            truncated: boolean;
+            /** Author */
+            author: string;
+            /**
+             * Kind
+             * @constant
+             */
+            kind: "agent";
+            /** Authorthread */
+            authorThread: string | null;
+            /** Recipient */
+            recipient: string;
+            /** Messagetype */
+            messageType?: string | null;
+            /** Encrypted */
+            encrypted?: boolean | null;
+        };
+        /**
          * AgentProfile
          * @description An agent identity as a participant's profile shows it, to any caller.
          */
@@ -3415,6 +3446,28 @@ export interface components {
             /** Archived */
             archived: boolean;
         };
+        /** AssistantMessage */
+        AssistantMessage: {
+            /** Id */
+            id: string;
+            /** Thread */
+            thread: string;
+            /** At */
+            at: string | null;
+            /** Text */
+            text: string;
+            /** Truncated */
+            truncated: boolean;
+            /** Author */
+            author: string;
+            /**
+             * Kind
+             * @constant
+             */
+            kind: "assistant";
+            /** Authorthread */
+            authorThread: string;
+        };
         /**
          * Attachment
          * @description An attached file's details; its bytes are read on their own.
@@ -3503,6 +3556,32 @@ export interface components {
             createdAt: string;
         };
         /**
+         * BoundRecipient
+         * @description A run a message sent now would reach: its identity registered with the chat or was confirmed in it.
+         */
+        BoundRecipient: {
+            /** Runid */
+            runId: string;
+            /** Runname */
+            runName: string;
+            /** Provider */
+            provider: string;
+            /** Startedat */
+            startedAt: string;
+            /** Agentid */
+            agentId: string;
+            /** Agentlabel */
+            agentLabel: string;
+            /** Avatar */
+            avatar: string | null;
+            registeredBy: components["schemas"]["CredentialSponsor"] | null;
+            /**
+             * Binding
+             * @enum {string}
+             */
+            binding: "registered" | "confirmed";
+        };
+        /**
          * Change
          * @description One entry of a record's history as the record's own read lists it: who changed it, how and when.
          */
@@ -3519,6 +3598,36 @@ export interface components {
             actorKind: string;
             /** Createdat */
             createdAt: string;
+        };
+        /** ChatAddress */
+        ChatAddress: {
+            /** Id */
+            id: string;
+            /** Chatid */
+            chatId: string;
+            /** Archived */
+            archived: boolean;
+        };
+        /**
+         * ChatAgent
+         * @description An agent identity tied to a chat ID, by its closest tie.
+         */
+        ChatAgent: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Avatar */
+            avatar: string | null;
+            /** Active */
+            active: boolean;
+            /**
+             * Binding
+             * @enum {string}
+             */
+            binding: "registered" | "confirmed" | "run";
+            /** Chatid */
+            chatId: string;
         };
         /** ChatConfirmation */
         ChatConfirmation: {
@@ -3557,6 +3666,32 @@ export interface components {
             /** Stepids */
             stepIds?: string[];
         };
+        /** ChatDelivery */
+        ChatDelivery: {
+            /** Runid */
+            runId: string;
+            /** Runname */
+            runName: string;
+            /** Agentid */
+            agentId: string;
+            /** Agentlabel */
+            agentLabel: string;
+            /** Avatar */
+            avatar: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "delivered" | "expired";
+            /** Reason */
+            reason: string | null;
+            /** Expiresat */
+            expiresAt: string;
+            /** Deliveredat */
+            deliveredAt: string | null;
+            /** Expiredat */
+            expiredAt: string | null;
+        };
         /** ChatIdConfirmation */
         ChatIdConfirmation: {
             /** Agentid */
@@ -3564,10 +3699,149 @@ export interface components {
             /** Chatid */
             chatId: string;
         };
+        /**
+         * ChatListed
+         * @description A tracked chat as the Chats page lists it.
+         */
+        ChatListed: {
+            /** Id */
+            id: string;
+            /**
+             * Ownertype
+             * @enum {string}
+             */
+            ownerType: "item" | "roadmap";
+            /** Ownerid */
+            ownerId: string;
+            /** Chatid */
+            chatId: string;
+            /** Title */
+            title: string;
+            /** Createddate */
+            createdDate: string;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Provider */
+            provider: string;
+            /** Model */
+            model: string;
+            /** Repos */
+            repos: string[];
+            /** Stepids */
+            stepIds: string[];
+            /** Repositoryids */
+            repositoryIds: string[];
+            owner: components["schemas"]["ChatOwner"];
+            /** Roadmaps */
+            roadmaps: components["schemas"]["RecordSummary"][];
+            /** Steps */
+            steps: components["schemas"]["ChatStep"][];
+            /** Agents */
+            agents: components["schemas"]["ChatAgent"][];
+            /** Transcript */
+            transcript: components["schemas"]["TranscriptSummary"] | components["schemas"]["UnreadTranscript"];
+        };
         /** ChatMessageCreate */
         ChatMessageCreate: {
             /** Text */
             text: string;
+        };
+        /**
+         * ChatMessageSent
+         * @description A message the person wrote into a chat, with each recipient's delivery as it stands now.
+         */
+        ChatMessageSent: {
+            /** Id */
+            id: string;
+            /** Chatid */
+            chatId: string;
+            /** Text */
+            text: string;
+            /** Authorid */
+            authorId: string;
+            /** Authorlabel */
+            authorLabel: string;
+            /** Createdat */
+            createdAt: string;
+            /** Deliveries */
+            deliveries: components["schemas"]["ChatDelivery"][];
+        };
+        /**
+         * ChatMessages
+         * @description A tracked chat's messages, newest first, with who a message sent now would reach.
+         */
+        ChatMessages: {
+            chat: components["schemas"]["ChatAddress"];
+            /** Recipients */
+            recipients: components["schemas"]["BoundRecipient"][];
+            /** Unconfirmed */
+            unconfirmed: components["schemas"]["ChatRecipient"][];
+            /** Items */
+            items: components["schemas"]["ChatMessageSent"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /**
+         * ChatOwner
+         * @description The work item or roadmap a tracked chat belongs to; empty if that record is missing.
+         */
+        ChatOwner: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "item" | "roadmap";
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Archived */
+            archived: boolean;
+        };
+        /**
+         * ChatRecipient
+         * @description An open run that reports a chat's ID, and its agent identity.
+         */
+        ChatRecipient: {
+            /** Runid */
+            runId: string;
+            /** Runname */
+            runName: string;
+            /** Provider */
+            provider: string;
+            /** Startedat */
+            startedAt: string;
+            /** Agentid */
+            agentId: string;
+            /** Agentlabel */
+            agentLabel: string;
+            /** Avatar */
+            avatar: string | null;
+            registeredBy: components["schemas"]["CredentialSponsor"] | null;
+        };
+        /**
+         * ChatStep
+         * @description A step a tracked chat works on, with its status as its roadmap shows it.
+         */
+        ChatStep: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Status */
+            status: string;
+            /** Retired */
+            retired: boolean;
         };
         /**
          * ChatTrack
@@ -3617,6 +3891,55 @@ export interface components {
             repos?: string[] | null;
             /** Stepids */
             stepIds?: string[] | null;
+        };
+        /** Chats */
+        Chats: {
+            /** Items */
+            items: components["schemas"]["ChatListed"][];
+        };
+        /**
+         * ClaudeSession
+         * @description A Claude Code session running on this machine, with the chats and agents tied to it.
+         */
+        ClaudeSession: {
+            /** Sessionid */
+            sessionId: string;
+            /** Hostsessionid */
+            hostSessionId: string | null;
+            /** Name */
+            name: string;
+            /** Cwd */
+            cwd: string;
+            /** Entrypoint */
+            entrypoint: string;
+            /** Kind */
+            kind: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "waiting" | "working" | "idle";
+            /** Waitingfor */
+            waitingFor: string;
+            /** Startedat */
+            startedAt: string | null;
+            /** Statusat */
+            statusAt: string | null;
+            /** Version */
+            version: string;
+            /** Chatid */
+            chatId: string;
+            /** Agents */
+            agents: components["schemas"]["ChatAgent"][];
+            /** Tracked */
+            tracked: components["schemas"]["SessionChat"][];
+            /** Model */
+            model: string;
+        };
+        /** ClaudeSessions */
+        ClaudeSessions: {
+            /** Items */
+            items: components["schemas"]["ClaudeSession"][];
         };
         /**
          * Context
@@ -5124,6 +5447,35 @@ export interface components {
             pinned: boolean;
         };
         /**
+         * PlanRoadmap
+         * @description A roadmap's own fields as plans.list gives them, which the context lists.
+         */
+        PlanRoadmap: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Overview */
+            overview: string;
+            /** Parentid */
+            parentId: string | null;
+            /** Revision */
+            revision: number;
+            /** Archived */
+            archived: boolean;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+        };
+        /** PlanRoadmaps */
+        PlanRoadmaps: {
+            /** Items */
+            items: components["schemas"]["PlanRoadmap"][];
+            /** Total */
+            total: number;
+        };
+        /**
          * PlanStep
          * @description A step's own fields, as a roadmap's steps and its saved revisions give them. A parent's
          *     status is derived from its leaves.
@@ -6622,6 +6974,57 @@ export interface components {
             /** Externalchatid */
             externalChatId?: string | null;
         };
+        /** SearchResult */
+        SearchResult: {
+            /** Id */
+            id: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "item" | "step" | "roadmap" | "note" | "attachment" | "link" | "chat" | "github" | "question" | "decision" | "person" | "ticket" | "ticket_comment" | "discussion" | "discussion_message" | "resource" | "release" | "release_check" | "reminder";
+            /** Title */
+            title: string;
+            /** Snippet */
+            snippet: string;
+            /** Ownerid */
+            ownerId: string;
+            /**
+             * Routetype
+             * @enum {string}
+             */
+            routeType: "resources" | "reminders" | "discussions" | "tickets" | "releases" | "work" | "people" | "repositories" | "roadmaps";
+            /** Routeid */
+            routeId: string | null;
+        };
+        /** SearchResults */
+        SearchResults: {
+            /** Items */
+            items: components["schemas"]["SearchResult"][];
+            /** Total */
+            total: number;
+        };
+        /**
+         * SessionChat
+         * @description A tracked chat that follows a running session.
+         */
+        SessionChat: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Archived */
+            archived: boolean;
+            /**
+             * Ownertype
+             * @enum {string}
+             */
+            ownerType: "item" | "roadmap";
+            /** Ownerid */
+            ownerId: string;
+            /** Ownertitle */
+            ownerTitle: string;
+        };
         /** Settings */
         Settings: {
             /** Timezone */
@@ -7315,6 +7718,40 @@ export interface components {
             /** Total */
             total: number;
         };
+        /** ToolCall */
+        ToolCall: {
+            /** Name */
+            name: string;
+            /** Summary */
+            summary: string;
+        };
+        /**
+         * ToolsMessage
+         * @description A run of tool calls between messages, as one line of activity.
+         */
+        ToolsMessage: {
+            /** Id */
+            id: string;
+            /** Thread */
+            thread: string;
+            /** At */
+            at: string | null;
+            /**
+             * Kind
+             * @constant
+             */
+            kind: "tools";
+            /** Count */
+            count: number;
+            /** Tools */
+            tools: components["schemas"]["ToolCall"][];
+            /** Until */
+            until: string | null;
+            /** Author */
+            author: string;
+            /** Authorthread */
+            authorThread: string;
+        };
         /** TrackedChat */
         TrackedChat: {
             /** Id */
@@ -7352,6 +7789,97 @@ export interface components {
             repositoryIds: string[];
         };
         /**
+         * Transcript
+         * @description A tracked chat's latest transcript messages, oldest first, with its agents.
+         */
+        Transcript: {
+            /** Found */
+            found: boolean;
+            /** Source */
+            source: string | null;
+            /** Lastactivityat */
+            lastActivityAt: string | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "working" | "idle";
+            /** Threads */
+            threads: components["schemas"]["TranscriptThread"][];
+            chat: components["schemas"]["TrackedChat"];
+            /** Messages */
+            messages: (components["schemas"]["UserMessage"] | components["schemas"]["AssistantMessage"] | components["schemas"]["AgentMessage"] | components["schemas"]["ToolsMessage"])[];
+            /** Total */
+            total: number;
+            /** More */
+            more: boolean;
+        };
+        /**
+         * TranscriptSummary
+         * @description A chat's agents and their latest activity, read from the tool's transcript files on this machine.
+         */
+        TranscriptSummary: {
+            /** Found */
+            found: boolean;
+            /** Source */
+            source: string | null;
+            /** Lastactivityat */
+            lastActivityAt: string | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "working" | "idle";
+            /** Threads */
+            threads: components["schemas"]["TranscriptThread"][];
+        };
+        /**
+         * TranscriptThread
+         * @description One agent's transcript in a chat: the chat itself or a subagent it started.
+         */
+        TranscriptThread: {
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+            /** Title */
+            title: string;
+            /** Task */
+            task: string;
+            /** Parent */
+            parent: string | null;
+            /** Model */
+            model: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "working" | "idle";
+            /** Lastactivityat */
+            lastActivityAt: string | null;
+        };
+        /**
+         * UnreadTranscript
+         * @description A chat's summary when its transcript could not be read: it never fails the list.
+         */
+        UnreadTranscript: {
+            /** Found */
+            found: boolean;
+            /** Source */
+            source: string | null;
+            /** Lastactivityat */
+            lastActivityAt: string | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "working" | "idle";
+            /** Threads */
+            threads: components["schemas"]["TranscriptThread"][];
+            /** Error */
+            error: string;
+        };
+        /**
          * UpdateActivity
          * @description A status update one of the agent's runs posted.
          */
@@ -7381,6 +7909,26 @@ export interface components {
             item: components["schemas"]["Named"] | null;
             /** Contexts */
             contexts: components["schemas"]["ParticipationRepository"][];
+        };
+        /** UserMessage */
+        UserMessage: {
+            /** Id */
+            id: string;
+            /** Thread */
+            thread: string;
+            /** At */
+            at: string | null;
+            /** Text */
+            text: string;
+            /** Truncated */
+            truncated: boolean;
+            /** Author */
+            author: string;
+            /**
+             * Kind
+             * @constant
+             */
+            kind: "user";
         };
         /** ValidationError */
         ValidationError: {
@@ -7420,6 +7968,26 @@ export interface components {
             createdAt: string;
             /** Updatedat */
             updatedAt: string;
+        };
+        /**
+         * WorkContext
+         * @description What an agent reads before it starts: the day, the work, the plans, the people, the proposals,
+         *     who is at work where, and the tickets, resources and releases.
+         */
+        WorkContext: {
+            day: components["schemas"]["Day"];
+            workItems: components["schemas"]["WorkItems"];
+            roadmaps: components["schemas"]["PlanRoadmaps"];
+            people: components["schemas"]["People"];
+            proposals: components["schemas"]["Proposals"];
+            repositories: components["schemas"]["Repositories"];
+            runs: components["schemas"]["AgentRuns"];
+            ties: components["schemas"]["AgentTies"];
+            participations: components["schemas"]["Participations"];
+            updates: components["schemas"]["CoordinationUpdates"];
+            tickets: components["schemas"]["Tickets"];
+            resources: components["schemas"]["Resources"];
+            releases: components["schemas"]["Releases"];
         };
         /**
          * WorkItem
@@ -8865,9 +9433,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Chats"];
                 };
             };
             /** @description Validation Error */
@@ -8931,9 +9497,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ClaudeSessions"];
                 };
             };
         };
@@ -8958,9 +9522,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Transcript"];
                 };
             };
             /** @description Validation Error */
@@ -10584,9 +11146,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SearchResults"];
                 };
             };
             /** @description Validation Error */
@@ -10621,9 +11181,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["WorkContext"];
                 };
             };
             /** @description Validation Error */
@@ -12022,9 +12580,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ChatMessages"];
                 };
             };
             /** @description Validation Error */

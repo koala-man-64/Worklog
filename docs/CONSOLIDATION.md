@@ -553,6 +553,10 @@ Done so far:
 - **Typed responses, thirteenth batch.** The discussions: their list, a thread's read, one message, the participants, the avatars, the roles, the change feed and what an agent resumes from.
   - A tag takes one of the shapes `record_kinds.summary` gives, told apart by their keys. A tag of a missing record has a null title.
   - The golden world's discussion is now tagged with a record of every kind it takes, pinned, and holds a met request to acknowledge and a pending one.
+- **Typed responses, fourteenth batch.** The chats, a chat's transcript and messages, the Claude Code sessions running here, search and the context. Every read that answers with JSON is now typed; the export, an import's original, an attachment's file and the page itself send files or HTML.
+  - What the transcripts and session files hold is normalized as it is read, so it takes strict models too. A chat whose transcript can't be read says so in its own shape, and a Codex message's type and encryption appear only when it has them.
+  - The context lists the roadmaps without the people tied to each, unlike the list of roadmaps, so it has a model of its own for them.
+  - The golden world's person now confirms the agent in the tracked chat.
 
 #### 5.4 · Frontend layout
 

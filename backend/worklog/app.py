@@ -401,13 +401,13 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def update_link(identity: str, request: Request, body: m.LinkUpdate) -> dict:
         return apply(request, "link.update", {**body.model_dump(exclude_unset=True), "id": identity})
 
-    @app.get("/api/v1/chats")
+    @app.get("/api/v1/chats", response_model=out.Chats)
     def chat_list(archived: bool = False) -> dict:
         with db.read() as c:
             chats = support.chat_overview(c, archived)
         return {"items": [{**chat, "transcript": transcripts.summary(chat["chatId"])} for chat in chats]}
 
-    @app.get("/api/v1/claude-sessions")
+    @app.get("/api/v1/claude-sessions", response_model=out.ClaudeSessions)
     def claude_sessions() -> dict:
         """The Claude Code sessions running on this machine, each with the chats tracking it and
         the agents tied to it, so Chats can suggest the ones nothing tracks yet."""
@@ -423,7 +423,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             items.append({**session, "name": name, "model": model})
         return {"items": items}
 
-    @app.get("/api/v1/chats/{identity}/transcript")
+    @app.get("/api/v1/chats/{identity}/transcript", response_model=out.Transcript, response_model_exclude_unset=True)
     def chat_transcript(identity: str, limit: int = Query(200, ge=1, le=MESSAGE_LIMIT), thread: str | None = None) -> dict:
         with db.read() as c:
             row = c.execute("SELECT * FROM agent_chats WHERE id=?", (identity,)).fetchone()
@@ -650,13 +650,13 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def proposal_update(identity: str, request: Request, body: m.ProposalUpdate) -> dict:
         return proposals.update(identity, body.model_dump(exclude_unset=True), request.state.actor)
 
-    @app.get("/api/v1/search")
+    @app.get("/api/v1/search", response_model=out.SearchResults)
     def search(q: str, archived: bool = False, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0),
                types: list[SearchType] = Query([], alias="type")) -> dict:
         with db.read() as c:
             return global_search(c, q, archived, limit, offset, types)
 
-    @app.get("/api/v1/context")
+    @app.get("/api/v1/context", response_model=out.WorkContext)
     def context(request: Request, date: str | None = None, itemId: str | None = None,
                 repositoryId: str | None = None, limit: int = Query(100, ge=1, le=200),
                 offset: int = Query(0, ge=0)) -> dict:

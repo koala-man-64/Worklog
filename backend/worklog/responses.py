@@ -636,7 +636,9 @@ class WorkItems(Answer):
     collectionRevision: int
 
 
-class RoadmapListed(Answer):
+class PlanRoadmap(Answer):
+    """A roadmap's own fields as plans.list gives them, which the context lists."""
+
     id: str
     title: str
     overview: str
@@ -645,11 +647,19 @@ class RoadmapListed(Answer):
     archived: bool
     createdAt: str
     updatedAt: str
+
+
+class RoadmapListed(PlanRoadmap):
     people: list[RecordPerson]
 
 
 class Roadmaps(Answer):
     items: list[RoadmapListed]
+    total: int
+
+
+class PlanRoadmaps(Answer):
+    items: list[PlanRoadmap]
     total: int
 
 
@@ -1852,3 +1862,294 @@ class DiscussionResume(Answer):
     limit: int
     offset: int
     hasMore: bool
+
+
+class ChatOwner(Answer):
+    """The work item or roadmap a tracked chat belongs to; empty if that record is missing."""
+
+    type: Literal["item", "roadmap"]
+    id: str
+    title: str
+    archived: bool
+
+
+class ChatStep(Answer):
+    """A step a tracked chat works on, with its status as its roadmap shows it."""
+
+    id: str
+    title: str
+    # steps.status has no CHECK.
+    status: str
+    retired: bool
+
+
+class ChatAgent(Answer):
+    """An agent identity tied to a chat ID, by its closest tie."""
+
+    id: str
+    label: str
+    avatar: str | None
+    active: bool
+    # Registered with the chat, confirmed in it by the person, or only claimed by an open run.
+    binding: Literal["registered", "confirmed", "run"]
+    # The chat ID as that tie stored it.
+    chatId: str
+
+
+class TranscriptThread(Answer):
+    """One agent's transcript in a chat: the chat itself or a subagent it started."""
+
+    key: str
+    name: str
+    title: str
+    task: str
+    # The thread that started it; null for the chat itself.
+    parent: str | None
+    model: str
+    state: Literal["working", "idle"]
+    lastActivityAt: str | None
+
+
+class TranscriptSummary(Answer):
+    """A chat's agents and their latest activity, read from the tool's transcript files on this machine."""
+
+    # Whether any transcript of the chat was found.
+    found: bool
+    # Which tool wrote it; null when none was found.
+    source: str | None
+    lastActivityAt: str | None
+    state: Literal["working", "idle"]
+    threads: list[TranscriptThread]
+
+
+class UnreadTranscript(TranscriptSummary):
+    """A chat's summary when its transcript could not be read: it never fails the list."""
+
+    error: str
+
+
+class ChatListed(TrackedChat):
+    """A tracked chat as the Chats page lists it."""
+
+    owner: ChatOwner
+    # The roadmaps its record sits within, from the top level down.
+    roadmaps: list[RecordSummary]
+    steps: list[ChatStep]
+    # The agent identities its own chat ID reaches, as delivery compares it.
+    agents: list[ChatAgent]
+    transcript: TranscriptSummary | UnreadTranscript
+
+
+class Chats(Answer):
+    items: list[ChatListed]
+
+
+class SessionChat(Answer):
+    """A tracked chat that follows a running session."""
+
+    id: str
+    title: str
+    archived: bool
+    ownerType: Literal["item", "roadmap"]
+    ownerId: str
+    # Empty if that record is missing.
+    ownerTitle: str
+
+
+class ClaudeSession(Answer):
+    """A Claude Code session running on this machine, with the chats and agents tied to it."""
+
+    sessionId: str
+    # The desktop app's own session ID, when the app runs it.
+    hostSessionId: str | None
+    name: str
+    cwd: str
+    entrypoint: str
+    kind: str
+    status: Literal["waiting", "working", "idle"]
+    # What it waits on, while it waits for the person.
+    waitingFor: str
+    startedAt: str | None
+    statusAt: str | None
+    version: str
+    # The chat ID to track it by: the closest tie's, else one a record tracks it under, else its own.
+    chatId: str
+    agents: list[ChatAgent]
+    tracked: list[SessionChat]
+    # Its latest model, from its transcript; empty when unknown.
+    model: str
+
+
+class ClaudeSessions(Answer):
+    # Waiting on the person first, then working, then idle, each the most recently changed first.
+    items: list[ClaudeSession]
+
+
+class ToolCall(Answer):
+    name: str
+    summary: str
+
+
+class TranscriptText(Answer):
+    """A message of a chat's transcript, its text cut at the transcript's limit."""
+
+    id: str
+    # The thread that recorded it.
+    thread: str
+    at: str | None
+    text: str
+    truncated: bool
+    author: str
+
+
+class UserMessage(TranscriptText):
+    kind: Literal["user"]
+
+
+class AssistantMessage(TranscriptText):
+    kind: Literal["assistant"]
+    authorThread: str
+
+
+class AgentMessage(TranscriptText):
+    """A message one agent of the chat sent another, or one received from outside it."""
+
+    kind: Literal["agent"]
+    # The sender's thread, when the sender is an agent of this chat.
+    authorThread: str | None
+    recipient: str
+    # A Codex envelope's message type, and whether its content is encrypted, when it has them:
+    # the answer leaves out either one it doesn't have.
+    messageType: str | None = None
+    encrypted: bool | None = None
+
+
+class ToolsMessage(Answer):
+    """A run of tool calls between messages, as one line of activity."""
+
+    id: str
+    thread: str
+    at: str | None
+    kind: Literal["tools"]
+    count: int
+    # The first few.
+    tools: list[ToolCall]
+    until: str | None
+    author: str
+    authorThread: str
+
+
+class Transcript(TranscriptSummary):
+    """A tracked chat's latest transcript messages, oldest first, with its agents."""
+
+    chat: TrackedChat
+    messages: list[UserMessage | AssistantMessage | AgentMessage | ToolsMessage]
+    # Kept messages and those let go, of the threads read.
+    total: int
+    more: bool
+
+
+class ChatRecipient(Answer):
+    """An open run that reports a chat's ID, and its agent identity."""
+
+    runId: str
+    runName: str
+    provider: str
+    startedAt: str
+    agentId: str
+    agentLabel: str
+    avatar: str | None
+    # Null for an identity whose credential was issued in Settings.
+    registeredBy: CredentialSponsor | None
+
+
+class BoundRecipient(ChatRecipient):
+    """A run a message sent now would reach: its identity registered with the chat or was confirmed in it."""
+
+    binding: Literal["registered", "confirmed"]
+
+
+class ChatDelivery(Answer):
+    runId: str
+    runName: str
+    agentId: str
+    agentLabel: str
+    avatar: str | None
+    # A pending delivery past its expiry reads as expired, not picked up.
+    status: Literal["pending", "delivered", "expired"]
+    reason: str | None
+    expiresAt: str
+    deliveredAt: str | None
+    expiredAt: str | None
+
+
+class ChatMessageSent(Answer):
+    """A message the person wrote into a chat, with each recipient's delivery as it stands now."""
+
+    id: str
+    chatId: str
+    text: str
+    authorId: str
+    authorLabel: str
+    createdAt: str
+    deliveries: list[ChatDelivery]
+
+
+class ChatAddress(Answer):
+    id: str
+    chatId: str
+    archived: bool
+
+
+class ChatMessages(Answer):
+    """A tracked chat's messages, newest first, with who a message sent now would reach."""
+
+    chat: ChatAddress
+    # Nobody, once the chat is archived.
+    recipients: list[BoundRecipient]
+    # Runs that only claim the chat: a message reaches them once the person confirms their identity.
+    unconfirmed: list[ChatRecipient]
+    items: list[ChatMessageSent]
+    total: int
+    limit: int
+    offset: int
+
+
+class SearchResult(Answer):
+    id: str
+    type: Literal["item", "step", "roadmap", "note", "attachment", "link", "chat", "github", "question", "decision",
+                  "person", "ticket", "ticket_comment", "discussion", "discussion_message", "resource", "release",
+                  "release_check", "reminder"]
+    title: str
+    snippet: str
+    ownerId: str
+    # The page a result opens on, and the record that page shows; null if that record is missing.
+    routeType: Literal["resources", "reminders", "discussions", "tickets", "releases", "work", "people", "repositories",
+                       "roadmaps"]
+    routeId: str | None
+
+
+class SearchResults(Answer):
+    items: list[SearchResult]
+    total: int
+
+
+class WorkContext(Answer):
+    """What an agent reads before it starts: the day, the work, the plans, the people, the proposals,
+    who is at work where, and the tickets, resources and releases."""
+
+    day: Day
+    workItems: WorkItems
+    # Without the people tied to each, which the list of roadmaps adds.
+    roadmaps: PlanRoadmaps
+    people: People
+    proposals: Proposals
+    repositories: Repositories
+    runs: AgentRuns
+    # The calling agent's ties; the person has none.
+    ties: AgentTies
+    participations: Participations
+    updates: CoordinationUpdates
+    tickets: Tickets
+    resources: Resources
+    releases: Releases
