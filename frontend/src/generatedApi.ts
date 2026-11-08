@@ -2869,6 +2869,66 @@ export interface components {
             /** Targets */
             targets?: components["schemas"]["Target"][];
         };
+        /**
+         * Agent
+         * @description An agent identity with its credentials, its runs and what it is tied to, and why.
+         */
+        Agent: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Active */
+            active: boolean;
+            /** Createdat */
+            createdAt: string;
+            /** Lastactivityat */
+            lastActivityAt: string | null;
+            /** Providers */
+            providers: string[];
+            /** Openruns */
+            openRuns: number;
+            /** Runcount */
+            runCount: number;
+            /** Messagecount */
+            messageCount: number;
+            /** Working */
+            working: components["schemas"]["AgentWork"][];
+            /** Roles */
+            roles: components["schemas"]["AgentRole"][];
+            /** Credentials */
+            credentials: components["schemas"]["AgentCredential"][];
+            runs: components["schemas"]["AgentRunsListed"];
+            workItems: components["schemas"]["TiedWorkItems"];
+            roadmaps: components["schemas"]["TiedRoadmaps"];
+            repositories: components["schemas"]["TiedRepositories"];
+            chats: components["schemas"]["TiedChats"];
+        };
+        /** AgentActivity */
+        AgentActivity: {
+            /** Items */
+            items: (components["schemas"]["MessageActivity"] | components["schemas"]["UpdateActivity"])[];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** AgentCredential */
+        AgentCredential: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Createdat */
+            createdAt: string;
+            /** Revoked */
+            revoked: boolean;
+            registeredBy: components["schemas"]["CredentialSponsor"] | null;
+            /** Chatid */
+            chatId: string | null;
+        };
         /** AgentLinkRemove */
         AgentLinkRemove: {
             /** Agentid */
@@ -2901,6 +2961,69 @@ export interface components {
              */
             relationship: string;
         };
+        /**
+         * AgentListed
+         * @description An agent identity as the Agents page lists it, gathered from what it wrote.
+         */
+        AgentListed: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Active */
+            active: boolean;
+            /** Createdat */
+            createdAt: string;
+            /** Lastactivityat */
+            lastActivityAt: string | null;
+            /** Providers */
+            providers: string[];
+            /** Openruns */
+            openRuns: number;
+            /** Runcount */
+            runCount: number;
+            /** Messagecount */
+            messageCount: number;
+            /** Working */
+            working: components["schemas"]["AgentWork"][];
+            /** Roles */
+            roles: components["schemas"]["AgentRole"][];
+        };
+        /**
+         * AgentProfile
+         * @description An agent identity as a participant's profile shows it, to any caller.
+         */
+        AgentProfile: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Active */
+            active: boolean;
+            /** Createdat */
+            createdAt: string;
+            /** Lastactivityat */
+            lastActivityAt: string | null;
+            /** Providers */
+            providers: string[];
+            /** Openruns */
+            openRuns: number;
+            /** Runcount */
+            runCount: number;
+            /** Messagecount */
+            messageCount: number;
+            /** Working */
+            working: components["schemas"]["AgentWork"][];
+            /** Roles */
+            roles: components["schemas"]["AgentRole"][];
+            /**
+             * Kind
+             * @constant
+             */
+            kind: "agent";
+            /** Avatar */
+            avatar: string | null;
+        };
         /** AgentProposals */
         AgentProposals: {
             /** Items */
@@ -2920,6 +3043,28 @@ export interface components {
             avatar?: string | null;
             /** Directory */
             directory?: string | null;
+        };
+        /**
+         * AgentRole
+         * @description A responsibility role an agent owns, with the roadmap it sits within.
+         */
+        AgentRole: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /**
+             * Contexttype
+             * @enum {string}
+             */
+            contextType: "item" | "roadmap" | "step";
+            /** Contextid */
+            contextId: string;
+            /** Contexttitle */
+            contextTitle: string;
+            roadmap: components["schemas"]["RecordSummary"] | null;
+            /** Updatedat */
+            updatedAt: string;
         };
         /**
          * AgentRun
@@ -2951,6 +3096,38 @@ export interface components {
             /** Endreason */
             endReason: string | null;
         };
+        /**
+         * AgentRunWithChats
+         * @description A run with the tracked chats that carry the chat ID it reported.
+         */
+        AgentRunWithChats: {
+            /** Id */
+            id: string;
+            /** Agentid */
+            agentId: string;
+            /** Credentialid */
+            credentialId: string;
+            /** Clientrunkey */
+            clientRunKey: string;
+            /** Displayname */
+            displayName: string;
+            /** Provider */
+            provider: string;
+            /** Externalchatid */
+            externalChatId: string | null;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Endedat */
+            endedAt: string | null;
+            /** Endreason */
+            endReason: string | null;
+            /** Chats */
+            chats: components["schemas"]["TiedChat"][];
+        };
         /** AgentRuns */
         AgentRuns: {
             /** Items */
@@ -2961,6 +3138,13 @@ export interface components {
             limit: number;
             /** Offset */
             offset: number;
+        };
+        /** AgentRunsListed */
+        AgentRunsListed: {
+            /** Items */
+            items: components["schemas"]["AgentRunWithChats"][];
+            /** Total */
+            total: number;
         };
         /**
          * AgentSummary
@@ -3011,6 +3195,64 @@ export interface components {
             items: components["schemas"]["AgentTie"][];
             /** Total */
             total: number;
+        };
+        /**
+         * AgentWork
+         * @description Open participation an agent reports: the work and the repositories it is at now.
+         */
+        AgentWork: {
+            /** Participationid */
+            participationId: string;
+            /** Runid */
+            runId: string;
+            /** Runname */
+            runName: string;
+            /** Description */
+            description: string;
+            /** Lastseenat */
+            lastSeenAt: string;
+            /** Stale */
+            stale: boolean;
+            item: components["schemas"]["RegistryWorkItem"] | null;
+            roadmap: components["schemas"]["RecordSummary"] | null;
+            /** Contexts */
+            contexts: components["schemas"]["ParticipationRepository"][];
+        };
+        /** Agents */
+        Agents: {
+            /** Items */
+            items: components["schemas"]["AgentListed"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /**
+         * Announcement
+         * @description A message someone else posted in a repository's own discussion, the opening one aside.
+         */
+        Announcement: {
+            /** Repositoryid */
+            repositoryId: string;
+            /** Discussionid */
+            discussionId: string;
+            /** Messageid */
+            messageId: string;
+            author: components["schemas"]["Participant"] | null;
+            /** Authorid */
+            authorId: string;
+            /** Authorlabel */
+            authorLabel: string;
+            /** Authorreporting */
+            authorReporting: boolean;
+            /** Createdat */
+            createdAt: string;
+            /** Text */
+            text: string;
+            /** Truncated */
+            truncated: boolean;
         };
         /**
          * AppliedChange
@@ -3896,6 +4138,33 @@ export interface components {
             /** Chattitle */
             chatTitle: string | null;
         };
+        /**
+         * MessageActivity
+         * @description A discussion message the agent posted.
+         */
+        MessageActivity: {
+            /**
+             * Kind
+             * @constant
+             */
+            kind: "message";
+            /** Id */
+            id: string;
+            /** Createdat */
+            createdAt: string;
+            /** Text */
+            text: string;
+            /** Truncated */
+            truncated: boolean;
+            /** Discussionid */
+            discussionId: string;
+            /** Discussiontitle */
+            discussionTitle: string;
+            /** Chatid */
+            chatId: string | null;
+            /** Chats */
+            chats: components["schemas"]["Named"][];
+        };
         /** MessageCreate */
         MessageCreate: {
             /** Text */
@@ -3987,6 +4256,166 @@ export interface components {
             payload: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * OverlapDiscussion
+         * @description Another open thread tagged with a named record, where someone besides the caller wrote.
+         */
+        OverlapDiscussion: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Pinned */
+            pinned: boolean;
+            /** Updatedat */
+            updatedAt: string;
+            /** Matched */
+            matched: components["schemas"]["OverlapTag"][];
+        };
+        /**
+         * OverlapParticipation
+         * @description Another agent's open participation in the repositories, on the work items, or on work on the steps.
+         */
+        OverlapParticipation: {
+            /** Participationid */
+            participationId: string;
+            agent: components["schemas"]["Participant"] | null;
+            /** Runid */
+            runId: string;
+            /** Runname */
+            runName: string;
+            /** Description */
+            description: string;
+            /** Lastseenat */
+            lastSeenAt: string;
+            /** Stale */
+            stale: boolean;
+            item: components["schemas"]["OverlapWorkItem"] | null;
+            /** Contexts */
+            contexts: components["schemas"]["ParticipationRepository"][];
+        };
+        /** OverlapRepository */
+        OverlapRepository: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Discussionid */
+            discussionId: string | null;
+        };
+        /** OverlapRole */
+        OverlapRole: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /**
+             * Contexttype
+             * @enum {string}
+             */
+            contextType: "item" | "step";
+            /** Contextid */
+            contextId: string;
+            owner: components["schemas"]["Participant"] | null;
+        };
+        /**
+         * OverlapTag
+         * @description One of the named records a thread is tagged with.
+         */
+        OverlapTag: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "repository" | "item" | "step" | "ticket";
+            /** Id */
+            id: string;
+        };
+        /** OverlapTicket */
+        OverlapTicket: {
+            /** Id */
+            id: string;
+            /** Number */
+            number: number;
+            /** Title */
+            title: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "doing" | "blocked" | "done";
+            assignee: components["schemas"]["Participant"] | null;
+        };
+        /** OverlapTie */
+        OverlapTie: {
+            agent: components["schemas"]["Participant"] | null;
+            /**
+             * Targettype
+             * @enum {string}
+             */
+            targetType: "repository" | "item" | "step" | "ticket";
+            /** Targetid */
+            targetId: string;
+            /** Relationship */
+            relationship: string;
+            /**
+             * Setby
+             * @enum {string}
+             */
+            setBy: "human" | "agent";
+        };
+        /** OverlapWorkItem */
+        OverlapWorkItem: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "doing" | "waiting" | "blocked" | "done";
+        };
+        /**
+         * Overlaps
+         * @description Who else is on the named records and what they said there, leaving out the caller's own.
+         */
+        Overlaps: {
+            /** Repositories */
+            repositories: components["schemas"]["OverlapRepository"][];
+            /** Participations */
+            participations: components["schemas"]["OverlapParticipation"][];
+            /** Announcements */
+            announcements: components["schemas"]["Announcement"][];
+            /** Discussions */
+            discussions: components["schemas"]["OverlapDiscussion"][];
+            /** Roles */
+            roles: components["schemas"]["OverlapRole"][];
+            /** Ties */
+            ties: components["schemas"]["OverlapTie"][];
+            /** Tickets */
+            tickets: components["schemas"]["OverlapTicket"][];
+        };
+        /**
+         * Participant
+         * @description The person or an agent identity as they stand now: who a ticket is assigned to, or who is
+         *     on the records an overlap check names.
+         */
+        Participant: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "agent" | "human";
+            /** Avatar */
+            avatar: string | null;
+            /** Active */
+            active: boolean;
         };
         /**
          * Participation
@@ -4633,6 +5062,25 @@ export interface components {
             label: string;
             /** Agentid */
             agentId: string | null;
+        };
+        /**
+         * RegistryWorkItem
+         * @description A work item as the registry names it, with the roadmap its step, or it, sits on.
+         */
+        RegistryWorkItem: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "doing" | "waiting" | "blocked" | "done";
+            /** Archived */
+            archived: boolean;
+            /** Roadmapid */
+            roadmapId: string | null;
         };
         /**
          * Release
@@ -5434,6 +5882,11 @@ export interface components {
             /** Imports */
             imports: components["schemas"]["RoadmapImport"][];
         };
+        /** RoadmapAgents */
+        RoadmapAgents: {
+            /** Items */
+            items: components["schemas"]["RoadmapWorker"][];
+        };
         /** RoadmapCreate */
         RoadmapCreate: {
             /** Title */
@@ -5577,6 +6030,26 @@ export interface components {
             /** Attachments */
             attachments: components["schemas"]["Attachment"][];
         };
+        /**
+         * RoadmapTie
+         * @description What ties a worker to a roadmap's step now, or to the roadmap itself with a null stepId.
+         */
+        RoadmapTie: {
+            /** Stepid */
+            stepId: string | null;
+            /**
+             * Via
+             * @enum {string}
+             */
+            via: "participation" | "role" | "chat";
+            item: components["schemas"]["Named"] | null;
+            chat: components["schemas"]["Named"] | null;
+            role: components["schemas"]["RoleName"] | null;
+            /** Lastat */
+            lastAt: string | null;
+            /** Stale */
+            stale: boolean;
+        };
         /** RoadmapVersion */
         RoadmapVersion: {
             /** Number */
@@ -5623,6 +6096,33 @@ export interface components {
             /** People */
             people: components["schemas"]["RecordPerson"][];
         };
+        /**
+         * RoadmapWorker
+         * @description An agent at work on the roadmap, or a tracked chat that stands for itself.
+         */
+        RoadmapWorker: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "agent" | "chat";
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Avatar */
+            avatar: string | null;
+            /** Provider */
+            provider: string;
+            /** Model */
+            model: string;
+            /** Ties */
+            ties: components["schemas"]["RoadmapTie"][];
+            /** Lastat */
+            lastAt: string | null;
+            /** Stale */
+            stale: boolean;
+        };
         /** Roadmaps */
         Roadmaps: {
             /** Items */
@@ -5639,6 +6139,13 @@ export interface components {
             contextType: "item" | "roadmap" | "step";
             /** Contextid */
             contextId: string;
+            /** Label */
+            label: string;
+        };
+        /** RoleName */
+        RoleName: {
+            /** Id */
+            id: string;
             /** Label */
             label: string;
         };
@@ -5939,7 +6446,7 @@ export interface components {
             item: components["schemas"]["TicketWorkItem"] | null;
             /** Assigneeid */
             assigneeId: string | null;
-            assignee: components["schemas"]["TicketAssignee"] | null;
+            assignee: components["schemas"]["Participant"] | null;
             author: components["schemas"]["Author"];
             /** Commentcount */
             commentCount: number;
@@ -5958,25 +6465,6 @@ export interface components {
             comments: components["schemas"]["TicketComments"];
             /** History */
             history: components["schemas"]["Change"][];
-        };
-        /**
-         * TicketAssignee
-         * @description Who a ticket is assigned to, as they stand now: the person, or an agent identity.
-         */
-        TicketAssignee: {
-            /** Id */
-            id: string;
-            /** Label */
-            label: string;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "agent" | "human";
-            /** Avatar */
-            avatar: string | null;
-            /** Active */
-            active: boolean;
         };
         /** TicketComment */
         TicketComment: {
@@ -6086,7 +6574,7 @@ export interface components {
             item: components["schemas"]["TicketWorkItem"] | null;
             /** Assigneeid */
             assigneeId: string | null;
-            assignee: components["schemas"]["TicketAssignee"] | null;
+            assignee: components["schemas"]["Participant"] | null;
             author: components["schemas"]["Author"];
             /** Commentcount */
             commentCount: number;
@@ -6183,6 +6671,142 @@ export interface components {
             /** Active */
             active: boolean;
         };
+        /**
+         * TiedChat
+         * @description A tracked chat whose chat ID the agent reported.
+         */
+        TiedChat: {
+            /** Id */
+            id: string;
+            /** Chatid */
+            chatId: string;
+            /** Title */
+            title: string;
+            /** Provider */
+            provider: string;
+            /** Model */
+            model: string;
+            /** Archived */
+            archived: boolean;
+            /**
+             * Ownertype
+             * @enum {string}
+             */
+            ownerType: "item" | "roadmap";
+            /** Ownerid */
+            ownerId: string;
+            /** Ownertitle */
+            ownerTitle: string;
+        };
+        /** TiedChatEntry */
+        TiedChatEntry: {
+            /** Id */
+            id: string;
+            /** Chatid */
+            chatId: string;
+            /** Title */
+            title: string;
+            /** Provider */
+            provider: string;
+            /** Model */
+            model: string;
+            /** Archived */
+            archived: boolean;
+            /**
+             * Ownertype
+             * @enum {string}
+             */
+            ownerType: "item" | "roadmap";
+            /** Ownerid */
+            ownerId: string;
+            /** Ownertitle */
+            ownerTitle: string;
+            /** Via */
+            via: ("participation" | "role" | "update" | "message" | "run" | "confirmed" | "chat")[];
+            /** Current */
+            current: boolean;
+            /** Lastat */
+            lastAt: string | null;
+        };
+        /** TiedChats */
+        TiedChats: {
+            /** Items */
+            items: components["schemas"]["TiedChatEntry"][];
+            /** Total */
+            total: number;
+        };
+        /** TiedRepositories */
+        TiedRepositories: {
+            /** Items */
+            items: components["schemas"]["TiedRepository"][];
+            /** Total */
+            total: number;
+        };
+        /** TiedRepository */
+        TiedRepository: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Archived */
+            archived: boolean;
+            /** Via */
+            via: ("participation" | "role" | "update" | "message" | "run" | "confirmed" | "chat")[];
+            /** Current */
+            current: boolean;
+            /** Lastat */
+            lastAt: string | null;
+        };
+        /** TiedRoadmap */
+        TiedRoadmap: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Archived */
+            archived: boolean;
+            /** Via */
+            via: ("participation" | "role" | "update" | "message" | "run" | "confirmed" | "chat")[];
+            /** Current */
+            current: boolean;
+            /** Lastat */
+            lastAt: string | null;
+        };
+        /** TiedRoadmaps */
+        TiedRoadmaps: {
+            /** Items */
+            items: components["schemas"]["TiedRoadmap"][];
+            /** Total */
+            total: number;
+        };
+        /** TiedWorkItem */
+        TiedWorkItem: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "doing" | "waiting" | "blocked" | "done";
+            /** Archived */
+            archived: boolean;
+            roadmap: components["schemas"]["RecordSummary"] | null;
+            /** Via */
+            via: ("participation" | "role" | "update" | "message" | "run" | "confirmed" | "chat")[];
+            /** Current */
+            current: boolean;
+            /** Lastat */
+            lastAt: string | null;
+        };
+        /** TiedWorkItems */
+        TiedWorkItems: {
+            /** Items */
+            items: components["schemas"]["TiedWorkItem"][];
+            /** Total */
+            total: number;
+        };
         /** TrackedChat */
         TrackedChat: {
             /** Id */
@@ -6218,6 +6842,37 @@ export interface components {
             stepIds: string[];
             /** Repositoryids */
             repositoryIds: string[];
+        };
+        /**
+         * UpdateActivity
+         * @description A status update one of the agent's runs posted.
+         */
+        UpdateActivity: {
+            /**
+             * Kind
+             * @constant
+             */
+            kind: "update";
+            /** Id */
+            id: string;
+            /** Createdat */
+            createdAt: string;
+            /** Text */
+            text: string;
+            /** Truncated */
+            truncated: boolean;
+            /**
+             * Updatekind
+             * @enum {string}
+             */
+            updateKind: "update" | "blocker" | "handoff";
+            /** Runname */
+            runName: string;
+            /** Participationid */
+            participationId: string;
+            item: components["schemas"]["Named"] | null;
+            /** Contexts */
+            contexts: components["schemas"]["ParticipationRepository"][];
         };
         /** ValidationError */
         ValidationError: {
@@ -10825,9 +11480,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Overlaps"];
                 };
             };
             /** @description Validation Error */
@@ -12277,9 +12930,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Participant"] | components["schemas"]["AgentProfile"];
                 };
             };
             /** @description Validation Error */
@@ -13268,9 +13919,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Agents"];
                 };
             };
             /** @description Validation Error */
@@ -13301,9 +13950,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Agent"];
                 };
             };
             /** @description Validation Error */
@@ -13337,9 +13984,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["AgentActivity"];
                 };
             };
             /** @description Validation Error */
@@ -13370,9 +14015,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["RoadmapAgents"];
                 };
             };
             /** @description Validation Error */

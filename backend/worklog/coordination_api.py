@@ -143,7 +143,7 @@ def install_coordination_routes(app: FastAPI, db: Database, mutate: Callable) ->
 
     # Who else works on these records, and what they announced: an agent checks it before it changes
     # them (agent guide, rule 11). The caller's own reports and messages are left out.
-    @app.get("/api/v1/coordination-overlaps")
+    @app.get("/api/v1/coordination-overlaps", response_model=out.Overlaps)
     def overlaps(request: Request, repositoryId: list[str] = Query([]), itemId: list[str] = Query([]),
                  stepId: list[str] = Query([]), ticketId: list[str] = Query([]),
                  limit: int = Query(20, ge=1, le=OVERLAP_LIMIT)) -> dict:

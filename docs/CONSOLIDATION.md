@@ -547,6 +547,9 @@ Done so far:
 - **Typed responses, eleventh batch.** Agent runs, participations and coordination updates, as lists and one at a time.
   - An update keeps the participation's repositories as they were when it was posted. One function has written them, in one shape, since coordination began.
   - The golden world's agent now posts an update on its participation.
+- **Typed responses, twelfth batch.** The agent registry: the list of agents, an agent's page and activity, a roadmap's agents, the overlap check and one participant's profile.
+  - A participant's profile takes one of two shapes, the person's or an agent's, told apart by their keys.
+  - The golden world's agent now owns a role on its work item and replies in its discussion from the tracked chat.
 
 #### 5.4 · Frontend layout
 
