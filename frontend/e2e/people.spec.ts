@@ -137,7 +137,14 @@ test("a person keeps their details and how to reach them, and is tied to work, a
     exact: true,
   });
   await role.fill("Maintainer");
+  // The role saves as the field loses focus; a reload before that save lands cancels it.
+  const roleSaved = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/v1/person-links") &&
+      response.request().method() === "POST",
+  );
   await role.press("Tab");
+  expect((await roleSaved).ok()).toBe(true);
   await page.reload();
   await expect(role).toHaveValue("Maintainer");
 

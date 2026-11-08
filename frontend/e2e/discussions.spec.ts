@@ -261,6 +261,9 @@ test("human release, archived replies, draft recovery, search and narrow layout"
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(requestCard.getByText("Awaiting", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Archive", exact: true }).click();
+  // The archive is checked against the thread's revision: a reply sent before it lands can
+  // overtake it on a slow server, and the archive is then refused.
+  await expect(page.getByRole("button", { name: "Restore to All", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Awaiting", exact: true }).click();
   await expect(page.getByRole("region", { name: "Discussion list", exact: true }).getByRole("link", { name: new RegExp(title) })).toBeVisible();
   await page.getByLabel("Reply message", { exact: true }).fill("Human can still reply after archival.");
