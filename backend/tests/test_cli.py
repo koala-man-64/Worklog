@@ -401,10 +401,11 @@ def _export_args(tmp_path, target):
 
 
 def test_failed_export_leaves_no_target_or_temporary_file(tmp_path, monkeypatch, capsys):
-    def explode(database):
+    def explode(database, target):
+        Path(target).write_bytes(b"half an export")
         raise RuntimeError("injected export failure")
 
-    monkeypatch.setattr(cli, "export_database", explode)
+    monkeypatch.setattr(cli, "write_export", explode)
     target = tmp_path / "out" / "export.zip"
     target.parent.mkdir()
     assert cli.main(_export_args(tmp_path, target)) == 1
@@ -414,10 +415,10 @@ def test_failed_export_leaves_no_target_or_temporary_file(tmp_path, monkeypatch,
 
 
 def test_export_refuses_existing_target_and_leaves_no_temporary_file(tmp_path, monkeypatch, capsys):
-    def unexpected(database):
+    def unexpected(database, target):
         raise AssertionError("export must not start when the target exists")
 
-    monkeypatch.setattr(cli, "export_database", unexpected)
+    monkeypatch.setattr(cli, "write_export", unexpected)
     target = tmp_path / "export.zip"
     target.write_bytes(b"precious")
     assert cli.main(_export_args(tmp_path, target)) == 1
@@ -427,7 +428,7 @@ def test_export_refuses_existing_target_and_leaves_no_temporary_file(tmp_path, m
 
 
 def test_successful_export_publishes_target_without_temporary_file(tmp_path, monkeypatch, capsys):
-    monkeypatch.setattr(cli, "export_database", lambda database: b"zip-bytes")
+    monkeypatch.setattr(cli, "write_export", lambda database, target: Path(target).write_bytes(b"zip-bytes"))
     target = tmp_path / "export.zip"
     assert cli.main(_export_args(tmp_path, target)) == 0
     assert target.read_bytes() == b"zip-bytes"

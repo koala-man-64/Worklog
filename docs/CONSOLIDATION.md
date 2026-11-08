@@ -416,9 +416,24 @@ What changed:
 
 #### 4.2 · Backups off the request path
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branches: `claude/backup-off-requests`, `claude/streaming-export` · PRs: [#131](https://github.com/koala-man-64/Worklog/pull/131), [#132](https://github.com/koala-man-64/Worklog/pull/132)
 
 The daily backup now runs from the watcher only, not on the first write of the day. Backup hashes are cached, and export streams instead of holding blobs twice in memory. Findings: B-05, C-17, REM-18.
+
+What changed:
+- **Backups off the request path (#131).**
+  - The day's automatic backup is taken at startup and by the serve watcher's minute check, as the README says. No write takes it: `mutate()` and agent registration used to, so the first write of a day waited for the whole database to be copied.
+  - `app.daily_backup` shows a failure in Settings until a backup succeeds, from the watcher as from startup.
+- **Cached backup hashes (#131).** The CLI's `backups` listing takes each file's SHA-256 from `backups/backup-hashes.json` while the file keeps the size and modification time it was hashed at. Each new backup's hash goes there as it is made, and the hash of a file that has gone leaves.
+
+  `test_backup_path.py` pins each of these.
+- **The streaming export (#132).**
+  - `recovery.write_export` writes the ZIP to a file a record and a BLOB at a time, from the same snapshot copy. It used to build the whole export in memory, with every BLOB in it twice.
+  - Each table's records, and the Markdown, are written beside the snapshot and copied in after, since a ZIP takes one member at a time. Each BLOB they name goes in as it is met, once.
+  - The members and manifest are byte for byte the ones before, apart from the manifest's time.
+  - `GET /export` sends the ZIP from a temporary file and removes it afterwards, a failed export's too. The CLI's `export` writes it beside its target and publishes it as before.
+
+  `test_streaming_export.py` pins each of these. REM-18.
 
 #### 4.3 · Offline compact
 
@@ -608,4 +623,5 @@ These look like consolidation candidates but stay:
 - 2026-11-06: Schema v19, releases (`releases`, `release_contents`, `release_checks`), added outside the plan for a product request (coordinating what ships together, who needs to know, what to test and what to prepare first), with its seal and documented way back, which discards releases. It was built as v17 and renumbered as v17's agent ties and v18's registration directories landed first; it is the last upgrade step, after their guarded ones. Its routes start in the policy table: agents read them and write none. Agent proposals for releases are a separate PR.
 - 2026-11-06: Step 4.1 split into PRs while building it: roadmap saves and progress first, then the backlog and day reorders, then the reflection's own revision, which is a schema change.
 - 2026-11-07: Schema v22, discussion tags, pins and each repository's own discussion, added outside the plan for a product request (K16), with its seal and documented way back. Built as v21 alongside #129, it became v22 when that merged first. It rebuilds `discussion_contexts` and `discussion_change_contexts` to take ten kinds of record, each tag saying who added it, and it is the first upgrade that adds records: it opens a discussion for each active repository. It also does K8's discussion half of step 5.6: a new thread takes no free-text repository label, and the upgrade tags each thread with the one repository a label of it names exactly; tracked chats' labels stay for 5.6. Its routes start in the policy table: agents tag and untag, and pinning is the person's. The overlap check and the announce rule are a second PR, and the app's tags and pins a third.
+- 2026-11-07: Step 4.2 split into two PRs while building it: backups off the request path with cached hashes first, then the streaming export.
 - 2026-11-07: K16's second PR, with no schema change: the agent guide's rule 11 (announce your work in each repository's discussion and check for overlap first), the overlap check (`GET /coordination-overlaps`, `agent overlaps`), one participant's profile (`GET /discussions/participants/{id}`, `discussions participant`) and `--ask` on `discussions post` and `reply`. An acknowledgement request that names its own author is now refused, since it could never be met. Both routes start in the policy table as agent reads. Neither carries a tracked chat or a credential, so the Agents page stays the person's.

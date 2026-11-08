@@ -31,11 +31,10 @@ from worklog import __version__
 from worklog.common import shows_as_written
 from worklog.recovery import (
     InstanceLock,
-    automatic_backup,
     backup_database,
-    export_database,
     list_backups,
     restore_database,
+    write_export,
 )
 
 HOST = "127.0.0.1"
@@ -380,7 +379,7 @@ def _server(app: Any, port: int, grace: int = SHUTDOWN_GRACE_S) -> Any:
 
 def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
     """Private foreground entry point; start launches this in one hidden process."""
-    from worklog.app import create_app
+    from worklog.app import create_app, daily_backup
 
     os.environ["WORKLOG_DATA_DIR"] = str(directory)
     os.environ["WORKLOG_PORT"] = str(port)
@@ -410,11 +409,10 @@ def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
                     server.should_exit = True
                     return
                 if time.monotonic() >= next_backup and os.environ.get("WORKLOG_AUTO_BACKUP") != "0":
-                    try:
-                        automatic_backup(directory / "worklog.sqlite3", directory / "backups")
-                    except Exception as exc:
-                        # Preserve service availability but make a failed backup visible in server.log.
-                        print(f"Automatic Worklog backup failed: {type(exc).__name__}", file=sys.stderr, flush=True)
+                    # The day's automatic backup is taken here and at startup, never by a request. A
+                    # failure, whatever it is, shows in Settings until one succeeds, and in server.log.
+                    if not daily_backup(app):
+                        print("Automatic Worklog backup failed; Settings shows it", file=sys.stderr, flush=True)
                     next_backup = time.monotonic() + 60
                 if time.monotonic() >= next_prune:
                     try:
@@ -1501,6 +1499,9 @@ def parser() -> argparse.ArgumentParser:
             sub.add_argument("--port", type=int, default=argparse.SUPPRESS)
         if command in {"restore", "export"}:
             sub.add_argument("file")
+        if command == "backups":
+            sub.add_argument("--verify", action="store_true",
+                             help="Hash every file's bytes now; without it, a file unchanged since it was hashed shows that hash")
     agent = commands.add_parser(
         "agent", help="Agent commands; start with `worklog agent guide`",
         description="Commands for AI agents. `worklog agent guide` explains every one, with the rules agents follow.")
@@ -1589,19 +1590,20 @@ def parser() -> argparse.ArgumentParser:
 
 
 def _publish_new_file(output: Path, produce: Any) -> None:
-    """Write produce() to output without ever overwriting it or leaving a partial file.
+    """Have produce(path) write the file, then publish it at output, never overwriting output or
+    leaving a partial file.
 
-    The bytes go to a temporary file beside the target, then are published by a rename
+    produce writes a temporary file beside the target, which is then published by a rename
     (Windows) or hard link (elsewhere); both fail if the target already exists.
     """
     exists = f"{output} already exists; choose another path"
     if output.exists():
         raise ValueError(exists)
     descriptor, name = tempfile.mkstemp(dir=output.parent, prefix=".worklog-export-", suffix=".zip")
+    os.close(descriptor)
     temporary = Path(name)
     try:
-        with os.fdopen(descriptor, "wb") as stream:
-            stream.write(produce())
+        produce(temporary)
         try:
             if os.name == "nt":
                 os.rename(temporary, output)
@@ -1644,12 +1646,12 @@ def main(argv: list[str] | None = None) -> int:
             elif args.command == "backup":
                 result = backup_database(database, directory / "backups")
             elif args.command == "backups":
-                result = list_backups(directory / "backups")
+                result = list_backups(directory / "backups", verify=args.verify)
             elif args.command == "restore":
                 result = restore_database(database, Path(args.file), directory / "backups")
             else:
                 output = Path(args.file).resolve()
-                _publish_new_file(output, lambda: export_database(database))
+                _publish_new_file(output, lambda path: write_export(database, path))
                 result = {"exported": str(output), "size": output.stat().st_size}
         # ASCII JSON: \u escapes reach the reader intact whatever code page a pipe or console uses.
         print(_redacted(json.dumps(result, indent=2), redact))

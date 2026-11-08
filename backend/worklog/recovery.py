@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import hashlib
-import io
 import json
+import logging
 import os
 import sqlite3
 import tempfile
 import uuid
 import zipfile
+from collections.abc import Iterable, Iterator
 from contextlib import closing
 from datetime import UTC, datetime
 from pathlib import Path
@@ -17,6 +18,8 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from .migrations import SCHEMA_VERSION, UPGRADABLE_VERSIONS
+
+logger = logging.getLogger("worklog")
 
 REQUIRED_TABLES = frozenset(
     {"work_items", "days", "daily_entries", "notes", "tasks", "attachments",
@@ -180,12 +183,12 @@ def _snapshot(source: Path, destination: Path) -> None:
         os.fsync(stream.fileno())
 
 
-def _metadata(path: Path, *, hashed: bool = True) -> dict[str, Any]:
+def _metadata(path: Path, *, hashed: bool = True, cache: dict[str, Any] | None = None) -> dict[str, Any]:
     stat = path.stat()
     record: dict[str, Any] = {"name": path.name, "size": stat.st_size,
                               "createdAt": datetime.fromtimestamp(stat.st_mtime, UTC).isoformat()}
     if hashed:
-        record["sha256"] = _file_hash(path)
+        record["sha256"] = _file_hash(path) if cache is None else _cached_hash(path, cache)
     return record
 
 
@@ -194,18 +197,68 @@ def _file_hash(path: Path) -> str:
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def list_backups(backup_dir: Path | str, *, hashed: bool = True) -> list[dict[str, Any]]:
+# Each backup's SHA-256 is worked out once and kept beside the backups, for as long as the file has
+# the size and modification time it was hashed at (consolidation step 4.2, B-05): the CLI's listing
+# read every byte of every backup on each call.
+HASH_CACHE = "backup-hashes.json"
+
+
+def _hash_cache(directory: Path) -> dict[str, Any]:
+    try:
+        cache = json.loads((directory / HASH_CACHE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return cache if isinstance(cache, dict) else {}
+
+
+def _save_hash_cache(directory: Path, cache: dict[str, Any]) -> None:
+    """Keep the hashes of the files still there, written whole by a rename. A cache that can't be
+    written costs only a hash on the next listing."""
+    kept = {name: entry for name, entry in cache.items() if (directory / name).is_file()}
+    temporary = directory / (".hashes-" + uuid.uuid4().hex + ".tmp")
+    try:
+        temporary.write_text(json.dumps(kept, sort_keys=True), encoding="utf-8")
+        os.replace(temporary, directory / HASH_CACHE)
+    except OSError:
+        logger.warning("Backup hashes could not be cached; they are worked out again next time")
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _cached_hash(path: Path, cache: dict[str, Any]) -> str:
+    """The file's SHA-256 from the cache while the file is as it was hashed, or worked out now and
+    put in the cache."""
+    stat = path.stat()
+    stamp = [stat.st_size, stat.st_mtime_ns]
+    entry = cache.get(path.name)
+    if isinstance(entry, dict) and entry.get("stat") == stamp and isinstance(entry.get("sha256"), str):
+        return entry["sha256"]
+    digest = _file_hash(path)
+    cache[path.name] = {"stat": stamp, "sha256": digest}
+    return digest
+
+
+def list_backups(backup_dir: Path | str, *, hashed: bool = True, verify: bool = False) -> list[dict[str, Any]]:
     """Backups and raw recovery evidence, newest first.
 
     With hashed=False the listing reads file metadata only: hashing reads every byte of
-    every file, which Settings would otherwise pay on each load. The CLI keeps the hashes.
+    every file, which Settings would otherwise pay on each load. The CLI keeps the hashes,
+    each worked out once and cached while its file keeps its size and modification time
+    (HASH_CACHE). So a cached hash is the one the file had when it was hashed: damage that
+    keeps both, or a copy that keeps the modification time, would not show. With verify,
+    every file is hashed now, and the cache takes those hashes.
     """
     directory = Path(backup_dir)
     if not directory.exists():
         return []
     files = [*directory.glob("worklog-*.sqlite3"), *directory.glob("worklog-pre-restore-raw-*.zip")]
-    return [_metadata(path, hashed=hashed) for path in sorted(files, reverse=True)
-            if path.is_file()]
+    cache = ({} if verify else _hash_cache(directory)) if hashed else None
+    before = json.dumps(cache, sort_keys=True)
+    listed = [_metadata(path, hashed=hashed, cache=cache) for path in sorted(files, reverse=True)
+              if path.is_file()]
+    if cache is not None and json.dumps(cache, sort_keys=True) != before:
+        _save_hash_cache(directory, cache)
+    return listed
 
 
 def backup_database(db_path: Path | str, backup_dir: Path | str,
@@ -230,7 +283,11 @@ def backup_database(db_path: Path | str, backup_dir: Path | str,
     if keep is not None:
         for old in sorted(directory.glob(f"worklog-{kind}-*.sqlite3"), reverse=True)[keep:]:
             old.unlink()
-    return _metadata(target)
+    # The new backup is hashed for its metadata anyway, so the next listing need not hash it again.
+    cache = _hash_cache(directory)
+    result = _metadata(target, cache=cache)
+    _save_hash_cache(directory, cache)
+    return result
 
 
 def automatic_backup(db_path: Path | str, backup_dir: Path | str) -> dict[str, Any] | None:
@@ -483,55 +540,103 @@ def _identifier(value: str) -> str:
 
 
 def export_database(db_path: Path | str) -> bytes:
-    """Export every record and BLOB from one snapshot, with a per-file hash manifest."""
+    """An export (see write_export) read back whole, for tests and other small uses. Worklog's own
+    callers write it to a file instead."""
+    with tempfile.TemporaryDirectory(prefix="worklog-export-copy-") as directory:
+        target = Path(directory) / "export.zip"
+        write_export(db_path, target)
+        return target.read_bytes()
+
+
+def _chunks(path: Path) -> Iterator[bytes]:
+    with path.open("rb") as stream:
+        while chunk := stream.read(1 << 20):
+            yield chunk
+
+
+def write_export(db_path: Path | str, target: Path | str) -> None:
+    """Export every record and BLOB from one snapshot to target, a ZIP with a per-file hash manifest.
+
+    It is written a record and a BLOB at a time (consolidation step 4.2, REM-18), where the whole
+    export used to be built in memory with every BLOB in it twice. A ZIP takes one member at a time,
+    so each table's records, and the readable Markdown, are written beside the snapshot first and
+    copied in after; each BLOB they name goes into the ZIP as it is met, once. The members and the
+    manifest are those the export always had.
+    """
     with tempfile.TemporaryDirectory(prefix="worklog-export-") as directory:
-        snapshot = Path(directory) / "snapshot.sqlite3"
+        work = Path(directory)
+        snapshot = work / "snapshot.sqlite3"
         _snapshot(Path(db_path), snapshot)
-        files: dict[str, bytes] = {}
-        markdown = ["# Worklog export", "", "All records are in records/*.json. Binary content is in blobs/.", ""]
-        with closing(_readonly(snapshot)) as conn:
-            conn.row_factory = sqlite3.Row
-            snapshot_version = conn.execute("PRAGMA user_version").fetchone()[0]
-            files["schema.json"] = json.dumps(
-                [{"type": kind, "name": name, "sql": sql}
-                 for (kind, name), sql in _schema_signature(conn).items()],
-                ensure_ascii=False, indent=2).encode("utf-8")
-            tables = [row[0] for row in conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")]
-            for table in tables:
-                records = []
-                for row in conn.execute(f"SELECT * FROM {_identifier(table)}"):
-                    record: dict[str, Any] = {}
-                    for key in row.keys():
-                        value = row[key]
-                        if key == "token_hash":
-                            value = "[redacted; credentials must be reissued after restore]"
-                        elif isinstance(value, bytes):
-                            digest = hashlib.sha256(value).hexdigest()
-                            # Original HTML is an explicit downloadable archive member;
-                            # use a content-derived name rather than an imported filename.
-                            name = (f"imports/{digest}.html" if table == "plan_imports" and key == "original"
-                                    else f"blobs/{digest}.bin")
-                            files[name] = value
-                            value = {"file": name, "sha256": digest, "size": len(value)}
-                        record[key] = value
-                    records.append(record)
-                files[f"records/{table}.json"] = json.dumps(records, ensure_ascii=False, indent=2).encode("utf-8")
-                markdown += [f"## {table}", ""]
-                for record in records:
-                    title = record.get("title") or record.get("name") or record.get("id", "Record")
-                    markdown += [f"### {title}", ""]
-                    for key, value in record.items():
-                        markdown += [f"- {key}: {value}"]
-                    markdown.append("")
-        files["worklog.md"] = "\n".join(markdown).encode("utf-8")
-        manifest = {"format": "worklog-export", "version": 1,
-                    "schemaVersion": snapshot_version, "createdAt": datetime.now(UTC).isoformat(),
-                    "files": [{"path": name, "size": len(data), "sha256": hashlib.sha256(data).hexdigest()}
-                              for name, data in sorted(files.items())]}
-        output = io.BytesIO()
-        with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-            for name, data in sorted(files.items()):
-                archive.writestr(name, data)
+        files: dict[str, tuple[int, str]] = {}
+        with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED, allowZip64=True) as archive:
+
+            def member(name: str, chunks: Iterable[bytes]) -> None:
+                digest, size = hashlib.sha256(), 0
+                with archive.open(name, "w", force_zip64=True) as stream:
+                    for chunk in chunks:
+                        digest.update(chunk)
+                        size += len(chunk)
+                        stream.write(chunk)
+                files[name] = (size, digest.hexdigest())
+
+            markdown_path, records_path = work / "worklog.md", work / "records.json"
+            with closing(_readonly(snapshot)) as conn, markdown_path.open("w", encoding="utf-8", newline="\n") as markdown:
+                conn.row_factory = sqlite3.Row
+                snapshot_version = conn.execute("PRAGMA user_version").fetchone()[0]
+                member("schema.json", [json.dumps(
+                    [{"type": kind, "name": name, "sql": sql}
+                     for (kind, name), sql in _schema_signature(conn).items()],
+                    ensure_ascii=False, indent=2).encode("utf-8")])
+                # The Markdown's lines, each but the first after a line break, as they were joined.
+                lines = 0
+
+                def line(text: str) -> None:
+                    nonlocal lines
+                    markdown.write(("\n" if lines else "") + text)
+                    lines += 1
+
+                for text in ("# Worklog export", "", "All records are in records/*.json. Binary content is in blobs/.", ""):
+                    line(text)
+                tables = [row[0] for row in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")]
+                for table in tables:
+                    line(f"## {table}")
+                    line("")
+                    count = 0
+                    with records_path.open("w", encoding="utf-8", newline="\n") as records:
+                        records.write("[")
+                        for row in conn.execute(f"SELECT * FROM {_identifier(table)}"):
+                            record: dict[str, Any] = {}
+                            for key in row.keys():
+                                value = row[key]
+                                if key == "token_hash":
+                                    value = "[redacted; credentials must be reissued after restore]"
+                                elif isinstance(value, bytes):
+                                    digest = hashlib.sha256(value).hexdigest()
+                                    # Original HTML is an explicit downloadable archive member;
+                                    # use a content-derived name rather than an imported filename.
+                                    name = (f"imports/{digest}.html" if table == "plan_imports" and key == "original"
+                                            else f"blobs/{digest}.bin")
+                                    if name not in files:
+                                        member(name, [value])
+                                    value = {"file": name, "sha256": digest, "size": len(value)}
+                                record[key] = value
+                            # Each record as json.dumps lays out a list of them. Its own line breaks are
+                            # "\n" alone: one inside a string is escaped, and splitlines would also
+                            # break at a U+2028 a string may hold.
+                            text = json.dumps(record, ensure_ascii=False, indent=2)
+                            records.write(("," if count else "") + "\n" + "\n".join("  " + part for part in text.split("\n")))
+                            count += 1
+                            line(f"### {record.get('title') or record.get('name') or record.get('id', 'Record')}")
+                            line("")
+                            for key, value in record.items():
+                                line(f"- {key}: {value}")
+                            line("")
+                        records.write("\n]" if count else "]")
+                    member(f"records/{table}.json", _chunks(records_path))
+            member("worklog.md", _chunks(markdown_path))
+            manifest = {"format": "worklog-export", "version": 1,
+                        "schemaVersion": snapshot_version, "createdAt": datetime.now(UTC).isoformat(),
+                        "files": [{"path": name, "size": size, "sha256": digest}
+                                  for name, (size, digest) in sorted(files.items())]}
             archive.writestr("manifest.json", json.dumps(manifest, indent=2))
-        return output.getvalue()
