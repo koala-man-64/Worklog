@@ -5,22 +5,25 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import type { QueryClient, QueryFilters } from "@tanstack/react-query";
+import type { Query, QueryClient } from "@tanstack/react-query";
 import { request, contextStorageKey, getDataContext, ApiError } from "./api";
 import { localStore, readIdSet } from "./storage";
 // The session is left alone: reading it again would start a new one.
-const notSession: QueryFilters = {
-  predicate: (q) => q.queryKey[0] !== "session",
-};
+const notSession = (q: Query) => q.queryKey[0] !== "session";
 /**
- * Reads again every view a write may have changed. Invalidating alone keeps a query's first
- * fetch running, so a read that began before the write committed would keep its answer from
- * before the write. Cancelling first makes every open view read again; a query no view shows
- * goes back to idle and reads when a view opens it.
+ * Reads again every view a write may have changed. Invalidation restarts a fetch in flight only
+ * for a query with data and an open view. Any other fetch runs on, and one that began before the
+ * write committed would keep its answer from before the write. So those are cancelled first:
+ * invalidation then reads every open view again, and a query no view shows goes back to idle and
+ * reads when a view opens it. A fetch invalidation restarts is left to it, so an earlier write
+ * still waits for the read that replaced its own.
  */
 export async function refreshAfterWrite(client: QueryClient) {
-  await client.cancelQueries(notSession);
-  await client.invalidateQueries(notSession);
+  await client.cancelQueries({
+    predicate: (q) =>
+      notSession(q) && (q.state.data === undefined || !q.isActive()),
+  });
+  await client.invalidateQueries({ predicate: notSession });
 }
 /** `refreshMs` keeps a view of something that changes elsewhere current while it is open. */
 export function useData<T>(path: string, refreshMs?: number) {

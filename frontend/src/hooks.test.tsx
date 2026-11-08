@@ -13,16 +13,20 @@ afterEach(() => vi.restoreAllMocks());
 
 /**
  * A server holding a list of people. A read answers the list as it was when the read arrived,
- * but the first read's answer waits for `answerFirstRead`: a slow answer to a read sent just
- * before a write.
+ * and each read numbered in `held` (the first is 1) waits for `answer(n)`: a slow answer to a
+ * read sent before a write.
  */
-function serve() {
+function serve(held = [1]) {
   let people: string[] = [];
   const reads: string[] = [];
-  let answerFirstRead = () => {};
-  const firstReadHeld = new Promise<void>((resolve) => {
-    answerFirstRead = () => resolve();
-  });
+  const gates = new Map<number, { open: () => void; opened: Promise<void> }>();
+  for (const read of held) {
+    let open = () => {};
+    const opened = new Promise<void>((resolve) => {
+      open = () => resolve();
+    });
+    gates.set(read, { open, opened });
+  }
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const path = String(input).replace("/api/v1", "");
     if (init?.method === "POST") {
@@ -31,20 +35,20 @@ function serve() {
     }
     reads.push(path);
     const answer = path === "/session" ? { today: "2026-11-08" } : people;
-    if (reads.length === 1) await firstReadHeld;
+    await gates.get(reads.length)?.opened;
     return new Response(JSON.stringify(answer));
   });
-  return { reads, answerFirstRead: () => answerFirstRead() };
+  return { reads, answer: (read: number) => gates.get(read)?.open() };
 }
 
 /**
- * Adds a person. Given `answerFirstRead`, the held read answers once this write's success has
- * been handled, as it does when that answer is slower than the write's.
+ * Adds a person. Given `afterSuccess`, it runs once this write's success has been handled, as a
+ * held read's answer does when it is slower than the write's.
  */
-function addPerson(answerFirstRead?: () => void) {
+function addPerson(afterSuccess?: () => void) {
   return async (body: { name: string }) => {
     const added = await request("/people", "POST", body);
-    if (answerFirstRead) setTimeout(answerFirstRead);
+    if (afterSuccess) setTimeout(afterSuccess);
     return added;
   };
 }
@@ -65,7 +69,7 @@ it("reads a list again when its first read was in flight as a write succeeded", 
   const { result } = renderHook(
     () => ({
       people: useData<string[]>("/people"),
-      add: useCommand(addPerson(server.answerFirstRead)),
+      add: useCommand(addPerson(() => server.answer(1))),
     }),
     { wrapper: wrapper(newClient()) },
   );
@@ -84,7 +88,7 @@ it("leaves the session's read alone when a write succeeds", async () => {
         queryKey: ["session"],
         queryFn: () => request<{ today: string }>("/session"),
       }),
-      add: useCommand(addPerson(server.answerFirstRead)),
+      add: useCommand(addPerson(() => server.answer(1))),
     }),
     { wrapper: wrapper(newClient()) },
   );
@@ -120,5 +124,56 @@ it("drops the read of a view closed before a write, and reads again when it open
     expect(reopened.result.current.data).toEqual(["Ada Park"]),
   );
   expect(server.reads).toEqual(["/people", "/people"]);
-  server.answerFirstRead();
+  server.answer(1);
+});
+
+it("drops a closed view's refetch too, so a list kept fresh a while still reads again", async () => {
+  const server = serve([2]);
+  const client = newClient();
+  const usePeople = () =>
+    useQuery({
+      queryKey: [getDataContext(), "/people"],
+      queryFn: () => request<string[]>("/people"),
+      staleTime: 60_000,
+    });
+  const list = renderHook(usePeople, { wrapper: wrapper(client) });
+  await waitFor(() => expect(list.result.current.data).toEqual([]));
+  void list.result.current.refetch();
+  await waitFor(() => expect(server.reads).toHaveLength(2));
+  list.unmount();
+  const add = renderHook(() => useCommand(addPerson(() => server.answer(2))), {
+    wrapper: wrapper(client),
+  });
+  await act(() => add.result.current.mutateAsync({ name: "Ada Park" }));
+  const reopened = renderHook(usePeople, { wrapper: wrapper(client) });
+  await waitFor(() =>
+    expect(reopened.result.current.data).toEqual(["Ada Park"]),
+  );
+  expect(server.reads).toHaveLength(3);
+});
+
+it("keeps an earlier write waiting for the read that replaced its own", async () => {
+  const server = serve([2, 3]);
+  const client = newClient();
+  const { result } = renderHook(
+    () => ({
+      people: useData<string[]>("/people"),
+      add: useCommand(addPerson()),
+    }),
+    { wrapper: wrapper(client) },
+  );
+  await waitFor(() => expect(result.current.people.data).toEqual([]));
+  const key = [getDataContext(), "/people"];
+  // What the first write's caller reads back once its wait ends.
+  const first = result.current.add
+    .mutateAsync({ name: "Ada Park" })
+    .then(() => client.getQueryData(key));
+  // The first write's refresh sends a second read, and the second write's replaces it.
+  await waitFor(() => expect(server.reads).toHaveLength(2));
+  const second = result.current.add.mutateAsync({ name: "Ben Ode" });
+  await waitFor(() => expect(server.reads).toHaveLength(3));
+  server.answer(3);
+  const [seen] = await act(() => Promise.all([first, second]));
+  expect(seen).toEqual(["Ada Park", "Ben Ode"]);
+  server.answer(2);
 });
