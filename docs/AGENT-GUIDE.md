@@ -54,7 +54,7 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 | Scratchpad | note UUID | the one Markdown note of a work item | proposal (`note.create` adds a section) |
 | Note on a roadmap or step | UUID | `title`, `text` | proposal (`note.*`) |
 | Checklist task | UUID | `text`, `done`; a work item's tasks come in the person's order, a new one last | proposal (`task.*`); only the person reorders |
-| Roadmap | UUID | `title`, `overview`, `parentId` for nesting, immutable versions | proposal (`roadmap.*`) |
+| Roadmap | UUID | `title`, `overview`, `parentId` for nesting, immutable versions, of which compaction keeps the 20 newest | proposal (`roadmap.*`) |
 | Step | UUID, stable across versions | `title`, `description`; progress open, doing, blocked or done on leaf steps (a parent's follows its children); `retired` | proposal (`step.update` for one step's text, `progress.set`, `roadmap.revise` for the tree) |
 | Question, decision | UUID | a question is open or answered | proposal |
 | Person | UUID | `name`, `title`, `team`, `description`, contact details (`email`, `phone`, `chat`, `location`), `notes` (Markdown); tied to work items, roadmaps and repositories, each with a `relationship` (their role there) | proposal (`person.*`) |
@@ -868,6 +868,8 @@ The command line covers what agents need. For reads it lacks, such as a work ite
 ```powershell
 Invoke-RestMethod -Uri 'http://127.0.0.1:8877/api/v1/work-items/ITEM_ID' -Headers @{ Authorization = "Bearer $env:WORKLOG_AGENT_TOKEN" }
 ```
+
+History older than 90 days may be thinned. When the person runs `worklog compact`, the older changes to work items, the day's plan and reflection, notes, tasks, links, GitHub and file references, questions, decisions, attachments, roadmaps, steps, progress and plan imports keep only each record's `id`, `title`, `status` and `_statusChanged`, so a record with none of them reads `{}`, and a payload that is not a record, such as the day's order or its reflection's text, reads `null`. Every change stays listed, and changes of every other kind keep everything. Compaction also keeps each roadmap's 20 newest versions, and removes plan imports never committed after 7 days.
 
 - **Readable routes.** Worklog's route table (`policy.ROUTES`) lists each read an agent credential may make, in the scope `agent:read`: every GET under `/api/v1` but the person's. The person's are `/settings`, `/export`, `/openapi.json`, the chat list `/chats` with a chat's `/chats/ID/messages` and `/chats/ID/transcript`, the running sessions `/claude-sessions`, the agents `/agents`, `/agents/ID`, `/agents/ID/activity` and `/agents/ID/proposals`, and a roadmap's `/roadmaps/ID/agents`. Those return `403 agent_scope`. A route the table does not open to agents is the person's, so a new route starts closed to you.
 - **Host header.** It must be `127.0.0.1:PORT`.

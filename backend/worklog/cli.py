@@ -29,6 +29,7 @@ from urllib.request import HTTPHandler, HTTPRedirectHandler, ProxyHandler, Reque
 
 from worklog import __version__
 from worklog.common import shows_as_written
+from worklog.compaction import compact_database
 from worklog.recovery import (
     InstanceLock,
     backup_database,
@@ -1492,7 +1493,7 @@ def parser() -> argparse.ArgumentParser:
     root.add_argument("--port", type=int, help=f"Loopback port (default: WORKLOG_PORT or {DEFAULT_PORT})")
     root.add_argument("--version", action="version", version=__version__)
     commands = root.add_subparsers(dest="command", required=True)
-    for command in ("start", "stop", "check", "serve", "backup", "backups", "restore", "export"):
+    for command in ("start", "stop", "check", "serve", "backup", "backups", "restore", "export", "compact"):
         sub = commands.add_parser(command, help="Internal server entry" if command == "serve" else None)
         sub.add_argument("--data-dir", default=argparse.SUPPRESS)
         if command in {"start", "stop", "check", "serve"}:
@@ -1649,6 +1650,8 @@ def main(argv: list[str] | None = None) -> int:
                 result = list_backups(directory / "backups", verify=args.verify)
             elif args.command == "restore":
                 result = restore_database(database, Path(args.file), directory / "backups")
+            elif args.command == "compact":
+                result = compact_database(database, directory / "backups")
             else:
                 output = Path(args.file).resolve()
                 _publish_new_file(output, lambda path: write_export(database, path))

@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position=0)]
-    [ValidateSet("start", "stop", "check", "backup", "backups", "restore", "export")]
+    [ValidateSet("start", "stop", "check", "backup", "backups", "restore", "export", "compact")]
     [string]$Command = "start",
     [string]$DataDir,
     [ValidateRange(1, 65535)][int]$Port,

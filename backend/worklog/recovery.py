@@ -263,7 +263,7 @@ def list_backups(backup_dir: Path | str, *, hashed: bool = True, verify: bool = 
 
 def backup_database(db_path: Path | str, backup_dir: Path | str,
                     kind: str = "manual") -> dict[str, Any]:
-    if kind not in {"manual", "daily", "pre-migration", "pre-restore"}:
+    if kind not in {"manual", "daily", "pre-migration", "pre-restore", "pre-compact"}:
         raise ValueError("Unknown backup kind")
     source, directory = Path(db_path), Path(backup_dir)
     if not source.is_file():
@@ -279,15 +279,21 @@ def backup_database(db_path: Path | str, backup_dir: Path | str,
         os.replace(stage, target)
     finally:
         stage.unlink(missing_ok=True)
+    # Compaction prunes its own backups, once a compaction has finished (compaction.BACKUPS_KEPT).
     keep = {"daily": 14, "pre-migration": 3}.get(kind)
     if keep is not None:
-        for old in sorted(directory.glob(f"worklog-{kind}-*.sqlite3"), reverse=True)[keep:]:
-            old.unlink()
+        prune_backups(directory, kind, keep)
     # The new backup is hashed for its metadata anyway, so the next listing need not hash it again.
     cache = _hash_cache(directory)
     result = _metadata(target, cache=cache)
     _save_hash_cache(directory, cache)
     return result
+
+
+def prune_backups(backup_dir: Path | str, kind: str, keep: int) -> None:
+    """Delete all but the newest `keep` backups of a kind, by the time in their names."""
+    for old in sorted(Path(backup_dir).glob(f"worklog-{kind}-*.sqlite3"), reverse=True)[keep:]:
+        old.unlink()
 
 
 def automatic_backup(db_path: Path | str, backup_dir: Path | str) -> dict[str, Any] | None:
@@ -388,7 +394,7 @@ def _corrupt_error(exc: sqlite3.Error) -> bool:
         exc, "sqlite_errorcode", 0) == sqlite3.SQLITE_READONLY_ROLLBACK
 
 
-def _assert_database_offline(target: Path) -> None:
+def _assert_database_offline(target: Path, doing: str = "restoring") -> None:
     """Probe SQLite's documented main-file lock region without reading its schema.
 
     The 512-byte region beginning at PENDING_BYTE covers pending, reserved and
@@ -412,7 +418,7 @@ def _assert_database_offline(target: Path) -> None:
                 fcntl.lockf(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB, 512, 0x40000000)  # type: ignore[attr-defined]
                 fcntl.lockf(stream.fileno(), fcntl.LOCK_UN, 512, 0x40000000)  # type: ignore[attr-defined]
         except OSError as exc:
-            raise RuntimeError("Database is busy; close all Worklog connections before restoring") from exc
+            raise RuntimeError(f"Database is busy; close all Worklog connections before {doing}") from exc
 
 
 def _write_restore_marker(path: Path, data: bytes) -> None:
