@@ -53,7 +53,7 @@ beforeEach(() => {
   setDataContext("settings-test");
 });
 
-it("rotates a credential while retaining its stable discussion profile", async () => {
+it("rotates a credential while retaining its agent identity", async () => {
   const calls: { path: string; method: string; body: unknown }[] = [];
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const path = new URL(String(input), "http://worklog.test").pathname.replace(
@@ -97,7 +97,7 @@ it("rotates a credential while retaining its stable discussion profile", async (
   await user.click(await screen.findByRole("button", { name: "Rotate token" }));
   expect(await screen.findByText("one-time-secret")).toBeInTheDocument();
   expect(
-    screen.getByText(/Rotated Agent Alpha; its discussion identity remains/),
+    screen.getByText(/Rotated Agent Alpha; its agent identity remains/),
   ).toHaveTextContent("identity remains Agent Alpha profile");
   await waitFor(() =>
     expect(calls).toContainEqual({
@@ -106,7 +106,7 @@ it("rotates a credential while retaining its stable discussion profile", async (
       body: {},
     }),
   );
-  expect(screen.getByText("Profile profile-alpha")).toBeInTheDocument();
+  expect(screen.getByText("Identity profile-alpha")).toBeInTheDocument();
 });
 
 it("issues a credential with the suggested avatar or one the person picks", async () => {

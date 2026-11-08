@@ -612,7 +612,7 @@ Inspect agent suggestions before they change your work. "Proposal status" filter
 - **"Agent credentials":**
   - Create credentials, and copy the new token once.
   - "Rotate token" (or "Replace token" for a revoked credential) and "Revoke".
-  - "Stable discussion profiles" lists every agent identity.
+  - "Agent identities" lists each identity your agents act as, and each credential names its own.
 - **"Archive & recovery":** "Open work archive" and "Open roadmap archive" open those lists; tick "Show archive" there to see the archived records.
 
 ### Guide
