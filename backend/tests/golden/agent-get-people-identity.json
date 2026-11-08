@@ -15,12 +15,148 @@
     "revision": 1,
     "createdAt": "<time>",
     "updatedAt": "<time>",
-    "roadmaps": [],
-    "workItems": [],
-    "repositories": [],
+    "roadmaps": [
+      {
+        "linkId": "<id2>",
+        "personId": "<id1>",
+        "roadmapId": "<id3>",
+        "relationship": "Reviewer",
+        "createdAt": "<time>",
+        "roadmap": {
+          "id": "<id3>",
+          "title": "Plan 2",
+          "overview": "",
+          "archived": false,
+          "revision": 2,
+          "createdAt": "<time>",
+          "updatedAt": "<time>"
+        }
+      }
+    ],
+    "workItems": [
+      {
+        "linkId": "<id4>",
+        "personId": "<id1>",
+        "itemId": "<id5>",
+        "relationship": "Reviewer",
+        "createdAt": "<time>",
+        "item": {
+          "id": "<id5>",
+          "title": "Parser",
+          "description": "Parse the plan",
+          "status": "doing",
+          "adoUrl": null,
+          "roadmapId": null,
+          "stepId": null,
+          "backlogOrder": 1,
+          "archived": false,
+          "revision": 2,
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "repositoryIds": []
+        }
+      }
+    ],
+    "repositories": [
+      {
+        "linkId": "<id6>",
+        "personId": "<id1>",
+        "repositoryId": "<id7>",
+        "relationship": "Reviewer",
+        "createdAt": "<time>",
+        "repository": {
+          "id": "<id7>",
+          "name": "worklog",
+          "url": "https://github.com/example/worklog",
+          "remoteIdentity": "github.com/example/worklog",
+          "duplicateOf": null,
+          "mergedInto": null,
+          "description": "",
+          "archived": false,
+          "registeredBy": {
+            "kind": "human",
+            "label": "You",
+            "agentId": null
+          },
+          "reviewed": true,
+          "revision": 1,
+          "createdAt": "<time>",
+          "updatedAt": "<time>"
+        }
+      }
+    ],
     "history": [
       {
-        "id": "<id2>",
+        "id": "<id8>",
+        "entityId": "<id1>",
+        "kind": "person.link",
+        "actorId": "local-user",
+        "actorLabel": "You",
+        "actorKind": "human",
+        "createdAt": "<time>",
+        "localDate": "<today>",
+        "before": null,
+        "after": {
+          "id": "<id6>",
+          "personId": "<id1>",
+          "name": "Ada",
+          "personTitle": "Engineer",
+          "personTeam": "",
+          "targetType": "repository",
+          "targetId": "<id7>",
+          "relationship": "Reviewer",
+          "archived": false,
+          "createdAt": "<time>"
+        }
+      },
+      {
+        "id": "<id9>",
+        "entityId": "<id1>",
+        "kind": "person.link",
+        "actorId": "local-user",
+        "actorLabel": "You",
+        "actorKind": "human",
+        "createdAt": "<time>",
+        "localDate": "<today>",
+        "before": null,
+        "after": {
+          "id": "<id2>",
+          "personId": "<id1>",
+          "name": "Ada",
+          "personTitle": "Engineer",
+          "personTeam": "",
+          "targetType": "roadmap",
+          "targetId": "<id3>",
+          "relationship": "Reviewer",
+          "archived": false,
+          "createdAt": "<time>"
+        }
+      },
+      {
+        "id": "<id10>",
+        "entityId": "<id1>",
+        "kind": "person.link",
+        "actorId": "local-user",
+        "actorLabel": "You",
+        "actorKind": "human",
+        "createdAt": "<time>",
+        "localDate": "<today>",
+        "before": null,
+        "after": {
+          "id": "<id4>",
+          "personId": "<id1>",
+          "name": "Ada",
+          "personTitle": "Engineer",
+          "personTeam": "",
+          "targetType": "item",
+          "targetId": "<id5>",
+          "relationship": "Reviewer",
+          "archived": false,
+          "createdAt": "<time>"
+        }
+      },
+      {
+        "id": "<id11>",
         "entityId": "<id1>",
         "kind": "person.create",
         "actorId": "local-user",

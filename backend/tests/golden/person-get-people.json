@@ -17,9 +17,9 @@
         "revision": 1,
         "createdAt": "<time>",
         "updatedAt": "<time>",
-        "workItemCount": 0,
-        "roadmapCount": 0,
-        "repositoryCount": 0
+        "workItemCount": 1,
+        "roadmapCount": 1,
+        "repositoryCount": 1
       }
     ],
     "total": 1

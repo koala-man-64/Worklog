@@ -5,7 +5,7 @@
       {
         "id": "<id1>",
         "entityId": "<id2>",
-        "kind": "entry.upsert",
+        "kind": "person.link",
         "actorId": "local-user",
         "actorLabel": "You",
         "actorKind": "human",
@@ -14,6 +14,29 @@
         "before": null,
         "after": {
           "id": "<id3>",
+          "personId": "<id4>",
+          "name": "Ada",
+          "personTitle": "Engineer",
+          "personTeam": "",
+          "targetType": "item",
+          "targetId": "<id2>",
+          "relationship": "Reviewer",
+          "archived": false,
+          "createdAt": "<time>"
+        }
+      },
+      {
+        "id": "<id5>",
+        "entityId": "<id2>",
+        "kind": "entry.upsert",
+        "actorId": "local-user",
+        "actorLabel": "You",
+        "actorKind": "human",
+        "createdAt": "<time>",
+        "localDate": "<today>",
+        "before": null,
+        "after": {
+          "id": "<id6>",
           "date": "<today>",
           "itemId": "<id2>",
           "planned": true,
@@ -24,7 +47,7 @@
         }
       },
       {
-        "id": "<id4>",
+        "id": "<id7>",
         "entityId": "<id2>",
         "kind": "item.update",
         "actorId": "local-user",
@@ -65,7 +88,7 @@
         }
       },
       {
-        "id": "<id5>",
+        "id": "<id8>",
         "entityId": "<id2>",
         "kind": "item.create",
         "actorId": "local-user",

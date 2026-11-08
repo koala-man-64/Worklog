@@ -83,6 +83,29 @@
       {
         "id": "<id6>",
         "entityId": "<id1>",
+        "kind": "person.link",
+        "actorId": "local-user",
+        "actorLabel": "You",
+        "actorKind": "human",
+        "createdAt": "<time>",
+        "localDate": "<today>",
+        "before": null,
+        "after": {
+          "id": "<id7>",
+          "personId": "<id8>",
+          "name": "Ada",
+          "personTitle": "Engineer",
+          "personTeam": "",
+          "targetType": "roadmap",
+          "targetId": "<id1>",
+          "relationship": "Reviewer",
+          "archived": false,
+          "createdAt": "<time>"
+        }
+      },
+      {
+        "id": "<id9>",
+        "entityId": "<id1>",
         "kind": "roadmap.revise",
         "actorId": "local-user",
         "actorLabel": "You",
@@ -96,7 +119,7 @@
         }
       },
       {
-        "id": "<id7>",
+        "id": "<id10>",
         "entityId": "<id1>",
         "kind": "roadmap.create",
         "actorId": "local-user",
@@ -117,7 +140,18 @@
     "ancestors": [],
     "children": [],
     "workItems": [],
-    "people": [],
+    "people": [
+      {
+        "id": "<id7>",
+        "personId": "<id8>",
+        "name": "Ada",
+        "personTitle": "Engineer",
+        "personTeam": "",
+        "relationship": "Reviewer",
+        "archived": false,
+        "createdAt": "<time>"
+      }
+    ],
     "imports": []
   }
 }

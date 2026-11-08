@@ -73,10 +73,21 @@
           "rank": 1,
           "repositoryIds": [],
           "isBacklog": false,
-          "people": []
+          "people": [
+            {
+              "id": "<id3>",
+              "personId": "<id4>",
+              "name": "Ada",
+              "personTitle": "Engineer",
+              "personTeam": "",
+              "relationship": "Reviewer",
+              "archived": false,
+              "createdAt": "<time>"
+            }
+          ]
         },
         {
-          "id": "<id3>",
+          "id": "<id5>",
           "title": "Release notes",
           "description": "",
           "status": "open",
@@ -101,7 +112,7 @@
     "roadmaps": {
       "items": [
         {
-          "id": "<id4>",
+          "id": "<id6>",
           "title": "Plan 2",
           "overview": "",
           "parentId": null,
@@ -116,7 +127,7 @@
     "people": {
       "items": [
         {
-          "id": "<id5>",
+          "id": "<id4>",
           "name": "Ada",
           "title": "Engineer",
           "team": "",
@@ -130,9 +141,9 @@
           "revision": 1,
           "createdAt": "<time>",
           "updatedAt": "<time>",
-          "workItemCount": 0,
-          "roadmapCount": 0,
-          "repositoryCount": 0
+          "workItemCount": 1,
+          "roadmapCount": 1,
+          "repositoryCount": 1
         }
       ],
       "total": 1
@@ -140,13 +151,13 @@
     "proposals": {
       "items": [
         {
-          "id": "<id6>",
+          "id": "<id7>",
           "title": "Rename",
           "rationale": "Clearer",
           "status": "draft",
           "autoApproved": false,
           "revision": 1,
-          "actorId": "<id7>",
+          "actorId": "<id8>",
           "actorLabel": "Builder",
           "actorDirectory": null,
           "operations": [],
@@ -162,7 +173,7 @@
     "repositories": {
       "items": [
         {
-          "id": "<id8>",
+          "id": "<id9>",
           "name": "worklog",
           "url": "https://github.com/example/worklog",
           "remoteIdentity": "github.com/example/worklog",
@@ -179,7 +190,7 @@
           "revision": 1,
           "createdAt": "<time>",
           "updatedAt": "<time>",
-          "discussionId": "<id9>"
+          "discussionId": "<id10>"
         }
       ],
       "total": 1,
@@ -189,9 +200,9 @@
     "runs": {
       "items": [
         {
-          "id": "<id10>",
-          "agentId": "<id7>",
-          "credentialId": "<id7>",
+          "id": "<id11>",
+          "agentId": "<id8>",
+          "credentialId": "<id8>",
           "clientRunKey": "golden",
           "displayName": "Builder",
           "provider": "",
@@ -214,13 +225,13 @@
     "participations": {
       "items": [
         {
-          "id": "<id11>",
-          "runId": "<id10>",
+          "id": "<id12>",
+          "runId": "<id11>",
           "itemId": "<id2>",
           "description": "",
           "contexts": [
             {
-              "repositoryId": "<id8>",
+              "repositoryId": "<id9>",
               "repositoryName": "worklog",
               "archived": false,
               "checkoutPath": "",
@@ -236,9 +247,9 @@
           "releaseReason": null,
           "stale": false,
           "run": {
-            "id": "<id10>",
-            "agentId": "<id7>",
-            "credentialId": "<id7>",
+            "id": "<id11>",
+            "agentId": "<id8>",
+            "credentialId": "<id8>",
             "clientRunKey": "golden",
             "displayName": "Builder",
             "provider": "",
@@ -264,7 +275,7 @@
     "tickets": {
       "items": [
         {
-          "id": "<id12>",
+          "id": "<id13>",
           "number": 1,
           "key": "T-1",
           "title": "Crash on save",
@@ -302,7 +313,7 @@
     "resources": {
       "items": [
         {
-          "id": "<id13>",
+          "id": "<id14>",
           "title": "Style",
           "summary": "How we write",
           "archived": false,
@@ -318,7 +329,7 @@
     "releases": {
       "items": [
         {
-          "id": "<id14>",
+          "id": "<id15>",
           "title": "1.0",
           "description": "",
           "releaseDate": "2026-12-01",

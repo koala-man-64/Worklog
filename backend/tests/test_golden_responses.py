@@ -111,6 +111,10 @@ class World:
                                                                "body": "Plain words"})["id"]
         ids["repository"] = self.write(p, "POST", "/repositories", {"name": "worklog",
                                                                     "url": "https://github.com/example/worklog"})["id"]
+        # The person tied to a work item, a roadmap and a repository, so each side's lists hold one.
+        for kind, target in (("item", item["id"]), ("roadmap", roadmap["id"]), ("repository", ids["repository"])):
+            self.write(p, "POST", "/person-links", {"personId": ids["person"], "targetType": kind, "targetId": target,
+                                                    "relationship": "Reviewer"})
         ticket = self.write(p, "POST", "/tickets", {"title": "Crash on save"})
         ids["ticket"] = ticket["id"]
         ids["ticketRef"] = ticket.get("key") or f"T-{ticket['number']}"
