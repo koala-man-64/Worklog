@@ -3786,9 +3786,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Proposal Create Api V1 Proposals Post"
+                  "$ref": "#/components/schemas/ProposalListed"
                 }
               }
             }
@@ -3874,9 +3872,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Proposal Update Api V1 Proposals  Identity  Patch"
+                  "$ref": "#/components/schemas/ProposalListed"
                 }
               }
             }
@@ -4915,9 +4911,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Proposal Transition Api V1 Proposals  Identity   Verb  Post"
+                  "$ref": "#/components/schemas/ProposalListed"
                 }
               }
             }
@@ -8505,9 +8499,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Choose Avatar Api V1 Discussions Avatar Post"
+                  "$ref": "#/components/schemas/Participant"
                 }
               }
             }
@@ -8633,9 +8625,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Create Role Api V1 Discussions Roles Post"
+                  "$ref": "#/components/schemas/DiscussionRole"
                 }
               }
             }
@@ -8684,9 +8674,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Claim Role Api V1 Discussions Roles  Identity  Claim Post"
+                  "$ref": "#/components/schemas/DiscussionRole"
                 }
               }
             }
@@ -8735,9 +8723,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Release Role Api V1 Discussions Roles  Identity  Release Post"
+                  "$ref": "#/components/schemas/DiscussionRole"
                 }
               }
             }
@@ -8786,9 +8772,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Offer Role Api V1 Discussions Roles  Identity  Offer Post"
+                  "$ref": "#/components/schemas/DiscussionRole"
                 }
               }
             }
@@ -8837,9 +8821,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Accept Role Api V1 Discussions Roles  Identity  Accept Post"
+                  "$ref": "#/components/schemas/DiscussionRole"
                 }
               }
             }
@@ -8888,9 +8870,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Decline Role Api V1 Discussions Roles  Identity  Decline Post"
+                  "$ref": "#/components/schemas/DiscussionRole"
                 }
               }
             }
@@ -8939,9 +8919,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Withdraw Role Api V1 Discussions Roles  Identity  Withdraw Post"
+                  "$ref": "#/components/schemas/DiscussionRole"
                 }
               }
             }
@@ -8990,9 +8968,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Reassign Role Api V1 Discussions Roles  Identity  Reassign Post"
+                  "$ref": "#/components/schemas/DiscussionRole"
                 }
               }
             }
@@ -9279,9 +9255,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Acknowledge Api V1 Discussions Messages  Identity  Acknowledge Post"
+                  "$ref": "#/components/schemas/DiscussionMessage"
                 }
               }
             }
@@ -9330,9 +9304,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Cancel Request Api V1 Discussions Messages  Identity  Cancel Post"
+                  "$ref": "#/components/schemas/DiscussionMessage"
                 }
               }
             }
@@ -9381,9 +9353,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Release Request Api V1 Discussions Messages  Identity  Release Post"
+                  "$ref": "#/components/schemas/DiscussionMessage"
                 }
               }
             }
@@ -9573,9 +9543,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Create Discussion Api V1 Discussions Post"
+                  "$ref": "#/components/schemas/DiscussionStarted"
                 }
               }
             }
@@ -9686,9 +9654,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Post Message Api V1 Discussions  Identity  Messages Post"
+                  "$ref": "#/components/schemas/DiscussionMessage"
                 }
               }
             }
@@ -9737,9 +9703,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Archive Discussion Api V1 Discussions  Identity  Archive Post"
+                  "$ref": "#/components/schemas/DiscussionSummary"
                 }
               }
             }
@@ -9788,9 +9752,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Pin Discussion Api V1 Discussions  Identity  Pin Post"
+                  "$ref": "#/components/schemas/DiscussionSummary"
                 }
               }
             }
@@ -9839,9 +9801,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Tag Discussion Api V1 Discussions  Identity  Tags Post"
+                  "$ref": "#/components/schemas/DiscussionSummary"
                 }
               }
             }
@@ -9890,9 +9850,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Untag Discussion Api V1 Discussions  Identity  Tags Remove Post"
+                  "$ref": "#/components/schemas/DiscussionSummary"
                 }
               }
             }
@@ -15097,6 +15055,24 @@
           "offset"
         ],
         "title": "DiscussionRoles"
+      },
+      "DiscussionStarted": {
+        "properties": {
+          "discussion": {
+            "$ref": "#/components/schemas/DiscussionSummary"
+          },
+          "message": {
+            "$ref": "#/components/schemas/DiscussionMessage"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "discussion",
+          "message"
+        ],
+        "title": "DiscussionStarted",
+        "description": "A new discussion and its first message."
       },
       "DiscussionSummary": {
         "properties": {

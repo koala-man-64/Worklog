@@ -4524,6 +4524,14 @@ export interface components {
             offset: number;
         };
         /**
+         * DiscussionStarted
+         * @description A new discussion and its first message.
+         */
+        DiscussionStarted: {
+            discussion: components["schemas"]["DiscussionSummary"];
+            message: components["schemas"]["DiscussionMessage"];
+        };
+        /**
          * DiscussionSummary
          * @description A discussion as lists show it: its tags and how many acknowledgement requests are pending.
          */
@@ -11453,9 +11461,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ProposalListed"];
                 };
             };
             /** @description Validation Error */
@@ -11521,9 +11527,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ProposalListed"];
                 };
             };
             /** @description Validation Error */
@@ -12202,9 +12206,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ProposalListed"];
                 };
             };
             /** @description Validation Error */
@@ -14461,9 +14463,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Participant"];
                 };
             };
             /** @description Validation Error */
@@ -14530,9 +14530,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DiscussionRole"];
                 };
             };
             /** @description Validation Error */
@@ -14567,9 +14565,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DiscussionRole"];
                 };
             };
             /** @description Validation Error */
@@ -14604,9 +14600,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DiscussionRole"];
                 };
             };
             /** @description Validation Error */
@@ -14641,9 +14635,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DiscussionRole"];
                 };
             };
             /** @description Validation Error */
@@ -14678,9 +14670,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DiscussionRole"];
                 };
             };
             /** @description Validation Error */
@@ -14715,9 +14705,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DiscussionRole"];
                 };
             };
             /** @description Validation Error */
@@ -14752,9 +14740,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DiscussionRole"];
                 };
             };
             /** @description Validation Error */
@@ -14789,9 +14775,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DiscussionRole"];
                 };
             };
             /** @description Validation Error */
@@ -14925,9 +14909,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DiscussionMessage"];
                 };
             };
             /** @description Validation Error */
@@ -14962,9 +14944,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DiscussionMessage"];
                 };
             };
             /** @description Validation Error */
@@ -14999,9 +14979,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DiscussionMessage"];
                 };
             };
             /** @description Validation Error */
@@ -15072,9 +15050,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DiscussionStarted"];
                 };
             };
             /** @description Validation Error */
@@ -15143,9 +15119,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DiscussionMessage"];
                 };
             };
             /** @description Validation Error */
@@ -15180,9 +15154,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DiscussionSummary"];
                 };
             };
             /** @description Validation Error */
@@ -15217,9 +15189,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DiscussionSummary"];
                 };
             };
             /** @description Validation Error */
@@ -15254,9 +15224,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DiscussionSummary"];
                 };
             };
             /** @description Validation Error */
@@ -15291,9 +15259,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DiscussionSummary"];
                 };
             };
             /** @description Validation Error */
