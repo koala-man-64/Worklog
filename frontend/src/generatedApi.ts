@@ -2926,6 +2926,24 @@ export interface components {
             /** Avatar */
             avatar: string;
         };
+        /**
+         * Change
+         * @description One entry of a record's history as the record's own read lists it: who changed it, how and when.
+         */
+        Change: {
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Actorid */
+            actorId: string;
+            /** Actorlabel */
+            actorLabel: string;
+            /** Actorkind */
+            actorKind: string;
+            /** Createdat */
+            createdAt: string;
+        };
         /** ChatConfirmation */
         ChatConfirmation: {
             /** Agentid */
@@ -3689,6 +3707,45 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** ReleaseCheck */
+        ReleaseCheck: {
+            /** Id */
+            id: string;
+            /** Releaseid */
+            releaseId: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "notify" | "test" | "prepare";
+            /** Text */
+            text: string;
+            /** Details */
+            details: string;
+            /** Personid */
+            personId: string | null;
+            /** Duedate */
+            dueDate: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "doing" | "waiting" | "blocked" | "done";
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Personname */
+            personName: string | null;
+            /** Personarchived */
+            personArchived: boolean;
+            /** Pastdue */
+            pastDue: boolean;
+        };
         /** ReleaseCheckCreate */
         ReleaseCheckCreate: {
             /** Releaseid */
@@ -3781,6 +3838,59 @@ export interface components {
             /** Status */
             status?: ("planned" | "released" | "cancelled") | null;
         };
+        /**
+         * Reminder
+         * @description A reminder with its notes and history, as its own read returns it.
+         */
+        Reminder: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Date */
+            date: string;
+            /** Time */
+            time: string | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "open" | "done";
+            /** Due */
+            due: boolean;
+            /** Overdue */
+            overdue: boolean;
+            target: components["schemas"]["ReminderTarget"] | null;
+            author: components["schemas"]["ReminderAuthor"];
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Doneat */
+            doneAt: string | null;
+            /** Notes */
+            notes: string;
+            /** History */
+            history: components["schemas"]["Change"][];
+        };
+        /** ReminderAuthor */
+        ReminderAuthor: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "agent" | "human";
+            /** Avatar */
+            avatar: string | null;
+        };
         /** ReminderCreate */
         ReminderCreate: {
             /** Title */
@@ -3798,6 +3908,20 @@ export interface components {
             targetType?: ("item" | "ticket" | "roadmap" | "person" | "repository" | "chat") | null;
             /** Targetid */
             targetId?: string | null;
+        };
+        /** ReminderTarget */
+        ReminderTarget: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "item" | "ticket" | "roadmap" | "person" | "repository" | "chat";
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Archived */
+            archived: boolean;
         };
         /** ReminderUpdate */
         ReminderUpdate: {
@@ -3891,6 +4015,27 @@ export interface components {
              * @default 0
              */
             targetRevision: number;
+        };
+        /** Resource */
+        Resource: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Summary */
+            summary: string;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Body */
+            body: string;
+            /** History */
+            history: components["schemas"]["Change"][];
         };
         /** ResourceCreate */
         ResourceCreate: {
@@ -9403,9 +9548,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Resource"];
                 };
             };
             /** @description Validation Error */
@@ -9836,9 +9979,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ReleaseCheck"];
                 };
             };
             /** @description Validation Error */
@@ -10058,9 +10199,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Reminder"];
                 };
             };
             /** @description Validation Error */

@@ -122,3 +122,80 @@ class Decision(Answer):
     revision: int
     createdAt: str
     updatedAt: str
+
+
+class Change(Answer):
+    """One entry of a record's history as the record's own read lists it: who changed it, how and when."""
+
+    id: str
+    kind: str
+    actorId: str
+    actorLabel: str
+    # events.actor_kind has no CHECK, so any text it holds reads back.
+    actorKind: str
+    createdAt: str
+
+
+class Resource(Answer):
+    id: str
+    title: str
+    summary: str
+    archived: bool
+    revision: int
+    createdAt: str
+    updatedAt: str
+    body: str
+    history: list[Change]
+
+
+class ReleaseCheck(Answer):
+    id: str
+    releaseId: str
+    kind: Literal["notify", "test", "prepare"]
+    text: str
+    details: str
+    personId: str | None
+    dueDate: str | None
+    status: Literal["open", "doing", "waiting", "blocked", "done"]
+    archived: bool
+    revision: int
+    createdAt: str
+    updatedAt: str
+    personName: str | None
+    personArchived: bool
+    pastDue: bool
+
+
+class ReminderTarget(Answer):
+    type: Literal["item", "ticket", "roadmap", "person", "repository", "chat"]
+    id: str
+    title: str
+    archived: bool
+
+
+class ReminderAuthor(Answer):
+    id: str
+    label: str
+    kind: Literal["agent", "human"]
+    avatar: str | None
+
+
+class Reminder(Answer):
+    """A reminder with its notes and history, as its own read returns it."""
+
+    id: str
+    title: str
+    date: str
+    time: str | None
+    state: Literal["open", "done"]
+    due: bool
+    overdue: bool
+    target: ReminderTarget | None
+    author: ReminderAuthor
+    archived: bool
+    revision: int
+    createdAt: str
+    updatedAt: str
+    doneAt: str | None
+    notes: str
+    history: list[Change]

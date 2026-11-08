@@ -7506,9 +7506,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Resource Api V1 Resources  Identity  Get"
+                  "$ref": "#/components/schemas/Resource"
                 }
               }
             }
@@ -8127,9 +8125,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Check Api V1 Release Checks  Identity  Get"
+                  "$ref": "#/components/schemas/ReleaseCheck"
                 }
               }
             }
@@ -8525,9 +8521,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Reminder Api V1 Reminders  Identity  Get"
+                  "$ref": "#/components/schemas/Reminder"
                 }
               }
             }
@@ -10696,6 +10690,46 @@
           "avatar"
         ],
         "title": "AvatarChoice"
+      },
+      "Change": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "actorId": {
+            "type": "string",
+            "title": "Actorid"
+          },
+          "actorLabel": {
+            "type": "string",
+            "title": "Actorlabel"
+          },
+          "actorKind": {
+            "type": "string",
+            "title": "Actorkind"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "actorId",
+          "actorLabel",
+          "actorKind",
+          "createdAt"
+        ],
+        "title": "Change",
+        "description": "One entry of a record's history as the record's own read lists it: who changed it, how and when."
       },
       "ChatConfirmation": {
         "properties": {
@@ -12986,6 +13020,123 @@
         ],
         "title": "Reflection"
       },
+      "ReleaseCheck": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "releaseId": {
+            "type": "string",
+            "title": "Releaseid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "notify",
+              "test",
+              "prepare"
+            ],
+            "title": "Kind"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "details": {
+            "type": "string",
+            "title": "Details"
+          },
+          "personId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Personid"
+          },
+          "dueDate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duedate"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "doing",
+              "waiting",
+              "blocked",
+              "done"
+            ],
+            "title": "Status"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "personName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Personname"
+          },
+          "personArchived": {
+            "type": "boolean",
+            "title": "Personarchived"
+          },
+          "pastDue": {
+            "type": "boolean",
+            "title": "Pastdue"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "releaseId",
+          "kind",
+          "text",
+          "details",
+          "personId",
+          "dueDate",
+          "status",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "personName",
+          "personArchived",
+          "pastDue"
+        ],
+        "title": "ReleaseCheck"
+      },
       "ReleaseCheckCreate": {
         "properties": {
           "releaseId": {
@@ -13297,6 +13448,162 @@
         ],
         "title": "ReleaseUpdate"
       },
+      "Reminder": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "date": {
+            "type": "string",
+            "title": "Date"
+          },
+          "time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "open",
+              "done"
+            ],
+            "title": "State"
+          },
+          "due": {
+            "type": "boolean",
+            "title": "Due"
+          },
+          "overdue": {
+            "type": "boolean",
+            "title": "Overdue"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReminderTarget"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "author": {
+            "$ref": "#/components/schemas/ReminderAuthor"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "doneAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doneat"
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/Change"
+            },
+            "type": "array",
+            "title": "History"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "date",
+          "time",
+          "state",
+          "due",
+          "overdue",
+          "target",
+          "author",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "doneAt",
+          "notes",
+          "history"
+        ],
+        "title": "Reminder",
+        "description": "A reminder with its notes and history, as its own read returns it."
+      },
+      "ReminderAuthor": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "agent",
+              "human"
+            ],
+            "title": "Kind"
+          },
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "kind",
+          "avatar"
+        ],
+        "title": "ReminderAuthor"
+      },
       "ReminderCreate": {
         "properties": {
           "title": {
@@ -13361,6 +13668,43 @@
           "date"
         ],
         "title": "ReminderCreate"
+      },
+      "ReminderTarget": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "item",
+              "ticket",
+              "roadmap",
+              "person",
+              "repository",
+              "chat"
+            ],
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "id",
+          "title",
+          "archived"
+        ],
+        "title": "ReminderTarget"
       },
       "ReminderUpdate": {
         "properties": {
@@ -13649,6 +13993,63 @@
           "targetDate"
         ],
         "title": "Reschedule"
+      },
+      "Resource": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/Change"
+            },
+            "type": "array",
+            "title": "History"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "summary",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "body",
+          "history"
+        ],
+        "title": "Resource"
       },
       "ResourceCreate": {
         "properties": {

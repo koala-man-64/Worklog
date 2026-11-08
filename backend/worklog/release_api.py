@@ -10,6 +10,7 @@ from collections.abc import Callable
 from fastapi import FastAPI, Query, Request
 
 from . import models as m
+from . import responses as out
 from .db import Database
 from .releases import ReleaseService
 
@@ -60,7 +61,7 @@ def install_release_routes(app: FastAPI, db: Database, apply: Callable) -> None:
     def check_create(request: Request, body: m.ReleaseCheckCreate) -> dict:
         return apply(request, "check.create", body.model_dump(), create=True)
 
-    @app.get("/api/v1/release-checks/{identity}")
+    @app.get("/api/v1/release-checks/{identity}", response_model=out.ReleaseCheck)
     def check(identity: str) -> dict:
         return read(lambda c: service.check(c, identity))
 

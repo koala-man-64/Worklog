@@ -18,10 +18,21 @@
         "rank": 1,
         "repositoryIds": [],
         "isBacklog": false,
-        "people": []
+        "people": [
+          {
+            "id": "<id2>",
+            "personId": "<id3>",
+            "name": "Ada",
+            "personTitle": "Engineer",
+            "personTeam": "",
+            "relationship": "Reviewer",
+            "archived": false,
+            "createdAt": "<time>"
+          }
+        ]
       },
       {
-        "id": "<id2>",
+        "id": "<id4>",
         "title": "Release notes",
         "description": "",
         "status": "open",

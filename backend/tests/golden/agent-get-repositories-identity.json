@@ -19,6 +19,17 @@
     "createdAt": "<time>",
     "updatedAt": "<time>",
     "discussionId": "<id2>",
-    "people": []
+    "people": [
+      {
+        "id": "<id3>",
+        "personId": "<id4>",
+        "name": "Ada",
+        "personTitle": "Engineer",
+        "personTeam": "",
+        "relationship": "Reviewer",
+        "archived": false,
+        "createdAt": "<time>"
+      }
+    ]
   }
 }

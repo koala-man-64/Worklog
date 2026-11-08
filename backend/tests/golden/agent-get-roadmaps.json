@@ -11,7 +11,18 @@
         "archived": false,
         "createdAt": "<time>",
         "updatedAt": "<time>",
-        "people": []
+        "people": [
+          {
+            "id": "<id2>",
+            "personId": "<id3>",
+            "name": "Ada",
+            "personTitle": "Engineer",
+            "personTeam": "",
+            "relationship": "Reviewer",
+            "archived": false,
+            "createdAt": "<time>"
+          }
+        ]
       }
     ],
     "total": 1
