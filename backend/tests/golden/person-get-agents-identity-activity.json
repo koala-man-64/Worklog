@@ -3,21 +3,37 @@
   "body": {
     "items": [
       {
-        "kind": "update",
+        "kind": "message",
         "id": "<id1>",
+        "createdAt": "<time>",
+        "text": "Starting with the tables",
+        "truncated": false,
+        "discussionId": "<id2>",
+        "discussionTitle": "Parser",
+        "chatId": "chat-1",
+        "chats": [
+          {
+            "id": "<id3>",
+            "title": "Build"
+          }
+        ]
+      },
+      {
+        "kind": "update",
+        "id": "<id4>",
         "createdAt": "<time>",
         "text": "Parser half done",
         "truncated": false,
         "updateKind": "update",
         "runName": "Builder",
-        "participationId": "<id2>",
+        "participationId": "<id5>",
         "item": {
-          "id": "<id3>",
+          "id": "<id6>",
           "title": "Parser"
         },
         "contexts": [
           {
-            "repositoryId": "<id4>",
+            "repositoryId": "<id7>",
             "repositoryName": "worklog",
             "archived": false,
             "checkoutPath": "",
@@ -27,7 +43,7 @@
         ]
       }
     ],
-    "total": 1,
+    "total": 2,
     "limit": 50,
     "offset": 0
   }

@@ -169,6 +169,13 @@ class World:
         # The agent posts an update on its participation, so the updates and its activity list one.
         self.write(a, "POST", f"/participations/{ids['participation']}/updates", {"kind": "update",
                                                                                   "text": "Parser half done"})
+        # The agent owns a role on the work item and replies in its discussion from the tracked chat,
+        # so the registry lists a role, a message with its chat, and the agent tied to that chat.
+        role = self.write(a, "POST", "/discussions/roles", {"contextType": "item", "contextId": item["id"],
+                                                            "label": "Parser owner"})
+        self.write(a, "POST", f"/discussions/roles/{role['id']}/claim", {"revision": role["revision"]})
+        self.write(a, "POST", f"/discussions/{ids['discussion']}/messages", {"text": "Starting with the tables",
+                                                                              "chatId": "chat-1"})
 
 
 def concrete(template: str, ids: dict[str, str], today: str) -> str:
