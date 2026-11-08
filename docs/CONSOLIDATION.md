@@ -491,7 +491,7 @@ What changed:
 
 #### 5.1 · Grouped sidebar
 
-Status: Merged · Branch: `claude/grouped-sidebar` · PR: PR_LINK
+Status: Merged · Branch: `claude/grouped-sidebar` · PR: [#137](https://github.com/koala-man-64/Worklog/pull/137)
 
 Group the sidebar into four sections:
 
