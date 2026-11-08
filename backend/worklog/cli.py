@@ -32,9 +32,9 @@ from worklog.common import shows_as_written
 from worklog.recovery import (
     InstanceLock,
     backup_database,
-    export_database,
     list_backups,
     restore_database,
+    write_export,
 )
 
 HOST = "127.0.0.1"
@@ -1541,19 +1541,20 @@ def parser() -> argparse.ArgumentParser:
 
 
 def _publish_new_file(output: Path, produce: Any) -> None:
-    """Write produce() to output without ever overwriting it or leaving a partial file.
+    """Have produce(path) write the file, then publish it at output, never overwriting output or
+    leaving a partial file.
 
-    The bytes go to a temporary file beside the target, then are published by a rename
+    produce writes a temporary file beside the target, which is then published by a rename
     (Windows) or hard link (elsewhere); both fail if the target already exists.
     """
     exists = f"{output} already exists; choose another path"
     if output.exists():
         raise ValueError(exists)
     descriptor, name = tempfile.mkstemp(dir=output.parent, prefix=".worklog-export-", suffix=".zip")
+    os.close(descriptor)
     temporary = Path(name)
     try:
-        with os.fdopen(descriptor, "wb") as stream:
-            stream.write(produce())
+        produce(temporary)
         try:
             if os.name == "nt":
                 os.rename(temporary, output)
@@ -1601,7 +1602,7 @@ def main(argv: list[str] | None = None) -> int:
                 result = restore_database(database, Path(args.file), directory / "backups")
             else:
                 output = Path(args.file).resolve()
-                _publish_new_file(output, lambda: export_database(database))
+                _publish_new_file(output, lambda path: write_export(database, path))
                 result = {"exported": str(output), "size": output.stat().st_size}
         # ASCII JSON: \u escapes reach the reader intact whatever code page a pipe or console uses.
         print(_redacted(json.dumps(result, indent=2), redact))

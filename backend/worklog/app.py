@@ -9,6 +9,7 @@ import os
 import re
 import secrets
 import sqlite3
+import tempfile
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -50,7 +51,7 @@ from .maintenance import prune_receipts
 from .plans import PlanService
 from .proposals import ProposalService, approval_required
 from .records import check_owner, people_on, support_record
-from .recovery import automatic_backup, backup_database, export_database, list_backups
+from .recovery import automatic_backup, backup_database, list_backups, write_export
 from .registration import (
     active_registrations,
     install_registration_routes,
@@ -97,6 +98,17 @@ async def bounded_body(request: Request, maximum: int) -> bytes:
     """A body the guard leaves to its route (guard.STREAMED, and the bootstrap), read as the guard reads
     JSON, to the route's own limit. A client that leaves before it arrives is answered nothing."""
     return await read_body(request.receive, request.headers, maximum)
+
+
+class TemporaryFileResponse(FileResponse):
+    """A file response that removes its file once sent, or once sending stops part way, as when
+    `stop` cuts a download short after its grace period (from the review of step 4.2)."""
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        try:
+            await super().__call__(scope, receive, send)
+        finally:
+            Path(self.path).unlink(missing_ok=True)
 
 
 def person_only(request: Request) -> None:
@@ -483,10 +495,13 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         return await run_in_threadpool(mutate, request, payload,
                                       lambda c, a: support.upload(c, a, ownerType, ownerId, name, request.headers.get("content-type", "application/octet-stream"), data, proposals), required_key=True)
 
-    def download_response(content: bytes, name: str, mime: str = "application/octet-stream", inline: bool = False) -> Response:
+    def disposition(name: str, inline: bool = False) -> str:
         safe = "".join(ch if 32 <= ord(ch) < 127 and ch not in {'"', "\\", "/"} else "_" for ch in name)
+        return f"{'inline' if inline else 'attachment'}; filename=\"{safe}\"; filename*=UTF-8''{quote(name, safe='')}"
+
+    def download_response(content: bytes, name: str, mime: str = "application/octet-stream", inline: bool = False) -> Response:
         response = Response(content, media_type=mime)
-        response.headers["Content-Disposition"] = f"{'inline' if inline else 'attachment'}; filename=\"{safe}\"; filename*=UTF-8''{quote(name, safe='')}"
+        response.headers["Content-Disposition"] = disposition(name, inline)
         return response
 
     @app.get("/api/v1/attachments/{identity}")
@@ -768,7 +783,18 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
 
     @app.get("/api/v1/export", dependencies=[Depends(person_only)])
     def export() -> Response:
-        return download_response(export_database(db.path), "worklog-export.zip", "application/zip")
+        # Written to a file a piece at a time and sent from it, which is then removed (step 4.2,
+        # REM-18): the export no longer passes through memory whole.
+        handle, name = tempfile.mkstemp(prefix="worklog-export-", suffix=".zip")
+        os.close(handle)
+        archive = Path(name)
+        try:
+            write_export(db.path, archive)
+        except BaseException:
+            archive.unlink(missing_ok=True)
+            raise
+        return TemporaryFileResponse(archive, media_type="application/zip",
+                                     headers={"Content-Disposition": disposition("worklog-export.zip")})
 
     @app.get("/api/v1/people")
     def people_list(archived: bool = False, q: str = "") -> dict:
