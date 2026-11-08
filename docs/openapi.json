@@ -3256,9 +3256,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Roadmap Detail Api V1 Roadmaps  Identity  Get"
+                  "$ref": "#/components/schemas/Roadmap"
                 }
               }
             }
@@ -11577,6 +11575,31 @@
         ],
         "title": "Expected"
       },
+      "FamilyRoadmap": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "archived"
+        ],
+        "title": "FamilyRoadmap",
+        "description": "A roadmap above or below another, as that one lists it."
+      },
       "FileReference": {
         "properties": {
           "id": {
@@ -14989,6 +15012,183 @@
         ],
         "title": "Restore"
       },
+      "Roadmap": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "overview": {
+            "type": "string",
+            "title": "Overview"
+          },
+          "parentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parentid"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/RoadmapStep"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/RoadmapVersion"
+            },
+            "type": "array",
+            "title": "Versions"
+          },
+          "notes": {
+            "items": {
+              "$ref": "#/components/schemas/Note"
+            },
+            "type": "array",
+            "title": "Notes"
+          },
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/Attachment"
+            },
+            "type": "array",
+            "title": "Attachments"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/WebLink"
+            },
+            "type": "array",
+            "title": "Links"
+          },
+          "chats": {
+            "items": {
+              "$ref": "#/components/schemas/TrackedChat"
+            },
+            "type": "array",
+            "title": "Chats"
+          },
+          "github": {
+            "items": {
+              "$ref": "#/components/schemas/ListedGithubReference"
+            },
+            "type": "array",
+            "title": "Github"
+          },
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/Question"
+            },
+            "type": "array",
+            "title": "Questions"
+          },
+          "decisions": {
+            "items": {
+              "$ref": "#/components/schemas/Decision"
+            },
+            "type": "array",
+            "title": "Decisions"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            },
+            "type": "array",
+            "title": "History"
+          },
+          "ancestors": {
+            "items": {
+              "$ref": "#/components/schemas/FamilyRoadmap"
+            },
+            "type": "array",
+            "title": "Ancestors"
+          },
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/FamilyRoadmap"
+            },
+            "type": "array",
+            "title": "Children"
+          },
+          "workItems": {
+            "items": {
+              "$ref": "#/components/schemas/RoadmapWorkItem"
+            },
+            "type": "array",
+            "title": "Workitems"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/RecordPerson"
+            },
+            "type": "array",
+            "title": "People"
+          },
+          "imports": {
+            "items": {
+              "$ref": "#/components/schemas/RoadmapImport"
+            },
+            "type": "array",
+            "title": "Imports"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "overview",
+          "parentId",
+          "revision",
+          "archived",
+          "createdAt",
+          "updatedAt",
+          "steps",
+          "versions",
+          "notes",
+          "attachments",
+          "links",
+          "chats",
+          "github",
+          "questions",
+          "decisions",
+          "history",
+          "ancestors",
+          "children",
+          "workItems",
+          "people",
+          "imports"
+        ],
+        "title": "Roadmap",
+        "description": "A roadmap with everything its page shows."
+      },
       "RoadmapCreate": {
         "properties": {
           "title": {
@@ -15026,6 +15226,36 @@
           "title"
         ],
         "title": "RoadmapCreate"
+      },
+      "RoadmapImport": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "sha256": {
+            "type": "string",
+            "title": "Sha256"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "sha256",
+          "createdAt"
+        ],
+        "title": "RoadmapImport",
+        "description": "A plan import committed to the roadmap; its original is read on its own."
       },
       "RoadmapMove": {
         "properties": {
@@ -15136,6 +15366,217 @@
           "revision"
         ],
         "title": "RoadmapRevision"
+      },
+      "RoadmapStep": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "parentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parentid"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "retired": {
+            "type": "boolean",
+            "title": "Retired"
+          },
+          "notes": {
+            "items": {
+              "$ref": "#/components/schemas/Note"
+            },
+            "type": "array",
+            "title": "Notes"
+          },
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/Attachment"
+            },
+            "type": "array",
+            "title": "Attachments"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "description",
+          "parentId",
+          "position",
+          "status",
+          "revision",
+          "retired",
+          "notes",
+          "attachments"
+        ],
+        "title": "RoadmapStep",
+        "description": "A step as its roadmap lists it, with its notes and files. A parent's status is derived from its leaves."
+      },
+      "RoadmapVersion": {
+        "properties": {
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "number",
+          "createdAt",
+          "note"
+        ],
+        "title": "RoadmapVersion"
+      },
+      "RoadmapWorkItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "doing",
+              "waiting",
+              "blocked",
+              "done"
+            ],
+            "title": "Status"
+          },
+          "adoUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adourl"
+          },
+          "roadmapId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roadmapid"
+          },
+          "stepId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stepid"
+          },
+          "backlogOrder": {
+            "type": "integer",
+            "title": "Backlogorder"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "repositoryIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Repositoryids"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/RecordPerson"
+            },
+            "type": "array",
+            "title": "People"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "description",
+          "status",
+          "adoUrl",
+          "roadmapId",
+          "stepId",
+          "backlogOrder",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "repositoryIds",
+          "people"
+        ],
+        "title": "RoadmapWorkItem",
+        "description": "A work item on the roadmap or one of its steps, with the people tied to it."
       },
       "RoleCreate": {
         "properties": {

@@ -3232,6 +3232,18 @@ export interface components {
             /** Revision */
             revision: number;
         };
+        /**
+         * FamilyRoadmap
+         * @description A roadmap above or below another, as that one lists it.
+         */
+        FamilyRoadmap: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Archived */
+            archived: boolean;
+        };
         /** FileReference */
         FileReference: {
             /** Id */
@@ -4387,6 +4399,58 @@ export interface components {
             /** Number */
             number: number;
         };
+        /**
+         * Roadmap
+         * @description A roadmap with everything its page shows.
+         */
+        Roadmap: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Overview */
+            overview: string;
+            /** Parentid */
+            parentId: string | null;
+            /** Revision */
+            revision: number;
+            /** Archived */
+            archived: boolean;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Steps */
+            steps: components["schemas"]["RoadmapStep"][];
+            /** Versions */
+            versions: components["schemas"]["RoadmapVersion"][];
+            /** Notes */
+            notes: components["schemas"]["Note"][];
+            /** Attachments */
+            attachments: components["schemas"]["Attachment"][];
+            /** Links */
+            links: components["schemas"]["WebLink"][];
+            /** Chats */
+            chats: components["schemas"]["TrackedChat"][];
+            /** Github */
+            github: components["schemas"]["ListedGithubReference"][];
+            /** Questions */
+            questions: components["schemas"]["Question"][];
+            /** Decisions */
+            decisions: components["schemas"]["Decision"][];
+            /** History */
+            history: components["schemas"]["Event"][];
+            /** Ancestors */
+            ancestors: components["schemas"]["FamilyRoadmap"][];
+            /** Children */
+            children: components["schemas"]["FamilyRoadmap"][];
+            /** Workitems */
+            workItems: components["schemas"]["RoadmapWorkItem"][];
+            /** People */
+            people: components["schemas"]["RecordPerson"][];
+            /** Imports */
+            imports: components["schemas"]["RoadmapImport"][];
+        };
         /** RoadmapCreate */
         RoadmapCreate: {
             /** Title */
@@ -4402,6 +4466,20 @@ export interface components {
             }[];
             /** Parentid */
             parentId?: string | null;
+        };
+        /**
+         * RoadmapImport
+         * @description A plan import committed to the roadmap; its original is read on its own.
+         */
+        RoadmapImport: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Sha256 */
+            sha256: string;
+            /** Createdat */
+            createdAt: string;
         };
         /** RoadmapMove */
         RoadmapMove: {
@@ -4450,6 +4528,78 @@ export interface components {
              * @default
              */
             note: string;
+        };
+        /**
+         * RoadmapStep
+         * @description A step as its roadmap lists it, with its notes and files. A parent's status is derived from its leaves.
+         */
+        RoadmapStep: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /** Parentid */
+            parentId: string | null;
+            /** Position */
+            position: number;
+            /** Status */
+            status: string;
+            /** Revision */
+            revision: number;
+            /** Retired */
+            retired: boolean;
+            /** Notes */
+            notes: components["schemas"]["Note"][];
+            /** Attachments */
+            attachments: components["schemas"]["Attachment"][];
+        };
+        /** RoadmapVersion */
+        RoadmapVersion: {
+            /** Number */
+            number: number;
+            /** Createdat */
+            createdAt: string;
+            /** Note */
+            note: string;
+        };
+        /**
+         * RoadmapWorkItem
+         * @description A work item on the roadmap or one of its steps, with the people tied to it.
+         */
+        RoadmapWorkItem: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "doing" | "waiting" | "blocked" | "done";
+            /** Adourl */
+            adoUrl: string | null;
+            /** Roadmapid */
+            roadmapId: string | null;
+            /** Stepid */
+            stepId: string | null;
+            /** Backlogorder */
+            backlogOrder: number;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Repositoryids */
+            repositoryIds: string[];
+            /** People */
+            people: components["schemas"]["RecordPerson"][];
         };
         /** RoleCreate */
         RoleCreate: {
@@ -7195,9 +7345,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Roadmap"];
                 };
             };
             /** @description Validation Error */
