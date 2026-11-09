@@ -58,6 +58,7 @@ The order is fixed:
 | K14 | What may agents do with the person's reminders (schema v20)? | Read every reminder, notes and archived ones included, and set, change, snooze, complete and reopen them directly under their own identity, as with tickets. Only the person archives and recovers. The policy table lists the reads as `agent:read` and the writes as `agent:remind` (K2). | 3.3 | 2026-11-06, Rudy |
 | K15 | May one step's title or description change without a whole-roadmap save? (An agent couldn't record a predecessor on one step of a 323-step roadmap without rewriting the plan while other agents worked in it.) | Yes: `step.update` (`PATCH /steps/{id}`), checked against the step's own revision. It writes that step alone and records no version, so K6's last 20 versions stay structure saves. It raises the roadmap's revision, so a structure save drafted before it is refused rather than writing the old text back. | 4.1 | 2026-11-07, Rudy asked for it; Claude chose the guards while building it |
 | K16 | How do agents keep from working over each other, and what may they do with discussions (schema v22)? | Discussions take tags of ten kinds of record, which agents add and remove for themselves, and every repository has a discussion of its own. An agent announces its work in the discussion of each repository it will change, or in a discussion tagged with its work when no repository is involved, checks for overlapping work, and talks to the agent whose work overlaps. Only the person pins, and a pinned thread lists first everywhere. The rule lives in the agent guide only. | 5.6 | 2026-11-07, Rudy |
+| K17 | Do agent runs and participations collapse into one record? | No: both stay. A run is an agent's session in one chat, which the person's messages reach until the run ends. A participation is one piece of work in a run, with its work item, repositories, branch, heartbeat and updates, and a run often holds several. The overlap check is built on participations. | 5.6 | 2026-11-08, Rudy |
 | D6 | Is a migration framework needed? | Closed as done: migrations v1 to v10 run in one transaction after a pre-migration backup. | — | 2026-11-04, Rudy |
 
 ## Rules the roundtable settled
@@ -524,7 +525,7 @@ Status: Merged · Branches: `claude/golden-responses` to `claude/typed-frontend-
 
 None of the 146 operations has a typed response; the frontend keeps seven hand-written type files and three data-access styles. Type responses route by route, under golden tests (see *Rules*), then route every write through typed commands and delete the hand-written types. Findings: A-03, A-13.
 
-Done so far:
+Done:
 - **Golden responses** (`test_golden_responses.py`). A world built through the API holds a record of every kind. Every GET route is read as the person and as an agent, and the answer must equal its file in `backend/tests/golden`, with IDs, times, today's date, the avatar suggested and feed cursors as placeholders.
   - That covers 65 reads, 130 answers. The two that send files, the export and an import's original, are pinned by their own tests.
   - The script writes the files only when two worlds built apart give the same answers.
@@ -601,7 +602,7 @@ Status: Merged · Branches: `claude/frontend-layout-1`, `claude/frontend-layout-
 
 Split `components.tsx` into `ui/`, `sections/` and `pages/`, with one pager instead of seven, and split `styles.css` per page. `styles.css` changed in 44 of the first 86 commits. Findings: A-12, A-19.
 
-Done so far:
+Done:
 - **The grab-bag goes.** `components.tsx` is split into two directories, and each page imports what it uses from there. No code changes, only where each piece lives.
   - `ui/`: the building blocks: Markdown, ErrorMessage and Empty, the resize handle, the status menu, DraftField, Tabs, and byte sizes.
   - `sections/`: the record sections: files, notes and the scratchpad, the checklist, history, recovering archived records, people and their ties, links, agent chats and GitHub references.
@@ -646,7 +647,7 @@ Done:
 
 #### 5.6 · Agent contract v2
 
-Status: Blocked: whether runs and participations collapse into one record is Rudy's decision · Branches: `claude/handoff-retired`, `claude/chat-label-links` · PRs: [#173](https://github.com/koala-man-64/Worklog/pull/173), [#174](https://github.com/koala-man-64/Worklog/pull/174)
+Status: Merged · Branches: `claude/handoff-retired`, `claude/chat-label-links`, `claude/decision-k17` · PRs: [#173](https://github.com/koala-man-64/Worklog/pull/173), [#174](https://github.com/koala-man-64/Worklog/pull/174), [#177](https://github.com/koala-man-64/Worklog/pull/177)
 
 Under K8:
 
@@ -656,7 +657,7 @@ Under K8:
 
 Announce each in AGENT-GUIDE. Findings: A-08, B-11, A-09.
 
-Done so far:
+Done:
 - **An update is no longer a handoff** (A-09). A role's offer hands work on, and moves the role's pending requests when the successor accepts; an update only said so.
   - `updates post` has no `--kind handoff`, and a request that sets it is refused (`422 validation`, `{kind: "retired"}`).
   - The refusal runs inside the write, after its retry receipt, so retrying a handoff posted before with its request ID still returns it. Handoffs posted before stay readable, and the pages still label them.
@@ -668,6 +669,7 @@ Done so far:
   - The way back from v24 is `PRAGMA user_version=23`, since v23 holds the links too. `docs/UPGRADING.md` gives it in place of v23's.
   - The chat form has no labels field. A chat's labels show beside its repositories, except one that names a repository linked there; the rest are marked "Not linked".
   - AGENT-GUIDE, GUIDE, API.md and UPGRADING.md say so.
+- **Runs and participations stay two records** (K17). Nothing changes for agents, so the agent guide has nothing to announce.
 
 #### 5.7 · Hash-locked dependencies
 
@@ -797,3 +799,4 @@ These look like consolidation candidates but stay:
 - 2026-11-08: Step 5.3 split into PRs while building it: golden responses for every read first, then typed responses route by route, then typed commands.
 - 2026-11-08: Step 5.5 also moves the README's operations and development sections, into `docs/OPERATIONS.md` and `docs/DEVELOPMENT.md`: trimmed to overview, install and run, the README had no place for them.
 - 2026-11-08: Step 5.6 split into PRs while building it: handoff updates first, then the tracked chats' labels with schema v24, which links them under K8. v24 changes data alone, so its shape and seal are v23's. Whether runs and participations collapse waits on Rudy.
+- 2026-11-08: K17 recorded: runs and participations stay two records, so step 5.6 is merged.
