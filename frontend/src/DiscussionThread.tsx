@@ -20,7 +20,7 @@ import type {
   DiscussionParticipants,
   DiscussionRole,
   DiscussionSummary,
-} from "./discussionTypes";
+} from "./apiTypes";
 
 const PAGE = 50;
 const REFRESH_MS = 30_000;

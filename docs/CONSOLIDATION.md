@@ -577,6 +577,9 @@ Done so far:
 - **Typed commands, second batch.** Repositories, coordination, the agent registry, agent ties and a chat's outbox read the generated types. `repositoryTypes.ts`, `agentTypes.ts` and `outboxTypes.ts` are gone. `agentTieTypes.ts` becomes `agentTieKinds.ts`, the tie kinds and link helpers it held, without answer types.
   - A tied record reads through one view of its kinds' shapes (`TieTargetView`).
   - The test fixtures now carry every field the answers do.
+- **Typed commands, third batch.** The discussions read the generated types, and `discussionTypes.ts` is gone.
+  - A thread's tags read through one view of their kinds' shapes.
+  - The references a page builds (a draft's chosen record, a filter, a role's record) take `ContextRef`, a kind and an id with what the page has read.
 
 #### 5.4 · Frontend layout
 

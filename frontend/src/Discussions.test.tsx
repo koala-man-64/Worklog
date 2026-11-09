@@ -14,7 +14,7 @@ import type {
   DiscussionRole,
   DiscussionRoles,
   DiscussionSummary,
-} from "./discussionTypes";
+} from "./apiTypes";
 
 const human = {
   id: "local-user",
@@ -42,6 +42,14 @@ const participants: DiscussionParticipants = {
   self: { id: human.id, label: human.label, kind: human.kind },
 };
 
+// What every tag carries besides its record: who added it and when, and whether it is home.
+const tag = {
+  archived: false,
+  home: false,
+  addedBy: { id: "local-user", label: "You", kind: "human" as const },
+  addedAt: "2026-11-01T10:00:00Z",
+};
+
 function summary(fields: Partial<DiscussionSummary> = {}): DiscussionSummary {
   return {
     id: "discussion-1",
@@ -50,9 +58,12 @@ function summary(fields: Partial<DiscussionSummary> = {}): DiscussionSummary {
     revision: 1,
     createdAt: "2026-11-01T10:00:00Z",
     updatedAt: "2026-11-01T10:00:00Z",
+    pinned: false,
+    pinnedAt: null,
     contexts: [],
     repos: [],
     pendingCount: 1,
+    repository: null,
     ...fields,
   };
 }
@@ -80,6 +91,14 @@ function requestState(
     actionableTargetIds: [],
     canCancel: true,
     canRelease: true,
+    classifications: [],
+    reason: null,
+    terminalAt: null,
+    terminalActorId: null,
+    terminalActorLabel: null,
+    terminalActorKind: null,
+    authorityRoleId: null,
+    authorityGeneration: null,
     ...fields,
   };
 }
@@ -105,6 +124,7 @@ const assignedRole: DiscussionRole = {
   id: "role-reviewer",
   contextType: "item",
   contextId: "item-22222222",
+  contextTitle: "Import parser",
   label: "Reviewer",
   ownerId: agentB.id,
   ownerLabel: agentB.label,
@@ -175,6 +195,8 @@ function serve({
           return json({
             items: shown,
             total: shown.length,
+            limit: 50,
+            offset: 0,
           } satisfies DiscussionList);
         }
         if (path === "/discussions/participants") return json(participants);
@@ -182,6 +204,8 @@ function serve({
           return json({
             items: currentRoles,
             total: currentRoles.length,
+            limit: 100,
+            offset: 0,
           } satisfies DiscussionRoles);
         if (path === "/chats") return json({ items: [], total: 0 });
         if (path === "/discussions/discussion-1")
@@ -189,6 +213,8 @@ function serve({
             discussion: currentSummary,
             messages: currentMessages,
             total: currentMessages.length,
+            limit: 50,
+            offset: 0,
           } satisfies DiscussionDetail);
         return json({ items: [], total: 0 });
       }
@@ -384,14 +410,38 @@ it("links each tag to its record by the title the discussion brings, whatever it
   serve({
     initialSummary: summary({
       contexts: [
-        { type: "repository", id: "repo-1", title: "Worklog", home: true },
-        { type: "ticket", id: "ticket-1", title: "Flaky import" },
-        { type: "release", id: "release-1", title: "November" },
         {
+          ...tag,
+          type: "repository",
+          id: "repo-1",
+          title: "Worklog",
+          home: true,
+          mergedInto: null,
+        },
+        {
+          ...tag,
+          type: "ticket",
+          id: "ticket-1",
+          title: "Flaky import",
+          status: "open",
+          number: 7,
+        },
+        {
+          ...tag,
+          type: "release",
+          id: "release-1",
+          title: "November",
+          status: "planned",
+          releaseDate: null,
+        },
+        {
+          ...tag,
           type: "step",
           id: "step-1",
           title: "Cut the branch",
+          status: "open",
           roadmapId: "roadmap-1",
+          roadmapTitle: "Platform",
         },
       ],
     }),

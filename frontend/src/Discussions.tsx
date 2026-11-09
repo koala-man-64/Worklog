@@ -7,6 +7,7 @@ import {
   ContextReference,
   useContextSearch,
   type ContextChoice,
+  type ContextRef,
 } from "./discussionContexts";
 import { Composer } from "./DiscussionComposer";
 import { DiscussionRolesPanel } from "./DiscussionRoles";
@@ -15,12 +16,11 @@ import { formatDiscussionDate } from "./discussionFormatting";
 import { useAction, useData } from "./hooks";
 import type { ChatOverview, List } from "./types";
 import type {
-  DiscussionContext,
   DiscussionList,
   DiscussionParticipants,
   DiscussionRoles,
   DiscussionSummary,
-} from "./discussionTypes";
+} from "./apiTypes";
 
 const PAGE = 50;
 const ROLE_PAGE = 100;
@@ -40,7 +40,7 @@ function when(iso: string | null | undefined) {
 function viewPath(
   view: View,
   query: string,
-  context: DiscussionContext | null,
+  context: ContextRef | null,
   repo: string,
   offset: number,
 ) {

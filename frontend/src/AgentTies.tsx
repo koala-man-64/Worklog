@@ -19,7 +19,7 @@ import {
   type TieType,
 } from "./agentTieKinds";
 import type { AgentTie, TieTargetView } from "./apiTypes";
-import type { DiscussionParticipants } from "./discussionTypes";
+import type { DiscussionParticipants } from "./apiTypes";
 import type { List } from "./types";
 
 // Agents tie themselves while a page is open, so the ties on it are read again now and then.
