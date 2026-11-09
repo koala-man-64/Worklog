@@ -2,6 +2,7 @@ import { useId, useState } from "react";
 import { useData } from "./hooks";
 import { LinkPicker } from "./LinkPicker";
 import type { Answer, Repository } from "./apiTypes";
+import { Pager } from "./ui/Pager";
 
 export function RepositoryBadges({
   ids = [],
@@ -188,24 +189,13 @@ export function RepositoryFilter({
       {query.error ? (
         <p role="alert">Could not load repository choices.</p>
       ) : null}
-      {(offset > 0 || (query.data?.total ?? 0) > 50) && (
-        <span>
-          <button
-            type="button"
-            disabled={!offset}
-            onClick={() => setOffset(Math.max(0, offset - 50))}
-          >
-            Previous filter choices
-          </button>
-          <button
-            type="button"
-            disabled={offset + 50 >= (query.data?.total ?? 0)}
-            onClick={() => setOffset(offset + 50)}
-          >
-            Next filter choices
-          </button>
-        </span>
-      )}
+      <Pager
+        offset={offset}
+        total={query.data?.total ?? 0}
+        onChange={setOffset}
+        label="filter choices"
+        className=""
+      />
     </div>
   );
 }

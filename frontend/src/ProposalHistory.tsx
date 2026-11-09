@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useData } from "./hooks";
 import { ErrorMessage } from "./ui/Messages";
-import { Pages } from "./Coordination";
+import { Pager } from "./ui/Pager";
 import type { Answer, ProposalEntry } from "./apiTypes";
 
 const PAGE = 50;
@@ -115,10 +115,10 @@ export function AppliedProposals({
         </p>
       )}
       <Entries entries={entries} label="Applied proposals" record />
-      <Pages
+      <Pager
         offset={offset}
         total={query.data?.total ?? 0}
-        change={setOffset}
+        onChange={setOffset}
         label="proposals"
       />
     </details>
@@ -149,10 +149,10 @@ export function AgentProposals({ id }: { id: string }) {
         label="Proposals from this agent"
         record={false}
       />
-      <Pages
+      <Pager
         offset={offset}
         total={query.data?.total ?? 0}
-        change={setOffset}
+        onChange={setOffset}
         label="proposals"
       />
     </section>

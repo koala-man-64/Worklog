@@ -630,12 +630,24 @@ header {
   flex: 1;
   min-width: 120px;
 }
+/* A pager's buttons and range sit a small gap apart. A list that places its pager in a row of its
+   own (.toolbar, .work-pager, .discussion-pagination) sets that row in a rule further down. */
+.pager {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
 .toolbar {
   display: flex;
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
   margin: 18px 0;
+}
+/* Every pager's range, such as "51 to 100 of 120", keeps its figures one width. */
+.pager > span {
+  font-variant-numeric: tabular-nums;
 }
 /* In a toolbar a label sits beside its control, centred on one row, as a filter or a field of the record above. */
 .toolbar label {
@@ -1507,6 +1519,7 @@ select.status-select option {
 }
 .work-pager {
   display: flex;
+  align-items: center;
   gap: 8px;
 }
 /* From 900px wide the sheet fills the window, and only its rows scroll. */
@@ -2664,9 +2677,6 @@ a.context-tag:hover {
   min-height: 32px;
   padding: 4px 10px;
   font-size: 12px;
-}
-.discussion-pagination small {
-  font-variant-numeric: tabular-nums;
 }
 /* Roles are a second kind of record, so they keep a tray of their own below the threads rather than after the last one. */
 .discussion-roles-panel {

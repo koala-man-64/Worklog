@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getDataContext } from "./api";
 import { Empty, ErrorMessage } from "./ui/Messages";
+import { Pager } from "./ui/Pager";
 import {
   ContextPicker,
   ContextReference,
@@ -134,8 +135,6 @@ export function Discussions({ selected }: { selected?: string }) {
     (discussion) => discussion.id === selectedId,
   );
   const total = list.data?.total ?? 0;
-  const pageStart = total ? offset + 1 : 0;
-  const pageEnd = Math.min(offset + PAGE, total);
   const scopeFilters = [
     contextFilter && "context",
     repoFilter.trim() && "repository",
@@ -281,27 +280,14 @@ export function Discussions({ selected }: { selected?: string }) {
                 ))}
               </ul>
             )}
-            {total > PAGE && (
-              <div className="discussion-pagination">
-                <button
-                  type="button"
-                  disabled={offset <= 0}
-                  onClick={() => setOffset(Math.max(0, offset - PAGE))}
-                >
-                  Previous page
-                </button>
-                <small>
-                  {pageStart} to {pageEnd} of {total}
-                </small>
-                <button
-                  type="button"
-                  disabled={offset + PAGE >= total}
-                  onClick={() => setOffset(offset + PAGE)}
-                >
-                  Next page
-                </button>
-              </div>
-            )}
+            <Pager
+              offset={offset}
+              total={total}
+              limit={PAGE}
+              onChange={setOffset}
+              label="threads"
+              className="discussion-pagination"
+            />
           </div>
           <DiscussionRolesPanel
             roles={roles.data?.items ?? []}

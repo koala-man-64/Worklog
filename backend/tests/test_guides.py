@@ -148,8 +148,12 @@ def test_quoted_interface_text_exists_in_the_frontend(guide):
         return " ".join(html.unescape(text).split())
 
     # rglob: the building blocks and record sections live in ui/ and sections/.
-    source = flat("\n".join(path.read_text(encoding="utf-8") for path in sorted(FRONTEND.rglob("*.ts*"))
-                            if not path.name.endswith((".test.ts", ".test.tsx")) and path.name != "generatedApi.ts"))
+    sources = [path.read_text(encoding="utf-8") for path in sorted(FRONTEND.rglob("*.ts*"))
+               if not path.name.endswith((".test.ts", ".test.tsx")) and path.name != "generatedApi.ts"]
+    # A pager's buttons put its list's label after "Previous" and "Next", as "Previous work".
+    pagers = [props for text in sources for props in re.findall(r"<Pager\b(.*?)/>", text, re.S)]
+    labels = sorted({label for props in pagers for label in re.findall(r'\blabel="([^"]+)"', props)})
+    source = flat("\n".join(sources + [f"{word} {label}" for label in labels for word in ("Previous", "Next")]))
     quoted = {flat(phrase) for phrase in re.findall(r'"([^"\n]+)"', prose(guide.read_text(encoding="utf-8")))}
     missing = sorted(phrase for phrase in quoted if phrase not in source)
     assert not missing, f"{guide.name} quotes interface text the frontend no longer has: {missing}"

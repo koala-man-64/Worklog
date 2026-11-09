@@ -7,7 +7,7 @@ import { DraftField } from "./ui/DraftField";
 import { Markdown } from "./ui/Markdown";
 import { Empty, ErrorMessage } from "./ui/Messages";
 import { STATUSES, StatusSelect } from "./ui/Status";
-import { Pages } from "./Coordination";
+import { Pager } from "./ui/Pager";
 import { RecordReminders } from "./RecordReminders";
 import { Avatar } from "./Avatar";
 import {
@@ -329,10 +329,10 @@ function TicketList() {
           <TicketRow key={ticket.id} ticket={ticket} />
         ))}
       </div>
-      <Pages
+      <Pager
         offset={offset}
         total={list.data?.total ?? 0}
-        change={setOffset}
+        onChange={setOffset}
         label="tickets"
       />
     </>
@@ -719,10 +719,10 @@ export function TicketsSection({
           <TicketRow key={ticket.id} ticket={ticket} />
         ))}
       </div>
-      <Pages
+      <Pager
         offset={offset}
         total={list.data?.total ?? 0}
-        change={setOffset}
+        onChange={setOffset}
         label="tickets"
       />
     </section>

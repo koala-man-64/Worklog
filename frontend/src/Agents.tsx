@@ -2,7 +2,8 @@ import { useState, type ReactNode } from "react";
 import { AgentTiedTo, AgentTies } from "./AgentTies";
 import { useData } from "./hooks";
 import { Empty, ErrorMessage } from "./ui/Messages";
-import { EndRun, Pages } from "./Coordination";
+import { Pager } from "./ui/Pager";
+import { EndRun } from "./Coordination";
 import { AgentProposals } from "./ProposalHistory";
 import type {
   AgentDetail,
@@ -76,10 +77,10 @@ function AgentList() {
           </article>
         ))}
       </div>
-      <Pages
+      <Pager
         offset={offset}
         total={list.data?.total ?? 0}
-        change={setOffset}
+        onChange={setOffset}
         label="agents"
       />
     </>
@@ -457,10 +458,10 @@ function Activity({ id }: { id: string }) {
           </p>
         </article>
       ))}
-      <Pages
+      <Pager
         offset={offset}
         total={query.data?.total ?? 0}
-        change={setOffset}
+        onChange={setOffset}
         label="activity"
       />
     </section>

@@ -8,7 +8,8 @@ import { RecoverRecords } from "./sections/RecoverRecords";
 import { DraftField } from "./ui/DraftField";
 import { Empty, ErrorMessage } from "./ui/Messages";
 import { statusLabel } from "./ui/Status";
-import { Coordination, OpenRuns, Pages } from "./Coordination";
+import { Pager } from "./ui/Pager";
+import { Coordination, OpenRuns } from "./Coordination";
 import { LinkPicker } from "./LinkPicker";
 import { RecordReminders } from "./RecordReminders";
 import { RepositoryName } from "./RepositoryControls";
@@ -163,10 +164,10 @@ function RepositoryList() {
           </article>
         ))}
       </div>
-      <Pages
+      <Pager
         offset={offset}
         total={list.data?.total ?? 0}
-        change={setOffset}
+        onChange={setOffset}
         label="repositories"
       />
       <details onToggle={(e) => setShowRuns(e.currentTarget.open)}>
@@ -374,10 +375,10 @@ function LinkedWork({ repo }: { repo: Repository }) {
           </button>
         </p>
       ))}
-      <Pages
+      <Pager
         offset={offset}
         total={work.data?.total ?? 0}
-        change={setOffset}
+        onChange={setOffset}
         label="linked work"
       />
       {/* Only an active record takes new links; what it already has can still be unlinked. */}

@@ -1,12 +1,12 @@
 import { useRef, useState } from "react";
 import { commands } from "./commands";
-import { Pages } from "./Coordination";
 import { History } from "./sections/History";
 import { RecoverRecords } from "./sections/RecoverRecords";
 import { DraftField } from "./ui/DraftField";
 import { Markdown } from "./ui/Markdown";
 import { Empty, ErrorMessage } from "./ui/Messages";
 import { ITEM_STATUSES, statusLabel, StatusSelect } from "./ui/Status";
+import { Pager } from "./ui/Pager";
 import { useCommand, useData, useWrites } from "./hooks";
 import { Icon } from "./icons";
 import { LinkPicker } from "./LinkPicker";
@@ -280,10 +280,10 @@ function ReleaseList() {
           </div>
         </>
       )}
-      <Pages
+      <Pager
         offset={offset}
         total={list.data?.total ?? 0}
-        change={setOffset}
+        onChange={setOffset}
         label="releases"
       />
     </>

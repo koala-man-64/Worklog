@@ -606,6 +606,13 @@ Done so far:
   - `ui/`: the building blocks: Markdown, ErrorMessage and Empty, the resize handle, the status menu, DraftField, Tabs, and byte sizes.
   - `sections/`: the record sections: files, notes and the scratchpad, the checklist, history, recovering archived records, people and their ties, links, agent chats and GitHub references.
   - Its tests split the same way, each beside the module it tests.
+- **One pager instead of seven** (`ui/Pager.tsx`). Every paged list now uses it, with "Previous" and "Next" plus what the list holds, and the rows that show, such as "51 to 100 of 120".
+  - The shared pager in `Coordination.tsx` (17 lists) moved into it. Six hand-rolled ones went: search, the work sheet, a repository filter's choices, the threads, a thread's messages and the roles.
+  - Each list keeps its page size and its row's look, through its own class.
+  - **Visible changes:**
+    - The threads' buttons say "threads" instead of "page", and the roles' "More roles" became "Next roles".
+    - Search, the work sheet and the repository filter now show the range too.
+    - A list that reads no rows has no pager, so a later page no longer flashes "51 to 0 of 0" while it loads.
 
 #### 5.5a · This plan in the repository
 

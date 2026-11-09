@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Empty, ErrorMessage } from "./ui/Messages";
+import { Pager } from "./ui/Pager";
 import {
   ContextPicker,
   ContextReference,
@@ -80,27 +81,14 @@ export function DiscussionRolesPanel({
                 />
               ))}
             </ul>
-            {total > limit && (
-              <div className="discussion-pagination">
-                <button
-                  type="button"
-                  disabled={offset <= 0}
-                  onClick={() => onPage(Math.max(0, offset - limit))}
-                >
-                  Previous roles
-                </button>
-                <small>
-                  {offset + 1} to {Math.min(offset + limit, total)} of {total}
-                </small>
-                <button
-                  type="button"
-                  disabled={offset + limit >= total}
-                  onClick={() => onPage(offset + limit)}
-                >
-                  More roles
-                </button>
-              </div>
-            )}
+            <Pager
+              offset={offset}
+              total={total}
+              limit={limit}
+              onChange={onPage}
+              label="roles"
+              className="discussion-pagination"
+            />
           </>
         )}
         <details className="discussion-create-role">
