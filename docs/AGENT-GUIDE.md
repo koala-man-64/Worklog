@@ -71,7 +71,7 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 | Identity, credential | `agentId`; a credential `id` | active or revoked | the person issues; you register and retire your own |
 | Run | UUID; `--client-run-key` is unique per credential | open or ended | you, directly |
 | Participation | UUID | active or released; stale after 2 hours without a report | you, directly |
-| Update | UUID | `kind` update, blocker or handoff; immutable | you, directly |
+| Update | UUID | `kind` update or blocker (an older one may be a handoff); immutable | you, directly |
 | Discussion, message | UUID | messages are immutable; a request is pending, satisfied, released_by_human or cancelled; `contexts`, its tags, each with who added it; `pinned`; `repository`, on a repository's own discussion | you, directly; only the person pins |
 | Role | UUID | one owner; at most one pending offer | you, directly; the person reassigns |
 | Tie | an identity and a record: `targetType` and `targetId` | `relationship`, the agent's role there; `setBy` `human` (the person) or `agent` (the agent itself) | the person, for any agent; you, directly, for yourself |
@@ -273,7 +273,7 @@ worklog agent --as NAME proposal withdraw PROPOSAL_ID --revision 4
 | `participation release ID` | `--revision N` | yes | required | stops reporting |
 | `participation rejoin ID` | `--revision N` | yes | required | reports again after a release |
 | `updates list` | `[--repo ID] [--item ID] [--participation ID] [--limit 50] [--offset 0]` | - | - | updates as posted |
-| `updates post` | `--participation ID` and either `--text TEXT [--kind update\|blocker\|handoff]` or `--file FILE` | - | required | immutable; advances the participation's revision |
+| `updates post` | `--participation ID` and either `--text TEXT [--kind update\|blocker]` or `--file FILE` | - | required | immutable; advances the participation's revision |
 | `chats track` | `--item ITEM_ID`, or `--roadmap ROADMAP_ID [--step STEP_ID]` (repeat `--step`); `[--title TITLE] [--provider PROVIDER] [--model MODEL]` | - | required | tracks the chat you registered with there, and prints it with `created`; where it is tracked already, adds the steps you name |
 
 - **Remotes.** A remote is an `https://` address, `ssh://git@host/path` or `git@host:path`. Every form of one remote names the same record: HTTPS or SSH, with or without `.git` or a trailing `/`, in any case, and Azure DevOps' `dev.azure.com`, `{org}.visualstudio.com` and `ssh.dev.azure.com` forms.
@@ -283,6 +283,7 @@ worklog agent --as NAME proposal withdraw PROPOSAL_ID --revision 4
 - **The participation file.** `participation start --file` takes `{runId,itemId,description,contexts:[{repositoryId or repositoryUrl,checkoutPath,worktreePath,branch}]}`.
 - **Staleness.** Participation is stale after 2 hours without a report. Stale is a label: the participation is not released.
 - **Snapshots.** An update keeps the repositories and work item it was posted with.
+- **Handoffs.** An update is no longer a handoff: `updates post` has no `--kind handoff`, and a file that sets it is refused (`422 validation`). To hand work on, offer the role you own to the agent taking over (`discussions roles offer`, section 5.7); when it accepts, the role's pending requests move to it. Work that has no role is handed on by saying so, in an update and in its discussion. Handoffs posted before stay readable in `updates list`, and retrying one with its request ID still returns it.
 - **Merged repositories.** When the person merges a repository into another, your reports and updates move to the survivor, keeping their revisions.
 - **Your chat on the work.** `chats track` needs no proposal.
   - It tracks only the chat you registered with: Worklog takes its ID from your identity, and you cannot name another. A credential the person issued in Settings registered no chat, so it gets `403 agent_scope`; propose `chat.create` instead.
@@ -776,7 +777,7 @@ worklog check
 
 | Code | Status | Meaning | Do this |
 |---|---|---|---|
-| `validation` | 422 | A field is missing, malformed or too long, or text holds a lone UTF-16 surrogate (half of a pair, which names no character); `fields` names it, with a dotted path such as `operations.0.payload.title` when it is nested | Fix the input; do not retry unchanged |
+| `validation` | 422 | A field is missing, malformed, too long or retired, or text holds a lone UTF-16 surrogate (half of a pair, which names no character); `fields` names it, with a dotted path such as `operations.0.payload.title` when it is nested, and marks a retired one `"retired"` | Fix the input; do not retry unchanged |
 | `not_found` | 404 | No such record, or not one you can see, such as another agent's draft | Check the ID with `search` or `context` |
 | `conflict` | 409 | A stale revision (`fields` `{expected,currentRevision}`), or a state that forbids the change, such as editing a submitted proposal | Read again; retry with the current revision only if the change is still right |
 | `operation` | 422 | An unsupported operation reached the server | Use an action from section 6.1 |
@@ -909,7 +910,7 @@ Point the person to the page that matters:
 | credential | `/credentials` | Settings, "Agent credentials" |
 | run | `/agent-runs` | "Runs" on an agent's page; "Open agent runs" on Repositories |
 | participation | `/participations` | "Participants"; "Reported activity across repositories" |
-| update (`--kind update`, `blocker`, `handoff`) | `/coordination-updates` | "Recent updates" |
+| update (`--kind update` or `blocker`) | `/coordination-updates` | "Recent updates" |
 | tracked chat | agent chat (`/chats` record) | "Agent chats"; the Chats page |
 | chat ID | `chatId`, `externalChatId` | the chat ID in "Add chat" |
 | proposal | `/proposals` | Review |

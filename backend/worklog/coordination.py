@@ -14,6 +14,10 @@ from .chat_messages import expire_pending
 from .common import AppError, event, now, require_revision, setting, text, uid
 from .discussions import DiscussionService, communication_actor, identity_chat
 
+# Step 5.6 (A-09): a role's offer hands work on and moves its pending requests with it, so an
+# update is no longer a handoff. Handoffs posted before stay readable.
+RETIRED_UPDATE_KINDS = frozenset({"handoff"})
+
 
 def _get(c: sqlite3.Connection, table: str, identity: str) -> sqlite3.Row:
     # Table names are internal constants.
@@ -624,6 +628,10 @@ class CoordinationService:
     def post_update(self, c, actor, identity, p) -> dict:
         row = _get(c, "participations", identity)
         run = self._own_run(c, actor, row["run_id"])
+        if p["kind"] in RETIRED_UPDATE_KINDS:
+            # The refusal runs inside the write, so retrying a handoff posted before returns it.
+            raise AppError(422, "validation", "Handoff updates are retired: offer the role you own to the agent "
+                           "taking over instead (discussions roles offer)", {"kind": "retired"})
         if row["released_at"] is not None:
             raise AppError(409, "released", "Rejoin before posting activity")
         update_id, stamp = uid(), now()

@@ -108,6 +108,13 @@ def test_new_writes_require_stable_key_before_transport(requests):
     assert not requests
 
 
+def test_an_update_takes_no_handoff_kind(requests):
+    # Step 5.6: an agent hands work on by offering its role.
+    with pytest.raises(SystemExit):
+        cli.main(["agent", "updates", "post", "--participation", ID, "--kind", "handoff", "--text", "Over", "--request-id", KEY])
+    assert not requests
+
+
 @pytest.mark.parametrize("arguments", [
     ["chats", "track", "--item", ID],
     ["chats", "track", "--request-id", KEY],

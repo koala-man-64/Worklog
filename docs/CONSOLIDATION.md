@@ -646,7 +646,7 @@ Done:
 
 #### 5.6 · Agent contract v2
 
-Status: Not started · Branch: — · PR: —
+Status: In progress · Branch: `claude/handoff-retired` · PR: [#173](https://github.com/koala-man-64/Worklog/pull/173); the chats' labels and the runs question follow
 
 Under K8:
 
@@ -655,6 +655,12 @@ Under K8:
 - Decide whether runs and participations collapse into one record.
 
 Announce each in AGENT-GUIDE. Findings: A-08, B-11, A-09.
+
+Done so far:
+- **An update is no longer a handoff** (A-09). A role's offer hands work on, and moves the role's pending requests when the successor accepts; an update only said so.
+  - `updates post` has no `--kind handoff`, and a request that sets it is refused (`422 validation`, `{kind: "retired"}`).
+  - The refusal runs inside the write, after its retry receipt, so retrying a handoff posted before with its request ID still returns it. Handoffs posted before stay readable, and the pages still label them.
+  - AGENT-GUIDE and API.md say so.
 
 #### 5.7 · Hash-locked dependencies
 
