@@ -336,7 +336,7 @@ def _propose_team(conn: sqlite3.Connection) -> None:
                      (rewritten, stamp, identity))
 
 
-# v11 adds derived data only, so dropping it gives back v10 exactly (README):
+# v11 adds derived data only, so dropping it gives back v10 exactly (its way back):
 # - search_keys maps each indexed record to its row in search_index. The index's own entity_id,
 #   type and owner_id columns are FTS5 UNINDEXED, so finding a row by them read the whole index.
 # - indexes for foreign keys that pages look records up by;
@@ -383,7 +383,7 @@ def add_search_keys_and_receipt_dates(conn: sqlite3.Connection) -> None:
 # - when each proposal was last submitted, and whether automatic approval applied it;
 # - which stale-plan notices each proposal's agent was already sent.
 # registered_by names the sponsor's identity without a foreign key, like every other actor id here,
-# so the documented way back can drop it on any SQLite that has DROP COLUMN.
+# so the way back can drop it on any SQLite that has DROP COLUMN.
 REGISTRATION_COLUMNS = (", registered_by TEXT"
                         ", registered_by_label TEXT NOT NULL DEFAULT ''"
                         ", chat_id TEXT")
@@ -589,7 +589,7 @@ def add_registration_directories(conn: sqlite3.Connection) -> None:
     """Copy each registration's directory out of its event into the new column.
 
     No identity registered before v18 named one, so after an upgrade from v17 every directory is
-    unknown. After the documented way back to v17 and an upgrade again, each identity registered
+    unknown. After the way back to v17 and an upgrade again, each identity registered
     under v18 gets its directory back from its event. An event that can't be read gives none.
     """
     conn.execute("ALTER TABLE communication_credentials ADD COLUMN " + REGISTRATION_DIRECTORY_COLUMN)
@@ -669,7 +669,7 @@ _FIRST_MESSAGE = ("(SELECT m.{} FROM discussion_messages m WHERE m.discussion_id
                   "ORDER BY m.created_at,m.id LIMIT 1)")
 # What v22 writes as the person to open each repository's discussion. A first message that begins so
 # and names the repository's ID in backticks marks the discussion as that repository's, so an upgrade
-# after the documented way back finds it again.
+# after the way back finds it again.
 REPOSITORY_DISCUSSION_TITLE = "Repository: {name}"
 REPOSITORY_DISCUSSION_OPENING = "Worklog opened this discussion for the repository **"
 REPOSITORY_DISCUSSION_TEXT = REPOSITORY_DISCUSSION_OPENING + "{name}** (`{id}`)."
@@ -711,7 +711,7 @@ def add_discussion_tags(conn: sqlite3.Connection) -> None:
 
 def _open_repository_discussions(conn: sqlite3.Connection) -> None:
     """Give each repository that isn't merged its own discussion. One that had it before the
-    documented way back to v21, archived ones included, has that one again, found by its first
+    way back to v21, archived ones included, has that one again, found by its first
     message: written by the person as v22 opens one and naming the repository's ID, in a thread not
     already some repository's own. Otherwise an active repository's is opened, as the person, with
     the history, feed entry and search rows a discussion opened today has; an archived one gets its

@@ -1,7 +1,7 @@
 """Schema v19 adds releases: what ships together and when, what each holds, and its checks.
 
 An older database comes up with none, a failed upgrade changes nothing, and restore, export and
-the documented way back keep everything else whole. test_releases.py has the rules of releases.
+the way back keep everything else whole. test_releases.py has the rules of releases.
 """
 
 import io
@@ -10,7 +10,6 @@ import sqlite3
 import uuid
 import zipfile
 from contextlib import closing, contextmanager
-from pathlib import Path
 
 import pytest
 import sealed
@@ -22,7 +21,8 @@ from worklog.db import Database
 ORIGIN = "http://127.0.0.1:8877"
 RELEASE_TABLES = ("releases", "release_contents", "release_checks")
 RELEASE_TYPES = "('release','release_check')"
-# README: from version 19 to version 18, with Worklog stopped and after a manual backup.
+# From version 19 to version 18, with Worklog stopped and after a manual backup. The README gave this way back
+# while version 19 was the latest; older upgrade tests now build their databases with it.
 WAY_BACK = """\
 BEGIN;
 DELETE FROM search_index WHERE rowid IN (SELECT doc FROM search_keys WHERE type IN ('release','release_check'));
@@ -122,9 +122,7 @@ def state(path):
         return conn.execute("PRAGMA user_version").fetchone()[0], recovery._schema_signature(conn)
 
 
-def test_the_documented_way_back_to_v18_drops_only_the_releases_and_upgrades_again(tmp_path):
-    # The SQL tested here is the SQL the README gives the person.
-    assert "```sql\n" + WAY_BACK + "```" in (Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
+def test_the_way_back_to_v18_drops_only_the_releases_and_upgrades_again(tmp_path):
     path = tmp_path / "worklog.sqlite3"
     with person(tmp_path) as c:
         populate(c)

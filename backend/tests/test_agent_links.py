@@ -1,6 +1,6 @@
 """Agent ties (schema v17): the person ties any agent to any record, with its role there, and an agent
 ties only itself and changes only the ties it set. Both sides read a tie, an agent finds its own in
-its context, and a draft proposal stays hidden from other agents. Upgrade, the documented way back,
+its context, and a draft proposal stays hidden from other agents. Upgrade, the way back,
 restore, export and the repository merge keep ties whole."""
 
 import io
@@ -9,7 +9,6 @@ import sqlite3
 import uuid
 import zipfile
 from contextlib import closing, contextmanager
-from pathlib import Path
 from typing import get_args
 
 import pytest
@@ -20,7 +19,8 @@ from worklog.app import create_app
 from worklog.db import Database
 
 ORIGIN = "http://127.0.0.1:8877"
-# README: from version 17 to version 16, with Worklog stopped and after a manual backup.
+# From version 17 to version 16, with Worklog stopped and after a manual backup. The README gave this way back
+# while version 17 was the latest; older upgrade tests now build their databases with it.
 WAY_BACK = """\
 BEGIN;
 DROP TABLE agent_links;
@@ -394,9 +394,7 @@ def test_the_v17_upgrade_starts_with_no_ties_and_changes_no_record(tmp_path):
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 16
 
 
-def test_the_documented_way_back_to_v16_gives_its_exact_shape_and_upgrades_again(tmp_path):
-    # The SQL tested here is the SQL the README gives the person.
-    assert "```sql\n" + WAY_BACK + "```" in (Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
+def test_the_way_back_to_v16_gives_its_exact_shape_and_upgrades_again(tmp_path):
     path = tmp_path / "worklog.sqlite3"
     with person(tmp_path) as c:
         ok(tie(c, credential(c)["agentId"], "item", item(c)["id"], "Implementer"))

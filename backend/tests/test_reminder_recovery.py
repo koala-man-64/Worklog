@@ -1,11 +1,10 @@
-"""Schema v20 adds reminders: the upgrade, the documented way back, restore and export keep them whole."""
+"""Schema v20 adds reminders: the upgrade, the way back, restore and export keep them whole."""
 
 import io
 import json
 import sqlite3
 import zipfile
 from contextlib import closing
-from pathlib import Path
 
 import pytest
 import sealed
@@ -16,7 +15,8 @@ from worklog.reminders import ReminderService
 
 STAMP = "2026-11-06T14:00:00+00:00"
 PERSON = {"id": "local-user", "label": "You", "kind": "human"}
-# README: from version 20 to version 19, with Worklog stopped and after a manual backup.
+# From version 20 to version 19, with Worklog stopped and after a manual backup. The README gave this way back
+# while version 20 was the latest; older upgrade tests now build their databases with it.
 WAY_BACK = """\
 BEGIN;
 DELETE FROM search_index WHERE rowid IN (SELECT doc FROM search_keys WHERE type='reminder');
@@ -74,9 +74,7 @@ def test_the_v20_upgrade_adds_empty_reminders_after_a_snapshot_and_changes_no_re
     recovery.validate_database(path)
 
 
-def test_the_documented_way_back_to_v19_gives_its_exact_shape_and_upgrades_again(tmp_path):
-    # The SQL tested here is the SQL the README gives the person.
-    assert "```sql\n" + WAY_BACK + "```" in (Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
+def test_the_way_back_to_v19_gives_its_exact_shape_and_upgrades_again(tmp_path):
     path = tmp_path / "worklog.sqlite3"
     Database(path).initialize()
     add_item(path)

@@ -2,7 +2,7 @@
 
 `worklog agent register` sends the directory it runs in. Worklog keeps it on the registration's
 row and in its credential.register event, and every proposal the identity makes, under any of its
-credentials, carries it as actorDirectory. Upgrade, the documented way back and restore are here too.
+credentials, carries it as actorDirectory. Upgrade, the way back and restore are here too.
 """
 
 import json
@@ -10,7 +10,6 @@ import secrets
 import sqlite3
 import uuid
 from contextlib import closing, contextmanager
-from pathlib import Path
 
 import pytest
 import sealed
@@ -21,7 +20,8 @@ from worklog.db import Database
 
 ORIGIN = "http://127.0.0.1:8877"
 DIRECTORY = r"C:\Users\person\Projects\parser\.claude\worktrees\fix-lexer"
-# README: from version 18 to version 17, with Worklog stopped and after a manual backup.
+# From version 18 to version 17, with Worklog stopped and after a manual backup. The README gave this way back
+# while version 18 was the latest; older upgrade tests now build their databases with it.
 WAY_BACK = """\
 BEGIN;
 ALTER TABLE communication_credentials DROP COLUMN directory;
@@ -253,9 +253,7 @@ def test_after_the_way_back_an_upgrade_copies_each_directory_back_from_its_regis
         assert ok(c.get(f"/api/v1/proposals/{proposal['id']}"))["actorDirectory"] == DIRECTORY
 
 
-def test_the_documented_way_back_to_v17_gives_its_exact_shape_and_upgrades_again(tmp_path):
-    # The SQL tested here is the SQL the README gives the person.
-    assert "```sql\n" + WAY_BACK + "```" in (Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
+def test_the_way_back_to_v17_gives_its_exact_shape_and_upgrades_again(tmp_path):
     path = tmp_path / "worklog.sqlite3"
     with person(tmp_path) as (c, agent):
         identities(c, agent)

@@ -2,12 +2,11 @@
 
 A reorder or new work no longer conflicts with a reflection being written, and two edits of one
 reflection still do. The upgrade starts each reflection at its day's revision and changes no record,
-and the documented way back gives v20's exact shape."""
+and the way back gives v20's exact shape."""
 
 import sqlite3
 import uuid
 from contextlib import closing
-from pathlib import Path
 
 import pytest
 import sealed
@@ -19,7 +18,8 @@ from worklog.db import Database
 
 ORIGIN = "http://127.0.0.1:8877"
 DAY = "2026-11-04"
-# README: from version 21 to version 20, with Worklog stopped and after a manual backup.
+# From version 21 to version 20, with Worklog stopped and after a manual backup. The README gave this way back
+# while version 21 was the latest; older upgrade tests now build their databases with it.
 WAY_BACK = """\
 BEGIN;
 ALTER TABLE days DROP COLUMN reflection_revision;
@@ -115,9 +115,7 @@ def test_the_v21_upgrade_starts_each_reflection_at_its_days_revision_and_changes
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 20
 
 
-def test_the_documented_way_back_to_v20_gives_its_exact_shape_and_upgrades_again(tmp_path):
-    # The SQL tested here is the SQL the README gives the person.
-    assert "```sql\n" + WAY_BACK + "```" in (Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
+def test_the_way_back_to_v20_gives_its_exact_shape_and_upgrades_again(tmp_path):
     path = tmp_path / "worklog.sqlite3"
     Database(path).initialize()
     with closing(sqlite3.connect(path)) as conn:

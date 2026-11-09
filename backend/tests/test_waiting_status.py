@@ -1,12 +1,11 @@
 """Work that waits on someone else (schema v15). Waiting is a work item's status, and only a work
 item's: tickets and roadmap steps keep Open, Doing, Blocked and Done. Waiting work is unfinished, so
 it keeps its stack rank and its place in the backlog, but Today neither offers it as the next work
-to continue nor counts it as blocked. Upgrade, the documented way back and restore are here too."""
+to continue nor counts it as blocked. Upgrade, the way back and restore are here too."""
 
 import sqlite3
 import uuid
 from contextlib import closing, contextmanager
-from pathlib import Path
 
 import pytest
 import sealed
@@ -22,7 +21,8 @@ from worklog.services import WorkService
 ORIGIN = "http://127.0.0.1:8877"
 HUMAN = {"id": "human", "label": "Rudy", "kind": "human"}
 AGENT = {"id": "agent", "label": "Engineer", "kind": "agent"}
-# README: from version 15 to version 14, with Worklog stopped and after a manual backup.
+# From version 15 to version 14, with Worklog stopped and after a manual backup. The README gave this way back
+# while version 15 was the latest; older upgrade tests now build their databases with it.
 WAY_BACK = """\
 PRAGMA foreign_keys=ON;
 BEGIN;
@@ -373,9 +373,7 @@ def test_restoring_a_v14_backup_upgrades_it_and_keeps_its_work(tmp_path):
         assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
 
 
-def test_the_documented_way_back_to_v14_gives_its_exact_shape_and_upgrades_again(tmp_path):
-    # The SQL tested here is the SQL the README gives the person.
-    assert "```sql\n" + WAY_BACK + "```" in (Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
+def test_the_way_back_to_v14_gives_its_exact_shape_and_upgrades_again(tmp_path):
     path = tmp_path / "worklog.sqlite3"
     with person(tmp_path) as c:
         populate(c)

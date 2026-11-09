@@ -163,7 +163,7 @@ export function Settings() {
           ))}
           <p className="muted">
             Recovery is an offline operation. Stop Worklog and use the backup
-            recovery command documented in the local README.
+            recovery command documented in docs/OPERATIONS.md.
           </p>
         </section>
       </div>

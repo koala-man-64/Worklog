@@ -33,7 +33,7 @@ The order is fixed:
 - Each step's PR updates only that step's `Status` line: its status, branch and PR link. Steps have separate sections, so parallel PRs don't conflict here.
 - Status values: `Not started`, `In progress`, `In review`, `Merged`, `Blocked: <reason>`, `Dropped: <reason>`.
 - Run one step per PR, from its own worktree. Use `claude/<topic>` branches for Claude sessions. Never implement in the checkout that serves the instance you use every day.
-- Test against an isolated data directory on a port other than the default (README, *Development checks*).
+- Test against an isolated data directory on a port other than the default (`docs/DEVELOPMENT.md`, *Checks*).
 - Steps marked *parallel* touch separate files. Never run two PRs against `backend/worklog/app.py`, `frontend/src/styles/base.css` or `README.md` at the same time.
 - A step that changes what agents can call or read updates `docs/AGENT-GUIDE.md` in the same PR and says so in the PR title.
 - Record new decisions in the decision table with the date and who decided.
@@ -630,9 +630,19 @@ Implements K9.
 
 #### 5.5 · Docs trimmed to their jobs
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branch: `claude/docs-trim` · PR: [#172](https://github.com/koala-man-64/Worklog/pull/172)
 
 Trim the README to overview, install and run. Move each version's upgrade and downgrade notes into `docs/UPGRADING.md`, and keep downgrade SQL for the latest version only. Mark `IMPLEMENTATION.md` historical. Remove the design-audit log from the top of `styles.css`. Findings: A-16, B-15.
+
+Done:
+- **The README keeps overview, install and run,** 96 lines instead of 391, and links three documents for the rest. What moved, moved as it was.
+  - `docs/OPERATIONS.md`: backup, export and restore, compaction, the doctor, seeing what you use, and the security and operating limits.
+  - `docs/UPGRADING.md`: how to upgrade, what each version changes, rolling back, and the way back from the latest version.
+  - `docs/DEVELOPMENT.md`: the checks to run, and what to update in the guides when the app changes.
+- **Downgrade SQL for the latest version only.** `docs/UPGRADING.md` gives the way back from version 23, and `test_leaf_constraints.py` still checks that it gives the SQL the test runs. The older ways back stay in their tests, which build older databases with them, and in the README's history; the tests no longer look for them in the README.
+- **`IMPLEMENTATION.md` is marked historical,** with a note pointing to the README and this plan.
+- **The design-audit log is gone** from the top of the stylesheet, now `styles/base.css`.
+- The person's guide, Settings' note on recovery and this plan's testing rule point to the new documents.
 
 #### 5.6 · Agent contract v2
 
@@ -762,3 +772,4 @@ These look like consolidation candidates but stay:
 - 2026-11-07: K16's second PR, with no schema change: the agent guide's rule 11 (announce your work in each repository's discussion and check for overlap first), the overlap check (`GET /coordination-overlaps`, `agent overlaps`), one participant's profile (`GET /discussions/participants/{id}`, `discussions participant`) and `--ask` on `discussions post` and `reply`. An acknowledgement request that names its own author is now refused, since it could never be met. Both routes start in the policy table as agent reads. Neither carries a tracked chat or a credential, so the Agents page stays the person's.
 - 2026-11-08: Step 4.4 split into two PRs while building it: the read-only doctor first, then the schema version with the constraints.
 - 2026-11-08: Step 5.3 split into PRs while building it: golden responses for every read first, then typed responses route by route, then typed commands.
+- 2026-11-08: Step 5.5 also moves the README's operations and development sections, into `docs/OPERATIONS.md` and `docs/DEVELOPMENT.md`: trimmed to overview, install and run, the README had no place for them.

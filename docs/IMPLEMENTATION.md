@@ -1,5 +1,7 @@
 # Worklog build and verification record
 
+> **Historical.** This records how Worklog was first built and checked, and is kept as it was. It doesn't describe Worklog now: the [README](../README.md) and the documents it links to do, and [CONSOLIDATION.md](CONSOLIDATION.md) holds the current plan.
+
 Task: WORKLOG-BUILD. Owner: root. Branch: `agent/root/worklog-build/worklog`.
 
 This is a new local application built in an initially empty workspace, without a remote repository or CI provider. It has since been published at `github.com/koala-man-64/Worklog` with `main` as the base branch and GitHub Actions CI (`.github/workflows/ci.yml`); the 2026-10-28 audit's plan is in [REMEDIATION.md](REMEDIATION.md), superseded on 2026-11-04 by [CONSOLIDATION.md](CONSOLIDATION.md). Delivery evidence here concerns local source, Windows execution, automated tests, browser workflows, and recovery. No publication, remote deployment, ADO synchronization, or legacy migration was performed.

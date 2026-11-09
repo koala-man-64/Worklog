@@ -1,12 +1,11 @@
 """Schema v11 adds derived data only: a key for each search row, lookup indexes, and a date on
-each idempotency receipt. Upgrade, the documented way back, restore validation and the writers
+each idempotency receipt. Upgrade, the way back, restore validation and the writers
 that keep keys and rows in step."""
 
 import sqlite3
 import uuid
 from contextlib import closing
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 
 import pytest
 import sealed
@@ -17,7 +16,8 @@ from worklog.db import Database
 from worklog.maintenance import prune_receipts
 
 ORIGIN = "http://127.0.0.1:8877"
-# README: from version 11 to version 10, with Worklog stopped and after a manual backup.
+# From version 11 to version 10, with Worklog stopped and after a manual backup. The README gave this way back
+# while version 11 was the latest; older upgrade tests now build their databases with it.
 WAY_BACK = """\
 BEGIN;
 DROP TABLE search_keys;
@@ -129,9 +129,7 @@ def test_v10_upgrade_keys_every_row_drops_duplicates_and_dates_receipts(tmp_path
         assert search_count(c) == found
 
 
-def test_the_documented_way_back_to_v10_gives_its_exact_shape_and_upgrades_again(client, tmp_path):
-    # The SQL tested here is the SQL the README gives the person.
-    assert "```sql\n" + WAY_BACK + "```" in (Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
+def test_the_way_back_to_v10_gives_its_exact_shape_and_upgrades_again(client, tmp_path):
     populate(client)
     path = tmp_path / "worklog.sqlite3"
     to_v10(path)
