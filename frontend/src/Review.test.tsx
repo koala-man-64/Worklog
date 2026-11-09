@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import { anAttachment } from "./fixtures";
 import { OperationDiff, Review } from "./Review";
 import { ApiError, request } from "./api";
 vi.mock("./api", async (importOriginal) => ({
@@ -353,15 +354,16 @@ it("names the file a change attaches, from the proposal's own files", async () =
     expect.stringContaining("/attachments"),
   );
 });
-const archivedFile = {
+const archivedFile = anAttachment({
   id: ID,
+  ownerType: "proposal",
   name: "old.pdf",
   mime: "application/pdf",
   size: 1,
   sha256: "0".repeat(64),
   archived: true,
   revision: 2,
-};
+});
 it.each([
   ["missing", [], /^No file with this ID was uploaded to this proposal/],
   [

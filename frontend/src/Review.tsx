@@ -11,15 +11,17 @@ import {
   formatBytes,
 } from "./components";
 import type {
+  Answer,
   Attachment,
   Day,
   Detail,
-  List,
   Operation,
   Proposal,
+  ProposalListed,
+  Repository,
+  RepositoryResolution,
   Settings,
-} from "./types";
-import type { Repository, RepositoryResolution } from "./apiTypes";
+} from "./apiTypes";
 import { Icon } from "./icons";
 import { statusLabel } from "./ProposalHistory";
 import { Pages } from "./Coordination";
@@ -33,7 +35,9 @@ export function Review({ selectedId }: { selectedId?: string }) {
     limit: String(PAGE),
     offset: String(offset),
   });
-  const proposals = useData<List<Proposal>>("/proposals?" + params.toString());
+  const proposals = useData<Answer<"/api/v1/proposals">>(
+    "/proposals?" + params.toString(),
+  );
   const total = proposals.data?.total ?? 0;
   const emptied =
     !!proposals.data && !proposals.data.items.length && offset > 0;
@@ -277,7 +281,7 @@ function timestamp(value: string) {
 }
 // The directory the proposal's agent registered from, which says where it
 // works; nothing when it named none.
-function Directory({ proposal: p }: { proposal: Proposal }) {
+function Directory({ proposal: p }: { proposal: ProposalListed }) {
   if (!p.actorDirectory) return null;
   return (
     <p className="muted proposal-directory">
@@ -291,7 +295,7 @@ function Dates({
   proposal: p,
   className,
 }: {
-  proposal: Proposal;
+  proposal: ProposalListed;
   className?: string;
 }) {
   const since = p.submittedAt ?? p.createdAt;

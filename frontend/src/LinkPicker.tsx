@@ -9,7 +9,8 @@ import {
 } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { getDataContext, request } from "./api";
-import type { List } from "./types";
+/** What a picker reads: any list route's items, of the kind of record it picks from. */
+type Page<T> = { items: T[]; total: number };
 
 type LinkPickerProps<T extends { id: string }> = {
   /** The button's text, such as "Link repository". */
@@ -134,7 +135,7 @@ function LinkSearch<T extends { id: string }>({
   // The last matches stay up while the next search loads, so typing doesn't flicker.
   const query = useQuery({
     queryKey: [getDataContext(), source],
-    queryFn: () => request<List<T>>(source),
+    queryFn: () => request<Page<T>>(source),
     placeholderData: keepPreviousData,
   });
   const all = query.data?.items ?? [];

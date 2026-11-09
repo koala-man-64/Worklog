@@ -28,20 +28,11 @@ import { Settings } from "./Settings";
 import { Guide, guideRoutes } from "./Guide";
 import { Icon, type IconName } from "./icons";
 import { sections } from "./navigation";
-import type { List } from "./types";
+import type { Answer } from "./apiTypes";
 import { countPageView } from "./usage";
 // The narrowest sidebar still fits the brand; the widest leaves the workspace room.
 const SIDEBAR_MIN = 190;
 const SIDEBAR_MAX = 420;
-type Result = {
-  id: string;
-  type: string;
-  title: string;
-  snippet: string;
-  ownerId?: string;
-  routeType?: string;
-  routeId?: string;
-};
 export default function App() {
   const [route, setRoute] = useState(location.hash.slice(1) || "today");
   const [search, setSearch] = useState("");
@@ -293,7 +284,7 @@ function Search({
     }, 250);
     return () => clearTimeout(timer);
   }, [query]);
-  const results = useData<List<Result>>(
+  const results = useData<Answer<"/api/v1/search">>(
     `/search?q=${encodeURIComponent(stable)}&archived=${archived}&limit=50&offset=${offset}`,
   );
   return (
@@ -329,9 +320,7 @@ function Search({
                   ? "#roadmaps/" + r.id
                   : r.type === "person"
                     ? "#people/" + r.id
-                    : r.type === "proposal"
-                      ? "#review/" + r.id
-                      : "#work/" + (r.ownerId ?? r.id)
+                    : "#work/" + (r.ownerId ?? r.id)
             }
           >
             {r.title || "Untitled"}

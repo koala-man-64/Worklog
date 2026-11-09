@@ -11,8 +11,14 @@ import {
   LinksSection,
   PeopleLinks,
 } from "./components";
-import type { Repository } from "./apiTypes";
-import type { Item, Person, PersonDetail, Roadmap } from "./types";
+import type {
+  Item,
+  Person,
+  PersonDetail,
+  Repository,
+  Roadmap,
+} from "./apiTypes";
+import { aChat, anItem, aRoadmap } from "./fixtures";
 
 const PERSON_ID = "33333333-3333-4333-8333-333333333333";
 const ROADMAP_ID = "22222222-2222-4222-8222-222222222222";
@@ -34,33 +40,19 @@ const samplePerson: Person = {
   chat: "@alice on Slack",
   location: "Chicago (US Central)",
   notes: "Platform lead",
+  archived: false,
+  createdAt: "2026-10-29T00:00:00Z",
+  updatedAt: "2026-10-29T00:00:00Z",
   roadmapCount: 1,
   workItemCount: 2,
   repositoryCount: 1,
 };
 
-const sampleRoadmap = (id: string, title: string): Roadmap => ({
-  id,
-  revision: 1,
-  title,
-  overview: "",
-  steps: [],
-  versions: [],
-  notes: [],
-  attachments: [],
-  history: [],
-});
+const sampleRoadmap = (id: string, title: string): Roadmap =>
+  aRoadmap({ id, title });
 
-const sampleItem = (id: string, title: string): Item => ({
-  id,
-  revision: 1,
-  title,
-  description: "",
-  status: "open",
-  adoUrl: null,
-  roadmapId: ROADMAP_ID,
-  stepId: null,
-});
+const sampleItem = (id: string, title: string): Item =>
+  anItem({ id, title, roadmapId: ROADMAP_ID });
 
 const sampleRepository = (id: string, name: string): Repository => ({
   id,
@@ -93,6 +85,8 @@ const detail: PersonDetail = {
         overview: "",
         archived: false,
         revision: 1,
+        createdAt: "2026-10-29T00:00:00Z",
+        updatedAt: "2026-10-29T00:00:00Z",
       },
     },
   ],
@@ -644,9 +638,8 @@ it("adds and renders web links, agent chats, and GitHub commits/PRs", async () =
     });
   });
 
-  const existingChat = {
+  const existingChat = aChat({
     id: "chat-row-1",
-    revision: 1,
     ownerType: "item",
     ownerId: ITEM_ID,
     chatId: "conv-12345",
@@ -655,8 +648,7 @@ it("adds and renders web links, agent chats, and GitHub commits/PRs", async () =
     provider: "Anthropic",
     model: "claude-opus-5-5",
     repos: ["acme/worklog"],
-    stepIds: [],
-  };
+  });
 
   show(
     <>

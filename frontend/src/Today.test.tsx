@@ -55,6 +55,7 @@ const entry = (
   worked: false,
   outcome: "",
   revision: 2,
+  statusOnDay: status,
   item: item(itemId, title, status),
   ...fields,
 });

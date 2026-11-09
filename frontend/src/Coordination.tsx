@@ -2,12 +2,7 @@ import { useState } from "react";
 import { useAction, useData } from "./hooks";
 import { Empty, ErrorMessage } from "./components";
 import { RepositoryBadges } from "./RepositoryControls";
-import type { List } from "./types";
-import type {
-  AgentRun,
-  CoordinationUpdate,
-  Participation,
-} from "./apiTypes";
+import type { AgentRun, Answer, CoordinationUpdate } from "./apiTypes";
 
 const PAGE = 50;
 const REFRESH = 30_000;
@@ -51,7 +46,7 @@ export function EndRun({ run }: { run: AgentRun }) {
 }
 export function NamedRuns({ chatId }: { chatId: string }) {
   const [offset, setOffset] = useState(0);
-  const runs = useData<List<AgentRun>>(
+  const runs = useData<Answer<"/api/v1/agent-runs">>(
     `/agent-runs?externalChatId=${encodeURIComponent(chatId)}&includeEnded=true&limit=${PAGE}&offset=${offset}`,
     REFRESH,
   );
@@ -76,7 +71,7 @@ export function NamedRuns({ chatId }: { chatId: string }) {
 }
 export function OpenRuns() {
   const [offset, setOffset] = useState(0);
-  const query = useData<List<AgentRun>>(
+  const query = useData<Answer<"/api/v1/agent-runs">>(
     `/agent-runs?limit=${PAGE}&offset=${offset}`,
     REFRESH,
   );
@@ -119,11 +114,11 @@ export function Coordination({
     : repositoryId
       ? `repositoryId=${encodeURIComponent(repositoryId)}`
       : "";
-  const participants = useData<List<Participation>>(
+  const participants = useData<Answer<"/api/v1/participations">>(
     `/participations?${filter}&includeReleased=${includeReleased}&limit=${PAGE}&offset=${offset}`,
     REFRESH,
   );
-  const feed = useData<List<CoordinationUpdate>>(
+  const feed = useData<Answer<"/api/v1/coordination-updates">>(
     `/coordination-updates?${filter}&limit=${PAGE}&offset=${feedOffset}`,
     REFRESH,
   );
@@ -298,7 +293,7 @@ function ParticipationHistory({ id }: { id: string }) {
 }
 function ParticipationUpdates({ id }: { id: string }) {
   const [offset, setOffset] = useState(0);
-  const query = useData<List<CoordinationUpdate>>(
+  const query = useData<Answer<"/api/v1/coordination-updates">>(
     `/coordination-updates?participationId=${encodeURIComponent(id)}&limit=${PAGE}&offset=${offset}`,
     REFRESH,
   );

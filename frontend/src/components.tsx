@@ -24,19 +24,18 @@ import { useAction, useData, useDraft } from "./hooks";
 import { Icon } from "./icons";
 import type {
   AgentChat,
+  Answer,
   Attachment,
   GithubRef,
   ItemStatus,
-  List,
   Note,
-  Person,
   PersonAssignment,
   Reference,
   Status,
   Step,
   Task,
   WebLink,
-} from "./types";
+} from "./apiTypes";
 const ALLOWED_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
 function resolveLink(url: string): URL | null {
   try {
@@ -294,7 +293,8 @@ export function StatusSelect<S extends ItemStatus>({
   label = "Status",
   disabled = false,
 }: {
-  value: S;
+  /** What the record holds now; a step's status may be one the menu doesn't offer. */
+  value: string;
   options: readonly S[];
   onChange: (value: S) => void;
   label?: string;
@@ -1274,7 +1274,7 @@ export function PeopleLinks({
   headingLevel?: 2 | 3;
 }) {
   const Heading = headingLevel === 2 ? "h2" : "h3";
-  const directory = useData<List<Person>>("/people?archived=false");
+  const directory = useData<Answer<"/api/v1/people">>("/people?archived=false");
   const action = useAction();
   const [personId, setPersonId] = useState("");
   const [newName, setNewName] = useState("");

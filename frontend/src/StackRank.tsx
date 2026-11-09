@@ -3,7 +3,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { commands } from "./commands";
 import { ErrorMessage } from "./components";
 import { refreshAfterWrite } from "./hooks";
-import type { Item } from "./types";
+import type { ItemListed } from "./apiTypes";
+
+/** What the rank controls read of an item, from the work list or a work item's page. */
+type RankedItem = Pick<ItemListed, "id" | "title" | "rank" | "revision">;
 
 /**
  * Moves an item to a stack rank: 1 is the work that matters most. The move is checked against
@@ -45,7 +48,7 @@ export function RankButton({
   suffix,
   disabled = false,
 }: {
-  item: Item;
+  item: RankedItem;
   open: boolean;
   onToggle: () => void;
   /** Shown after the number, such as "of 42". */
@@ -75,7 +78,7 @@ export function RankPicker({
   rankedCount,
   onClose,
 }: {
-  item: Item;
+  item: RankedItem;
   rankedCount: number;
   onClose: () => void;
 }) {

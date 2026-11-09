@@ -6,8 +6,12 @@ import { setDataContext } from "./api";
 import { Repositories } from "./Repositories";
 import { Coordination } from "./Coordination";
 import { RepositoryPicker } from "./RepositoryControls";
-import type { AgentRun, Participation, Repository } from "./apiTypes";
-import type { Attachment } from "./types";
+import type {
+  AgentRun,
+  Attachment,
+  Participation,
+  Repository,
+} from "./apiTypes";
 
 const repo: Repository = {
   id: "repo-1",
@@ -252,6 +256,8 @@ it("shows a merged record read-only, naming the record that answers for it", asy
 
 const runbook: Attachment = {
   id: "file-1",
+  ownerType: "repository",
+  ownerId: "repo-1",
   name: "runbook.md",
   mime: "text/markdown",
   size: 2048,

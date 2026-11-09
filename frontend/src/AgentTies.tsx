@@ -18,9 +18,12 @@ import {
   type PickedRecord,
   type TieType,
 } from "./agentTieKinds";
-import type { AgentTie, TieTargetView } from "./apiTypes";
-import type { DiscussionParticipants } from "./apiTypes";
-import type { List } from "./types";
+import type {
+  AgentTie,
+  Answer,
+  DiscussionParticipants,
+  TieTargetView,
+} from "./apiTypes";
 
 // Agents tie themselves while a page is open, so the ties on it are read again now and then.
 const REFRESH = 30_000;
@@ -63,7 +66,7 @@ export function AgentTies({
   /** "fold" shows it as a disclosure, where the page's own content comes first; "bare" shows only the rows and form. */
   layout?: "section" | "fold" | "bare";
 }) {
-  const query = useData<List<AgentTie>>(
+  const query = useData<Answer<"/api/v1/agent-links">>(
     tiesOn(targetType, [targetId]),
     REFRESH,
   );
@@ -249,7 +252,7 @@ export function useTiesOn(type: TieType, ids: string[]) {
   const queries = useQueries({
     queries: paths.map((path) => ({
       queryKey: [getDataContext(), path],
-      queryFn: () => request<List<AgentTie>>(path),
+      queryFn: () => request<Answer<"/api/v1/agent-links">>(path),
       refetchInterval: REFRESH,
     })),
   });
@@ -317,7 +320,7 @@ export function AgentTieFold({
  * tie. The person ties the agent to any record from here too.
  */
 export function AgentTiedTo({ agentId }: { agentId: string }) {
-  const query = useData<List<AgentTie>>(
+  const query = useData<Answer<"/api/v1/agent-links">>(
     "/agent-links?agentId=" + encodeURIComponent(agentId),
     REFRESH,
   );

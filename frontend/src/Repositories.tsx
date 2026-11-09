@@ -16,11 +16,12 @@ import { LinkPicker } from "./LinkPicker";
 import { RecordReminders } from "./RecordReminders";
 import { RepositoryName } from "./RepositoryControls";
 import type {
+  Answer,
+  Item,
   Repository,
   RepositoryDetail,
   RepositoryRegistration,
 } from "./apiTypes";
-import type { Attachment, Item, List } from "./types";
 
 export function Repositories({ selected }: { selected?: string }) {
   return selected ? (
@@ -39,7 +40,7 @@ function RepositoryList() {
   const [url, setUrl] = useState("");
   const [existing, setExisting] = useState<Repository | null>(null);
   const action = useAction();
-  const list = useData<List<Repository>>(
+  const list = useData<Answer<"/api/v1/repositories">>(
     `/repositories?archived=${archived}&limit=50&offset=${offset}&q=${encodeURIComponent(q)}`,
   );
   return (
@@ -241,7 +242,7 @@ function MergedInto({ id }: { id: string }) {
 function MergeInto({ source }: { source: Repository }) {
   const [q, setQ] = useState("");
   const [target, setTarget] = useState(source.duplicateOf ?? "");
-  const choices = useData<List<Repository>>(
+  const choices = useData<Answer<"/api/v1/repositories">>(
     `/repositories?limit=50&q=${encodeURIComponent(q)}`,
   );
   const options = (choices.data?.items ?? []).filter(
@@ -338,7 +339,7 @@ function MergeConfirm({
 // the revision it was read at: a change made elsewhere meanwhile is refused, not lost.
 function LinkedWork({ repo }: { repo: Repository }) {
   const [offset, setOffset] = useState(0);
-  const work = useData<List<Item>>(
+  const work = useData<Answer<"/api/v1/work-items">>(
     `/work-items?repositoryId=${encodeURIComponent(repo.id)}&limit=50&offset=${offset}`,
   );
   const action = useAction();
@@ -413,8 +414,10 @@ function LinkedWork({ repo }: { repo: Repository }) {
 // active record takes new ones; an archived record's files can still be archived and recovered.
 function RepositoryFiles({ repo }: { repo: Repository }) {
   const owner = `/attachments?ownerType=repository&ownerId=${encodeURIComponent(repo.id)}`;
-  const active = useData<List<Attachment>>(owner);
-  const archived = useData<List<Attachment>>(owner + "&archived=true");
+  const active = useData<Answer<"/api/v1/attachments">>(owner);
+  const archived = useData<Answer<"/api/v1/attachments">>(
+    owner + "&archived=true",
+  );
   return (
     <section>
       <h2>Files</h2>

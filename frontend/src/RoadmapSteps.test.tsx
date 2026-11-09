@@ -4,27 +4,22 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setDataContext } from "./api";
 import { RoadmapDetail } from "./Roadmaps";
-import type { RoadmapTie, RoadmapWorker } from "./apiTypes";
-import type { AgentChat, Roadmap, Step } from "./types";
+import type {
+  AgentChat,
+  Roadmap,
+  RoadmapTie,
+  RoadmapWorker,
+  Step,
+} from "./apiTypes";
+import { aChat, aRoadmap, aStep } from "./fixtures";
 
 const ROADMAP = "22222222-2222-4222-8222-222222222222";
 function step(id: string, title: string, parentId: string | null): Step {
-  return {
-    id,
-    title,
-    description: "",
-    parentId,
-    position: 0,
-    status: "open",
-    revision: 1,
-    retired: false,
-  };
+  return aStep({ id, title, parentId });
 }
-const road: Roadmap = {
+const road: Roadmap = aRoadmap({
   id: ROADMAP,
-  revision: 1,
   title: "Plan",
-  overview: "",
   steps: [
     step("aaaaaaaa-0000-4000-8000-000000000001", "Parent", null),
     step(
@@ -34,11 +29,7 @@ const road: Roadmap = {
     ),
     step("aaaaaaaa-0000-4000-8000-000000000003", "Solo", null),
   ],
-  versions: [],
-  notes: [],
-  attachments: [],
-  history: [],
-};
+});
 let served = road;
 let workers: RoadmapWorker[] = [];
 const AGENTS = `/roadmaps/${ROADMAP}/agents`;
@@ -215,7 +206,7 @@ it("expands the collapsed parents of a step opened by link", async () => {
 });
 
 function chat(id: string, title: string, stepIds: string[]): AgentChat {
-  return {
+  return aChat({
     id,
     revision: 3,
     ownerType: "roadmap",
@@ -223,11 +214,8 @@ function chat(id: string, title: string, stepIds: string[]): AgentChat {
     chatId: "conv-" + id.slice(-1),
     title,
     createdDate: "2026-10-31",
-    provider: "",
-    model: "",
-    repos: [],
     stepIds,
-  };
+  });
 }
 const API_CHAT = {
   ...chat("cccccccc-0000-4000-8000-000000000001", "Build the API", [PARENT]),

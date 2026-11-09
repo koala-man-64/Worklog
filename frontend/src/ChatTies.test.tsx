@@ -5,14 +5,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { setDataContext } from "./api";
 import { ChatAgents, RunningSessions, runsIn, sessionState } from "./ChatTies";
-import type { AgentSummary } from "./apiTypes";
 import type {
+  AgentSummary,
   ChatAgent,
   ChatOverview,
   Item,
   Roadmap,
   RunningSession,
-} from "./types";
+} from "./apiTypes";
 
 const ITEM = { id: "item-1", title: "Import format", status: "doing" } as Item;
 const ROADMAP = { id: "roadmap-1", title: "Platform" } as Roadmap;

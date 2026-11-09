@@ -18,7 +18,7 @@ import {
 import { CreateItem } from "./Work";
 import { DaySummary } from "./DaySummary";
 import { TodayReminders } from "./RecordReminders";
-import type { Day, Detail, Entry, Item, ItemStatus, List } from "./types";
+import type { Answer, Day, Detail, Entry, ItemStatus } from "./apiTypes";
 import { Icon } from "./icons";
 import { RankBadge } from "./StackRank";
 import { RepositoryBadges, RepositoryPicker } from "./RepositoryControls";
@@ -216,7 +216,7 @@ export function Today({
   const [date, setDate] = useState(initialDate ?? today);
   const day = useData<Day>("/days/" + date);
   const [workQuery, setWorkQuery] = useState("");
-  const openWork = useData<List<Item>>(
+  const openWork = useData<Answer<"/api/v1/work-items">>(
     `/work-items?view=all&archived=false&limit=100${OPEN_STATES.map((s) => "&status=" + s).join("")}&q=${encodeURIComponent(workQuery)}`,
   );
   const action = useAction();

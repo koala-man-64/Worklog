@@ -2,35 +2,30 @@ import { afterEach, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DaySummary, summaryMarkdown } from "./DaySummary";
-import type { Day, Entry, ItemStatus } from "./types";
+import type { Day, Entry, ItemStatus } from "./apiTypes";
+import { anItem } from "./fixtures";
 
 const entry = (
   title: string,
   status: ItemStatus,
   fields: Partial<Entry> = {},
-): Entry =>
-  ({
-    id: "entry-" + title,
-    itemId: "item-" + title,
-    date: "2026-11-05",
-    planned: true,
-    worked: true,
-    outcome: "",
-    position: 0,
-    revision: 2,
-    statusOnDay: status,
-    item: {
-      id: "item-" + title,
-      title,
-      description: "",
-      status,
-      adoUrl: null,
-      stepId: null,
-      archived: false,
-      revision: 4,
-    },
-    ...fields,
-  }) as Entry;
+): Entry => ({
+  id: "entry-" + title,
+  itemId: "item-" + title,
+  date: "2026-11-05",
+  planned: true,
+  worked: true,
+  outcome: "",
+  position: 0,
+  revision: 2,
+  statusOnDay: status,
+  item: {
+    ...anItem({ id: "item-" + title, title, status, revision: 4 }),
+    rank: null,
+  },
+  counts: { tasks: 0, tasksDone: 0, links: 0, files: 0, scratchpad: false },
+  ...fields,
+});
 const day = (entries: Entry[]): Day => ({
   date: "2026-11-05",
   revision: 7,
@@ -111,15 +106,11 @@ it("groups the work done that day by the status each item ended it with, blocker
 });
 
 it("groups by the status the day recorded, not the item's status now", () => {
+  // Work logged after its day has no status recorded by then; the API gives it its status now.
   const markdown = summaryMarkdown(
-    day([
-      entry("Finished later", "done", { statusOnDay: "doing" }),
-      // Work logged after its day has no recorded status; it shows its status now.
-      entry("Logged afterwards", "blocked", { statusOnDay: undefined }),
-    ]),
+    day([entry("Finished later", "done", { statusOnDay: "doing" })]),
   );
-  expect(markdown).toMatch(/### Doing\n\n- \*\*Finished later\*\*/);
-  expect(markdown).toMatch(/### Blocked\n\n- \*\*Logged afterwards\*\*\n$/);
+  expect(markdown).toMatch(/### Doing\n\n- \*\*Finished later\*\*\n$/);
   expect(markdown).not.toContain("### Done");
 });
 
@@ -127,7 +118,7 @@ it("never drops work whose status this page doesn't know; it comes last", () => 
   expect(
     summaryMarkdown(
       day([
-        entry("Odd one", "open", { statusOnDay: "paused" as ItemStatus }),
+        entry("Odd one", "open", { statusOnDay: "paused" }),
         entry("Usual one", "blocked"),
       ]),
     ),

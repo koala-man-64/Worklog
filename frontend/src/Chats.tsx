@@ -10,12 +10,12 @@ import { Empty, ErrorMessage, Markdown } from "./components";
 import { Icon, type IconName } from "./icons";
 import { localStore } from "./storage";
 import type {
+  Answer,
   ChatMessage,
   ChatOverview,
   ChatThread,
-  List,
   Transcript,
-} from "./types";
+} from "./apiTypes";
 
 // The list notices new activity; an open conversation follows along closely.
 const LIST_REFRESH_MS = 15_000;
@@ -298,7 +298,7 @@ export function Chats({ selected }: { selected?: string }) {
     contextStorageKey("chats-collapsed", "list"),
   );
   const [revealed, setRevealed] = useState<string>();
-  const list = useData<List<ChatOverview>>(
+  const list = useData<Answer<"/api/v1/chats">>(
     `/chats?archived=${archived}`,
     LIST_REFRESH_MS,
   );

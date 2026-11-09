@@ -43,8 +43,16 @@ import { AgentChips, workersOn } from "./RoadmapAgents";
 import { AppliedProposals } from "./ProposalHistory";
 import { RecordReminders } from "./RecordReminders";
 import { ReleasesSection } from "./Releases";
-import type { RoadmapWorker } from "./apiTypes";
-import type { Item, List, Person, Roadmap, Step } from "./types";
+import type {
+  Answer,
+  ImportPreview,
+  PlanStep,
+  Roadmap,
+  RoadmapListed,
+  RoadmapWorker,
+  RoadmapWorkItem,
+  Step,
+} from "./apiTypes";
 import { Icon } from "./icons";
 // Matches the outline column's clamp in styles.css: the outline never narrower
 // than 300px, and the detail pane keeps 300px beside the 24px handle.
@@ -53,14 +61,6 @@ const DETAIL_MIN = 300;
 const HANDLE_WIDTH = 24;
 // Agents report as they work, so who works where refreshes as on the Agents page.
 const AGENTS_REFRESH = 30_000;
-type Preview = {
-  id: string;
-  title: string;
-  overview: string;
-  steps: Step[];
-  warnings: string[];
-  sha256: string;
-};
 export function Roadmaps({
   selected,
   step,
@@ -70,11 +70,11 @@ export function Roadmaps({
 }) {
   const [archive, setArchive] = useState(false);
   const [personId, setPersonId] = useState("");
-  const people = useData<List<Person>>("/people?archived=false");
-  const roads = useData<List<Roadmap>>(
+  const people = useData<Answer<"/api/v1/people">>("/people?archived=false");
+  const roads = useData<Answer<"/api/v1/roadmaps">>(
     `/roadmaps?archived=false${personId ? "&personId=" + encodeURIComponent(personId) : ""}`,
   );
-  const old = useData<List<Roadmap>>(
+  const old = useData<Answer<"/api/v1/roadmaps">>(
     `/roadmaps?archived=true${personId ? "&personId=" + encodeURIComponent(personId) : ""}`,
   );
   const action = useAction();
@@ -209,11 +209,11 @@ export function Roadmaps({
   );
 }
 function ImportRoadmap() {
-  const [preview, setPreview] = useState<Preview | null>(null);
+  const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [error, setError] = useState("");
   const action = useAction();
-  const roads = useData<List<Roadmap>>("/roadmaps?archived=false");
+  const roads = useData<Answer<"/api/v1/roadmaps">>("/roadmaps?archived=false");
   const [referenceTarget, setReferenceTarget] = useState("");
   return (
     <section className="import-box">
@@ -234,7 +234,7 @@ function ImportRoadmap() {
             return;
           }
           try {
-            const result = await request<Preview>(
+            const result = await request<ImportPreview>(
               "/imports/preview?name=" + encodeURIComponent(file.name),
               "POST",
               file,
@@ -392,14 +392,14 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
   const [pickItemId, setPickItemId] = useState("");
   const [pickStepId, setPickStepId] = useState("");
   const [subTitle, setSubTitle] = useState("");
-  const roads = useData<List<Roadmap>>("/roadmaps?archived=false");
+  const roads = useData<Answer<"/api/v1/roadmaps">>("/roadmaps?archived=false");
   const outlineRef = useRef<HTMLDivElement>(null);
   const splitRef = useRef<HTMLDivElement>(null);
   const outlinePanelRef = useRef<HTMLDivElement>(null);
   const outlineWidth = useStoredWidth("outline-width", OUTLINE_MIN, 2000);
   const detailRef = useRef<HTMLDivElement>(null);
   const snapshotRef = useRef<HTMLElement>(null);
-  const workList = useData<List<Item>>(
+  const workList = useData<Answer<"/api/v1/work-items">>(
     `/work-items?view=all&archived=false&limit=100&q=${encodeURIComponent(workQuery)}`,
   );
   const stepAgents = useData<{ items: RoadmapWorker[] }>(
@@ -484,7 +484,7 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
   const placements = (
     parent: string | null,
     depth: number,
-  ): { r: Roadmap; depth: number }[] =>
+  ): { r: RoadmapListed; depth: number }[] =>
     (tree.get(parent) ?? []).flatMap((r) =>
       r.id === id ? [] : [{ r, depth }, ...placements(r.id, depth + 1)],
     );
@@ -504,7 +504,7 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
       setSnapshot({ error: String(error) });
     }
   };
-  const renderWorkItem = (item: Item) => (
+  const renderWorkItem = (item: RoadmapWorkItem) => (
     <div className="line roadmap-work-item" key={item.id}>
       <span className={"status-dot " + item.status} />
       <a className="item-title" href={"#work/" + item.id}>
@@ -1356,7 +1356,7 @@ function StepTextForm({ step, onDone }: { step: Step; onDone: () => void }) {
 type DraftBase = {
   title: string;
   overview: string;
-  steps: Record<string, Pick<Step, "title" | "description" | "parentId">>;
+  steps: Record<string, Pick<PlanStep, "title" | "description" | "parentId">>;
 };
 function draftBase(roadmap: Roadmap): DraftBase {
   return {
@@ -1385,7 +1385,7 @@ export function StructureEditor({
   let draft: {
     title: string;
     overview: string;
-    steps: Step[];
+    steps: PlanStep[];
     revision: number;
     // Active step ids when the draft started; missing on drafts saved before it was recorded.
     baseStepIds?: string[];
@@ -1402,7 +1402,7 @@ export function StructureEditor({
   const active = () => roadmap.steps.filter((s) => !s.retired);
   const [title, setTitle] = useState(draft?.title ?? roadmap.title);
   const [overview, setOverview] = useState(draft?.overview ?? roadmap.overview);
-  const [steps, setSteps] = useState<Step[]>(
+  const [steps, setSteps] = useState<PlanStep[]>(
     () => draft?.steps ?? active().map((s) => ({ ...s })),
   );
   const [revision, setRevision] = useState(draft?.revision ?? roadmap.revision);
@@ -1423,7 +1423,7 @@ export function StructureEditor({
   function persist(
     nextTitle: string,
     nextOverview: string,
-    nextSteps: Step[],
+    nextSteps: PlanStep[],
     baseRevision = revision,
     baseIds = baseStepIds,
     nextNote = note,
@@ -1443,7 +1443,7 @@ export function StructureEditor({
     );
     if (!persisted) setStorageWarning(true);
   }
-  function update(id: string, fields: Partial<Step>) {
+  function update(id: string, fields: Partial<PlanStep>) {
     const next = steps.map((s) => (s.id === id ? { ...s, ...fields } : s));
     setSteps(next);
     persist(title, overview, next);
@@ -1477,7 +1477,7 @@ export function StructureEditor({
     // What the draft left as it found it takes its current value, so a change saved elsewhere
     // since, such as an agent's step.update, survives the save. The person's edits stay theirs.
     const current = new Map(active().map((s) => [s.id, s]));
-    const untouched = (s: Step) => {
+    const untouched = (s: PlanStep) => {
       const was = base?.steps[s.id];
       return (
         !!was &&
@@ -1662,7 +1662,7 @@ export function StructureEditor({
             <option value="">Top level</option>
             {steps
               .filter((p) => {
-                let ancestor: Step | undefined = p;
+                let ancestor: PlanStep | undefined = p;
                 const visited = new Set<string>();
                 while (ancestor && !visited.has(ancestor.id)) {
                   if (ancestor.id === s.id) return false;
@@ -1722,8 +1722,9 @@ export function StructureEditor({
               description: "",
               parentId: null,
               position: steps.length,
-              status: "open" as const,
+              status: "open",
               revision: 0,
+              retired: false,
             },
           ];
           setSteps(next);

@@ -4,36 +4,18 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { contextStorageKey, setDataContext } from "./api";
 import { RoadmapDetail, Roadmaps, StructureEditor } from "./Roadmaps";
-import type { Item, Roadmap, Step } from "./types";
+import type { Item, Roadmap, Step } from "./apiTypes";
+import { anItem, aRoadmap, aStep } from "./fixtures";
 
 const ROADMAP = "22222222-2222-4222-8222-222222222222";
 function step(id: string, title: string, position: number): Step {
-  return {
-    id,
-    title,
-    description: "",
-    parentId: null,
-    position,
-    status: "open",
-    revision: 1,
-    retired: false,
-  };
+  return aStep({ id, title, position });
 }
 const A = step("aaaaaaaa-0000-4000-8000-000000000001", "Alpha", 0);
 const B = step("aaaaaaaa-0000-4000-8000-000000000002", "Beta", 1);
 const C = step("aaaaaaaa-0000-4000-8000-000000000003", "Gamma", 2);
 function roadmap(revision: number, steps: Step[]): Roadmap {
-  return {
-    id: ROADMAP,
-    revision,
-    title: "Plan",
-    overview: "",
-    steps,
-    versions: [],
-    notes: [],
-    attachments: [],
-    history: [],
-  };
+  return aRoadmap({ id: ROADMAP, revision, title: "Plan", steps });
 }
 const draftKey = () => contextStorageKey("roadmap-structure", ROADMAP);
 const storeDraft = (draft: object) =>
@@ -401,26 +383,16 @@ it("reorders steps without mutating the cached roadmap", async () => {
   ]);
 });
 it("adds, attaches, reassigns, and unlinks work items on a roadmap", async () => {
-  const existingItem: Item = {
+  const existingItem: Item = anItem({
     id: "bbbbbbbb-0000-4000-8000-000000000001",
     revision: 2,
     title: "Existing item",
-    description: "",
-    status: "open",
-    adoUrl: null,
-    roadmapId: null,
-    stepId: null,
-  };
-  const linkedItem: Item = {
+  });
+  const linkedItem = anItem({
     id: "bbbbbbbb-0000-4000-8000-000000000002",
-    revision: 1,
     title: "Roadmap item",
-    description: "",
-    status: "open",
-    adoUrl: null,
     roadmapId: ROADMAP,
-    stepId: null,
-  };
+  });
   const roadData: Roadmap = {
     ...roadmap(4, [A, B]),
     workItems: [linkedItem],

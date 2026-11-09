@@ -4,11 +4,10 @@ import { useData } from "./hooks";
 import { Empty, ErrorMessage } from "./components";
 import { EndRun, Pages } from "./Coordination";
 import { AgentProposals } from "./ProposalHistory";
-import type { List } from "./types";
 import type {
-  AgentActivity,
   AgentDetail,
   AgentSummary,
+  Answer,
   RegistryRole,
   RegistryWork,
   TieReason,
@@ -40,7 +39,7 @@ export function Agents({ selected }: { selected?: string }) {
 }
 function AgentList() {
   const [offset, setOffset] = useState(0);
-  const list = useData<List<AgentSummary>>(
+  const list = useData<Answer<"/api/v1/agents">>(
     `/agents?limit=${PAGE}&offset=${offset}`,
     REFRESH,
   );
@@ -387,7 +386,7 @@ function AgentView({ id }: { id: string }) {
 }
 function Activity({ id }: { id: string }) {
   const [offset, setOffset] = useState(0);
-  const query = useData<List<AgentActivity>>(
+  const query = useData<Answer<"/api/v1/agents/{identity}/activity">>(
     `/agents/${encodeURIComponent(id)}/activity?limit=${PAGE}&offset=${offset}`,
     REFRESH,
   );

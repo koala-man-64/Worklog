@@ -580,6 +580,13 @@ Done so far:
 - **Typed commands, third batch.** The discussions read the generated types, and `discussionTypes.ts` is gone.
   - A thread's tags read through one view of their kinds' shapes.
   - The references a page builds (a draft's chosen record, a filter, a role's record) take `ContextRef`, a kind and an id with what the page has read.
+- **Typed commands, fourth batch.** Work, days, roadmaps, people, chats, proposals and Settings read the generated types, and `types.ts`, the last hand-written type file, is gone. Every command in `commands.ts` now takes its answer from its route.
+  - Commands that claimed the full record now answer with what their routes send. A roadmap's revision gives the saved roadmap, a day entry's write gives the entry without its item, and a person's write gives their own fields.
+  - A transcript message reads through one view of its kinds' shapes. A transcript's `source` is typed `claude` or `codex`, the only tools that write one, in `docs/openapi.json` too.
+  - The structure editor drafts a step's own fields (`PlanStep`), and the import preview reads its own answer.
+  - A step's status menu shows whatever status the step holds; `steps.status` has no CHECK.
+  - Search never returns proposals, so the dead link to one is gone. A day entry's status always comes from the API, which falls back to the item's status now.
+  - Whole records for tests come from `fixtures.ts`.
 
 #### 5.4 · Frontend layout
 

@@ -1927,7 +1927,7 @@ class TranscriptSummary(Answer):
     # Whether any transcript of the chat was found.
     found: bool
     # Which tool wrote it; null when none was found.
-    source: str | None
+    source: Literal["claude", "codex"] | None
     lastActivityAt: str | None
     state: Literal["working", "idle"]
     threads: list[TranscriptThread]
