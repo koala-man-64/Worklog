@@ -1,0 +1,338 @@
+/* Roadmaps: the rules only its page uses. */
+.plan-picker {
+  margin: 18px 0 30px;
+}
+.roadmap-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+/* The chevron centers on the title line, as in the plan outline. */
+.roadmap-summary > .tree-toggle,
+.roadmap-summary > .tree-spacer {
+  margin: -4px 0 0 -8px;
+}
+.roadmap-summary small {
+  display: block;
+  margin-top: 7px;
+}
+.import-box {
+  background: var(--teal-wash);
+  padding: 20px;
+  border-radius: 6px;
+  margin-top: 28px;
+}
+.import-box p {
+  font-size: 12px;
+}
+.import-box h3 {
+  margin-top: 0 !important;
+}
+.structure-editor {
+  padding: 25px;
+  border: 1px solid var(--teal);
+  background: var(--paper);
+  margin-bottom: 30px;
+}
+.structure-editor label {
+  margin: 20px 0;
+}
+.structure-editor fieldset {
+  border: 1px solid var(--line);
+  padding: 15px;
+  margin: 20px 0;
+  min-width: 0;
+}
+.structure-editor fieldset > input {
+  width: 100%;
+  margin-bottom: 10px;
+}
+.structure-editor legend {
+  color: var(--muted);
+  font-size: 12px;
+}
+.roadmap-head {
+  margin-bottom: 16px;
+}
+.crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+.crumbs > span {
+  color: var(--muted);
+}
+.roadmap-head .back {
+  margin-bottom: 0;
+}
+/* The roadmap screen sets its title smaller, inside its panes. */
+.roadmap-title h1 {
+  font-size: 34px;
+}
+.roadmap-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  margin-top: 12px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.roadmap-progress progress {
+  flex: 1 1 200px;
+}
+.roadmap-progress span {
+  white-space: nowrap;
+}
+.roadmaps-split .panel-body {
+  padding: 0 16px;
+}
+.roadmap-tree {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.roadmap-tree .roadmap-tree {
+  padding-left: 20px;
+  border-left: 1px solid var(--line);
+}
+.panel-body > .roadmap-tree > li:first-child > .roadmap-row {
+  border-top: 0;
+}
+.outline,
+.outline ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.outline ul {
+  padding-left: 8px;
+}
+.outline > .step:first-child {
+  border-top: 0;
+}
+.step-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-height: 44px;
+  padding: 4px 4px 4px 0;
+  border-radius: 4px;
+}
+.step-row.selected {
+  background: var(--teal-wash);
+}
+/* A narrow row drops its status pill below the title rather than squeezing the title. */
+.step-text {
+  flex: 1 1 9rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.step-link {
+  color: var(--ink);
+  line-height: 1.4;
+  text-decoration: none;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+.outline > .step > .step-row .step-link {
+  font-weight: 600;
+}
+.step-link:hover {
+  color: var(--teal);
+  text-decoration: underline;
+}
+.step-link[aria-current] {
+  color: var(--teal);
+  font-weight: 600;
+}
+.step-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 12px;
+  font-variant-numeric: tabular-nums;
+}
+/* Who works on a step: an avatar and a name, linking to the agent or its tracked chat. */
+.agents-here {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--line);
+}
+.agent-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  margin: 2px 0;
+}
+.agent-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 16em;
+  padding: 1px 8px 1px 1px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+  text-decoration: none;
+}
+.agent-chip > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.agent-chip:hover {
+  border-color: var(--teal);
+  color: var(--teal);
+}
+.agent-chip.stale {
+  border-style: dashed;
+  opacity: 0.65;
+}
+button.agent-chip.more {
+  min-height: 0;
+  padding: 1px 8px;
+  background: none;
+  color: var(--muted);
+}
+@container (max-width: 400px) {
+  .step-text {
+    flex-basis: calc(100% - 64px);
+  }
+}
+.step-row select.status-select {
+  flex-shrink: 0;
+  margin-left: auto;
+  height: 32px;
+  min-width: 88px;
+  padding: 4px 12px;
+}
+.step-title {
+  align-items: flex-start;
+}
+.step-title h2 {
+  margin: 0;
+}
+.editor-actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 12px 0 4px;
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+}
+.structure-editor .editor-actions label {
+  flex: 1 1 240px;
+  margin: 0;
+}
+.editor-actions label > input {
+  margin-bottom: 0;
+}
+.editor-actions .error {
+  width: 100%;
+  margin: 0;
+}
+.roadmap-work-item select:not(.status-select) {
+  font-size: 12px;
+  flex: 0 1 16rem;
+}
+/* Your own messages sit in from the left, the way a conversation reads. */
+.message.user {
+  margin-left: clamp(0px, 8%, 64px);
+  border-color: transparent;
+  background: var(--teal-wash);
+}
+/* Roadmap questions and decisions: the question or decision on one line, its details, answer or rationale beneath. */
+.roadmap-record {
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+}
+.roadmap-record-head {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.roadmap-record-head > strong {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.roadmap-record-head button,
+.roadmap-record-head small {
+  font-size: 12px;
+}
+.roadmap-record .markdown {
+  margin-top: 6px;
+}
+.roadmap-answer {
+  margin-top: 8px;
+  padding-left: 12px;
+  border-left: 3px solid var(--teal);
+}
+.roadmap-answer small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.roadmap-record-form {
+  display: grid;
+  gap: 10px;
+}
+.roadmap-record-form input[type="date"] {
+  flex: 0 1 11rem;
+}
+.roadmap-record-form .toolbar {
+  margin: 0;
+}
+.answered-questions {
+  margin-top: 15px;
+}
+@media (max-width: 760px) {
+  .outline ul {
+    padding-left: 8px;
+  }
+  .structure-editor {
+    padding: 15px;
+  }
+}
+@media not all and (min-width: 900px) and (min-height: 560px) {
+  .roadmap-split > .resize-handle {
+    display: none;
+  }
+}
+@media (min-width: 900px) and (min-height: 560px) {
+  /* The outline takes 6/13 of the row until dragged to --outline-width; either way it keeps 300px and leaves the detail 300px (OUTLINE_MIN and DETAIL_MIN in Roadmaps.tsx). The 24px handle column is the gap. */
+  .roadmap-split {
+    grid-template-columns:
+      clamp(
+        300px,
+        var(--outline-width, calc((100% - 24px) * 6 / 13)),
+        calc(100% - 324px)
+      )
+      24px minmax(0, 1fr);
+    column-gap: 0;
+  }
+  .roadmaps-split {
+    grid-template-columns: minmax(0, 3fr) minmax(300px, 2fr);
+  }
+}

@@ -1,0 +1,27 @@
+/* Resources: the rules only its page uses. */
+@media (min-width: 900px) and (min-height: 560px) {
+  .resources-split {
+    grid-template-columns: minmax(260px, 1fr) minmax(0, 3fr);
+  }
+}
+.resource-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+/* The title and its button share a row from the panel's narrowest width up. */
+.resource-add input {
+  flex: 1 1 120px;
+  min-width: 0;
+}
+.resource-add .error {
+  flex-basis: 100%;
+  margin: 0;
+}
+.resource-pane .lede {
+  margin: 0 0 20px;
+}
+.resource-pane .markdown h1:first-child,
+.resource-pane .markdown h2:first-child {
+  margin-top: 0;
+}

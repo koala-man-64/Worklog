@@ -47,8 +47,8 @@ import type {
   Step,
 } from "./apiTypes";
 import { Icon } from "./icons";
-// Matches the outline column's clamp in styles.css: the outline never narrower
-// than 300px, and the detail pane keeps 300px beside the 24px handle.
+// Matches the outline column's clamp in styles/roadmaps.css: the outline never
+// narrower than 300px, and the detail pane keeps 300px beside the 24px handle.
 const OUTLINE_MIN = 300;
 const DETAIL_MIN = 300;
 const HANDLE_WIDTH = 24;

@@ -1,0 +1,359 @@
+/* Chats: the rules only its page uses. */
+/* Chats: who is working on what beside the conversation; each row is a chat and its steps. */
+.chat-list {
+  /* Where a row's title starts: the 16px icon or dot slot and the gap after it. */
+  --chat-indent: 26px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.chat-list > li {
+  display: grid;
+  /* A row never grows past the panel: long titles and run names wrap instead. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+  padding: 10px 8px;
+  border-top: 1px solid var(--line);
+  border-radius: 4px;
+}
+.chat-list > li:first-child {
+  border-top: 0;
+}
+.chat-list > li.selected {
+  background: var(--teal-wash);
+}
+.chat-link {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  color: var(--ink);
+  text-decoration: none;
+}
+.chat-link > .status-dot {
+  margin: 6px 3px 0;
+}
+.chat-link-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.chat-link strong {
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.chat-link:hover strong {
+  color: var(--teal);
+  text-decoration: underline;
+}
+.chat-link[aria-current] strong {
+  color: var(--teal);
+}
+.chat-meta {
+  padding-left: var(--chat-indent);
+  font-size: 12px;
+}
+/* Gathered by record, each roadmap or work item sums up the activity of every chat within it. */
+.chat-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.chat-filters .thread-filter,
+.chat-filters .toolbar {
+  gap: 4px;
+  margin: 0;
+}
+.chat-filters .toolbar button {
+  min-height: 30px;
+  padding: 3px 8px;
+  font-size: 12px;
+}
+.chat-group-head {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+/* A roadmap or work item leads with its sidebar icon where a chat has its dot; the icon takes the working colour while a chat within works. */
+.chat-kind {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 16px;
+  margin-top: 2px;
+  color: var(--muted);
+}
+.chat-kind.doing {
+  color: var(--status-doing-border);
+}
+.chat-group-head > .chat-link-text {
+  flex: 1;
+}
+.chat-group-head a,
+.chat-group-head strong {
+  color: var(--ink);
+  font-weight: 600;
+  line-height: 1.4;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+/* Roadmaps head the tree in the display face; work items and chats keep the body face. */
+.chat-group-head.roadmap a,
+.chat-group-head.loose strong {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.3;
+}
+.chat-group-head a:hover {
+  color: var(--teal);
+  text-decoration: underline;
+}
+.chat-group-head small {
+  color: var(--muted);
+}
+.chat-group-head > .tree-toggle {
+  margin: -4px -6px 0 0;
+}
+/* The guide drops from the middle of the group's icon, and each row inside starts under the group's title. */
+.chat-group > .chat-list {
+  margin: 4px 0 0 8px;
+  padding-left: 8px;
+  border-left: 1px solid var(--line);
+}
+.chat-group > .chat-list > li {
+  padding-right: 0;
+}
+/* Chats: the Claude Code sessions running on this machine that nothing tracks yet, above the chats. */
+.running-sessions {
+  display: grid;
+  gap: 4px;
+  padding: 10px 8px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.running-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 10px;
+}
+.running-head h3 {
+  flex: 1;
+  margin: 0;
+  font-size: 15px;
+}
+/* The count goes under the title, which shares its row only with the toggle. */
+.running-head small {
+  order: 1;
+  flex-basis: 100%;
+  color: var(--muted);
+}
+.running-head > .tree-toggle {
+  margin: -4px -6px -4px 0;
+}
+.running-sessions > .chat-list > li {
+  padding-inline: 0;
+}
+.running-sessions > button.quiet {
+  justify-self: start;
+  min-height: 28px;
+  font-size: 12px;
+}
+.chat-list > li.hidden-session {
+  opacity: 0.7;
+}
+/* A running session's ties, on one wrapping row under it. A search opens below all of them,
+   so the other buttons stay where they were. */
+.chat-ties {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.chat-ties > .link-search,
+.chat-agents > .link-search {
+  order: 1;
+  margin-top: 2px;
+}
+.chat-ties > button {
+  min-height: 28px;
+  padding: 2px 10px;
+  font-size: 12px;
+}
+/* The agents tied to a chat, as pills like the recipients of its messages; each name opens its agent.
+   In a narrow list a pill wraps between its parts rather than inside a name. */
+.chat-agents li {
+  flex-wrap: wrap;
+  border-radius: 14px;
+}
+.chat-agents li a {
+  color: inherit;
+}
+.chat-agents > button {
+  min-height: 24px;
+  padding: 0 9px;
+  font-size: 12px;
+}
+.chat-history-head {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+.chat-history-head h2 {
+  margin: 0;
+}
+.chat-outbox {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.chat-outbox h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.chat-outbox > button {
+  justify-self: center;
+}
+.chat-outbox-form {
+  display: grid;
+  gap: 10px;
+}
+.chat-outbox-form > label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.chat-outbox-form textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 90px;
+  resize: vertical;
+}
+.chat-outbox-form p,
+.chat-outbox-form .toolbar {
+  margin: 0;
+}
+.chat-outbox-form code {
+  overflow-wrap: anywhere;
+}
+.chat-recipients {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.chat-recipients li,
+.chat-deliveries li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 2px 10px 2px 3px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.chat-recipients small {
+  color: var(--muted);
+}
+.chat-recipients li.unconfirmed {
+  border-style: dashed;
+  border-color: var(--danger);
+}
+.chat-deliveries li.delivered {
+  border-color: var(--teal);
+  background: var(--teal-wash);
+  color: var(--teal);
+}
+.chat-deliveries li.expired {
+  border-style: dashed;
+  color: var(--muted);
+}
+.chat-outbox-sent {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.chat-outbox-sent > li {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+}
+.chat-outbox-sent > li > small {
+  color: var(--muted);
+}
+.chat-messages {
+  display: grid;
+  gap: 12px;
+}
+.chat-messages > button {
+  justify-self: center;
+}
+.chat-messages[aria-busy] .messages {
+  opacity: 0.6;
+}
+.message.tools {
+  padding: 2px 14px;
+  border-style: dashed;
+  background: transparent;
+  font-size: 12px;
+}
+.message.tools details {
+  border-top: 0;
+  margin: 0;
+  padding: 4px 0;
+}
+.message.tools summary {
+  color: var(--ink);
+}
+.message.tools ul {
+  margin: 4px 0 6px;
+  padding-left: 18px;
+  overflow-wrap: anywhere;
+}
+.message-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 6px;
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+.message-head time {
+  margin-left: auto;
+}
+.message.tools time {
+  margin-left: 8px;
+}
+.message-encrypted {
+  margin: 0;
+  font-style: italic;
+}
+@media (min-width: 900px) and (min-height: 560px) {
+  .chats-split {
+    grid-template-columns: minmax(280px, 2fr) minmax(0, 3fr);
+  }
+  /* The chat's name and agent filter stay in view while its messages scroll in the pane. */
+  .chat-history-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+}

@@ -1,0 +1,37 @@
+/* Review: the rules only its page uses. */
+.text-button {
+  border: 0;
+  padding: 0;
+  min-height: 0;
+  background: none;
+  white-space: normal;
+  text-align: left;
+}
+.diff-row {
+  display: grid;
+  grid-template-columns: 100px 1fr 1fr;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  font-size: 12px;
+}
+.diff-row pre {
+  margin-top: 4px;
+  max-height: 250px;
+}
+.diff-after pre {
+  background: var(--teal-wash);
+}
+/* A new record has no current column: its proposed values take the row. */
+.diff-row.new .diff-after {
+  grid-column: 2 / -1;
+}
+@media (max-width: 760px) {
+  .diff-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .diff-row > strong,
+  .diff-row.new .diff-after {
+    grid-column: 1/-1;
+  }
+}

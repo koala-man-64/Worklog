@@ -1,0 +1,36 @@
+/* Agents: the rules only its page uses. */
+/* An agent reads as who and its state, then what it reports working on now. */
+.agent-row {
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+}
+.agent-row-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.agent-work {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.agent-work li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.agent-work li p {
+  flex-basis: 100%;
+  margin: 0;
+}
+.agent-activity p {
+  flex-basis: 100%;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
