@@ -29,7 +29,7 @@ Use an isolated `WORKLOG_DATA_DIR` for manual or browser tests; never point test
 
 ## Dependencies
 
-`requirements.lock` pins every package Worklog needs to run, and `requirements-dev.lock` adds the tools the checks run. Both hold each package's file hashes, and Setup and CI install them with `--require-hashes`, so pip installs exactly those files. Both come from `pyproject.toml` with pip-tools. To change a dependency, change its pin in `pyproject.toml`, then compile both locks. Run pip-tools from a virtual environment of its own, such as `pipx install pip-tools`, and with no user pip configuration, so the locks come from PyPI alone:
+`requirements.lock` pins every package Worklog needs to run, and `requirements-dev.lock` adds the tools the checks run. Both hold each package's file hashes, and Setup and CI install them with `--require-hashes`, so pip installs exactly those files. Both come from `pyproject.toml` with pip-tools. To change a dependency, change its pin in `pyproject.toml`, then compile both locks. Run pip-tools from a virtual environment of its own, such as `pipx install pip-tools`, on Windows with CI's Python (3.14), since pip-compile resolves for the system it runs on: compiled elsewhere, the dev lock would lose `colorama`, which pytest needs on Windows. Run it with no user pip configuration, so the locks come from PyPI alone:
 
 ```powershell
 $env:PIP_CONFIG_FILE = 'nul'

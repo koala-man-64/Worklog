@@ -151,5 +151,5 @@ jobs:
         run: |
           python -m pip install --no-input pip-audit==2.10.1
           if ! python -m pip_audit --require-hashes --disable-pip -r requirements.lock; then
-            echo "::warning title=pip-audit::Runtime dependencies have published advisories; see this job's log."
+            echo "::warning title=pip-audit::pip-audit reported advisories in the runtime dependencies, or could not run; see this job's log."
           fi

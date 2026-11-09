@@ -11,8 +11,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 REQUIREMENT = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)==(\S+?)\s*\\?$")
 HASH = re.compile(r"--hash=sha256:([0-9a-f]{64})")
-# What the runtime leaves out (REM-24): the checks' own tools.
-CHECK_TOOLS = {"pytest", "ruff", "mypy"}
+# What the runtime leaves out (REM-24): the checks' own tools, and httpx, which only the tests' client uses.
+CHECK_TOOLS = {"pytest", "ruff", "mypy", "httpx"}
 
 
 def normalized(name: str) -> str:
