@@ -646,7 +646,7 @@ Done:
 
 #### 5.6 · Agent contract v2
 
-Status: In progress · Branch: `claude/handoff-retired` · PR: [#173](https://github.com/koala-man-64/Worklog/pull/173); the chats' labels and the runs question follow
+Status: Blocked: whether runs and participations collapse into one record is Rudy's decision · Branches: `claude/handoff-retired`, `claude/chat-label-links` · PRs: [#173](https://github.com/koala-man-64/Worklog/pull/173), [#174](https://github.com/koala-man-64/Worklog/pull/174)
 
 Under K8:
 
@@ -661,6 +661,13 @@ Done so far:
   - `updates post` has no `--kind handoff`, and a request that sets it is refused (`422 validation`, `{kind: "retired"}`).
   - The refusal runs inside the write, after its retry receipt, so retrying a handoff posted before with its request ID still returns it. Handoffs posted before stay readable, and the pages still label them.
   - AGENT-GUIDE and API.md say so.
+- **Tracked chats take no new free-text repository labels** (K8; A-08, B-11). Schema v24 links each chat to the one repository, merged ones aside, whose name a label of it is exactly, as v22 did for discussions.
+  - The labels stay, read-only. A create that gives labels, or an update that changes them, is refused (`422 validation`, `{repos: "retired"}`), directly or when a proposal is approved. A chat's own labels given back unchanged are no change.
+  - The upgrade only adds links. No record or revision changes, and a link a chat already has stays as it was.
+  - v24 changes data alone, so it shares v23's shape and seal. The seal test that claims the current shape under an older version now claims it under the newest version that shipped another.
+  - The way back from v24 is `PRAGMA user_version=23`, since v23 holds the links too. `docs/UPGRADING.md` gives it in place of v23's.
+  - The chat form has no labels field. A chat's labels show beside its repositories, except one that names a repository linked there; the rest are marked "Not linked".
+  - AGENT-GUIDE, GUIDE, API.md and UPGRADING.md say so.
 
 #### 5.7 · Hash-locked dependencies
 
@@ -779,3 +786,4 @@ These look like consolidation candidates but stay:
 - 2026-11-08: Step 4.4 split into two PRs while building it: the read-only doctor first, then the schema version with the constraints.
 - 2026-11-08: Step 5.3 split into PRs while building it: golden responses for every read first, then typed responses route by route, then typed commands.
 - 2026-11-08: Step 5.5 also moves the README's operations and development sections, into `docs/OPERATIONS.md` and `docs/DEVELOPMENT.md`: trimmed to overview, install and run, the README had no place for them.
+- 2026-11-08: Step 5.6 split into PRs while building it: handoff updates first, then the tracked chats' labels with schema v24, which links them under K8. v24 changes data alone, so its shape and seal are v23's. Whether runs and participations collapse waits on Rudy.

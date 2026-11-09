@@ -255,6 +255,11 @@ def apply(c: sqlite3.Connection, actor: dict, action: str, p: dict) -> dict:
         if val["ownerType"] not in {"item", "roadmap"}:
             raise AppError(422, "validation", "Agent chats must belong to a work item or roadmap")
         check_owner(c, val["ownerType"], val["ownerId"])
+        if p.get("repos") is not None and repository_labels(p["repos"]) != val["repos"]:
+            # K8: the labels a chat already has stay readable, and v24 linked the ones that name a
+            # repository; a chat takes no new ones. Sending its labels back unchanged is no change.
+            raise AppError(422, "validation", "Free-text repository labels are retired: link repositories from the "
+                           "catalog instead, with repositoryIds", {"repos": "retired"})
         for k in ("chatId", "title", "createdDate", "provider", "model", "repos", "stepIds"):
             if k in p and p[k] is not None:
                 val[k] = p[k]

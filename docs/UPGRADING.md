@@ -6,12 +6,13 @@ restores.
 
 ## Upgrade
 
-For an upgrade, stop Worklog, make a manual backup with the installed version, update the checkout, run `Setup.ps1`, then start and check the application. Use the same data directory and port throughout. The first startup snapshots a supported version 1 to 22 database and upgrades it to version 23 in one transaction.
+For an upgrade, stop Worklog, make a manual backup with the installed version, update the checkout, run `Setup.ps1`, then start and check the application. Use the same data directory and port throughout. The first startup snapshots a supported version 1 to 23 database and upgrades it to version 24 in one transaction.
 
 `./scripts/Run.ps1` does the stop, backup, setup and start in one step after you update the checkout, passing the same `-DataDir` and `-Port` to each. Its backup is taken before the new version first starts, so it is the pre-upgrade backup; if the stop or backup fails, it ends before setup. It runs Setup's shared-folder check first, so a refusal leaves Worklog running.
 
 ## What each version changes
 
+- **Version 24** links each tracked chat to the repository each of its labels names: the one repository, merged ones aside, whose name the label is exactly, as version 22 did for discussions. The labels stay, and a chat takes no new ones: link a registered repository instead. The upgrade adds only those links, and changes no record.
 - **Version 23** has the database itself refuse what only Worklog's code refused before: a task, note, file reference or attachment archived other than 0 or 1, and a note or attachment owned by a kind of record it can't have. The upgrade builds those four tables again and changes no record. A row that already breaks one of those rules can only come from outside Worklog: the upgrade names it and changes nothing, and Worklog doesn't start until it is fixed. The message is in `server.log` (and `restore` prints it): set the row right with the `sqlite3` shell, with Worklog stopped and after a manual backup. Each refused start takes another pre-migration backup, of which the three newest are kept. Building the tables again leaves the space their old copies took, attachments' content included, free inside the file until `compact` gives it back, so the upgrade needs free disk of about twice the database: one copy for the pre-migration backup and one for the rebuilt tables.
 - **Version 22** lets you tag a discussion with the records it is about (work items, roadmaps and their steps, repositories, tickets, releases, people, resources, questions and decisions) and pin it, and gives each repository a discussion of its own. It is the first upgrade that adds records: it opens a discussion, written as you, for each repository that is neither archived nor merged into another (an archived one gets its discussion when you recover it), each as of the upgrade, so they list first until other threads have newer activity. It also tags each discussion with the repository its free-text repository label names when exactly one repository not merged into another has that name. The labels themselves stay. Each tag a discussion already had counts as added by whoever wrote its first message.
 - **Version 21** gives each day's reflection its own revision, so reordering a day or adding work to it no longer conflicts with a reflection you're writing; each reflection starts at its day's revision, and the upgrade changes no record.
@@ -31,37 +32,17 @@ For an upgrade, stop Worklog, make a manual backup with the installed version, u
 
 Keep the previous version and its manual backup until verification succeeds. To roll back, stop Worklog, switch to the previous version and run its setup, then use that version’s `restore` command with the pre-upgrade backup. Start and check Worklog again. Restoring returns the data to the time of the snapshot, creates a new data identity, and revokes the restored credentials.
 
-## The way back from version 23
+## The way back from version 24
 
-From version 23 to version 22, a way back keeps every record, rowids included: it builds tasks, notes, file references and attachments again without the rules version 23 adds. With Worklog stopped and after a manual backup, run this on the database, stopping at the first error (the `sqlite3` shell's `-bail`), then start the version 22 checkout:
+From version 24 to version 23, a way back keeps every record, and the links version 24's upgrade made: version 23 holds them too. With Worklog stopped and after a manual backup, run this on the database, then start the version 23 checkout:
 
 ```sql
-BEGIN;
-ALTER TABLE tasks RENAME TO tasks_v23;
-CREATE TABLE tasks(id TEXT PRIMARY KEY,item_id TEXT NOT NULL REFERENCES work_items(id),text TEXT NOT NULL,done INTEGER NOT NULL DEFAULT 0 CHECK(done IN(0,1)),archived INTEGER NOT NULL DEFAULT 0,revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL, position INTEGER NOT NULL DEFAULT 0 CHECK(position>=0));
-INSERT INTO tasks(rowid,id,item_id,text,done,archived,revision,created_at,updated_at,position) SELECT rowid,id,item_id,text,done,archived,revision,created_at,updated_at,position FROM tasks_v23;
-DROP TABLE tasks_v23;
-CREATE INDEX tasks_item ON tasks(item_id,archived);
-ALTER TABLE notes RENAME TO notes_v23;
-CREATE TABLE notes(id TEXT PRIMARY KEY,owner_type TEXT NOT NULL,owner_id TEXT NOT NULL,title TEXT NOT NULL,text TEXT NOT NULL,archived INTEGER NOT NULL DEFAULT 0,revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
-INSERT INTO notes(rowid,id,owner_type,owner_id,title,text,archived,revision,created_at,updated_at) SELECT rowid,id,owner_type,owner_id,title,text,archived,revision,created_at,updated_at FROM notes_v23;
-DROP TABLE notes_v23;
-CREATE UNIQUE INDEX notes_item_scratchpad ON notes(owner_id) WHERE owner_type='item' AND archived=0;
-CREATE INDEX notes_owner ON notes(owner_type,owner_id,archived);
-ALTER TABLE file_references RENAME TO file_references_v23;
-CREATE TABLE file_references(id TEXT PRIMARY KEY,item_id TEXT NOT NULL REFERENCES work_items(id),path TEXT NOT NULL,archived INTEGER NOT NULL DEFAULT 0,revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL);
-INSERT INTO file_references(rowid,id,item_id,path,archived,revision,created_at) SELECT rowid,id,item_id,path,archived,revision,created_at FROM file_references_v23;
-DROP TABLE file_references_v23;
-CREATE INDEX file_references_item ON file_references(item_id,archived);
-ALTER TABLE attachments RENAME TO attachments_v23;
-CREATE TABLE attachments(id TEXT PRIMARY KEY,owner_type TEXT NOT NULL,owner_id TEXT NOT NULL,name TEXT NOT NULL,mime TEXT NOT NULL,size INTEGER NOT NULL,sha256 TEXT NOT NULL,content BLOB NOT NULL,archived INTEGER NOT NULL DEFAULT 0,revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL);
-INSERT INTO attachments(rowid,id,owner_type,owner_id,name,mime,size,sha256,content,archived,revision,created_at) SELECT rowid,id,owner_type,owner_id,name,mime,size,sha256,content,archived,revision,created_at FROM attachments_v23;
-DROP TABLE attachments_v23;
-CREATE INDEX files_owner ON attachments(owner_type,owner_id,archived);
-PRAGMA user_version=22;
-COMMIT;
+PRAGMA user_version=23;
 ```
 
+Upgrading again links labels as the first upgrade did, so a link you removed at version 23 comes back, and a label a chat took there is linked too.
+
 Only the latest version's way back is kept here. Each older one was given while its version was
-the latest: the history of `README.md` in the repository has them. Restoring the pre-upgrade
+the latest: the history of this file in the repository has them, and before this file, the
+history of `README.md`. Restoring the pre-upgrade
 backup with the earlier version, as *Roll back* says, works from any version.

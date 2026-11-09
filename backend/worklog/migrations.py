@@ -14,9 +14,9 @@ import sqlite3
 
 from .common import now, setting, today, uid
 
-SCHEMA_VERSION = 23
+SCHEMA_VERSION = 24
 # Older versions that startup and offline restore upgrade in one transaction.
-UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22})
+UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23})
 
 # v1 grew in place before versions were counted: _upgrade_v1 adds whichever of these a v1 database
 # lacks. People as v1 had them; v10 renames role to team, adds person details and lets links name
@@ -822,6 +822,28 @@ def add_leaf_constraints(conn: sqlite3.Connection) -> None:
         execute_schema(conn, indexes)
 
 
+def link_chat_labels(conn: sqlite3.Connection) -> None:
+    """Link each tracked chat to the one repository, merged ones aside, whose name a label of it is
+    exactly, as v22 tagged discussions (K8). It only adds links: the labels stay as they are, read
+    only from now on, a link a chat already has stays, and no record or revision changes. A label
+    that names no repository, or two, stays a label alone."""
+    named: dict[str, list[str]] = {}
+    for identity, name in conn.execute("SELECT id,name FROM repositories WHERE merged_into IS NULL"):
+        named.setdefault(name, []).append(identity)
+    links = set()
+    for chat, labels in conn.execute("SELECT id,repos FROM agent_chats"):
+        try:
+            values = json.loads(labels)
+        except (ValueError, RecursionError):
+            continue  # Worklog writes a JSON list; anything else names nothing to link.
+        for label in values if isinstance(values, list) else []:
+            if isinstance(label, str) and len(named.get(label, [])) == 1:
+                links.add((chat, named[label][0]))
+    stamp = now()
+    conn.executemany("INSERT OR IGNORE INTO chat_repositories(chat_id,repository_id,created_at) VALUES(?,?,?)",
+                     [(chat, repository, stamp) for chat, repository in sorted(links)])
+
+
 def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
     """Unlike executescript, preserve the caller's transaction and rollback boundary."""
     for statement in filter(str.strip, schema.split(";")):
@@ -832,7 +854,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
     """Upgrade an accepted older version to the current shape atomically inside the caller's transaction.
 
     Credential IDs, proposal authors, receipts (beyond the date v11 gives them), and legacy
-    chat repository labels are deliberately unchanged. No repository names are guessed or imported.
+    chat repository labels are deliberately unchanged. No repository names are guessed or imported:
+    v22 and v24 link a label only to the one repository it names exactly.
     The one record v13 changes is a chat message still waiting for an identity that isn't bound to
     the chat: that delivery ends, with the reason 'unconfirmed'. v14 gives every task its place in
     its work item's list, the one it was listed in, and changes nothing else about it. v15 lets a
@@ -845,7 +868,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
     be tagged with more kinds of record and pinned, tags each discussion with the one repository a
     repository label of it names exactly, and is the first to add records: it opens the discussion
     of each repository that takes changes. v23 adds CHECKs to tasks, notes, file references and
-    attachments, and changes no record.
+    attachments, and changes no record. v24 links each tracked chat to the one repository a label of
+    it names exactly, as v22 tagged discussions; the labels stay, and no record changes.
     """
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version == SCHEMA_VERSION:
@@ -901,6 +925,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
         add_discussion_tags(conn)
     if version < 23:
         add_leaf_constraints(conn)
+    if version < 24:
+        link_chat_labels(conn)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 

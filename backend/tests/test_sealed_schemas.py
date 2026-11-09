@@ -96,8 +96,12 @@ def test_restore_refuses_a_shape_no_version_shipped(tmp_path):
 
 
 def test_restore_refuses_a_sealed_shape_under_another_version(tmp_path):
+    # A version can change data alone, as v24 does, and keep the shape before it: claim the current
+    # shape under the newest version that shipped another.
     path = tmp_path / "worklog.sqlite3"
-    sealed.build(path, SCHEMA_VERSION - 1, sealed.current())
+    older = max(version for version in range(1, SCHEMA_VERSION)
+                if all(signature != sealed.current() for _, _, signature in sealed.dump(version)))
+    sealed.build(path, older, sealed.current())
     with pytest.raises(ValueError, match="do not match this Worklog version"):
         recovery.validate_database(path)
 

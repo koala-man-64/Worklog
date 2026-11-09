@@ -658,7 +658,8 @@ Any other field is refused. On a create, `id` is not an ID but a name for the ne
   - Your own chat needs no proposal: `chats track` tracks the chat you registered with on a work item, or on a roadmap and its steps (section 5.4), and participation with `--item` tracks it on that work item, once. Propose `chat.*` for any other chat, and to change or archive one.
   - `chatId` is your chat's provider ID.
   - `stepIds` is the complete list of steps a roadmap's chat works on. The steps belong to that roadmap, and a retired step can stay but cannot be added. It is always empty on a work item's chat.
-  - `repos` holds free-text labels, at most 20. `repositoryIds` holds catalog IDs, at most 100.
+  - `repositoryIds` holds the catalog IDs of the repositories the chat works in, at most 100.
+  - **Free-text repository labels.** Chats tracked before schema version 24 may carry `repos` labels. They stay readable, and the upgrade linked each chat to the one repository whose name a label was exactly. A chat takes no new ones (`422 validation`, `repos` marked `"retired"`): a `chat.*` that leaves `repos` out, or gives the chat's own labels unchanged, applies; one that changes them is refused when the person approves it. Link the repository with `repositoryIds` instead.
 - **GitHub references.** `kind` is `commit` or `pr`. `chatId` names a tracked chat on the same work item or roadmap, or on its linked work: by its Worklog ID or its provider ID.
 - **Existing repositories.** A `repository.create` for a remote that is already registered links to that record instead of failing.
 - **Names for new records.** Worklog gives a new record its ID when the change that creates it applies, so a later change in the same proposal can't give that ID. Name the record instead:
@@ -847,7 +848,7 @@ The following codes reach only the person's browser or a failed startup: `host` 
 | A participation | description 2,000 characters; 40 contexts |
 | An update | 4,000 characters |
 | A repository | description 10,000 characters; URL 2,000 characters |
-| A tracked chat | 20 `repos` labels; 100 `repositoryIds` |
+| A tracked chat | 100 `repositoryIds` |
 | A discussion | 30 tags; a post's acknowledgement request names at most 100 targets |
 | An overlap check | 20 records of each kind; each list 20 long by default, at most 50 |
 | Registered identities | 200 active, and 200 registered a day (since local midnight); credentials the person issues do not count |

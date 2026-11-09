@@ -25,11 +25,17 @@ export async function refreshAfterWrite(client: QueryClient) {
   });
   await client.invalidateQueries({ predicate: notSession });
 }
+/** The read `useData` makes of a path, for reading several at once with `useQueries`. */
+export function dataQuery<T>(path: string) {
+  return {
+    queryKey: [getDataContext(), path],
+    queryFn: () => request<T>(path),
+  };
+}
 /** `refreshMs` keeps a view of something that changes elsewhere current while it is open. */
 export function useData<T>(path: string, refreshMs?: number) {
   return useQuery({
-    queryKey: [getDataContext(), path],
-    queryFn: () => request<T>(path),
+    ...dataQuery<T>(path),
     refetchInterval: refreshMs,
     placeholderData: refreshMs ? keepPreviousData : undefined,
   });

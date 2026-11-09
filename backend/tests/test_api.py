@@ -786,7 +786,7 @@ def test_links_agent_chats_and_github_commits_and_prs_on_items_and_roadmaps(clie
     assert write(client, "POST", f"/github/{pr_ref['id']}/recover", {"revision": 2}).json()["archived"] is False
 
 
-def test_roadmap_steps_are_assigned_to_agent_chats_with_provider_model_and_repos(client):
+def test_roadmap_steps_are_assigned_to_agent_chats_with_provider_and_model(client):
     roadmap = write(client, "POST", "/roadmaps", {"title": "Platform", "steps": [{"title": "API"}, {"title": "Web"}, {"title": "Docs"}]}).json()
     api, web, docs = (s["id"] for s in roadmap["steps"])
     other = write(client, "POST", "/roadmaps", {"title": "Other", "steps": [{"title": "Elsewhere"}]}).json()
@@ -794,14 +794,14 @@ def test_roadmap_steps_are_assigned_to_agent_chats_with_provider_model_and_repos
 
     chat = write(client, "POST", "/chats", {
         "ownerType": "roadmap", "ownerId": roadmap["id"], "chatId": "a950ec9c", "title": "Build the API",
-        "provider": " Anthropic ", "model": "claude-opus-5-5", "repos": ["acme/api", " acme/api", "acme/web"], "stepIds": [api, api],
+        "provider": " Anthropic ", "model": "claude-opus-5-5", "stepIds": [api, api],
     })
     assert chat.status_code == 200, chat.text
     chat = chat.json()
-    assert (chat["provider"], chat["model"], chat["repos"], chat["stepIds"]) == ("Anthropic", "claude-opus-5-5", ["acme/api", "acme/web"], [api])
+    assert (chat["provider"], chat["model"], chat["repos"], chat["stepIds"]) == ("Anthropic", "claude-opus-5-5", [], [api])
     assert client.get(f"/api/v1/chats/{chat['id']}").json()["stepIds"] == [api]
     detail = client.get(f"/api/v1/roadmaps/{roadmap['id']}").json()
-    assert detail["chats"][0]["stepIds"] == [api] and detail["chats"][0]["repos"] == ["acme/api", "acme/web"]
+    assert detail["chats"][0]["stepIds"] == [api] and detail["chats"][0]["repos"] == []
 
     # Assignment is the chat's complete step list; other edits leave it alone.
     moved = write(client, "PATCH", f"/chats/{chat['id']}", {"revision": chat["revision"], "stepIds": [web, api]}).json()
@@ -822,7 +822,8 @@ def test_roadmap_steps_are_assigned_to_agent_chats_with_provider_model_and_repos
     assert missing.status_code == 422
     item_chat = write(client, "POST", "/chats", {"ownerType": "item", "ownerId": work_item["id"], "chatId": "c-2", "title": "Item chat", "stepIds": [api]})
     assert item_chat.status_code == 422
-    for repos in (["acme/api", ""], "acme/api", [f"r{i}" for i in range(21)]):
+    # A chat takes no free-text labels (K8), and a malformed list is refused as before.
+    for repos in (["acme/api"], ["acme/api", ""], "acme/api", [f"r{i}" for i in range(21)]):
         bad = write(client, "PATCH", f"/chats/{chat['id']}", {"revision": dropped["revision"], "repos": repos})
         assert bad.status_code == 422, repos
 
@@ -845,7 +846,7 @@ def test_roadmap_steps_are_assigned_to_agent_chats_with_provider_model_and_repos
     headers = {"Authorization": "Bearer " + cred["token"]}
     operations = [{"action": "chat.create", "payload": {
         "ownerType": "roadmap", "ownerId": roadmap["id"], "chatId": "codex-7", "title": "Write the docs",
-        "provider": "OpenAI", "model": "gpt-5.5", "repos": ["acme/docs"], "stepIds": [docs]}}]
+        "provider": "OpenAI", "model": "gpt-5.5", "stepIds": [docs]}}]
     proposal = write(client, "POST", "/proposals", {"title": "Claim docs", "rationale": "Starting on it", "operations": operations}, headers=headers)
     assert proposal.status_code == 200, proposal.text
     submitted = write(client, "POST", f"/proposals/{proposal.json()['id']}/submit", {"revision": proposal.json()["revision"]}, headers=headers).json()
@@ -950,6 +951,7 @@ def test_roadmap_questions_are_answered_and_decisions_are_recorded(client):
 
 
 def test_repository_links_survive_legacy_chat_edits_and_filter_work(client):
+    # A chat's labels come from before v24 (K8): they stay, read-only, beside its repository links.
     repo = write(client, "POST", "/repositories", {"name": "Workbench"}).json()
     rid = repo["id"]
     linked = item(client, repositoryIds=[rid])
@@ -958,17 +960,28 @@ def test_repository_links_survive_legacy_chat_edits_and_filter_work(client):
     assert [(row["id"], row["repositoryIds"]) for row in filtered["items"]] == [(linked["id"], [rid])]
 
     chat = write(client, "POST", "/chats", {"ownerType": "item", "ownerId": linked["id"],
-                 "chatId": str(uuid.uuid4()), "title": "Run", "repos": ["legacy"],
-                 "repositoryIds": [rid]}).json()
-    proposal = write(client, "POST", "/proposals", {"title": "Update chat context", "rationale": "Recorded name",
-                     "operations": [{"action": "chat.update", "payload": {"id": chat["id"],
-                                     "revision": chat["revision"], "repos": ["other legacy name"]}}]}).json()
-    path = "/proposals/" + proposal["id"]
-    submitted = write(client, "POST", path + "/submit", {"revision": proposal["revision"]}).json()
-    approved = write(client, "POST", path + "/approve", {"revision": submitted["revision"]})
-    assert approved.status_code == 200, approved.text
+                 "chatId": str(uuid.uuid4()), "title": "Run", "repositoryIds": [rid]}).json()
+    with client.app.state.db.transaction() as c:
+        c.execute("UPDATE agent_chats SET repos=? WHERE id=?", (json.dumps(["legacy"]), chat["id"]))
+
+    def propose(payload):
+        proposal = write(client, "POST", "/proposals", {"title": "Update chat context", "rationale": "Recorded name",
+                         "operations": [{"action": "chat.update", "payload": {"id": chat["id"], **payload}}]}).json()
+        path = "/proposals/" + proposal["id"]
+        submitted = write(client, "POST", path + "/submit", {"revision": proposal["revision"]})
+        assert submitted.status_code == 200, submitted.text
+        return write(client, "POST", path + "/approve", {"revision": submitted.json()["revision"]})
+
+    current = client.get("/api/v1/chats/" + chat["id"]).json()
+    renamed = propose({"revision": current["revision"], "title": "Run again", "repos": ["legacy"]})
+    assert renamed.status_code == 200, renamed.text
     saved = client.get("/api/v1/chats/" + chat["id"]).json()
-    assert saved["repos"] == ["other legacy name"] and saved["repositoryIds"] == [rid]
+    assert (saved["title"], saved["repos"], saved["repositoryIds"]) == ("Run again", ["legacy"], [rid])
+    relabeled = propose({"revision": saved["revision"], "repos": ["other legacy name"]})
+    # Approval names the operation that failed, and why.
+    assert relabeled.status_code == 422
+    assert relabeled.json()["error"]["fields"] == {"action": "chat.update", "operation": 1, "fields": {"repos": "retired"}}
+    assert client.get("/api/v1/chats/" + chat["id"]).json()["repos"] == ["legacy"]
 
     archive = write(client, "POST", f"/repositories/{rid}/archive", {"revision": repo["revision"]})
     assert archive.status_code == 200, archive.text

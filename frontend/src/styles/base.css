@@ -1231,11 +1231,6 @@ section:not(.draft) > h3 {
 .chat-row .person-badge:hover {
   text-decoration: none;
 }
-.chat-row code.repo {
-  padding: 0 6px;
-  border-radius: 3px;
-  background: var(--sidebar);
-}
 .chat-link small,
 .chat-meta small,
 .thread-filter small {

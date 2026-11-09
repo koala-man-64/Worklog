@@ -1,5 +1,6 @@
 import { useId, useState } from "react";
-import { useData } from "./hooks";
+import { useQueries } from "@tanstack/react-query";
+import { dataQuery, useData } from "./hooks";
 import { LinkPicker } from "./LinkPicker";
 import type { Answer, Repository } from "./apiTypes";
 import { Pager } from "./ui/Pager";
@@ -9,9 +10,21 @@ export function RepositoryBadges({
   legacy = [],
 }: {
   ids?: string[];
+  /** Free-text labels from before schema v24, which v24 linked where one named a repository. */
   legacy?: string[];
 }) {
-  if (!ids.length && !legacy.length) return null;
+  const linked = useQueries({
+    queries: ids.map((id) =>
+      dataQuery<Repository>("/repositories/" + encodeURIComponent(id)),
+    ),
+  });
+  // A label naming a repository linked here adds nothing; the rest name none linked. Until the
+  // linked names are read, no label shows, so none is wrongly marked "Not linked".
+  const names = new Set(linked.map((query) => query.data?.name));
+  const labels = linked.some((query) => query.isPending)
+    ? []
+    : legacy.filter((name) => !names.has(name));
+  if (!ids.length && !labels.length) return null;
   return (
     <span className="repository-badges">
       {ids.map((id) => (
@@ -19,9 +32,9 @@ export function RepositoryBadges({
           <RepositoryName id={id} />
         </a>
       ))}
-      {legacy.map((name) => (
+      {labels.map((name) => (
         <span className="person-badge" key={name}>
-          {name} · Unregistered
+          {name} · Not linked
         </span>
       ))}
     </span>

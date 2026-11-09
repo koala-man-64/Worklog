@@ -91,9 +91,6 @@ test("repositories connect work, named agent reports, chat badges and human run 
   await page
     .getByRole("textbox", { name: "Agent chat ID", exact: true })
     .fill(chatId);
-  await page
-    .getByRole("textbox", { name: "Agent chat repositories", exact: true })
-    .fill("legacy/unresolved-" + suffix);
   await linkRepository(page, "Agent chat registered repositories", repoName);
   await page.getByRole("button", { name: "Add chat", exact: true }).click();
   await expect(
@@ -217,11 +214,6 @@ test("repositories connect work, named agent reports, chat badges and human run 
     reviewerCard.getByText("C:/review/shared-api", { exact: true }),
   ).toHaveCount(2);
   await page.goto("/#chats");
-  await expect(
-    page.getByText("legacy/unresolved-" + suffix + " · Unregistered", {
-      exact: true,
-    }),
-  ).toBeVisible();
   await expect(page.getByText(reviewerName, { exact: true })).toBeVisible();
   await expect(
     page.getByRole("link", { name: repoName, exact: true }),
