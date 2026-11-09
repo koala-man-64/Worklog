@@ -6,26 +6,16 @@ import type { AgentChat, Step } from "../apiTypes";
 import { ErrorMessage } from "../ui/Messages";
 // Common providers seed the suggestions; providers and models already used join them.
 const PROVIDERS = ["Anthropic", "OpenAI", "Google"];
+// A chat links registered repositories. Its free-text labels, from before schema v24, are read
+// only (K8), so the form neither shows nor sends them.
 type ChatFields = {
   repositoryIds?: string[];
   title: string;
   chatId: string;
   provider: string;
   model: string;
-  repos: string[];
   createdDate?: string;
 };
-/** Repositories are typed comma separated. */
-function splitRepos(value: string) {
-  return [
-    ...new Set(
-      value
-        .split(",")
-        .map((r) => r.trim())
-        .filter(Boolean),
-    ),
-  ];
-}
 function agentName(chat: AgentChat) {
   return [chat.provider, chat.model].filter(Boolean).join(" · ");
 }
@@ -55,7 +45,6 @@ function ChatForm({
     chatId: "",
     provider: "",
     model: "",
-    repos: "",
     createdDate: "",
   };
   const [values, setValues] = useState(() =>
@@ -65,7 +54,6 @@ function ChatForm({
           chatId: initial.chatId,
           provider: initial.provider,
           model: initial.model,
-          repos: initial.repos.join(", "),
           createdDate: initial.createdDate,
         }
       : blank,
@@ -92,7 +80,6 @@ function ChatForm({
           chatId: values.chatId.trim(),
           provider: values.provider.trim(),
           model: values.model.trim(),
-          repos: splitRepos(values.repos),
           ...(repositoryIds.length || initial?.repositoryIds?.length
             ? { repositoryIds }
             : {}),
@@ -136,14 +123,6 @@ function ChatForm({
         autoCapitalize="off"
         spellCheck={false}
         {...field("model")}
-      />
-      <input
-        aria-label={label + " repositories"}
-        placeholder="Repos, comma separated…"
-        autoCorrect="off"
-        autoCapitalize="off"
-        spellCheck={false}
-        {...field("repos")}
       />
       <RepositoryPicker
         label={label + " registered repositories"}
@@ -201,12 +180,7 @@ function ChatSummary({
       </div>
       <div className="chat-row">
         <code>{chat.chatId}</code>
-        <RepositoryBadges ids={chat.repositoryIds} />
-        {chat.repos.map((r) => (
-          <code className="repo" key={r}>
-            <span>{r}</span> · Unregistered
-          </code>
-        ))}
+        <RepositoryBadges ids={chat.repositoryIds} legacy={chat.repos} />
         <small>Created {chat.createdDate}</small>
       </div>
       {working.length > 0 && (

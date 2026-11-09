@@ -1,18 +1,18 @@
 """Schema v23 states what code alone kept true of four tables nothing references (consolidation step
 4.4, B-09): archived is 0 or 1 in tasks, notes, file references and attachments, and a note or an
 attachment names an owner of a kind it can have. The upgrade changes no record, rowids included,
-refuses a row the new CHECKs would refuse and changes nothing then, and the documented way back gives
+refuses a row the new CHECKs would refuse and changes nothing then, and the way back gives
 v22's exact shape."""
 
 import hashlib
 import sqlite3
 import uuid
 from contextlib import closing
-from pathlib import Path
 
 import pytest
 import sealed
 from fastapi.testclient import TestClient
+from test_chat_label_links import to_v23
 from test_sealed_schemas import contents
 from worklog import migrations, recovery
 from worklog.app import create_app
@@ -20,7 +20,8 @@ from worklog.db import Database
 
 ORIGIN = "http://127.0.0.1:8877"
 LEAVES = ("tasks", "notes", "file_references", "attachments")
-# docs/UPGRADING.md: from version 23 to version 22, with Worklog stopped and after a manual backup.
+# From version 23 to version 22, with Worklog stopped and after a manual backup. docs/UPGRADING.md gave this
+# way back while version 23 was the latest; older upgrade tests now build their databases with it.
 WAY_BACK = """\
 BEGIN;
 ALTER TABLE tasks RENAME TO tasks_v23;
@@ -50,7 +51,8 @@ COMMIT;
 
 
 def to_v22(path):
-    """Take a current database back to the v22 shape the documented way."""
+    """Take a current database back to the v22 shape, through v23."""
+    to_v23(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK)
 
@@ -154,9 +156,7 @@ def test_restore_refuses_a_backup_with_a_row_the_checks_refuse_and_changes_nothi
     assert [p.name for p in target.parent.iterdir() if p.name.startswith(".restore")] == []
 
 
-def test_the_documented_way_back_to_v22_gives_its_exact_shape_and_upgrades_again(tmp_path):
-    # The SQL tested here is the SQL docs/UPGRADING.md gives the person.
-    assert "```sql\n" + WAY_BACK + "```" in (Path(__file__).resolve().parents[2] / "docs" / "UPGRADING.md").read_text(encoding="utf-8")
+def test_the_way_back_to_v22_gives_its_exact_shape_and_upgrades_again(tmp_path):
     database = populated(tmp_path / "data")
     before = leaves(database)
     to_v22(database)

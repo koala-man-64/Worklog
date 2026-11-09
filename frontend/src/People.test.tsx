@@ -712,10 +712,6 @@ it("adds and renders web links, agent chats, and GitHub commits/PRs", async () =
     "gpt-5.5",
   );
   await userEvent.type(
-    screen.getByRole("textbox", { name: "Agent chat repositories" }),
-    "acme/api, acme/web,, acme/api",
-  );
-  await userEvent.type(
     screen.getByLabelText("Agent chat date created"),
     "2026-10-29",
   );
@@ -732,7 +728,6 @@ it("adds and renders web links, agent chats, and GitHub commits/PRs", async () =
         chatId: "conv-999",
         provider: "OpenAI",
         model: "gpt-5.5",
-        repos: ["acme/api", "acme/web"],
         createdDate: "2026-10-29",
       },
     }),

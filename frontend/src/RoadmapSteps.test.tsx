@@ -255,7 +255,8 @@ it("shows the roadmap's chats with their agents, repositories and steps", async 
   expect(
     within(apiChat).getByText("Anthropic · claude-opus-5-5"),
   ).toBeVisible();
-  expect(within(apiChat).getByText("acme/web")).toBeVisible();
+  // A label from before schema v24 that names no repository linked here.
+  expect(within(apiChat).getByText("acme/web · Not linked")).toBeVisible();
   expect(within(apiChat).getByRole("link", { name: "Parent" })).toHaveAttribute(
     "href",
     `#roadmaps/${ROADMAP}/${PARENT}`,
@@ -315,10 +316,6 @@ it("assigns, unassigns, and adds agent chats from a step", async () => {
     within(details).getByRole("combobox", { name: "Agent chat model" }),
     "claude-opus-5-5",
   );
-  await userEvent.type(
-    within(details).getByRole("textbox", { name: "Agent chat repositories" }),
-    "acme/api",
-  );
   await userEvent.click(
     within(details).getByRole("button", { name: "Add chat to step" }),
   );
@@ -333,14 +330,13 @@ it("assigns, unassigns, and adds agent chats from a step", async () => {
         chatId: "a950ec9c",
         provider: "",
         model: "claude-opus-5-5",
-        repos: ["acme/api"],
         stepIds: [PARENT],
       },
     }),
   );
 });
 
-it("edits a chat's provider, model, and repositories in place", async () => {
+it("edits a chat's provider and model in place, leaving its labels alone", async () => {
   served = { ...road, chats: [API_CHAT] };
   const writes = recordWrites();
   view();
@@ -358,9 +354,12 @@ it("edits a chat's provider, model, and repositories in place", async () => {
   expect(model).toHaveValue("claude-opus-5-5");
   await userEvent.clear(model);
   await userEvent.type(model, "claude-sonnet-5-5");
-  await userEvent.clear(
-    within(details).getByRole("textbox", { name: "Edited chat repositories" }),
-  );
+  // Labels from before schema v24 are read only: the form has no field for them.
+  expect(
+    within(details).queryByRole("textbox", {
+      name: "Edited chat repositories",
+    }),
+  ).toBeNull();
   await userEvent.click(
     within(details).getByRole("button", { name: "Save chat" }),
   );
@@ -374,7 +373,6 @@ it("edits a chat's provider, model, and repositories in place", async () => {
         chatId: API_CHAT.chatId,
         provider: "Anthropic",
         model: "claude-sonnet-5-5",
-        repos: [],
         createdDate: "2026-10-31",
       },
     }),

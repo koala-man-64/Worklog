@@ -369,7 +369,7 @@ To stop reviewing, clear "Require my approval for agent proposals" in Settings. 
 1. **Track a chat.** On a work item or roadmap, add it under "Agent chats" ("Add chat"). Give it:
    - a title
    - its chat ID: a Claude Code session ID, a Claude desktop `local_…` ID or a Codex thread ID
-   - its provider, model and repositories
+   - its provider, model and the registered repositories it works in ("Link repository"). A chat tracked before version 24 can also show text labels, which stay as they were: one marked "Not linked" names no repository linked to the chat, so link that repository instead.
 
    An agent can propose a chat to track. Its own chat needs no proposal once it registered with that chat's ID:
    - It tracks the chat itself on a work item, or on a roadmap and the steps it works on, titled with its label unless it gives a title. It can add steps later, but changes nothing else.
