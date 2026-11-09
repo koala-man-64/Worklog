@@ -6,10 +6,11 @@ import json
 import logging
 import re
 import sqlite3
+import threading
 import time
 import uuid
 from contextlib import closing
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -17,7 +18,7 @@ from fastapi.testclient import TestClient
 from test_guard import call as guarded_call
 from worklog import __version__, cli, policy, usage
 from worklog.app import create_app
-from worklog.usage import PAGES, VERBS, Usage, catalog, report
+from worklog.usage import PAGES, VERBS, Usage, catalog, live_report, report
 
 ORIGIN = "http://127.0.0.1:8877"
 PLACEHOLDER = "00000000-0000-4000-8000-000000000000"
@@ -316,10 +317,16 @@ def test_the_report_shows_what_was_used_in_the_window_and_what_nothing_used(tmp_
                  {"call": "GET /retired", "scope": None, "person": 1, "agent": 0, "failed": 0, "lastUsed": "2026-11-06"}],
         "unused": [{"call": "POST /roadmaps/{identity}/restore", "scope": policy.HUMAN, "lastUsed": "2026-10-01"},
                    {"call": "POST /work-items", "scope": policy.HUMAN, "lastUsed": None}]}
+    # Each day that has counts, in the window alone.
+    assert result["daily"] == [{"day": "2026-11-06", "pageViews": 3, "reads": {"person": 2, "agent": 3},
+                                "changes": {"person": 0, "agent": 0}, "failed": 1}]
     # A wider window takes in the older uses; today defaults to Worklog's, from the file.
     wide = report(path, 3650)
     assert {row["page"] for row in wide["pages"]["used"]} == {"today", "work", "releases"}
     assert [row["call"] for row in wide["calls"]["unused"]] == ["POST /work-items"]
+    assert wide["daily"][0] == {"day": "2026-10-01", "pageViews": 1, "reads": {"person": 0, "agent": 0},
+                                "changes": {"person": 1, "agent": 0}, "failed": 0}
+    assert [day["day"] for day in wide["daily"]] == ["2026-10-01", "2026-11-06"]
 
 
 def test_a_window_starts_on_its_first_day_and_describe_replaces_the_last_versions_features(tmp_path):
@@ -354,6 +361,133 @@ def test_the_report_says_what_to_do_when_the_file_is_missing_empty_or_unreadable
     path.write_bytes(b"not a database, though long enough to look like a header" * 4)
     with pytest.raises(ValueError, match="delete it"):
         report(path)
+
+
+def call_row(result: dict, name: str) -> dict:
+    return next(row for row in result["calls"]["used"] if row["call"] == name)
+
+
+def test_the_usage_page_reads_the_file_and_the_counts_held_each_once_with_what_this_version_serves(started):
+    app, person, agent = started
+    # The fixture's session and credential reach the file; these calls stay held for the next write.
+    assert app.state.usage.flush()
+    assert person.get("/api/v1/work-items").status_code == 200
+    assert agent.get("/api/v1/work-items").status_code == 200
+    assert person.post("/api/v1/page-views", json={"page": "work"}).status_code == 200
+    answer = person.get("/api/v1/usage", params={"days": 7})
+    assert answer.status_code == 200
+    result = answer.json()
+    today = result["window"]["to"]
+    assert result["window"] == {"days": 7, "from": (date.fromisoformat(today) - timedelta(days=6)).isoformat(),
+                                "to": today}
+    assert (result["file"], result["version"], result["recordedSince"]) == (
+        str(app.state.usage.path.resolve()), __version__, today)
+    assert [row["call"] for row in result["calls"]["used"]] == [
+        "GET /work-items", "POST /credentials", "POST /session/bootstrap"]
+    assert call_row(result, "GET /work-items") == {
+        "call": "GET /work-items", "scope": policy.READ, "person": 1, "agent": 1, "failed": 0, "lastUsed": today}
+    assert call_row(result, "POST /session/bootstrap")["person"] == 1
+    assert result["pages"]["used"] == [{"page": "work", "views": 1, "lastUsed": today}]
+    assert result["daily"] == [{"day": today, "pageViews": 1, "reads": {"person": 1, "agent": 1},
+                                "changes": {"person": 2, "agent": 0}, "failed": 0}]
+    # What nothing used goes by what this server serves, though no start wrote its list to the file.
+    assert [row["page"] for row in result["pages"]["unused"]] == sorted(set(PAGES) - {"work"})
+    unused = {row["call"]: row for row in result["calls"]["unused"]}
+    assert unused["POST /roadmaps"] == {"call": "POST /roadmaps", "scope": policy.HUMAN, "lastUsed": None}
+    assert unused["GET /usage"]["scope"] == policy.HUMAN
+    assert len(unused) + len(result["calls"]["used"]) == len(
+        [feature for surface, feature, _ in catalog(app.router.routes) if surface == "api"])
+    # The read counts once it has answered, so the next one shows it.
+    again = person.get("/api/v1/usage", params={"days": 7}).json()
+    assert call_row(again, "GET /usage")["person"] == 1
+    assert call_row(again, "GET /work-items")["person"] == 1
+
+
+def test_before_anything_is_written_the_usage_page_shows_the_counts_held(started):
+    app, person, _ = started
+    assert not app.state.usage.path.exists()
+    result = person.get("/api/v1/usage").json()
+    assert result["window"]["days"] == 30
+    assert result["recordedSince"] == result["window"]["to"]
+    assert {row["call"]: row["person"] for row in result["calls"]["used"]} == {
+        "POST /credentials": 1, "POST /session/bootstrap": 1}
+    assert result["pages"]["used"] == []
+
+
+def test_a_usage_file_the_page_cannot_read_answers_503_with_what_to_do(started):
+    app, person, _ = started
+    with closing(sqlite3.connect(app.state.usage.path)) as conn:
+        conn.execute("PRAGMA user_version=99")
+    refused = person.get("/api/v1/usage")
+    assert refused.status_code == 503
+    assert refused.json()["error"]["code"] == "usage_unavailable"
+    assert "usage format 99" in refused.json()["error"]["message"]
+    app.state.usage.path.write_bytes(b"not a database, though long enough to look like a header" * 4)
+    broken = person.get("/api/v1/usage")
+    assert broken.status_code == 503 and "delete it" in broken.json()["error"]["message"]
+
+
+def test_the_usage_page_is_the_persons_and_covers_one_to_3650_days(started):
+    _, person, agent = started
+    refused = agent.get("/api/v1/usage")
+    assert refused.status_code == 403 and refused.json()["error"]["code"] == "agent_scope"
+    for days in ("0", "3651", "week"):
+        assert person.get("/api/v1/usage", params={"days": days}).status_code == 422, days
+    one = person.get("/api/v1/usage", params={"days": 1}).json()["window"]
+    assert one["from"] == one["to"]
+    assert person.get("/api/v1/usage", params={"days": 3650}).status_code == 200
+
+
+def test_each_day_sums_the_page_views_and_the_reads_and_changes_each_made_from_the_windows_first_day(tmp_path):
+    clock = Clock(datetime(2026, 11, 1, 15, tzinfo=UTC))
+    log = Usage(tmp_path / usage.FILE, clock=clock)
+    # The day before a seven-day window to 8 November.
+    log.record("api", "GET /work-items", "person")
+    assert log.flush()
+    clock.now = datetime(2026, 11, 2, 15, tzinfo=UTC)
+    log.record("page", "today", "person")
+    log.record("api", "POST /work-items", "person", failed=True)
+    log.record("api", "GET /work-items", "agent")
+    log.record("api", "GET /work-items", "agent")
+    assert log.flush()
+    # Held, not yet written.
+    clock.now = datetime(2026, 11, 5, 15, tzinfo=UTC)
+    log.record("api", "POST /tickets", "agent")
+    log.record("page", "work", "person")
+    result = live_report(log, 7, date(2026, 11, 8), [("page", "today", policy.HUMAN)], "9.9.9")
+    assert result["daily"] == [
+        {"day": "2026-11-02", "pageViews": 1, "reads": {"person": 0, "agent": 2},
+         "changes": {"person": 1, "agent": 0}, "failed": 1},
+        {"day": "2026-11-05", "pageViews": 1, "reads": {"person": 0, "agent": 0},
+         "changes": {"person": 0, "agent": 1}, "failed": 0}]
+    assert (result["recordedSince"], result["window"]["from"]) == ("2026-11-01", "2026-11-02")
+    assert call_row(result, "GET /work-items") == {
+        "call": "GET /work-items", "scope": None, "person": 0, "agent": 2, "failed": 0, "lastUsed": "2026-11-02"}
+    assert result["pages"]["unused"] == []
+
+
+def test_a_flush_waits_while_the_page_reads_so_no_count_shows_twice_or_not_at_all(tmp_path, monkeypatch):
+    log = Usage(tmp_path / usage.FILE, clock=Clock(datetime(2026, 11, 8, 15, tzinfo=UTC)))
+    log.record("page", "work", "person")
+    assert log.flush()
+    log.record("page", "work", "person")
+    read, flushed = usage._read, threading.Event()
+
+    def read_then_flush(*args):
+        found = read(*args)
+        # A flush that starts after the file is read, and before the counts held are, waits: done
+        # now, it would add the count held to the file and leave none held, so neither would show it.
+        threading.Thread(target=lambda: (log.flush(), flushed.set())).start()
+        assert not flushed.wait(0.3)
+        return found
+
+    monkeypatch.setattr(usage, "_read", read_then_flush)
+    served = [("page", "work", policy.HUMAN)]
+    assert live_report(log, 7, date(2026, 11, 8), served, "9.9.9")["pages"]["used"] == [
+        {"page": "work", "views": 2, "lastUsed": "2026-11-08"}]
+    assert flushed.wait(5) and log.held() == {}
+    monkeypatch.setattr(usage, "_read", read)
+    assert live_report(log, 7, date(2026, 11, 8), served, "9.9.9")["pages"]["used"][0]["views"] == 2
 
 
 def test_worklog_usage_prints_the_report_and_says_when_nothing_is_recorded(tmp_path, capsys):

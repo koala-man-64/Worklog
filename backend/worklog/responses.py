@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Answer(BaseModel):
@@ -2418,3 +2418,82 @@ class ImportedRoadmap(SavedRoadmap):
     """The roadmap a plan import made or was attached to."""
 
     importId: str
+
+
+class UsageWindow(Answer):
+    """The days a usage report covers, both ends included, in Worklog's timezone."""
+
+    days: int
+    # Answered as `from`, which Python keeps for itself.
+    from_: str = Field(alias="from")
+    to: str
+
+
+class ActorUses(Answer):
+    """Uses by the person and by agents."""
+
+    person: int
+    agent: int
+
+
+class UsageDay(Answer):
+    """One day's uses: the pages the person opened, the reads (GET) and changes (any other method) each
+    made, and the calls that failed."""
+
+    day: str
+    pageViews: int
+    reads: ActorUses
+    changes: ActorUses
+    failed: int
+
+
+class PageUsed(Answer):
+    page: str
+    views: int
+    lastUsed: str
+
+
+class PageUnused(Answer):
+    page: str
+    # Null when nothing ever opened it.
+    lastUsed: str | None
+
+
+class CallUsed(Answer):
+    # The method and route template, such as `POST /work-items/{identity}/archive`.
+    call: str
+    # Null for a call the running version no longer serves.
+    scope: str | None
+    person: int
+    agent: int
+    failed: int
+    lastUsed: str
+
+
+class CallUnused(Answer):
+    call: str
+    scope: str
+    # Null when nothing ever made the call.
+    lastUsed: str | None
+
+
+class UsedPages(Answer):
+    used: list[PageUsed]
+    unused: list[PageUnused]
+
+
+class UsedCalls(Answer):
+    used: list[CallUsed]
+    unused: list[CallUnused]
+
+
+class UsageReport(Answer):
+    """Which pages and API calls were used in a window and which nothing used (usage.summary)."""
+
+    file: str
+    version: str | None
+    recordedSince: str | None
+    window: UsageWindow
+    daily: list[UsageDay]
+    pages: UsedPages
+    calls: UsedCalls

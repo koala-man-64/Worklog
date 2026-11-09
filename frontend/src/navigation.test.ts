@@ -23,6 +23,7 @@ it("groups every page once, in K7's sections and sidebar order", () => {
     "discussions",
     "review",
     "settings",
+    "usage",
     "guide",
   ]);
   expect(new Set(destinations.map(({ route }) => route)).size).toBe(

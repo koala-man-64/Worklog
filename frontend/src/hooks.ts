@@ -32,12 +32,20 @@ export function dataQuery<T>(path: string) {
     queryFn: () => request<T>(path),
   };
 }
-/** `refreshMs` keeps a view of something that changes elsewhere current while it is open. */
-export function useData<T>(path: string, refreshMs?: number) {
+/**
+ * `refreshMs` keeps a view of something that changes elsewhere current while it is open.
+ * `keepPrevious` keeps the last answer on screen while another path loads, as when a page asks
+ * for another window of days; `isPlaceholderData` says when it is the old one.
+ */
+export function useData<T>(
+  path: string,
+  refreshMs?: number,
+  { keepPrevious = false }: { keepPrevious?: boolean } = {},
+) {
   return useQuery({
     ...dataQuery<T>(path),
     refetchInterval: refreshMs,
-    placeholderData: refreshMs ? keepPreviousData : undefined,
+    placeholderData: refreshMs || keepPrevious ? keepPreviousData : undefined,
   });
 }
 /**

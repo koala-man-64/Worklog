@@ -34,3 +34,43 @@ test("each page the person opens counts once, by its name alone", async ({
     .click();
   await expect.poll(() => views).toEqual(["work", "today", "people"]);
 });
+
+test("the Usage page shows the pages just opened, and opens an area onto its calls", async ({
+  page,
+}) => {
+  const counted = page.waitForResponse(
+    (response) => new URL(response.url()).pathname === "/api/v1/page-views",
+  );
+  await page.goto("/#work");
+  expect((await counted).status()).toBe(200);
+  await page
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("link", { name: "Usage", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Usage", exact: true }),
+  ).toBeVisible();
+  // The server writes its counts every minute, and the page shows those it holds until then:
+  // the visit to Work just now shows as a count, not as a page nothing opened.
+  const work = page
+    .getByRole("region", { name: "Pages" })
+    .getByRole("listitem")
+    .filter({ hasText: /^Work/ });
+  await expect(work).toHaveText(/^Work[\d,.K]+$/);
+  await page.getByRole("button", { name: "7 days" }).click();
+  await expect(page.getByRole("button", { name: "7 days" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(
+    page.getByRole("heading", { name: "Page views per day" }),
+  ).toBeVisible();
+  const area = page
+    .getByRole("region", { name: "Features by area" })
+    .locator("details")
+    .filter({ has: page.locator("summary", { hasText: "/work-items" }) });
+  await area.locator("summary").click();
+  await expect(
+    area.getByRole("row", { name: /^GET \/work-items/ }).first(),
+  ).toBeVisible();
+});

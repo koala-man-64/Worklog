@@ -3,6 +3,7 @@ import { commands } from "./commands";
 import { History } from "./sections/History";
 import { RecoverRecords } from "./sections/RecoverRecords";
 import { DraftField } from "./ui/DraftField";
+import { formatDay } from "./ui/format";
 import { Markdown } from "./ui/Markdown";
 import { Empty, ErrorMessage } from "./ui/Messages";
 import { ITEM_STATUSES, statusLabel, StatusSelect } from "./ui/Status";
@@ -78,15 +79,6 @@ const CHECKS: {
 /** A search result, as the roadmap, step and GitHub pickers list them. */
 type Hit = { id: string; type: string; title: string; snippet: string };
 
-/** A day such as "Nov 20", with the year when it is not this one. */
-export function releaseDay(value: string) {
-  const [year, month, day] = value.split("-").map(Number);
-  return new Date(year, month - 1, day).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    ...(year === new Date().getFullYear() ? {} : { year: "numeric" }),
-  });
-}
 const plural = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
 /** A list row's summary: its work, then what is still open, such as "1 of 3 work items done · 2 to tell". */
 export function releaseCounts(counts: ReleaseCounts) {
@@ -169,7 +161,7 @@ function ReleaseRowView({ release }: { release: ReleaseRow }) {
         className={"release-when" + (release.pastDue ? " past-due" : "")}
         title={release.releaseDate ?? undefined}
       >
-        {release.releaseDate ? releaseDay(release.releaseDate) : "Not dated"}
+        {release.releaseDate ? formatDay(release.releaseDate) : "Not dated"}
       </span>
       <div>
         <a className="item-title" href={"#releases/" + release.id}>
@@ -884,9 +876,7 @@ export function ReleasesSection({
         <div className="line release-line" key={release.id}>
           <a href={"#releases/" + release.id}>{release.title}</a>
           <small>
-            {release.releaseDate
-              ? releaseDay(release.releaseDate)
-              : "Not dated"}
+            {release.releaseDate ? formatDay(release.releaseDate) : "Not dated"}
             {release.status !== "planned"
               ? " · " + STATUSES[release.status]
               : ""}
@@ -942,7 +932,7 @@ export function ReleasesSection({
               <option key={release.id} value={release.id}>
                 {release.title}
                 {release.releaseDate
-                  ? " · " + releaseDay(release.releaseDate)
+                  ? " · " + formatDay(release.releaseDate)
                   : " · Not dated"}
               </option>
             ))}

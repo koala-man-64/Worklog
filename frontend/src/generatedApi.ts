@@ -55,6 +55,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Usage Report */
+        get: operations["usage_report_api_v1_usage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/work-items": {
         parameters: {
             query?: never;
@@ -2995,6 +3012,16 @@ export interface components {
             kind: "human" | "agent";
         };
         /**
+         * ActorUses
+         * @description Uses by the person and by agents.
+         */
+        ActorUses: {
+            /** Person */
+            person: number;
+            /** Agent */
+            agent: number;
+        };
+        /**
          * Agent
          * @description An agent identity with its credentials, its runs and what it is tied to, and why.
          */
@@ -3619,6 +3646,30 @@ export interface components {
              * @enum {string}
              */
             binding: "registered" | "confirmed";
+        };
+        /** CallUnused */
+        CallUnused: {
+            /** Call */
+            call: string;
+            /** Scope */
+            scope: string;
+            /** Lastused */
+            lastUsed: string | null;
+        };
+        /** CallUsed */
+        CallUsed: {
+            /** Call */
+            call: string;
+            /** Scope */
+            scope: string | null;
+            /** Person */
+            person: number;
+            /** Agent */
+            agent: number;
+            /** Failed */
+            failed: number;
+            /** Lastused */
+            lastUsed: string;
         };
         /**
          * Change
@@ -5420,13 +5471,29 @@ export interface components {
             /** Tickets */
             tickets: components["schemas"]["OverlapTicket"][];
         };
+        /** PageUnused */
+        PageUnused: {
+            /** Page */
+            page: string;
+            /** Lastused */
+            lastUsed: string | null;
+        };
+        /** PageUsed */
+        PageUsed: {
+            /** Page */
+            page: string;
+            /** Views */
+            views: number;
+            /** Lastused */
+            lastUsed: string;
+        };
         /** PageView */
         PageView: {
             /**
              * Page
              * @enum {string}
              */
-            page: "today" | "work" | "tickets" | "reminders" | "roadmaps" | "releases" | "repositories" | "people" | "resources" | "agents" | "chats" | "discussions" | "review" | "settings" | "guide" | "agent-guide";
+            page: "today" | "work" | "tickets" | "reminders" | "roadmaps" | "releases" | "repositories" | "people" | "resources" | "agents" | "chats" | "discussions" | "review" | "settings" | "usage" | "guide" | "agent-guide";
         };
         /**
          * Participant
@@ -8635,6 +8702,64 @@ export interface components {
             /** Contexts */
             contexts: components["schemas"]["ParticipationRepository"][];
         };
+        /**
+         * UsageDay
+         * @description One day's uses: the pages the person opened, the reads (GET) and changes (any other method) each
+         *     made, and the calls that failed.
+         */
+        UsageDay: {
+            /** Day */
+            day: string;
+            /** Pageviews */
+            pageViews: number;
+            reads: components["schemas"]["ActorUses"];
+            changes: components["schemas"]["ActorUses"];
+            /** Failed */
+            failed: number;
+        };
+        /**
+         * UsageReport
+         * @description Which pages and API calls were used in a window and which nothing used (usage.summary).
+         */
+        UsageReport: {
+            /** File */
+            file: string;
+            /** Version */
+            version: string | null;
+            /** Recordedsince */
+            recordedSince: string | null;
+            window: components["schemas"]["UsageWindow"];
+            /** Daily */
+            daily: components["schemas"]["UsageDay"][];
+            pages: components["schemas"]["UsedPages"];
+            calls: components["schemas"]["UsedCalls"];
+        };
+        /**
+         * UsageWindow
+         * @description The days a usage report covers, both ends included, in Worklog's timezone.
+         */
+        UsageWindow: {
+            /** Days */
+            days: number;
+            /** From */
+            from: string;
+            /** To */
+            to: string;
+        };
+        /** UsedCalls */
+        UsedCalls: {
+            /** Used */
+            used: components["schemas"]["CallUsed"][];
+            /** Unused */
+            unused: components["schemas"]["CallUnused"][];
+        };
+        /** UsedPages */
+        UsedPages: {
+            /** Used */
+            used: components["schemas"]["PageUsed"][];
+            /** Unused */
+            unused: components["schemas"]["PageUnused"][];
+        };
         /** UserMessage */
         UserMessage: {
             /** Id */
@@ -8937,6 +9062,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Done"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    usage_report_api_v1_usage_get: {
+        parameters: {
+            query?: {
+                /** @description How many days to today it covers */
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsageReport"];
                 };
             };
             /** @description Validation Error */

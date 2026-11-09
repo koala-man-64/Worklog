@@ -258,6 +258,8 @@ ROUTES: dict[str, dict[str, str | Only]] = {
     "/tickets/{ref}/comments": {"POST": TICKET},
     "/tickets/{ref}/{verb}": {"POST": HUMAN},
 
+    "/usage": {"GET": HUMAN},
+
     "/work-items": {"GET": READ, "POST": HUMAN},
     "/work-items/reorder": {"POST": HUMAN},
     "/work-items/{identity}": {"GET": READ, "PATCH": HUMAN},

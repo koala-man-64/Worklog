@@ -247,3 +247,9 @@ export type Proposal = Schema["Proposal"];
 export type ProposalEntry = Schema["ProposalEntry"] &
   Partial<Pick<Schema["AppliedProposal"], "changes">>;
 export type Settings = Schema["Settings"];
+
+// Usage.
+/** Which pages and API calls were used in a window of days, and which nothing used. */
+export type UsageReport = Schema["UsageReport"];
+/** One day's page views, reads and changes by the person and by agents, and failed calls. */
+export type UsageDay = Schema["UsageDay"];

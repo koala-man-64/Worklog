@@ -1,0 +1,432 @@
+/* Usage: the rules only its page uses. */
+/* A colour for each series, the person's and agents'. --teal reads as grey in a chart (OKLCH chroma
+   0.067), so these are their own, checked with the dataviz palette validator against --bg and
+   --paper in both themes: the pair apart by CVD ΔE 10.6 light and 12.3 dark, each at least 3:1. */
+:root {
+  --chart-you: #008a72;
+  --chart-agents: #d4561f;
+}
+:root[data-theme="dark"] {
+  --chart-you: #1f9e86;
+  --chart-agents: #d95926;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --chart-you: #1f9e86;
+    --chart-agents: #d95926;
+  }
+}
+/* While another window loads, the last one stays, quieter, so nothing jumps. */
+.usage.stale {
+  opacity: 0.55;
+}
+/* The figures in one row that wraps as the window narrows, two to a row on a phone. */
+.usage-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr));
+  gap: 12px;
+  margin: 0 0 32px;
+}
+.usage-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 14px 16px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+.usage-tile dt {
+  font-size: 12px;
+  color: var(--muted);
+}
+.usage-tile dd {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.usage-of {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--muted);
+}
+/* A share of a whole: the part used over a track of the same hue. */
+.meter {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--teal-wash);
+  overflow: hidden;
+}
+.meter.thin {
+  height: 4px;
+  border-radius: 2px;
+}
+.meter > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--chart-you);
+}
+/* Page views across the page; changes and reads side by side under it, stacked when narrow. */
+.usage-charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr));
+  gap: 28px 40px;
+  margin-bottom: 12px;
+}
+.usage-charts > :first-child {
+  grid-column: 1 / -1;
+}
+.column-chart {
+  min-width: 0;
+  margin: 0;
+}
+.column-chart figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  margin-bottom: 10px;
+}
+.column-chart h3 {
+  margin: 0;
+}
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--muted);
+}
+.chart-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.chart-legend strong {
+  font-weight: 600;
+  color: var(--ink);
+}
+.chart-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+.chart-swatch.you,
+.chart-segment.you,
+.chart-line-key.you {
+  background: var(--chart-you);
+}
+.chart-swatch.agents,
+.chart-segment.agents,
+.chart-line-key.agents {
+  background: var(--chart-agents);
+}
+.chart-body {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 8px;
+  row-gap: 6px;
+  padding-top: 6px;
+}
+/* The labels sit a half line beyond the plot at each end, so each is centred on its gridline. */
+.chart-ticks {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: calc(140px + 1em);
+  margin: -0.5em 0;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.chart-plot {
+  position: relative;
+  height: 140px;
+  touch-action: pan-y;
+}
+.chart-grid {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--line);
+  transform: translateY(50%);
+}
+.chart-columns {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
+  grid-template-rows: 100%;
+  gap: 2px;
+}
+.chart-column {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  min-width: 0;
+  border-radius: 3px;
+}
+.chart-column.pointed {
+  background: var(--teal-wash);
+}
+/* A column at most 24px wide, its series stacked from the base with a 2px gap, rounded at the top only. */
+.chart-stack {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+  width: min(100%, 24px);
+}
+.chart-segment {
+  flex-basis: 0;
+  min-height: 2px;
+}
+.chart-stack > :last-child {
+  border-radius: 4px 4px 0 0;
+}
+.chart-readout {
+  position: absolute;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  gap: 2px;
+  padding: 6px 10px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  font-size: 12px;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.chart-readout.start {
+  transform: none;
+}
+.chart-readout.end {
+  transform: translateX(-100%);
+}
+.chart-readout-label {
+  color: var(--muted);
+}
+.chart-readout-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.chart-readout-row strong {
+  font-weight: 600;
+}
+.chart-line-key {
+  width: 12px;
+  height: 2px;
+  border-radius: 1px;
+}
+.chart-dates {
+  grid-column: 2;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+/* Few columns: each label under its own column, on the columns' grid. */
+.chart-dates.each {
+  display: grid;
+  grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
+  gap: 2px;
+  text-align: center;
+}
+.chart-note {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.chart-table table {
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.chart-table th,
+.chart-table td {
+  padding: 4px 16px 4px 0;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+}
+.chart-table th:first-child {
+  text-align: left;
+  font-weight: 400;
+}
+.chart-table thead th {
+  font-weight: 600;
+  color: var(--muted);
+}
+/* Every page as a bar of its views, square at its base and rounded at its end, the count at its tip. */
+.page-bars {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+.page-bars li {
+  display: grid;
+  grid-template-columns: minmax(7rem, 12rem) minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+}
+.page-bar-track {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.page-bar {
+  flex: none;
+  min-width: 2px;
+  height: 12px;
+  border-radius: 0 4px 4px 0;
+  background: var(--chart-you);
+}
+.page-bar-value {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.page-bars .unused .page-bar-value {
+  font-size: 12px;
+  color: var(--muted);
+}
+/* Areas as rows whose shares line up, each opening onto its calls. */
+.usage-areas {
+  border-top: 1px solid var(--line);
+}
+.usage-area {
+  margin: 0;
+  border-bottom: 1px solid var(--line);
+}
+.usage-area > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  width: auto;
+  padding: 10px 0;
+  font-size: 13px;
+  color: var(--ink);
+  list-style: none;
+}
+.usage-area > summary::-webkit-details-marker {
+  display: none;
+}
+.usage-area > summary::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  margin: 0 2px;
+  border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted);
+  transform: rotate(-45deg);
+}
+.usage-area[open] > summary::before {
+  transform: rotate(45deg);
+}
+.usage-area-name {
+  flex: 0 0 12rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.usage-area > summary .meter {
+  flex: 0 0 8rem;
+}
+.usage-area-share {
+  flex: 0 0 7rem;
+  font-variant-numeric: tabular-nums;
+}
+.usage-area-calls {
+  color: var(--muted);
+}
+.usage-area-failed {
+  color: var(--danger);
+}
+.usage-features {
+  overflow-x: auto;
+  margin-bottom: 12px;
+}
+.usage-features table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.usage-features th,
+.usage-features td {
+  padding: 6px 16px 6px 0;
+  border-top: 1px solid var(--line);
+  text-align: left;
+  white-space: nowrap;
+}
+.usage-features thead th {
+  border-top: 0;
+  font-weight: 600;
+  color: var(--muted);
+}
+.usage-features tbody th {
+  font-weight: 400;
+}
+.usage-features .number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.usage-features .unused {
+  color: var(--muted);
+}
+.usage-note {
+  margin-top: 32px;
+  font-size: 12px;
+}
+.usage-note code {
+  overflow-wrap: anywhere;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .usage {
+    transition: opacity 120ms ease;
+  }
+  .usage-area > summary::before {
+    transition: transform 120ms ease;
+  }
+}
+/* System colours paint backgrounds over, so the marks keep theirs: text colour for the person,
+   highlight for agents. */
+@media (forced-colors: active) {
+  .chart-segment,
+  .chart-swatch,
+  .chart-line-key,
+  .meter,
+  .page-bar {
+    forced-color-adjust: none;
+  }
+  .chart-segment.you,
+  .chart-swatch.you,
+  .chart-line-key.you,
+  .meter > span,
+  .page-bar {
+    background: CanvasText;
+  }
+  .chart-segment.agents,
+  .chart-swatch.agents,
+  .chart-line-key.agents {
+    background: Highlight;
+  }
+  .meter {
+    background: Canvas;
+    outline: 1px solid CanvasText;
+  }
+}
