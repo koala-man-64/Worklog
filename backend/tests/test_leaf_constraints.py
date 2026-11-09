@@ -20,7 +20,7 @@ from worklog.db import Database
 
 ORIGIN = "http://127.0.0.1:8877"
 LEAVES = ("tasks", "notes", "file_references", "attachments")
-# README: from version 23 to version 22, with Worklog stopped and after a manual backup.
+# docs/UPGRADING.md: from version 23 to version 22, with Worklog stopped and after a manual backup.
 WAY_BACK = """\
 BEGIN;
 ALTER TABLE tasks RENAME TO tasks_v23;
@@ -155,8 +155,8 @@ def test_restore_refuses_a_backup_with_a_row_the_checks_refuse_and_changes_nothi
 
 
 def test_the_documented_way_back_to_v22_gives_its_exact_shape_and_upgrades_again(tmp_path):
-    # The SQL tested here is the SQL the README gives the person.
-    assert "```sql\n" + WAY_BACK + "```" in (Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
+    # The SQL tested here is the SQL docs/UPGRADING.md gives the person.
+    assert "```sql\n" + WAY_BACK + "```" in (Path(__file__).resolve().parents[2] / "docs" / "UPGRADING.md").read_text(encoding="utf-8")
     database = populated(tmp_path / "data")
     before = leaves(database)
     to_v22(database)

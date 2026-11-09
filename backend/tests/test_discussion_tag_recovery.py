@@ -1,5 +1,5 @@
 """Schema v22 widens discussion tags, adds pins and opens each repository's discussion: the upgrade,
-the documented way back, restore and export keep every discussion whole, and an upgrade after the way
+the way back, restore and export keep every discussion whole, and an upgrade after the way
 back finds each repository's discussion again rather than opening another."""
 
 import io
@@ -7,7 +7,6 @@ import json
 import sqlite3
 import zipfile
 from contextlib import closing
-from pathlib import Path
 
 import pytest
 import sealed
@@ -17,7 +16,8 @@ from worklog.db import Database
 from worklog.discussions import PERSON, REPOSITORY_TEXT, REPOSITORY_TITLE, DiscussionService
 
 T1, T2 = "2026-10-01T10:00:00+00:00", "2026-10-02T10:00:00+00:00"
-# README: from version 22 to version 21, with Worklog stopped and after a manual backup.
+# From version 22 to version 21, with Worklog stopped and after a manual backup. The README gave this way back
+# while version 22 was the latest; older upgrade tests now build their databases with it.
 WAY_BACK = """\
 BEGIN;
 ALTER TABLE discussion_contexts RENAME TO discussion_contexts_v22;
@@ -136,9 +136,7 @@ def test_the_v22_upgrade_keeps_every_tag_links_exact_labels_and_opens_each_activ
     recovery.validate_database(path)
 
 
-def test_the_documented_way_back_to_v21_gives_its_exact_shape_and_an_upgrade_finds_each_discussion_again(tmp_path):
-    # The SQL tested here is the SQL the README gives the person.
-    assert "```sql\n" + WAY_BACK + "```" in (Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
+def test_the_way_back_to_v21_gives_its_exact_shape_and_an_upgrade_finds_each_discussion_again(tmp_path):
     path = tmp_path / "worklog.sqlite3"
     v21_database(path)
     Database(path).initialize()

@@ -4,13 +4,12 @@ Approval records which work items and roadmaps each change of a proposal was mad
 v16 upgrade fills in the same for the proposals approved before it. A work item's or roadmap's
 history lists what was applied to it in the order it was applied, and an agent's lists what it
 proposed in the order it made them, the latest first and each numbered by its place. Upgrade,
-the documented way back and restore are here too.
+the way back and restore are here too.
 """
 
 import sqlite3
 import uuid
 from contextlib import closing, contextmanager
-from pathlib import Path
 
 import pytest
 import sealed
@@ -21,7 +20,8 @@ from worklog.common import today
 from worklog.db import Database
 
 ORIGIN = "http://127.0.0.1:8877"
-# README: from version 16 to version 15, with Worklog stopped and after a manual backup.
+# From version 16 to version 15, with Worklog stopped and after a manual backup. The README gave this way back
+# while version 16 was the latest; older upgrade tests now build their databases with it.
 WAY_BACK = """\
 BEGIN;
 DROP TABLE proposal_targets;
@@ -412,9 +412,7 @@ def test_the_upgrade_passes_over_approved_changes_it_cannot_read(tmp_path):
         assert history(c, f"/agents/{agent['agentId']}")["total"] == 1 + len(unreadable)
 
 
-def test_the_documented_way_back_to_v15_gives_its_exact_shape_and_upgrades_again(tmp_path):
-    # The SQL tested here is the SQL the README gives the person.
-    assert "```sql\n" + WAY_BACK + "```" in (Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
+def test_the_way_back_to_v15_gives_its_exact_shape_and_upgrades_again(tmp_path):
     path = tmp_path / "worklog.sqlite3"
     with person(tmp_path) as c:
         approvals(c)

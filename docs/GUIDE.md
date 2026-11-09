@@ -12,7 +12,7 @@ Worklog is a personal workbench that runs entirely on your own machine. It keeps
 
 It is also where you work with AI coding agents. They report what they are doing, talk with you, file tickets, and propose changes to your records that you approve before anything changes.
 
-This guide shows how to use Worklog. You can read it here or on the **Guide** page in Worklog's sidebar. To install, start, stop, back up or upgrade Worklog, see the README in your Worklog folder. AI agents have a guide of their own, which they print with `worklog agent guide` and you can read under "For agents" on the Guide page.
+This guide shows how to use Worklog. You can read it here or on the **Guide** page in Worklog's sidebar. To install, start or stop Worklog, see the README in your Worklog folder; to back it up, restore it or check it, `docs/OPERATIONS.md`; to upgrade it, `docs/UPGRADING.md`. AI agents have a guide of their own, which they print with `worklog agent guide` and you can read under "For agents" on the Guide page.
 
 ## Start here
 
@@ -97,7 +97,7 @@ Tick "Search archived records" to search the archive instead. Agent proposals ar
 
 ### Where your data lives
 
-Everything lives in one database file, `worklog.sqlite3`, in your data folder: your records, every attached file and every imported plan. The folder is `%LOCALAPPDATA%/Worklog` unless you chose another with `WORKLOG_DATA_DIR`. Worklog backs it up when it starts and once a day while it runs. Beside it, `usage.sqlite3` counts which pages you open and which features you and your agents use, by name and day alone; the `worklog usage` command shows what was used and what wasn't (see *See what you use* in the README). Drafts belong to one data folder: after a restore or a switch of folder, old drafts stay in the browser but are never applied, and Settings says so.
+Everything lives in one database file, `worklog.sqlite3`, in your data folder: your records, every attached file and every imported plan. The folder is `%LOCALAPPDATA%/Worklog` unless you chose another with `WORKLOG_DATA_DIR`. Worklog backs it up when it starts and once a day while it runs. Beside it, `usage.sqlite3` counts which pages you open and which features you and your agents use, by name and day alone; the `worklog usage` command shows what was used and what wasn't (see *See what you use* in `docs/OPERATIONS.md`). Drafts belong to one data folder: after a restore or a switch of folder, old drafts stay in the browser but are never applied, and Settings says so.
 
 ### What agents can change
 
@@ -429,7 +429,7 @@ In **Settings**, under "Storage & portability":
 - "Create backup" takes a backup now. The list shows every backup.
 - "Export everything (.zip)" downloads your data as readable Markdown and JSON, with every file and a manifest of hashes.
 
-Restoring a backup is an offline command; see *Backup, export, restore, and upgrade* in the README.
+Restoring a backup is an offline command; see *Backup, export and restore* in `docs/OPERATIONS.md`.
 
 ## Pages
 

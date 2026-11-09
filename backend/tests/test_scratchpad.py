@@ -178,12 +178,12 @@ def test_a_v7_shape_cannot_claim_v8(tmp_path):
         recovery.validate_database(path)
 
 
-def test_the_documented_way_back_to_v7_keeps_the_folded_notes_and_upgrades_again_unchanged(tmp_path):
+def test_the_way_back_to_v7_keeps_the_folded_notes_and_upgrades_again_unchanged(tmp_path):
     path = tmp_path / "worklog.sqlite3"
     v7_database(path)
     Database(path).initialize()
     folded = notes(path)
-    # README: from version 10 to version 9, then to version 8, then to version 7, with Worklog stopped.
+    # From version 10 to version 9, then to version 8, then to version 7, with Worklog stopped.
     to_v9(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript("DELETE FROM search_index WHERE type='resource'; DROP TABLE resources; PRAGMA user_version=8;")

@@ -1,11 +1,10 @@
-"""Schema v9 adds resources: upgrade, rollback, the documented way back, restore and export keep them whole."""
+"""Schema v9 adds resources: upgrade, rollback, the way back, restore and export keep them whole."""
 
 import io
 import json
 import sqlite3
 import zipfile
 from contextlib import closing
-from pathlib import Path
 
 import pytest
 import sealed
@@ -14,7 +13,8 @@ from worklog import migrations, recovery
 from worklog.db import Database
 
 STAMP = "2026-01-01T00:00:00+00:00"
-# README: from version 9 to version 8, with Worklog stopped.
+# From version 9 to version 8, with Worklog stopped. The README gave this way back
+# while version 9 was the latest; older upgrade tests now build their databases with it.
 WAY_BACK = "DELETE FROM search_index WHERE type='resource'; DROP TABLE resources; PRAGMA user_version=8;"
 
 
@@ -104,15 +104,13 @@ def test_a_v8_shape_cannot_claim_version_9_and_a_v9_shape_cannot_claim_8(tmp_pat
             recovery.validate_database(path)
 
 
-def test_the_documented_way_back_to_v8_drops_only_the_resources_and_upgrades_again(tmp_path):
-    # The SQL tested here is the SQL the README gives the person.
-    assert f"`{WAY_BACK}`" in (Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
+def test_the_way_back_to_v8_drops_only_the_resources_and_upgrades_again(tmp_path):
     path = tmp_path / "worklog.sqlite3"
     v8_database(path)
     Database(path).initialize()
     add_page(path)
     kept = {t: rows(path, t) for t in ("work_items", "notes", "settings")}
-    to_v9(path)  # README: from version 10 to version 9 first
+    to_v9(path)  # From version 10 to version 9 first
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK)
     recovery.validate_database(path)

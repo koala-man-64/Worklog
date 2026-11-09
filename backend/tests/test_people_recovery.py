@@ -1,11 +1,10 @@
 """Schema v10 gives people a title, a description and contact details beside their team, which
-v9 kept as `role`, and ties them to repositories: upgrade, rollback, the documented way back
+v9 kept as `role`, and ties them to repositories: upgrade, rollback, the way back
 and restore keep every person and tie."""
 
 import json
 import sqlite3
 from contextlib import closing
-from pathlib import Path
 
 import pytest
 import sealed
@@ -17,7 +16,8 @@ from worklog.db import Database
 
 STAMP = "2026-01-01T00:00:00+00:00"
 ORIGIN = "http://127.0.0.1:8877"
-# README: from version 10 to version 9, with Worklog stopped and after a manual backup.
+# From version 10 to version 9, with Worklog stopped and after a manual backup. The README gave this way back
+# while version 10 was the latest; older upgrade tests now build their databases with it.
 WAY_BACK = """\
 BEGIN;
 DELETE FROM person_links WHERE target_type='repository';
@@ -171,9 +171,7 @@ def test_a_v9_shape_cannot_claim_version_10_and_a_v10_shape_cannot_claim_9(tmp_p
             recovery.validate_database(path)
 
 
-def test_the_documented_way_back_to_v9_keeps_people_and_their_work_ties_and_upgrades_again(tmp_path):
-    # The SQL tested here is the SQL the README gives the person.
-    assert "```sql\n" + WAY_BACK + "```" in (Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
+def test_the_way_back_to_v9_keeps_people_and_their_work_ties_and_upgrades_again(tmp_path):
     path = tmp_path / "worklog.sqlite3"
     v9_database(path)
     Database(path).initialize()
@@ -203,7 +201,7 @@ def test_a_way_back_that_fails_part_way_changes_nothing(tmp_path):
     path = tmp_path / "worklog.sqlite3"
     v9_database(path)
     Database(path).initialize()
-    to_v10(path)  # README: from version 11 to version 10 first
+    to_v10(path)  # From version 11 to version 10 first
     before = {t: rows(path, t) for t in ("people", "person_links", "search_index")}
     # As SQLite before 3.35 refuses DROP COLUMN: the statement fails once the links are rebuilt.
     broken = WAY_BACK.replace("DROP COLUMN title;", "DROP COLUMN no_such_column;")

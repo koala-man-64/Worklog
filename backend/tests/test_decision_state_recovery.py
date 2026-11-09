@@ -1,13 +1,12 @@
 """Schema v12 copies decision state out of event history into columns: who registered each
 credential's identity and the chat it registered with, when each proposal was last submitted
 and whether automatic approval applied it, and which stale-plan notices were sent. Upgrade,
-the documented way back, restore validation, and decisions that no longer read event JSON."""
+the way back, restore validation, and decisions that no longer read event JSON."""
 
 import secrets
 import sqlite3
 import uuid
 from contextlib import closing
-from pathlib import Path
 
 import pytest
 import sealed
@@ -18,7 +17,8 @@ from worklog.db import Database
 
 ORIGIN = "http://127.0.0.1:8877"
 CHAT = "5c1d9e3a-7b2f-4c80-9d6e-0a1b2c3d4e5f"
-# README: from version 12 to version 11, with Worklog stopped and after a manual backup.
+# From version 12 to version 11, with Worklog stopped and after a manual backup. The README gave this way back
+# while version 12 was the latest; older upgrade tests now build their databases with it.
 WAY_BACK = """\
 BEGIN;
 DROP TABLE proposal_stale_notices;
@@ -149,9 +149,7 @@ def test_decisions_no_longer_read_event_json(tmp_path):
         assert retired["retired"] is True
 
 
-def test_the_documented_way_back_to_v11_gives_its_exact_shape_and_upgrades_again(tmp_path):
-    # The SQL tested here is the SQL the README gives the person.
-    assert "```sql\n" + WAY_BACK + "```" in (Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
+def test_the_way_back_to_v11_gives_its_exact_shape_and_upgrades_again(tmp_path):
     with Instance(tmp_path) as i:
         populate(i)
     path = tmp_path / "worklog.sqlite3"

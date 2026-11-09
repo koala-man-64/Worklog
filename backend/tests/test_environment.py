@@ -15,7 +15,7 @@ def test_each_test_starts_without_the_shells_worklog_variables(tmp_path_factory)
 
 
 def test_a_shell_set_up_for_a_second_instance_still_passes_the_suite():
-    # The README asks for WORKLOG_PORT before running e2e beside the everyday instance.
+    # docs/DEVELOPMENT.md asks for WORKLOG_PORT before running e2e beside the everyday instance.
     # Before conftest.py cleared it, that shell failed 221 backend tests on the Host check.
     shell = {**os.environ, "WORKLOG_PORT": "8931", "WORKLOG_DEV": "1", "WORKLOG_AGENT_TOKEN": "not-a-real-token"}
     result = subprocess.run(

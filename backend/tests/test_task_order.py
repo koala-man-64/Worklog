@@ -1,11 +1,10 @@
 """A work item's tasks in the person's order (schema v14), with when each was added and last
 changed. A move is checked against the moved task's own revision and changes no task's revision
-or last-updated time. Upgrade, the documented way back and restore validation are here too."""
+or last-updated time. Upgrade, the way back and restore validation are here too."""
 
 import sqlite3
 import uuid
 from contextlib import closing, contextmanager
-from pathlib import Path
 
 import pytest
 import sealed
@@ -15,7 +14,8 @@ from worklog.app import create_app
 from worklog.db import Database
 
 ORIGIN = "http://127.0.0.1:8877"
-# README: from version 14 to version 13, with Worklog stopped and after a manual backup.
+# From version 14 to version 13, with Worklog stopped and after a manual backup. The README gave this way back
+# while version 14 was the latest; older upgrade tests now build their databases with it.
 WAY_BACK = """\
 BEGIN;
 ALTER TABLE tasks DROP COLUMN position;
@@ -262,9 +262,7 @@ def test_the_v14_upgrade_keeps_every_list_as_version_13_showed_it(tmp_path):
         assert listed(c, first) == ["D", "A", "C"]
 
 
-def test_the_documented_way_back_to_v13_gives_its_exact_shape_and_upgrades_again(tmp_path):
-    # The SQL tested here is the SQL the README gives the person.
-    assert "```sql\n" + WAY_BACK + "```" in (Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
+def test_the_way_back_to_v13_gives_its_exact_shape_and_upgrades_again(tmp_path):
     path = tmp_path / "worklog.sqlite3"
     with person(tmp_path) as c:
         item = work_item(c)
