@@ -15,6 +15,7 @@ import { RecoverRecords } from "./sections/RecoverRecords";
 import { DraftField } from "./ui/DraftField";
 import { Empty, ErrorMessage } from "./ui/Messages";
 import { ITEM_STATUSES, statusLabel, StatusSelect } from "./ui/Status";
+import { Pager } from "./ui/Pager";
 import type {
   Answer,
   Detail,
@@ -389,28 +390,18 @@ function WorkList() {
           </table>
         </div>
         <div className="work-grid-foot">
-          <span>
-            {list.data &&
-              (total > 100
-                ? `${offset + 1} to ${Math.min(offset + 100, total)} of ${total}`
-                : `${total} work ${total === 1 ? "item" : "items"}`)}
-          </span>
-          {total > 100 && (
-            <div className="work-pager">
-              <button
-                disabled={offset === 0}
-                onClick={() => setOffset(Math.max(0, offset - 100))}
-              >
-                Previous work
-              </button>
-              <button
-                disabled={offset + 100 >= total}
-                onClick={() => setOffset(offset + 100)}
-              >
-                Next work
-              </button>
-            </div>
+          {/* One page says how many items there are; more pages say which show. */}
+          {list.data && total <= 100 && offset === 0 && (
+            <span>{`${total} work ${total === 1 ? "item" : "items"}`}</span>
           )}
+          <Pager
+            offset={offset}
+            total={total}
+            limit={100}
+            onChange={setOffset}
+            label="work"
+            className="work-pager"
+          />
         </div>
       </div>
     </div>

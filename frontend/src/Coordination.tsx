@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useData, useWrites } from "./hooks";
 import { commands } from "./commands";
 import { Empty, ErrorMessage } from "./ui/Messages";
+import { Pager } from "./ui/Pager";
 import { RepositoryBadges } from "./RepositoryControls";
 import type { AgentRun, Answer, CoordinationUpdate } from "./apiTypes";
 
@@ -58,10 +59,10 @@ export function NamedRuns({ chatId }: { chatId: string }) {
           <EndRun run={run} />
         </div>
       ))}
-      <Pages
+      <Pager
         offset={offset}
         total={runs.data?.total ?? 0}
-        change={setOffset}
+        onChange={setOffset}
         label="chat runs"
       />
     </div>
@@ -88,10 +89,10 @@ export function OpenRuns() {
           <EndRun run={run} />
         </article>
       ))}
-      <Pages
+      <Pager
         offset={offset}
         total={query.data?.total ?? 0}
-        change={setOffset}
+        onChange={setOffset}
         label="runs"
       />
     </section>
@@ -207,10 +208,10 @@ export function Coordination({
           </div>
         </article>
       ))}
-      <Pages
+      <Pager
         offset={offset}
         total={participants.data?.total ?? 0}
-        change={setOffset}
+        onChange={setOffset}
         label="participants"
       />
       <h2>Recent updates</h2>
@@ -226,10 +227,10 @@ export function Coordination({
       {(feed.data?.items ?? []).map((update) => (
         <UpdateCard key={update.id} update={update} />
       ))}
-      <Pages
+      <Pager
         offset={feedOffset}
         total={feed.data?.total ?? 0}
-        change={setFeedOffset}
+        onChange={setFeedOffset}
         label="updates"
       />
     </section>
@@ -306,43 +307,12 @@ function ParticipationUpdates({ id }: { id: string }) {
       {(query.data?.items ?? []).map((update) => (
         <UpdateCard key={update.id} update={update} />
       ))}
-      <Pages
+      <Pager
         offset={offset}
         total={query.data?.total ?? 0}
-        change={setOffset}
+        onChange={setOffset}
         label="participation history"
       />
     </>
   );
-}
-export function Pages({
-  offset,
-  total,
-  change,
-  label,
-}: {
-  offset: number;
-  total: number;
-  change: (offset: number) => void;
-  label: string;
-}) {
-  return total > PAGE || offset > 0 ? (
-    <div className="toolbar" aria-label={label + " pages"}>
-      <button
-        disabled={offset === 0}
-        onClick={() => change(Math.max(0, offset - PAGE))}
-      >
-        Previous {label}
-      </button>
-      <span>
-        {offset + 1} to {Math.min(offset + PAGE, total)} of {total}
-      </span>
-      <button
-        disabled={offset + PAGE >= total}
-        onClick={() => change(offset + PAGE)}
-      >
-        Next {label}
-      </button>
-    </div>
-  ) : null;
 }

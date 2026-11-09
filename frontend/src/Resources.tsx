@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { AgentTies } from "./AgentTies";
 import { contextStorageKey } from "./api";
 import { commands } from "./commands";
-import { Pages } from "./Coordination";
 import { ChangeHistory } from "./sections/History";
 import { DraftField } from "./ui/DraftField";
 import { Markdown } from "./ui/Markdown";
 import { Empty, ErrorMessage } from "./ui/Messages";
+import { Pager } from "./ui/Pager";
 import {
   exactDiscussionDate,
   formatDiscussionDate,
@@ -136,10 +136,10 @@ export function Resources({
                 ))}
               </ul>
             )}
-            <Pages
+            <Pager
               offset={offset}
               total={list.data?.total ?? 0}
-              change={setOffset}
+              onChange={setOffset}
               label="pages"
             />
           </div>

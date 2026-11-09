@@ -5,6 +5,7 @@ import { getDataContext } from "./api";
 import { Avatar } from "./Avatar";
 import { Markdown } from "./ui/Markdown";
 import { Empty, ErrorMessage } from "./ui/Messages";
+import { Pager } from "./ui/Pager";
 import { ContextReference } from "./discussionContexts";
 import { Composer } from "./DiscussionComposer";
 import { useData, useWrites } from "./hooks";
@@ -88,7 +89,6 @@ export function DiscussionThread({
       </>
     );
   if (!discussion) return <Empty>This discussion is not available.</Empty>;
-  const maxOffset = Math.max(0, Math.ceil(total / PAGE) - 1) * PAGE;
 
   return (
     <>
@@ -138,28 +138,14 @@ export function DiscussionThread({
         layout="fold"
       />
       <div className="discussion-message-page">
-        {total > PAGE && (
-          <div className="discussion-pagination">
-            <button
-              type="button"
-              disabled={offset <= 0}
-              onClick={() => setOffset(Math.max(0, offset - PAGE))}
-            >
-              Previous messages
-            </button>
-            <small>
-              {offset + 1} to {Math.min(offset + messages.length, total)} of{" "}
-              {total}
-            </small>
-            <button
-              type="button"
-              disabled={offset >= maxOffset}
-              onClick={() => setOffset(Math.min(offset + PAGE, maxOffset))}
-            >
-              Next messages
-            </button>
-          </div>
-        )}
+        <Pager
+          offset={offset}
+          total={total}
+          limit={PAGE}
+          onChange={setOffset}
+          label="messages"
+          className="discussion-pagination"
+        />
         {!messages.length ? (
           <Empty>No messages in this thread yet.</Empty>
         ) : (

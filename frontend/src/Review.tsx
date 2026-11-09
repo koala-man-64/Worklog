@@ -8,6 +8,7 @@ import { Files } from "./sections/Files";
 import { Markdown } from "./ui/Markdown";
 import { Empty, ErrorMessage } from "./ui/Messages";
 import { formatBytes } from "./ui/format";
+import { Pager } from "./ui/Pager";
 import type {
   Answer,
   Attachment,
@@ -22,7 +23,6 @@ import type {
 } from "./apiTypes";
 import { Icon } from "./icons";
 import { statusLabel } from "./ProposalHistory";
-import { Pages } from "./Coordination";
 // The list is paged 50 at a time, as Pages moves.
 const PAGE = 50;
 export function Review({ selectedId }: { selectedId?: string }) {
@@ -115,10 +115,10 @@ export function Review({ selectedId }: { selectedId?: string }) {
         ))
       )}
       {!selected && (
-        <Pages
+        <Pager
           offset={offset}
           total={total}
-          change={setOffset}
+          onChange={setOffset}
           label="proposals"
         />
       )}

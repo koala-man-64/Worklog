@@ -11,6 +11,7 @@ import { bootstrap } from "./api";
 import { useData, useStoredWidth } from "./hooks";
 import { ErrorMessage } from "./ui/Messages";
 import { ResizeHandle } from "./ui/ResizeHandle";
+import { Pager } from "./ui/Pager";
 import { Today } from "./Today";
 import { Work } from "./Work";
 import { Roadmaps } from "./Roadmaps";
@@ -329,25 +330,12 @@ function Search({
           <p>{r.snippet}</p>
         </article>
       ))}
-      {(results.data?.total ?? 0) > 50 && (
-        <div className="toolbar">
-          <button
-            disabled={offset === 0}
-            onClick={() => setOffset(Math.max(0, offset - 50))}
-          >
-            Previous results
-          </button>
-          <span>
-            {offset + 1} to {Math.min(offset + 50, results.data?.total ?? 0)}
-          </span>
-          <button
-            disabled={offset + 50 >= (results.data?.total ?? 0)}
-            onClick={() => setOffset(offset + 50)}
-          >
-            Next results
-          </button>
-        </div>
-      )}
+      <Pager
+        offset={offset}
+        total={results.data?.total ?? 0}
+        onChange={setOffset}
+        label="results"
+      />
     </>
   );
 }

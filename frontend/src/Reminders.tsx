@@ -1,9 +1,9 @@
 import { useEffect, useId, useState } from "react";
 import { commands } from "./commands";
-import { Pages } from "./Coordination";
 import { ChangeHistory } from "./sections/History";
 import { DraftField } from "./ui/DraftField";
 import { Empty, ErrorMessage } from "./ui/Messages";
+import { Pager } from "./ui/Pager";
 import {
   exactDiscussionDate,
   formatDiscussionDate,
@@ -204,10 +204,10 @@ export function Reminders({ selected }: { selected?: string }) {
                 ))}
               </ul>
             )}
-            <Pages
+            <Pager
               offset={offset}
               total={list.data?.total ?? 0}
-              change={setOffset}
+              onChange={setOffset}
               label="reminders"
             />
           </div>
