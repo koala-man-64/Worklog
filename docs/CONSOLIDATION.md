@@ -520,7 +520,7 @@ What changed: Settings lists them under "Agent identities", each as "Identity" a
 
 #### 5.3 · Typed responses, then typed commands
 
-Status: In progress · Branch: `claude/golden-responses` · PR: [#139](https://github.com/koala-man-64/Worklog/pull/139); typing follows route by route
+Status: Merged · Branches: `claude/golden-responses` to `claude/typed-frontend-5` · PRs: [#139](https://github.com/koala-man-64/Worklog/pull/139) to [#144](https://github.com/koala-man-64/Worklog/pull/144), [#147](https://github.com/koala-man-64/Worklog/pull/147) to [#154](https://github.com/koala-man-64/Worklog/pull/154), [#156](https://github.com/koala-man-64/Worklog/pull/156), [#157](https://github.com/koala-man-64/Worklog/pull/157), [#159](https://github.com/koala-man-64/Worklog/pull/159) to [#168](https://github.com/koala-man-64/Worklog/pull/168)
 
 None of the 146 operations has a typed response; the frontend keeps seven hand-written type files and three data-access styles. Type responses route by route, under golden tests (see *Rules*), then route every write through typed commands and delete the hand-written types. Findings: A-03, A-13.
 
