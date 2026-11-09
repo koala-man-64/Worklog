@@ -125,8 +125,11 @@ function serve(sessions: RunningSession[]) {
     });
     const json = (body: unknown) =>
       new Response(JSON.stringify(body), { status: 200 });
-    if (method !== "GET")
+    if (method !== "GET") {
+      // A write takes a moment, as on a busy machine; the ties stay disabled until it is done.
+      await new Promise((resolve) => setTimeout(resolve, 50));
       return json(path === "/chats" ? { id: "chat-new" } : {});
+    }
     if (path.startsWith("/claude-sessions")) return json({ items: sessions });
     if (path.startsWith("/work-items"))
       return json({ items: [ITEM], total: 1 });
@@ -175,6 +178,18 @@ function show(node = <Sessions />) {
   );
 }
 const writes = (calls: Call[]) => calls.filter((c) => c.method !== "GET");
+/**
+ * Clicks a tie control once the write before it has finished. Each tie and untie disables the
+ * chat's ties until it and the refresh after it are done, and a click on a disabled button does
+ * nothing, as it does for a person.
+ */
+async function clickWhenReady(
+  user: ReturnType<typeof userEvent.setup>,
+  find: () => HTMLElement,
+) {
+  await waitFor(() => expect(find()).toBeEnabled(), { timeout: 5000 });
+  await user.click(find());
+}
 
 beforeEach(() => {
   vi.restoreAllMocks();
@@ -307,18 +322,22 @@ it("ties, confirms and unties agents under the ID each one's runs report", async
   await user.click(within(matches).getByRole("button", { name: /^Helper/ }));
   // Picked or confirmed on its row, an agent whose run reports the session is confirmed
   // under the ID that run reports, which delivery matches exactly.
-  await user.click(within(ties).getByRole("button", { name: "Tie agent" }));
+  await clickWhenReady(user, () =>
+    within(ties).getByRole("button", { name: "Tie agent" }),
+  );
   await user.click(
     await within(ties).findByRole("button", { name: /^Claimant/ }),
   );
   await waitFor(() => expect(writes(calls)).toHaveLength(2));
-  await user.click(
+  await clickWhenReady(user, () =>
     screen.getByRole("button", {
       name: "Confirm Claimant works in this session",
     }),
   );
   await waitFor(() => expect(writes(calls)).toHaveLength(3));
-  await user.click(screen.getByRole("button", { name: "Untie Reviewer" }));
+  await clickWhenReady(user, () =>
+    screen.getByRole("button", { name: "Untie Reviewer" }),
+  );
   await waitFor(() => expect(writes(calls)).toHaveLength(4));
   expect(writes(calls)).toEqual([
     {
@@ -463,7 +482,9 @@ it("lists the agents tied to a tracked chat, and ties and unties them through th
   await user.click(screen.getByRole("button", { name: "Tie agent" }));
   await user.click(await screen.findByRole("button", { name: /^Helper/ }));
   await waitFor(() => expect(writes(calls)).toHaveLength(1));
-  await user.click(screen.getByRole("button", { name: "Untie Reviewer" }));
+  await clickWhenReady(user, () =>
+    screen.getByRole("button", { name: "Untie Reviewer" }),
+  );
   await waitFor(() =>
     expect(writes(calls)).toEqual([
       {

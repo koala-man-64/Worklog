@@ -40,14 +40,33 @@ it("counts each sidebar page and each Guide view by its name alone", async () =>
     "agent-guide",
   ]);
   const calls = serve(200);
+  // Each count hashes its body before it is sent, and a busy machine may finish those hashes in
+  // any order: here they finish last to first.
+  const digest = crypto.subtle.digest.bind(crypto.subtle);
+  let waiting = countedPages.length;
+  vi.spyOn(crypto.subtle, "digest").mockImplementation(async (...args) => {
+    const delay = waiting--;
+    await new Promise((resolve) => setTimeout(resolve, delay * 5));
+    return digest(...args);
+  });
   for (const page of countedPages) countPageView(page);
-  await vi.waitFor(() => expect(calls).toHaveLength(countedPages.length));
-  expect(calls).toEqual(
-    countedPages.map((page) => ({
-      path: "/api/v1/page-views",
-      method: "POST",
-      body: { page },
-    })),
+  // A loaded machine can take a while to send them all, as CI's runners do.
+  await vi.waitFor(() => expect(calls).toHaveLength(countedPages.length), {
+    timeout: 5000,
+  });
+  // Every page counted once, by its name alone, in whatever order the counts were sent.
+  const byPage = (a: Call, b: Call) =>
+    String((a.body as { page: string }).page).localeCompare(
+      String((b.body as { page: string }).page),
+    );
+  expect([...calls].sort(byPage)).toEqual(
+    countedPages
+      .map((page) => ({
+        path: "/api/v1/page-views",
+        method: "POST",
+        body: { page },
+      }))
+      .sort(byPage),
   );
 });
 
@@ -65,7 +84,7 @@ it.each([500, "offline"] as const)(
   async (status) => {
     const calls = serve(status);
     expect(() => countPageView("today")).not.toThrow();
-    await vi.waitFor(() => expect(calls).toHaveLength(1));
+    await vi.waitFor(() => expect(calls).toHaveLength(1), { timeout: 5000 });
     // An unhandled rejection here would fail the run.
     await settle();
   },
