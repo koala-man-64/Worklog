@@ -34,7 +34,7 @@ The order is fixed:
 - Status values: `Not started`, `In progress`, `In review`, `Merged`, `Blocked: <reason>`, `Dropped: <reason>`.
 - Run one step per PR, from its own worktree. Use `claude/<topic>` branches for Claude sessions. Never implement in the checkout that serves the instance you use every day.
 - Test against an isolated data directory on a port other than the default (README, *Development checks*).
-- Steps marked *parallel* touch separate files. Never run two PRs against `backend/worklog/app.py`, `frontend/src/styles.css` or `README.md` at the same time.
+- Steps marked *parallel* touch separate files. Never run two PRs against `backend/worklog/app.py`, `frontend/src/styles/base.css` or `README.md` at the same time.
 - A step that changes what agents can call or read updates `docs/AGENT-GUIDE.md` in the same PR and says so in the PR title.
 - Record new decisions in the decision table with the date and who decided.
 
@@ -597,7 +597,7 @@ Done so far:
 
 #### 5.4 · Frontend layout
 
-Status: In progress · Branch: `claude/frontend-layout-1` · PR: —; the pager, `pages/` and the styles follow
+Status: Merged · Branches: `claude/frontend-layout-1`, `claude/frontend-layout-2`, `claude/frontend-layout-3` · PRs: [#169](https://github.com/koala-man-64/Worklog/pull/169), [#170](https://github.com/koala-man-64/Worklog/pull/170), [#171](https://github.com/koala-man-64/Worklog/pull/171)
 
 Split `components.tsx` into `ui/`, `sections/` and `pages/`, with one pager instead of seven, and split `styles.css` per page. `styles.css` changed in 44 of the first 86 commits. Findings: A-12, A-19.
 
@@ -613,6 +613,14 @@ Done so far:
     - The threads' buttons say "threads" instead of "page", and the roles' "More roles" became "Next roles".
     - Search, the work sheet and the repository filter now show the range too.
     - A list that reads no rows has no pager, so a later page no longer flashes "51 to 0 of 0" while it loads.
+- **`styles.css` split per page.** `styles/base.css` holds the shared rules, and each page has a file of the rules only it uses: Today, Work, Reminders, Roadmaps, People, Resources, Agents, Chats, Discussions, Review, Settings and the Guide. `main.tsx` imports base first, then the pages.
+  - **What counts as a page's rule:** every selector in it needs a class that only that page's modules render, down to the rules inside `@media` and `@container` blocks, which keep their query in the page's file.
+  - **What stays in base:** a module another page also renders is shared, and so are its classes. That covers agent ties, coordination, avatars, record reminders and proposal history, which show on many pages; Releases and Tickets, whose sections show on Roadmaps and Work; and the Reminders link's count in the sidebar.
+  - **Six rules stay where they were.** Moving a page's rule after base reverses its order against base rules that came after it. Six such pairs set the same thing on the same element at equal specificity, so those six rules stay in base, each with a note on the rule it yields to.
+  - **How the cascade was checked:**
+    - Every element's computed style, and its `::before` and `::after`, on 25 routes at 1440 and 390 px wide, matches the unsplit stylesheet's. The only differences are the random avatar suggestion's, the same as between two runs of one stylesheet.
+    - For states those routes don't show, every rule pair whose order the split reverses was checked against what one element in the JSX can carry. That found the six, including an agent picker's list inside a chat's recipients.
+  - **No `pages/` directory.** `components.tsx` held no page components, so the split had nothing to put there. Moving the page modules into one would rename files without helping either finding.
 
 #### 5.5a · This plan in the repository
 

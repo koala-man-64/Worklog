@@ -1,0 +1,382 @@
+/* Work: the rules only its page uses. */
+/* Work: the list as a sheet, one row per item and one column per fact, its filters heading it
+   and its count and pager footing it. Every control on the screen is 32px tall. */
+.work-screen {
+  --control-height: 32px;
+}
+.work-screen > header h1 {
+  margin-bottom: 0;
+}
+.work-screen > .quick-add {
+  flex-shrink: 0;
+  gap: 8px;
+  padding: 8px;
+  margin-bottom: 12px;
+}
+.work-grid {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+.work-filters-find,
+.work-filters-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.work-filters-find > input,
+.work-filters-find > select {
+  width: 9rem;
+  min-width: 0;
+}
+.work-filters-state > select {
+  width: 11rem;
+  min-width: 0;
+}
+/* The repository filter's search and choice sit together. */
+.work-filters-find > div:first-child {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+.work-filters-find > div:first-child > input {
+  width: 10rem;
+  min-width: 0;
+}
+.work-filters-find > div:first-child > select {
+  width: 9rem;
+  min-width: 0;
+}
+.work-filters .status-toggles {
+  gap: 4px;
+}
+.work-filters .status-toggles button {
+  min-height: var(--control-height);
+  padding-inline: 8px;
+}
+.work-grid-body {
+  overflow: auto;
+  overscroll-behavior: contain;
+  /* Tabbing to a row keeps it clear of the frozen header row and of the title column, 16rem wide
+     whenever the sheet scrolls sideways. */
+  scroll-padding: 32px 0 0 20.5rem;
+}
+.work-grid-body :focus-visible {
+  outline-offset: 0;
+}
+/* Narrower than 68rem, the sheet scrolls sideways under its frozen title column. */
+.work-grid table {
+  width: 100%;
+  min-width: 68rem;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+/* Columns of text widen with the window, the description most; columns of controls hold their size.
+   The title column stops at 26rem on a wide sheet, so the description takes the rest, and narrows to
+   16rem when the sheet scrolls sideways, so less of the window is pinned. */
+.work-grid .col-rank {
+  width: 4.5rem;
+}
+.work-grid .col-title {
+  width: 26%;
+}
+@container (min-width: 1300px) {
+  .work-grid .col-title {
+    width: 26rem;
+  }
+}
+@container (max-width: 951px) {
+  .work-grid .col-title {
+    width: 16rem;
+  }
+}
+.work-grid .col-status {
+  width: 8rem;
+}
+.work-grid .col-people {
+  width: 14%;
+}
+.work-grid .col-repositories {
+  width: 11%;
+}
+.work-grid .col-order {
+  width: 6rem;
+}
+.work-grid .col-archive {
+  width: 6.5rem;
+}
+.work-grid .work-row {
+  display: table-row;
+  padding: 0;
+  border: 0;
+}
+.work-grid th,
+.work-grid td {
+  padding: 4px 8px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+  font-weight: inherit;
+  line-height: 1.4;
+  text-align: left;
+  vertical-align: middle;
+}
+.work-grid th:last-child,
+.work-grid td:last-child {
+  border-right: 0;
+}
+/* The header row is one sticky element; its cells ride with it. */
+.work-grid thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.work-grid thead th {
+  padding-block: 6px;
+  background: var(--sidebar);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+/* The stack rank leads each row, its numbers right-aligned so they read down the column; it and the
+   title stay in view when the sheet scrolls sideways. */
+.work-grid .cell-rank {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  padding-inline: 4px;
+  text-align: right;
+}
+.work-grid .cell-rank button.rank {
+  min-height: var(--control-height);
+}
+/* The frozen title column, edged in a darker line like a spreadsheet's frozen pane. */
+.work-grid .cell-title {
+  position: sticky;
+  left: 4.5rem;
+  z-index: 1;
+  border-right-color: var(--field-edge);
+}
+/* A long title stops at two lines, so no row is taller than two lines of title. The link keeps the
+   whole title, for screen readers and for the tooltip that shows it on hover. */
+.work-grid .item-title {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+.work-grid .cell-description {
+  font-size: 13px;
+}
+.work-grid .cell-description > span {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* "Ready for a next step" stands in for a missing description, a step quieter than a real one. */
+.work-grid .cell-description > .muted {
+  font-size: 12px;
+}
+/* The status pills fill their column, so its colours read straight down the sheet. */
+.work-grid select.status-select {
+  width: 100%;
+  height: 32px;
+  min-width: 0;
+  padding: 4px 12px;
+}
+.work-grid .person-badges,
+.work-grid .repository-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-left: 0;
+}
+.work-grid .person-badge {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* A hundred rows of arrows stay quiet until one is pointed at. */
+.work-grid .reorder button {
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  padding-inline: 7px;
+}
+.work-grid .reorder button:hover:not(:disabled) {
+  border-color: var(--teal);
+  background: var(--teal-wash);
+  color: var(--teal);
+}
+.work-grid tr:not(.rank-row) > td[colspan] {
+  padding: 12px 8px;
+  color: var(--muted);
+}
+.work-grid td[colspan] > .empty {
+  border: 0;
+  padding: 32px 16px;
+}
+/* An open rank picker runs under its row, tinted with it, and stays at the sheet's left edge when
+   the sheet scrolls sideways. */
+.work-grid .rank-row > td {
+  padding: 8px;
+  background: var(--teal-wash);
+}
+.work-grid .rank-row .rank-picker {
+  position: sticky;
+  left: 8px;
+  display: inline-flex;
+  margin: 0;
+}
+@media (hover: hover) {
+  .work-grid tbody tr:hover > * {
+    background: var(--bg);
+  }
+}
+.work-grid tbody tr:focus-within > * {
+  background: var(--teal-wash);
+}
+@media (hover: none) {
+  .work-grid .reorder button:not(:disabled) {
+    border-color: var(--line);
+    background: var(--paper);
+  }
+}
+@media (pointer: coarse) {
+  .work-grid .reorder button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+.work-grid-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 41px;
+  padding: 4px 8px;
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 6px 6px;
+  background: var(--sidebar);
+  color: var(--muted);
+  font-size: 12px;
+}
+.work-pager {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+@media (min-width: 900px) and (min-height: 560px) {
+  .work-grid {
+    flex: 1;
+    min-height: 18rem;
+  }
+  .work-grid-body {
+    flex: 1;
+    min-height: 0;
+  }
+}
+@media (max-width: 760px) {
+  .work-grid table,
+  .work-grid tbody,
+  .work-grid tr,
+  .work-grid th,
+  .work-grid td {
+    display: block;
+  }
+  .work-grid table {
+    min-width: 0;
+  }
+  .work-grid thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .work-grid .work-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    padding: 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  .work-grid tbody th,
+  .work-grid tbody td {
+    position: static;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  .work-grid .work-row select {
+    margin-left: 0;
+  }
+  /* The rank sits before the title on its line; nothing else fits beside them. */
+  .work-grid .cell-rank {
+    position: static;
+    flex: none;
+  }
+  .work-grid .cell-title {
+    position: static;
+    flex: 1 1 calc(100% - 4.5rem - 8px);
+  }
+  /* A phone has no hover to show a cut title, so its titles wrap in full. */
+  .work-grid .item-title {
+    display: inline;
+  }
+  .work-grid .rank-row .rank-picker {
+    position: static;
+  }
+  .work-grid .cell-description {
+    flex: 1 1 12rem;
+    min-width: 0;
+  }
+  .work-grid td:empty,
+  .work-grid .cell-repositories:has(> .repository-badges:empty) {
+    display: none;
+  }
+  /* The arrows and Archive close the row together, on a line of their own at its end. */
+  .work-grid .work-row::after {
+    content: "";
+    flex-basis: 100%;
+    order: 1;
+  }
+  .work-grid td:has(> .reorder),
+  .work-grid .work-row > td:last-child {
+    order: 2;
+  }
+  .work-grid td:has(> .reorder) {
+    margin-left: auto;
+  }
+  .work-grid tbody tr:focus-within {
+    background: var(--teal-wash);
+  }
+  .work-grid tbody tr:hover > *,
+  .work-grid tbody tr:focus-within > * {
+    background: none;
+  }
+  .work-grid tr:not(.rank-row) > td[colspan] {
+    padding: 12px;
+  }
+}
+.line > a.line-date {
+  flex: none;
+  white-space: nowrap;
+}

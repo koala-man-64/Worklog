@@ -1,0 +1,37 @@
+/* Guide: the rules only its page uses. */
+@media (min-width: 900px) and (min-height: 560px) {
+  .guide-split {
+    grid-template-columns: minmax(240px, 1fr) minmax(0, 3fr);
+  }
+}
+/* The guide's contents: its sections, with their subsections indented. */
+.guide-contents,
+.guide-contents ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.guide-contents {
+  padding: 8px 0;
+}
+.guide-contents ul {
+  padding-left: 14px;
+}
+.guide-contents a {
+  display: block;
+  padding: 4px 8px;
+  border-radius: 5px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.guide-contents a:hover {
+  background: var(--teal-wash);
+}
+.guide-contents a[aria-current] {
+  background: var(--teal-wash);
+  color: var(--teal);
+  font-weight: 600;
+}
+.guide-views {
+  margin-top: 12px;
+}
