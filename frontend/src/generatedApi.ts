@@ -5319,6 +5319,40 @@ export interface components {
             /** Text */
             text?: string | null;
         };
+        /**
+         * OpenProposal
+         * @description An open proposal as the context lists it (K18): a draft the caller may see, or one submitted
+         *     for review, without its changes, which `proposal show` reads.
+         */
+        OpenProposal: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Status */
+            status: string;
+            /** Revision */
+            revision: number;
+            /** Actorlabel */
+            actorLabel: string;
+            /** Agentid */
+            agentId: string | null;
+            /** Createdat */
+            createdAt: string;
+            /** Submittedat */
+            submittedAt: string | null;
+            /** Updatedat */
+            updatedAt: string;
+            /** Operationcount */
+            operationCount: number;
+        };
+        /** OpenProposals */
+        OpenProposals: {
+            /** Items */
+            items: components["schemas"]["OpenProposal"][];
+            /** Total */
+            total: number;
+        };
         /** Operation */
         Operation: {
             /**
@@ -6094,7 +6128,7 @@ export interface components {
         };
         /**
          * ProposalListed
-         * @description A proposal as GET /proposals and the context list it: whole, without its evidence files.
+         * @description A proposal as GET /proposals lists it: whole, without its evidence files.
          */
         ProposalListed: {
             /** Id */
@@ -8829,7 +8863,7 @@ export interface components {
             workItems: components["schemas"]["WorkItems"];
             roadmaps: components["schemas"]["PlanRoadmaps"];
             people: components["schemas"]["People"];
-            proposals: components["schemas"]["Proposals"];
+            proposals: components["schemas"]["OpenProposals"];
             repositories: components["schemas"]["Repositories"];
             runs: components["schemas"]["AgentRuns"];
             ties: components["schemas"]["AgentTies"];

@@ -17284,6 +17284,102 @@
         ],
         "title": "NoteUpdate"
       },
+      "OpenProposal": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "actorLabel": {
+            "type": "string",
+            "title": "Actorlabel"
+          },
+          "agentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agentid"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "submittedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submittedat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "operationCount": {
+            "type": "integer",
+            "title": "Operationcount"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "status",
+          "revision",
+          "actorLabel",
+          "agentId",
+          "createdAt",
+          "submittedAt",
+          "updatedAt",
+          "operationCount"
+        ],
+        "title": "OpenProposal",
+        "description": "An open proposal as the context lists it (K18): a draft the caller may see, or one submitted\nfor review, without its changes, which `proposal show` reads."
+      },
+      "OpenProposals": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/OpenProposal"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "OpenProposals"
+      },
       "Operation": {
         "properties": {
           "action": {
@@ -19520,7 +19616,7 @@
           "attachments"
         ],
         "title": "ProposalListed",
-        "description": "A proposal as GET /proposals and the context list it: whole, without its evidence files."
+        "description": "A proposal as GET /proposals lists it: whole, without its evidence files."
       },
       "ProposalOperation": {
         "properties": {
@@ -27398,7 +27494,7 @@
             "$ref": "#/components/schemas/People"
           },
           "proposals": {
-            "$ref": "#/components/schemas/Proposals"
+            "$ref": "#/components/schemas/OpenProposals"
           },
           "repositories": {
             "$ref": "#/components/schemas/Repositories"

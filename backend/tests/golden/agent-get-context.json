@@ -70,8 +70,8 @@
           "revision": 3,
           "createdAt": "<time>",
           "updatedAt": "<time>",
-          "rank": 1,
           "repositoryIds": [],
+          "rank": 1,
           "isBacklog": false,
           "people": [
             {
@@ -99,8 +99,8 @@
           "revision": 1,
           "createdAt": "<time>",
           "updatedAt": "<time>",
-          "rank": 2,
           "repositoryIds": [],
+          "rank": 2,
           "isBacklog": true,
           "people": []
         }
@@ -163,60 +163,22 @@
         {
           "id": "<id9>",
           "title": "Rename",
-          "rationale": "Clearer",
           "status": "draft",
-          "autoApproved": false,
           "revision": 1,
-          "actorId": "<id10>",
           "actorLabel": "Builder",
-          "actorDirectory": null,
-          "operations": [],
-          "supersedesId": null,
+          "agentId": "<id10>",
           "createdAt": "<time>",
-          "updatedAt": "<time>",
           "submittedAt": null,
-          "attachments": []
-        },
-        {
-          "id": "<id11>",
-          "title": "Track the spec",
-          "rationale": "One place",
-          "status": "approved",
-          "autoApproved": false,
-          "revision": 3,
-          "actorId": "<id10>",
-          "actorLabel": "Builder",
-          "actorDirectory": null,
-          "operations": [
-            {
-              "action": "link.create",
-              "payload": {
-                "ownerType": "item",
-                "ownerId": "<id2>",
-                "url": "https://example.com/plan"
-              }
-            },
-            {
-              "action": "question.create",
-              "payload": {
-                "roadmapId": "<id3>",
-                "title": "Who reviews?"
-              }
-            }
-          ],
-          "supersedesId": null,
-          "createdAt": "<time>",
           "updatedAt": "<time>",
-          "submittedAt": "<time>",
-          "attachments": []
+          "operationCount": 0
         }
       ],
-      "total": 2
+      "total": 1
     },
     "repositories": {
       "items": [
         {
-          "id": "<id12>",
+          "id": "<id11>",
           "name": "worklog",
           "url": "https://github.com/example/worklog",
           "remoteIdentity": "github.com/example/worklog",
@@ -233,7 +195,7 @@
           "revision": 1,
           "createdAt": "<time>",
           "updatedAt": "<time>",
-          "discussionId": "<id13>"
+          "discussionId": "<id12>"
         }
       ],
       "total": 1,
@@ -243,7 +205,7 @@
     "runs": {
       "items": [
         {
-          "id": "<id14>",
+          "id": "<id13>",
           "agentId": "<id10>",
           "credentialId": "<id10>",
           "clientRunKey": "golden",
@@ -264,7 +226,7 @@
     "ties": {
       "items": [
         {
-          "id": "<id15>",
+          "id": "<id14>",
           "agentId": "<id10>",
           "agent": {
             "id": "<id10>",
@@ -290,13 +252,13 @@
     "participations": {
       "items": [
         {
-          "id": "<id16>",
-          "runId": "<id14>",
+          "id": "<id15>",
+          "runId": "<id13>",
           "itemId": "<id2>",
           "description": "",
           "contexts": [
             {
-              "repositoryId": "<id12>",
+              "repositoryId": "<id11>",
               "repositoryName": "worklog",
               "archived": false,
               "checkoutPath": "",
@@ -312,7 +274,7 @@
           "releaseReason": null,
           "stale": false,
           "run": {
-            "id": "<id14>",
+            "id": "<id13>",
             "agentId": "<id10>",
             "credentialId": "<id10>",
             "clientRunKey": "golden",
@@ -334,9 +296,9 @@
     "updates": {
       "items": [
         {
-          "id": "<id17>",
-          "participationId": "<id16>",
-          "runId": "<id14>",
+          "id": "<id16>",
+          "participationId": "<id15>",
+          "runId": "<id13>",
           "agentId": "<id10>",
           "credentialId": "<id10>",
           "authorLabel": "Builder",
@@ -345,7 +307,7 @@
           "itemId": "<id2>",
           "contexts": [
             {
-              "repositoryId": "<id12>",
+              "repositoryId": "<id11>",
               "repositoryName": "worklog",
               "archived": false,
               "checkoutPath": "",
@@ -363,7 +325,7 @@
     "tickets": {
       "items": [
         {
-          "id": "<id18>",
+          "id": "<id17>",
           "number": 1,
           "key": "T-1",
           "title": "Crash on save",
@@ -377,7 +339,7 @@
             "parser"
           ],
           "repositoryIds": [
-            "<id12>"
+            "<id11>"
           ],
           "itemId": "<id2>",
           "item": {
@@ -416,7 +378,7 @@
     "resources": {
       "items": [
         {
-          "id": "<id19>",
+          "id": "<id18>",
           "title": "Style",
           "summary": "How we write",
           "archived": false,
@@ -432,7 +394,7 @@
     "releases": {
       "items": [
         {
-          "id": "<id20>",
+          "id": "<id19>",
           "title": "1.0",
           "description": "",
           "releaseDate": "2026-12-01",

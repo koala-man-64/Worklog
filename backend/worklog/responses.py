@@ -1069,7 +1069,7 @@ class ProposalOperation(Answer):
 
 
 class ProposalListed(Answer):
-    """A proposal as GET /proposals and the context list it: whole, without its evidence files."""
+    """A proposal as GET /proposals lists it: whole, without its evidence files."""
 
     id: str
     title: str
@@ -1096,6 +1096,30 @@ class ProposalListed(Answer):
 
 class Proposals(Answer):
     items: list[ProposalListed]
+    total: int
+
+
+class OpenProposal(Answer):
+    """An open proposal as the context lists it (K18): a draft the caller may see, or one submitted
+    for review, without its changes, which `proposal show` reads."""
+
+    id: str
+    title: str
+    # draft or submitted.
+    status: str
+    revision: int
+    actorLabel: str
+    # The agent identity of the credential that made it; null for the person's.
+    agentId: str | None
+    createdAt: str
+    # Null for a draft.
+    submittedAt: str | None
+    updatedAt: str
+    operationCount: int
+
+
+class OpenProposals(Answer):
+    items: list[OpenProposal]
     total: int
 
 
@@ -2154,7 +2178,8 @@ class WorkContext(Answer):
     # Without the people tied to each, which the list of roadmaps adds.
     roadmaps: PlanRoadmaps
     people: People
-    proposals: Proposals
+    # The open ones only, as summaries.
+    proposals: OpenProposals
     repositories: Repositories
     runs: AgentRuns
     # The calling agent's ties; the person has none.

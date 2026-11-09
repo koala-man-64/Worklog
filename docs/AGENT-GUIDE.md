@@ -130,7 +130,7 @@ worklog agent register --chat CHAT_ID --label 'Parser fix (Claude)'
 worklog agent --as NAME runs start --client-run-key CHAT_ID --display-name 'Parser fix' --provider claude --request-id run-start-CHAT_ID
 ```
 
-**Step 4. Read before you act:** the day's context, matching work, known issues, the person's resources and the discussions the person pinned. `context` lists every resource by title and summary; read each one that bears on your task, and any the person names, with `resources show`: they hold what the person wants every agent to know. `context` also lists your ties (`ties`): the records the person tied you to, with your role on each, such as a repository you maintain or a resource to follow. Treat them as part of your brief. A thread the person pinned is one they want every agent to see first: read the pinned ones (`discussions list --pinned`) that bear on your work.
+**Step 4. Read before you act:** the day's context, matching work, known issues, the person's resources and the discussions the person pinned. `context` lists every resource by title and summary; read each one that bears on your task, and any the person names, with `resources show`: they hold what the person wants every agent to know. `context` lists the open proposals too, without their changes: `proposal show ID` reads one whole, and `proposals --status approved` the closed ones. `context` also lists your ties (`ties`): the records the person tied you to, with your role on each, such as a repository you maintain or a resource to follow. Treat them as part of your brief. A thread the person pinned is one they want every agent to see first: read the pinned ones (`discussions list --pinned`) that bear on your work.
 
 ```powershell
 worklog agent --as NAME context
@@ -206,7 +206,7 @@ worklog agent --as NAME retire
 
 | Command | Arguments and options | Prints |
 |---|---|---|
-| `context` | `[--date DATE] [--repo REPOSITORY_ID] [--item ITEM_ID]` | `{day,workItems,roadmaps,people,proposals,repositories,runs,participations,updates,tickets,resources,releases}`: the day's entries, roadmaps without their steps, up to 100 of each list, open tickets, resources by title and summary without their text, and upcoming releases with their counts (with `--item`, the upcoming releases that hold that work item) |
+| `context` | `[--date DATE] [--repo REPOSITORY_ID] [--item ITEM_ID]` | `{day,workItems,roadmaps,people,proposals,repositories,runs,participations,updates,tickets,resources,releases}`: the day's entries, roadmaps without their steps, up to 100 of each list, open proposals (yours in draft and those submitted for review) by title, status and `operationCount` without their changes, open tickets, resources by title and summary without their text, and upcoming releases with their counts (with `--item`, the upcoming releases that hold that work item) |
 | `search QUERY` | `[--limit 50] [--archived]` | `{items:[{id,type,title,snippet,ownerId,routeType,routeId}],total}`; 220-character snippets; the first 30 words of QUERY count |
 | `roadmap show ID` | - | the roadmap with every step's full text, progress, revision and `retired` flag, its versions, work items, notes, links, tracked chats, GitHub references, questions and decisions; without its history |
 | `step show ID` | - | the step with its `roadmapId`, notes and attachments |
