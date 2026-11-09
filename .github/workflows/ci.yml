@@ -34,10 +34,10 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
-          cache-dependency-path: requirements.lock
+          cache-dependency-path: requirements-dev.lock
       - name: Install locked dependencies
         run: |
-          python -m pip install --no-input -r requirements.lock
+          python -m pip install --no-input --require-hashes -r requirements-dev.lock
           python -m pip install --no-input --no-deps --no-build-isolation -e .
           python -m pip check
       - name: Tests
@@ -141,4 +141,15 @@ jobs:
         run: |
           if ! npm audit --omit=dev; then
             echo "::warning title=npm audit::Production dependencies have published advisories; see this job's log."
+          fi
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: pip-audit (runtime dependencies)
+        working-directory: .
+        # The auditor is pinned but not hash-locked: it reads requirements.lock and installs none of it.
+        run: |
+          python -m pip install --no-input pip-audit==2.10.1
+          if ! python -m pip_audit --require-hashes --disable-pip -r requirements.lock; then
+            echo "::warning title=pip-audit::pip-audit reported advisories in the runtime dependencies, or could not run; see this job's log."
           fi
