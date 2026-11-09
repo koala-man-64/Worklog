@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
+from worklog import coordination
 from worklog.app import create_app
 from worklog.coordination import _repository_url, repository_identity
 
@@ -249,7 +250,7 @@ def test_overlapping_reports_multiple_worktrees_and_no_canonical_link(client):
 def test_late_attach_and_context_edit_do_not_retarget_update_snapshots(client):
     first_repo, second_repo, credential = repo(client), repo(client, "Second"), agent(client)
     participation = report(client, credential, first_repo)
-    update = post(client, f"/participations/{participation['id']}/updates", {"kind": "handoff", "text": "Original context"}, credential)
+    update = post(client, f"/participations/{participation['id']}/updates", {"kind": "blocker", "text": "Original context"}, credential)
     work = post(client, "/work-items", {"title": "Attach later"})
     current = ok(request(client, "GET", f"/participations/{participation['id']}"))
     changed = ok(request(client, "PATCH", f"/participations/{participation['id']}", {"revision": current["revision"], "itemId": work["id"], "contexts": [{"repositoryId": second_repo["id"]}]}, credential))
@@ -273,6 +274,28 @@ def test_release_rejoin_revisions_and_retry_safe_updates(client):
     assert post(client, f"/participations/{participation['id']}/updates", {"text": "One update", "kind": "update"}, credential, key) == first
     assert ok(request(client, "GET", f"/coordination-updates?participationId={participation['id']}"))["total"] == 1
     assert rejoined["releasedAt"] is None
+
+
+def test_an_update_is_no_longer_a_handoff_and_one_posted_before_stays(client, monkeypatch):
+    # Step 5.6 (A-09): a role's offer hands work on, so an update can't. A handoff posted before
+    # stays readable, and retrying it with its key still returns it.
+    repository, credential = repo(client), agent(client)
+    participation = report(client, credential, repository)
+    path, key = f"/participations/{participation['id']}/updates", str(uuid.uuid4())
+    handoff = {"kind": "handoff", "text": "Over to the reviewer"}
+    # context(), not undo(): undo would also lift conftest's autouse patches.
+    with monkeypatch.context() as allowed:
+        allowed.setattr(coordination, "RETIRED_UPDATE_KINDS", frozenset())
+        before = post(client, path, handoff, credential, key)
+    assert post(client, path, handoff, credential, key) == before
+    revision = ok(request(client, "GET", f"/participations/{participation['id']}"))["revision"]
+    refused = request(client, "POST", path, handoff, credential)
+    assert refused.status_code == 422
+    assert (refused.json()["error"]["code"], refused.json()["error"]["fields"]) == ("validation", {"kind": "retired"})
+    assert "offer the role" in refused.json()["error"]["message"]
+    listed = ok(request(client, "GET", f"/coordination-updates?participationId={participation['id']}"))
+    assert [update["kind"] for update in listed["items"]] == ["handoff"]
+    assert ok(request(client, "GET", f"/participations/{participation['id']}"))["revision"] == revision
 
 
 def test_stale_is_display_only_and_checkin_is_explicit(client):

@@ -1031,7 +1031,7 @@ def _coordination_parser(actions: Any) -> None:
             source.add_argument("--file", help="JSON object with itemId, description and/or replacement contexts")
             source.add_argument("--description", help="Replace the participation's activity description")
         write(command)
-    updates = actions.add_parser("updates", help="Append immutable status, blocker and handoff messages").add_subparsers(
+    updates = actions.add_parser("updates", help="Append immutable status and blocker messages").add_subparsers(
         dest="coordination_action", required=True)
     listing = updates.add_parser("list")
     for name, destination in (("repo", "repositoryId"), ("item", "itemId"), ("participation", "participationId")):
@@ -1039,7 +1039,7 @@ def _coordination_parser(actions: Any) -> None:
     pages(listing)
     post = updates.add_parser("post")
     post.add_argument("--participation", required=True)
-    post.add_argument("--kind", choices=("update", "blocker", "handoff"))
+    post.add_argument("--kind", choices=("update", "blocker"))
     source = post.add_mutually_exclusive_group(required=True)
     source.add_argument("--text")
     source.add_argument("--file", help="JSON {kind,text}; - reads standard input")
