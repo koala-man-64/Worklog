@@ -87,3 +87,24 @@ def test_the_context_lists_the_open_proposals_each_caller_may_see_as_summaries(c
     # A closed proposal, and any proposal's changes, stay one read away.
     assert call(client, "GET", "/proposals?status=approved")["total"] == 1
     assert len(call(client, "GET", f"/proposals/{mine['id']}", token=builder["token"])["operations"]) == 3
+
+
+def test_a_reopened_proposal_is_a_draft_again_and_odd_operations_count_as_none(client):
+    item = call(client, "POST", "/work-items", {"title": "Parser"})
+    builder, reviewer = (call(client, "POST", "/credentials", {"label": label}) for label in ("Builder", "Reviewer"))
+    sent = proposal(client, builder["token"], item, "Sent, then reopened")
+    sent = call(client, "POST", f"/proposals/{sent['id']}/submit", {"revision": sent["revision"]}, builder["token"])
+    assert [p["id"] for p in listed(client, reviewer["token"])["items"]] == [sent["id"]]
+    # Back in draft, it is its author's again: another agent no longer finds it.
+    reopened = call(client, "POST", f"/proposals/{sent['id']}/reopen", {"revision": sent["revision"]}, builder["token"])
+    assert reopened["status"] == "draft"
+    assert listed(client, reviewer["token"]) == {"items": [], "total": 0}
+    own, = listed(client, builder["token"])["items"]
+    assert (own["status"], own["submittedAt"], own["revision"]) == ("draft", None, reopened["revision"])
+    # Operations Worklog never writes count as none, rather than failing the read.
+    with client.app.state.db.transaction() as conn:
+        conn.execute("UPDATE proposals SET operations='not json', status='submitted', submitted_at=? WHERE id=?",
+                     (now(), sent["id"]))
+    assert [p["operationCount"] for p in listed(client)["items"]] == [0]
+    # A page past the end holds nothing, and the total still counts every one.
+    assert listed(client, query="?limit=200&offset=5") == {"items": [], "total": 1}
