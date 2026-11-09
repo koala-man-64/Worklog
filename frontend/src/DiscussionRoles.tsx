@@ -4,9 +4,10 @@ import {
   ContextPicker,
   ContextReference,
   useContextSearch,
-  type ContextChoice,
+  type PickedContext,
 } from "./discussionContexts";
-import { useAction } from "./hooks";
+import { useWrites } from "./hooks";
+import { commands } from "./commands";
 import type { DiscussionParticipants, DiscussionRole } from "./apiTypes";
 
 export function DiscussionRolesPanel({
@@ -30,9 +31,9 @@ export function DiscussionRolesPanel({
   error: unknown;
   isPending: boolean;
 }) {
-  const action = useAction();
+  const action = useWrites();
   const [contextQuery, setContextQuery] = useState("");
-  const [roleContext, setRoleContext] = useState<ContextChoice | null>(null);
+  const [roleContext, setRoleContext] = useState<PickedContext | null>(null);
   const [roleLabel, setRoleLabel] = useState("");
   const [roleError, setRoleError] = useState<unknown>(null);
   const contextSearch = useContextSearch(contextQuery);
@@ -42,14 +43,13 @@ export function DiscussionRolesPanel({
     if (!roleContext || !roleLabel.trim()) return;
     setRoleError(null);
     try {
-      await action.mutateAsync({
-        path: "/discussions/roles",
-        body: {
+      await action.mutateAsync(() =>
+        commands.createRole({
           contextType: roleContext.type,
           contextId: roleContext.id,
           label: roleLabel.trim(),
-        },
-      });
+        }),
+      );
       onCreated();
       setRoleContext(null);
       setContextQuery("");
@@ -152,7 +152,7 @@ function DiscussionRoleRow({
 }: {
   role: DiscussionRole;
   participants?: DiscussionParticipants;
-  action: ReturnType<typeof useAction>;
+  action: ReturnType<typeof useWrites>;
 }) {
   const [ownerId, setOwnerId] = useState(role.ownerId ?? "");
   const [reason, setReason] = useState("");
@@ -164,14 +164,13 @@ function DiscussionRoleRow({
     event.preventDefault();
     setError(null);
     try {
-      await action.mutateAsync({
-        path: `/discussions/roles/${role.id}/reassign`,
-        body: {
+      await action.mutateAsync(() =>
+        commands.reassignRole(role.id, {
           revision: role.revision,
           ownerId: ownerId || null,
           reason: reason.trim(),
-        },
-      });
+        }),
+      );
       setReason("");
     } catch (failure) {
       setError(failure);

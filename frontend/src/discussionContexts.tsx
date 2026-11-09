@@ -1,11 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { TIE_TYPES, tieHref, type TieType } from "./agentTieKinds";
 import { getDataContext, request } from "./api";
-import type {
-  DiscussionContext,
-  DiscussionContextType,
-  SearchResults,
-} from "./apiTypes";
+import type { DiscussionContext, SearchResults } from "./apiTypes";
 
 /**
  * A record a discussion is tagged with, or a draft will tag it with: its kind and id, and what a
@@ -14,6 +10,10 @@ import type {
 export type ContextRef = Pick<DiscussionContext, "type" | "id"> &
   Partial<Pick<DiscussionContext, "title" | "archived" | "roadmapId">>;
 export type ContextChoice = ContextRef & { label: string };
+/** The kinds the picker offers: what search finds that a thread or a role can be about. */
+export type PickedType = "item" | "roadmap" | "step";
+/** A record chosen in the picker. */
+export type PickedContext = ContextChoice & { type: PickedType };
 
 export function useContextSearch(query: string) {
   return useQuery({
@@ -27,7 +27,7 @@ export function useContextSearch(query: string) {
   });
 }
 
-function contextType(resultType: string): DiscussionContextType | null {
+function contextType(resultType: string): PickedType | null {
   if (
     resultType === "item" ||
     resultType === "roadmap" ||
@@ -52,7 +52,7 @@ export function ContextPicker({
   query: string;
   onQueryChange: (value: string) => void;
   selected: ContextChoice[];
-  onAdd: (value: ContextChoice) => void;
+  onAdd: (value: PickedContext) => void;
   onRemove: (value: ContextChoice) => void;
   results: SearchResults["items"];
   loading: boolean;

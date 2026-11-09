@@ -3,7 +3,8 @@ import { useQueries } from "@tanstack/react-query";
 import { getDataContext, request } from "./api";
 import { Avatar } from "./Avatar";
 import { ErrorMessage, TieRole } from "./components";
-import { useAction, useData } from "./hooks";
+import { useData, useWrites } from "./hooks";
+import { commands } from "./commands";
 import { LinkPicker } from "./LinkPicker";
 import {
   TIE_LABELS,
@@ -134,7 +135,6 @@ function TieRows({
         </span>
         <span className="badge">{setBy(tie)}</span>
         <TieRole
-          path="/agent-links"
           tie={agentKey(tie)}
           name={"Role for " + label}
           unlinkName={"Unlink " + label}
@@ -174,7 +174,7 @@ function TieAgentForm({
   const directory = useData<DiscussionParticipants>(
     "/discussions/participants",
   );
-  const action = useAction();
+  const action = useWrites();
   const [agentId, setAgentId] = useState("");
   const [relationship, setRelationship] = useState("");
   const tied = new Set(ties.map((tie) => tie.agentId));
@@ -194,15 +194,13 @@ function TieAgentForm({
           e.preventDefault();
           if (disabled || !agentId) return;
           action.mutate(
-            {
-              path: "/agent-links",
-              body: {
+            () =>
+              commands.tieAgent({
                 agentId,
                 targetType,
                 targetId,
                 relationship: relationship.trim(),
-              },
-            },
+              }),
             {
               onSuccess: () => {
                 setAgentId("");
@@ -381,7 +379,6 @@ function TiedRecord({ tie }: { tie: AgentTie }) {
       </span>
       <span className="badge">{setBy(tie)}</span>
       <TieRole
-        path="/agent-links"
         tie={agentKey(tie)}
         name={"Role on " + title}
         unlinkName={"Unlink " + title}
@@ -401,7 +398,7 @@ function TieRecordForm({
 }) {
   const [type, setType] = useState<TieType>("item");
   const [relationship, setRelationship] = useState("");
-  const action = useAction();
+  const action = useWrites();
   const tied = new Set(
     ties.filter((tie) => tie.targetType === type).map((tie) => tie.targetId),
   );
@@ -440,15 +437,13 @@ function TieRecordForm({
           disabled={action.isPending}
           onPick={(record) =>
             action.mutate(
-              {
-                path: "/agent-links",
-                body: {
+              () =>
+                commands.tieAgent({
                   agentId,
                   targetType: type,
                   targetId: record.id,
                   relationship: relationship.trim(),
-                },
-              },
+                }),
               { onSuccess: () => setRelationship("") },
             )
           }

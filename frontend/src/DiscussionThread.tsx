@@ -6,7 +6,8 @@ import { Avatar } from "./Avatar";
 import { Empty, ErrorMessage, Markdown } from "./components";
 import { ContextReference } from "./discussionContexts";
 import { Composer } from "./DiscussionComposer";
-import { useAction, useData } from "./hooks";
+import { useData, useWrites } from "./hooks";
+import { commands } from "./commands";
 import {
   exactDiscussionDate,
   formatDiscussionDate,
@@ -20,6 +21,7 @@ import type {
   DiscussionParticipants,
   DiscussionRole,
   DiscussionSummary,
+  Schema,
 } from "./apiTypes";
 
 const PAGE = 50;
@@ -43,7 +45,7 @@ export function DiscussionThread({
     `/discussions/${id}?limit=${PAGE}&offset=${offset}`,
     REFRESH_MS,
   );
-  const action = useAction();
+  const action = useWrites();
   const queryClient = useQueryClient();
   const discussion = detail.data?.discussion ?? summary;
   const messages = detail.data?.messages ?? [];
@@ -54,15 +56,17 @@ export function DiscussionThread({
   async function archive(archived: boolean) {
     if (!discussion) return;
     await action
-      .mutateAsync({
-        path: `/discussions/${id}/archive`,
-        body: { revision: discussion.revision, archived },
-      })
+      .mutateAsync(() =>
+        commands.setDiscussionArchived(id, {
+          revision: discussion.revision,
+          archived,
+        }),
+      )
       .catch(() => undefined);
   }
 
-  async function reply(body: Record<string, unknown>) {
-    await action.mutateAsync({ path: `/discussions/${id}/messages`, body });
+  async function reply(body: Schema["MessageCreate"]) {
+    await action.mutateAsync(() => commands.postMessage(id, body));
   }
 
   function refreshDetail() {
@@ -174,16 +178,14 @@ export function DiscussionThread({
                     requestState.mode === "anyone"
                       ? {}
                       : { targetIds: requestState.actionableTargetIds };
-                  await action.mutateAsync({
-                    path: `/discussions/messages/${message.id}/acknowledge`,
-                    body,
-                  });
+                  await action.mutateAsync(() =>
+                    commands.acknowledgeMessage(message.id, body),
+                  );
                 }}
                 onCancel={async () => {
-                  await action.mutateAsync({
-                    path: `/discussions/messages/${message.id}/cancel`,
-                    body: {},
-                  });
+                  await action.mutateAsync(() =>
+                    commands.cancelRequest(message.id, {}),
+                  );
                 }}
                 onRelease={() => {
                   setReleaseMessageId(message.id);
@@ -194,10 +196,9 @@ export function DiscussionThread({
                   setReleaseReason("");
                 }}
                 onReleaseSubmit={async (reason) => {
-                  await action.mutateAsync({
-                    path: `/discussions/messages/${message.id}/release`,
-                    body: { reason },
-                  });
+                  await action.mutateAsync(() =>
+                    commands.releaseRequest(message.id, { reason }),
+                  );
                   setReleaseMessageId(null);
                   setReleaseReason("");
                 }}

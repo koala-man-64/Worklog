@@ -1,13 +1,21 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { act, renderHook, waitFor } from "@testing-library/react";
 import {
+  act,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import {
+  onlineManager,
   QueryClient,
   QueryClientProvider,
   useQuery,
 } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { getDataContext, request } from "./api";
-import { useCommand, useData } from "./hooks";
+import { useCommand, useData, useWrites } from "./hooks";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -176,4 +184,84 @@ it("keeps an earlier write waiting for the read that replaced its own", async ()
   const [seen] = await act(() => Promise.all([first, second]));
   expect(seen).toEqual(["Ada Park", "Ben Ode"]);
   server.answer(2);
+});
+
+// A controlled checkbox: React puts it back to its rendered value once the change handler returns.
+function Planned({ sent }: { sent: boolean[] }) {
+  const writes = useWrites();
+  const [planned] = useState(false);
+  return (
+    <input
+      type="checkbox"
+      aria-label="Planned"
+      checked={planned}
+      onChange={(e) =>
+        writes.mutate(async () => {
+          sent.push(e.target.checked);
+        })
+      }
+    />
+  );
+}
+
+it("starts a write while the event that asked for it is current", async () => {
+  const sent: boolean[] = [];
+  render(<Planned sent={sent} />, { wrapper: wrapper(newClient()) });
+  await userEvent.click(screen.getByRole("checkbox", { name: "Planned" }));
+  // Started later, as a mutation calls its function, it would read the box put back: false.
+  await waitFor(() => expect(sent).toEqual([true]));
+});
+
+it("gives a write's own answer and follows it while it is pending", async () => {
+  let finish = (_answer: { id: string }) => {};
+  const answer = new Promise<{ id: string }>((resolve) => {
+    finish = resolve;
+  });
+  const { result } = renderHook(() => useWrites(), {
+    wrapper: wrapper(newClient()),
+  });
+  let answered: Promise<{ id: string }> = Promise.resolve({ id: "" });
+  act(() => {
+    answered = result.current.mutateAsync(() => answer);
+  });
+  await waitFor(() => expect(result.current.isPending).toBe(true));
+  finish({ id: "note-1" });
+  await expect(answered).resolves.toEqual({ id: "note-1" });
+  await waitFor(() => expect(result.current.isPending).toBe(false));
+});
+
+it("fails a write that throws before its request starts, as a refused one does", async () => {
+  const { result } = renderHook(() => useWrites(), {
+    wrapper: wrapper(newClient()),
+  });
+  const broken = () => {
+    throw new Error("No file to send");
+  };
+  act(() => result.current.mutate(broken));
+  await waitFor(() =>
+    expect(result.current.error).toEqual(new Error("No file to send")),
+  );
+  await act(async () => {
+    await expect(result.current.mutateAsync(broken)).rejects.toThrow(
+      "No file to send",
+    );
+  });
+});
+
+it("writes while the browser reports itself offline, since the server is on this machine", async () => {
+  onlineManager.setOnline(false);
+  try {
+    const { result } = renderHook(() => useWrites(), {
+      wrapper: wrapper(newClient()),
+    });
+    let answered: Promise<string> = Promise.resolve("");
+    act(() => {
+      answered = result.current.mutateAsync(async () => "saved");
+    });
+    // A mutation that waited for the browser to come online would stay pending here.
+    await expect(answered).resolves.toBe("saved");
+    await waitFor(() => expect(result.current.isPending).toBe(false));
+  } finally {
+    onlineManager.setOnline(true);
+  }
 });

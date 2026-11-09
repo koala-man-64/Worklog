@@ -34,36 +34,51 @@ export function useData<T>(path: string, refreshMs?: number) {
     placeholderData: refreshMs ? keepPreviousData : undefined,
   });
 }
-export function useAction() {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      path,
-      method = "POST",
-      body = {},
-    }: {
-      path: string;
-      method?: string;
-      body?: unknown;
-    }) => request(path, method, body),
-    onSuccess: () => refreshAfterWrite(client),
-  });
-}
+/**
+ * A typed command, from commands.ts, that reads again what it may have changed. The server runs
+ * on this machine, so a write never waits for the browser to report itself online.
+ */
 export function useCommand<TBody, TResult>(
   command: (body: TBody) => Promise<TResult>,
 ) {
   const client = useQueryClient();
   return useMutation({
     mutationFn: command,
+    networkMode: "always",
     onSuccess: () => refreshAfterWrite(client),
   });
+}
+/** Starts a write; one that throws before its request is under way fails as a refused one does. */
+function start<T>(write: () => Promise<T>): Promise<T> {
+  try {
+    return write();
+  } catch (failure) {
+    return Promise.reject(failure);
+  }
 }
 /**
  * One pending state and error for a page's several writes, each a typed command:
  * `writes.mutate(() => commands.updateTicket(id, body))`.
+ *
+ * The write starts inside `mutate`, while the event that asked for it is current. A mutation
+ * calls its function a few microtasks later, by when React has put a controlled checkbox or
+ * select back to its rendered value, so a write started there would send `e.target`'s old value.
+ * The mutation then follows the started write: its pending state, its error, the refresh after.
+ * `mutateAsync` gives the command's own answer.
  */
 export function useWrites() {
-  return useCommand((write: () => Promise<unknown>) => write());
+  const writes = useCommand((started: Promise<unknown>) => started);
+  return {
+    ...writes,
+    mutate: (
+      write: () => Promise<unknown>,
+      options?: Parameters<typeof writes.mutate>[1],
+    ) => writes.mutate(start(write), options),
+    mutateAsync: <T>(
+      write: () => Promise<T>,
+      options?: Parameters<typeof writes.mutateAsync>[1],
+    ) => writes.mutateAsync(start(write), options) as Promise<T>,
+  };
 }
 /**
  * Tree nodes the person collapsed, remembered in this browser. `reveal` opens

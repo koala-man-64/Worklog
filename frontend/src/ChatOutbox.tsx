@@ -2,7 +2,8 @@ import { useRef, useState, type FormEvent } from "react";
 import { contextStorageKey } from "./api";
 import { Avatar } from "./Avatar";
 import { ErrorMessage, Markdown } from "./components";
-import { useAction, useData } from "./hooks";
+import { useData, useWrites } from "./hooks";
+import { commands } from "./commands";
 import { localStore } from "./storage";
 import type {
   Outbox,
@@ -125,8 +126,8 @@ export function ChatOutbox({
     `/chats/${chat.id}/messages?limit=${limit}`,
     refreshMs,
   );
-  const send = useAction();
-  const binding = useAction();
+  const send = useWrites();
+  const binding = useWrites();
   const draft = useChatDraft(chat.id);
   const [error, setError] = useState<unknown>(null);
   const [bindingError, setBindingError] = useState<unknown>(null);
@@ -150,10 +151,9 @@ export function ChatOutbox({
   async function setConfirmation(agentId: string, confirmed: boolean) {
     setBindingError(null);
     try {
-      await binding.mutateAsync({
-        path: `/chats/${chat.id}/confirmations${confirmed ? "" : "/remove"}`,
-        body: { agentId },
-      });
+      await binding.mutateAsync(() =>
+        commands.setChatConfirmed(chat.id, confirmed, { agentId }),
+      );
     } catch (failure) {
       setBindingError(failure);
     }
@@ -166,10 +166,9 @@ export function ChatOutbox({
     setNotice("");
     const sentVersion = draft.version.current;
     try {
-      await send.mutateAsync({
-        path: `/chats/${chat.id}/messages`,
-        body: { text: draft.text.trim() },
-      });
+      await send.mutateAsync(() =>
+        commands.sendChatMessage(chat.id, { text: draft.text.trim() }),
+      );
       if (draft.version.current === sentVersion) draft.clear();
       else
         setNotice(

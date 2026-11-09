@@ -2,7 +2,8 @@ import { useState } from "react";
 import { contextStorageKey } from "./api";
 import { Avatar } from "./Avatar";
 import { ErrorMessage, statusLabel } from "./components";
-import { useAction, useData } from "./hooks";
+import { commands } from "./commands";
+import { useData, useWrites } from "./hooks";
 import { Icon } from "./icons";
 import { LinkPicker } from "./LinkPicker";
 import { localStore, readIdSet } from "./storage";
@@ -58,15 +59,15 @@ export function sessionState(
 
 /** A tie or untie that reports its own failure where it was asked for. */
 function useTie() {
-  const action = useAction();
+  const writes = useWrites();
   const [error, setError] = useState<unknown>(null);
   return {
-    busy: action.isPending,
+    busy: writes.isPending,
     error,
-    async send<T>(path: string, body: unknown): Promise<T | undefined> {
+    async send<T>(write: () => Promise<T>): Promise<T | undefined> {
       setError(null);
       try {
-        return (await action.mutateAsync({ path, body })) as T;
+        return await writes.mutateAsync(write);
       } catch (failure) {
         setError(failure);
         return undefined;
@@ -191,7 +192,6 @@ export function ChatAgents({ chat }: { chat: ChatOverview }) {
   const tie = useTie();
   const bound = chat.agents.filter((a) => a.binding !== "run");
   const alike = sharedLabels(bound);
-  const path = `/chats/${chat.id}/confirmations`;
   return (
     <div className="chat-recipients chat-agents">
       <span className="muted">Agents</span>
@@ -206,7 +206,12 @@ export function ChatAgents({ chat }: { chat: ChatOverview }) {
               untie={
                 chat.archived
                   ? undefined
-                  : () => void tie.send(path + "/remove", { agentId: agent.id })
+                  : () =>
+                      void tie.send(() =>
+                        commands.setChatConfirmed(chat.id, false, {
+                          agentId: agent.id,
+                        }),
+                      )
               }
             />
           ))}
@@ -217,7 +222,11 @@ export function ChatAgents({ chat }: { chat: ChatOverview }) {
       {!chat.archived && (
         <AgentPicker
           tied={new Set(bound.map((a) => a.id))}
-          onPick={(agentId) => void tie.send(path, { agentId })}
+          onPick={(agentId) =>
+            void tie.send(() =>
+              commands.setChatConfirmed(chat.id, true, { agentId }),
+            )
+          }
           disabled={tie.busy}
         />
       )}
@@ -354,14 +363,16 @@ function RunningSessionItem({
   );
   const alike = sharedLabels(s.agents);
   async function track(ownerType: "item" | "roadmap", ownerId: string) {
-    const chat = await tie.send<{ id: string }>("/chats", {
-      ownerType,
-      ownerId,
-      chatId: s.chatId,
-      title: name,
-      provider: "Anthropic",
-      model: s.model,
-    });
+    const chat = await tie.send(() =>
+      commands.createChat({
+        ownerType,
+        ownerId,
+        chatId: s.chatId,
+        title: name,
+        provider: "Anthropic",
+        model: s.model,
+      }),
+    );
     // Tracked now, the session leaves this list and opens among the chats.
     if (chat) window.location.hash = "#chats/" + chat.id;
   }
@@ -371,10 +382,12 @@ function RunningSessionItem({
    */
   const confirm = (agentId: string) => {
     const claim = s.agents.find((a) => a.id === agentId && a.binding === "run");
-    void tie.send("/chat-confirmations", {
-      chatId: claim?.chatId ?? s.chatId,
-      agentId,
-    });
+    void tie.send(() =>
+      commands.setChatIdConfirmed(true, {
+        chatId: claim?.chatId ?? s.chatId,
+        agentId,
+      }),
+    );
   };
   return (
     <li className={hidden ? "hidden-session" : undefined}>
@@ -430,10 +443,12 @@ function RunningSessionItem({
                 otherId={agent.chatId === s.chatId ? undefined : s.chatId}
                 // A confirmation is taken back under the ID it was given.
                 untie={() =>
-                  void tie.send("/chat-confirmations/remove", {
-                    chatId: agent.chatId,
-                    agentId: agent.id,
-                  })
+                  void tie.send(() =>
+                    commands.setChatIdConfirmed(false, {
+                      chatId: agent.chatId,
+                      agentId: agent.id,
+                    }),
+                  )
                 }
                 confirm={() => confirm(agent.id)}
               />

@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { request } from "./api";
-import { useAction, useData } from "./hooks";
+import { useData, useWrites } from "./hooks";
+import { commands } from "./commands";
 import { AgentTies } from "./AgentTies";
 import {
   DraftField,
@@ -39,7 +39,7 @@ function RepositoryList() {
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [existing, setExisting] = useState<Repository | null>(null);
-  const action = useAction();
+  const action = useWrites();
   const list = useData<Answer<"/api/v1/repositories">>(
     `/repositories?archived=${archived}&limit=50&offset=${offset}&q=${encodeURIComponent(q)}`,
   );
@@ -57,10 +57,12 @@ function RepositoryList() {
           e.preventDefault();
           setExisting(null);
           action.mutate(
-            {
-              path: "/repositories",
-              body: { name: name.trim(), url: url.trim(), description: "" },
-            },
+            () =>
+              commands.registerRepository({
+                name: name.trim(),
+                url: url.trim(),
+                description: "",
+              }),
             {
               onSuccess: (result) => {
                 const registration = result as RepositoryRegistration;
@@ -151,10 +153,11 @@ function RepositoryList() {
               <button
                 disabled={action.isPending}
                 onClick={() =>
-                  action.mutate({
-                    path: `/repositories/${repo.id}/${repo.archived ? "recover" : "archive"}`,
-                    body: { revision: repo.revision },
-                  })
+                  action.mutate(() =>
+                    commands.setRepositoryArchived(repo.id, !repo.archived, {
+                      revision: repo.revision,
+                    }),
+                  )
                 }
               >
                 {repo.archived ? "Recover" : "Archive"}
@@ -182,7 +185,7 @@ function RepositoryList() {
 }
 // What an agent registered for itself waits for the person, who confirms it here or edits it.
 function Registrant({ repo, edit }: { repo: Repository; edit?: boolean }) {
-  const action = useAction();
+  const action = useWrites();
   const by = repo.registeredBy;
   if (by?.kind !== "agent") return null;
   const agent = by.agentId ? (
@@ -198,10 +201,9 @@ function Registrant({ repo, edit }: { repo: Repository; edit?: boolean }) {
       <button
         disabled={action.isPending}
         onClick={() =>
-          action.mutate({
-            path: `/repositories/${repo.id}/confirm`,
-            body: { revision: repo.revision },
-          })
+          action.mutate(() =>
+            commands.confirmRepository(repo.id, { revision: repo.revision }),
+          )
         }
       >
         Confirm
@@ -294,7 +296,7 @@ function MergeConfirm({
   targetId: string;
 }) {
   const target = useData<RepositoryDetail>("/repositories/" + targetId);
-  const action = useAction();
+  const action = useWrites();
   const [confirm, setConfirm] = useState(false);
   const into = target.data;
   if (!into) return <ErrorMessage error={target.error} />;
@@ -311,14 +313,13 @@ function MergeConfirm({
             // The refetch shows this record merged and unmounts this control before a
             // mutate-level onSuccess would run, so follow the settled promise instead.
             action
-              .mutateAsync({
-                path: `/repositories/${source.id}/merge`,
-                body: {
+              .mutateAsync(() =>
+                commands.mergeRepository(source.id, {
                   revision: source.revision,
                   intoId: into.id,
                   intoRevision: into.revision,
-                },
-              })
+                }),
+              )
               .then(() => {
                 location.hash = "repositories/" + into.id;
               })
@@ -342,13 +343,11 @@ function LinkedWork({ repo }: { repo: Repository }) {
   const work = useData<Answer<"/api/v1/work-items">>(
     `/work-items?repositoryId=${encodeURIComponent(repo.id)}&limit=50&offset=${offset}`,
   );
-  const action = useAction();
+  const action = useWrites();
   const relink = (item: Item, repositoryIds: string[]) =>
-    action.mutate({
-      path: "/work-items/" + item.id,
-      method: "PATCH",
-      body: { revision: item.revision, repositoryIds },
-    });
+    action.mutate(() =>
+      commands.updateItem(item.id, { revision: item.revision, repositoryIds }),
+    );
   return (
     <section>
       <h2>Linked work</h2>
@@ -448,7 +447,7 @@ function RepositoryFiles({ repo }: { repo: Repository }) {
 }
 function RepositoryDetail({ id }: { id: string }) {
   const query = useData<RepositoryDetail>("/repositories/" + id);
-  const action = useAction();
+  const action = useWrites();
   const repo = query.data;
   if (!repo)
     return (
@@ -468,10 +467,11 @@ function RepositoryDetail({ id }: { id: string }) {
           <button
             disabled={action.isPending}
             onClick={() =>
-              action.mutate({
-                path: `/repositories/${id}/${repo.archived ? "recover" : "archive"}`,
-                body: { revision: repo.revision },
-              })
+              action.mutate(() =>
+                commands.setRepositoryArchived(id, !repo.archived, {
+                  revision: repo.revision,
+                }),
+              )
             }
           >
             {repo.archived ? "Recover repository" : "Archive repository"}
@@ -509,10 +509,7 @@ function RepositoryDetail({ id }: { id: string }) {
                 field === "name" ? 200 : field === "url" ? 2000 : 10000
               }
               save={(value, revision) =>
-                request<Repository>("/repositories/" + id, "PATCH", {
-                  revision,
-                  [field]: value,
-                })
+                commands.updateRepository(id, { revision, [field]: value })
               }
             />
           ))}

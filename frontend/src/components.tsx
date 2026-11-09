@@ -15,12 +15,12 @@ import { slugger } from "./guideAnchors";
 import { RepositoryBadges, RepositoryPicker } from "./RepositoryControls";
 import type { TieType } from "./agentTieKinds";
 import { download, getDataContext } from "./api";
-import { commands } from "./commands";
+import { commands, type ArchiveKind } from "./commands";
 import {
   exactDiscussionDate,
   formatDiscussionDate,
 } from "./discussionFormatting";
-import { useAction, useData, useDraft } from "./hooks";
+import { useData, useDraft, useWrites } from "./hooks";
 import { Icon } from "./icons";
 import type {
   AgentChat,
@@ -441,7 +441,7 @@ export function Files({
   /** False where the owner takes no new files but can still archive its own. */
   attach?: boolean;
 }) {
-  const action = useAction();
+  const action = useWrites();
   const [error, setError] = useState("");
   const [mode, setMode] = useState<(typeof FILE_MODES)[number][0]>("copy");
   const [path, setPath] = useState("");
@@ -454,10 +454,9 @@ export function Files({
       return;
     }
     try {
-      await action.mutateAsync({
-        path: `/attachments?ownerType=${ownerType}&ownerId=${ownerId}&name=${encodeURIComponent(file.name)}`,
-        body: file,
-      });
+      await action.mutateAsync(() =>
+        commands.uploadAttachment(ownerType, ownerId, file),
+      );
       setError("");
     } catch (err) {
       setError(String(err));
@@ -520,10 +519,9 @@ export function Files({
               onSubmit={async (e) => {
                 e.preventDefault();
                 await action
-                  .mutateAsync({
-                    path: "/references",
-                    body: { itemId: ownerId, path },
-                  })
+                  .mutateAsync(() =>
+                    commands.createReference({ itemId: ownerId, path }),
+                  )
                   .then(() => setPath(""))
                   .catch(() => undefined);
               }}
@@ -556,10 +554,11 @@ export function Files({
               <button
                 className="quiet"
                 onClick={() =>
-                  action.mutate({
-                    path: `/attachments/${entry.record.id}/archive`,
-                    body: { revision: entry.record.revision },
-                  })
+                  action.mutate(() =>
+                    commands.setArchived("attachments", entry.record.id, true, {
+                      revision: entry.record.revision,
+                    }),
+                  )
                 }
               >
                 Archive
@@ -580,10 +579,11 @@ export function Files({
               <button
                 className="quiet"
                 onClick={() =>
-                  action.mutate({
-                    path: `/references/${entry.record.id}/archive`,
-                    body: { revision: entry.record.revision },
-                  })
+                  action.mutate(() =>
+                    commands.setArchived("references", entry.record.id, true, {
+                      revision: entry.record.revision,
+                    }),
+                  )
                 }
               >
                 Archive
@@ -601,21 +601,25 @@ export function Notes({
   ownerId,
   notes,
 }: {
-  ownerType: string;
+  ownerType: Note["ownerType"];
   ownerId: string;
   notes: Note[];
 }) {
-  const action = useAction();
+  const action = useWrites();
   return (
     <section>
       <div className="section-heading">
         <h3>Notes</h3>
         <button
           onClick={() =>
-            action.mutate({
-              path: "/notes",
-              body: { ownerType, ownerId, title: "New note", text: "" },
-            })
+            action.mutate(() =>
+              commands.createNote({
+                ownerType,
+                ownerId,
+                title: "New note",
+                text: "",
+              }),
+            )
           }
         >
           Add note
@@ -647,10 +651,11 @@ export function Notes({
             <button
               className="quiet"
               onClick={() =>
-                action.mutate({
-                  path: `/notes/${n.id}/archive`,
-                  body: { revision: n.revision },
-                })
+                action.mutate(() =>
+                  commands.setArchived("notes", n.id, true, {
+                    revision: n.revision,
+                  }),
+                )
               }
             >
               Archive note
@@ -752,7 +757,7 @@ export function Checklist({
   /** False where a tab already names the list. */
   heading?: boolean;
 }) {
-  const action = useAction();
+  const action = useWrites();
   const [text, setText] = useState("");
   // A tick shows at once and holds until the saved task comes back with a newer revision; a
   // failed save drops it. Until then the box is disabled, so a second click can't race the first.
@@ -767,10 +772,9 @@ export function Checklist({
   // A task moves to a place among the active tasks, 1 first; archived ones keep theirs. The move
   // is checked against the task's own revision and leaves every revision as it is.
   const move = (t: Task, position: number) =>
-    action.mutate({
-      path: `/tasks/${t.id}/move`,
-      body: { revision: t.revision, position },
-    });
+    action.mutate(() =>
+      commands.moveTask(t.id, { revision: t.revision, position }),
+    );
   return (
     <section className="checklist">
       {heading && (
@@ -855,11 +859,11 @@ export function Checklist({
                     [t.id]: { done: next, from: t.revision },
                   }));
                   action.mutate(
-                    {
-                      path: "/tasks/" + t.id,
-                      method: "PATCH",
-                      body: { revision: t.revision, done: next },
-                    },
+                    () =>
+                      commands.updateTask(t.id, {
+                        revision: t.revision,
+                        done: next,
+                      }),
                     {
                       onError: () =>
                         setTicked((was) => {
@@ -897,10 +901,11 @@ export function Checklist({
             className="quiet"
             aria-label={"Archive task " + t.text}
             onClick={() =>
-              action.mutate({
-                path: `/tasks/${t.id}/archive`,
-                body: { revision: t.revision },
-              })
+              action.mutate(() =>
+                commands.setArchived("tasks", t.id, true, {
+                  revision: t.revision,
+                }),
+              )
             }
           >
             Archive
@@ -926,10 +931,9 @@ export function Checklist({
           e.preventDefault();
           if (!text.trim()) return;
           await action
-            .mutateAsync({
-              path: "/tasks",
-              body: { itemId, text, done: false },
-            })
+            .mutateAsync(() =>
+              commands.createTask({ itemId, text, done: false }),
+            )
             .then(() => setText(""))
             .catch(() => undefined);
         }}
@@ -1092,7 +1096,7 @@ export function RecoverRecords({
 }: {
   groups: {
     label: string;
-    path: string;
+    path: ArchiveKind;
     records: (
       | Attachment
       | Note
@@ -1112,7 +1116,7 @@ export function RecoverRecords({
     )[];
   }[];
 }) {
-  const action = useAction();
+  const action = useWrites();
   const groupsWithRecords = groups
     .map((g) => ({ ...g, records: g.records?.filter((r) => r.archived) ?? [] }))
     .filter((g) => g.records.length);
@@ -1146,10 +1150,11 @@ export function RecoverRecords({
               <button
                 disabled={action.isPending}
                 onClick={() =>
-                  action.mutate({
-                    path: `/${g.path}/${r.id}/recover`,
-                    body: { revision: r.revision },
-                  })
+                  action.mutate(() =>
+                    commands.setArchived(g.path, r.id, false, {
+                      revision: r.revision,
+                    }),
+                  )
                 }
               >
                 Recover
@@ -1170,11 +1175,10 @@ export function personLine(title: string, team: string) {
  * A tie's role, saved when its field loses focus, and the tie's Unlink. Pressing Unlink
  * right after editing the role saves the role first: the press is not lost to a button
  * disabled mid-click, and the save cannot land after the unlink and tie the person again.
- * A person's tie goes to /person-links; an agent's, with `path`, to /agent-links.
+ * A person's tie goes to /person-links, an agent's to /agent-links.
  */
 export function TieRole({
   tie,
-  path = "/person-links",
   name,
   unlinkName,
   relationship,
@@ -1189,7 +1193,6 @@ export function TieRole({
         targetId: string;
       }
     | { agentId: string; targetType: TieType; targetId: string };
-  path?: "/person-links" | "/agent-links";
   /** The role field's accessible name, such as "Role on Define SLOs". */
   name: string;
   unlinkName: string;
@@ -1198,9 +1201,15 @@ export function TieRole({
   unlinkDisabled?: boolean;
   placeholder: string;
 }) {
-  const action = useAction();
+  const action = useWrites();
   const saving = useRef<Promise<unknown>>(Promise.resolve());
   const [unlinking, setUnlinking] = useState(false);
+  const save = (next: string): Promise<unknown> =>
+    "agentId" in tie
+      ? commands.tieAgent({ ...tie, relationship: next })
+      : commands.linkPerson({ ...tie, relationship: next });
+  const unlink = (): Promise<unknown> =>
+    "agentId" in tie ? commands.untieAgent(tie) : commands.unlinkPerson(tie);
   return (
     <>
       <input
@@ -1213,7 +1222,7 @@ export function TieRole({
           const next = e.target.value.trim();
           if (next !== relationship)
             saving.current = action
-              .mutateAsync({ path, body: { ...tie, relationship: next } })
+              .mutateAsync(() => save(next))
               .catch(() => undefined);
         }}
       />
@@ -1225,9 +1234,7 @@ export function TieRole({
         onClick={() => {
           setUnlinking(true);
           void saving.current
-            .then(() =>
-              action.mutateAsync({ path: path + "/unlink", body: tie }),
-            )
+            .then(() => action.mutateAsync(unlink))
             .catch(() => undefined)
             .finally(() => setUnlinking(false));
         }}
@@ -1275,7 +1282,7 @@ export function PeopleLinks({
 }) {
   const Heading = headingLevel === 2 ? "h2" : "h3";
   const directory = useData<Answer<"/api/v1/people">>("/people?archived=false");
-  const action = useAction();
+  const action = useWrites();
   const [personId, setPersonId] = useState("");
   const [newName, setNewName] = useState("");
   const [relationship, setRelationship] = useState("");
@@ -1318,15 +1325,14 @@ export function PeopleLinks({
                 });
                 resolvedPersonId = created.id;
               }
-              await action.mutateAsync({
-                path: "/person-links",
-                body: {
+              await action.mutateAsync(() =>
+                commands.linkPerson({
                   personId: resolvedPersonId,
                   targetType,
                   targetId,
                   relationship: relationship.trim(),
-                },
-              });
+                }),
+              );
               setPersonId("");
               setNewName("");
               setRelationship("");
@@ -1405,7 +1411,7 @@ export function LinksSection({
   /** False where a tab already names the section. */
   heading?: boolean;
 }) {
-  const action = useAction();
+  const action = useWrites();
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
   const [description, setDescription] = useState("");
@@ -1441,10 +1447,11 @@ export function LinksSection({
               className="quiet"
               aria-label={"Archive link " + (l.title || l.url)}
               onClick={() =>
-                action.mutate({
-                  path: `/links/${l.id}/archive`,
-                  body: { revision: l.revision },
-                })
+                action.mutate(() =>
+                  commands.setArchived("links", l.id, true, {
+                    revision: l.revision,
+                  }),
+                )
               }
             >
               Archive
@@ -1459,16 +1466,15 @@ export function LinksSection({
             e.preventDefault();
             if (!url.trim()) return;
             await action
-              .mutateAsync({
-                path: "/links",
-                body: {
+              .mutateAsync(() =>
+                commands.createLink({
                   ownerType,
                   ownerId,
                   url: url.trim(),
                   title: title.trim(),
                   description: description.trim(),
-                },
-              })
+                }),
+              )
               .then(() => {
                 setTitle("");
                 setUrl("");
@@ -1748,7 +1754,7 @@ export function AgentChatsSection({
   steps?: Step[];
   disabled?: boolean;
 }) {
-  const action = useAction();
+  const action = useWrites();
   const [editing, setEditing] = useState<string | null>(null);
   const active = chats.filter((c) => !c.archived);
   return (
@@ -1766,11 +1772,12 @@ export function AgentChatsSection({
               initial={c}
               onSave={(fields) =>
                 action
-                  .mutateAsync({
-                    path: "/chats/" + c.id,
-                    method: "PATCH",
-                    body: { revision: c.revision, ...fields },
-                  })
+                  .mutateAsync(() =>
+                    commands.updateChat(c.id, {
+                      revision: c.revision,
+                      ...fields,
+                    }),
+                  )
                   .then(() => setEditing(null))
               }
               onCancel={() => setEditing(null)}
@@ -1795,10 +1802,11 @@ export function AgentChatsSection({
                   className="quiet"
                   aria-label={"Archive chat " + c.title}
                   onClick={() =>
-                    action.mutate({
-                      path: `/chats/${c.id}/archive`,
-                      body: { revision: c.revision },
-                    })
+                    action.mutate(() =>
+                      commands.setArchived("chats", c.id, true, {
+                        revision: c.revision,
+                      }),
+                    )
                   }
                 >
                   Archive
@@ -1815,10 +1823,9 @@ export function AgentChatsSection({
           chats={active}
           disabled={action.isPending}
           onSave={(fields) =>
-            action.mutateAsync({
-              path: "/chats",
-              body: { ownerType, ownerId, ...fields },
-            })
+            action.mutateAsync(() =>
+              commands.createChat({ ownerType, ownerId, ...fields }),
+            )
           }
         />
       )}
@@ -1841,7 +1848,7 @@ export function StepAgentChats({
   chats?: AgentChat[];
   disabled?: boolean;
 }) {
-  const action = useAction();
+  const action = useWrites();
   const [choice, setChoice] = useState("");
   const active = chats.filter((c) => !c.archived);
   const assigned = active.filter((c) => c.stepIds.includes(step.id));
@@ -1857,11 +1864,9 @@ export function StepAgentChats({
     return through ? [{ chat: c, through }] : [];
   });
   const assign = (chat: AgentChat, stepIds: string[]) =>
-    action.mutateAsync({
-      path: "/chats/" + chat.id,
-      method: "PATCH",
-      body: { revision: chat.revision, stepIds },
-    });
+    action.mutateAsync(() =>
+      commands.updateChat(chat.id, { revision: chat.revision, stepIds }),
+    );
   return (
     <section>
       <h3>
@@ -1937,15 +1942,14 @@ export function StepAgentChats({
           chats={active}
           disabled={action.isPending}
           onSave={(fields) =>
-            action.mutateAsync({
-              path: "/chats",
-              body: {
+            action.mutateAsync(() =>
+              commands.createChat({
                 ownerType: "roadmap",
                 ownerId: roadmapId,
                 ...fields,
                 stepIds: [step.id],
-              },
-            })
+              }),
+            )
           }
         />
       )}
@@ -1966,7 +1970,7 @@ export function GithubRefsSection({
   chats?: AgentChat[];
   disabled?: boolean;
 }) {
-  const action = useAction();
+  const action = useWrites();
   const [kind, setKind] = useState<"pr" | "commit">("pr");
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
@@ -1997,10 +2001,11 @@ export function GithubRefsSection({
               className="quiet"
               aria-label={"Archive GitHub " + (g.title || g.reference || g.url)}
               onClick={() =>
-                action.mutate({
-                  path: `/github/${g.id}/archive`,
-                  body: { revision: g.revision },
-                })
+                action.mutate(() =>
+                  commands.setArchived("github", g.id, true, {
+                    revision: g.revision,
+                  }),
+                )
               }
             >
               Archive
@@ -2015,9 +2020,8 @@ export function GithubRefsSection({
             e.preventDefault();
             if (!url.trim()) return;
             await action
-              .mutateAsync({
-                path: "/github",
-                body: {
+              .mutateAsync(() =>
+                commands.createGithubRef({
                   ownerType,
                   ownerId,
                   kind,
@@ -2026,8 +2030,8 @@ export function GithubRefsSection({
                   reference: reference.trim(),
                   description: description.trim(),
                   chatId: chatId || null,
-                },
-              })
+                }),
+              )
               .then(() => {
                 setUrl("");
                 setTitle("");

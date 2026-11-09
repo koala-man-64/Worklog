@@ -2,7 +2,8 @@ import { useState } from "react";
 import { localStore } from "./storage";
 import { useQueryClient } from "@tanstack/react-query";
 import { download, getDataContext } from "./api";
-import { useAction, useData } from "./hooks";
+import { useData, useWrites } from "./hooks";
+import { commands } from "./commands";
 import {
   AVATAR_COLORS,
   AVATAR_EYES,
@@ -18,7 +19,7 @@ export function Settings() {
   const client = useQueryClient();
   const query = useData<SettingsData>("/settings");
   const catalog = useData<AvatarCatalog>("/discussions/avatars");
-  const action = useAction();
+  const action = useWrites();
   const [label, setLabel] = useState("");
   // Null keeps the server's latest draw until the person picks one.
   const [avatar, setAvatar] = useState<string | null>(null);
@@ -72,13 +73,12 @@ export function Settings() {
               e.preventDefault();
               const form = new FormData(e.currentTarget);
               await action
-                .mutateAsync({
-                  path: "/settings",
-                  method: "PATCH",
-                  body: { timezone: form.get("timezone") },
-                })
-                .then((value) => {
-                  const settings = value as SettingsData;
+                .mutateAsync(() =>
+                  commands.updateSettings({
+                    timezone: String(form.get("timezone")),
+                  }),
+                )
+                .then((settings) => {
                   client.setQueryData<{
                     csrfToken: string;
                     today: string;
@@ -141,7 +141,7 @@ export function Settings() {
               disabled={action.isPending}
               onClick={async () => {
                 await action
-                  .mutateAsync({ path: "/backups" })
+                  .mutateAsync(() => commands.createBackup())
                   .then(() => setMessage("Backup created."))
                   .catch(() => undefined);
               }}
@@ -174,11 +174,11 @@ export function Settings() {
             checked={data.requireProposalApproval}
             disabled={action.isPending}
             onChange={(e) =>
-              action.mutate({
-                path: "/settings",
-                method: "PATCH",
-                body: { requireProposalApproval: e.target.checked },
-              })
+              action.mutate(() =>
+                commands.updateSettings({
+                  requireProposalApproval: e.target.checked,
+                }),
+              )
             }
           />
           Require my approval for agent proposals
@@ -194,11 +194,11 @@ export function Settings() {
             checked={data.agentRepositoryRegistration}
             disabled={action.isPending}
             onChange={(e) =>
-              action.mutate({
-                path: "/settings",
-                method: "PATCH",
-                body: { agentRepositoryRegistration: e.target.checked },
-              })
+              action.mutate(() =>
+                commands.updateSettings({
+                  agentRepositoryRegistration: e.target.checked,
+                }),
+              )
             }
           />
           Agents may register repositories
@@ -223,19 +223,17 @@ export function Settings() {
           onSubmit={async (e) => {
             e.preventDefault();
             await action
-              .mutateAsync({
-                path: "/credentials",
-                body: chosenAvatar
-                  ? { label, avatar: chosenAvatar }
-                  : { label },
-              })
+              .mutateAsync(() =>
+                commands.issueCredential(
+                  chosenAvatar ? { label, avatar: chosenAvatar } : { label },
+                ),
+              )
               .then((result) => {
-                const issued = (result as { token: string | null }).token;
+                const issued = result.token;
                 if (typeof issued === "string") {
                   setToken(issued);
-                  const agentId = (result as { agentId?: string }).agentId;
                   const agent = data.agents.find(
-                    (entry) => entry.id === agentId,
+                    (entry) => entry.id === result.agentId,
                   );
                   setCredentialMessage(
                     agent
@@ -342,12 +340,9 @@ export function Settings() {
               disabled={action.isPending || !!token}
               onClick={async () => {
                 await action
-                  .mutateAsync({
-                    path: `/credentials/${c.id}/rotate`,
-                    body: {},
-                  })
+                  .mutateAsync(() => commands.rotateCredential(c.id, {}))
                   .then((result) => {
-                    const issued = (result as { token?: unknown }).token;
+                    const issued = result.token;
                     const identity = data.agents.find(
                       (agent) => agent.id === c.agentId,
                     );
@@ -372,7 +367,7 @@ export function Settings() {
                 type="button"
                 disabled={action.isPending || !!token}
                 onClick={() =>
-                  action.mutate({ path: `/credentials/${c.id}/revoke` })
+                  action.mutate(() => commands.revokeCredential(c.id))
                 }
               >
                 {c.registeredActive > 0

@@ -13,13 +13,15 @@ import { Composer } from "./DiscussionComposer";
 import { DiscussionRolesPanel } from "./DiscussionRoles";
 import { DiscussionThread } from "./DiscussionThread";
 import { formatDiscussionDate } from "./discussionFormatting";
-import { useAction, useData } from "./hooks";
+import { useData, useWrites } from "./hooks";
+import { commands } from "./commands";
 import type {
   Answer,
   DiscussionList,
   DiscussionParticipants,
   DiscussionRoles,
   DiscussionSummary,
+  Schema,
 } from "./apiTypes";
 
 const PAGE = 50;
@@ -70,7 +72,7 @@ export function Discussions({ selected }: { selected?: string }) {
   const [roleOffset, setRoleOffset] = useState(0);
   const [selectedId, setSelectedId] = useState(selected ?? "");
   const [newPostOpen, setNewPostOpen] = useState(false);
-  const action = useAction();
+  const action = useWrites();
   const queryClient = useQueryClient();
   const list = useData<DiscussionList>(
     viewPath(view, stableQuery, contextFilter, repoFilter, offset),
@@ -115,11 +117,10 @@ export function Discussions({ selected }: { selected?: string }) {
     });
   }
 
-  async function createDiscussion(body: Record<string, unknown>) {
-    const result = (await action.mutateAsync({
-      path: "/discussions",
-      body,
-    })) as { discussion: DiscussionSummary };
+  async function createDiscussion(body: Schema["DiscussionCreate"]) {
+    const result = await action.mutateAsync(() =>
+      commands.startDiscussion(body),
+    );
     setNewPostOpen(false);
     setSelectedId(result.discussion.id);
     window.history.replaceState(

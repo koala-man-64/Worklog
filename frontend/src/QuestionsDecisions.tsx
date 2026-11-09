@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { AgentTieFold, useTiesOn } from "./AgentTies";
 import { ErrorMessage, Markdown } from "./components";
-import { useAction } from "./hooks";
+import { useWrites } from "./hooks";
+import { commands } from "./commands";
 import type { RoadmapDecision, RoadmapQuestion } from "./apiTypes";
 
 /** A roadmap's questions: open ones first, then the answered ones with their answers. */
@@ -14,7 +15,7 @@ export function QuestionsSection({
   questions?: RoadmapQuestion[];
   disabled?: boolean;
 }) {
-  const action = useAction();
+  const action = useWrites();
   const [title, setTitle] = useState("");
   const [editing, setEditing] = useState<{
     id: string;
@@ -29,11 +30,9 @@ export function QuestionsSection({
   );
   const save = (q: RoadmapQuestion, fields: Partial<RoadmapQuestion>) =>
     action
-      .mutateAsync({
-        path: "/questions/" + q.id,
-        method: "PATCH",
-        body: { revision: q.revision, ...fields },
-      })
+      .mutateAsync(() =>
+        commands.updateQuestion(q.id, { revision: q.revision, ...fields }),
+      )
       .then(() => setEditing(null));
   const row = (q: RoadmapQuestion) =>
     editing?.id === q.id && !disabled ? (
@@ -85,10 +84,11 @@ export function QuestionsSection({
                 aria-label={"Archive question " + q.title}
                 disabled={action.isPending}
                 onClick={() =>
-                  action.mutate({
-                    path: `/questions/${q.id}/archive`,
-                    body: { revision: q.revision },
-                  })
+                  action.mutate(() =>
+                    commands.setArchived("questions", q.id, true, {
+                      revision: q.revision,
+                    }),
+                  )
                 }
               >
                 Archive
@@ -126,10 +126,13 @@ export function QuestionsSection({
             e.preventDefault();
             if (!title.trim()) return;
             await action
-              .mutateAsync({
-                path: "/questions",
-                body: { roadmapId, title: title.trim(), details: "" },
-              })
+              .mutateAsync(() =>
+                commands.createQuestion({
+                  roadmapId,
+                  title: title.trim(),
+                  details: "",
+                }),
+              )
               .then(() => setTitle(""))
               .catch(() => undefined);
           }}
@@ -244,7 +247,7 @@ export function DecisionsSection({
   decisions?: RoadmapDecision[];
   disabled?: boolean;
 }) {
-  const action = useAction();
+  const action = useWrites();
   const [editing, setEditing] = useState<string | null>(null);
   const active = decisions.filter((d) => !d.archived);
   const ties = useTiesOn(
@@ -264,11 +267,12 @@ export function DecisionsSection({
             submit="Save decision"
             onSave={(fields) =>
               action
-                .mutateAsync({
-                  path: "/decisions/" + d.id,
-                  method: "PATCH",
-                  body: { revision: d.revision, ...fields },
-                })
+                .mutateAsync(() =>
+                  commands.updateDecision(d.id, {
+                    revision: d.revision,
+                    ...fields,
+                  }),
+                )
                 .then(() => setEditing(null))
             }
             onCancel={() => setEditing(null)}
@@ -294,10 +298,11 @@ export function DecisionsSection({
                     aria-label={"Archive decision " + d.title}
                     disabled={action.isPending}
                     onClick={() =>
-                      action.mutate({
-                        path: `/decisions/${d.id}/archive`,
-                        body: { revision: d.revision },
-                      })
+                      action.mutate(() =>
+                        commands.setArchived("decisions", d.id, true, {
+                          revision: d.revision,
+                        }),
+                      )
                     }
                   >
                     Archive
@@ -322,10 +327,9 @@ export function DecisionsSection({
           submit="Record decision"
           disabled={action.isPending}
           onSave={(fields) =>
-            action.mutateAsync({
-              path: "/decisions",
-              body: { roadmapId, ...fields },
-            })
+            action.mutateAsync(() =>
+              commands.createDecision({ roadmapId, ...fields }),
+            )
           }
         />
       )}

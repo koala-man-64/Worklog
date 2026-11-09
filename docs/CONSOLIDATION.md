@@ -520,7 +520,7 @@ What changed: Settings lists them under "Agent identities", each as "Identity" a
 
 #### 5.3 · Typed responses, then typed commands
 
-Status: In progress · Branch: `claude/golden-responses` · PR: [#139](https://github.com/koala-man-64/Worklog/pull/139); typing follows route by route
+Status: Merged · Branches: `claude/golden-responses` to `claude/typed-frontend-5` · PRs: [#139](https://github.com/koala-man-64/Worklog/pull/139) to [#144](https://github.com/koala-man-64/Worklog/pull/144), [#147](https://github.com/koala-man-64/Worklog/pull/147) to [#154](https://github.com/koala-man-64/Worklog/pull/154), [#156](https://github.com/koala-man-64/Worklog/pull/156), [#157](https://github.com/koala-man-64/Worklog/pull/157), [#159](https://github.com/koala-man-64/Worklog/pull/159) to [#168](https://github.com/koala-man-64/Worklog/pull/168)
 
 None of the 146 operations has a typed response; the frontend keeps seven hand-written type files and three data-access styles. Type responses route by route, under golden tests (see *Rules*), then route every write through typed commands and delete the hand-written types. Findings: A-03, A-13.
 
@@ -587,6 +587,13 @@ Done so far:
   - A step's status menu shows whatever status the step holds; `steps.status` has no CHECK.
   - Search never returns proposals, so the dead link to one is gone. A day entry's status always comes from the API, which falls back to the item's status now.
   - Whole records for tests come from `fixtures.ts`.
+- **Typed commands, fifth batch.** Every write the frontend makes goes through a typed command in `commands.ts`, and `useAction`, which took any path and body, is gone.
+  - A page's writes share one pending state and error (`useWrites`), and `mutateAsync` gives each command's own answer, so Settings reads a new token without a cast.
+  - `useWrites` starts a write inside `mutate`. A mutation calls its function a few microtasks later, after React has put a controlled checkbox or select back to its rendered value. Started there, six writes would have sent the old value: Planned and Worked on Today, Settings' two switches, and a work item's step and a roadmap's parent. `hooks.test.tsx` pins it.
+  - Writes never wait for the browser to report itself online, since the server runs on this machine, and a write that throws before its request is under way fails as a refused one does. The review of this batch found both, and `hooks.test.tsx` pins them.
+  - One command archives and recovers each kind whose routes are `/{kind}/{id}/archive` and `/recover` (`setArchived`). A tie's role and its Unlink pick the person's or the agent's route from the tie itself.
+  - The context picker's choices are typed as the work items, roadmaps and steps it offers, which a role's context must be. The composer builds a thread's body as the schema types it.
+  - The four writes that called `request` themselves go through commands too: a repository's fields, a day's reflection, an import's preview and a page view's count.
 
 #### 5.4 · Frontend layout
 
