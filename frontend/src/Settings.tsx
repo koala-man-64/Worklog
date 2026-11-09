@@ -13,7 +13,8 @@ import {
   avatarParts,
   type AvatarParts,
 } from "./Avatar";
-import { ErrorMessage, formatBytes } from "./components";
+import { ErrorMessage } from "./ui/Messages";
+import { formatBytes } from "./ui/format";
 import type { AvatarCatalog, Settings as SettingsData } from "./apiTypes";
 export function Settings() {
   const client = useQueryClient();

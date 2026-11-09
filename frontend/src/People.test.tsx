@@ -5,12 +5,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { setDataContext } from "./api";
 import { People, PersonDetailView, telephone } from "./People";
-import {
-  AgentChatsSection,
-  GithubRefsSection,
-  LinksSection,
-  PeopleLinks,
-} from "./components";
+import { AgentChatsSection } from "./sections/AgentChats";
+import { GithubRefsSection } from "./sections/GithubRefs";
+import { LinksSection } from "./sections/Links";
+import { PeopleLinks } from "./sections/PeopleLinks";
 import type {
   Item,
   Person,

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useData, useWrites } from "./hooks";
 import { commands } from "./commands";
-import { Empty, ErrorMessage } from "./components";
+import { Empty, ErrorMessage } from "./ui/Messages";
 import { RepositoryBadges } from "./RepositoryControls";
 import type { AgentRun, Answer, CoordinationUpdate } from "./apiTypes";
 

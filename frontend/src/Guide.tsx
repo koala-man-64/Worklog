@@ -1,7 +1,7 @@
 import { useEffect, useMemo, type ReactNode } from "react";
 import guide from "../../docs/GUIDE.md?raw";
 import agentGuide from "../../docs/AGENT-GUIDE.md?raw";
-import { Markdown } from "./components";
+import { Markdown } from "./ui/Markdown";
 import { headings, type Heading } from "./guideAnchors";
 
 type Section = { heading: Heading; children: Heading[] };

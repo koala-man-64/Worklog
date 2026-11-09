@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useData } from "./hooks";
-import { ErrorMessage } from "./components";
+import { ErrorMessage } from "./ui/Messages";
 import { Pages } from "./Coordination";
 import type { Answer, ProposalEntry } from "./apiTypes";
 

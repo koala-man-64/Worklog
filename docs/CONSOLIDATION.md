@@ -597,9 +597,15 @@ Done so far:
 
 #### 5.4 · Frontend layout
 
-Status: Not started · Branch: — · PR: —
+Status: In progress · Branch: `claude/frontend-layout-1` · PR: —; the pager, `pages/` and the styles follow
 
 Split `components.tsx` into `ui/`, `sections/` and `pages/`, with one pager instead of seven, and split `styles.css` per page. `styles.css` changed in 44 of the first 86 commits. Findings: A-12, A-19.
+
+Done so far:
+- **The grab-bag goes.** `components.tsx` is split into two directories, and each page imports what it uses from there. No code changes, only where each piece lives.
+  - `ui/`: the building blocks: Markdown, ErrorMessage and Empty, the resize handle, the status menu, DraftField, Tabs, and byte sizes.
+  - `sections/`: the record sections: files, notes and the scratchpad, the checklist, history, recovering archived records, people and their ties, links, agent chats and GitHub references.
+  - Its tests split the same way, each beside the module it tests.
 
 #### 5.5a · This plan in the repository
 

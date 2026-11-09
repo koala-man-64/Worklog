@@ -2,15 +2,12 @@ import { useState } from "react";
 import { useData, useWrites } from "./hooks";
 import { commands } from "./commands";
 import { AgentTies } from "./AgentTies";
-import {
-  DraftField,
-  Empty,
-  ErrorMessage,
-  Files,
-  PeopleLinks,
-  RecoverRecords,
-  statusLabel,
-} from "./components";
+import { Files } from "./sections/Files";
+import { PeopleLinks } from "./sections/PeopleLinks";
+import { RecoverRecords } from "./sections/RecoverRecords";
+import { DraftField } from "./ui/DraftField";
+import { Empty, ErrorMessage } from "./ui/Messages";
+import { statusLabel } from "./ui/Status";
 import { Coordination, OpenRuns, Pages } from "./Coordination";
 import { LinkPicker } from "./LinkPicker";
 import { RecordReminders } from "./RecordReminders";

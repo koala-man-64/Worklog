@@ -3,13 +3,10 @@ import { AgentTies } from "./AgentTies";
 import { contextStorageKey } from "./api";
 import { commands } from "./commands";
 import { Pages } from "./Coordination";
-import {
-  ChangeHistory,
-  DraftField,
-  Empty,
-  ErrorMessage,
-  Markdown,
-} from "./components";
+import { ChangeHistory } from "./sections/History";
+import { DraftField } from "./ui/DraftField";
+import { Markdown } from "./ui/Markdown";
+import { Empty, ErrorMessage } from "./ui/Messages";
 import {
   exactDiscussionDate,
   formatDiscussionDate,

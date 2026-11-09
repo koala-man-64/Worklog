@@ -4,13 +4,10 @@ import { ApiError, download, request, getDataContext } from "./api";
 import { useData, useWrites } from "./hooks";
 import { commands } from "./commands";
 import { AgentTies } from "./AgentTies";
-import {
-  Empty,
-  ErrorMessage,
-  Files,
-  Markdown,
-  formatBytes,
-} from "./components";
+import { Files } from "./sections/Files";
+import { Markdown } from "./ui/Markdown";
+import { Empty, ErrorMessage } from "./ui/Messages";
+import { formatBytes } from "./ui/format";
 import type {
   Answer,
   Attachment,

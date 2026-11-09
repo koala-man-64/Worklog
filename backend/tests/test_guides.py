@@ -147,7 +147,8 @@ def test_quoted_interface_text_exists_in_the_frontend(guide):
     def flat(text: str) -> str:
         return " ".join(html.unescape(text).split())
 
-    source = flat("\n".join(path.read_text(encoding="utf-8") for path in sorted(FRONTEND.glob("*.ts*"))
+    # rglob: the building blocks and record sections live in ui/ and sections/.
+    source = flat("\n".join(path.read_text(encoding="utf-8") for path in sorted(FRONTEND.rglob("*.ts*"))
                             if not path.name.endswith((".test.ts", ".test.tsx")) and path.name != "generatedApi.ts"))
     quoted = {flat(phrase) for phrase in re.findall(r'"([^"\n]+)"', prose(guide.read_text(encoding="utf-8")))}
     missing = sorted(phrase for phrase in quoted if phrase not in source)

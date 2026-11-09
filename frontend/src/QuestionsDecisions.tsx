@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AgentTieFold, useTiesOn } from "./AgentTies";
-import { ErrorMessage, Markdown } from "./components";
+import { Markdown } from "./ui/Markdown";
+import { ErrorMessage } from "./ui/Messages";
 import { useWrites } from "./hooks";
 import { commands } from "./commands";
 import type { RoadmapDecision, RoadmapQuestion } from "./apiTypes";

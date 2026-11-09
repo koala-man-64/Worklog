@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { commands } from "./commands";
-import { ErrorMessage } from "./components";
+import { ErrorMessage } from "./ui/Messages";
 import { refreshAfterWrite } from "./hooks";
 import type { ItemListed } from "./apiTypes";
 

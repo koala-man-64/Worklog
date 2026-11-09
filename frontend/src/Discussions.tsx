@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getDataContext } from "./api";
-import { ErrorMessage, Empty } from "./components";
+import { Empty, ErrorMessage } from "./ui/Messages";
 import {
   ContextPicker,
   ContextReference,

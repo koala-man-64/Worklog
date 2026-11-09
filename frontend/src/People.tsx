@@ -2,17 +2,11 @@ import { useState, type ReactNode } from "react";
 import { commands } from "./commands";
 import { useCommand, useData, useWrites } from "./hooks";
 import { AgentTies } from "./AgentTies";
-import {
-  DraftField,
-  Empty,
-  ErrorMessage,
-  History,
-  ITEM_STATUSES,
-  StatusSelect,
-  TieRole,
-  personLine,
-  statusLabel,
-} from "./components";
+import { History } from "./sections/History";
+import { personLine, TieRole } from "./sections/PeopleLinks";
+import { DraftField } from "./ui/DraftField";
+import { Empty, ErrorMessage } from "./ui/Messages";
+import { ITEM_STATUSES, statusLabel, StatusSelect } from "./ui/Status";
 import { LinkPicker } from "./LinkPicker";
 import type {
   Answer,

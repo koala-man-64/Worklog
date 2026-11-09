@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { contextStorageKey } from "./api";
 import { Avatar } from "./Avatar";
-import { ErrorMessage, statusLabel } from "./components";
+import { ErrorMessage } from "./ui/Messages";
+import { statusLabel } from "./ui/Status";
 import { commands } from "./commands";
 import { useData, useWrites } from "./hooks";
 import { Icon } from "./icons";
