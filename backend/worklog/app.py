@@ -51,7 +51,7 @@ from .discussions import bind_credential, communication_actor, registered_by, re
 from .guard import RequestGuard, error_response, read_body
 from .maintenance import prune_receipts
 from .plans import PlanService
-from .proposals import ProposalService, approval_required
+from .proposals import ProposalService, approval_required, open_proposals
 from .records import check_owner, people_on, support_record
 from .recovery import automatic_backup, backup_database, list_backups, write_export
 from .registration import (
@@ -710,11 +710,12 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                         "resources": ResourceService().list(c, limit=limit, offset=offset),
                         # Upcoming releases with their counts, or those holding the item; `releases show` reads one.
                         "releases": ReleaseService().list(c, target_type="item" if itemId else None, target_id=itemId,
-                                                          limit=limit, offset=offset)}
+                                                          limit=limit, offset=offset),
+                        # Open proposals as summaries (K18); `proposal show` reads one whole.
+                        "proposals": open_proposals(c, actor, limit, offset)}
         items_result = work.items.list(item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset)
         return {"day": work.items.day(date or current), "workItems": items_result,
-                "roadmaps": plans.list(), "people": work.people.list(), "proposals": proposals.list(request.state.actor),
-                **activity}
+                "roadmaps": plans.list(), "people": work.people.list(), **activity}
 
     @app.get("/api/v1/settings", dependencies=[Depends(person_only)], response_model=out.Settings)
     def settings() -> dict:

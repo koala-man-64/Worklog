@@ -36,6 +36,13 @@ APPLIED_TO_RECORD = frozenset({"item.create", "roadmap.create", "ticket.create",
 HISTORY = ("SELECT p.id,p.title,p.status,p.auto_approved,p.actor_label,cc.agent_id,p.created_at,p.submitted_at,"
            "p.updated_at,CASE WHEN json_valid(p.operations) THEN json_array_length(p.operations) ELSE 0 END"
            " FROM proposals p LEFT JOIN communication_credentials cc ON cc.credential_id=p.actor_id")
+# What GET /context lists of proposals (K18): the open ones, a draft or one submitted for review,
+# oldest first, each without its changes. A closed one, and any proposal's changes, is one
+# GET /proposals or `proposal show` away; the context is read at the start of every agent's chat.
+OPEN = ("SELECT p.id,p.title,p.status,p.revision,p.actor_label,cc.agent_id,p.created_at,p.submitted_at,p.updated_at,"
+        "CASE WHEN json_valid(p.operations) THEN json_array_length(p.operations) ELSE 0 END,p.actor_id"
+        " FROM proposals p LEFT JOIN communication_credentials cc ON cc.credential_id=p.actor_id"
+        " WHERE p.status IN ('draft','submitted') ORDER BY p.created_at,p.id")
 APPLIED_TO = ("p.status='approved' AND p.id IN "
               "(SELECT proposal_id FROM proposal_targets WHERE target_type=? AND target_id=?)")
 MADE_BY = ("p.actor_kind='agent' AND p.actor_id IN "
@@ -189,6 +196,18 @@ def can_see(conn, row, actor):
     return row["status"] == "withdrawn" and row["submitted_at"] is not None
 
 
+def open_proposals(conn, actor, limit, offset=0) -> dict:
+    """The open proposals the caller may see, as the context lists them (K18): a page of summaries
+    with the number of changes each holds, and how many there are. can_see decides, as for every
+    other read, so an agent never finds another agent's draft here."""
+    visible = [row for row in conn.execute(OPEN).fetchall()
+               if can_see(conn, {"status": row[2], "actor_id": row[10], "submitted_at": row[7]}, actor)]
+    return {"items": [{"id": row[0], "title": row[1], "status": row[2], "revision": row[3], "actorLabel": row[4],
+                       "agentId": row[5], "createdAt": row[6], "submittedAt": None if row[2] == "draft" else row[7],
+                       "updatedAt": row[8], "operationCount": row[9]} for row in visible[offset:offset + limit]],
+            "total": len(visible)}
+
+
 def _visible(conn, row, actor):
     if not can_see(conn, row, actor):
         raise AppError(404, "not_found", "Proposal not found")
@@ -253,7 +272,7 @@ class ProposalService:
 
     def list(self, actor, status=None, limit=None, offset=0):
         """The proposals the caller may see, oldest first: a page of `limit` from `offset`, or with no
-        limit every one (GET /context). Visibility is decided on each row's status and owner alone,
+        limit every one. Visibility is decided on each row's status and owner alone,
         before the page's proposals are read whole. Both reads see one snapshot, so a proposal that
         turns back into a draft between them is never shown whole to another agent."""
         if status is not None and status not in {"draft", "submitted", "approved", "rejected", "withdrawn"}:
