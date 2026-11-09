@@ -671,9 +671,19 @@ Done so far:
 
 #### 5.7 · Hash-locked dependencies
 
-Status: Not started · Branch: — · PR: —
+Status: Merged · Branch: `claude/hash-locks` · PR: [#175](https://github.com/koala-man-64/Worklog/pull/175)
 
 Use pip-tools with separate runtime and dev lock files, installed with `--require-hashes`, and add an advisory `pip-audit` job (K11). Findings: C-12, REM-24.
+
+Done:
+- **Two locks, each pin with its file hashes,** compiled by pip-tools from `pyproject.toml` against PyPI alone. Every version stays as it was.
+  - `requirements.lock`: what Worklog needs to run, 19 packages, and setuptools, the build backend Setup installs the project with.
+  - `requirements-dev.lock`: those as they are, plus pytest, ruff, mypy and httpx with what they need.
+  - `wheel` went: setuptools builds without it. `colorama` is only in the dev lock, since pytest alone needs it, on Windows.
+- **Setup installs the runtime lock with `--require-hashes`, and `-Dev` the dev lock instead** (REM-24). A new runtime environment has no pytest, ruff or mypy; pip removes nothing, so an existing `.venv` keeps them until it is made again. A checkout that runs the checks needs `Setup.ps1 -Dev`.
+- **CI:** the Backend job installs the dev lock with `--require-hashes`. End-to-end runs Setup as documented, so Worklog runs on the runtime lock alone there.
+- **`pip-audit`** joins `npm audit` in the advisory Dependency audit job, on the runtime lock.
+- `test_dependency_locks.py` checks that both locks pin what `pyproject.toml` names, with hashes, and that the dev lock holds the runtime one as it is. `docs/DEVELOPMENT.md` says how to compile them.
 
 ## Findings index
 

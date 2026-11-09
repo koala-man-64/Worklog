@@ -1,9 +1,11 @@
 # Developing Worklog
 
-The checks to run on a change, and what to update in the guides when the app changes. The
+The checks to run on a change, how the Python dependencies are locked, and what to update in the guides when the app changes. The
 [README](../README.md) covers installing Worklog, which a checkout needs before these run.
 
 ## Checks
+
+Run `./scripts/Setup.ps1 -Dev` in the checkout first: the checks need pytest, ruff and mypy, which Setup leaves out without it.
 
 ```powershell
 ./.venv/Scripts/python.exe -m pytest
@@ -24,6 +26,18 @@ npm run test:e2e
 ```
 
 Use an isolated `WORKLOG_DATA_DIR` for manual or browser tests; never point tests at your personal database. Lifecycle smoke checks should cover start, repeated start, health/check, stop, refusal of an unrelated port listener, and a restart against the same data. Restore tests cover invalid candidates, an active server lock, credential revocation, and failed replacement preservation. Inspect readable export records and verify the manifest hashes when testing archive workflows.
+
+## Dependencies
+
+`requirements.lock` pins every package Worklog needs to run, and `requirements-dev.lock` adds the tools the checks run. Both hold each package's file hashes, and Setup and CI install them with `--require-hashes`, so pip installs exactly those files. Both come from `pyproject.toml` with pip-tools. To change a dependency, change its pin in `pyproject.toml`, then compile both locks. Run pip-tools from a virtual environment of its own, such as `pipx install pip-tools`, on Windows with CI's Python (3.14), since pip-compile resolves for the system it runs on: compiled elsewhere, the dev lock would lose `colorama`, which pytest needs on Windows. Run it with no user pip configuration, so the locks come from PyPI alone:
+
+```powershell
+$env:PIP_CONFIG_FILE = 'nul'
+pip-compile --all-build-deps --allow-unsafe --generate-hashes --index-url=https://pypi.org/simple --no-emit-index-url --output-file=requirements.lock --strip-extras pyproject.toml
+pip-compile --all-build-deps --allow-unsafe --extra=dev --generate-hashes --index-url=https://pypi.org/simple --no-emit-index-url --output-file=requirements-dev.lock --strip-extras pyproject.toml
+```
+
+pip-compile keeps a lock's other pins as they are; `--upgrade-package NAME` moves one. `test_dependency_locks.py` checks that both locks pin what `pyproject.toml` names, with hashes, and that the dev lock holds the runtime one as it is: when they part, give the package the runtime lock's pin in the dev lock with `--upgrade-package NAME==VERSION`. CI's advisory Dependency audit job runs `pip-audit` on the runtime lock, as it runs `npm audit` on the frontend's.
 
 ## Documentation
 
