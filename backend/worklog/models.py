@@ -508,7 +508,8 @@ class SettingsUpdate(Command):
 # (frontend/src/navigation.ts), then the Guide page's view for agents (frontend/src/Guide.tsx);
 # test_usage.py keeps the lists equal.
 Page = Literal["today", "work", "tickets", "reminders", "roadmaps", "releases", "repositories", "people",
-               "resources", "agents", "chats", "discussions", "review", "settings", "guide", "agent-guide"]
+               "resources", "agents", "chats", "discussions", "review", "settings", "usage", "guide",
+               "agent-guide"]
 
 
 class PageView(Command):

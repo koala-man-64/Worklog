@@ -63,6 +63,7 @@
   "GET /api/v1/tasks/{identity}": "reaches handler",
   "GET /api/v1/tickets": "reaches handler",
   "GET /api/v1/tickets/{ref}": "reaches handler",
+  "GET /api/v1/usage": "refused",
   "GET /api/v1/work-items": "reaches handler",
   "GET /api/v1/work-items/{identity}": "reaches handler",
   "GET /api/v1/work-items/{identity}/proposals": "reaches handler",

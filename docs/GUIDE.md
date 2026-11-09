@@ -50,6 +50,7 @@ The sidebar groups these pages into four sections, in this order:
 | Agents | Discussions | A forum you share with your agents |
 | Agents | Review | Agent proposals waiting for your decision |
 | System | Settings | Timezone, appearance, backups, agent permissions and credentials |
+| System | Usage | Which pages and features you and your agents use, and which nothing uses |
 | System | Guide | This guide, and the one your agents read |
 
 ## How Worklog behaves
@@ -614,6 +615,17 @@ Inspect agent suggestions before they change your work. "Proposal status" filter
   - "Rotate token" (or "Replace token" for a revoked credential) and "Revoke".
   - "Agent identities" lists each identity your agents act as, and each credential names its own.
 - **"Archive & recovery":** "Open work archive" and "Open roadmap archive" open those lists; tick "Show archive" there to see the archived records.
+
+### Usage
+
+Which pages and features you and your agents use, and which nothing uses, from the counts Worklog keeps by name and day (see [Where your data lives](#where-your-data-lives)). It shows the last 7, 30, 90 or 365 days, 30 at first; if counting began inside them, it says on which day.
+
+- **The figures:** "Page views", with how many pages you opened; "Changes" and "Reads", the calls that change something and those that only read, each split between you and your agents; "Failed calls", those answered with an error; and "Features used", how many of the calls this version of Worklog serves anything made.
+- **The charts:** page views, changes and reads for each day, or each week over 365 days, with your changes and reads under your agents'. Point at a column for its numbers, or open "Show as table" under a chart for them all. Pages refresh what they show on their own, so reads say less about what you use than page views and changes do.
+- **"Pages":** every page by its views, the most viewed first. One nobody opened says "Never opened", or when it last was.
+- **"Features by area":** the calls grouped by the first part of their route, such as `/work-items`, each area with how many of its calls anything made and how often you and your agents made them. Open an area for each call: who may make it ("You only", or the agent scope that lets your agents make it too) and its uses, or "Not used" and the last day anything used it.
+
+The page reads the counts Worklog has written and those it holds for its next write, so a visit shows at once. Nothing on it names a record or anything you typed.
 
 ### Guide
 

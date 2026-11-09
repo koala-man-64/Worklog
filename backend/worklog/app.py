@@ -12,6 +12,7 @@ import sqlite3
 import tempfile
 import time
 from collections.abc import Callable
+from datetime import date
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
@@ -70,7 +71,7 @@ from .ticket_api import install_ticket_routes
 from .tickets import TicketService
 from .transcripts import MESSAGE_LIMIT, TranscriptReader, TranscriptRoots
 from .usage import FILE as USAGE_FILE
-from .usage import Usage, UsageMiddleware
+from .usage import Usage, UsageMiddleware, catalog, live_report
 
 logger = logging.getLogger("worklog")
 
@@ -274,6 +275,16 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         # The browser counts each sidebar page the person opens, by its name alone (usage.py).
         app.state.usage.record("page", body.page, "person")
         return {"ok": True}
+
+    @app.get("/api/v1/usage", response_model=out.UsageReport)
+    def usage_report(days: int = Query(30, ge=1, le=3650, description="How many days to today it covers")) -> dict:
+        # The Usage page: the counts in usage.sqlite3 and those held for the next write, each once, to
+        # Worklog's today; what nothing used goes by what this version serves (usage.live_report).
+        try:
+            return live_report(app.state.usage, days, date.fromisoformat(today(worklog_timezone())),
+                               catalog(app.router.routes), __version__)
+        except ValueError as exc:
+            raise AppError(503, "usage_unavailable", str(exc)) from exc
 
     @app.get("/api/v1/work-items", response_model=out.WorkItems)
     def items(view: str = "all", archived: bool = False,

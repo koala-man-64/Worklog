@@ -43,6 +43,9 @@ HTML = b"<html><body><h1>Imported plan</h1><h2>First step</h2><p>Text</p></body>
 KEYED = {"suggested": "<avatar>", "cursor": "<cursor>", "token": "<token>"}
 # Reads whose answer is not JSON: files and archives, pinned by their own tests.
 NOT_JSON = {"/export", "/imports/{identity}/download"}
+# Reads whose answer counts the golden world's own calls, by date: every new route or call, and every
+# new day, would change it. test_usage.py pins it, and agent_route_matrix.json pins the agent's refusal.
+COUNTED = {"/usage"}
 
 
 class World:
@@ -257,7 +260,7 @@ def answers(world: World) -> dict[str, dict]:
                                for key, body in world.writes.items()}
     for template, operations in sorted(world.app.openapi()["paths"].items()):
         route = template.removeprefix("/api/v1")
-        if "get" not in operations or not template.startswith("/api/v1") or route in NOT_JSON:
+        if "get" not in operations or not template.startswith("/api/v1") or route in NOT_JSON | COUNTED:
             continue
         for actor, client in (("person", world.person), ("agent", world.agent)):
             response = client.get("/api/v1" + concrete(route, world.ids, world.today))

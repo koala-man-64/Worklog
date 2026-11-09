@@ -41,6 +41,7 @@ export const sections: Section[] = [
     label: "System",
     destinations: [
       { route: "settings", icon: "settings", label: "Settings" },
+      { route: "usage", icon: "usage", label: "Usage" },
       { route: "guide", icon: "guide", label: "Guide" },
     ],
   },

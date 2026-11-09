@@ -10,7 +10,8 @@ The serve process holds the counts in memory and adds them to usage.sqlite3 in t
 minute and when it stops, so a crash loses at most a minute of them. When it starts it writes there
 the features it serves, which is how a report tells what nothing used. The file is not the database:
 backups, exports and restores leave it alone, and deleting it starts the counts over. `worklog usage`
-reads it offline (report).
+reads it offline (report); the Usage page reads it through the running server, with the counts held
+for its next write (live_report).
 """
 
 from __future__ import annotations
@@ -18,8 +19,9 @@ from __future__ import annotations
 import logging
 import sqlite3
 import threading
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from contextlib import closing
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta, tzinfo
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, get_args
@@ -140,6 +142,9 @@ class Usage:
         self.path = path
         self._timezone, self._clock = timezone, clock
         self._lock = threading.Lock()
+        # Held by a flush from taking the counts to putting back those its write could not add, and by
+        # snapshot while it reads: each count is then in the file or held, never in both or neither.
+        self._flushing = threading.Lock()
         self._held: dict[Key, list[int]] = {}  # each key's [uses, failures]
         self._zone: tzinfo = UTC
         self._zone_name = "UTC"
@@ -160,6 +165,13 @@ class Usage:
         """A copy of the counts not yet written: (day, surface, feature, actor) -> (uses, failures)."""
         with self._lock:
             return {key: (uses, failures) for key, (uses, failures) in self._held.items()}
+
+    def snapshot[T](self, read: Callable[[], T]) -> tuple[T, dict[Key, tuple[int, int]]]:
+        """read()'s answer, which reads the file, and the counts held then (held), with no flush
+        between them: a flush adds counts to the file and takes them from those held, so one between
+        the two would show its counts in neither, or in both. A flush waits until this returns."""
+        with self._flushing:
+            return read(), self.held()
 
     def record(self, surface: str, feature: str, actor: str, *, failed: bool = False) -> None:
         """Counts one use of a feature, on today's date in Worklog's timezone."""
@@ -189,15 +201,16 @@ class Usage:
         """Adds the counts held to the file and, unless told not to, takes up a changed timezone for
         the next ones, which reads the database. Counts a failed write could not add stay held for
         the next flush."""
-        with self._lock:
-            batch, self._held = self._held, {}
-        written = not batch or self._write(batch)
-        if not written:
+        with self._flushing:
             with self._lock:
-                for key, (uses, failures) in batch.items():
-                    counts = self._held.setdefault(key, [0, 0])
-                    counts[0] += uses
-                    counts[1] += failures
+                batch, self._held = self._held, {}
+            written = not batch or self._write(batch)
+            if not written:
+                with self._lock:
+                    for key, (uses, failures) in batch.items():
+                        counts = self._held.setdefault(key, [0, 0])
+                        counts[0] += uses
+                        counts[1] += failures
         if refresh_zone:
             self._refresh_zone()
         return written
@@ -275,31 +288,74 @@ def _zone(name: str | None) -> tzinfo:
         return UTC
 
 
-def report(path: Path, days: int = 30, today: date | None = None) -> dict[str, Any]:
-    """What was used in the `days` days to today, and what the last version to run serves that nothing
-    used in them, from the file alone. Today is Worklog's, in the timezone it last wrote counts in.
-    Each page and call carries the last day anything used it, if ever; a call's scope is null when
-    the last version to run no longer serves it."""
+def _start(today: date, days: int) -> str:
+    """The first of the `days` days to today."""
+    return (today - timedelta(days=days - 1)).isoformat()
+
+
+@dataclass
+class Counts:
+    """What a report sums: from its window's first day (`start`) on, each feature's uses and failures
+    by actor, and each day's by surface, actor and whether the call was a read (a GET); and, over
+    every day, the first day anything was used and the last day each feature was."""
+
+    start: str
+    since: str | None = None
+    # (surface, feature) -> the last day it was used
+    last: dict[tuple[str, str], str] = field(default_factory=dict)
+    # (surface, feature, actor) -> [uses, failures]
+    features: dict[tuple[str, str, str], list[int]] = field(default_factory=dict)
+    # (day, surface, actor, read) -> [uses, failures]
+    days: dict[tuple[str, str, str, bool], list[int]] = field(default_factory=dict)
+
+    def add(self, day: str, surface: str, feature: str, actor: str, uses: int, failures: int) -> None:
+        """Takes in one count the file doesn't hold, such as one held for the next write."""
+        self.since = min(self.since or day, day)
+        self.last[surface, feature] = max(self.last.get((surface, feature), day), day)
+        if day >= self.start:
+            for sums in (self.features.setdefault((surface, feature, actor), [0, 0]),
+                         self.days.setdefault((day, surface, actor, feature.startswith("GET ")), [0, 0])):
+                sums[0] += uses
+                sums[1] += failures
+
+
+@dataclass
+class Recorded:
+    """What the file says for a report: its meta (version, timezone), the report's last day, the counts,
+    and the features the last version to run serves, with their scopes."""
+
+    meta: dict[str, str]
+    today: date
+    counts: Counts
+    served: dict[tuple[str, str], str]
+
+
+def _read(path: Path, days: int, today: date | None = None) -> Recorded | None:
+    """The file's counts for the `days` days to today, or None while it records nothing yet: no file,
+    or one nothing has written. Today is Worklog's, in the timezone it last wrote counts in, unless
+    given. Every query reads the same state of the file."""
     if not path.is_file():
-        raise ValueError(f"No usage is recorded in {path.parent} yet. Worklog counts it while it runs "
-                         "and writes it there every minute and when it stops.")
+        return None
     try:
         with closing(sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True, timeout=10)) as conn:
             found = conn.execute("PRAGMA user_version").fetchone()[0]
             if found == 0:
-                raise ValueError(f"No usage is recorded in {path} yet")
+                return None
             if found != FORMAT:
                 raise ValueError(f"{path} holds usage format {found}, which this version of Worklog does not read")
+            # One read transaction, so a write between two of the queries cannot make them disagree.
+            conn.execute("BEGIN")
             meta = dict(conn.execute("SELECT key,value FROM meta").fetchall())
             today = today or datetime.now(_zone(meta.get("timezone"))).date()
-            start = (today - timedelta(days=days - 1)).isoformat()
-            since = conn.execute("SELECT MIN(day) FROM counts").fetchone()[0]
-            last = {(s, f): d for s, f, d in conn.execute("SELECT surface,feature,MAX(day) FROM counts GROUP BY surface,feature")}
-            window: dict[tuple[str, str], dict[str, tuple[int, int]]] = {}
-            for s, f, actor, uses, failures in conn.execute(
-                    "SELECT surface,feature,actor,SUM(uses),SUM(failures) FROM counts WHERE day>=? "
-                    "GROUP BY surface,feature,actor", (start,)):
-                window.setdefault((s, f), {})[actor] = (uses, failures)
+            counts = Counts(_start(today, days), conn.execute("SELECT MIN(day) FROM counts").fetchone()[0])
+            counts.last = {(s, f): d for s, f, d in conn.execute(
+                "SELECT surface,feature,MAX(day) FROM counts GROUP BY surface,feature")}
+            counts.features = {(s, f, actor): [uses, failures] for s, f, actor, uses, failures in conn.execute(
+                "SELECT surface,feature,actor,SUM(uses),SUM(failures) FROM counts WHERE day>=? "
+                "GROUP BY surface,feature,actor", (counts.start,))}
+            counts.days = {(d, s, actor, bool(read)): [uses, failures] for d, s, actor, read, uses, failures in conn.execute(
+                "SELECT day,surface,actor,substr(feature,1,4)='GET ' AS read,SUM(uses),SUM(failures) FROM counts "
+                "WHERE day>=? GROUP BY day,surface,actor,read", (counts.start,))}
             served = {(s, f): scope for s, f, scope in conn.execute("SELECT surface,feature,scope FROM features")}
     except sqlite3.DatabaseError as exc:
         if isinstance(exc, sqlite3.OperationalError) and any(word in str(exc) for word in ("locked", "busy")):
@@ -307,25 +363,75 @@ def report(path: Path, days: int = 30, today: date | None = None) -> dict[str, A
         raise ValueError(f"{path} cannot be read ({exc}). Starting Worklog repairs a file a crash left half "
                          "written; if it still cannot be read, delete it with Worklog stopped to start the "
                          "counts over.") from exc
+    return Recorded(meta, today, counts, served)
+
+
+def report(path: Path, days: int = 30, today: date | None = None) -> dict[str, Any]:
+    """What was used in the `days` days to today, and what the last version to run serves that nothing
+    used in them, from the file alone (summary). Today is Worklog's, in the timezone it last wrote
+    counts in."""
+    if not path.is_file():
+        raise ValueError(f"No usage is recorded in {path.parent} yet. Worklog counts it while it runs "
+                         "and writes it there every minute and when it stops.")
+    recorded = _read(path, days, today)
+    if recorded is None:
+        raise ValueError(f"No usage is recorded in {path} yet")
+    return summary(path, days, recorded.today, recorded.counts, recorded.served, recorded.meta.get("version"))
+
+
+def live_report(usage: Usage, days: int, today: date, served: Iterable[tuple[str, str, str]],
+                version: str) -> dict[str, Any]:
+    """What report() says, for the running server whose counts `usage` holds: those in the file and those
+    held for its next write, each once (Usage.snapshot), to `today`. What nothing used goes by `served`,
+    the features this version serves as catalog lists them. Before anything is written, the counts
+    held are all there is."""
+    recorded, held = usage.snapshot(lambda: _read(usage.path, days, today))
+    counts = recorded.counts if recorded else Counts(_start(today, days))
+    for (day, surface, feature, actor), (uses, failures) in held.items():
+        counts.add(day, surface, feature, actor, uses, failures)
+    return summary(usage.path, days, today, counts, {(s, f): scope for s, f, scope in served}, version)
+
+
+def summary(path: Path, days: int, today: date, counts: Counts, served: Mapping[tuple[str, str], str],
+            version: str | None) -> dict[str, Any]:
+    """The report: each page and call used in the window with its uses, the most used first, and what
+    `served` lists that nothing used in it, by name; each with the last day anything used it, if ever.
+    A call's scope is null when `served` no longer lists it. `daily` sums each day that has counts,
+    oldest first: the page views, the reads (GET) and changes (any other method) the person and
+    agents made, and the calls that failed."""
+    used: dict[tuple[str, str], dict[str, list[int]]] = {}
+    for (surface, feature, actor), sums in counts.features.items():
+        used.setdefault((surface, feature), {})[actor] = sums
     pages: list[dict[str, Any]] = []
     calls: list[dict[str, Any]] = []
-    for (surface, feature), by in sorted(window.items()):
-        person, agent = by.get("person", (0, 0)), by.get("agent", (0, 0))
+    for (surface, feature), by in sorted(used.items()):
+        person, agent = by.get("person", [0, 0]), by.get("agent", [0, 0])
         if surface == "page":
-            pages.append({"page": feature, "views": person[0] + agent[0], "lastUsed": last[surface, feature]})
+            pages.append({"page": feature, "views": person[0] + agent[0], "lastUsed": counts.last[surface, feature]})
         else:
             calls.append({"call": feature, "scope": served.get((surface, feature)), "person": person[0],
-                          "agent": agent[0], "failed": person[1] + agent[1], "lastUsed": last[surface, feature]})
+                          "agent": agent[0], "failed": person[1] + agent[1], "lastUsed": counts.last[surface, feature]})
     pages.sort(key=lambda row: -row["views"])
     calls.sort(key=lambda row: -(row["person"] + row["agent"]))
-    unused = [(s, f, scope) for (s, f), scope in sorted(served.items()) if (s, f) not in window]
+    unused = [(s, f, scope) for (s, f), scope in sorted(served.items()) if (s, f) not in used]
+    daily: dict[str, dict[str, Any]] = {}
+    for (day, surface, actor, read), (uses, failures) in sorted(counts.days.items()):
+        entry = daily.setdefault(day, {"day": day, "pageViews": 0, "reads": {"person": 0, "agent": 0},
+                                       "changes": {"person": 0, "agent": 0}, "failed": 0})
+        if surface == "page":
+            entry["pageViews"] += uses
+        else:
+            entry["reads" if read else "changes"][actor] += uses
+            entry["failed"] += failures
     return {
         "file": str(path.resolve()),
-        "version": meta.get("version"),
-        "recordedSince": since,
-        "window": {"days": days, "from": start, "to": today.isoformat()},
+        "version": version,
+        "recordedSince": counts.since,
+        "window": {"days": days, "from": counts.start, "to": today.isoformat()},
+        "daily": list(daily.values()),
         "pages": {"used": pages,
-                  "unused": [{"page": f, "lastUsed": last.get((s, f))} for s, f, _ in unused if s == "page"]},
+                  "unused": [{"page": f, "lastUsed": counts.last.get((s, f))} for s, f, _ in unused if s == "page"]},
         "calls": {"used": calls,
-                  "unused": [{"call": f, "scope": scope, "lastUsed": last.get((s, f))} for s, f, scope in unused if s == "api"]},
+                  "unused": [{"call": f, "scope": scope, "lastUsed": counts.last.get((s, f))}
+                             for s, f, scope in unused if s == "api"]},
     }

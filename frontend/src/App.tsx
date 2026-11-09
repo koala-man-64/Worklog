@@ -27,6 +27,7 @@ import { Chats } from "./Chats";
 import { Discussions } from "./Discussions";
 import { Review } from "./Review";
 import { Settings } from "./Settings";
+import { Usage } from "./UsagePage";
 import { Guide, guideRoutes } from "./Guide";
 import { Icon, type IconName } from "./icons";
 import { sections } from "./navigation";
@@ -256,6 +257,8 @@ export default function App() {
             <Review key={id ?? "list"} selectedId={id} />
           ) : page === "settings" ? (
             <Settings />
+          ) : page === "usage" ? (
+            <Usage />
           ) : guideRoutes.includes(page) ? (
             <Guide route={page} selected={id} />
           ) : (

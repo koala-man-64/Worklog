@@ -10,6 +10,7 @@ import "./styles/chats.css";
 import "./styles/discussions.css";
 import "./styles/review.css";
 import "./styles/settings.css";
+import "./styles/usage.css";
 import "./styles/guide.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";

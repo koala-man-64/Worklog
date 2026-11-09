@@ -77,6 +77,50 @@
         }
       }
     },
+    "/api/v1/usage": {
+      "get": {
+        "summary": "Usage Report",
+        "operationId": "usage_report_api_v1_usage_get",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 3650,
+              "minimum": 1,
+              "description": "How many days to today it covers",
+              "default": 30,
+              "title": "Days"
+            },
+            "description": "How many days to today it covers"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageReport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/work-items": {
       "get": {
         "summary": "Items",
@@ -10531,6 +10575,26 @@
         "title": "Actor",
         "description": "The person or an agent identity, by the label it has now."
       },
+      "ActorUses": {
+        "properties": {
+          "person": {
+            "type": "integer",
+            "title": "Person"
+          },
+          "agent": {
+            "type": "integer",
+            "title": "Agent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "person",
+          "agent"
+        ],
+        "title": "ActorUses",
+        "description": "Uses by the person and by agents."
+      },
       "Agent": {
         "properties": {
           "id": {
@@ -12367,6 +12431,83 @@
         ],
         "title": "BoundRecipient",
         "description": "A run a message sent now would reach: its identity registered with the chat or was confirmed in it."
+      },
+      "CallUnused": {
+        "properties": {
+          "call": {
+            "type": "string",
+            "title": "Call"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope"
+          },
+          "lastUsed": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastused"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "call",
+          "scope",
+          "lastUsed"
+        ],
+        "title": "CallUnused"
+      },
+      "CallUsed": {
+        "properties": {
+          "call": {
+            "type": "string",
+            "title": "Call"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope"
+          },
+          "person": {
+            "type": "integer",
+            "title": "Person"
+          },
+          "agent": {
+            "type": "integer",
+            "title": "Agent"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          },
+          "lastUsed": {
+            "type": "string",
+            "title": "Lastused"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "call",
+          "scope",
+          "person",
+          "agent",
+          "failed",
+          "lastUsed"
+        ],
+        "title": "CallUsed"
       },
       "Change": {
         "properties": {
@@ -17624,6 +17765,56 @@
         "title": "Overlaps",
         "description": "Who else is on the named records and what they said there, leaving out the caller's own."
       },
+      "PageUnused": {
+        "properties": {
+          "page": {
+            "type": "string",
+            "title": "Page"
+          },
+          "lastUsed": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastused"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "page",
+          "lastUsed"
+        ],
+        "title": "PageUnused"
+      },
+      "PageUsed": {
+        "properties": {
+          "page": {
+            "type": "string",
+            "title": "Page"
+          },
+          "views": {
+            "type": "integer",
+            "title": "Views"
+          },
+          "lastUsed": {
+            "type": "string",
+            "title": "Lastused"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "page",
+          "views",
+          "lastUsed"
+        ],
+        "title": "PageUsed"
+      },
       "PageView": {
         "properties": {
           "page": {
@@ -17643,6 +17834,7 @@
               "discussions",
               "review",
               "settings",
+              "usage",
               "guide",
               "agent-guide"
             ],
@@ -26868,6 +27060,173 @@
         ],
         "title": "UpdateActivity",
         "description": "A status update one of the agent's runs posted."
+      },
+      "UsageDay": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "title": "Day"
+          },
+          "pageViews": {
+            "type": "integer",
+            "title": "Pageviews"
+          },
+          "reads": {
+            "$ref": "#/components/schemas/ActorUses"
+          },
+          "changes": {
+            "$ref": "#/components/schemas/ActorUses"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "day",
+          "pageViews",
+          "reads",
+          "changes",
+          "failed"
+        ],
+        "title": "UsageDay",
+        "description": "One day's uses: the pages the person opened, the reads (GET) and changes (any other method) each\nmade, and the calls that failed."
+      },
+      "UsageReport": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "title": "File"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "recordedSince": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recordedsince"
+          },
+          "window": {
+            "$ref": "#/components/schemas/UsageWindow"
+          },
+          "daily": {
+            "items": {
+              "$ref": "#/components/schemas/UsageDay"
+            },
+            "type": "array",
+            "title": "Daily"
+          },
+          "pages": {
+            "$ref": "#/components/schemas/UsedPages"
+          },
+          "calls": {
+            "$ref": "#/components/schemas/UsedCalls"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "file",
+          "version",
+          "recordedSince",
+          "window",
+          "daily",
+          "pages",
+          "calls"
+        ],
+        "title": "UsageReport",
+        "description": "Which pages and API calls were used in a window and which nothing used (usage.summary)."
+      },
+      "UsageWindow": {
+        "properties": {
+          "days": {
+            "type": "integer",
+            "title": "Days"
+          },
+          "from": {
+            "type": "string",
+            "title": "From"
+          },
+          "to": {
+            "type": "string",
+            "title": "To"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "days",
+          "from",
+          "to"
+        ],
+        "title": "UsageWindow",
+        "description": "The days a usage report covers, both ends included, in Worklog's timezone."
+      },
+      "UsedCalls": {
+        "properties": {
+          "used": {
+            "items": {
+              "$ref": "#/components/schemas/CallUsed"
+            },
+            "type": "array",
+            "title": "Used"
+          },
+          "unused": {
+            "items": {
+              "$ref": "#/components/schemas/CallUnused"
+            },
+            "type": "array",
+            "title": "Unused"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "used",
+          "unused"
+        ],
+        "title": "UsedCalls"
+      },
+      "UsedPages": {
+        "properties": {
+          "used": {
+            "items": {
+              "$ref": "#/components/schemas/PageUsed"
+            },
+            "type": "array",
+            "title": "Used"
+          },
+          "unused": {
+            "items": {
+              "$ref": "#/components/schemas/PageUnused"
+            },
+            "type": "array",
+            "title": "Unused"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "used",
+          "unused"
+        ],
+        "title": "UsedPages"
       },
       "UserMessage": {
         "properties": {
