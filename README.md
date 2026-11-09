@@ -38,7 +38,7 @@ Install Python **3.12 or newer** and a current Node.js LTS with npm. Node is nee
 ./scripts/Worklog.ps1 check
 ```
 
-Setup creates `.venv`, installs the exact versions in `requirements.lock`, installs this project without resolving dependencies again, then runs `npm ci` using `frontend/package-lock.json` and builds `frontend/dist`. It needs internet access to fetch packages. If Python has a different executable name, use `./scripts/Setup.ps1 -PythonCommand python3.12`. Respect your organization's PowerShell script policy; do not disable it globally.
+Setup creates `.venv`, installs the exact versions and file hashes in `requirements.lock`, what Worklog needs to run, installs this project without resolving dependencies again, then runs `npm ci` using `frontend/package-lock.json` and builds `frontend/dist`. It needs internet access to fetch packages. `./scripts/Setup.ps1 -Dev` installs `requirements-dev.lock` instead, which adds the tools the checks run (pytest, ruff and mypy). If Python has a different executable name, use `./scripts/Setup.ps1 -PythonCommand python3.12`. Respect your organization's PowerShell script policy; do not disable it globally.
 
 Run Setup in every checkout and git worktree, so each has its own `.venv` and `frontend/node_modules`; with a warm package cache it takes about a minute. Do not link those folders to another checkout's. Setup replaces them, so it stops while they link into another checkout or another worktree links into them, and names each link; remove one with `rmdir`, which leaves its target alone. `./scripts/Setup.ps1 -CheckOnly` runs just that check.
 
@@ -93,4 +93,4 @@ Worklog backs itself up when it starts and once a day while it runs. Three more 
 
 - **[docs/OPERATIONS.md](docs/OPERATIONS.md)**: backing up, exporting, restoring, compacting and checking the database, seeing which features get used, and the security and operating limits. Worklog trusts one OS account and listens only on this machine.
 - **[docs/UPGRADING.md](docs/UPGRADING.md)**: how to upgrade, what each version changes, and the way back.
-- **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)**: the checks to run, and what to update in the guides when the app changes.
+- **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)**: the checks to run, how the dependencies are locked, and what to update in the guides when the app changes.

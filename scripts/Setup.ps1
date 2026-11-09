@@ -1,5 +1,6 @@
+# -Dev adds the tools the checks run (pytest, ruff, mypy): requirements-dev.lock instead of requirements.lock.
 [CmdletBinding()]
-param([string]$PythonCommand = "python", [switch]$CheckOnly)
+param([string]$PythonCommand = "python", [switch]$CheckOnly, [switch]$Dev)
 $ErrorActionPreference = "Stop"
 # Windows PowerShell 5.1 turns native stderr into a terminating error under "Stop" when output is
 # redirected (npm config warnings, error messages the tools print). Keep "Stop" for cmdlets and
@@ -52,7 +53,9 @@ if (-not (Test-Path -LiteralPath $pythonPath)) {
 }
 Invoke-Native { & $pythonPath -c "import sys; assert sys.version_info >= (3, 12), 'Python 3.12 or newer is required'" }
 if ($LASTEXITCODE -ne 0) { throw "Existing virtual environment has an unsupported Python version" }
-Invoke-Native { & $pythonPath -m pip install --no-input --disable-pip-version-check -r (Join-Path $projectRoot "requirements.lock") }
+# Every package and its hashes are locked, so pip installs exactly the files the lock names.
+$lock = if ($Dev) { "requirements-dev.lock" } else { "requirements.lock" }
+Invoke-Native { & $pythonPath -m pip install --no-input --disable-pip-version-check --require-hashes -r (Join-Path $projectRoot $lock) }
 if ($LASTEXITCODE -ne 0) { throw "Locked Python dependency installation failed" }
 Invoke-Native { & $pythonPath -m pip install --no-input --disable-pip-version-check --no-deps --no-build-isolation -e $projectRoot }
 if ($LASTEXITCODE -ne 0) { throw "Worklog installation failed" }
