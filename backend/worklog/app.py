@@ -277,12 +277,13 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         return {"ok": True}
 
     @app.get("/api/v1/usage", response_model=out.UsageReport)
-    def usage_report(days: int = Query(30, ge=1, le=3650, description="How many days to today it covers")) -> dict:
+    def usage_report(days: int = Query(30, ge=1, le=3650, description="How many days to today it covers"),
+                     agents: bool = Query(True, description="Whether agents' uses count; false reports the person's alone")) -> dict:
         # The Usage page: the counts in usage.sqlite3 and those held for the next write, each once, to
         # Worklog's today; what nothing used goes by what this version serves (usage.live_report).
         try:
             return live_report(app.state.usage, days, date.fromisoformat(today(worklog_timezone())),
-                               catalog(app.router.routes), __version__)
+                               catalog(app.router.routes), __version__, agents=agents)
         except ValueError as exc:
             raise AppError(503, "usage_unavailable", str(exc)) from exc
 

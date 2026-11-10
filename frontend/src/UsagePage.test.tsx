@@ -12,6 +12,7 @@ const report: UsageReport = {
   version: "1.0.0",
   recordedSince: "2026-11-05",
   window: { days: 30, from: "2026-10-10", to: "2026-11-08" },
+  agents: true,
   daily: [
     {
       day: "2026-11-05",
@@ -77,6 +78,53 @@ const report: UsageReport = {
   },
 };
 
+/** `report` as GET /usage?agents=false answers it: your uses alone. */
+const yours: UsageReport = {
+  ...report,
+  agents: false,
+  daily: [
+    {
+      day: "2026-11-05",
+      pageViews: 3,
+      reads: { person: 10, agent: 0 },
+      changes: { person: 2, agent: 0 },
+      failed: 1,
+    },
+    {
+      day: "2026-11-07",
+      pageViews: 1,
+      reads: { person: 4, agent: 0 },
+      changes: { person: 1, agent: 0 },
+      failed: 0,
+    },
+  ],
+  calls: {
+    used: [
+      {
+        call: "GET /work-items",
+        scope: "agent:read",
+        person: 14,
+        agent: 0,
+        failed: 1,
+        lastUsed: "2026-11-07",
+      },
+      {
+        call: "POST /work-items",
+        scope: "human",
+        person: 3,
+        agent: 0,
+        failed: 0,
+        lastUsed: "2026-11-07",
+      },
+    ],
+    // Only agents filed tickets, so you never have.
+    unused: [
+      ...report.calls.unused,
+      { call: "POST /tickets", scope: "agent:ticket", lastUsed: null },
+    ],
+  },
+};
+
 beforeEach(() => {
   vi.restoreAllMocks();
   localStorage.clear();
@@ -84,15 +132,21 @@ beforeEach(() => {
   setDataContext("usage-test");
 });
 
-/** Answers GET /usage with `answer(days)`; returns the paths asked for, query included. */
+/** Answers GET /usage with `answer(days, agents)`; returns the paths asked for, query included. */
 function serve(
-  answer: (days: string) => UsageReport | Promise<UsageReport> | "unreadable",
+  answer: (
+    days: string,
+    agents: string | null,
+  ) => UsageReport | Promise<UsageReport> | "unreadable",
 ) {
   const asked: string[] = [];
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
     const url = new URL(String(input), "http://worklog.test");
     asked.push(url.pathname.replace("/api/v1", "") + url.search);
-    const body = await answer(url.searchParams.get("days") ?? "");
+    const body = await answer(
+      url.searchParams.get("days") ?? "",
+      url.searchParams.get("agents"),
+    );
     return body === "unreadable"
       ? new Response(
           JSON.stringify({
@@ -263,6 +317,95 @@ it("asks for another window and keeps the last one on screen, dimmed, until it c
       "Never opened",
     ),
   ).toHaveLength(4);
+});
+
+it("leaves agents out on asking, so each figure, chart and call is yours alone", async () => {
+  let release: (value: UsageReport) => void = () => undefined;
+  const week = { days: 7, from: "2026-11-02", to: "2026-11-08" };
+  const asked = serve((days, agents) => {
+    if (agents !== "false")
+      return days === "7" ? { ...report, window: week } : report;
+    if (days === "7") return { ...yours, window: week, daily: [] };
+    return new Promise<UsageReport>((resolve) => {
+      release = resolve;
+    });
+  });
+  const user = userEvent.setup();
+  show();
+  const tile = (name: string) =>
+    screen.getByText(name, { selector: "dt" }).closest(".usage-tile")!;
+  await screen.findByRole("heading", { name: "Changes per day" });
+  expect(screen.getByRole("button", { name: "With agents" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await user.click(screen.getByRole("button", { name: "Without agents" }));
+  expect(asked).toEqual(["/usage?days=30", "/usage?days=30&agents=false"]);
+  expect(
+    screen.getByRole("button", { name: "Without agents" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByRole("button", { name: "With agents" })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+  // Until the answer comes, the last one stays, dimmed, drawn as it counts: with agents.
+  expect(document.querySelector(".usage")).toHaveClass("stale");
+  expect(tile("Changes")).toHaveTextContent("Changes63 by you, 3 by agents");
+  release(yours);
+  await waitFor(() =>
+    expect(tile("Changes")).toHaveTextContent("Changes3By you"),
+  );
+  expect(document.querySelector(".usage")).not.toHaveClass("stale");
+  expect(tile("Reads")).toHaveTextContent("Reads14By you");
+  // 1 of 17 calls.
+  expect(tile("Failed calls")).toHaveTextContent("Failed calls15.9% of calls");
+  expect(tile("Features used")).toHaveTextContent("2 of 64 not used");
+  // One series, so no legend.
+  const changes = screen
+    .getByRole("heading", { name: "Changes per day" })
+    .closest("figure")!;
+  expect(within(changes).queryByRole("list")).not.toBeInTheDocument();
+  expect(within(changes).getByRole("img")).toHaveAccessibleName(
+    `Changes per day, ${formatDay("2026-11-05")} to ${formatDay("2026-11-08")}: 3 in all; the most, 2, ${formatDay("2026-11-05")}`,
+  );
+  const rows = within(within(changes).getByRole("table")).getAllByRole("row");
+  expect(rows.map((row) => row.textContent)).toEqual([
+    "DayYou",
+    `${formatDay("2026-11-05")}2`,
+    `${formatDay("2026-11-06")}0`,
+    `${formatDay("2026-11-07")}1`,
+    `${formatDay("2026-11-08")}0`,
+  ]);
+  const summaries = within(
+    screen.getByRole("region", { name: "Features by area" }),
+  )
+    .getAllByText(/^\/[a-z-]+$/)
+    .map((name) => name.closest("summary")!);
+  expect(summaries.map((summary) => summary.textContent)).toEqual([
+    "/work-items2 of 3 used17 by you1 failed",
+    "/search0 of 1 usedNo calls",
+    "/tickets0 of 2 usedNo calls",
+  ]);
+  await user.click(summaries[0]);
+  const area = within(summaries[0].closest("details")!);
+  expect(area.getAllByRole("row").map((row) => row.textContent)).toEqual([
+    "CallWho may make itYouFailedLast used",
+    `GET /work-itemsagent:read141${formatDay("2026-11-07")}`,
+    `POST /work-itemsYou only30${formatDay("2026-11-07")}`,
+    `POST /work-items/{identity}/archiveYou onlyNot used${formatDay("2026-10-02")}`,
+  ]);
+  expect(area.getByText("Not used")).toHaveAttribute("colspan", "2");
+  // Another window keeps agents out.
+  await user.click(screen.getByRole("button", { name: "7 days" }));
+  expect(
+    await screen.findByText("You used nothing in these 7 days."),
+  ).toBeInTheDocument();
+  expect(asked.at(-1)).toBe("/usage?days=7&agents=false");
+  await user.click(screen.getByRole("button", { name: "With agents" }));
+  expect(asked.at(-1)).toBe("/usage?days=7");
+  await waitFor(() =>
+    expect(tile("Changes")).toHaveTextContent("Changes63 by you, 3 by agents"),
+  );
 });
 
 it("draws a window over 90 days by the week", async () => {

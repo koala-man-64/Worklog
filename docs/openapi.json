@@ -95,6 +95,18 @@
               "title": "Days"
             },
             "description": "How many days to today it covers"
+          },
+          {
+            "name": "agents",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Whether agents' uses count; false reports the person's alone",
+              "default": true,
+              "title": "Agents"
+            },
+            "description": "Whether agents' uses count; false reports the person's alone"
           }
         ],
         "responses": {
@@ -27221,6 +27233,10 @@
           "window": {
             "$ref": "#/components/schemas/UsageWindow"
           },
+          "agents": {
+            "type": "boolean",
+            "title": "Agents"
+          },
           "daily": {
             "items": {
               "$ref": "#/components/schemas/UsageDay"
@@ -27242,6 +27258,7 @@
           "version",
           "recordedSince",
           "window",
+          "agents",
           "daily",
           "pages",
           "calls"

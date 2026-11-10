@@ -8763,6 +8763,8 @@ export interface components {
             /** Recordedsince */
             recordedSince: string | null;
             window: components["schemas"]["UsageWindow"];
+            /** Agents */
+            agents: boolean;
             /** Daily */
             daily: components["schemas"]["UsageDay"][];
             pages: components["schemas"]["UsedPages"];
@@ -9114,6 +9116,8 @@ export interface operations {
             query?: {
                 /** @description How many days to today it covers */
                 days?: number;
+                /** @description Whether agents' uses count; false reports the person's alone */
+                agents?: boolean;
             };
             header?: never;
             path?: never;

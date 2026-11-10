@@ -618,7 +618,7 @@ Inspect agent suggestions before they change your work. "Proposal status" filter
 
 ### Usage
 
-Which pages and features you and your agents use, and which nothing uses, from the counts Worklog keeps by name and day (see [Where your data lives](#where-your-data-lives)). It shows the last 7, 30, 90 or 365 days, 30 at first; if counting began inside them, it says on which day.
+Which pages and features you and your agents use, and which nothing uses, from the counts Worklog keeps by name and day (see [Where your data lives](#where-your-data-lives)). It shows the last 7, 30, 90 or 365 days, 30 at first; if counting began inside them, it says on which day. It counts your agents' uses with yours ("With agents") until you choose "Without agents", which leaves theirs out: every figure, chart and list then shows what you use and what you don't, and each call the last day you made it.
 
 - **The figures:** "Page views", with how many pages you opened; "Changes" and "Reads", the calls that change something and those that only read, each split between you and your agents; "Failed calls", those answered with an error; and "Features used", how many of the calls this version of Worklog serves anything made.
 - **The charts:** page views, changes and reads for each day, or each week over 365 days, with your changes and reads under your agents'. Point at a column for its numbers, or open "Show as table" under a chart for them all. Pages refresh what they show on their own, so reads say less about what you use than page views and changes do.

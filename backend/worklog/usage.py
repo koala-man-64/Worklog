@@ -297,10 +297,12 @@ def _start(today: date, days: int) -> str:
 class Counts:
     """What a report sums: from its window's first day (`start`) on, each feature's uses and failures
     by actor, and each day's by surface, actor and whether the call was a read (a GET); and, over
-    every day, the first day anything was used and the last day each feature was."""
+    every day, the first day anything was used and the last day each feature was. Without `agents`
+    it sums the person's uses alone, though `since` still goes by everyone's: counting began then."""
 
     start: str
     since: str | None = None
+    agents: bool = True
     # (surface, feature) -> the last day it was used
     last: dict[tuple[str, str], str] = field(default_factory=dict)
     # (surface, feature, actor) -> [uses, failures]
@@ -311,6 +313,8 @@ class Counts:
     def add(self, day: str, surface: str, feature: str, actor: str, uses: int, failures: int) -> None:
         """Takes in one count the file doesn't hold, such as one held for the next write."""
         self.since = min(self.since or day, day)
+        if actor == "agent" and not self.agents:
+            return
         self.last[surface, feature] = max(self.last.get((surface, feature), day), day)
         if day >= self.start:
             for sums in (self.features.setdefault((surface, feature, actor), [0, 0]),
@@ -330,10 +334,11 @@ class Recorded:
     served: dict[tuple[str, str], str]
 
 
-def _read(path: Path, days: int, today: date | None = None) -> Recorded | None:
+def _read(path: Path, days: int, today: date | None = None, *, agents: bool = True) -> Recorded | None:
     """The file's counts for the `days` days to today, or None while it records nothing yet: no file,
     or one nothing has written. Today is Worklog's, in the timezone it last wrote counts in, unless
-    given. Every query reads the same state of the file."""
+    given. Without `agents`, the person's counts alone (Counts). Every query reads the same state of
+    the file."""
     if not path.is_file():
         return None
     try:
@@ -347,15 +352,18 @@ def _read(path: Path, days: int, today: date | None = None) -> Recorded | None:
             conn.execute("BEGIN")
             meta = dict(conn.execute("SELECT key,value FROM meta").fetchall())
             today = today or datetime.now(_zone(meta.get("timezone"))).date()
-            counts = Counts(_start(today, days), conn.execute("SELECT MIN(day) FROM counts").fetchone()[0])
+            counts = Counts(_start(today, days), conn.execute("SELECT MIN(day) FROM counts").fetchone()[0],
+                            agents=agents)
+            # Each query below keeps a row when agents count or the row is the person's.
             counts.last = {(s, f): d for s, f, d in conn.execute(
-                "SELECT surface,feature,MAX(day) FROM counts GROUP BY surface,feature")}
+                "SELECT surface,feature,MAX(day) FROM counts WHERE ? OR actor='person' "
+                "GROUP BY surface,feature", (agents,))}
             counts.features = {(s, f, actor): [uses, failures] for s, f, actor, uses, failures in conn.execute(
-                "SELECT surface,feature,actor,SUM(uses),SUM(failures) FROM counts WHERE day>=? "
-                "GROUP BY surface,feature,actor", (counts.start,))}
+                "SELECT surface,feature,actor,SUM(uses),SUM(failures) FROM counts "
+                "WHERE day>=? AND (? OR actor='person') GROUP BY surface,feature,actor", (counts.start, agents))}
             counts.days = {(d, s, actor, bool(read)): [uses, failures] for d, s, actor, read, uses, failures in conn.execute(
                 "SELECT day,surface,actor,substr(feature,1,4)='GET ' AS read,SUM(uses),SUM(failures) FROM counts "
-                "WHERE day>=? GROUP BY day,surface,actor,read", (counts.start,))}
+                "WHERE day>=? AND (? OR actor='person') GROUP BY day,surface,actor,read", (counts.start, agents))}
             served = {(s, f): scope for s, f, scope in conn.execute("SELECT surface,feature,scope FROM features")}
     except sqlite3.DatabaseError as exc:
         if isinstance(exc, sqlite3.OperationalError) and any(word in str(exc) for word in ("locked", "busy")):
@@ -380,13 +388,14 @@ def report(path: Path, days: int = 30, today: date | None = None) -> dict[str, A
 
 
 def live_report(usage: Usage, days: int, today: date, served: Iterable[tuple[str, str, str]],
-                version: str) -> dict[str, Any]:
+                version: str, *, agents: bool = True) -> dict[str, Any]:
     """What report() says, for the running server whose counts `usage` holds: those in the file and those
     held for its next write, each once (Usage.snapshot), to `today`. What nothing used goes by `served`,
     the features this version serves as catalog lists them. Before anything is written, the counts
-    held are all there is."""
-    recorded, held = usage.snapshot(lambda: _read(usage.path, days, today))
-    counts = recorded.counts if recorded else Counts(_start(today, days))
+    held are all there is. Without `agents`, it reports the person's uses alone: what the person used,
+    and what the person didn't."""
+    recorded, held = usage.snapshot(lambda: _read(usage.path, days, today, agents=agents))
+    counts = recorded.counts if recorded else Counts(_start(today, days), agents=agents)
     for (day, surface, feature, actor), (uses, failures) in held.items():
         counts.add(day, surface, feature, actor, uses, failures)
     return summary(usage.path, days, today, counts, {(s, f): scope for s, f, scope in served}, version)
@@ -398,7 +407,8 @@ def summary(path: Path, days: int, today: date, counts: Counts, served: Mapping[
     `served` lists that nothing used in it, by name; each with the last day anything used it, if ever.
     A call's scope is null when `served` no longer lists it. `daily` sums each day that has counts,
     oldest first: the page views, the reads (GET) and changes (any other method) the person and
-    agents made, and the calls that failed."""
+    agents made, and the calls that failed. `agents` is false when the counts leave agents' uses
+    out, so that every figure is the person's."""
     used: dict[tuple[str, str], dict[str, list[int]]] = {}
     for (surface, feature, actor), sums in counts.features.items():
         used.setdefault((surface, feature), {})[actor] = sums
@@ -428,6 +438,7 @@ def summary(path: Path, days: int, today: date, counts: Counts, served: Mapping[
         "version": version,
         "recordedSince": counts.since,
         "window": {"days": days, "from": counts.start, "to": today.isoformat()},
+        "agents": counts.agents,
         "daily": list(daily.values()),
         "pages": {"used": pages,
                   "unused": [{"page": f, "lastUsed": counts.last.get((s, f))} for s, f, _ in unused if s == "page"]},

@@ -438,6 +438,26 @@ def test_the_usage_page_is_the_persons_and_covers_one_to_3650_days(started):
     assert person.get("/api/v1/usage", params={"days": 3650}).status_code == 200
 
 
+def test_the_usage_page_leaves_agents_out_on_asking(started):
+    _, person, agent = started
+    assert person.get("/api/v1/work-items").status_code == 200
+    assert agent.get("/api/v1/work-items").status_code == 200
+    assert agent.get("/api/v1/roadmaps").status_code == 200
+    yours = person.get("/api/v1/usage", params={"days": 7, "agents": "false"}).json()
+    today = yours["window"]["to"]
+    assert yours["agents"] is False
+    assert call_row(yours, "GET /work-items") == {
+        "call": "GET /work-items", "scope": policy.READ, "person": 1, "agent": 0, "failed": 0, "lastUsed": today}
+    # Only an agent read the roadmaps, so the person never has.
+    assert {"call": "GET /roadmaps", "scope": policy.READ, "lastUsed": None} in yours["calls"]["unused"]
+    assert yours["daily"] == [{"day": today, "pageViews": 0, "reads": {"person": 1, "agent": 0},
+                               "changes": {"person": 2, "agent": 0}, "failed": 0}]
+    everyone = person.get("/api/v1/usage", params={"days": 7}).json()
+    assert everyone["agents"] is True
+    assert call_row(everyone, "GET /roadmaps")["agent"] == 1
+    assert person.get("/api/v1/usage", params={"agents": "sometimes"}).status_code == 422
+
+
 def test_each_day_sums_the_page_views_and_the_reads_and_changes_each_made_from_the_windows_first_day(tmp_path):
     clock = Clock(datetime(2026, 11, 1, 15, tzinfo=UTC))
     log = Usage(tmp_path / usage.FILE, clock=clock)
@@ -466,6 +486,48 @@ def test_each_day_sums_the_page_views_and_the_reads_and_changes_each_made_from_t
     assert result["pages"]["unused"] == []
 
 
+def test_without_agents_every_count_is_the_persons_and_counting_began_when_anyones_did(tmp_path):
+    clock = Clock(datetime(2026, 11, 1, 15, tzinfo=UTC))
+    log = Usage(tmp_path / usage.FILE, clock=clock)
+    served = [("api", "GET /work-items", policy.READ), ("api", "POST /tickets", policy.TICKET),
+              ("api", "POST /work-items", policy.HUMAN), ("page", "today", policy.HUMAN)]
+    # Counting began with an agent's call, the day before a seven-day window to 8 November.
+    log.record("api", "POST /tickets", "agent")
+    assert log.flush()
+    clock.now = datetime(2026, 11, 3, 15, tzinfo=UTC)
+    log.record("api", "GET /work-items", "person", failed=True)
+    log.record("api", "GET /work-items", "agent", failed=True)
+    log.record("api", "GET /work-items", "agent")
+    log.record("page", "today", "person")
+    assert log.flush()
+    # Held, not yet written: an agent reads the work later than the person did.
+    clock.now = datetime(2026, 11, 5, 15, tzinfo=UTC)
+    log.record("api", "GET /work-items", "agent")
+    log.record("api", "POST /work-items", "person")
+    log.record("api", "POST /tickets", "agent")
+    everyone = live_report(log, 7, date(2026, 11, 8), served, "9.9.9")
+    yours = live_report(log, 7, date(2026, 11, 8), served, "9.9.9", agents=False)
+    assert (everyone["agents"], yours["agents"]) == (True, False)
+    assert call_row(everyone, "GET /work-items") == {
+        "call": "GET /work-items", "scope": policy.READ, "person": 1, "agent": 3, "failed": 2, "lastUsed": "2026-11-05"}
+    assert yours["recordedSince"] == everyone["recordedSince"] == "2026-11-01"
+    # The person's uses, failures and last days alone; what only agents made, the person never did.
+    assert yours["calls"] == {
+        "used": [{"call": "GET /work-items", "scope": policy.READ, "person": 1, "agent": 0, "failed": 1,
+                  "lastUsed": "2026-11-03"},
+                 {"call": "POST /work-items", "scope": policy.HUMAN, "person": 1, "agent": 0, "failed": 0,
+                  "lastUsed": "2026-11-05"}],
+        "unused": [{"call": "POST /tickets", "scope": policy.TICKET, "lastUsed": None}]}
+    assert yours["daily"] == [
+        {"day": "2026-11-03", "pageViews": 1, "reads": {"person": 1, "agent": 0},
+         "changes": {"person": 0, "agent": 0}, "failed": 1},
+        {"day": "2026-11-05", "pageViews": 0, "reads": {"person": 0, "agent": 0},
+         "changes": {"person": 1, "agent": 0}, "failed": 0}]
+    # Only the person opens pages.
+    assert yours["pages"] == everyone["pages"] == {
+        "used": [{"page": "today", "views": 1, "lastUsed": "2026-11-03"}], "unused": []}
+
+
 def test_a_flush_waits_while_the_page_reads_so_no_count_shows_twice_or_not_at_all(tmp_path, monkeypatch):
     log = Usage(tmp_path / usage.FILE, clock=Clock(datetime(2026, 11, 8, 15, tzinfo=UTC)))
     log.record("page", "work", "person")
@@ -473,8 +535,8 @@ def test_a_flush_waits_while_the_page_reads_so_no_count_shows_twice_or_not_at_al
     log.record("page", "work", "person")
     read, flushed = usage._read, threading.Event()
 
-    def read_then_flush(*args):
-        found = read(*args)
+    def read_then_flush(*args, **kwargs):
+        found = read(*args, **kwargs)
         # A flush that starts after the file is read, and before the counts held are, waits: done
         # now, it would add the count held to the file and leave none held, so neither would show it.
         threading.Thread(target=lambda: (log.flush(), flushed.set())).start()
@@ -501,7 +563,7 @@ def test_worklog_usage_prints_the_report_and_says_when_nothing_is_recorded(tmp_p
     assert log.flush()
     assert cli.main(["--data-dir", str(data), "usage", "--days", "7"]) == 0
     printed = json.loads(capsys.readouterr().out)
-    assert printed["window"]["days"] == 7
+    assert (printed["window"]["days"], printed["agents"]) == (7, True)
     assert [row["page"] for row in printed["pages"]["used"]] == ["today"]
     assert printed["pages"]["unused"] == [{"page": "work", "lastUsed": None}]
     for days in ("0", "3651", "week"):
