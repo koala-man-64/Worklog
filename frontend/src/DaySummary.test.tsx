@@ -23,7 +23,7 @@ const entry = (
     ...anItem({ id: "item-" + title, title, status, revision: 4 }),
     rank: null,
   },
-  counts: { tasks: 0, tasksDone: 0, links: 0, files: 0, scratchpad: false },
+  counts: { links: 0, files: 0, scratchpad: false },
   ...fields,
 });
 const day = (entries: Entry[]): Day => ({

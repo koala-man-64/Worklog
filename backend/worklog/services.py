@@ -44,7 +44,7 @@ class WorkService:
             return self.items.apply(c, actor, action, p)
         if action == "entry.upsert":
             return self.items.upsert_entry(c, actor, p)
-        if action.startswith(("note.", "task.", "reference.", "attachment.", "link.", "chat.", "github.", "question.", "decision.")):
+        if action.startswith(("note.", "reference.", "attachment.", "link.", "chat.", "github.", "question.", "decision.")):
             return support.apply(c, actor, action, p)
         if action.startswith(("roadmap.", "progress.", "step.")):
             result = self.plans.apply(c, actor, action, p)

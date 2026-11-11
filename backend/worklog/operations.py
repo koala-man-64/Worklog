@@ -68,8 +68,6 @@ OPERATIONS: dict[str, Spec] = {
     # A proposed note is its text; the person's own route may start an empty one.
     "note.create": _new(m.NoteCreate, also_required=frozenset({"text"})),
     "note.update": _existing(m.NoteUpdate),
-    "task.create": _new(m.TaskCreate),
-    "task.update": _existing(m.TaskUpdate),
     "roadmap.create": _new(m.RoadmapCreate),
     # A proposed revision states the whole plan, so it can't leave the steps out by accident.
     "roadmap.revise": _existing(m.RoadmapRevision, also_required=frozenset({"steps"})),
@@ -127,7 +125,7 @@ OPERATIONS: dict[str, Spec] = {
 SERVER_ONLY = frozenset({
     "reference.create", "reference.archive", "reference.recover",
     "attachment.archive", "attachment.recover",
-    "note.archive", "note.recover", "task.archive", "task.recover",
+    "note.archive", "note.recover",
     "roadmap.restore", "roadmap.archive", "roadmap.recover",
     "ticket.archive", "ticket.recover",
     "release.archive", "release.recover", "check.archive", "check.recover",

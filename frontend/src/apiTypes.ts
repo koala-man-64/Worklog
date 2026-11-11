@@ -187,7 +187,6 @@ export type Day = Schema["Day"];
 export type Entry = Schema["DayEntry"];
 export type TabCounts = Schema["TabCounts"];
 export type Note = Schema["Note"];
-export type Task = Schema["Task"];
 export type Attachment = Schema["Attachment"];
 export type Reference = Schema["FileReference"];
 export type WebLink = Schema["WebLink"];

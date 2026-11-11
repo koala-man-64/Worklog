@@ -2,7 +2,8 @@
 4.4, B-09): archived is 0 or 1 in tasks, notes, file references and attachments, and a note or an
 attachment names an owner of a kind it can have. The upgrade changes no record, rowids included,
 refuses a row the new CHECKs would refuse and changes nothing then, and the way back gives
-v22's exact shape."""
+v22's exact shape. v26 dropped tasks with work item checklists, so the tests below hold rows in the
+other three."""
 
 import hashlib
 import sqlite3
@@ -19,7 +20,7 @@ from worklog.app import create_app
 from worklog.db import Database
 
 ORIGIN = "http://127.0.0.1:8877"
-LEAVES = ("tasks", "notes", "file_references", "attachments")
+LEAVES = ("notes", "file_references", "attachments")
 # From version 23 to version 22, with Worklog stopped and after a manual backup. docs/UPGRADING.md gave this
 # way back while version 23 was the latest; older upgrade tests now build their databases with it.
 WAY_BACK = """\
@@ -58,8 +59,8 @@ def to_v22(path):
 
 
 def populated(data):
-    """A current database with rows in the four tables, written through the API, the newest row of each
-    then moved to a higher rowid, so the rowids the rebuild must keep have gaps."""
+    """A current database with rows in the three tables, written through the API, the newest row of
+    each then moved to a higher rowid, so the rowids the rebuild must keep have gaps."""
     with TestClient(create_app(data, testing=True), base_url=ORIGIN) as c:
         c.headers["Origin"] = ORIGIN
         boot = c.post("/api/v1/session/bootstrap", headers={"X-Worklog-Bootstrap": "1"}, json={})
@@ -72,8 +73,6 @@ def populated(data):
             return response.json()
 
         item = call("POST", "/work-items", json={"title": "Parser"})
-        call("POST", "/tasks", json={"itemId": item["id"], "text": "Write the tests"})
-        call("POST", "/tasks", json={"itemId": item["id"], "text": "Ship it", "done": True})
         call("POST", "/notes", json={"ownerType": "item", "ownerId": item["id"], "title": "Scratch", "text": "Notes"})
         roadmap = call("POST", "/roadmaps", json={"title": "Plan", "steps": []})
         call("POST", "/notes", json={"ownerType": "roadmap", "ownerId": roadmap["id"], "title": "Why", "text": "Because"})
@@ -90,7 +89,7 @@ def populated(data):
 
 
 def leaves(path):
-    """Every row of the four tables, rowid first, in rowid order."""
+    """Every row of the three tables, rowid first, in rowid order."""
     with closing(sqlite3.connect(path)) as conn:
         return {table: conn.execute(f"SELECT rowid,* FROM {table} ORDER BY rowid").fetchall() for table in LEAVES}
 
@@ -98,7 +97,7 @@ def leaves(path):
 def test_a_new_database_refuses_what_code_alone_used_to(tmp_path):
     database = populated(tmp_path / "data")
     with closing(sqlite3.connect(database)) as conn:
-        for statement in ("UPDATE tasks SET archived=2", "UPDATE notes SET archived=-1", "UPDATE file_references SET archived=3",
+        for statement in ("UPDATE notes SET archived=-1", "UPDATE file_references SET archived=3",
                           "UPDATE attachments SET archived=9", "UPDATE notes SET owner_type='ticket'",
                           "UPDATE attachments SET owner_type='person'"):
             with pytest.raises(sqlite3.IntegrityError, match="CHECK constraint failed"):
@@ -114,8 +113,9 @@ def test_the_v23_upgrade_keeps_every_row_and_rowid_and_gives_the_sealed_shape(tm
     Database(database).initialize()
     version, signature, after = contents(database)
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
-    # Every row stays; v25, which the upgrade also runs, drops the plan import table, empty here.
-    assert after == {table: rows for table, rows in records.items() if table != "plan_imports"}
+    # Every row stays; v25 and v26, which the upgrade also runs, drop the plan import and task tables,
+    # empty here.
+    assert after == {table: rows for table, rows in records.items() if table not in ("plan_imports", "tasks")}
     assert leaves(database) == before
     snapshot, = (tmp_path / "data" / "backups").glob("worklog-pre-migration-*.sqlite3")
     with closing(sqlite3.connect(snapshot)) as conn:
@@ -123,7 +123,7 @@ def test_the_v23_upgrade_keeps_every_row_and_rowid_and_gives_the_sealed_shape(tm
 
 
 @pytest.mark.parametrize("statement", [
-    "UPDATE tasks SET archived=2", "UPDATE notes SET owner_type='ticket'", "UPDATE file_references SET archived=5",
+    "UPDATE notes SET archived=2", "UPDATE notes SET owner_type='ticket'", "UPDATE file_references SET archived=5",
     "UPDATE attachments SET owner_type='person'"])
 def test_a_row_the_checks_refuse_stops_the_upgrade_and_changes_nothing(tmp_path, statement):
     database = populated(tmp_path / "data")
@@ -147,7 +147,7 @@ def test_restore_refuses_a_backup_with_a_row_the_checks_refuse_and_changes_nothi
     candidate = populated(tmp_path / "old")
     to_v22(candidate)
     with closing(sqlite3.connect(candidate)) as conn:
-        conn.execute("UPDATE tasks SET archived=2")
+        conn.execute("UPDATE notes SET archived=2")
         conn.commit()
     target = populated(tmp_path / "live")
     original = hashlib.sha256(target.read_bytes()).hexdigest()

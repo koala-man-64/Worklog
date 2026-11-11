@@ -77,23 +77,6 @@ class NoteUpdate(Expected):
     text: str | None = None
 
 
-class TaskCreate(Command):
-    itemId: str
-    text: str
-    done: StrictBool = False
-
-
-class TaskUpdate(Expected):
-    text: str | None = None
-    done: StrictBool | None = None
-
-
-class TaskMove(Expected):
-    """revision is the task's own; position is its new place among the work item's active tasks,
-    1 first, and a place past the last moves it last."""
-    position: Annotated[StrictInt, Field(ge=1)]
-
-
 class ReferenceCreate(Command):
     itemId: str
     path: str
@@ -445,7 +428,7 @@ class StepUpdate(Expected):
 class Operation(Command):
     action: Literal["repository.create", "repository.update", "repository.archive", "repository.recover",
                     "item.create", "item.update", "item.archive", "item.recover", "entry.upsert",
-                    "note.create", "note.update", "task.create", "task.update",
+                    "note.create", "note.update",
                     "roadmap.create", "roadmap.revise", "roadmap.move", "progress.set", "step.update",
                     "person.create", "person.update", "person.archive", "person.recover",
                     "person.link", "person.unlink",

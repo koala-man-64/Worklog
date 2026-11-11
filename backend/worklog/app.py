@@ -366,7 +366,6 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             return {"items": visible_history(c, entityId, limit, request.state.actor)}
 
     @app.get("/api/v1/notes/{identity}", response_model=out.Note)
-    @app.get("/api/v1/tasks/{identity}", response_model=out.Task)
     @app.get("/api/v1/references/{identity}", response_model=out.FileReference)
     @app.get("/api/v1/links/{identity}", response_model=out.WebLink)
     @app.get("/api/v1/chats/{identity}", response_model=out.TrackedChat)
@@ -377,7 +376,6 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         resource = request.url.path.split("/")[-2]
         table = {
             "notes": "notes",
-            "tasks": "tasks",
             "references": "file_references",
             "links": "web_links",
             "chats": "agent_chats",
@@ -398,19 +396,6 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     @app.patch("/api/v1/notes/{identity}", response_model=out.Note)
     def update_note(identity: str, request: Request, body: m.NoteUpdate) -> dict:
         return apply(request, "note.update", {**body.model_dump(exclude_unset=True), "id": identity})
-
-    @app.post("/api/v1/tasks", response_model=out.Task)
-    def create_task(request: Request, body: m.TaskCreate) -> dict:
-        return apply(request, "task.create", body.model_dump(), create=True)
-
-    @app.patch("/api/v1/tasks/{identity}", response_model=out.Task)
-    def update_task(identity: str, request: Request, body: m.TaskUpdate) -> dict:
-        return apply(request, "task.update", {**body.model_dump(exclude_unset=True), "id": identity})
-
-    @app.post("/api/v1/tasks/{identity}/move", response_model=out.TaskPlace)
-    def move_task(identity: str, request: Request, body: m.TaskMove) -> dict:
-        p = body.model_dump()
-        return mutate(request, p, lambda c, a: support.move_task(c, a, identity, p))
 
     @app.post("/api/v1/references", response_model=out.FileReference)
     def create_reference(request: Request, body: m.ReferenceCreate) -> dict:
@@ -497,10 +482,10 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     # moved behind the others to keep from shadowing them.
     # Each answers with the record as it stands after, as its read does; a GitHub reference also
     # names the chat that made it, as its owner's list does.
-    written = {"note": out.Note, "task": out.Task, "reference": out.FileReference, "attachment": out.Attachment,
+    written = {"note": out.Note, "reference": out.FileReference, "attachment": out.Attachment,
                "link": out.WebLink, "chat": out.TrackedChat, "github": out.ListedGithubReference,
                "question": out.Question, "decision": out.Decision}
-    for resource, kind in {"notes": "note", "tasks": "task", "references": "reference", "attachments": "attachment",
+    for resource, kind in {"notes": "note", "references": "reference", "attachments": "attachment",
                            "links": "link", "chats": "chat", "github": "github", "questions": "question",
                            "decisions": "decision"}.items():
         for verb in ("archive", "recover"):

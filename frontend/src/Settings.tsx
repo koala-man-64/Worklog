@@ -383,8 +383,8 @@ export function Settings() {
         <h2>Archive & recovery</h2>
         <p>
           Archived work and roadmaps retain their history. Use the archive
-          switches in Work and Roadmaps to recover them. Notes, tasks, files,
-          and paths can be recovered inside their owning record.
+          switches in Work and Roadmaps to recover them. Notes, files and
+          paths can be recovered inside their owning record.
         </p>
         <div className="toolbar">
           <a className="button" href="#work">

@@ -2,7 +2,6 @@ import { useState, type ReactNode } from "react";
 import { contextStorageKey, request, getDataContext } from "./api";
 import { commands } from "./commands";
 import { unsavedDraft, useCollapsed, useData, useWrites } from "./hooks";
-import { Checklist } from "./sections/Checklist";
 import { Files } from "./sections/Files";
 import { LinksSection } from "./sections/Links";
 import { Scratchpad } from "./sections/Notes";
@@ -91,7 +90,7 @@ function ItemRepositories({ item }: { item: Detail }) {
     </>
   );
 }
-// An entry's outcome for the day, and its work item's own tasks, scratchpad, links, files and
+// An entry's outcome for the day, and its work item's own scratchpad, links, files and
 // repositories. The tabs say what they hold from the day's counts, before the item is read.
 function EntryTabs({ entry, date }: { entry: Entry; date: string }) {
   const counts = entry.counts;
@@ -117,21 +116,6 @@ function EntryTabs({ entry, date }: { entry: Entry; date: string }) {
                 commands.upsertEntry(date, itemId, { revision, outcome })
               }
             />
-          ),
-        },
-        {
-          id: "tasks",
-          ...counted(
-            "Tasks",
-            !!counts?.tasks && `${counts.tasksDone}/${counts.tasks}`,
-            `${counts?.tasksDone} of ${counts?.tasks} done`,
-          ),
-          panel: () => (
-            <ItemPart itemId={itemId}>
-              {(item) => (
-                <Checklist itemId={itemId} tasks={item.tasks} heading={false} />
-              )}
-            </ItemPart>
           ),
         },
         {

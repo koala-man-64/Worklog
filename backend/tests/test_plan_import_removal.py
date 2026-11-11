@@ -7,7 +7,6 @@ import json
 import sqlite3
 import uuid
 from contextlib import closing
-from pathlib import Path
 
 import sealed
 from test_chat_label_links import call, session
@@ -16,8 +15,9 @@ from worklog import migrations, recovery
 from worklog.compaction import compact_database
 from worklog.db import Database
 
-# docs/UPGRADING.md: from version 25 to version 24, with Worklog stopped and after a manual backup.
-# The table as version 24 had it, spaced as its seal records it.
+# From version 25 to version 24, with Worklog stopped and after a manual backup: the table as version
+# 24 had it, spaced as its seal records it. docs/UPGRADING.md gave this way back while version 25 was
+# the latest; older upgrade tests now build their databases with it.
 WAY_BACK = """\
 CREATE TABLE plan_imports ( id TEXT PRIMARY KEY, name TEXT NOT NULL, original BLOB NOT NULL, sha256 TEXT NOT NULL, preview TEXT NOT NULL, actor_id TEXT NOT NULL, created_at TEXT NOT NULL, roadmap_id TEXT REFERENCES roadmaps(id) );
 PRAGMA user_version=24;
@@ -26,7 +26,10 @@ ORIGINAL = b"<!doctype html><title>A plan</title><h1>Plan</h1><h2>Build</h2><p>T
 
 
 def to_v24(path):
-    """Take a current database back to v24 the documented way."""
+    """Take a current database back to v24 the documented way: to version 25 first."""
+    from test_task_removal import to_v25
+
+    to_v25(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK)
 
@@ -61,8 +64,9 @@ def test_the_upgrade_drops_the_imports_and_changes_no_other_record(tmp_path):
     version, signature, after = contents(database)
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
     assert "plan_imports" not in after
-    # Every other table keeps every row, events included; the roadmap an import made is an ordinary roadmap.
-    assert after == {table: rows for table, rows in before.items() if table != "plan_imports"}
+    # Every other table keeps every row, events included; the roadmap an import made is an ordinary
+    # roadmap. v26, which the upgrade also runs, drops the tasks table, empty here.
+    assert after == {table: rows for table, rows in before.items() if table not in ("plan_imports", "tasks")}
     assert [row[0] for row in after["roadmaps"]] == [roadmap]
     assert [row[2] for row in after["events"] if row[0] == "import-event"] == ["import.reference"]
     # The pre-migration backup holds the database as v24 had it, imports included.
@@ -83,8 +87,6 @@ def test_the_way_back_gives_v24s_exact_shape_and_upgrades_again(tmp_path):
     with closing(sqlite3.connect(database)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
         assert recovery._schema_signature(conn) == sealed.current()
-    # The SQL tested here is the SQL docs/UPGRADING.md gives the person.
-    assert "```sql\n" + WAY_BACK + "```" in (Path(__file__).resolve().parents[2] / "docs" / "UPGRADING.md").read_text(encoding="utf-8")
 
 
 def test_compaction_still_thins_the_import_events_older_databases_hold(tmp_path):

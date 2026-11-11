@@ -178,14 +178,12 @@ class Items:
 
     @staticmethod
     def tab_counts(c: sqlite3.Connection, ids: builtins.list[str]) -> dict[str, dict]:
-        """What each item's tabs on Today hold, so they say so before the item is read: its active
-        tasks and how many are done, its links and files, and whether its scratchpad has text."""
-        counts = {i: {"tasks": 0, "tasksDone": 0, "links": 0, "files": 0, "scratchpad": False} for i in ids}
+        """What each item's tabs on Today hold, so they say so before the item is read: its links
+        and files, and whether its scratchpad has text."""
+        counts = {i: {"links": 0, "files": 0, "scratchpad": False} for i in ids}
         if not ids:
             return counts
         marks = ",".join("?" for _ in ids)
-        for owner, total, done in c.execute(f"SELECT item_id,count(*),total(done) FROM tasks WHERE archived=0 AND item_id IN ({marks}) GROUP BY item_id", ids):
-            counts[owner].update(tasks=total, tasksDone=int(done))
         for owner, total in c.execute(f"SELECT owner_id,count(*) FROM web_links WHERE owner_type='item' AND archived=0 AND owner_id IN ({marks}) GROUP BY owner_id", ids):
             counts[owner]["links"] = total
         # The Files tab lists attached copies and local paths together.

@@ -25,6 +25,8 @@ from typing import Any
 
 # The supporting records operations name by id, by the prefix of their actions: each one's table,
 # and the columns that name its owner's type and id ('item' and 'roadmap' are fixed owner types).
+# No proposal carries a task since v26 dropped work item checklists, but the v16 upgrade still
+# finds what an older database's approved task changes were applied to, before v26 drops them.
 _HELD = {
     "task": ("tasks", "'item'", "item_id"),
     "reference": ("file_references", "'item'", "item_id"),

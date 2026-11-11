@@ -1,6 +1,6 @@
-"""Supporting records: the notes, checklist tasks, file references, attached files, links, agent
-chats, GitHub references, questions and decisions kept on work items, roadmaps, steps,
-proposals and repositories.
+"""Supporting records: the notes, file references, attached files, links, agent chats, GitHub
+references, questions and decisions kept on work items, roadmaps, steps, proposals and
+repositories.
 """
 
 from __future__ import annotations
@@ -19,7 +19,6 @@ from .chat_messages import chat_agents, expire_pending
 from .common import (
     FILE_LIMIT,
     AppError,
-    boolean,
     event,
     now,
     repository_labels,
@@ -36,9 +35,6 @@ from .discussions import communication_actor, identity_chat
 from .proposals import evidence_file
 from .records import FILE_OWNERS, check_owner, get_item, support_record
 from .repository_links import linked_repositories, replace_repository_associations
-
-# A work item's tasks in the person's order (v14), ties by when each was added.
-TASK_ORDER = "position,created_at,id"
 
 
 def valid_http_url(raw: Any, field: str = "url") -> str:
@@ -178,7 +174,6 @@ def for_owner(c: sqlite3.Connection, owner_type: str, owner_id: str) -> dict:
         result["questions"] = [support_record(r) for r in c.execute("SELECT * FROM roadmap_questions WHERE roadmap_id=? ORDER BY created_at,id", (owner_id,))]
         result["decisions"] = [support_record(r) for r in c.execute("SELECT * FROM roadmap_decisions WHERE roadmap_id=? ORDER BY decided_date DESC,created_at DESC,id", (owner_id,))]
     if owner_type == "item":
-        result["tasks"] = [support_record(r) for r in c.execute(f"SELECT * FROM tasks WHERE item_id=? ORDER BY {TASK_ORDER}", (owner_id,))]
         result["references"] = [support_record(r) for r in c.execute("SELECT * FROM file_references WHERE item_id=? ORDER BY created_at", (owner_id,))]
     return result
 
@@ -189,7 +184,6 @@ def apply(c: sqlite3.Connection, actor: dict, action: str, p: dict, *, moved_to:
     kind, verb = action.split(".", 1)
     table = {
         "note": "notes",
-        "task": "tasks",
         "reference": "file_references",
         "attachment": "attachments",
         "link": "web_links",
@@ -350,23 +344,6 @@ def apply(c: sqlite3.Connection, actor: dict, action: str, p: dict, *, moved_to:
             (val["id"], val["roadmapId"], val["title"], val["rationale"], val["decidedDate"], 0, val["revision"] + 1, val["createdAt"], now()),
         )
         p = {**p, "id": val["id"]}
-    elif kind == "task" and verb in {"create", "update"}:
-        # A new task was last updated when it was added, to the microsecond.
-        stamp = now()
-        val = before.copy() if before else {"id": uid(), "itemId": p.get("itemId"), "text": "", "done": False, "createdAt": stamp, "revision": 0}
-        get_item(c, val["itemId"])
-        if "text" in p:
-            val["text"] = text(p["text"], "text", required=True)
-        if "done" in p:
-            val["done"] = boolean(p["done"], "done")
-        if not val["text"]:
-            raise AppError(422, "validation", "Checklist text is required")
-        # A new task goes last. An edit keeps the task's place: the update below leaves position
-        # as it is, and only move_task changes it.
-        position = 0 if before else c.execute("SELECT coalesce(max(position),0)+1 FROM tasks WHERE item_id=?", (val["itemId"],)).fetchone()[0]
-        c.execute("INSERT INTO tasks(id,item_id,text,done,archived,revision,created_at,updated_at,position) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET text=excluded.text,done=excluded.done,revision=excluded.revision,updated_at=excluded.updated_at",
-                  (val["id"], val["itemId"], val["text"], int(val["done"]), 0, val["revision"] + 1, val["createdAt"], stamp, position))
-        p = {**p, "id": val["id"]}
     elif kind == "attachment" and creating:
         # Only an applied proposal attaches a file this way: a copy of evidence uploaded to it,
         # so the proposal keeps the file it was reviewed with. The person uploads directly.
@@ -422,37 +399,6 @@ def apply(c: sqlite3.Connection, actor: dict, action: str, p: dict, *, moved_to:
         search.remove(c, after["id"])
     event(c, actor, action, p["id"], before, after)
     return after
-
-
-def move_task(c: sqlite3.Connection, actor: dict, identity: str, p: dict) -> dict:
-    """Move an active task to a place in its work item's list, 1 first; a place past the last moves it last.
-
-    As with a work item's stack rank, the move is checked against the task's own revision, so a
-    stale view can only move a task it shows as it is now. Moving changes no task's revision or
-    last-updated time, so an edit open on any of them still saves. Archived tasks keep their
-    places among the rest and come back there when recovered.
-    """
-    wanted = p.get("position")
-    if not isinstance(wanted, int) or isinstance(wanted, bool) or wanted < 1:
-        raise AppError(422, "validation", "position must be a whole number from 1")
-    row = c.execute("SELECT * FROM tasks WHERE id=?", (identity,)).fetchone()
-    require_revision(row, p.get("revision"))
-    if row["archived"]:
-        raise AppError(409, "conflict", "An archived task has no place in the list; recover it to move it")
-    order = [r[0] for r in c.execute(f"SELECT id FROM tasks WHERE item_id=? ORDER BY {TASK_ORDER}", (row["item_id"],))]
-    listed = [r[0] for r in c.execute(f"SELECT id FROM tasks WHERE item_id=? AND archived=0 ORDER BY {TASK_ORDER}", (row["item_id"],))]
-    before, after = listed.index(identity) + 1, min(wanted, len(listed))
-    if after != before:
-        others = [i for i in listed if i != identity]
-        rest = [i for i in order if i != identity]
-        # Taken out, the task goes back in just before the one that then holds its new place, or
-        # just after the last. Every task then takes its own position, written only where it moved.
-        rest.insert(rest.index(others[after - 1]) if after <= len(others) else rest.index(others[-1]) + 1, identity)
-        held = dict(c.execute("SELECT id,position FROM tasks WHERE item_id=?", (row["item_id"],)).fetchall())
-        c.executemany("UPDATE tasks SET position=? WHERE id=?",
-                      [(place, task) for place, task in enumerate(rest, 1) if held[task] != place])
-        event(c, actor, "task.move", identity, {"position": before}, {"position": after})
-    return {"id": identity, "position": after}
 
 
 def _github_chat_id(c: sqlite3.Connection, owner_type: str, owner_id: str, chat_ref: str) -> str:

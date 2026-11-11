@@ -1384,92 +1384,6 @@
         }
       }
     },
-    "/api/v1/tasks/{identity}": {
-      "get": {
-        "summary": "Supporting Detail",
-        "operationId": "supporting_detail_api_v1_tasks__identity__get",
-        "parameters": [
-          {
-            "name": "identity",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Identity"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Task"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "patch": {
-        "summary": "Update Task",
-        "operationId": "update_task_api_v1_tasks__identity__patch",
-        "parameters": [
-          {
-            "name": "identity",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Identity"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TaskUpdate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Task"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/notes/{identity}": {
       "get": {
         "summary": "Supporting Detail",
@@ -1577,93 +1491,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Note"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/tasks": {
-      "post": {
-        "summary": "Create Task",
-        "operationId": "create_task_api_v1_tasks_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TaskCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Task"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/tasks/{identity}/move": {
-      "post": {
-        "summary": "Move Task",
-        "operationId": "move_task_api_v1_tasks__identity__move_post",
-        "parameters": [
-          {
-            "name": "identity",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Identity"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TaskMove"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskPlace"
                 }
               }
             }
@@ -2114,104 +1941,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Note"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/tasks/{identity}/archive": {
-      "post": {
-        "summary": "Task Archive",
-        "operationId": "task_archive_api_v1_tasks__identity__archive_post",
-        "parameters": [
-          {
-            "name": "identity",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Identity"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Expected"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Task"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/tasks/{identity}/recover": {
-      "post": {
-        "summary": "Task Recover",
-        "operationId": "task_recover_api_v1_tasks__identity__recover_post",
-        "parameters": [
-          {
-            "name": "identity",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Identity"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Expected"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Task"
                 }
               }
             }
@@ -17265,8 +16994,6 @@
               "entry.upsert",
               "note.create",
               "note.update",
-              "task.create",
-              "task.update",
               "roadmap.create",
               "roadmap.revise",
               "roadmap.move",
@@ -24846,14 +24573,6 @@
       },
       "TabCounts": {
         "properties": {
-          "tasks": {
-            "type": "integer",
-            "title": "Tasks"
-          },
-          "tasksDone": {
-            "type": "integer",
-            "title": "Tasksdone"
-          },
           "links": {
             "type": "integer",
             "title": "Links"
@@ -24870,8 +24589,6 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "tasks",
-          "tasksDone",
           "links",
           "files",
           "scratchpad"
@@ -24904,158 +24621,6 @@
           "id"
         ],
         "title": "Target"
-      },
-      "Task": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "itemId": {
-            "type": "string",
-            "title": "Itemid"
-          },
-          "text": {
-            "type": "string",
-            "title": "Text"
-          },
-          "done": {
-            "type": "boolean",
-            "title": "Done"
-          },
-          "archived": {
-            "type": "boolean",
-            "title": "Archived"
-          },
-          "revision": {
-            "type": "integer",
-            "title": "Revision"
-          },
-          "createdAt": {
-            "type": "string",
-            "title": "Createdat"
-          },
-          "updatedAt": {
-            "type": "string",
-            "title": "Updatedat"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "itemId",
-          "text",
-          "done",
-          "archived",
-          "revision",
-          "createdAt",
-          "updatedAt"
-        ],
-        "title": "Task"
-      },
-      "TaskCreate": {
-        "properties": {
-          "itemId": {
-            "type": "string",
-            "title": "Itemid"
-          },
-          "text": {
-            "type": "string",
-            "title": "Text"
-          },
-          "done": {
-            "type": "boolean",
-            "title": "Done",
-            "default": false
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "itemId",
-          "text"
-        ],
-        "title": "TaskCreate"
-      },
-      "TaskMove": {
-        "properties": {
-          "revision": {
-            "type": "integer",
-            "minimum": 0.0,
-            "title": "Revision"
-          },
-          "position": {
-            "type": "integer",
-            "minimum": 1.0,
-            "title": "Position"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "revision",
-          "position"
-        ],
-        "title": "TaskMove",
-        "description": "revision is the task's own; position is its new place among the work item's active tasks,\n1 first, and a place past the last moves it last."
-      },
-      "TaskPlace": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "position": {
-            "type": "integer",
-            "title": "Position"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "position"
-        ],
-        "title": "TaskPlace",
-        "description": "Where a moved task now stands in its work item's list, 1 first."
-      },
-      "TaskUpdate": {
-        "properties": {
-          "revision": {
-            "type": "integer",
-            "minimum": 0.0,
-            "title": "Revision"
-          },
-          "text": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Text"
-          },
-          "done": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Done"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "revision"
-        ],
-        "title": "TaskUpdate"
       },
       "Ticket": {
         "properties": {
@@ -27503,13 +27068,6 @@
             "type": "array",
             "title": "Github"
           },
-          "tasks": {
-            "items": {
-              "$ref": "#/components/schemas/Task"
-            },
-            "type": "array",
-            "title": "Tasks"
-          },
           "references": {
             "items": {
               "$ref": "#/components/schemas/FileReference"
@@ -27582,7 +27140,6 @@
           "links",
           "chats",
           "github",
-          "tasks",
           "references",
           "people",
           "dailyEntries",

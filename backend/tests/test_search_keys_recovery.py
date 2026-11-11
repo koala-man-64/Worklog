@@ -90,8 +90,9 @@ def test_a_new_database_keys_every_search_row(client):
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
         assert recovery._schema_signature(conn) == sealed.current()
         assert keyed(conn)
+        # v11's tasks_item went with the tasks table in v26.
         names = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='index'")}
-        assert {"tasks_item", "file_references_item", "work_items_step", "work_items_roadmap", "github_refs_chat",
+        assert {"file_references_item", "work_items_step", "work_items_roadmap", "github_refs_chat",
                 "steps_parent", "receipts_created", "search_keys_owner"} <= names
         dated = conn.execute("SELECT count(*) FROM receipts WHERE created_at<>''").fetchone()[0]
         assert dated == conn.execute("SELECT count(*) FROM receipts").fetchone()[0] > 0

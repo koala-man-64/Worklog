@@ -7,7 +7,7 @@ Worklog runs at **http://127.0.0.1:8877** from one local SQLite database. No hos
 ## What Worklog does
 
 - **Plan and record your days.** Plan what you will work on and mark what you actually worked on with an outcome and next action.
-- **Keep one backlog, stack ranked.** Work items carry a status, a stack rank, a Markdown description, tasks with checkboxes, a scratchpad, files, links, local paths, an Azure DevOps link, GitHub pull requests and commits, people and repositories, along with their daily record and full history.
+- **Keep one backlog, stack ranked.** Work items carry a status, a stack rank, a Markdown description, a scratchpad, files, links, local paths, an Azure DevOps link, GitHub pull requests and commits, people and repositories, along with their daily record and full history.
 - **Track issues as tickets.** You and your agents file tickets for bugs, incidents and tasks, work them with a status, assignee and comments, and close them with a resolution. Closed tickets stay searchable, so the next agent finds what fixed an issue last time.
 - **Set reminders.** A reminder is due on a day, or at a time on it. Due reminders show on Today and beside Reminders in the sidebar until you mark them done; snooze one to move it. Tie a reminder to a work item, ticket, roadmap, person, repository or chat, and that record's page lists it. Your agents can set reminders for you too.
 - **Plan bigger efforts as roadmaps.** Roadmaps nest under each other and hold step trees with progress, immutable versions, questions and decisions.

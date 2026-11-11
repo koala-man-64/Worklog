@@ -244,12 +244,6 @@ ROUTES: dict[str, dict[str, str | Only]] = {
     "/steps/{identity}/history": {"GET": READ},
     "/steps/{identity}/progress": {"PATCH": HUMAN},
 
-    "/tasks": {"POST": HUMAN},
-    "/tasks/{identity}": {"GET": READ, "PATCH": HUMAN},
-    "/tasks/{identity}/archive": {"POST": HUMAN},
-    "/tasks/{identity}/move": {"POST": HUMAN},
-    "/tasks/{identity}/recover": {"POST": HUMAN},
-
     "/tickets": {"GET": READ, "POST": TICKET},
     "/tickets/{ref}": {"GET": READ, "PATCH": TICKET},
     "/tickets/{ref}/comments": {"POST": TICKET},

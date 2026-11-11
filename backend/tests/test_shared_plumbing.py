@@ -13,7 +13,7 @@ from worklog.common import rows_in
 from worklog.db import Database
 
 ORIGIN = "http://127.0.0.1:8877"
-SUPPORTING = ["notes", "tasks", "references", "attachments", "links", "chats", "github", "questions", "decisions"]
+SUPPORTING = ["notes", "references", "attachments", "links", "chats", "github", "questions", "decisions"]
 
 
 @pytest.fixture
@@ -47,7 +47,6 @@ def supporting_record(c, kind):
                         content=b"hello", headers={"Content-Type": "text/plain"}))
     payload = {
         "notes": {**owner, "title": "Note"},
-        "tasks": {"itemId": item["id"], "text": "Task"},
         "references": {"itemId": item["id"], "path": "src/app.py"},
         "links": {**owner, "url": "https://example.com/spec"},
         "chats": {**owner, "chatId": str(uuid.uuid4()), "title": "Chat"},

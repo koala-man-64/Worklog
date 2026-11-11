@@ -32,7 +32,7 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 3. **Act as yourself.** Every later command MUST give `--as NAME` before the group. Your runs, reports, messages, tickets, reminders and proposals then carry your own identity.
 4. **One request ID per write.** Give each write a stable `--request-id`: 8-200 printable ASCII characters without spaces. After an uncertain result, rerun with the same ID and the identical payload; it cannot apply twice. A new operation MUST get a new ID. Proposal commands take none (section 7).
 5. **Current revisions.** A revision-checked command MUST carry the revision from your latest read. On `409 conflict`, read the record again and decide afresh; never reapply blindly.
-6. **Proposals for the person's records.** Work items, day entries, scratchpads and notes, checklist tasks, roadmaps and step progress, people, links, tracked chats, GitHub references, questions, decisions, repository edits, resources (the person's reference pages) and the files attached to the person's records change only through a proposal the person approves (section 6). You write tickets, the person's reminders (section 5.9), discussions, your own runs, participation, updates and ties, repository registrations and your inbox directly, and you track your own chat on the work you do (section 5.4); a proposal can also file or change a ticket that belongs with what it creates. Releases, the person's plans of what ships together, and their checks change only by proposal too: read them to learn which release your work is in and what it needs, and propose a check when your change needs a test, a configuration change or a request made before it ships.
+6. **Proposals for the person's records.** Work items, day entries, scratchpads and notes, roadmaps and step progress, people, links, tracked chats, GitHub references, questions, decisions, repository edits, resources (the person's reference pages) and the files attached to the person's records change only through a proposal the person approves (section 6). You write tickets, the person's reminders (section 5.9), discussions, your own runs, participation, updates and ties, repository registrations and your inbox directly, and you track your own chat on the work you do (section 5.4); a proposal can also file or change a ticket that belongs with what it creates. Releases, the person's plans of what ships together, and their checks change only by proposal too: read them to learn which release your work is in and what it needs, and propose a check when your change needs a test, a configuration change or a request made before it ships.
 7. **Advisory, not authority.** Participation, ticket assignment, roles, ties and discussion tags reserve nothing and lock nothing, and a fresh report does not prove an agent is running. An acknowledgement means "received and understood", never approval.
 8. **Search first.** Before you investigate a failure, search past tickets, closed ones included: `tickets list --status all --q 'WORDS'`. File a ticket for an issue worth tracking, comment as you learn, and close it with a resolution that says what fixed it.
 9. **Never work around a refusal.** `401` means your identity was revoked: by the person, by the retirement of the agent that registered you, or by a restore. Stop, tell the person, and register again only if they agree. `403 agent_scope` is outside agent authority: propose the change or ask. `429 agent_limit`: report it and do not retry. `403 repository_registration_off`: propose `repository.create`. Section 8 lists every code.
@@ -53,7 +53,6 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 | Day entry | date and work item | `planned`, `worked`, `outcome` | proposal (`entry.upsert`) |
 | Scratchpad | note UUID | the one Markdown note of a work item | proposal (`note.create` adds a section) |
 | Note on a roadmap or step | UUID | `title`, `text` | proposal (`note.*`) |
-| Checklist task | UUID | `text`, `done`; a work item's tasks come in the person's order, a new one last | proposal (`task.*`); only the person reorders |
 | Roadmap | UUID | `title`, `overview`, `parentId` for nesting, immutable versions, of which compaction keeps the 20 newest | proposal (`roadmap.*`) |
 | Step | UUID, stable across versions | `title`, `description`; progress open, doing, blocked or done on leaf steps (a parent's follows its children); `retired` | proposal (`step.update` for one step's text, `progress.set`, `roadmap.revise` for the tree) |
 | Question, decision | UUID | a question is open or answered | proposal |
@@ -85,7 +84,7 @@ Records are archived, never deleted, and only the person archives or recovers th
 |---|---|---|---|
 | Read work, days, roadmaps, steps, people, notes, tickets, reminders, resources, releases, discussions, repositories, runs and proposals | yes | yes | - |
 | Read chat transcripts, chat messages, the Claude Code sessions running on the person's machine, the Agents page, Settings, credentials, backups or the export | yes | no | - |
-| Change work items, day entries, notes, tasks, roadmaps, progress, people, links, tracked chats, GitHub references, questions or decisions | yes | no | yes |
+| Change work items, day entries, notes, roadmaps, progress, people, links, tracked chats, GitHub references, questions or decisions | yes | no | yes |
 | Track your own chat on a work item, a roadmap or its steps | yes | yes, the chat you registered with | yes |
 | Register a repository | yes | yes, unless the person turned it off | yes |
 | Edit, archive or recover a repository | yes | no | yes |
@@ -593,8 +592,6 @@ A proposal is a JSON file with a title (up to 1,000 bytes), a rationale for the 
 | `entry.upsert` | `date`, `itemId`, `revision` | `planned`, `worked`, `outcome` |
 | `note.create` | `ownerType`, `ownerId`, `text` | `id`, `title` |
 | `note.update` | `id`, `revision` | `title`, `text` |
-| `task.create` | `itemId`, `text` | `id`, `done` |
-| `task.update` | `id`, `revision` | `text`, `done` |
 | `roadmap.create` | `title` | `id`, `overview`, `steps`, `parentId` |
 | `roadmap.revise` | `id`, `revision`, `title`, `steps` | `overview`, `note` |
 | `roadmap.move` | `id`, `revision`, `parentId` | - |
@@ -888,7 +885,7 @@ The command line covers what agents need. For reads it lacks, such as a work ite
 Invoke-RestMethod -Uri 'http://127.0.0.1:8877/api/v1/work-items/ITEM_ID' -Headers @{ Authorization = "Bearer $env:WORKLOG_AGENT_TOKEN" }
 ```
 
-History older than 90 days may be thinned. When the person runs `worklog compact`, the older changes to work items, the day's plan, notes, tasks, links, GitHub and file references, questions, decisions, attachments, roadmaps, steps, progress, and the plan imports and day reflections of older versions keep only each record's `id`, `title`, `status` and `_statusChanged`, so a record with none of them reads `{}`, and a payload that is not a record, such as the day's order or an old reflection's text, reads `null`. Every change stays listed, and changes of every other kind keep everything. Compaction also keeps each roadmap's 20 newest versions.
+History older than 90 days may be thinned. When the person runs `worklog compact`, the older changes to work items, the day's plan, notes, links, GitHub and file references, questions, decisions, attachments, roadmaps, steps, progress, and the plan imports, day reflections and checklist tasks of older versions keep only each record's `id`, `title`, `status` and `_statusChanged`, so a record with none of them reads `{}`, and a payload that is not a record, such as the day's order or an old reflection's text, reads `null`. Every change stays listed, and changes of every other kind keep everything. Compaction also keeps each roadmap's 20 newest versions.
 
 - **Readable routes.** Worklog's route table (`policy.ROUTES`) lists each read an agent credential may make, in the scope `agent:read`: every GET under `/api/v1` but the person's. The person's are `/settings`, `/export`, `/openapi.json`, the usage counts `/usage`, the chat list `/chats` with a chat's `/chats/ID/messages` and `/chats/ID/transcript`, the running sessions `/claude-sessions`, the agents `/agents`, `/agents/ID`, `/agents/ID/activity` and `/agents/ID/proposals`, and a roadmap's `/roadmaps/ID/agents`. Those return `403 agent_scope`. A route the table does not open to agents is the person's, so a new route starts closed to you.
 - **Host header.** It must be `127.0.0.1:PORT`.

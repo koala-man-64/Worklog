@@ -42,7 +42,6 @@ def records(client):
     return {
         "item": item,
         "note": send(client, "POST", "/notes", {"ownerType": "item", "ownerId": item["id"], "text": "n"}).json(),
-        "task": send(client, "POST", "/tasks", {"itemId": item["id"], "text": "t"}).json(),
         "roadmap": send(client, "POST", "/roadmaps", {"title": "Plan", "steps": [{"title": "Step"}]}).json(),
         "proposal": send(client, "POST", "/proposals", {"title": "P", "rationale": "", "operations": []}).json(),
     }
@@ -51,7 +50,7 @@ def records(client):
 def fill(template, records):
     """Turn an OpenAPI path template into a concrete path that reaches the handler."""
     ids = {"work-items": records["item"]["id"], "notes": records["note"]["id"],
-           "tasks": records["task"]["id"], "roadmaps": records["roadmap"]["id"],
+           "roadmaps": records["roadmap"]["id"],
            "steps": records["roadmap"]["steps"][0]["id"], "proposals": records["proposal"]["id"]}
     resource = template.split("/")[1]
     verb = "submit" if resource == "proposals" else "archive"

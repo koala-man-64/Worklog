@@ -14,10 +14,10 @@ import sqlite3
 
 from .common import now, setting, today, uid
 
-SCHEMA_VERSION = 25
+SCHEMA_VERSION = 26
 # Older versions that startup and offline restore upgrade in one transaction.
 UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
-                                 24})
+                                 24, 25})
 
 # v1 grew in place before versions were counted: _upgrade_v1 adds whichever of these a v1 database
 # lacks. People as v1 had them; v10 renames role to team, adds person details and lets links name
@@ -852,6 +852,13 @@ def drop_plan_imports(conn: sqlite3.Connection) -> None:
     conn.execute("DROP TABLE IF EXISTS plan_imports")
 
 
+def drop_tasks(conn: sqlite3.Connection) -> None:
+    """Drop work item checklists (v26, step 0.3 of docs/ROADMAPS-RETHINK.md): the tasks table, its
+    index and every task in it. The work items stay, and so do the events a task wrote. Nothing
+    references tasks. The pre-migration backup keeps the table as it was."""
+    conn.execute("DROP TABLE IF EXISTS tasks")  # and its index
+
+
 def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
     """Unlike executescript, preserve the caller's transaction and rollback boundary."""
     for statement in filter(str.strip, schema.split(";")):
@@ -878,7 +885,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
     of each repository that takes changes. v23 adds CHECKs to tasks, notes, file references and
     attachments, and changes no record. v24 links each tracked chat to the one repository a label of
     it names exactly, as v22 tagged discussions; the labels stay, and no record changes. v25 drops
-    the HTML plan import's table, with the files it holds, and changes no other record.
+    the HTML plan import's table, with the files it holds, and changes no other record. v26 drops
+    work item checklists, every task with them, and changes no other record.
     """
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version == SCHEMA_VERSION:
@@ -938,6 +946,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
         link_chat_labels(conn)
     if version < 25:
         drop_plan_imports(conn)
+    if version < 26:
+        drop_tasks(conn)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 

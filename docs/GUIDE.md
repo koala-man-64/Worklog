@@ -3,7 +3,7 @@
 Worklog is a personal workbench that runs entirely on your own machine. It keeps:
 
 - your plan for each day and what you actually did;
-- a backlog of work with its notes, checklists, files and links;
+- a backlog of work with its notes, files and links;
 - tickets for issues;
 - reminders for a day, or a time on it;
 - roadmaps for bigger efforts;
@@ -73,7 +73,7 @@ Nothing is deleted. Archived records leave the lists, and their pages show what 
 
 - Work items, tickets, reminders, roadmaps, releases, people, repositories and resources have "Archive" and "Recover" on their page or row.
 - Lists have "Show archive" to show only archived records.
-- On a work item, roadmap or repository, archived notes, links, files and tasks are under "Archived supporting records", each with "Recover". So are a release's archived checks.
+- On a work item, roadmap or repository, archived notes, links and files are under "Archived supporting records", each with "Recover". So are a release's archived checks.
 - An archived roadmap, ticket, reminder, resource or release is read-only until you recover it.
 
 ### Activity history
@@ -82,7 +82,7 @@ Work items, roadmaps, people, tickets, reminders, resources and releases keep an
 
 Work items and roadmaps also keep "Applied proposals" just above it. It lists every proposal applied to the record, the latest first, each numbered in the order it was applied. A row names the agent that proposed it, when it was applied, and which of its changes were made here, by their numbers on Review. Its title opens the proposal on Review.
 
-A change counts toward a work item when it changes the item itself or what the item holds: tasks, scratchpad, links, files, agent chats, GitHub references, day entries and people. It counts toward a roadmap in the same way: the roadmap itself, its steps and their progress, its questions and decisions, and its notes, links, files, chats, GitHub references and people. It also counts toward the roadmap it puts a work item on, or a sub-roadmap under.
+A change counts toward a work item when it changes the item itself or what the item holds: scratchpad, links, files, agent chats, GitHub references, day entries and people. It counts toward a roadmap in the same way: the roadmap itself, its steps and their progress, its questions and decisions, and its notes, links, files, chats, GitHub references and people. It also counts toward the roadmap it puts a work item on, or a sub-roadmap under.
 
 ### Search
 
@@ -131,10 +131,9 @@ They never change your work items, days, roadmaps, people, repositories or resou
 
 The summary keeps up as each outcome saves. A past day's summary keeps the status each item had that day, even after you change it later.
 
-Each entry has tabs. "Outcome / next action" holds the day's note. "Tasks", "Scratchpad", "Links", "Files" and "Repositories" hold the work item's own records, so you can work on them without leaving the day.
+Each entry has tabs. "Outcome / next action" holds the day's note. "Scratchpad", "Links", "Files" and "Repositories" hold the work item's own records, so you can work on them without leaving the day.
 
-- Before you open the tabs, they show what they hold: tasks done out of all, how many links, files and repositories, and a dot when the scratchpad has text.
-- "Tasks" is the item's own checklist: each task says when it was "Created" and last "Updated", and the grip and the up and down buttons put the tasks in order, as on the item's page.
+- Before you open the tabs, they show what they hold: how many links, files and repositories, and a dot when the scratchpad has text.
 - The arrow keys move between tabs.
 - The badge beside an entry's title is the item's stack rank.
 - Each entry's title row collapses and expands; "Collapse all" and "Expand all" do every entry at once.
@@ -175,7 +174,7 @@ Work is stack ranked:
 
 The list shows 100 items at a time ("Previous work" and "Next work").
 
-### Keep notes, checklists, links and files on a work item
+### Keep notes, links and files on a work item
 
 Open the item from **Work**. Its page holds, from top to bottom:
 
@@ -186,7 +185,6 @@ Open the item from **Work**. Its page holds, from top to bottom:
   - the repositories the work touches ("Link repository")
   - the "Roadmap" and "Roadmap step" the item belongs to
   - "Plan for day", with a "Schedule date"
-- **"Tasks"**: type a "New task" and press "Add task". Tick tasks when done, and done ones are struck through. "Edit task" renames one. Under each task, "Created" and "Updated" say when it was added and when its text or tick last changed. Put the tasks in order by dragging the grip, or with the up and down buttons; a new task goes last.
 - **"Scratchpad (Markdown)"**: one running note for the item. Notes archived earlier stay readable under "Archived notes".
 - **"People"**: choose someone in "Choose person" ("+ New person…" adds one), give a "Relationship or role", and press "Tie person".
 - **"Links"**: a "Link title", "Link URL" and "Link description", then "Add link".
@@ -438,7 +436,7 @@ Plan the day and record what you worked on.
 - **"The day’s work":**
   - Each entry is numbered, shows its item's stack rank, and collapses to its title row.
   - Each has a drag grip, "Reschedule", "Remove from today", "Planned", "Worked on" and a status menu.
-  - Its tabs hold "Outcome / next action" and the work item's own "Tasks", "Scratchpad", "Links", "Files" and "Repositories".
+  - Its tabs hold "Outcome / next action" and the work item's own "Scratchpad", "Links", "Files" and "Repositories".
   - An archived item's entry stays readable but can't be changed.
 - **The day's counts and "Continue your next open item".**
 - **"The day’s summary":** each entry ticked "Worked on" with its outcome, under the status its item ended the day with, and "Copy summary".
@@ -452,7 +450,7 @@ Capture work once and keep each item's next action current.
   - "New work item" and "Add work".
   - The filters: text, repository, "Work view", "Show archive", the status buttons and "Filter by person".
   - Each row shows the item's stack rank, status, title, people, repositories and the start of its description, with the up and down buttons and "Archive" or "Recover".
-- **An item's page:** see [Keep notes, checklists, links and files on a work item](#keep-notes-checklists-links-and-files-on-a-work-item). Its "Reminders" lists the open reminders about it, with "Add reminder". "All work" returns to the list.
+- **An item's page:** see [Keep notes, links and files on a work item](#keep-notes-links-and-files-on-a-work-item). Its "Reminders" lists the open reminders about it, with "Add reminder". "All work" returns to the list.
 
 ### Tickets
 
@@ -660,7 +658,7 @@ This guide, and the one your agents read:
 
 | Term | Meaning |
 |---|---|
-| Work item | A piece of work with a status, stack rank, description, tasks, scratchpad, links and files |
+| Work item | A piece of work with a status, stack rank, description, scratchpad, links and files |
 | Stack rank | The order of unfinished work, from #1, the work that matters most |
 | Entry | A work item on a particular day: planned, worked on, and its outcome |
 | Backlog | Work that is not done and not planned for today or later |

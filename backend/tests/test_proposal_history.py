@@ -124,7 +124,7 @@ def plan(c):
     other = ok(write(c, "POST", "/work-items", {"title": "Write the notes"}))
     return {
         "parent": parent, "roadmap": roadmap, "work": work, "other": other,
-        "task": ok(write(c, "POST", "/tasks", {"itemId": work["id"], "text": "Reproduce it"})),
+        "item_link": ok(write(c, "POST", "/links", {"ownerType": "item", "ownerId": work["id"], "url": "https://example.com/bug"})),
         "link": ok(write(c, "POST", "/links", {"ownerType": "roadmap", "ownerId": roadmap["id"], "url": "https://example.com/plan"})),
         "question": ok(write(c, "POST", "/questions", {"roadmapId": roadmap["id"], "title": "Which build?"})),
         "person": ok(write(c, "POST", "/people", {"name": "Ada"})),
@@ -138,7 +138,7 @@ def everything(p):
     return [
         change("item.create", title="Draft the release notes", roadmapId=roadmap["id"]),
         change("item.update", id=work["id"], revision=work["revision"], status="doing"),
-        change("task.update", id=p["task"]["id"], revision=p["task"]["revision"], done=True),
+        change("link.update", id=p["item_link"]["id"], revision=p["item_link"]["revision"], title="The bug"),
         change("note.create", ownerType="item", ownerId=other["id"], title="Findings", text="It was the lexer."),
         change("note.create", ownerType="step", ownerId=build["id"], text="Use the nightly build."),
         change("progress.set", id=build["id"], revision=build["revision"], status="done"),
@@ -163,7 +163,7 @@ def test_approval_records_the_work_items_and_roadmaps_each_change_was_made_to(tm
     # A person's or a repository's change alone (11, 12) counts toward no work item or roadmap.
     assert recorded(tmp_path / "worklog.sqlite3") == sorted((approved["id"], *row) for row in [
         (1, "item.create", "item", created), (1, "item.create", "roadmap", roadmap),
-        (2, "item.update", "item", work), (3, "task.update", "item", work),
+        (2, "item.update", "item", work), (3, "link.update", "item", work),
         (4, "note.create", "item", other), (5, "note.create", "roadmap", roadmap),
         (6, "progress.set", "roadmap", roadmap), (7, "link.update", "roadmap", roadmap),
         (8, "question.update", "roadmap", roadmap),
@@ -178,7 +178,7 @@ def test_approval_records_the_work_items_and_roadmaps_each_change_was_made_to(tm
         "autoApproved": False, "actorLabel": "Builder", "agentId": agent["agentId"],
         "createdAt": approved["createdAt"], "submittedAt": approved["submittedAt"],
         "appliedAt": approved["updatedAt"], "updatedAt": approved["updatedAt"], "operationCount": 13,
-        "changes": [{"number": 2, "action": "item.update"}, {"number": 3, "action": "task.update"},
+        "changes": [{"number": 2, "action": "item.update"}, {"number": 3, "action": "link.update"},
                     {"number": 10, "action": "person.link"}]}
     assert [c["number"] for c in history(client, f"/roadmaps/{roadmap}")["items"][0]["changes"]] == [1, 5, 6, 7, 8]
     assert [c["action"] for c in history(client, f"/roadmaps/{child}")["items"][0]["changes"]] == ["roadmap.create"]
@@ -212,13 +212,13 @@ def test_a_records_history_holds_only_what_was_applied_to_it_the_latest_first(cl
     propose(client, reviewer, "Still waiting", [change("item.update", id=work["id"], revision=2, title="Later")], None)
     propose(client, builder, "Elsewhere", [change("item.update", id=p["other"]["id"], revision=1, status="done")])
     second = propose(client, reviewer, "Finish the fix", [
-        change("task.create", itemId=work["id"], text="Add a test"),
+        change("link.create", ownerType="item", ownerId=work["id"], url="https://example.com/test"),
         change("item.update", id=work["id"], revision=2, status="done")])
     listing = history(client, f"/work-items/{work['id']}")
     assert numbered(listing) == [(2, "Finish the fix"), (1, "Start the fix")] and listing["total"] == 2
     assert [entry["id"] for entry in listing["items"]] == [second["id"], first["id"]]
     assert [entry["agentId"] for entry in listing["items"]] == [reviewer["agentId"], builder["agentId"]]
-    assert listing["items"][0]["changes"] == [{"number": 1, "action": "task.create"}, {"number": 2, "action": "item.update"}]
+    assert listing["items"][0]["changes"] == [{"number": 1, "action": "link.create"}, {"number": 2, "action": "item.update"}]
     # Pages keep each proposal's number.
     assert numbered(history(client, f"/work-items/{work['id']}", limit=1, offset=1)) == [(1, "Start the fix")]
     assert history(client, f"/work-items/{work['id']}", limit=1, offset=5) == {"items": [], "total": 2}
@@ -283,7 +283,7 @@ def approvals(c):
         change("item.create", title="Draft the release notes"),
         change("item.create", title="Tag the build", roadmapId=p["roadmap"]["id"]),
         change("roadmap.create", title="Release follow-ups", parentId=p["parent"]["id"]),
-        change("task.update", id=p["task"]["id"], revision=p["task"]["revision"], done=True)])
+        change("link.update", id=p["item_link"]["id"], revision=p["item_link"]["revision"], title="The bug")])
     ok(write(c, "POST", "/work-items", {"title": "The person's own"}))
     ok(write(c, "POST", "/roadmaps", {"title": "The person's own plan"}))
     propose(c, reviewer, "Rename it", [change("item.update", id=p["work"]["id"], revision=1, title="Nope")], "reject")

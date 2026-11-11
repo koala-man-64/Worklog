@@ -39,7 +39,8 @@ PRAGMA user_version=14;
 COMMIT;
 """
 # The tables whose rows name a work item, all of which the v15 upgrade must leave pointing at it.
-REFERRING = {("daily_entries", "item_id"), ("tasks", "item_id"), ("file_references", "item_id"),
+# Tasks named one too, until v26 dropped work item checklists.
+REFERRING = {("daily_entries", "item_id"), ("file_references", "item_id"),
              ("item_repositories", "item_id"), ("participations", "item_id"),
              ("coordination_updates", "item_id"), ("tickets", "item_id")}
 
@@ -122,7 +123,6 @@ def populate(c):
         work[state] = set_status(c, item(c, f"Work that is {state}"), state)["id"]
     old = item(c, "Old work")
     ok(write(c, "POST", f"/work-items/{old['id']}/archive", {"revision": old["revision"]}))
-    ok(write(c, "POST", "/tasks", {"itemId": work["planned"], "text": "Draft them"}))
     ok(write(c, "POST", "/references", {"itemId": work["planned"], "path": "C:/notes/release.md"}))
     ok(write(c, "POST", "/tickets", {"title": "The build fails", "itemId": work["stepped"]}))
     credential = ok(write(c, "POST", "/credentials", {"label": "Builder"}))
@@ -260,8 +260,9 @@ def test_the_v15_upgrade_keeps_every_work_item_and_every_reference_to_one(tmp_pa
     scatter_rowids(path)
     with closing(sqlite3.connect(path)) as conn:
         # Each table that names work items has a row that does, so the upgrade meets every kind of
-        # reference; dropping the table to build it again deletes none of them.
-        assert references(conn) == {key: ("NO ACTION", "NO ACTION", "NONE") for key in REFERRING}
+        # reference; dropping the table to build it again deletes none of them. Tasks name work
+        # items too at v14, but none can be added since v26 took them away, and v26 drops them.
+        assert references(conn) == {key: ("NO ACTION", "NO ACTION", "NONE") for key in REFERRING | {("tasks", "item_id")}}
         for table, column in REFERRING:
             assert conn.execute(f"SELECT count(*) FROM {table} WHERE {column} IS NOT NULL").fetchone()[0] > 0, table
         kept = contents(conn)
@@ -275,10 +276,11 @@ def test_the_v15_upgrade_keeps_every_work_item_and_every_reference_to_one(tmp_pa
         # agent ties start empty, to v18, whose registration directory is unknown for every
         # identity here, none having registered, to v19, whose releases start empty, to v20,
         # whose reminders start empty too, to v21, which starts each day's reflection revision
-        # at its day's revision, to v22, which pins no discussion, and to v25, which drops the
-        # plan import table, empty here.
+        # at its day's revision, to v22, which pins no discussion, and to v25 and v26, which drop
+        # the plan import and task tables, empty here.
         upgraded = contents(conn)
         assert kept.pop("plan_imports") == []
+        assert kept.pop("tasks") == []
         assert upgraded.pop("proposal_targets") == []
         assert upgraded.pop("agent_links") == []
         assert upgraded.pop("reminders") == []
@@ -304,7 +306,6 @@ def test_the_v15_upgrade_keeps_every_work_item_and_every_reference_to_one(tmp_pa
         assert version(conn) == 14
     with person(tmp_path) as c:
         planned = ok(c.get(f"/api/v1/work-items/{work['planned']}"))
-        assert [task["text"] for task in planned["tasks"]] == ["Draft them"]
         assert set_status(c, planned, "waiting")["status"] == "waiting"
         assert ids(ok(c.get("/api/v1/work-items?status=waiting"))) == [work["planned"]]
 
@@ -361,7 +362,7 @@ def test_restoring_a_v14_backup_upgrades_it_and_keeps_its_work(tmp_path):
     to_v14(source)
     scatter_rowids(source)
     # Restore ends the backup's runs and participations, so the rest is what stays as it was.
-    unchanged = ("work_items", "daily_entries", "tasks", "file_references", "item_repositories", "tickets", "coordination_updates")
+    unchanged = ("work_items", "daily_entries", "file_references", "item_repositories", "tickets", "coordination_updates")
     with closing(sqlite3.connect(source)) as conn:
         everything = contents(conn)
         kept = {table: everything[table] for table in unchanged}
@@ -399,7 +400,9 @@ def test_the_way_back_to_v14_gives_its_exact_shape_and_upgrades_again(tmp_path):
     before.pop("agent_links")
     before.pop("proposal_targets")
     before.pop("reminders")
-    # The way back to v24, which to_v14 takes first of all, makes the plan import table again, empty.
+    # The ways back to v25 and v24, which to_v14 takes first of all, make the task and plan import
+    # tables again, empty.
+    before["tasks"] = []
     before["plan_imports"] = []
     to_v14(path)
     recovery.validate_database(path)

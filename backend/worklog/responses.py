@@ -31,17 +31,6 @@ class Note(Answer):
     updatedAt: str
 
 
-class Task(Answer):
-    id: str
-    itemId: str
-    text: str
-    done: bool
-    archived: bool
-    revision: int
-    createdAt: str
-    updatedAt: str
-
-
 class FileReference(Answer):
     id: str
     itemId: str
@@ -329,7 +318,6 @@ class WorkItem(Answer):
     links: list[WebLink]
     chats: list[TrackedChat]
     github: list[ListedGithubReference]
-    tasks: list[Task]
     references: list[FileReference]
     people: list[RecordPerson]
     dailyEntries: list[DailyEntry]
@@ -546,8 +534,6 @@ class History(Answer):
 class TabCounts(Answer):
     """What a work item's tabs on Today hold, so they say so before the item is read."""
 
-    tasks: int
-    tasksDone: int
     links: int
     files: int
     scratchpad: bool
@@ -2179,11 +2165,6 @@ class WorkContext(Answer):
     releases: Releases
 
 
-class TaskPlace(Answer):
-    """Where a moved task now stands in its work item's list, 1 first."""
-
-    id: str
-    position: int
 
 
 class Done(Answer):

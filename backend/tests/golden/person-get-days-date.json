@@ -30,8 +30,6 @@
           "rank": 1
         },
         "counts": {
-          "tasks": 1,
-          "tasksDone": 0,
           "links": 2,
           "files": 2,
           "scratchpad": true

@@ -105,11 +105,13 @@ Done without a schema change (R4): the two columns stay, and `days.revision` sti
 
 #### 0.3 · Remove work item checklists
 
-Status: Not started
+Status: Merged · Branch: `claude/remove-tasks` · PR: [#185](https://github.com/koala-man-64/Worklog/pull/185)
 
 "Tasks" on a work item's page and on Today's entries (`sections/Checklist.tsx`), the task routes and proposal operations, and the `tasks` table, ordered since v14. This changes what agents can call.
 
 Why: no task was ever added.
+
+Done as schema v26 (`migrations.drop_tasks`): the work items stay, and so does a task's history, which compaction still thins for databases that hold it. A work item's read loses `tasks` and Today's tab counts `tasks` and `tasksDone`. `task.create` and `task.update` leave the proposal operations, but `proposal_targets` keeps its task rule for the v16 upgrade, which reads an older database's approved task changes before v26 drops them. On a work item's page, Context takes the row the checklist shared. `test_task_removal.py` pins the upgrade, the way back, the routes' 404s and the refused operation; the v14 and v23 tests keep their way backs, and the older upgrade tests say that v26 drops the table.
 
 #### 0.4 · Remove Reminders
 

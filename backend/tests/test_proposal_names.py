@@ -120,8 +120,8 @@ REFUSED = [
      "Change 2 of 2, person.create: @jane already names the record change 1 creates; give each new record its own name",
      {"id": "duplicate_name"}),
     ("wrong kind", [{"action": "person.create", "payload": {"id": "@jane", "name": "Jane Doe"}},
-                    {"action": "task.create", "payload": {"itemId": "@jane", "text": "Call her"}}],
-     "Change 2 of 2, task.create: itemId names @jane, which change 1 creates as a person, not a work item",
+                    {"action": "ticket.create", "payload": {"title": "Call her", "itemId": "@jane"}}],
+     "Change 2 of 2, ticket.create: itemId names @jane, which change 1 creates as a person, not a work item",
      {"itemId": "wrong_kind"}),
     ("wrong kind in a list", [{"action": "person.create", "payload": {"id": "@jane", "name": "Jane Doe"}},
                               {"action": "ticket.create", "payload": {"title": "Flaky", "repositoryIds": ["@jane"]}}],
@@ -189,13 +189,13 @@ def test_later_changes_change_what_earlier_ones_created_and_github_references_st
                                                 "url": "https://github.com/acme/payments-api/pull/7"}},
         {"action": "ticket.create", "payload": {"id": "@bug", "title": "Rounding", "itemId": "@fix"}},
         {"action": "ticket.update", "payload": {"id": "@bug", "revision": 1, "status": "doing"}},
-        {"action": "task.create", "payload": {"itemId": "@fix", "text": "Add a test"}},
+        {"action": "link.create", "payload": {"ownerType": "item", "ownerId": "@fix", "url": "https://example.com/test"}},
     )
     ok(approve(client, proposal))
     (item,) = ok(call(client, "GET", "/work-items"))["items"]
     work = ok(call(client, "GET", f"/work-items/{item['id']}"))
     assert [g["url"] for g in work["github"]] == ["https://github.com/acme/payments-api/pull/7"]
-    assert [t["text"] for t in work["tasks"]] == ["Add a test"]
+    assert [link["url"] for link in work["links"]] == ["https://example.com/test"]
     (ticket,) = ok(call(client, "GET", "/tickets"))["items"]
     assert (ticket["itemId"], ticket["status"], ticket["revision"]) == (item["id"], "doing", 2)
 

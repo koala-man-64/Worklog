@@ -122,7 +122,7 @@ test("roadmap immutable revisions and mobile navigation", async ({ page }) => {
     page.getByRole("heading", { name: "Settings", exact: true }),
   ).toBeVisible();
 });
-test("scratchpad, checklist, paths, attachments and archive recovery persist", async ({
+test("scratchpad, paths, attachments and archive recovery persist", async ({
   page,
 }) => {
   await page.goto("/#work");
@@ -131,11 +131,6 @@ test("scratchpad, checklist, paths, attachments and archive recovery persist", a
   await page.getByRole("button", { name: "Add work", exact: true }).click();
   await page.getByRole("textbox", { name: "Filter work by text" }).fill(title);
   await page.getByRole("link", { name: title, exact: true }).click();
-  await page.getByRole("textbox", { name: "New task" }).fill("A small action");
-  await page.getByRole("button", { name: "Add task", exact: true }).click();
-  await expect(
-    page.getByRole("checkbox", { name: "A small action" }),
-  ).toBeVisible();
   await page
     .getByRole("button", { name: "Reference a local file", exact: true })
     .click();
@@ -434,74 +429,6 @@ test("a Today entry collapses to its heading row and stays collapsed after a rel
   await expect(outcome).toBeHidden();
   await expand.click();
   await expect(outcome).toBeVisible();
-});
-test("an entry's tasks on Today are its work item's own", async ({ page }) => {
-  await page.goto("/");
-  const title = "Tasks " + Date.now();
-  await page.getByRole("textbox", { name: "New work item" }).fill(title);
-  await page.getByRole("button", { name: "Add work", exact: true }).click();
-  const entry = page
-    .locator(".day-entry")
-    .filter({ has: page.getByRole("link", { name: title, exact: true }) });
-  await entry.getByRole("tab", { name: "Tasks", exact: true }).click();
-  const tasks = entry.getByRole("tabpanel", { name: "Tasks" });
-  await tasks.getByRole("textbox", { name: "New task" }).fill("Write the plan");
-  await tasks.getByRole("button", { name: "Add task", exact: true }).click();
-  // The tab counts what the list holds.
-  await expect(
-    entry.getByRole("tab", { name: "Tasks, 0 of 1 done", exact: true }),
-  ).toBeVisible();
-  await tasks.getByRole("checkbox", { name: "Write the plan" }).check();
-  await expect(
-    entry.getByRole("tab", { name: "Tasks, 1 of 1 done", exact: true }),
-  ).toHaveAttribute("aria-selected", "true");
-  await entry.getByRole("link", { name: title, exact: true }).click();
-  await expect(
-    page.getByRole("checkbox", { name: "Write the plan" }),
-  ).toBeChecked();
-});
-test("an entry's tasks say when they were added and keep the order you give them", async ({
-  page,
-}) => {
-  await page.goto("/");
-  const title = "Ordered tasks " + Date.now();
-  await page.getByRole("textbox", { name: "New work item" }).fill(title);
-  await page.getByRole("button", { name: "Add work", exact: true }).click();
-  const entry = page
-    .locator(".day-entry")
-    .filter({ has: page.getByRole("link", { name: title, exact: true }) });
-  await entry.getByRole("tab", { name: "Tasks", exact: true }).click();
-  const tasks = entry.getByRole("tabpanel", { name: "Tasks" });
-  for (const text of ["Draft", "Review", "Ship"]) {
-    await tasks.getByRole("textbox", { name: "New task" }).fill(text);
-    await tasks.getByRole("button", { name: "Add task", exact: true }).click();
-    await expect(tasks.getByRole("checkbox", { name: text })).toBeVisible();
-  }
-  const texts = tasks.locator(".task-main > label");
-  await expect(texts).toHaveText(["Draft", "Review", "Ship"]);
-  await expect(tasks.locator(".task-times").first()).toHaveText(
-    /^Created .+ · Updated .+$/,
-  );
-  await tasks.getByRole("button", { name: "Move task Ship up" }).click();
-  await expect(texts).toHaveText(["Draft", "Ship", "Review"]);
-  // The grips take a drag again once the move has settled, as the buttons do.
-  await expect(
-    tasks.getByRole("button", { name: "Move task Draft down" }),
-  ).toBeEnabled();
-  await tasks
-    .getByRole("img", { name: "Drag task Draft to reorder" })
-    .dragTo(tasks.locator(".task").filter({ hasText: "Review" }));
-  await expect(texts).toHaveText(["Ship", "Review", "Draft"]);
-  // The order is the work item's own: it stays after a reload, and its page shows it too.
-  await page.reload();
-  await entry.getByRole("tab", { name: "Tasks" }).click();
-  await expect(texts).toHaveText(["Ship", "Review", "Draft"]);
-  await entry.getByRole("link", { name: title, exact: true }).click();
-  await expect(page.locator(".checklist .task-main > label")).toHaveText([
-    "Ship",
-    "Review",
-    "Draft",
-  ]);
 });
 test("stack rank moves work from its row, its picker and its page", async ({
   page,

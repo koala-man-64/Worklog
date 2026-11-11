@@ -48,8 +48,9 @@ VERSIONS_KEPT = 20
 # The pre-compaction backups kept: those of the newest compactions that finished.
 BACKUPS_KEPT = 3
 # The families of kinds, by the part of a kind's name before its first dot, whose payloads only show
-# in history: work items and the day's plan, supporting records, and roadmaps with their steps,
-# progress and imports (the HTML plan import, which databases from before v25 recorded). Every kind
+# in history: work items and the day's plan, supporting records (work item checklists' tasks among
+# them, which databases from before v26 recorded), and roadmaps with their steps, progress and
+# imports (the HTML plan import, which databases from before v25 recorded). Every kind
 # of a listed family is thinned, a new one too, so a payload of these families must never hold
 # state: state goes in columns (CONSOLIDATION.md's *Rules*). A kind of any other family keeps its
 # payloads whole.
