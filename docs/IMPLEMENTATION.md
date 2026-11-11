@@ -1,6 +1,6 @@
 # Worklog build and verification record
 
-> **Historical.** This records how Worklog was first built and checked, and is kept as it was. It doesn't describe Worklog now: the [README](../README.md) and the documents it links to do, and [CONSOLIDATION.md](CONSOLIDATION.md) holds the current plan.
+> **Historical.** This records how Worklog was first built and checked, and is kept as it was. It doesn't describe Worklog now: the [README](../README.md) and the documents it links to do, and [ROADMAPS-RETHINK.md](ROADMAPS-RETHINK.md) holds the current plan.
 
 Task: WORKLOG-BUILD. Owner: root. Branch: `agent/root/worklog-build/worklog`.
 
