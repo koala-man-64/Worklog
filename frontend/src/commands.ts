@@ -310,7 +310,7 @@ export const commands = {
       body,
     ),
 
-  // Roadmaps, steps and plan imports.
+  // Roadmaps and steps.
   setRoadmapArchived: (
     id: string,
     archived: boolean,
@@ -346,20 +346,6 @@ export const commands = {
       "PATCH",
       body,
     ),
-  /** Reads a plan from an HTML file; nothing is saved until the preview is committed. */
-  previewImport: (file: File) =>
-    request<Answer<"/api/v1/imports/preview", "post">>(
-      "/imports/preview?name=" + encodeURIComponent(file.name),
-      "POST",
-      file,
-    ),
-  commitImport: (id: string, body: Schema["ImportCommit"]) =>
-    request<Answer<"/api/v1/imports/{identity}/commit", "post">>(
-      `/imports/${id}/commit`,
-      "POST",
-      body,
-    ),
-
   // People.
   setPersonArchived: (
     id: string,

@@ -1126,57 +1126,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/imports/preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Import Preview */
-        post: operations["import_preview_api_v1_imports_preview_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/imports/{identity}/commit": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Import Commit */
-        post: operations["import_commit_api_v1_imports__identity__commit_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/imports/{identity}/download": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Original Import */
-        get: operations["original_import_api_v1_imports__identity__download_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/proposals": {
         parameters: {
             query?: never;
@@ -5063,102 +5012,6 @@ export interface components {
             /** Name */
             name: string | null;
         };
-        /** ImportCommit */
-        ImportCommit: {
-            /** Title */
-            title: string;
-            /**
-             * Overview
-             * @default
-             */
-            overview: string;
-            /** Steps */
-            steps?: {
-                [key: string]: unknown;
-            }[];
-            /** Roadmapid */
-            roadmapId?: string | null;
-            /** Revision */
-            revision?: number | null;
-        };
-        /**
-         * ImportPreview
-         * @description What committing an HTML plan would make: a roadmap's title, overview and steps.
-         */
-        ImportPreview: {
-            /** Id */
-            id: string;
-            /** Title */
-            title: string;
-            /** Overview */
-            overview: string;
-            /** Steps */
-            steps: components["schemas"]["ImportStep"][];
-            /** Warnings */
-            warnings: string[];
-            /** Sha256 */
-            sha256: string;
-        };
-        /**
-         * ImportStep
-         * @description A step a plan import found under one of the page's headings.
-         */
-        ImportStep: {
-            /** Id */
-            id: string;
-            /** Title */
-            title: string;
-            /** Description */
-            description: string;
-            /** Parentid */
-            parentId: string | null;
-            /** Position */
-            position: number;
-        };
-        /**
-         * ImportedRoadmap
-         * @description The roadmap a plan import made or was attached to.
-         */
-        ImportedRoadmap: {
-            /** Id */
-            id: string;
-            /** Title */
-            title: string;
-            /** Overview */
-            overview: string;
-            /** Parentid */
-            parentId: string | null;
-            /** Revision */
-            revision: number;
-            /** Archived */
-            archived: boolean;
-            /** Createdat */
-            createdAt: string;
-            /** Updatedat */
-            updatedAt: string;
-            /** Steps */
-            steps: components["schemas"]["PlanStep"][];
-            /** Versions */
-            versions: components["schemas"]["RoadmapVersion"][];
-            /** Notes */
-            notes: components["schemas"]["Note"][];
-            /** Attachments */
-            attachments: components["schemas"]["Attachment"][];
-            /** Links */
-            links: components["schemas"]["WebLink"][];
-            /** Chats */
-            chats: components["schemas"]["TrackedChat"][];
-            /** Github */
-            github: components["schemas"]["ListedGithubReference"][];
-            /** Questions */
-            questions: components["schemas"]["Question"][];
-            /** Decisions */
-            decisions: components["schemas"]["Decision"][];
-            /** History */
-            history: components["schemas"]["Event"][];
-            /** Importid */
-            importId: string;
-        };
         /** Inbox */
         Inbox: {
             /** Items */
@@ -7528,8 +7381,6 @@ export interface components {
             workItems: components["schemas"]["RoadmapWorkItem"][];
             /** People */
             people: components["schemas"]["RecordPerson"][];
-            /** Imports */
-            imports: components["schemas"]["RoadmapImport"][];
         };
         /** RoadmapAgents */
         RoadmapAgents: {
@@ -7551,20 +7402,6 @@ export interface components {
             }[];
             /** Parentid */
             parentId?: string | null;
-        };
-        /**
-         * RoadmapImport
-         * @description A plan import committed to the roadmap; its original is read on its own.
-         */
-        RoadmapImport: {
-            /** Id */
-            id: string;
-            /** Name */
-            name: string;
-            /** Sha256 */
-            sha256: string;
-            /** Createdat */
-            createdAt: string;
         };
         /** RoadmapListed */
         RoadmapListed: {
@@ -11753,103 +11590,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["History"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    import_preview_api_v1_imports_preview_post: {
-        parameters: {
-            query?: {
-                name?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ImportPreview"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    import_commit_api_v1_imports__identity__commit_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                identity: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ImportCommit"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ImportedRoadmap"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    original_import_api_v1_imports__identity__download_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                identity: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

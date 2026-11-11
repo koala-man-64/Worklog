@@ -8,7 +8,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { localStore, readIdSet } from "./storage";
 import { roadmapChildren } from "./RoadmapNav";
-import { ApiError, request, download, contextStorageKey } from "./api";
+import { ApiError, request, contextStorageKey } from "./api";
 import { commands } from "./commands";
 import {
   refreshAfterWrite,
@@ -38,7 +38,6 @@ import { RecordReminders } from "./RecordReminders";
 import { ReleasesSection } from "./Releases";
 import type {
   Answer,
-  ImportPreview,
   PlanStep,
   Roadmap,
   RoadmapListed,
@@ -195,169 +194,9 @@ export function Roadmaps({
             />
             <button className="primary">Create roadmap</button>
           </form>
-          <ImportRoadmap />
         </div>
       </div>
     </div>
-  );
-}
-function ImportRoadmap() {
-  const [preview, setPreview] = useState<ImportPreview | null>(null);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [error, setError] = useState("");
-  const action = useWrites();
-  const roads = useData<Answer<"/api/v1/roadmaps">>("/roadmaps?archived=false");
-  const [referenceTarget, setReferenceTarget] = useState("");
-  return (
-    <section className="import-box">
-      <h3>Bring in an HTML plan</h3>
-      <p className="muted">
-        Review the extracted structure before creating a roadmap. Original HTML
-        is download only.
-      </p>
-      <input
-        aria-label="Import HTML plan"
-        type="file"
-        accept=".html,.htm,text/html"
-        onChange={async (e) => {
-          const file = e.target.files?.[0];
-          if (!file) return;
-          if (file.size > 5000000) {
-            setError("HTML imports must be 5 MB or smaller.");
-            return;
-          }
-          try {
-            const result = await commands.previewImport(file);
-            setPreview(result);
-            setSelected(new Set(result.steps.map((s) => s.id)));
-            setError("");
-          } catch (error) {
-            setError(String(error));
-          }
-        }}
-      />
-      <ErrorMessage error={error || action.error} />
-      {preview && (
-        <div>
-          <label>
-            Imported title
-            <input
-              value={preview.title}
-              onChange={(e) =>
-                setPreview({ ...preview, title: e.target.value })
-              }
-            />
-          </label>
-          <label>
-            Overview
-            <textarea
-              value={preview.overview}
-              onChange={(e) =>
-                setPreview({ ...preview, overview: e.target.value })
-              }
-            />
-          </label>
-          {preview.warnings.map((w, i) => (
-            <p key={i} className="warning">
-              {w}
-            </p>
-          ))}
-          {preview.steps.map((s) => (
-            <div className="import-candidate" key={s.id}>
-              <label className="line">
-                <input
-                  type="checkbox"
-                  checked={selected.has(s.id)}
-                  onChange={(e) => {
-                    const next = new Set(selected);
-                    if (e.target.checked) {
-                      next.add(s.id);
-                      let parent = preview.steps.find(
-                        (p) => p.id === s.parentId,
-                      );
-                      while (parent) {
-                        next.add(parent.id);
-                        parent = preview.steps.find(
-                          (p) => p.id === parent?.parentId,
-                        );
-                      }
-                    } else {
-                      next.delete(s.id);
-                      let changed = true;
-                      while (changed) {
-                        changed = false;
-                        preview.steps.forEach((p) => {
-                          if (
-                            p.parentId &&
-                            !next.has(p.parentId) &&
-                            next.delete(p.id)
-                          )
-                            changed = true;
-                        });
-                      }
-                    }
-                    setSelected(next);
-                  }}
-                />
-                {s.title}
-              </label>
-              <details>
-                <summary>Preview extracted content</summary>
-                <Markdown text={s.description} />
-              </details>
-            </div>
-          ))}
-          <label>
-            Or keep the original as a reference on an existing roadmap
-            <select
-              value={referenceTarget}
-              onChange={(e) => setReferenceTarget(e.target.value)}
-            >
-              <option value="">Create a new roadmap from the selection</option>
-              {roads.data?.items.map((r) => (
-                <option value={r.id} key={r.id}>
-                  {r.title}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="toolbar">
-            <button
-              className="primary"
-              disabled={action.isPending}
-              onClick={async () => {
-                await action
-                  .mutateAsync(() =>
-                    commands.commitImport(preview.id, {
-                      title: preview.title,
-                      overview: preview.overview,
-                      steps: preview.steps.filter((s) => selected.has(s.id)),
-                      ...(referenceTarget
-                        ? {
-                            roadmapId: referenceTarget,
-                            revision: roads.data?.items.find(
-                              (r) => r.id === referenceTarget,
-                            )?.revision,
-                          }
-                        : {}),
-                    }),
-                  )
-                  .then(() => setPreview(null))
-                  .catch(() => undefined);
-              }}
-            >
-              {referenceTarget
-                ? "Attach original as reference"
-                : "Create from selected steps"}
-            </button>
-            <a href={download(`/imports/${preview.id}/download`)}>
-              Download original
-            </a>
-            <button onClick={() => setPreview(null)}>Cancel</button>
-          </div>
-        </div>
-      )}
-    </section>
   );
 }
 export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
@@ -923,19 +762,6 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
           </div>
         ))}
       </section>
-      {!!road.imports?.length && (
-        <section>
-          <h3>Original plan references</h3>
-          {road.imports.map((file) => (
-            <div className="line" key={file.id}>
-              <a href={download(`/imports/${file.id}/download`)}>{file.name}</a>
-              <small title={file.sha256}>
-                SHA-256 {file.sha256.slice(0, 12)}…
-              </small>
-            </div>
-          ))}
-        </section>
-      )}
       {road.steps.some((s) => s.retired) && (
         <details>
           <summary>Retired steps</summary>

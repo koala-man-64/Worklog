@@ -8,7 +8,6 @@ import json
 import sqlite3
 import uuid
 from contextlib import closing
-from pathlib import Path
 
 import pytest
 import sealed
@@ -19,7 +18,8 @@ from worklog.app import create_app
 from worklog.db import Database
 
 ORIGIN = "http://127.0.0.1:8877"
-# docs/UPGRADING.md: from version 24 to version 23, with Worklog stopped and after a manual backup.
+# From version 24 to version 23, with Worklog stopped and after a manual backup. docs/UPGRADING.md gave
+# this way back while version 24 was the latest; older upgrade tests now build their databases with it.
 WAY_BACK = """\
 PRAGMA user_version=23;
 """
@@ -27,6 +27,9 @@ PRAGMA user_version=23;
 
 def to_v23(path):
     """Take a current database back to v23 the documented way."""
+    from test_plan_import_removal import to_v24
+
+    to_v24(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK)
 
@@ -110,10 +113,11 @@ def test_the_upgrade_links_each_label_that_names_one_repository_and_changes_no_r
     # Exactly one repository not merged aside: active, archived, or the one left beside a merged one.
     # Not a name two share, one only a merged repository has, another case, extra space, or nothing.
     assert links(database) == {chat: repositories for chat, repositories in expected.items() if repositories}
-    # Only links are new: every chat, its labels, revision and times, and every other row stay.
+    # Only links are new: every chat, its labels, revision and times, and every other row stay. v25,
+    # which the upgrade also runs, drops the plan import table, empty here.
     assert chats(database) == before
     assert {table: rows for table, rows in after.items() if table != "chat_repositories"} == \
-        {table: rows for table, rows in records.items() if table != "chat_repositories"}
+        {table: rows for table, rows in records.items() if table not in ("chat_repositories", "plan_imports")}
     # The link a chat had before keeps its row, its time included.
     assert len(earlier) == 1 and earlier <= set(after["chat_repositories"])
     snapshot, = (tmp_path / "data" / "backups").glob("worklog-pre-migration-*.sqlite3")
@@ -161,8 +165,6 @@ def test_the_way_back_keeps_the_links_and_upgrading_again_adds_none(tmp_path):
     assert links(database) == linked
     Database(database).initialize()
     assert links(database) == linked
-    # The SQL tested here is the SQL docs/UPGRADING.md gives the person.
-    assert "```sql\n" + WAY_BACK + "```" in (Path(__file__).resolve().parents[2] / "docs" / "UPGRADING.md").read_text(encoding="utf-8")
 
 
 def test_a_chat_takes_no_new_label_and_keeps_the_ones_it_has(tmp_path):

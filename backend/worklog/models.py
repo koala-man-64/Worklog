@@ -446,14 +446,6 @@ class StepUpdate(Expected):
         return self
 
 
-class ImportCommit(Command):
-    title: str
-    overview: str = ""
-    steps: list[dict[str, Any]] = Field(default_factory=list)
-    roadmapId: str | None = None
-    revision: Revision | None = None
-
-
 class Operation(Command):
     action: Literal["repository.create", "repository.update", "repository.archive", "repository.recover",
                     "item.create", "item.update", "item.archive", "item.recover", "entry.upsert",

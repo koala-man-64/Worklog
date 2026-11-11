@@ -37,12 +37,11 @@ ORIGIN = "http://127.0.0.1:8877"
 GOLDEN = Path(__file__).with_name("golden")
 UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 TIME = re.compile(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?([+-]\d\d:\d\d|Z)?$")
-HTML = b"<html><body><h1>Imported plan</h1><h2>First step</h2><p>Text</p></body></html>"
 # Values that change from world to world where no ID or time shows: a random avatar suggested, a
 # feed cursor, which encodes the data ID, and a credential's token.
 KEYED = {"suggested": "<avatar>", "cursor": "<cursor>", "token": "<token>"}
 # Reads whose answer is not JSON: files and archives, pinned by their own tests.
-NOT_JSON = {"/export", "/imports/{identity}/download"}
+NOT_JSON = {"/export"}
 # Reads whose answer counts the golden world's own calls, by date: every new route or call, and every
 # new day, would change it. test_usage.py pins it, and agent_route_matrix.json pins the agent's refusal.
 COUNTED = {"/usage"}
@@ -146,8 +145,6 @@ class World:
                                                                "targetType": "item", "targetId": item["id"]})["id"]
         release = self.write(p, "POST", "/releases", {"title": "1.0", "releaseDate": "2026-12-01"})
         ids["release"] = release["id"]
-        preview = self.write(p, "POST", "/imports/preview?name=plan.html", content=HTML)
-        ids["import"] = preview["id"]
         discussion = self.write(p, "POST", "/discussions", {"title": "Parser", "text": "Where do we start?",
                                                             "contexts": [{"type": "item", "id": item["id"]}]})
         ids["discussion"] = discussion["discussion"]["id"]
@@ -226,7 +223,7 @@ def concrete(template: str, ids: dict[str, str], today: str) -> str:
                  ("/steps/", "step"), ("/questions/", "question"), ("/decisions/", "decision"),
                  ("/github/", "github"), ("/chats/", "chat"), ("/people/", "person"), ("/resources/", "resource"),
                  ("/repositories/", "repository"), ("/reminders/", "reminder"), ("/releases/", "release"),
-                 ("/imports/", "import"), ("/discussions/messages/", "message"),
+                 ("/discussions/messages/", "message"),
                  ("/discussions/participants/", "agent"), ("/discussions/", "discussion"), ("/agents/", "agent"),
                  ("/agent-runs/", "run"), ("/participations/", "participation"), ("/proposals/", "proposal"),
                  ("/release-checks/", "check")]

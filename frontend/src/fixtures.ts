@@ -38,7 +38,6 @@ export const aRoadmap = (fields: Fields<Roadmap>): Roadmap => ({
   children: [],
   workItems: [],
   people: [],
-  imports: [],
   ...fields,
 });
 

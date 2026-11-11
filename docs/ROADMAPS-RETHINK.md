@@ -81,7 +81,7 @@ Smallest first, one at a time. Each step takes its feature out of everywhere it 
 
 #### 0.1 · Remove the HTML plan import
 
-Status: Not started
+Status: Merged · Branch: `claude/remove-html-import` · PR: [#183](https://github.com/koala-man-64/Worklog/pull/183)
 
 - On Roadmaps: "Bring in an HTML plan", with its preview, "Create from selected steps" and "Attach original as reference". On a roadmap: "Original plan references" and "Download original".
 - `POST /imports/preview`, `POST /imports/{identity}/commit` and `GET /imports/{identity}/download`, and `preview`, `import_commit` and `import_download` in `plans.py`.
@@ -89,6 +89,8 @@ Status: Not started
 - `beautifulsoup4` and `markdownify`, two of the six direct runtime dependencies, and with them `soupsieve` and `six`. Relock both lock files ([DEVELOPMENT.md](DEVELOPMENT.md), *Dependencies*).
 
 Why: never previewed or imported, and all 24 roadmaps were made another way. It is also the only code that parses uploaded HTML.
+
+Done as schema v25 (`migrations.drop_plan_imports`): a roadmap an import made stays, and so does an import's history, which compaction still thins for databases that hold it. Compaction's report loses `importsPurged`, and an export its `imports/` folder. pip-tools wasn't installed, so the four packages left the lock files by hand. `test_plan_import_removal.py` pins the upgrade, the way back and the routes' 404s, and the older upgrade tests say that v25 drops the empty table.
 
 #### 0.2 · Remove the end-of-day reflection
 

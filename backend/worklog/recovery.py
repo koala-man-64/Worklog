@@ -24,7 +24,7 @@ logger = logging.getLogger("worklog")
 REQUIRED_TABLES = frozenset(
     {"work_items", "days", "daily_entries", "notes", "tasks", "attachments",
      "credentials", "roadmaps", "steps", "proposals", "settings", "events",
-     "receipts", "file_references", "search_index", "roadmap_versions", "plan_imports"}
+     "receipts", "file_references", "search_index", "roadmap_versions"}
 )
 
 # Every released schema, sealed: the digest of each shape a version shipped in, over its normalized
@@ -71,6 +71,7 @@ SEALED_SCHEMAS: dict[int, frozenset[str]] = {
     # v24 changes data only, linking tracked chats to the repositories their labels name, so it
     # shares v23's shape and seal. A database's version, not its shape, says whether it has the links.
     24: frozenset({"84d7fb11db635773807292341234aff05dbb191e36c6833dd940276b9ef63546"}),  # chats linked to the repositories their labels name
+    25: frozenset({"8e46fdc307d7ae883967a50306f40cb91b4e577a2e523db4b25f4938f05ffc7a"}),  # the HTML plan import's table dropped (R1)
 }
 
 
@@ -623,10 +624,7 @@ def write_export(db_path: Path | str, target: Path | str) -> None:
                                     value = "[redacted; credentials must be reissued after restore]"
                                 elif isinstance(value, bytes):
                                     digest = hashlib.sha256(value).hexdigest()
-                                    # Original HTML is an explicit downloadable archive member;
-                                    # use a content-derived name rather than an imported filename.
-                                    name = (f"imports/{digest}.html" if table == "plan_imports" and key == "original"
-                                            else f"blobs/{digest}.bin")
+                                    name = f"blobs/{digest}.bin"
                                     if name not in files:
                                         member(name, [value])
                                     value = {"file": name, "sha256": digest, "size": len(value)}

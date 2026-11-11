@@ -66,6 +66,8 @@ def test_the_v20_upgrade_adds_empty_reminders_after_a_snapshot_and_changes_no_re
     version, signature, after = contents(path)
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
     assert after.pop("reminders") == []
+    # v25 drops the plan import table, empty here.
+    assert before.pop("plan_imports") == []
     assert after == before
     snapshots = list((tmp_path / "backups").glob("worklog-pre-migration-*.sqlite3"))
     assert len(snapshots) == 1

@@ -341,24 +341,6 @@ def test_candidate_same_as_target_rejected(tmp_path):
         recovery.restore_database(target, target, tmp_path / "backups")
 
 
-def test_export_original_html_bytes_have_hashed_manifest_entry(tmp_path):
-    source = make_database(tmp_path / "live.sqlite3")
-    original = b"<!doctype html><title>Raw</title><script>raw & unchanged</script>\r\n"
-    with closing(sqlite3.connect(source)) as conn:
-        conn.execute("INSERT INTO plan_imports(id,name,original,sha256,preview,actor_id,created_at) VALUES ('import','../../unsafe.html',?,?,'{}','human','2026-01-01')",
-                     (original, hashlib.sha256(original).hexdigest()))
-        conn.commit()
-    with zipfile.ZipFile(io.BytesIO(recovery.export_database(source))) as archive:
-        records = json.loads(archive.read("records/plan_imports.json"))
-        member = records[0]["original"]["file"]
-        assert member.startswith("imports/") and member.endswith(".html")
-        assert ".." not in member
-        assert archive.read(member) == original
-        manifest = json.loads(archive.read("manifest.json"))
-        entry = next(file for file in manifest["files"] if file["path"] == member)
-        assert entry["sha256"] == hashlib.sha256(original).hexdigest()
-
-
 # Sealed v1 shapes the tests below start from, as backend/tests/schemas/v01.json lists them.
 WITH_DISCUSSIONS = sealed.shape(1, 1)  # discussions, before roadmap questions and decisions
 BEFORE_DISCUSSIONS = sealed.shape(1, 2)  # and before discussions

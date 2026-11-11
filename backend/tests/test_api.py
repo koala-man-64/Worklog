@@ -11,7 +11,6 @@ from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi.testclient import TestClient
-from worklog import search
 from worklog.app import create_app
 
 ORIGIN = "http://127.0.0.1:8877"
@@ -377,20 +376,19 @@ def test_injected_failure_rolls_back_item_and_event(client, monkeypatch):
     assert actual["revision"] == 1 and actual["status"] == "open"
 
 
-def test_backup_export_original_imports_and_references(client):
+def test_backup_and_export_carry_attachment_bytes(client):
+    w = item(client)
     original = b"<!doctype html><title>A plan</title><h2>Build</h2><p>Useful text</p><script>bad()</script>"
-    preview = write(client, "POST", "/imports/preview?name=source.html", content=original).json()
-    assert "bad()" not in json.dumps(preview)
-    committed = write(client, "POST", f"/imports/{preview['id']}/commit", {"title": preview["title"], "overview": preview["overview"], "steps": preview["steps"]})
-    assert committed.status_code == 200, committed.text
-    download = client.get(f"/api/v1/imports/{preview['id']}/download")
-    assert download.content == original and download.headers["content-disposition"].startswith("attachment;")
+    uploaded = write(client, "POST", f"/attachments?ownerType=item&ownerId={w['id']}&name=source.html", content=original)
+    assert uploaded.status_code == 200, uploaded.text
     assert write(client, "POST", "/backups", {}).status_code == 200
     export = client.get("/api/v1/export")
     assert export.status_code == 200
     with zipfile.ZipFile(io.BytesIO(export.content)) as z:
         assert "manifest.json" in z.namelist()
-        assert any(z.read(name) == original for name in z.namelist() if name.endswith(".html"))
+        assert any(name.startswith("blobs/") and z.read(name) == original for name in z.namelist())
+        # Since v25 an export has no imports/ folder: the HTML plan import is gone (R1).
+        assert not any(name.startswith("imports/") for name in z.namelist())
 
 
 def test_chicago_midnight_and_dst_dates_are_explicit():
@@ -426,25 +424,6 @@ def test_archive_parent_hides_supporting_search_and_recovery_restores(client):
     assert client.get("/api/v1/search?q=parentsecretphrase&archived=true").json()["total"] == 1
     write(client, "POST", f"/work-items/{w['id']}/recover", {"revision": 2})
     assert client.get("/api/v1/search?q=parentsecretphrase").json()["total"] == 1
-
-
-def test_import_commit_and_search_are_one_idempotent_transaction(client, monkeypatch):
-    original = b"<h2>Atomic imported work</h2><p>Preserve it</p>"
-    preview = write(client, "POST", "/imports/preview?name=atomic.html", content=original).json()
-    payload = {"title": preview["title"], "overview": preview["overview"], "steps": preview["steps"]}
-    put = search.put
-    def fail(conn, *args, **kwargs):
-        raise sqlite3.OperationalError("injected search update failure")
-    monkeypatch.setattr(search, "put", fail)
-    key = str(uuid.uuid4())
-    r = write(client, "POST", f"/imports/{preview['id']}/commit", payload, headers={"Idempotency-Key": key})
-    assert r.status_code == 503
-    assert client.get("/api/v1/roadmaps").json()["items"] == []
-    monkeypatch.setattr(search, "put", put)
-    first = write(client, "POST", f"/imports/{preview['id']}/commit", payload, headers={"Idempotency-Key": key})
-    second = write(client, "POST", f"/imports/{preview['id']}/commit", payload, headers={"Idempotency-Key": key})
-    assert first.status_code == 200 and second.json() == first.json()
-    assert client.get("/api/v1/search?q=Atomic").json()["total"] >= 1
 
 
 def test_archive_preserves_daily_actuals_and_status_summary_is_historical(client, monkeypatch):
