@@ -1904,14 +1904,6 @@ code {
   align-items: center;
   gap: 4px 8px;
 }
-/* A question's or decision's tied agents: their chips, then a fold that ties, re-roles and unties. */
-.agent-tie-fold .person-badges {
-  margin-left: 0;
-}
-.agent-tie-fold > details > summary,
-.agent-ties-fold > summary {
-  font-size: 12px;
-}
 /* A proposal history: one row per proposal, the latest first, each numbered by its place in the sequence. */
 .proposal-list {
   list-style: none;

@@ -273,16 +273,15 @@ def test_the_v15_upgrade_keeps_every_work_item_and_every_reference_to_one(tmp_pa
         assert recovery._schema_signature(conn) == sealed.current()
         # Every row of every table is as it was, work items' rowids included. The upgrade goes on
         # to v16, whose table names no proposal here, none having been approved, to v17, whose
-        # agent ties start empty, to v18, whose registration directory is unknown for every
-        # identity here, none having registered, to v19 and v20, whose releases and reminders
-        # start empty and which v28 and v27 drop again, to v21, which starts each
-        # day's reflection revision at its day's revision, to v22, which pins no discussion, and to
-        # v25 and v26, which drop the plan import and task tables, empty here.
+        # agent ties start empty and which v29 drops again, to v18, whose registration directory
+        # is unknown for every identity here, none having registered, to v19 and v20, whose
+        # releases and reminders start empty and which v28 and v27 drop again, to v21, which starts
+        # each day's reflection revision at its day's revision, to v22, which pins no discussion,
+        # and to v25 and v26, which drop the plan import and task tables, empty here.
         upgraded = contents(conn)
         assert kept.pop("plan_imports") == []
         assert kept.pop("tasks") == []
         assert upgraded.pop("proposal_targets") == []
-        assert upgraded.pop("agent_links") == []
         assert {row[-1] for row in upgraded["communication_credentials"]} == {None}
         upgraded["communication_credentials"] = [row[:-1] for row in upgraded["communication_credentials"]]
         assert upgraded["days"] and all(row[-1] == row[-2] for row in upgraded["days"])
@@ -392,11 +391,10 @@ def test_the_way_back_to_v14_gives_its_exact_shape_and_upgrades_again(tmp_path):
     before["discussion_contexts"] = before["discussion_change_contexts"] = []
     before["communication_credentials"] = [row[:-1] for row in before["communication_credentials"]]
     before["days"] = [row[:-1] for row in before["days"]]
-    before.pop("agent_links")
     before.pop("proposal_targets")
-    # The ways back to v27, v26, v25 and v24, which to_v14 takes first of all, make the release,
-    # reminder, task and plan import tables again, empty; the ways back to v19 and v18 drop the
-    # reminders and releases again.
+    # The ways back to v28 to v24, which to_v14 takes first of all, make the ties, release, reminder,
+    # task and plan import tables again, empty; the ways back to v19, v18 and v16 drop the reminders,
+    # releases and ties again.
     before["tasks"] = []
     before["plan_imports"] = []
     to_v14(path)

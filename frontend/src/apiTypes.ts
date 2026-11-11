@@ -99,21 +99,6 @@ export type RosterAgent = Schema["RosterAgent"];
 export type RoadmapAgents = Schema["RoadmapAgents"];
 export type AgentActivity = Schema["AgentActivity"]["items"][number];
 
-// Agent ties.
-export type AgentTie = Schema["AgentTie"];
-export type TiedAgent = Schema["TieAgent"];
-/** A tied record in one shape: what every kind has, and each kind's own fields where it has them. */
-export type TieTargetView = Schema["RecordSummary"] &
-  Partial<
-    Omit<
-      Schema["StepSummary"] &
-        Schema["RepositorySummary"] &
-        Schema["TicketSummary"] &
-        Schema["AgentSummary"],
-      keyof Schema["RecordSummary"]
-    >
-  >;
-
 // A chat's outbox.
 export type Outbox = Schema["ChatMessages"];
 export type OutboxRun = Schema["ChatRecipient"];

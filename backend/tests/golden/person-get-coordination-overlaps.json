@@ -64,21 +64,6 @@
         }
       }
     ],
-    "ties": [
-      {
-        "agent": {
-          "id": "<id2>",
-          "label": "Builder",
-          "kind": "agent",
-          "avatar": "red-dots-antenna",
-          "active": true
-        },
-        "targetType": "item",
-        "targetId": "<id4>",
-        "relationship": "Builds it",
-        "setBy": "agent"
-      }
-    ],
     "tickets": []
   }
 }

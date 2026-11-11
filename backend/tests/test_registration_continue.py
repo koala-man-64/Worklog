@@ -92,12 +92,11 @@ def step_chat_events(client, step_id):
 def test_the_identity_continues_in_a_new_chat_with_everything_it_holds(client, agent_http):
     sponsor, identity, old = enroll(client, agent_http)
     item = ok(write(client, "POST", "/work-items", {"title": "Parser fix"}))
-    roadmap, (parse, _, _) = plan(client)
-    # What the identity holds: a role on a step, a tie, a ticket assigned to it, a draft, and an open
-    # run whose participation reports the work item.
+    _, (parse, _, _) = plan(client)
+    # What the identity holds: a role on a step, a ticket assigned to it, a draft, and an open run
+    # whose participation reports the work item.
     role = ok(write(agent_http, "POST", "/discussions/roles", {"contextType": "step", "contextId": parse, "label": "Implementation"}, old))
     ok(write(agent_http, "POST", f"/discussions/roles/{role['id']}/claim", {"revision": role["revision"]}, old))
-    tie = ok(write(agent_http, "POST", "/agent-links", {"targetType": "roadmap", "targetId": roadmap["id"], "relationship": "Maintainer"}, old))
     ticket = ok(write(agent_http, "POST", "/tickets", {"title": "Lexer drops a token", "assigneeId": identity["agentId"]}, old))
     draft = ok(write(agent_http, "POST", "/proposals", {"title": "Parser notes", "rationale": "Found while fixing it.", "operations": [
         {"action": "note.create", "payload": {"ownerType": "item", "ownerId": item["id"], "title": "Notes", "text": "The lexer."}}]}, old))
@@ -125,7 +124,6 @@ def test_the_identity_continues_in_a_new_chat_with_everything_it_holds(client, a
     # What names the identity stays its own.
     [owned] = ok(agent_http.get("/api/v1/discussions/roles", params={"contextType": "step", "contextId": parse}, headers=bearer(new)))["items"]
     assert (owned["ownerId"], owned["revision"]) == (identity["agentId"], role["revision"] + 1)
-    assert [t["id"] for t in ok(agent_http.get("/api/v1/agent-links", headers=bearer(new)))["items"]] == [tie["id"]]
     assert ok(agent_http.get(f"/api/v1/tickets/{ticket['id']}", headers=bearer(new)))["assignee"]["id"] == identity["agentId"]
     submitted = ok(write(agent_http, "POST", f"/proposals/{draft['id']}/submit", {"revision": draft["revision"]}, new))
     assert submitted["status"] == "submitted"

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { AgentTies } from "./AgentTies";
 import { getDataContext } from "./api";
 import { Avatar } from "./Avatar";
 import { Markdown } from "./ui/Markdown";
@@ -132,11 +131,6 @@ export function DiscussionThread({
         </div>
       </div>
       <ErrorMessage error={detail.error || action.error} />
-      <AgentTies
-        targetType="discussion"
-        targetId={discussion.id}
-        layout="fold"
-      />
       <div className="discussion-message-page">
         <Pager
           offset={offset}

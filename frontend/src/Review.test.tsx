@@ -147,12 +147,7 @@ it("treats a missing step as new only when an earlier operation creates it", asy
     if (path === `/roadmaps/${roadmap}`) return { id: roadmap, revision: 4 };
     if (path === `/steps/${existing}`)
       return { id: existing, revision: 1, status: "open" };
-    // The agents tied to the proposal, and those that could be.
-    if (
-      path.startsWith("/agent-links?") ||
-      path === "/discussions/participants"
-    )
-      return { items: [], total: 0 };
+    if (path === "/discussions/participants") return { items: [], total: 0 };
     throw new ApiError(404, "Step not found", "not_found");
   });
   renderWithClient(<Review selectedId={ID} />);

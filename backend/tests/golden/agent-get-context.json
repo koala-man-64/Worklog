@@ -219,36 +219,10 @@
       "limit": 100,
       "offset": 0
     },
-    "ties": {
-      "items": [
-        {
-          "id": "<id14>",
-          "agentId": "<id10>",
-          "agent": {
-            "id": "<id10>",
-            "label": "Builder",
-            "avatar": "red-dots-antenna",
-            "active": true
-          },
-          "targetType": "item",
-          "targetId": "<id2>",
-          "target": {
-            "id": "<id2>",
-            "title": "Parser",
-            "archived": false,
-            "status": "doing"
-          },
-          "relationship": "Builds it",
-          "setBy": "agent",
-          "createdAt": "<time>"
-        }
-      ],
-      "total": 1
-    },
     "participations": {
       "items": [
         {
-          "id": "<id15>",
+          "id": "<id14>",
           "runId": "<id13>",
           "itemId": "<id2>",
           "description": "",
@@ -292,8 +266,8 @@
     "updates": {
       "items": [
         {
-          "id": "<id16>",
-          "participationId": "<id15>",
+          "id": "<id15>",
+          "participationId": "<id14>",
           "runId": "<id13>",
           "agentId": "<id10>",
           "credentialId": "<id10>",
@@ -321,7 +295,7 @@
     "tickets": {
       "items": [
         {
-          "id": "<id17>",
+          "id": "<id16>",
           "number": 1,
           "key": "T-1",
           "title": "Crash on save",
@@ -374,7 +348,7 @@
     "resources": {
       "items": [
         {
-          "id": "<id18>",
+          "id": "<id17>",
           "title": "Style",
           "summary": "How we write",
           "archived": false,

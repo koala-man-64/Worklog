@@ -286,25 +286,6 @@ class PersonLinkRemove(Command):
     targetId: str
 
 
-# What an agent can be tied to (v17), in agent_links.SUMMARIES' order; relationship is its role there.
-AgentTieTarget = Literal["item", "roadmap", "step", "repository", "person", "resource", "discussion", "proposal",
-                         "ticket", "agent", "question", "decision"]
-
-
-class AgentLinkSet(Command):
-    """The person names the agent. An agent ties only itself, so it may leave agentId out."""
-    agentId: str | None = None
-    targetType: AgentTieTarget
-    targetId: str
-    relationship: str = ""
-
-
-class AgentLinkRemove(Command):
-    agentId: str | None = None
-    targetType: AgentTieTarget
-    targetId: str
-
-
 class RoadmapContent(Command):
     title: str
     overview: str = ""

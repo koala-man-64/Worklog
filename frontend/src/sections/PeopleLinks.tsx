@@ -1,5 +1,4 @@
 import { useRef, useState } from "react";
-import type { TieType } from "../agentTieKinds";
 import { commands } from "../commands";
 import { useData, useWrites } from "../hooks";
 import type { Answer, PersonAssignment } from "../apiTypes";
@@ -12,7 +11,6 @@ export function personLine(title: string, team: string) {
  * A tie's role, saved when its field loses focus, and the tie's Unlink. Pressing Unlink
  * right after editing the role saves the role first: the press is not lost to a button
  * disabled mid-click, and the save cannot land after the unlink and tie the person again.
- * A person's tie goes to /person-links, an agent's to /agent-links.
  */
 export function TieRole({
   tie,
@@ -23,13 +21,11 @@ export function TieRole({
   unlinkDisabled = false,
   placeholder,
 }: {
-  tie:
-    | {
-        personId: string;
-        targetType: "item" | "roadmap" | "repository";
-        targetId: string;
-      }
-    | { agentId: string; targetType: TieType; targetId: string };
+  tie: {
+    personId: string;
+    targetType: "item" | "roadmap" | "repository";
+    targetId: string;
+  };
   /** The role field's accessible name, such as "Role on Define SLOs". */
   name: string;
   unlinkName: string;
@@ -42,11 +38,8 @@ export function TieRole({
   const saving = useRef<Promise<unknown>>(Promise.resolve());
   const [unlinking, setUnlinking] = useState(false);
   const save = (next: string): Promise<unknown> =>
-    "agentId" in tie
-      ? commands.tieAgent({ ...tie, relationship: next })
-      : commands.linkPerson({ ...tie, relationship: next });
-  const unlink = (): Promise<unknown> =>
-    "agentId" in tie ? commands.untieAgent(tie) : commands.unlinkPerson(tie);
+    commands.linkPerson({ ...tie, relationship: next });
+  const unlink = (): Promise<unknown> => commands.unlinkPerson(tie);
   return (
     <>
       <input

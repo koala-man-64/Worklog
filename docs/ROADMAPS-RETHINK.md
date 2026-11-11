@@ -137,13 +137,15 @@ Done as schema v28 (`migrations.drop_releases`): the three tables go with their 
 
 #### 0.6 · Remove agent ties
 
-Status: Not started
+Status: Merged · Branch: `claude/remove-agent-ties` · PR: [#190](https://github.com/koala-man-64/Worklog/pull/190)
 
 The "Agents" ties on record pages (`AgentTies`) and on the Agents and People pages, `agent_links.py` and `agent_link_api.py`, the agent's `ties` commands, and the `agent_links` table with its 5 rows. The files it owns hold about 1,900 lines. This changes what agents can call.
 
 Settle in the step: the overlap check reads ties (`registry.py`, `overlaps`), and a repository merge moves them (`coordination.py`). Participations, discussion roles and tracked chats say who works where, and they stay; "Agents working here" on a roadmap reads those, not ties, and since R5 so do the roadmap's and its steps' "Agents" lists, which this step leaves alone.
 
 Why: 5 ties, all set by agents on one day; chats on steps say the same.
+
+Done as schema v29 (`migrations.drop_agent_links`): the table goes with its index and every tie in it. The agents, the records they were tied to and the history each tie wrote stay. The work context and the overlap check lose `ties`, a repository merge moves none (its event loses `moved.agents`), and the agent scope `agent:tie` is gone, which changes what agents can read and call. An agent reading another agent's history still never sees an old tie's entry that names a draft proposal it may not see (`proposals.visible_history`). The Agents page's ties, which come from each agent's work, stay, as do the roadmap's "Agents" (R5) and person ties. `test_agent_tie_removal.py` pins the upgrade, the way back, the routes' 404s and the agent command line; the v17 test keeps its way back and the history filter, and the older upgrade tests say that v29 drops the table.
 
 #### 0.7 · Remove messaging agents from a chat
 

@@ -13,8 +13,8 @@ loses access with the identity that registered it.
 A chat often ends before its work does. The identity it registered then continues in the next
 chat (continue_identity): a new credential of the same identity, registered with the new chat,
 replaces the old one as rotating a token in Settings does. Everything the identity holds stays
-with it, since each of those records names the identity: its roles, ties, tickets, proposals and
-the requests waiting on it. Only what names the old chat moves, and the old chat's runs end.
+with it, since each of those records names the identity: its roles, tickets, proposals and the
+requests waiting on it. Only what names the old chat moves, and the old chat's runs end.
 """
 
 from __future__ import annotations

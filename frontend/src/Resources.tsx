@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { AgentTies } from "./AgentTies";
 import { contextStorageKey } from "./api";
 import { commands } from "./commands";
 import { ChangeHistory } from "./sections/History";
@@ -326,7 +325,6 @@ function PageView({
           {formatDiscussionDate(page.updatedAt)}
         </time>
       </p>
-      <AgentTies targetType="resource" targetId={id} layout="fold" />
       <ChangeHistory id={id} changes={page.history.length} />
     </article>
   );

@@ -7,7 +7,17 @@ from contextlib import nullcontext
 
 from . import proposal_names, proposal_targets, scratchpad
 from .chat_messages import BOUND, RECIPIENTS, ChatMessageService
-from .common import NOTE_LIMIT, AppError, event, now, require_revision, setting, uid
+from .common import (
+    NOTE_LIMIT,
+    AppError,
+    event,
+    now,
+    read_events,
+    require_revision,
+    rows_in,
+    setting,
+    uid,
+)
 from .discussions import DiscussionService
 from .migrations import AUTOMATIC_APPROVAL_ID, stale_signature
 from .operations import OPERATIONS, keys, validate
@@ -192,12 +202,47 @@ def can_see(conn, row, actor):
     """Whether the caller may see this proposal: its row needs status, actor_id and submitted_at.
 
     Agents see other agents' proposals only once submitted; withdrawing an unsubmitted draft keeps it
-    private. Agent ties (agent_links.py) ask this too, so a tie never shows a draft to another agent.
+    private. History asks this too (visible_history), so a tie's old history never shows a draft to
+    another agent.
     """
     if actor["kind"] != "agent" or row["status"] in {"submitted", "approved", "rejected"} or _same_principal(conn, row["actor_id"], actor):
         return True
     # submitted_at is set by every submit and never cleared, reopening included.
     return row["status"] == "withdrawn" and row["submitted_at"] is not None
+
+
+def _visible_events(conn, events: list[dict], actor: dict) -> list[dict]:
+    """History as the caller may see it. Until v29 dropped agent ties, a tie's history (agent.link and
+    agent.unlink) was written on its agent too, so an agent reading another agent's history would
+    otherwise learn of a draft proposal it may not see: such entries are left out for agents, as the
+    draft's own history is (can_see)."""
+    if actor["kind"] != "agent":
+        return events
+
+    def proposal(entry: dict) -> str | None:
+        if entry.get("kind") not in {"agent.link", "agent.unlink"}:
+            return None
+        state = entry.get("after") or entry.get("before")
+        if not isinstance(state, dict) or state.get("targetType") != "proposal":
+            return None
+        return str(state.get("targetId"))
+
+    named = {identity for identity in map(proposal, events) if identity}
+    seen = {row["id"] for row in rows_in(conn, "SELECT id,status,actor_id,submitted_at FROM proposals WHERE id IN ({})", named)
+            if can_see(conn, row, actor)} if named else set()
+    return [entry for entry in events if (identity := proposal(entry)) is None or identity in seen]
+
+
+def visible_history(conn, entity_id: str, limit: int, actor: dict) -> list[dict]:
+    """A record's latest history entries the caller may see, `limit` of them where it has that many: the
+    page fills up past entries left out, so its length says nothing about them."""
+    window = limit
+    while True:
+        entries = read_events(conn, entity_id, window)
+        shown = _visible_events(conn, entries, actor)
+        if len(shown) >= limit or len(entries) < window:
+            return shown[:limit]
+        window *= 2
 
 
 def open_proposals(conn, actor, limit, offset=0) -> dict:

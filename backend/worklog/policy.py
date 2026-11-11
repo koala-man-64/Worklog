@@ -39,7 +39,6 @@ COORDINATE = "agent:coordinate"  # an agent's own runs, participations and chat,
 TICKET = "agent:ticket"  # filing, changing and commenting on tickets
 REGISTER = "agent:register"  # registering, continuing and retiring agent identities
 INBOX = "agent:inbox"  # taking the messages the person writes into an agent's chats
-TIE = "agent:tie"  # an agent's own ties to records, and its role on each
 
 
 @dataclass(frozen=True)
@@ -56,9 +55,6 @@ class Only:
 
 # Each route's template under PREFIX, with the scope of each method it serves.
 ROUTES: dict[str, dict[str, str | Only]] = {
-    "/agent-links": {"GET": READ, "POST": TIE},
-    "/agent-links/unlink": {"POST": TIE},
-
     "/agent-registrations": {"POST": REGISTER},
     "/agent-registrations/continue": {"POST": REGISTER},
     "/agent-registrations/retire": {"POST": REGISTER},

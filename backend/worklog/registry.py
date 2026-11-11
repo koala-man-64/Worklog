@@ -540,10 +540,9 @@ class AgentRegistry:
         each saying whether its author's credential is live and whether it reports work in that
         repository now; active participation in those repositories, on those work items or on work
         items on those steps; the other open threads tagged with any of the records where someone
-        besides the caller wrote, pinned first;
-        the roles others own on those work items and steps; others' ties to the records; and each
-        ticket's assignee. Like everything it gathers, it reserves nothing, and it shows no chat a run
-        reports, which is the person's to see (policy.py)."""
+        besides the caller wrote, pinned first; the roles others own on those work items and steps;
+        and each ticket's assignee. Like everything it gathers, it reserves nothing, and it shows no
+        chat a run reports, which is the person's to see (policy.py)."""
         repos, work = self._named(repositories, "repositoryId"), self._named(items, "itemId")
         step_ids, refs = self._named(steps, "stepId"), self._named(tickets, "ticketId")
         if not (repos or work or step_ids or refs):
@@ -624,16 +623,13 @@ class AgentRegistry:
             if (row["context_type"], row["context_id"]) in tagged:
                 matched.setdefault(row["discussion_id"], []).append({"type": row["context_type"], "id": row["context_id"]})
 
-        # Roles others own on the work, and others' ties to any of the records.
+        # Roles others own on the work.
         owned_on = [("item", i) for i in work] + [("step", s) for s in step_ids]
         roles = c.execute(
             "SELECT * FROM discussion_roles WHERE owner_id IS NOT NULL AND owner_id<>? AND (" +
             " OR ".join("(context_type=? AND context_id=?)" for _ in owned_on) + ") ORDER BY context_type,context_id,label_key,id LIMIT ?",
             [caller, *[value for pair in owned_on for value in pair], limit]).fetchall() if owned_on else []
-        ties = c.execute(
-            "SELECT * FROM agent_links WHERE agent_id<>? AND (" + " OR ".join("(target_type=? AND target_id=?)" for _ in tagged) +
-            ") ORDER BY target_type,target_id,agent_id LIMIT ?", [caller, *flat, limit]).fetchall()
-        agent_ids |= {r["owner_id"] for r in roles} | {r["agent_id"] for r in ties}
+        agent_ids |= {r["owner_id"] for r in roles}
         agent_ids |= {r["assignee_id"] for r in ticket_rows if r["assignee_id"] and r["assignee_id"] != "local-user"}
 
         agents = self._identities(c, agent_ids)
@@ -660,8 +656,6 @@ class AgentRegistry:
                              "matched": matched.get(t["id"], [])} for t in threads],
             "roles": [{"id": r["id"], "label": r["label"], "contextType": r["context_type"], "contextId": r["context_id"],
                        "owner": who(r["owner_id"])} for r in roles],
-            "ties": [{"agent": who(r["agent_id"]), "targetType": r["target_type"], "targetId": r["target_id"],
-                      "relationship": r["relationship"], "setBy": r["set_by"]} for r in ties],
             "tickets": [{"id": r["id"], "number": r["number"], "title": r["title"], "status": r["status"],
                          "assignee": who(r["assignee_id"]) if r["assignee_id"] else None} for r in ticket_rows],
         }

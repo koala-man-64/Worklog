@@ -65,9 +65,9 @@ def test_the_upgrade_drops_the_imports_and_changes_no_other_record(tmp_path):
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
     assert "plan_imports" not in after
     # Every other table keeps every row, events included; the roadmap an import made is an ordinary
-    # roadmap. v26 to v28, which the upgrade also runs, drop the task, reminder and release tables,
-    # empty here.
-    dropped = ("plan_imports", "tasks", "reminders", "releases", "release_contents", "release_checks")
+    # roadmap. v26 to v29, which the upgrade also runs, drop the task, reminder, release and ties
+    # tables, empty here.
+    dropped = ("plan_imports", "tasks", "reminders", "releases", "release_contents", "release_checks", "agent_links")
     assert after == {table: rows for table, rows in before.items() if table not in dropped}
     assert [row[0] for row in after["roadmaps"]] == [roadmap]
     assert [row[2] for row in after["events"] if row[0] == "import-event"] == ["import.reference"]

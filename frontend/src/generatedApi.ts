@@ -1869,41 +1869,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/agent-links": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Agent Links */
-        get: operations["agent_links_api_v1_agent_links_get"];
-        put?: never;
-        /** Agent Link Set */
-        post: operations["agent_link_set_api_v1_agent_links_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/agent-links/unlink": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Agent Link Remove */
-        post: operations["agent_link_remove_api_v1_agent_links_unlink_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/resources": {
         parameters: {
             query?: never;
@@ -2783,38 +2748,6 @@ export interface components {
             /** Chatid */
             chatId: string | null;
         };
-        /** AgentLinkRemove */
-        AgentLinkRemove: {
-            /** Agentid */
-            agentId?: string | null;
-            /**
-             * Targettype
-             * @enum {string}
-             */
-            targetType: "item" | "roadmap" | "step" | "repository" | "person" | "resource" | "discussion" | "proposal" | "ticket" | "agent" | "question" | "decision";
-            /** Targetid */
-            targetId: string;
-        };
-        /**
-         * AgentLinkSet
-         * @description The person names the agent. An agent ties only itself, so it may leave agentId out.
-         */
-        AgentLinkSet: {
-            /** Agentid */
-            agentId?: string | null;
-            /**
-             * Targettype
-             * @enum {string}
-             */
-            targetType: "item" | "roadmap" | "step" | "repository" | "person" | "resource" | "discussion" | "proposal" | "ticket" | "agent" | "question" | "decision";
-            /** Targetid */
-            targetId: string;
-            /**
-             * Relationship
-             * @default
-             */
-            relationship: string;
-        };
         /**
          * AgentMessage
          * @description A message one agent of the chat sent another, or one received from outside it.
@@ -3002,78 +2935,6 @@ export interface components {
             items: components["schemas"]["AgentRunWithChats"][];
             /** Total */
             total: number;
-        };
-        /**
-         * AgentSummary
-         * @description An agent identity, by its label. One without a live credential reads as archived.
-         */
-        AgentSummary: {
-            /** Id */
-            id: string;
-            /** Title */
-            title: string;
-            /** Archived */
-            archived: boolean;
-            /** Avatar */
-            avatar: string | null;
-        };
-        /**
-         * AgentTie
-         * @description An agent's tie to a record, with the agent and the record as they stand now.
-         */
-        AgentTie: {
-            /** Id */
-            id: string;
-            /** Agentid */
-            agentId: string;
-            agent: components["schemas"]["TieAgent"] | null;
-            /**
-             * Targettype
-             * @enum {string}
-             */
-            targetType: "item" | "roadmap" | "step" | "repository" | "person" | "resource" | "discussion" | "proposal" | "ticket" | "agent" | "question" | "decision";
-            /** Targetid */
-            targetId: string;
-            /** Target */
-            target: components["schemas"]["RecordSummary"] | components["schemas"]["StatusSummary"] | components["schemas"]["StepSummary"] | components["schemas"]["DecisionSummary"] | components["schemas"]["RepositorySummary"] | components["schemas"]["TicketSummary"] | components["schemas"]["AgentSummary"] | null;
-            /** Relationship */
-            relationship: string;
-            /**
-             * Setby
-             * @enum {string}
-             */
-            setBy: "human" | "agent";
-            /** Createdat */
-            createdAt: string;
-        };
-        /** AgentTies */
-        AgentTies: {
-            /** Items */
-            items: components["schemas"]["AgentTie"][];
-            /** Total */
-            total: number;
-        };
-        /**
-         * AgentUntied
-         * @description The tie an agent identity no longer has.
-         */
-        AgentUntied: {
-            /**
-             * Ok
-             * @constant
-             */
-            ok: true;
-            /** Id */
-            id: string;
-            /** Agentid */
-            agentId: string;
-            /**
-             * Targettype
-             * @enum {string}
-             */
-            targetType: "item" | "roadmap" | "step" | "repository" | "person" | "resource" | "discussion" | "proposal" | "ticket" | "agent" | "question" | "decision";
-            /** Targetid */
-            targetId: string;
         };
         /**
          * AgentWork
@@ -4167,19 +4028,6 @@ export interface components {
             /** Decideddate */
             decidedDate?: string | null;
         };
-        /** DecisionSummary */
-        DecisionSummary: {
-            /** Id */
-            id: string;
-            /** Title */
-            title: string;
-            /** Archived */
-            archived: boolean;
-            /** Roadmapid */
-            roadmapId: string;
-            /** Roadmaptitle */
-            roadmapTitle: string;
-        };
         /** DecisionUpdate */
         DecisionUpdate: {
             /** Revision */
@@ -5105,24 +4953,6 @@ export interface components {
             status: "open" | "doing" | "blocked" | "done";
             assignee: components["schemas"]["Participant"] | null;
         };
-        /** OverlapTie */
-        OverlapTie: {
-            agent: components["schemas"]["Participant"] | null;
-            /**
-             * Targettype
-             * @enum {string}
-             */
-            targetType: "repository" | "item" | "step" | "ticket";
-            /** Targetid */
-            targetId: string;
-            /** Relationship */
-            relationship: string;
-            /**
-             * Setby
-             * @enum {string}
-             */
-            setBy: "human" | "agent";
-        };
         /** OverlapWorkItem */
         OverlapWorkItem: {
             /** Id */
@@ -5150,8 +4980,6 @@ export interface components {
             discussions: components["schemas"]["OverlapDiscussion"][];
             /** Roles */
             roles: components["schemas"]["OverlapRole"][];
-            /** Ties */
-            ties: components["schemas"]["OverlapTie"][];
             /** Tickets */
             tickets: components["schemas"]["OverlapTicket"][];
         };
@@ -5947,7 +5775,7 @@ export interface components {
         };
         /**
          * RecordSummary
-         * @description A roadmap, person, resource or discussion.
+         * @description A record by its title, and whether it is archived.
          */
         RecordSummary: {
             /** Id */
@@ -6173,20 +6001,6 @@ export interface components {
             /** Remoteidentity */
             remoteIdentity: string;
             repository: components["schemas"]["DiscussedRepository"] | null;
-        };
-        /**
-         * RepositorySummary
-         * @description A repository, by its name. A merged one reads as archived.
-         */
-        RepositorySummary: {
-            /** Id */
-            id: string;
-            /** Title */
-            title: string;
-            /** Archived */
-            archived: boolean;
-            /** Mergedinto */
-            mergedInto: string | null;
         };
         /** RepositoryUpdate */
         RepositoryUpdate: {
@@ -6948,20 +6762,6 @@ export interface components {
             status: string;
         };
         /**
-         * StatusSummary
-         * @description A work item or proposal. A proposal is never archived; its status says where it got to.
-         */
-        StatusSummary: {
-            /** Id */
-            id: string;
-            /** Title */
-            title: string;
-            /** Archived */
-            archived: boolean;
-            /** Status */
-            status: string;
-        };
-        /**
          * Step
          * @description A step as its own read returns it: with its roadmap, and retired or not.
          */
@@ -7010,24 +6810,6 @@ export interface components {
             addedBy: components["schemas"]["Actor"] | null;
             /** Addedat */
             addedAt: string | null;
-            /** Status */
-            status: string;
-            /** Roadmapid */
-            roadmapId: string;
-            /** Roadmaptitle */
-            roadmapTitle: string;
-        };
-        /**
-         * StepSummary
-         * @description A step or question, with its roadmap. A retired step reads as archived.
-         */
-        StepSummary: {
-            /** Id */
-            id: string;
-            /** Title */
-            title: string;
-            /** Archived */
-            archived: boolean;
             /** Status */
             status: string;
             /** Roadmapid */
@@ -7289,19 +7071,6 @@ export interface components {
             /** Lastactivityat */
             lastActivityAt: string;
         };
-        /** TicketSummary */
-        TicketSummary: {
-            /** Id */
-            id: string;
-            /** Title */
-            title: string;
-            /** Archived */
-            archived: boolean;
-            /** Status */
-            status: string;
-            /** Number */
-            number: number;
-        };
         /** TicketUpdate */
         TicketUpdate: {
             /** Revision */
@@ -7354,20 +7123,6 @@ export interface components {
             limit: number;
             /** Offset */
             offset: number;
-        };
-        /**
-         * TieAgent
-         * @description An agent as its ties show it.
-         */
-        TieAgent: {
-            /** Id */
-            id: string;
-            /** Label */
-            label: string;
-            /** Avatar */
-            avatar: string | null;
-            /** Active */
-            active: boolean;
         };
         /**
          * TiedChat
@@ -7829,7 +7584,6 @@ export interface components {
             proposals: components["schemas"]["OpenProposals"];
             repositories: components["schemas"]["Repositories"];
             runs: components["schemas"]["AgentRuns"];
-            ties: components["schemas"]["AgentTies"];
             participations: components["schemas"]["Participations"];
             updates: components["schemas"]["CoordinationUpdates"];
             tickets: components["schemas"]["Tickets"];
@@ -12408,105 +12162,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TicketListed"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    agent_links_api_v1_agent_links_get: {
-        parameters: {
-            query?: {
-                agentId?: string | null;
-                targetType?: ("item" | "roadmap" | "step" | "repository" | "person" | "resource" | "discussion" | "proposal" | "ticket" | "agent" | "question" | "decision") | null;
-                targetId?: string[];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AgentTies"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    agent_link_set_api_v1_agent_links_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AgentLinkSet"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AgentTie"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    agent_link_remove_api_v1_agent_links_unlink_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AgentLinkRemove"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AgentUntied"];
                 };
             };
             /** @description Validation Error */

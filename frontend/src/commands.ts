@@ -296,18 +296,6 @@ export const commands = {
     ),
 
   // Agents, their runs and ties, and chats.
-  tieAgent: (body: Schema["AgentLinkSet"]) =>
-    request<Answer<"/api/v1/agent-links", "post">>(
-      "/agent-links",
-      "POST",
-      body,
-    ),
-  untieAgent: (body: Schema["AgentLinkRemove"]) =>
-    request<Answer<"/api/v1/agent-links/unlink", "post">>(
-      "/agent-links/unlink",
-      "POST",
-      body,
-    ),
   endAgentRun: (id: string, body: Schema["Expected"]) =>
     request<Answer<"/api/v1/agent-runs/{identity}/end", "post">>(
       `/agent-runs/${id}/end`,

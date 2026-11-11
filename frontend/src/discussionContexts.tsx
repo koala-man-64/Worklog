@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { TIE_TYPES, tieHref, type TieType } from "./agentTieKinds";
 import { getDataContext, request } from "./api";
 import type { DiscussionContext, SearchResults } from "./apiTypes";
 
@@ -126,15 +125,34 @@ export function ContextPicker({
   );
 }
 
-/** Where a tagged record opens, as a tie to it opens; a step needs its roadmap. */
+/**
+ * Where a tagged record opens: a step on its roadmap's outline, which it needs to link at all, and a
+ * question or decision on its roadmap.
+ */
 function contextHref(
   context: ContextRef,
   roadmapId: string | undefined,
 ): string | undefined {
-  if (context.type === "step" && !roadmapId) return undefined;
-  if (!(TIE_TYPES as readonly string[]).includes(context.type))
-    return undefined;
-  return tieHref(context.type as TieType, context.id, { roadmapId });
+  const roadmap = roadmapId ? "#roadmaps/" + roadmapId : "#roadmaps";
+  switch (context.type) {
+    case "item":
+      return "#work/" + context.id;
+    case "roadmap":
+      return "#roadmaps/" + context.id;
+    case "step":
+      return roadmapId ? `${roadmap}/${context.id}` : undefined;
+    case "question":
+    case "decision":
+      return roadmap;
+    case "repository":
+      return "#repositories/" + context.id;
+    case "person":
+      return "#people/" + context.id;
+    case "resource":
+      return "#resources/" + context.id;
+    case "ticket":
+      return "#tickets/" + context.id;
+  }
 }
 
 export function ContextReference({

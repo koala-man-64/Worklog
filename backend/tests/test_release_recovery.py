@@ -157,9 +157,10 @@ def test_the_upgrade_from_v18_snapshots_first_and_changes_no_record(tmp_path):
     with person(path.parent) as c:
         work(c)
     to_v18(path)
-    # v25 and v26 drop the plan import and task tables, empty here.
-    assert rows(path, ["plan_imports", "tasks"]) == {"plan_imports": [], "tasks": []}
-    names = [name for name in tables(path) if name not in ("plan_imports", "tasks")]
+    # v25, v26 and v29 drop the plan import, task and ties tables, empty here.
+    dropped = ["plan_imports", "tasks", "agent_links"]
+    assert rows(path, dropped) == {"plan_imports": [], "tasks": [], "agent_links": []}
+    names = [name for name in tables(path) if name not in dropped]
     before, search = rows(path, names), search_rows(path, "1")
     Database(path).initialize()
     assert state(path) == (migrations.SCHEMA_VERSION, sealed.current())
