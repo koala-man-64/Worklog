@@ -732,16 +732,6 @@ export function Today({
               <small>Showing the first 100 matches. Refine your search.</small>
             )}
           </section>
-          <DraftField
-            key={date}
-            draftKey={"reflection-" + date}
-            label="End-of-day reflection (Markdown)"
-            initial={data.reflection}
-            revision={data.reflectionRevision}
-            save={(text, revision) =>
-              commands.saveReflection(date, { revision, text })
-            }
-          />
         </>
       )}
     </>

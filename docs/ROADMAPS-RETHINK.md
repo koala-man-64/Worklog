@@ -64,6 +64,7 @@ The files that Phase 0 deletes outright hold about 9,100 of the codebase's 77,00
 | R1 | What goes? | The HTML plan import, work item checklists, the end-of-day reflection, messaging agents from a chat, agent ties, Releases and Reminders: each with its pages and sections, routes, tables, agent commands, proposal operations and guide sections. This retires K3 and K12 (messages in a chat), K14 (reminders) and K2's read of imported HTML originals. | 0.1 to 0.7 | 2026-11-10, Rudy |
 | R2 | Do tickets, people and resources go too? | Not yet. Revisit them with a month of usage counts, from 2026-12-08. | — | 2026-11-10, Rudy |
 | R3 | How does the chat that carries on an ended chat's work get back what that chat owned? Agents' chats often end before their work does, and the next one registered a new identity that held none of the old one's steps or roles. | It continues the old chat's identity (`worklog agent register --continue NAME`). A new credential for the new chat replaces the old one, as rotation does, so the identity's roles, ties, tickets and proposals stay with it. The new chat takes over where the old one was tracked, with its steps still in the plan. A chat or work the person archived isn't carried over, and a step they took the old chat off stays off the new one. No schema change. | Outside the plan | 2026-11-10, Rudy asked for it; Claude chose the mechanism while building it |
+| R4 | Do the end-of-day reflection's two columns go with it? | No. `days.reflection` and `days.reflection_revision` stay, unread and unwritten, so step 0.2 needs no schema change: K8 kept the repository labels' columns, and the coordination `handoff` kind kept its CHECK, for the same reason. Dropping them adds no integrity, and their way back would have to rebuild `days`, which `daily_entries` references, since `reflection` sits mid-table. | 0.2 | 2026-11-10, Claude, while building 0.2 |
 
 ## Open questions
 
@@ -94,11 +95,13 @@ Done as schema v25 (`migrations.drop_plan_imports`): a roadmap an import made st
 
 #### 0.2 · Remove the end-of-day reflection
 
-Status: Not started
+Status: Merged · Branch: `claude/remove-reflection` · PR: [#184](https://github.com/koala-man-64/Worklog/pull/184)
 
-"End-of-day reflection (Markdown)" on Today, its route, and the reflection in a day's read and in the agent context, which changes what agents read. Drop `days.reflection` and `days.reflection_revision` (v21), and check what `days.revision` still guards before touching anything else in `days`.
+"End-of-day reflection (Markdown)" on Today, its route, and the reflection in a day's read and in the agent context, which changes what agents read. The plan first had `days.reflection` and `days.reflection_revision` (v21) dropped too; they stay (R4).
 
 Why: never written.
+
+Done without a schema change (R4): the two columns stay, and `days.revision` still guards the day's entries and their order. `PUT /days/{date}/reflection` and its `Reflection` and `DayReflection` models are gone, and a day's read, which the agent context carries, loses `reflection` and `reflectionRevision`. The v21 upgrade and way back tests stay, since the columns do.
 
 #### 0.3 · Remove work item checklists
 
@@ -229,3 +232,4 @@ Why: adding, moving or retiring one step takes a whole-plan save today, which is
 
 - 2026-11-10: Plan created from a review of `92675f1` and of the personal instance's usage. R1 and R2 recorded.
 - 2026-11-10: R3 recorded, outside the plan: the chat that carries on an ended chat's work continues its identity, with its roles and the steps its chat was on. It changes what agents can call: `register --continue` and `GET /agent-registrations/self`.
+- 2026-11-10: R4 recorded while building step 0.2: the reflection's two columns stay, so 0.2 has no schema change.

@@ -766,55 +766,6 @@
         }
       }
     },
-    "/api/v1/days/{date}/reflection": {
-      "put": {
-        "summary": "Reflection",
-        "operationId": "reflection_api_v1_days__date__reflection_put",
-        "parameters": [
-          {
-            "name": "date",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Date"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Reflection"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DayReflection"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/days/{date}/reorder": {
       "post": {
         "summary": "Reorder Day",
@@ -14426,14 +14377,6 @@
             "type": "integer",
             "title": "Revision"
           },
-          "reflection": {
-            "type": "string",
-            "title": "Reflection"
-          },
-          "reflectionRevision": {
-            "type": "integer",
-            "title": "Reflectionrevision"
-          },
           "entries": {
             "items": {
               "$ref": "#/components/schemas/DayEntry"
@@ -14461,8 +14404,6 @@
         "required": [
           "date",
           "revision",
-          "reflection",
-          "reflectionRevision",
           "entries",
           "summary",
           "nextItemId"
@@ -14647,30 +14588,6 @@
           "rank"
         ],
         "title": "DayItem"
-      },
-      "DayReflection": {
-        "properties": {
-          "date": {
-            "type": "string",
-            "title": "Date"
-          },
-          "reflection": {
-            "type": "string",
-            "title": "Reflection"
-          },
-          "revision": {
-            "type": "integer",
-            "title": "Revision"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "date",
-          "reflection",
-          "revision"
-        ],
-        "title": "DayReflection"
       },
       "DaySummary": {
         "properties": {
@@ -19972,26 +19889,6 @@
           "path"
         ],
         "title": "ReferenceCreate"
-      },
-      "Reflection": {
-        "properties": {
-          "revision": {
-            "type": "integer",
-            "minimum": 0.0,
-            "title": "Revision"
-          },
-          "text": {
-            "type": "string",
-            "title": "Text"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "revision",
-          "text"
-        ],
-        "title": "Reflection"
       },
       "RegisteredBy": {
         "properties": {

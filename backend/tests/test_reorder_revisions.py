@@ -1,8 +1,8 @@
 """Reordering changes only order (consolidation step 4.1, K4, REM-13). A backlog or day reorder, and
 moving a work item up or down the backlog, leave the revisions of the items and entries they reorder
 alone: the backlog's and the day's own revisions guard order. An entry change raises the day's
-revision only when it adds or removes an entry, so an outcome saved while a reflection draft is open
-leaves the draft able to save."""
+revision only when it adds or removes an entry, so saving an outcome leaves a reorder drafted
+against the day able to save."""
 
 import uuid
 
@@ -36,6 +36,16 @@ def items(client, *titles):
 
 def day(client, date=DAY):
     return call(client, "GET", f"/days/{date}")
+
+
+def test_a_day_holds_no_reflection(client):
+    # The end-of-day reflection is gone (step 0.2, decision R4): its two columns stay, unread.
+    (item,) = items(client, "Write")
+    call(client, "PUT", f"/days/{DAY}/entries/{item['id']}", {"revision": 0, "planned": True})
+    assert not {"reflection", "reflectionRevision"} & set(day(client))
+    saved = client.put(f"/api/v1/days/{DAY}/reflection", json={"revision": 0, "text": "A good day"},
+                       headers={"Idempotency-Key": str(uuid.uuid4())})
+    assert saved.status_code in (404, 405), saved.text
 
 
 def test_a_day_reorder_leaves_each_entry_its_revision(client):
@@ -90,15 +100,12 @@ def test_rescheduling_changes_a_day_only_where_it_adds_or_removes_an_entry(clien
     assert day(client, target)["revision"] == after_target["revision"] + 1
 
 
-def test_an_outcome_leaves_the_day_revision_and_a_reflection_draft_still_saves(client):
+def test_an_outcome_leaves_the_day_revision(client):
     (item,) = items(client, "Write")
     entry = call(client, "PUT", f"/days/{DAY}/entries/{item['id']}", {"revision": 0, "planned": True})
     opened = day(client)
     call(client, "PUT", f"/days/{DAY}/entries/{item['id']}", {"revision": entry["revision"], "outcome": "Drafted it"})
     assert day(client)["revision"] == opened["revision"]
-    # The reflection has its own revision since v21 (test_reflection_revision.py), and leaves the day's.
-    saved = call(client, "PUT", f"/days/{DAY}/reflection", {"revision": opened["reflectionRevision"], "text": "A good day"})
-    assert saved["reflection"] == "A good day" and day(client)["revision"] == opened["revision"]
     # Adding and removing an entry still change the day.
     (other,) = items(client, "Read")
     call(client, "PUT", f"/days/{DAY}/entries/{other['id']}", {"revision": 0, "planned": True})

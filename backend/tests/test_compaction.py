@@ -89,7 +89,6 @@ def world(tmp_path):
                                                                    "outcome": "Moved along"})
         current = call(c, "GET", f"/days/{day}")
         call(c, "POST", f"/days/{day}/reorder", {"revision": current["revision"], "ids": [e["id"] for e in reversed(current["entries"])]})
-        call(c, "PUT", f"/days/{day}/reflection", {"revision": current["reflectionRevision"], "text": "A good day"})
         call(c, "POST", "/notes", {"ownerType": "item", "ownerId": done["id"], "title": "Scratch", "text": "Notes " * 50})
         step = str(uuid.uuid4())
         roadmap = call(c, "POST", "/roadmaps", {"title": "Plan 1", "steps": [{"id": step, "title": "Step"}]})
@@ -139,8 +138,8 @@ def test_compaction_thins_old_display_history_and_keeps_every_record_and_state(w
     assert len(kept) == len(KEPT_KINDS)
     finished = [json.loads(a) for _, kind, _, a in events if kind == "item.update" and before["done"] in a]
     assert finished == [{"id": before["done"], "title": "Finished work", "status": "done", "_statusChanged": True}]
-    # A day's reorder lists and its reflection's text are not records: they go.
-    assert rows(database, "SELECT DISTINCT before_json,after_json FROM events WHERE kind IN ('day.reorder','day.reflection')") == [("null", "null")]
+    # A day's reorder lists are not records: they go.
+    assert rows(database, "SELECT DISTINCT before_json,after_json FROM events WHERE kind='day.reorder'") == [("null", "null")]
 
     # Every record is as it was: the canonical tables, the schema and the BLOBs export the same.
     after = exported(database)

@@ -46,10 +46,6 @@ class EntryUpdate(Expected):
     outcome: str | None = None
 
 
-class Reflection(Expected):
-    text: str
-
-
 class Reorder(Expected):
     ids: list[str]
 

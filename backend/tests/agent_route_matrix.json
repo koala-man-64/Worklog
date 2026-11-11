@@ -198,6 +198,5 @@
   "POST /api/v1/work-items/{identity}/move": "refused",
   "POST /api/v1/work-items/{identity}/rank": "refused",
   "POST /api/v1/work-items/{identity}/{verb}": "refused",
-  "PUT /api/v1/days/{date}/entries/{item_id}": "refused",
-  "PUT /api/v1/days/{date}/reflection": "refused"
+  "PUT /api/v1/days/{date}/entries/{item_id}": "refused"
 }

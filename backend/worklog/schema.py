@@ -20,7 +20,9 @@ BASELINE = """
 CREATE TABLE settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);
 CREATE TABLE credentials(id TEXT PRIMARY KEY,label TEXT NOT NULL,token_hash TEXT NOT NULL UNIQUE,created_at TEXT NOT NULL,revoked INTEGER NOT NULL DEFAULT 0);
 
--- Work items, their days and what they hold.
+-- Work items, their days and what they hold. A day's reflection and reflection_revision are left
+-- from the end-of-day reflection, removed without a schema change (decision R4 in
+-- docs/ROADMAPS-RETHINK.md): nothing reads or writes them.
 CREATE TABLE work_items(id TEXT PRIMARY KEY,title TEXT NOT NULL,description TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','doing','waiting','blocked','done')),ado_url TEXT,step_id TEXT REFERENCES steps(id),backlog_order INTEGER NOT NULL,archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL, roadmap_id TEXT REFERENCES roadmaps(id));
 CREATE INDEX work_items_roadmap ON work_items(roadmap_id);
 CREATE INDEX work_items_step ON work_items(step_id);
