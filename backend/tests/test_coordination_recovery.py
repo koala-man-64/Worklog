@@ -206,8 +206,9 @@ def test_populated_current_main_upgrades_without_losing_records(tmp_path, operat
         recovery.restore_database(target, source, tmp_path / "backups")
         # Candidate files are read-only, and all original identities remain in them.
         assert records_by_table(source, before) == before
-    # v25 drops the plan import table, empty here.
+    # v25 and v26 drop the plan import and task tables, empty here.
     assert before.pop("plan_imports") == []
+    assert before.pop("tasks") == []
     after = records_by_table(target, before)
     if operation == "restore":
         assert after["settings"] != before["settings"]

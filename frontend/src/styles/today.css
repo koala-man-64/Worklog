@@ -44,7 +44,7 @@
 .reschedule-picker input {
   flex: 0 1 auto;
 }
-/* Today: an entry's outcome, and its work item's tasks, scratchpad, links and files. */
+/* Today: an entry's outcome, and its work item's scratchpad, links and files. */
 .entry-tabs {
   margin-top: 4px;
 }

@@ -106,21 +106,9 @@
         "chatTitle": null
       }
     ],
-    "tasks": [
-      {
-        "id": "<id10>",
-        "itemId": "<id1>",
-        "text": "Write the tests",
-        "done": false,
-        "archived": false,
-        "revision": 1,
-        "createdAt": "<time>",
-        "updatedAt": "<time>"
-      }
-    ],
     "references": [
       {
-        "id": "<id11>",
+        "id": "<id10>",
         "itemId": "<id1>",
         "path": "C:/work/spec.md",
         "archived": false,
@@ -130,8 +118,8 @@
     ],
     "people": [
       {
-        "id": "<id12>",
-        "personId": "<id13>",
+        "id": "<id11>",
+        "personId": "<id12>",
         "name": "Ada",
         "personTitle": "Engineer",
         "personTeam": "",
@@ -142,7 +130,7 @@
     ],
     "dailyEntries": [
       {
-        "id": "<id14>",
+        "id": "<id13>",
         "itemId": "<id1>",
         "date": "<today>",
         "planned": true,
@@ -154,18 +142,18 @@
     ],
     "history": [
       {
-        "id": "<id15>",
+        "id": "<id14>",
         "entityId": "<id1>",
         "kind": "agent.link",
-        "actorId": "<id16>",
+        "actorId": "<id15>",
         "actorLabel": "Builder",
         "actorKind": "agent",
         "createdAt": "<time>",
         "localDate": "<today>",
         "before": null,
         "after": {
-          "id": "<id17>",
-          "agentId": "<id16>",
+          "id": "<id16>",
+          "agentId": "<id15>",
           "agentLabel": "Builder",
           "targetType": "item",
           "targetId": "<id1>",
@@ -176,7 +164,7 @@
         }
       },
       {
-        "id": "<id18>",
+        "id": "<id17>",
         "entityId": "<id1>",
         "kind": "person.link",
         "actorId": "local-user",
@@ -186,8 +174,8 @@
         "localDate": "<today>",
         "before": null,
         "after": {
-          "id": "<id12>",
-          "personId": "<id13>",
+          "id": "<id11>",
+          "personId": "<id12>",
           "name": "Ada",
           "personTitle": "Engineer",
           "personTeam": "",
@@ -199,7 +187,7 @@
         }
       },
       {
-        "id": "<id19>",
+        "id": "<id18>",
         "entityId": "<id1>",
         "kind": "item.update",
         "actorId": "local-user",
@@ -240,7 +228,7 @@
         }
       },
       {
-        "id": "<id20>",
+        "id": "<id19>",
         "entityId": "<id1>",
         "kind": "entry.upsert",
         "actorId": "local-user",
@@ -250,7 +238,7 @@
         "localDate": "<today>",
         "before": null,
         "after": {
-          "id": "<id14>",
+          "id": "<id13>",
           "date": "<today>",
           "itemId": "<id1>",
           "planned": true,
@@ -261,7 +249,7 @@
         }
       },
       {
-        "id": "<id21>",
+        "id": "<id20>",
         "entityId": "<id1>",
         "kind": "item.update",
         "actorId": "local-user",
@@ -302,7 +290,7 @@
         }
       },
       {
-        "id": "<id22>",
+        "id": "<id21>",
         "entityId": "<id1>",
         "kind": "item.create",
         "actorId": "local-user",

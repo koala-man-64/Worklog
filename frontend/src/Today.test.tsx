@@ -9,7 +9,6 @@ import {
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setDataContext } from "./api";
-import { formatDiscussionDate } from "./discussionFormatting";
 import { Today } from "./Today";
 
 const state = vi.hoisted(() => ({
@@ -131,7 +130,7 @@ it("uses historical API summary and makes archived actuals read only", () => {
   });
   expect(remove).toHaveTextContent(`Remove from ${weekday}`);
   expect(remove).toBeDisabled();
-  // An archived item's tasks, scratchpad, links and files stay on its own page.
+  // An archived item's scratchpad, links and files stay on its own page.
   expect(screen.queryByRole("tablist")).toBeNull();
 });
 
@@ -167,9 +166,6 @@ it("keeps an entry's controls on its title row and the day's counts beside its h
   expect(heading.querySelector(".day-summary")).not.toBeNull();
 });
 
-// When the release's tasks were added, and when the first was ticked.
-const ADDED = "2026-10-26T15:04:00.123456+00:00";
-const TICKED = "2026-10-28T09:30:00+00:00";
 const release = () => ({
   id: "release",
   notes: [
@@ -183,28 +179,6 @@ const release = () => ({
       ownerId: "release",
     },
   ],
-  tasks: [
-    {
-      id: "t1",
-      revision: 1,
-      archived: false,
-      text: "Tag it",
-      done: true,
-      itemId: "release",
-      createdAt: ADDED,
-      updatedAt: TICKED,
-    },
-    {
-      id: "t2",
-      revision: 5,
-      archived: false,
-      text: "Announce it",
-      done: false,
-      itemId: "release",
-      createdAt: ADDED,
-      updatedAt: ADDED,
-    },
-  ],
   links: [],
   attachments: [],
   references: [],
@@ -214,7 +188,7 @@ it("shows an entry's outcome first and reads its work item only once another tab
   state.day = day("2026-10-28", [
     entry("release", "Ship the release", "doing", {
       outcome: "Cut the branch",
-      counts: { tasks: 2, tasksDone: 1, links: 3, files: 0, scratchpad: true },
+      counts: { links: 3, files: 0, scratchpad: true },
     }),
   ]);
   state.detail = release();
@@ -227,14 +201,13 @@ it("shows an entry's outcome first and reads its work item only once another tab
       .map((tab) => tab.textContent),
   ).toEqual([
     "Outcome / next action",
-    "Tasks1/2",
     "Scratchpad•",
     "Links3",
     "Files",
     "Repositories",
   ]);
   expect(
-    within(tabs).getByRole("tab", { name: "Tasks, 1 of 2 done" }),
+    within(tabs).getByRole("tab", { name: "Scratchpad, has text" }),
   ).toHaveAttribute("aria-selected", "false");
   expect(
     within(tabs).getByRole("tab", { name: "Outcome / next action" }),
@@ -263,151 +236,6 @@ it("shows an entry's outcome first and reads its work item only once another tab
   expect(within(panel).queryByRole("heading")).toBeNull();
 });
 
-it("ticks an entry's tasks off and adds more from its Tasks tab", async () => {
-  state.day = day("2026-10-28", [
-    entry("release", "Ship the release", "doing"),
-  ]);
-  state.detail = release();
-  const network = vi
-    .spyOn(globalThis, "fetch")
-    .mockImplementation(async () => new Response("{}", { status: 200 }));
-  render(view("2026-10-28", "2026-10-28"));
-  await userEvent.click(screen.getByRole("tab", { name: "Tasks" }));
-  const panel = screen.getByRole("tabpanel", { name: "Tasks" });
-  expect(within(panel).getByRole("checkbox", { name: "Tag it" })).toBeChecked();
-  await userEvent.click(
-    within(panel).getByRole("checkbox", { name: "Announce it" }),
-  );
-  await userEvent.type(
-    within(panel).getByRole("textbox", { name: "New task" }),
-    "Close the milestone{Enter}",
-  );
-  await waitFor(() => expect(writes(network)).toHaveLength(2));
-  expect(
-    writes(network).map(([url, init]) => [url, JSON.parse(String(init?.body))]),
-  ).toEqual([
-    ["/api/v1/tasks/t2", { revision: 5, done: true }],
-    [
-      "/api/v1/tasks",
-      { itemId: "release", text: "Close the milestone", done: false },
-    ],
-  ]);
-});
-
-// A drag's data, as the browser carries it from the grip to the drop.
-function transfer() {
-  const data = new Map<string, string>();
-  return {
-    effectAllowed: "",
-    get types() {
-      return [...data.keys()];
-    },
-    setData: (type: string, value: string) => void data.set(type, value),
-    getData: (type: string) => data.get(type) ?? "",
-  };
-}
-const taskRow = (panel: HTMLElement, text: string) =>
-  within(panel)
-    .getByRole("checkbox", { name: text })
-    .closest(".task") as HTMLElement;
-
-it("says when each of an entry's tasks was added and last changed", async () => {
-  state.day = day("2026-10-28", [
-    entry("release", "Ship the release", "doing"),
-  ]);
-  state.detail = release();
-  render(view("2026-10-28", "2026-10-28"));
-  await userEvent.click(screen.getByRole("tab", { name: "Tasks" }));
-  const panel = screen.getByRole("tabpanel", { name: "Tasks" });
-  const times = (text: string) =>
-    taskRow(panel, text).querySelector(".task-times") as HTMLElement;
-  expect(times("Tag it")).toHaveTextContent(
-    `Created ${formatDiscussionDate(ADDED)} · Updated ${formatDiscussionDate(TICKED)}`,
-  );
-  expect(
-    [...times("Tag it").querySelectorAll("time")].map((t) => [
-      t.getAttribute("dateTime"),
-      t.getAttribute("title"),
-    ]),
-  ).toEqual([
-    [ADDED, new Date(ADDED).toLocaleString()],
-    [TICKED, new Date(TICKED).toLocaleString()],
-  ]);
-  expect(times("Announce it")).toHaveTextContent(
-    `Created ${formatDiscussionDate(ADDED)} · Updated ${formatDiscussionDate(ADDED)}`,
-  );
-  // The times sit beside the checkbox, not in its name.
-  expect(
-    within(panel).getByRole("checkbox", { name: "Tag it" }),
-  ).toBeInTheDocument();
-});
-
-it("moves an entry's tasks up and down with their buttons", async () => {
-  state.day = day("2026-10-28", [
-    entry("release", "Ship the release", "doing"),
-  ]);
-  state.detail = release();
-  const network = vi
-    .spyOn(globalThis, "fetch")
-    .mockImplementation(async () => new Response("{}", { status: 200 }));
-  render(view("2026-10-28", "2026-10-28"));
-  await userEvent.click(screen.getByRole("tab", { name: "Tasks" }));
-  const panel = screen.getByRole("tabpanel", { name: "Tasks" });
-  const button = (name: string) => within(panel).getByRole("button", { name });
-  // The first task can't go up, nor the last down.
-  expect(button("Move task Tag it up")).toBeDisabled();
-  expect(button("Move task Announce it down")).toBeDisabled();
-  await userEvent.click(button("Move task Announce it up"));
-  await waitFor(() => expect(button("Move task Tag it down")).toBeEnabled());
-  await userEvent.click(button("Move task Tag it down"));
-  await waitFor(() => expect(writes(network)).toHaveLength(2));
-  // Each move names its task's revision and its new place, 1 first.
-  expect(
-    writes(network).map(([url, init]) => [url, JSON.parse(String(init?.body))]),
-  ).toEqual([
-    ["/api/v1/tasks/t2/move", { revision: 5, position: 1 }],
-    ["/api/v1/tasks/t1/move", { revision: 1, position: 2 }],
-  ]);
-});
-
-it("moves an entry's task by dragging its grip onto another, and only within its own list", async () => {
-  state.day = day("2026-10-28", [
-    entry("release", "Ship the release", "doing"),
-  ]);
-  state.detail = release();
-  const network = vi
-    .spyOn(globalThis, "fetch")
-    .mockImplementation(async () => new Response("{}", { status: 200 }));
-  render(view("2026-10-28", "2026-10-28"));
-  await userEvent.click(screen.getByRole("tab", { name: "Tasks" }));
-  const panel = screen.getByRole("tabpanel", { name: "Tasks" });
-  // A task dragged from another work item's list is not this list's to move.
-  const elsewhere = transfer();
-  elsewhere.setData(
-    "application/x-worklog-task",
-    JSON.stringify({ taskId: "t2", itemId: "other", dataId: "x" }),
-  );
-  fireEvent.dragOver(taskRow(panel, "Tag it"), { dataTransfer: elsewhere });
-  fireEvent.drop(taskRow(panel, "Tag it"), { dataTransfer: elsewhere });
-  const dataTransfer = transfer();
-  fireEvent.dragStart(
-    within(panel).getByRole("img", {
-      name: "Drag task Announce it to reorder",
-    }),
-    { dataTransfer },
-  );
-  expect(taskRow(panel, "Announce it")).toHaveClass("dragging");
-  fireEvent.dragOver(taskRow(panel, "Tag it"), { dataTransfer });
-  fireEvent.drop(taskRow(panel, "Tag it"), { dataTransfer });
-  await waitFor(() => expect(writes(network)).toHaveLength(1));
-  expect(
-    writes(network).map(([url, init]) => [url, JSON.parse(String(init?.body))]),
-  ).toEqual([["/api/v1/tasks/t2/move", { revision: 5, position: 1 }]]);
-  expect(taskRow(panel, "Announce it")).not.toHaveClass("dragging");
-  // The drop is the list's alone: the day entry around it neither reorders nor reports an error.
-  expect(screen.queryByRole("alert")).toBeNull();
-});
-
 it("moves between an entry's tabs with the arrow keys, Home and End", async () => {
   state.day = day("2026-10-28", [
     entry("release", "Ship the release", "doing"),
@@ -417,8 +245,8 @@ it("moves between an entry's tabs with the arrow keys, Home and End", async () =
   const tab = (name: string) => screen.getByRole("tab", { name });
   await userEvent.click(tab("Outcome / next action"));
   await userEvent.keyboard("{ArrowRight}");
-  expect(tab("Tasks")).toHaveFocus();
-  expect(tab("Tasks")).toHaveAttribute("aria-selected", "true");
+  expect(tab("Scratchpad")).toHaveFocus();
+  expect(tab("Scratchpad")).toHaveAttribute("aria-selected", "true");
   await userEvent.keyboard("{End}");
   expect(tab("Repositories")).toHaveAttribute("aria-selected", "true");
   expect(
@@ -443,7 +271,7 @@ it("moves between an entry's tabs with the arrow keys, Home and End", async () =
   // Only the selected tab is in the page's tab order.
   expect(
     screen.getAllByRole("tab").map((t) => t.getAttribute("tabindex")),
-  ).toEqual(["0", "-1", "-1", "-1", "-1", "-1"]);
+  ).toEqual(["0", "-1", "-1", "-1", "-1"]);
 });
 
 it("shows the stack rank of the day's work and of open work", () => {

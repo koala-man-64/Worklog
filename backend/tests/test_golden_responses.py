@@ -102,7 +102,6 @@ class World:
                                                                     "outcome": "Half done"})
         ids["note"] = self.write(p, "POST", "/notes", {"ownerType": "item", "ownerId": item["id"], "title": "Scratch",
                                                        "text": "Notes"})["id"]
-        ids["task"] = self.write(p, "POST", "/tasks", {"itemId": item["id"], "text": "Write the tests"})["id"]
         ids["link"] = self.write(p, "POST", "/links", {"ownerType": "item", "ownerId": item["id"],
                                                        "url": "https://example.com/spec"})["id"]
         ids["reference"] = self.write(p, "POST", "/references", {"itemId": item["id"], "path": "C:/work/spec.md"})["id"]
@@ -218,7 +217,7 @@ def concrete(template: str, ids: dict[str, str], today: str) -> str:
     owner = {"/attachments": f"?ownerType=item&ownerId={ids['item']}", "/history": f"?entityId={ids['item']}",
              "/agent-links": f"?agentId={ids['agent']}", "/coordination-overlaps": f"?itemId={ids['item']}",
              "/search": "?q=parser", "/repositories/resolve": "?url=https://github.com/example/worklog"}
-    by_prefix = [("/work-items/", "item"), ("/notes/", "note"), ("/tasks/", "task"), ("/links/", "link"),
+    by_prefix = [("/work-items/", "item"), ("/notes/", "note"), ("/links/", "link"),
                  ("/references/", "reference"), ("/attachments/", "attachment"), ("/roadmaps/", "roadmap"),
                  ("/steps/", "step"), ("/questions/", "question"), ("/decisions/", "decision"),
                  ("/github/", "github"), ("/chats/", "chat"), ("/people/", "person"), ("/resources/", "resource"),

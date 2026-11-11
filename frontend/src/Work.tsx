@@ -4,7 +4,6 @@ import { request, getDataContext } from "./api";
 import { commands } from "./commands";
 import { useCommand, useData, useWrites } from "./hooks";
 import { AgentChatsSection } from "./sections/AgentChats";
-import { Checklist } from "./sections/Checklist";
 import { Files } from "./sections/Files";
 import { GithubRefsSection } from "./sections/GithubRefs";
 import { History } from "./sections/History";
@@ -604,7 +603,6 @@ export function ItemDetail({ id }: { id: string }) {
             <button>Plan for day</button>
           </form>
         </section>
-        <Checklist itemId={id} tasks={item.tasks ?? []} />
       </div>
       <Coordination key={id} itemId={id} />
       <Scratchpad itemId={id} notes={item.notes} />
@@ -651,7 +649,6 @@ export function ItemDetail({ id }: { id: string }) {
       <RecoverRecords
         groups={[
           // Archived notes are read under the scratchpad: beside it, one could only be refused.
-          { label: "Tasks", path: "tasks", records: item.tasks },
           { label: "Files", path: "attachments", records: item.attachments },
           { label: "Paths", path: "references", records: item.references },
           { label: "Links", path: "links", records: item.links ?? [] },

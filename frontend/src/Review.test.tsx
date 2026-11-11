@@ -39,7 +39,7 @@ it("sends no request and warns when the date is not a calendar date", async () =
 });
 it.each([
   ["note.update", { id: "../export", revision: 1 }],
-  ["task.update", { id: "../../export?x=1" }],
+  ["link.update", { id: "../../export?x=1" }],
   ["work-item.update", { id: `${ID}/../export` }],
   ["progress.set", { stepId: "..%2Fexport" }],
   ["step.update", { id: "../export", revision: 1 }],
@@ -55,7 +55,7 @@ it.each([
 it.each([
   ["entry.upsert", { itemId: ID, date: "2026-10-28" }, "/days/2026-10-28"],
   ["note.update", { id: ID }, `/notes/${ID}`],
-  ["task.update", { id: ID }, `/tasks/${ID}`],
+  ["link.update", { id: ID }, `/links/${ID}`],
   ["repository.update", { id: ID }, `/repositories/${ID}`],
   ["work-item.update", { id: ID }, `/work-items/${ID}`],
   ["roadmap.update", { roadmapId: ID }, `/roadmaps/${ID}`],

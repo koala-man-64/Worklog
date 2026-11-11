@@ -224,14 +224,11 @@ def test_next_focus_excludes_done_and_blocked(client):
     assert client.get("/api/v1/days/2026-10-28").json()["nextItemId"] == three["id"]
 
 
-def test_notes_checklists_archive_and_search(client):
+def test_notes_archive_and_search(client):
     w = item(client)
     note = write(client, "POST", "/notes", {"ownerType": "item", "ownerId": w["id"], "title": "Evidence", "text": "Unicode résumé and details"})
     assert note.status_code == 200, note.text
     n = note.json()
-    task = write(client, "POST", "/tasks", {"itemId": w["id"], "text": "Verify output"})
-    assert task.status_code == 200, task.text
-    assert write(client, "PATCH", f"/tasks/{task.json()['id']}", {"revision": 1, "done": True}).json()["done"]
     assert client.get("/api/v1/search?q=resume").json()["total"] == 1
     assert write(client, "POST", f"/notes/{n['id']}/archive", {"revision": n["revision"]}).status_code == 200
     assert client.get("/api/v1/search?q=resume").json()["total"] == 0

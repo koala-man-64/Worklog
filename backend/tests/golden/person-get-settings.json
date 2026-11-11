@@ -27,7 +27,7 @@
     ],
     "backups": [],
     "storage": {
-      "databaseBytes": 1036288,
+      "databaseBytes": 1024000,
       "backupBytes": 0,
       "warning": null
     }

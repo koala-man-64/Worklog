@@ -30,7 +30,7 @@ vi.mock("./hooks", async (importOriginal) => ({
 }));
 
 const ID = "11111111-1111-4111-8111-111111111111";
-// When a fixture's task was added and last changed.
+// When the fixture's work item was added and last changed.
 const STAMPS = {
   createdAt: "2026-10-27T15:04:00+00:00",
   updatedAt: "2026-10-27T15:04:00+00:00",
@@ -47,7 +47,6 @@ function item(fields: Partial<Detail>): Detail {
     linkedRoadmap: null,
     linkedStep: null,
     notes: [],
-    tasks: [],
     attachments: [],
     links: [],
     chats: [],
@@ -259,109 +258,6 @@ it("shows done work without a stack rank", () => {
   expect(
     screen.queryByRole("button", { name: /Change stack rank/ }),
   ).toBeNull();
-});
-it("keeps the item's tasks as a checklist that adds, ticks and marks done ones", async () => {
-  state.item = item({
-    tasks: [
-      {
-        id: "t1",
-        revision: 1,
-        archived: false,
-        text: "Draft notes",
-        done: true,
-        itemId: ID,
-        ...STAMPS,
-      },
-      {
-        id: "t2",
-        revision: 4,
-        archived: false,
-        text: "Ask review",
-        done: false,
-        itemId: ID,
-        ...STAMPS,
-      },
-      {
-        id: "t3",
-        revision: 2,
-        archived: true,
-        text: "Dropped",
-        done: false,
-        itemId: ID,
-        ...STAMPS,
-      },
-    ],
-  });
-  respond();
-  render(view(newClient()));
-  // The archived task waits under the archived records, with a "Tasks" heading of its own.
-  const tasks = screen
-    .getByRole("heading", { name: "Tasks 1 of 2 done" })
-    .closest("section")!;
-  expect(within(tasks).queryByText("Dropped")).toBeNull();
-  expect(within(tasks).getByText("Draft notes").closest(".task")).toHaveClass(
-    "done",
-  );
-  await userEvent.click(
-    within(tasks).getByRole("checkbox", { name: "Ask review" }),
-  );
-  await userEvent.type(
-    within(tasks).getByRole("textbox", { name: "New task" }),
-    "Tag the release",
-  );
-  await userEvent.click(
-    within(tasks).getByRole("button", { name: "Add task" }),
-  );
-  await waitFor(() => expect(writes()).toHaveLength(2));
-  expect(writes()).toEqual([
-    ["/api/v1/tasks/t2", { revision: 4, done: true }],
-    ["/api/v1/tasks", { itemId: ID, text: "Tag the release", done: false }],
-  ]);
-});
-it("ticks a task at once and takes the tick back when the save is refused", async () => {
-  state.item = item({
-    tasks: [
-      {
-        id: "t1",
-        revision: 4,
-        archived: false,
-        text: "Ask review",
-        done: false,
-        itemId: ID,
-        ...STAMPS,
-      },
-    ],
-  });
-  let refuse: () => void = () => undefined;
-  vi.spyOn(globalThis, "fetch").mockImplementation(
-    () =>
-      new Promise<Response>((resolve) => {
-        refuse = () =>
-          resolve(
-            new Response(
-              JSON.stringify({
-                error: { code: "conflict", message: "This record changed." },
-              }),
-              { status: 409 },
-            ),
-          );
-      }),
-  );
-  render(view(newClient()));
-  const box = screen.getByRole("checkbox", { name: "Ask review" });
-  await userEvent.click(box);
-  // Ticked while the save is out, and held still so a second click can't race it.
-  expect(box).toBeChecked();
-  expect(box).toBeDisabled();
-  expect(
-    screen.getByRole("heading", { name: "Tasks 1 of 1 done" }),
-  ).toBeInTheDocument();
-  refuse();
-  await waitFor(() => expect(box).not.toBeChecked());
-  expect(box).toBeEnabled();
-  expect(await screen.findByRole("alert")).toHaveTextContent(
-    "This record changed.",
-  );
 });
 it("lays the work list out as a sheet, one row per item and one column per fact", () => {
   state.list = {

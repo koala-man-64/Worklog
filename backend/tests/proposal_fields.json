@@ -137,30 +137,6 @@
       "title"
     ]
   },
-  "task.create": {
-    "required": [
-      "itemId",
-      "text"
-    ],
-    "allowed": [
-      "done",
-      "id",
-      "itemId",
-      "text"
-    ]
-  },
-  "task.update": {
-    "required": [
-      "id",
-      "revision"
-    ],
-    "allowed": [
-      "done",
-      "id",
-      "revision",
-      "text"
-    ]
-  },
   "roadmap.create": {
     "required": [
       "title"

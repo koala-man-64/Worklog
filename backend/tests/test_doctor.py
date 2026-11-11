@@ -47,13 +47,13 @@ def world(tmp_path):
         note = call(c, "POST", "/notes", {"ownerType": "item", "ownerId": item["id"], "title": "Scratch", "text": "Notes"})
         link = call(c, "POST", "/links", {"ownerType": "item", "ownerId": item["id"], "url": "https://example.com/spec"})
         chat = call(c, "POST", "/chats", {"ownerType": "item", "ownerId": item["id"], "chatId": "chat-1", "title": "Build"})
-        task = call(c, "POST", "/tasks", {"itemId": item["id"], "text": "Write the tests"})
+        reference = call(c, "POST", "/references", {"itemId": item["id"], "path": "C:/work/spec.md"})
         parent, child = str(uuid.uuid4()), str(uuid.uuid4())
         roadmap = call(c, "POST", "/roadmaps", {"title": "Plan", "steps": [{"id": parent, "title": "Parent"},
                                                                            {"id": child, "title": "Child", "parentId": parent}]})
         call(c, "POST", "/reminders", {"title": "Check the parser", "date": date.today().isoformat(),
                                        "targetType": "item", "targetId": item["id"]})
-    names = {"item": item["id"], "note": note["id"], "link": link["id"], "chat": chat["id"], "task": task["id"],
+    names = {"item": item["id"], "note": note["id"], "link": link["id"], "chat": chat["id"], "reference": reference["id"],
              "roadmap": roadmap["id"], "child": child}
     return data, data / "worklog.sqlite3", names
 
@@ -88,8 +88,8 @@ def test_each_check_finds_what_the_schema_cannot_refuse(world):
         conn.execute("UPDATE steps SET parent_id='gone-step' WHERE id=?", (names["child"],))
         tracked = dict(conn.execute("SELECT * FROM agent_chats WHERE id=?", (names["chat"],)).fetchone(), id="chat-again")
         conn.execute(f"INSERT INTO agent_chats({','.join(tracked)}) VALUES({','.join('?' for _ in tracked)})", tuple(tracked.values()))
-        # A task whose work item is gone breaks a foreign key.
-        conn.execute("UPDATE tasks SET item_id='gone-item' WHERE id=?", (names["task"],))
+        # A file reference whose work item is gone breaks a foreign key.
+        conn.execute("UPDATE file_references SET item_id='gone-item' WHERE id=?", (names["reference"],))
         # A key whose row is gone, a row with no key, and a key whose record is gone.
         (link_doc,), = conn.execute("SELECT doc FROM search_keys WHERE entity_id=?", (names["link"],))
         conn.execute("DELETE FROM search_index WHERE rowid=?", (link_doc,))
@@ -106,10 +106,10 @@ def test_each_check_finds_what_the_schema_cannot_refuse(world):
     assert checks["steps"]["examples"] == [{"step": names["child"], "parent": "gone-step",
                                            "problem": "its parent is gone or on another roadmap"}]
     assert checks["trackedChats"]["examples"] == [{"ownerType": "item", "ownerId": names["item"], "chatId": "chat-1", "times": 2}]
-    # SQLite's own check finds the CHECK the note breaks, and the task's broken foreign key.
+    # SQLite's own check finds the CHECK the note breaks, and the file reference's broken foreign key.
     integrity = checks["integrity"]["examples"]
     assert [e for e in integrity if isinstance(e, str) and "CHECK constraint failed in notes" in e]
-    assert [(e["table"], e["references"]) for e in integrity if isinstance(e, dict)] == [("tasks", "work_items")]
+    assert [(e["table"], e["references"]) for e in integrity if isinstance(e, dict)] == [("file_references", "work_items")]
     keys = {(e.get("entityId"), e["problem"]) for e in checks["searchKeys"]["examples"]}
     assert (names["link"], "its row is gone") in keys
     assert ("stray", "a row with no key") in keys

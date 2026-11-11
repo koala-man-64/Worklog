@@ -385,24 +385,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/tasks/{identity}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Supporting Detail */
-        get: operations["supporting_detail_api_v1_tasks__identity__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** Update Task */
-        patch: operations["update_task_api_v1_tasks__identity__patch"];
-        trace?: never;
-    };
     "/api/v1/notes/{identity}": {
         parameters: {
             query?: never;
@@ -432,40 +414,6 @@ export interface paths {
         put?: never;
         /** Create Note */
         post: operations["create_note_api_v1_notes_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/tasks": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create Task */
-        post: operations["create_task_api_v1_tasks_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/tasks/{identity}/move": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Move Task */
-        post: operations["move_task_api_v1_tasks__identity__move_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -641,40 +589,6 @@ export interface paths {
         put?: never;
         /** Note Recover */
         post: operations["note_recover_api_v1_notes__identity__recover_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/tasks/{identity}/archive": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Task Archive */
-        post: operations["task_archive_api_v1_tasks__identity__archive_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/tasks/{identity}/recover": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Task Recover */
-        post: operations["task_recover_api_v1_tasks__identity__recover_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5313,7 +5227,7 @@ export interface components {
              * Action
              * @enum {string}
              */
-            action: "repository.create" | "repository.update" | "repository.archive" | "repository.recover" | "item.create" | "item.update" | "item.archive" | "item.recover" | "entry.upsert" | "note.create" | "note.update" | "task.create" | "task.update" | "roadmap.create" | "roadmap.revise" | "roadmap.move" | "progress.set" | "step.update" | "person.create" | "person.update" | "person.archive" | "person.recover" | "person.link" | "person.unlink" | "link.create" | "link.update" | "link.archive" | "link.recover" | "attachment.create" | "chat.create" | "chat.update" | "chat.archive" | "chat.recover" | "github.create" | "github.update" | "github.archive" | "github.recover" | "question.create" | "question.update" | "question.archive" | "question.recover" | "decision.create" | "decision.update" | "decision.archive" | "decision.recover" | "resource.create" | "resource.update" | "resource.archive" | "resource.recover" | "ticket.create" | "ticket.update" | "release.create" | "release.update" | "release.add" | "release.remove" | "check.create" | "check.update";
+            action: "repository.create" | "repository.update" | "repository.archive" | "repository.recover" | "item.create" | "item.update" | "item.archive" | "item.recover" | "entry.upsert" | "note.create" | "note.update" | "roadmap.create" | "roadmap.revise" | "roadmap.move" | "progress.set" | "step.update" | "person.create" | "person.update" | "person.archive" | "person.recover" | "person.link" | "person.unlink" | "link.create" | "link.update" | "link.archive" | "link.recover" | "attachment.create" | "chat.create" | "chat.update" | "chat.archive" | "chat.recover" | "github.create" | "github.update" | "github.archive" | "github.recover" | "question.create" | "question.update" | "question.archive" | "question.recover" | "decision.create" | "decision.update" | "decision.archive" | "decision.recover" | "resource.create" | "resource.update" | "resource.archive" | "resource.recover" | "ticket.create" | "ticket.update" | "release.create" | "release.update" | "release.add" | "release.remove" | "check.create" | "check.update";
             /** Payload */
             payload: {
                 [key: string]: unknown;
@@ -7966,10 +7880,6 @@ export interface components {
          * @description What a work item's tabs on Today hold, so they say so before the item is read.
          */
         TabCounts: {
-            /** Tasks */
-            tasks: number;
-            /** Tasksdone */
-            tasksDone: number;
             /** Links */
             links: number;
             /** Files */
@@ -7986,67 +7896,6 @@ export interface components {
             kind: "agent" | "human" | "role";
             /** Id */
             id: string;
-        };
-        /** Task */
-        Task: {
-            /** Id */
-            id: string;
-            /** Itemid */
-            itemId: string;
-            /** Text */
-            text: string;
-            /** Done */
-            done: boolean;
-            /** Archived */
-            archived: boolean;
-            /** Revision */
-            revision: number;
-            /** Createdat */
-            createdAt: string;
-            /** Updatedat */
-            updatedAt: string;
-        };
-        /** TaskCreate */
-        TaskCreate: {
-            /** Itemid */
-            itemId: string;
-            /** Text */
-            text: string;
-            /**
-             * Done
-             * @default false
-             */
-            done: boolean;
-        };
-        /**
-         * TaskMove
-         * @description revision is the task's own; position is its new place among the work item's active tasks,
-         *     1 first, and a place past the last moves it last.
-         */
-        TaskMove: {
-            /** Revision */
-            revision: number;
-            /** Position */
-            position: number;
-        };
-        /**
-         * TaskPlace
-         * @description Where a moved task now stands in its work item's list, 1 first.
-         */
-        TaskPlace: {
-            /** Id */
-            id: string;
-            /** Position */
-            position: number;
-        };
-        /** TaskUpdate */
-        TaskUpdate: {
-            /** Revision */
-            revision: number;
-            /** Text */
-            text?: string | null;
-            /** Done */
-            done?: boolean | null;
         };
         /**
          * Ticket
@@ -8854,8 +8703,6 @@ export interface components {
             chats: components["schemas"]["TrackedChat"][];
             /** Github */
             github: components["schemas"]["ListedGithubReference"][];
-            /** Tasks */
-            tasks: components["schemas"]["Task"][];
             /** References */
             references: components["schemas"]["FileReference"][];
             /** People */
@@ -9920,72 +9767,6 @@ export interface operations {
             };
         };
     };
-    supporting_detail_api_v1_tasks__identity__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                identity: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Task"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_task_api_v1_tasks__identity__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                identity: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TaskUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Task"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     supporting_detail_api_v1_notes__identity__get: {
         parameters: {
             query?: never;
@@ -10072,74 +9853,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Note"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_task_api_v1_tasks_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TaskCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Task"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    move_task_api_v1_tasks__identity__move_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                identity: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TaskMove"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TaskPlace"];
                 };
             };
             /** @description Validation Error */
@@ -10493,76 +10206,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Note"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    task_archive_api_v1_tasks__identity__archive_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                identity: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["Expected"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Task"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    task_recover_api_v1_tasks__identity__recover_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                identity: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["Expected"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Task"];
                 };
             };
             /** @description Validation Error */

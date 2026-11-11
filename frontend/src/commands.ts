@@ -5,7 +5,6 @@ const verb = (archived: boolean) => (archived ? "archive" : "recover");
 /** The records whose routes archive and recover them as /{kind}/{id}/archive and /recover. */
 export type ArchiveKind =
   | "notes"
-  | "tasks"
   | "references"
   | "attachments"
   | "links"
@@ -47,14 +46,6 @@ export const commands = {
   updateNote: (id: string, body: Schema["NoteUpdate"]) =>
     request<Answer<"/api/v1/notes/{identity}", "patch">>(
       "/notes/" + id,
-      "PATCH",
-      body,
-    ),
-  createTask: (body: Schema["TaskCreate"]) =>
-    request<Answer<"/api/v1/tasks", "post">>("/tasks", "POST", body),
-  updateTask: (id: string, body: Schema["TaskUpdate"]) =>
-    request<Answer<"/api/v1/tasks/{identity}", "patch">>(
-      "/tasks/" + id,
       "PATCH",
       body,
     ),
@@ -268,13 +259,6 @@ export const commands = {
   ) =>
     request<Answer<`/api/v1/${K}/{identity}/archive`, "post">>(
       `/${kind}/${id}/${verb(archived)}`,
-      "POST",
-      body,
-    ),
-  /** Moves a task to a place among its item's active tasks, 1 first. */
-  moveTask: (id: string, body: Schema["TaskMove"]) =>
-    request<Answer<"/api/v1/tasks/{identity}/move", "post">>(
-      `/tasks/${id}/move`,
       "POST",
       body,
     ),

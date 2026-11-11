@@ -44,7 +44,7 @@ class Database:
                     raise AppError(503, "schema_version", "Unsupported database schema; no data was changed")
                 if conn.execute("PRAGMA quick_check").fetchone()[0] != "ok":
                     raise AppError(503, "database_invalid", "Database integrity check failed")
-                required = {"settings", "work_items", "days", "daily_entries", "notes", "tasks", "file_references", "attachments", "credentials", "roadmaps", "steps", "proposals", "events", "receipts", "search_index", "roadmap_versions"}
+                required = {"settings", "work_items", "days", "daily_entries", "notes", "file_references", "attachments", "credentials", "roadmaps", "steps", "proposals", "events", "receipts", "search_index", "roadmap_versions"}
                 actual = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
                 if not required <= actual:
                     raise AppError(503, "database_invalid", "Database schema is incomplete")

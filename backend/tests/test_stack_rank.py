@@ -221,12 +221,6 @@ def test_today_entries_carry_rank_and_what_their_tabs_hold(client):
     day = "2026-10-28"
     first, second = items(client, "First", "Second", day=day)
     ok(rank(client, second["id"], 1))
-    for task in ("Draft", "Review", "Old"):
-        made = ok(write(client, "POST", "/tasks", {"itemId": first["id"], "text": task}))
-        if task == "Review":
-            ok(write(client, "PATCH", f"/tasks/{made['id']}", {"revision": made["revision"], "done": True}))
-        if task == "Old":
-            ok(write(client, "POST", f"/tasks/{made['id']}/archive", {"revision": made["revision"]}))
     ok(write(client, "POST", "/links", {"ownerType": "item", "ownerId": first["id"], "url": "https://example.com/a"}))
     gone = ok(write(client, "POST", "/links", {"ownerType": "item", "ownerId": first["id"], "url": "https://example.com/b"}))
     ok(write(client, "POST", f"/links/{gone['id']}/archive", {"revision": gone["revision"]}))
@@ -235,8 +229,8 @@ def test_today_entries_carry_rank_and_what_their_tabs_hold(client):
     ok(write(client, "POST", "/notes", {"ownerType": "item", "ownerId": first["id"], "title": "Scratchpad", "text": "Context"}))
     ok(write(client, "POST", "/notes", {"ownerType": "item", "ownerId": second["id"], "title": "Scratchpad", "text": "  \n"}))
     entries = {e["item"]["title"]: e for e in client.get(f"/api/v1/days/{day}").json()["entries"]}
-    assert entries["First"]["counts"] == {"tasks": 2, "tasksDone": 1, "links": 1, "files": 2, "scratchpad": True}
-    assert entries["Second"]["counts"] == {"tasks": 0, "tasksDone": 0, "links": 0, "files": 0, "scratchpad": False}
+    assert entries["First"]["counts"] == {"links": 1, "files": 2, "scratchpad": True}
+    assert entries["Second"]["counts"] == {"links": 0, "files": 0, "scratchpad": False}
     assert (entries["Second"]["item"]["rank"], entries["First"]["item"]["rank"]) == (1, 2)
     patch(client, first["id"], status="done")
     assert {e["item"]["title"]: e["item"]["rank"] for e in client.get(f"/api/v1/days/{day}").json()["entries"]} == {"First": None, "Second": 1}

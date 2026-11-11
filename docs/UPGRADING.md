@@ -6,12 +6,13 @@ restores.
 
 ## Upgrade
 
-For an upgrade, stop Worklog, make a manual backup with the installed version, update the checkout, run `Setup.ps1`, then start and check the application. Use the same data directory and port throughout. The first startup snapshots a supported version 1 to 24 database and upgrades it to version 25 in one transaction.
+For an upgrade, stop Worklog, make a manual backup with the installed version, update the checkout, run `Setup.ps1`, then start and check the application. Use the same data directory and port throughout. The first startup snapshots a supported version 1 to 25 database and upgrades it to version 26 in one transaction.
 
 `./scripts/Run.ps1` does the stop, backup, setup and start in one step after you update the checkout, passing the same `-DataDir` and `-Port` to each. Its backup is taken before the new version first starts, so it is the pre-upgrade backup; if the stop or backup fails, it ends before setup. It runs Setup's shared-folder check first, so a refusal leaves Worklog running.
 
 ## What each version changes
 
+- **Version 26** removes work item checklists. The upgrade drops the table that held each work item's tasks, every task with it. The work items stay as they are, and no other record changes. The pre-migration backup keeps the table, but only the three newest pre-migration backups are kept: copy it aside if you still need a task.
 - **Version 25** removes the HTML plan import. The upgrade drops the table that held imported plans, with their original files and previews. A roadmap an import made stays as it is, and no other record changes. The pre-migration backup keeps the table, but only the three newest pre-migration backups are kept: copy it aside if you still need an original.
 - **Version 24** links each tracked chat to the repository each of its labels names: the one repository, merged ones aside, whose name the label is exactly, as version 22 did for discussions. The labels stay, and a chat takes no new ones: link a registered repository instead. The upgrade adds only those links, and changes no record.
 - **Version 23** has the database itself refuse what only Worklog's code refused before: a task, note, file reference or attachment archived other than 0 or 1, and a note or attachment owned by a kind of record it can't have. The upgrade builds those four tables again and changes no record. A row that already breaks one of those rules can only come from outside Worklog: the upgrade names it and changes nothing, and Worklog doesn't start until it is fixed. The message is in `server.log` (and `restore` prints it): set the row right with the `sqlite3` shell, with Worklog stopped and after a manual backup. Each refused start takes another pre-migration backup, of which the three newest are kept. Building the tables again leaves the space their old copies took, attachments' content included, free inside the file until `compact` gives it back, so the upgrade needs free disk of about twice the database: one copy for the pre-migration backup and one for the rebuilt tables.
@@ -33,16 +34,17 @@ For an upgrade, stop Worklog, make a manual backup with the installed version, u
 
 Keep the previous version and its manual backup until verification succeeds. To roll back, stop Worklog, switch to the previous version and run its setup, then use that version’s `restore` command with the pre-upgrade backup. Start and check Worklog again. Restoring returns the data to the time of the snapshot, creates a new data identity, and revokes the restored credentials.
 
-## The way back from version 25
+## The way back from version 26
 
-From version 25 to version 24, a way back keeps every record. The imports version 25's upgrade dropped don't come back with it; the pre-upgrade backup has them. With Worklog stopped and after a manual backup, run this on the database, then start the version 24 checkout:
+From version 26 to version 25, a way back keeps every record. The tasks version 26's upgrade dropped don't come back with it; the pre-upgrade backup has them. With Worklog stopped and after a manual backup, run this on the database, then start the version 25 checkout:
 
 ```sql
-CREATE TABLE plan_imports ( id TEXT PRIMARY KEY, name TEXT NOT NULL, original BLOB NOT NULL, sha256 TEXT NOT NULL, preview TEXT NOT NULL, actor_id TEXT NOT NULL, created_at TEXT NOT NULL, roadmap_id TEXT REFERENCES roadmaps(id) );
-PRAGMA user_version=24;
+CREATE TABLE tasks(id TEXT PRIMARY KEY,item_id TEXT NOT NULL REFERENCES work_items(id),text TEXT NOT NULL,done INTEGER NOT NULL DEFAULT 0 CHECK(done IN(0,1)),archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,position INTEGER NOT NULL DEFAULT 0 CHECK(position>=0));
+CREATE INDEX tasks_item ON tasks(item_id,archived);
+PRAGMA user_version=25;
 ```
 
-Upgrading again drops the table again, with any import made at version 24.
+Upgrading again drops the table again, with any task added at version 25.
 
 Only the latest version's way back is kept here. Each older one was given while its version was
 the latest: the history of this file in the repository has them, and before this file, the

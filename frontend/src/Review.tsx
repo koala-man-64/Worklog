@@ -383,19 +383,17 @@ function currentPath(
         ? "resources"
         : action.startsWith("note.")
           ? "notes"
-          : action.startsWith("task.")
-            ? "tasks"
-            : action.startsWith("link.")
-              ? "links"
-              : action.startsWith("chat.")
-                ? "chats"
-                : action.startsWith("github.")
-                  ? "github"
-                  : action.startsWith("question.")
-                    ? "questions"
-                    : action.startsWith("decision.")
-                      ? "decisions"
-                      : "work-items";
+          : action.startsWith("link.")
+            ? "links"
+            : action.startsWith("chat.")
+              ? "chats"
+              : action.startsWith("github.")
+                ? "github"
+                : action.startsWith("question.")
+                  ? "questions"
+                  : action.startsWith("decision.")
+                    ? "decisions"
+                    : "work-items";
   return "/" + collection + "/" + id;
 }
 export function OperationDiff({

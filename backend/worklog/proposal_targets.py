@@ -6,10 +6,10 @@ one difference: the upgrade finds a work item or roadmap a change created only w
 proposal created it, since the person also creates them directly.
 A change counts toward:
 - the work item or roadmap it creates, changes, archives or recovers;
-- the work item or roadmap that holds the record it creates or changes: a work item's tasks,
-  scratchpad, links, files, agent chats, GitHub references, day entries and people; a roadmap's
-  steps and their progress, text, notes and files, its questions, decisions, notes, links, files,
-  agent chats, GitHub references and people;
+- the work item or roadmap that holds the record it creates or changes: a work item's tasks (before
+  v26 dropped them), scratchpad, links, files, agent chats, GitHub references, day entries and
+  people; a roadmap's steps and their progress, text, notes and files, its questions, decisions,
+  notes, links, files, agent chats, GitHub references and people;
 - the roadmap it puts a work item or a sub-roadmap on;
 - the work item a ticket it creates or changes is linked to once the change is made.
 A person, a repository, a resource or a release is neither, so a change to one alone counts toward
@@ -25,6 +25,8 @@ from typing import Any
 
 # The supporting records operations name by id, by the prefix of their actions: each one's table,
 # and the columns that name its owner's type and id ('item' and 'roadmap' are fixed owner types).
+# No proposal carries a task since v26 dropped work item checklists, but the v16 upgrade still
+# finds what an older database's approved task changes were applied to, before v26 drops them.
 _HELD = {
     "task": ("tasks", "'item'", "item_id"),
     "reference": ("file_references", "'item'", "item_id"),
