@@ -1,5 +1,7 @@
 # Worklog consolidation plan
 
+> **Complete.** Every step below is merged. [ROADMAPS-RETHINK.md](ROADMAPS-RETHINK.md) holds the current plan, and its decision R1 retires K3, K12 and K14.
+
 The working plan for consolidating and cleaning up Worklog after its first 86 pull requests. It replaces [REMEDIATION.md](REMEDIATION.md), the plan from the 2026-10-28 audit, whose open items are folded in below.
 
 The plan comes from a read-only audit of `main` at `e4a1d14` on 2026-11-04. Three reviewers, one each for architecture, the data model and the trust boundary, reported independently and then cross-examined each other's findings. Every finding a step depends on was verified against the code, and the runtime ones on an isolated instance with synthetic data.
