@@ -97,7 +97,7 @@ Done as schema v25 (`migrations.drop_plan_imports`): a roadmap an import made st
 
 Status: Merged · Branch: `claude/remove-reflection` · PR: [#184](https://github.com/koala-man-64/Worklog/pull/184)
 
-"End-of-day reflection (Markdown)" on Today, its route, and the reflection in a day's read and in the agent context, which changes what agents read. Drop `days.reflection` and `days.reflection_revision` (v21), and check what `days.revision` still guards before touching anything else in `days`.
+"End-of-day reflection (Markdown)" on Today, its route, and the reflection in a day's read and in the agent context, which changes what agents read. The plan first had `days.reflection` and `days.reflection_revision` (v21) dropped too; they stay (R4).
 
 Why: never written.
 
