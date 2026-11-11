@@ -478,7 +478,7 @@ def test_merge_moves_links_reports_and_updates_and_the_old_remote_answers_with_t
         history = {row[0]: json.loads(row[1]) for row in c.execute("SELECT entity_id,after_json FROM events WHERE kind='repository.merge'")}
     # The old repository's own discussion (v22) is tagged with the survivor now.
     assert history[old["id"]]["moved"] == {"contexts": 1, "items": 2, "chats": 1, "tickets": 1, "updates": 1, "people": 0, "agents": 0,
-                                           "reminders": 0, "discussions": 1, "attachments": 0}
+                                           "discussions": 1, "attachments": 0}
     assert history[new["id"]]["mergedFrom"] == old["id"]
     # The old remote now answers with the survivor, so agents on old clones land there.
     again = repo(client, "Old again", url="git@github.com:team/old-name.git")

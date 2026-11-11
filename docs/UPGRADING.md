@@ -6,12 +6,13 @@ restores.
 
 ## Upgrade
 
-For an upgrade, stop Worklog, make a manual backup with the installed version, update the checkout, run `Setup.ps1`, then start and check the application. Use the same data directory and port throughout. The first startup snapshots a supported version 1 to 25 database and upgrades it to version 26 in one transaction.
+For an upgrade, stop Worklog, make a manual backup with the installed version, update the checkout, run `Setup.ps1`, then start and check the application. Use the same data directory and port throughout. The first startup snapshots a supported version 1 to 26 database and upgrades it to version 27 in one transaction.
 
 `./scripts/Run.ps1` does the stop, backup, setup and start in one step after you update the checkout, passing the same `-DataDir` and `-Port` to each. Its backup is taken before the new version first starts, so it is the pre-upgrade backup; if the stop or backup fails, it ends before setup. It runs Setup's shared-folder check first, so a refusal leaves Worklog running.
 
 ## What each version changes
 
+- **Version 27** removes Reminders. The upgrade drops the table that held reminders, every reminder with it, and their entries in search. The records a reminder named stay as they are, and no other record changes. The pre-migration backup keeps the table, but only the three newest pre-migration backups are kept: copy it aside if you still need a reminder.
 - **Version 26** removes work item checklists. The upgrade drops the table that held each work item's tasks, every task with it. The work items stay as they are, and no other record changes. The pre-migration backup keeps the table, but only the three newest pre-migration backups are kept: copy it aside if you still need a task.
 - **Version 25** removes the HTML plan import. The upgrade drops the table that held imported plans, with their original files and previews. A roadmap an import made stays as it is, and no other record changes. The pre-migration backup keeps the table, but only the three newest pre-migration backups are kept: copy it aside if you still need an original.
 - **Version 24** links each tracked chat to the repository each of its labels names: the one repository, merged ones aside, whose name the label is exactly, as version 22 did for discussions. The labels stay, and a chat takes no new ones: link a registered repository instead. The upgrade adds only those links, and changes no record.
@@ -34,17 +35,18 @@ For an upgrade, stop Worklog, make a manual backup with the installed version, u
 
 Keep the previous version and its manual backup until verification succeeds. To roll back, stop Worklog, switch to the previous version and run its setup, then use that version’s `restore` command with the pre-upgrade backup. Start and check Worklog again. Restoring returns the data to the time of the snapshot, creates a new data identity, and revokes the restored credentials.
 
-## The way back from version 26
+## The way back from version 27
 
-From version 26 to version 25, a way back keeps every record. The tasks version 26's upgrade dropped don't come back with it; the pre-upgrade backup has them. With Worklog stopped and after a manual backup, run this on the database, then start the version 25 checkout:
+From version 27 to version 26, a way back keeps every record. The reminders version 27's upgrade dropped don't come back with it, and neither do their search entries; the pre-upgrade backup has them. With Worklog stopped and after a manual backup, run this on the database, then start the version 26 checkout:
 
 ```sql
-CREATE TABLE tasks(id TEXT PRIMARY KEY,item_id TEXT NOT NULL REFERENCES work_items(id),text TEXT NOT NULL,done INTEGER NOT NULL DEFAULT 0 CHECK(done IN(0,1)),archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,position INTEGER NOT NULL DEFAULT 0 CHECK(position>=0));
-CREATE INDEX tasks_item ON tasks(item_id,archived);
-PRAGMA user_version=25;
+CREATE TABLE reminders(id TEXT PRIMARY KEY,title TEXT NOT NULL,due_date TEXT NOT NULL,due_time TEXT,state TEXT NOT NULL DEFAULT 'open' CHECK(state IN('open','done')),target_type TEXT CHECK(target_type IN('item','ticket','roadmap','person','repository','chat')),target_id TEXT,author_id TEXT NOT NULL,author_label TEXT NOT NULL,author_kind TEXT NOT NULL CHECK(author_kind IN('agent','human')),archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL,done_at TEXT,notes TEXT NOT NULL DEFAULT '',CHECK((target_type IS NULL)=(target_id IS NULL)));
+CREATE INDEX reminders_due ON reminders(archived,state,due_date,due_time);
+CREATE INDEX reminders_target ON reminders(target_type,target_id);
+PRAGMA user_version=26;
 ```
 
-Upgrading again drops the table again, with any task added at version 25.
+Upgrading again drops the table again, with any reminder added at version 26 and its search entry.
 
 Only the latest version's way back is kept here. Each older one was given while its version was
 the latest: the history of this file in the repository has them, and before this file, the

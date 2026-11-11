@@ -205,24 +205,6 @@ export const commands = {
       "POST",
       body,
     ),
-  createReminder: (body: Schema["ReminderCreate"]) =>
-    request<Answer<"/api/v1/reminders", "post">>("/reminders", "POST", body),
-  updateReminder: (id: string, body: Schema["ReminderUpdate"]) =>
-    request<Answer<"/api/v1/reminders/{identity}", "patch">>(
-      "/reminders/" + id,
-      "PATCH",
-      body,
-    ),
-  setReminderArchived: (
-    id: string,
-    archived: boolean,
-    body: Schema["Expected"],
-  ) =>
-    request<Answer<"/api/v1/reminders/{identity}/{verb}", "post">>(
-      `/reminders/${id}/${verb(archived)}`,
-      "POST",
-      body,
-    ),
 
   // Work items and days.
   setItemArchived: (id: string, archived: boolean, body: Schema["Expected"]) =>

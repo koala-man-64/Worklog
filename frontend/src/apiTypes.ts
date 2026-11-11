@@ -52,7 +52,7 @@ type Merged<T> = Pick<T, keyof T> & {
   [K in Exclude<AnyKey<T>, keyof T>]?: FieldOf<T, K>;
 };
 
-/** Who wrote a reminder, a ticket or a comment; the person has no avatar. */
+/** Who wrote a ticket or a comment; the person has no avatar. */
 export type Author = Schema["Author"];
 /** One change in a record's own history, without the records: /history has those. */
 export type Change = Schema["Change"];
@@ -77,15 +77,6 @@ export type ReleaseRoadmap = Schema["ReleaseRoadmap"];
 export type ReleaseStep = Schema["ReleaseStep"];
 export type ReleaseChange = Schema["ReleaseChange"];
 export type ReleaseEvent = Schema["ReleaseHistoryEntry"];
-
-// Reminders.
-export type Reminder = Schema["ReminderListed"];
-/** A reminder with its notes, as a create or an edit returns it. */
-export type ReminderRecord = Schema["ReminderRecord"];
-/** A reminder with its notes and history, as its own page reads it. */
-export type ReminderDetail = Schema["Reminder"];
-export type ReminderTarget = Schema["ReminderTarget"];
-export type ReminderTargetType = ReminderTarget["type"];
 
 // Resources.
 export type Resource = Schema["ResourceListed"];

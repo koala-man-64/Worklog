@@ -1,7 +1,6 @@
 import "./styles/base.css";
 import "./styles/today.css";
 import "./styles/work.css";
-import "./styles/reminders.css";
 import "./styles/roadmaps.css";
 import "./styles/people.css";
 import "./styles/resources.css";

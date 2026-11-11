@@ -2130,59 +2130,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/reminders": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Reminders */
-        get: operations["reminders_api_v1_reminders_get"];
-        put?: never;
-        /** Reminder Create */
-        post: operations["reminder_create_api_v1_reminders_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/reminders/{identity}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Reminder */
-        get: operations["reminder_api_v1_reminders__identity__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** Reminder Update */
-        patch: operations["reminder_update_api_v1_reminders__identity__patch"];
-        trace?: never;
-    };
-    "/api/v1/reminders/{identity}/{verb}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Reminder Archive */
-        post: operations["reminder_archive_api_v1_reminders__identity___verb__post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/discussions/participants": {
         parameters: {
             query?: never;
@@ -3472,8 +3419,8 @@ export interface components {
         };
         /**
          * Author
-         * @description Who wrote a reminder, a ticket or a ticket's comment, as written then, with the avatar their
-         *     agent identity has now.
+         * @description Who wrote a ticket or a ticket's comment, as written then, with the avatar their agent identity
+         *     has now.
          */
         Author: {
             /** Id */
@@ -5403,7 +5350,7 @@ export interface components {
              * Page
              * @enum {string}
              */
-            page: "today" | "work" | "tickets" | "reminders" | "roadmaps" | "releases" | "repositories" | "people" | "resources" | "agents" | "chats" | "discussions" | "review" | "settings" | "usage" | "guide" | "agent-guide";
+            page: "today" | "work" | "tickets" | "roadmaps" | "releases" | "repositories" | "people" | "resources" | "agents" | "chats" | "discussions" | "review" | "settings" | "usage" | "guide" | "agent-guide";
         };
         /**
          * Participant
@@ -6714,179 +6661,6 @@ export interface components {
             /** Offset */
             offset: number;
         };
-        /**
-         * Reminder
-         * @description A reminder with its notes and history, as its own read returns it.
-         */
-        Reminder: {
-            /** Id */
-            id: string;
-            /** Title */
-            title: string;
-            /** Date */
-            date: string;
-            /** Time */
-            time: string | null;
-            /**
-             * State
-             * @enum {string}
-             */
-            state: "open" | "done";
-            /** Due */
-            due: boolean;
-            /** Overdue */
-            overdue: boolean;
-            target: components["schemas"]["ReminderTarget"] | null;
-            author: components["schemas"]["Author"];
-            /** Archived */
-            archived: boolean;
-            /** Revision */
-            revision: number;
-            /** Createdat */
-            createdAt: string;
-            /** Updatedat */
-            updatedAt: string;
-            /** Doneat */
-            doneAt: string | null;
-            /** Notes */
-            notes: string;
-            /** History */
-            history: components["schemas"]["Change"][];
-        };
-        /** ReminderCreate */
-        ReminderCreate: {
-            /** Title */
-            title: string;
-            /**
-             * Notes
-             * @default
-             */
-            notes: string;
-            /** Date */
-            date: string;
-            /** Time */
-            time?: string | null;
-            /** Targettype */
-            targetType?: ("item" | "ticket" | "roadmap" | "person" | "repository" | "chat") | null;
-            /** Targetid */
-            targetId?: string | null;
-        };
-        /**
-         * ReminderListed
-         * @description A reminder as lists show it, without its notes or history.
-         */
-        ReminderListed: {
-            /** Id */
-            id: string;
-            /** Title */
-            title: string;
-            /** Date */
-            date: string;
-            /** Time */
-            time: string | null;
-            /**
-             * State
-             * @enum {string}
-             */
-            state: "open" | "done";
-            /** Due */
-            due: boolean;
-            /** Overdue */
-            overdue: boolean;
-            target: components["schemas"]["ReminderTarget"] | null;
-            author: components["schemas"]["Author"];
-            /** Archived */
-            archived: boolean;
-            /** Revision */
-            revision: number;
-            /** Createdat */
-            createdAt: string;
-            /** Updatedat */
-            updatedAt: string;
-            /** Doneat */
-            doneAt: string | null;
-        };
-        /**
-         * ReminderRecord
-         * @description A reminder with its notes, as its commands return it.
-         */
-        ReminderRecord: {
-            /** Id */
-            id: string;
-            /** Title */
-            title: string;
-            /** Date */
-            date: string;
-            /** Time */
-            time: string | null;
-            /**
-             * State
-             * @enum {string}
-             */
-            state: "open" | "done";
-            /** Due */
-            due: boolean;
-            /** Overdue */
-            overdue: boolean;
-            target: components["schemas"]["ReminderTarget"] | null;
-            author: components["schemas"]["Author"];
-            /** Archived */
-            archived: boolean;
-            /** Revision */
-            revision: number;
-            /** Createdat */
-            createdAt: string;
-            /** Updatedat */
-            updatedAt: string;
-            /** Doneat */
-            doneAt: string | null;
-            /** Notes */
-            notes: string;
-        };
-        /** ReminderTarget */
-        ReminderTarget: {
-            /**
-             * Type
-             * @enum {string}
-             */
-            type: "item" | "ticket" | "roadmap" | "person" | "repository" | "chat";
-            /** Id */
-            id: string;
-            /** Title */
-            title: string;
-            /** Archived */
-            archived: boolean;
-        };
-        /** ReminderUpdate */
-        ReminderUpdate: {
-            /** Revision */
-            revision: number;
-            /** Title */
-            title?: string | null;
-            /** Notes */
-            notes?: string | null;
-            /** Date */
-            date?: string | null;
-            /** Time */
-            time?: string | null;
-            /** State */
-            state?: ("open" | "done") | null;
-            /** Targettype */
-            targetType?: ("item" | "ticket" | "roadmap" | "person" | "repository" | "chat") | null;
-            /** Targetid */
-            targetId?: string | null;
-        };
-        /** Reminders */
-        Reminders: {
-            /** Items */
-            items: components["schemas"]["ReminderListed"][];
-            /** Total */
-            total: number;
-            /** Limit */
-            limit: number;
-            /** Offset */
-            offset: number;
-        };
         /** Reorder */
         Reorder: {
             /** Revision */
@@ -7651,7 +7425,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "item" | "step" | "roadmap" | "note" | "attachment" | "link" | "chat" | "github" | "question" | "decision" | "person" | "ticket" | "ticket_comment" | "discussion" | "discussion_message" | "resource" | "release" | "release_check" | "reminder";
+            type: "item" | "step" | "roadmap" | "note" | "attachment" | "link" | "chat" | "github" | "question" | "decision" | "person" | "ticket" | "ticket_comment" | "discussion" | "discussion_message" | "resource" | "release" | "release_check";
             /** Title */
             title: string;
             /** Snippet */
@@ -7662,7 +7436,7 @@ export interface components {
              * Routetype
              * @enum {string}
              */
-            routeType: "resources" | "reminders" | "discussions" | "tickets" | "releases" | "work" | "people" | "repositories" | "roadmaps";
+            routeType: "resources" | "discussions" | "tickets" | "releases" | "work" | "people" | "repositories" | "roadmaps";
             /** Routeid */
             routeId: string | null;
         };
@@ -11423,7 +11197,7 @@ export interface operations {
                 archived?: boolean;
                 limit?: number;
                 offset?: number;
-                type?: ("item" | "step" | "roadmap" | "note" | "attachment" | "link" | "chat" | "github" | "question" | "decision" | "person" | "ticket" | "ticket_comment" | "discussion" | "discussion_message" | "resource" | "release" | "release_check" | "reminder")[];
+                type?: ("item" | "step" | "roadmap" | "note" | "attachment" | "link" | "chat" | "github" | "question" | "decision" | "person" | "ticket" | "ticket_comment" | "discussion" | "discussion_message" | "resource" | "release" | "release_check")[];
             };
             header?: never;
             path?: never;
@@ -13947,182 +13721,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReleaseCheckRecord"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    reminders_api_v1_reminders_get: {
-        parameters: {
-            query?: {
-                state?: "open" | "due" | "upcoming" | "done" | "all";
-                /** @description Only those due on this day, YYYY-MM-DD */
-                date?: string | null;
-                /** @description Only those due on or before this day, YYYY-MM-DD */
-                until?: string | null;
-                targetType?: ("item" | "ticket" | "roadmap" | "person" | "repository" | "chat") | null;
-                targetId?: string | null;
-                q?: string;
-                archived?: boolean;
-                limit?: number;
-                offset?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Reminders"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    reminder_create_api_v1_reminders_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ReminderCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ReminderRecord"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    reminder_api_v1_reminders__identity__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                identity: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Reminder"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    reminder_update_api_v1_reminders__identity__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                identity: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ReminderUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ReminderRecord"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    reminder_archive_api_v1_reminders__identity___verb__post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                identity: string;
-                verb: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["Expected"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ReminderRecord"];
                 };
             };
             /** @description Validation Error */

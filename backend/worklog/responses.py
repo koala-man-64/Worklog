@@ -170,53 +170,15 @@ class ReleaseCheck(ReleaseCheckRecord):
     pastDue: bool
 
 
-class ReminderTarget(Answer):
-    type: Literal["item", "ticket", "roadmap", "person", "repository", "chat"]
-    id: str
-    title: str
-    archived: bool
-
-
 class Author(Answer):
-    """Who wrote a reminder, a ticket or a ticket's comment, as written then, with the avatar their
-    agent identity has now."""
+    """Who wrote a ticket or a ticket's comment, as written then, with the avatar their agent identity
+    has now."""
 
     id: str
     label: str
     kind: Literal["agent", "human"]
     # Null for the person, and for an agent identity with none or that is gone.
     avatar: str | None
-
-
-class ReminderListed(Answer):
-    """A reminder as lists show it, without its notes or history."""
-
-    id: str
-    title: str
-    date: str
-    time: str | None
-    state: Literal["open", "done"]
-    due: bool
-    overdue: bool
-    target: ReminderTarget | None
-    author: Author
-    archived: bool
-    revision: int
-    createdAt: str
-    updatedAt: str
-    doneAt: str | None
-
-
-class ReminderRecord(ReminderListed):
-    """A reminder with its notes, as its commands return it."""
-
-    notes: str
-
-
-class Reminder(ReminderRecord):
-    """A reminder with its notes and history, as its own read returns it."""
-
-    history: list[Change]
 
 
 class Event(Answer):
@@ -590,13 +552,6 @@ class People(Answer):
 
 class Resources(Answer):
     items: list[ResourceListed]
-    total: int
-    limit: int
-    offset: int
-
-
-class Reminders(Answer):
-    items: list[ReminderListed]
     total: int
     limit: int
     offset: int
@@ -2137,12 +2092,12 @@ class SearchResult(Answer):
     id: str
     type: Literal["item", "step", "roadmap", "note", "attachment", "link", "chat", "github", "question", "decision",
                   "person", "ticket", "ticket_comment", "discussion", "discussion_message", "resource", "release",
-                  "release_check", "reminder"]
+                  "release_check"]
     title: str
     snippet: str
     ownerId: str
     # The page a result opens on, and the record that page shows; null if that record is missing.
-    routeType: Literal["resources", "reminders", "discussions", "tickets", "releases", "work", "people", "repositories",
+    routeType: Literal["resources", "discussions", "tickets", "releases", "work", "people", "repositories",
                        "roadmaps"]
     routeId: str | None
 

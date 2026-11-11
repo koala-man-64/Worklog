@@ -11,7 +11,6 @@ import { statusLabel } from "./ui/Status";
 import { Pager } from "./ui/Pager";
 import { Coordination, OpenRuns } from "./Coordination";
 import { LinkPicker } from "./LinkPicker";
-import { RecordReminders } from "./RecordReminders";
 import { RepositoryName } from "./RepositoryControls";
 import type {
   Answer,
@@ -535,15 +534,6 @@ function RepositoryDetail({ id }: { id: string }) {
         />
       )}
       {!repo.mergedInto && <RepositoryFiles repo={repo} />}
-      {/* A merge moves its reminders to the record that answers for this one, too. */}
-      {!repo.mergedInto && (
-        <RecordReminders
-          targetType="repository"
-          targetId={repo.id}
-          archived={repo.archived}
-          heading="h2"
-        />
-      )}
       <Coordination repositoryId={id} />
     </>
   );

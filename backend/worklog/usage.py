@@ -51,7 +51,6 @@ PAGE_VIEWS = policy.PREFIX + "/page-views"
 VERBS: dict[str, tuple[str, ...]] = {
     policy.PREFIX + "/people/{identity}/{verb}": ("archive", "recover"),
     policy.PREFIX + "/proposals/{identity}/{verb}": ("submit", "withdraw", "reopen", "approve", "reject"),
-    policy.PREFIX + "/reminders/{identity}/{verb}": ("archive", "recover"),
     policy.PREFIX + "/repositories/{identity}/{verb}": ("archive", "recover"),
     policy.PREFIX + "/resources/{identity}/{verb}": ("archive", "recover"),
     policy.PREFIX + "/roadmaps/{identity}/{verb}": ("archive", "recover"),

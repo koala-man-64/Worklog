@@ -1,20 +1,18 @@
-"""Schema v20 adds reminders: the upgrade, the way back, restore and export keep them whole."""
+"""Schema v20 added reminders, which v27 drops again (step 0.4 of docs/ROADMAPS-RETHINK.md). What stays:
+the upgrade from v19, the way back to it, which older upgrade tests build their databases with, and
+that neither shape can pass for the other."""
 
-import io
-import json
 import sqlite3
-import zipfile
 from contextlib import closing
 
 import pytest
 import sealed
+from test_reminder_removal import remind
 from test_sealed_schemas import contents
 from worklog import migrations, recovery
 from worklog.db import Database
-from worklog.reminders import ReminderService
 
 STAMP = "2026-11-06T14:00:00+00:00"
-PERSON = {"id": "local-user", "label": "You", "kind": "human"}
 # From version 20 to version 19, with Worklog stopped and after a manual backup. The README gave this way back
 # while version 20 was the latest; older upgrade tests now build their databases with it.
 WAY_BACK = """\
@@ -27,18 +25,18 @@ COMMIT;
 """
 
 
+def to_v20(path):
+    """Take a current database back to the v20 shape the documented way."""
+    from test_reflection_revision import to_v20 as from_v21
+
+    from_v21(path)
+
+
 def to_v19(path):
     """Take a current database back to the v19 shape the documented way: to version 20 first."""
-    from test_reflection_revision import to_v20
-
     to_v20(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK)
-
-
-def add_reminder(path, title="Merge #113", notes="Once CI is green"):
-    with Database(path).transaction() as conn:
-        return ReminderService().create(conn, PERSON, {"title": title, "notes": notes, "date": "2026-11-06", "time": "14:25"})
 
 
 def add_item(path):
@@ -55,7 +53,7 @@ def count(path, sql):
         return conn.execute(sql).fetchone()[0]
 
 
-def test_the_v20_upgrade_adds_empty_reminders_after_a_snapshot_and_changes_no_record(tmp_path):
+def test_the_upgrade_from_v19_snapshots_first_and_changes_no_record(tmp_path):
     path = tmp_path / "worklog.sqlite3"
     Database(path).initialize()
     add_item(path)
@@ -65,8 +63,9 @@ def test_the_v20_upgrade_adds_empty_reminders_after_a_snapshot_and_changes_no_re
     Database(path).initialize()
     version, signature, after = contents(path)
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
-    assert after.pop("reminders") == []
-    # v25 and v26 drop the plan import and task tables, empty here.
+    # v20 adds the reminders table and v27 drops it again; v25 and v26 drop the plan import and task
+    # tables, empty here.
+    assert "reminders" not in after
     assert before.pop("plan_imports") == []
     assert before.pop("tasks") == []
     assert after == before
@@ -81,10 +80,15 @@ def test_the_way_back_to_v19_gives_its_exact_shape_and_upgrades_again(tmp_path):
     path = tmp_path / "worklog.sqlite3"
     Database(path).initialize()
     add_item(path)
-    add_reminder(path)
-    add_reminder(path, "Renew the certificate", "Before Friday")
+    to_v20(path)
+    # Reminders as v20 kept them, each with its search row and key.
+    with closing(sqlite3.connect(path)) as conn:
+        remind(conn, "Merge #113", "Once CI is green")
+        remind(conn, "Renew the certificate", "Before Friday")
+        conn.commit()
     assert count(path, "SELECT count(*) FROM search_keys WHERE type='reminder'") == 2
-    to_v19(path)
+    with closing(sqlite3.connect(path)) as conn:
+        conn.executescript(WAY_BACK)
     recovery.validate_database(path)
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 19
@@ -97,31 +101,17 @@ def test_the_way_back_to_v19_gives_its_exact_shape_and_upgrades_again(tmp_path):
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
         assert recovery._schema_signature(conn) == sealed.current()
-        assert conn.execute("SELECT count(*) FROM reminders").fetchone()[0] == 0
-
-
-def test_restore_and_export_keep_every_reminder(tmp_path):
-    source, target = tmp_path / "source" / "worklog.sqlite3", tmp_path / "target" / "worklog.sqlite3"
-    Database(source).initialize()
-    reminder = add_reminder(source)
-    Database(target).initialize()
-    recovery.restore_database(target, source, tmp_path / "restore-backups")
-    with closing(sqlite3.connect(target)) as conn:
-        assert conn.execute("SELECT id,title,due_date,due_time,notes FROM reminders").fetchall() == [
-            (reminder["id"], "Merge #113", "2026-11-06", "14:25", "Once CI is green")]
-    archive = zipfile.ZipFile(io.BytesIO(recovery.export_database(target)))
-    exported = json.loads(archive.read("records/reminders.json"))
-    assert [(r["id"], r["title"], r["notes"]) for r in exported] == [(reminder["id"], "Merge #113", "Once CI is green")]
 
 
 def test_a_v19_shape_cannot_claim_version_20_and_a_v20_shape_cannot_claim_19(tmp_path):
-    older, current = tmp_path / "older.sqlite3", tmp_path / "current.sqlite3"
-    Database(older).initialize()
+    older, newer = tmp_path / "older.sqlite3", tmp_path / "newer.sqlite3"
+    for path in (older, newer):
+        Database(path).initialize()
     to_v19(older)
-    recovery.validate_database(older)
-    Database(current).initialize()
-    recovery.validate_database(current)
-    for path, claimed in ((older, 20), (current, 19)):
+    to_v20(newer)
+    for path in (older, newer):
+        recovery.validate_database(path)
+    for path, claimed in ((older, 20), (newer, 19)):
         with closing(sqlite3.connect(path)) as conn:
             conn.execute(f"PRAGMA user_version={claimed}")
         with pytest.raises(ValueError, match="schema definitions"):
