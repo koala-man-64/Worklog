@@ -2781,6 +2781,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/agent-registrations/self": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Registration Self */
+        get: operations["registration_self_api_v1_agent_registrations_self_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agent-registrations/continue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Continue Agent */
+        post: operations["continue_agent_api_v1_agent_registrations_continue_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/agent-registrations/retire": {
         parameters: {
             query?: never;
@@ -3066,6 +3100,18 @@ export interface components {
             limit: number;
             /** Offset */
             offset: number;
+        };
+        /**
+         * AgentContinuation
+         * @description The calling identity continues in another chat; its label and avatar stay its own.
+         */
+        AgentContinuation: {
+            /** Token */
+            token: string;
+            /** Chatid */
+            chatId: string;
+            /** Directory */
+            directory?: string | null;
         };
         /** AgentCredential */
         AgentCredential: {
@@ -4137,6 +4183,91 @@ export interface components {
             addedBy: components["schemas"]["Actor"] | null;
             /** Addedat */
             addedAt: string | null;
+        };
+        /**
+         * Continuation
+         * @description The new credential of an identity that continues in another chat.
+         */
+        Continuation: {
+            /** Id */
+            id: string;
+            /** Agentid */
+            agentId: string;
+            /** Label */
+            label: string;
+            /** Avatar */
+            avatar: string | null;
+            /** Chatid */
+            chatId: string | null;
+            registeredBy: components["schemas"]["CredentialSponsor"] | null;
+            /** Directory */
+            directory: string | null;
+            continued: components["schemas"]["Continued"];
+        };
+        /**
+         * Continued
+         * @description What continuing in the new chat changed, and the roles that stay the identity's.
+         */
+        Continued: {
+            /** Credentialid */
+            credentialId: string;
+            /** Chatid */
+            chatId: string | null;
+            /** Runsended */
+            runsEnded: number;
+            /** Chats */
+            chats: components["schemas"]["ContinuedChat"][];
+            /** Roles */
+            roles: components["schemas"]["ContinuedRole"][];
+        };
+        /**
+         * ContinuedChat
+         * @description Where the new chat is tracked now, with the steps it holds there.
+         */
+        ContinuedChat: {
+            /** Id */
+            id: string;
+            /**
+             * Ownertype
+             * @enum {string}
+             */
+            ownerType: "item" | "roadmap";
+            /** Ownerid */
+            ownerId: string;
+            /** Ownertitle */
+            ownerTitle: string;
+            /** Title */
+            title: string;
+            /** Steps */
+            steps: components["schemas"]["ContinuedStep"][];
+            /** Created */
+            created: boolean;
+        };
+        /**
+         * ContinuedRole
+         * @description A responsibility role the identity owns, on the record its context names.
+         */
+        ContinuedRole: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /**
+             * Contexttype
+             * @enum {string}
+             */
+            contextType: "item" | "roadmap" | "step";
+            /** Contextid */
+            contextId: string;
+            /** Contexttitle */
+            contextTitle: string | null;
+        };
+        /** ContinuedStep */
+        ContinuedStep: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
         };
         /**
          * CoordinationUpdate
@@ -15606,6 +15737,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Registration"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    registration_self_api_v1_agent_registrations_self_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Registration"];
+                };
+            };
+        };
+    };
+    continue_agent_api_v1_agent_registrations_continue_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentContinuation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Continuation"];
                 };
             };
             /** @description Validation Error */

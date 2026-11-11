@@ -575,7 +575,7 @@ class AgentClient:
         # Explicit route allowlist makes canonical writes and approval unreachable from this client.
         route = path.split("?", 1)[0]
         segments = route.strip("/").split("/")
-        allowed = method == "GET" and route in {"/context", "/search", "/proposals", "/resources", "/releases"}
+        allowed = method == "GET" and route in {"/context", "/search", "/proposals", "/resources", "/releases", "/agent-registrations/self"}
         def valid_id(value: str) -> bool:
             try:
                 return str(uuid.UUID(value)) == value.lower()
@@ -588,7 +588,7 @@ class AgentClient:
             allowed = method == "POST" and valid_id(segments[1])
         if len(segments) == 2 and segments[0] in {"roadmaps", "steps", "resources", "releases"}:
             allowed = method == "GET" and valid_id(segments[1])
-        if route in {"/proposals", "/agent-registrations", "/agent-registrations/retire"} and method == "POST":
+        if route in {"/proposals", "/agent-registrations", "/agent-registrations/continue", "/agent-registrations/retire"} and method == "POST":
             allowed = True
         if route == "/attachments" and method == "POST":
             from urllib.parse import parse_qs
@@ -677,7 +677,8 @@ def _agent_name(value: str) -> str:
     return name
 
 
-def _stored_token(path: Path) -> str | None:
+def _stored(path: Path) -> dict[str, Any] | None:
+    """A token file's record, or None when there is none; a file that holds no token is refused."""
     try:
         stored = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
@@ -685,16 +686,22 @@ def _stored_token(path: Path) -> str | None:
     except (OSError, ValueError):
         stored = None
     token = stored.get("token") if isinstance(stored, dict) else None
-    if not isinstance(token, str) or not AGENT_TOKEN.fullmatch(token):
+    if not isinstance(stored, dict) or not isinstance(token, str) or not AGENT_TOKEN.fullmatch(token):
         raise ValueError(f"{path} does not hold an agent token; move it aside and register again")
-    return token
+    return stored
 
 
-def _store_new_token(path: Path, name: str, token: str) -> None:
+def _stored_token(path: Path) -> str | None:
+    stored = _stored(path)
+    return None if stored is None else stored["token"]
+
+
+def _store_new_token(path: Path, name: str, token: str, **noted: str) -> None:
     """Store a token before it is first sent, so an uncertain registration can be retried.
 
     As in _publish_new_file, the rename (Windows) or hard link (elsewhere) fails rather
-    than replace a token another process stored under the same name.
+    than replace a token another process stored under the same name. `noted` keeps what the
+    token is for beside it, as a continuation does.
     """
     for directory in (path.parent.parent, path.parent):
         directory.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -702,7 +709,7 @@ def _store_new_token(path: Path, name: str, token: str) -> None:
     temporary = Path(name_)
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
-            json.dump({"name": name, "token": token}, stream)
+            json.dump({"name": name, "token": token, **noted}, stream)
             stream.flush()
             os.fsync(stream.fileno())
         try:
@@ -727,16 +734,19 @@ def _registering_directory() -> str | None:
     return directory if shows_as_written(directory) and len(directory.encode("utf-8")) <= 2000 else None
 
 
+def _chat_name(args: argparse.Namespace) -> str:
+    """The name an identity goes by in this chat: --name, or else the chat's ID."""
+    if args.name is not None:
+        return _agent_name(args.name)
+    try:
+        return _agent_name(args.chat)
+    except ValueError:
+        raise ValueError("This chat ID cannot name the agent; give --name as well") from None
+
+
 def register_command(client: AgentClient, args: argparse.Namespace, redact: list[str]) -> dict:
     """Register a new identity for this chat, with a token generated here and never printed."""
-    if args.name is None:
-        # The chat's ID names the identity unless it cannot be a name.
-        try:
-            name = _agent_name(args.chat)
-        except ValueError:
-            raise ValueError("This chat ID cannot name the agent; give --name as well") from None
-    else:
-        name = _agent_name(args.name)
+    name = _chat_name(args)
     path = _token_store(args, client.base) / (name + ".json")
     token = _stored_token(path)
     if token is None:
@@ -752,11 +762,97 @@ def register_command(client: AgentClient, args: argparse.Namespace, redact: list
         if exc.code == "token_revoked":
             raise ValueError(f"The credential stored for {name} was revoked; run `worklog agent --as {name} retire` to forget it before registering {name} again") from None
         if exc.code == "chat_mismatch":
-            raise ValueError(f"{name} is registered for another chat; register this chat under another --name") from None
+            raise ValueError(f"{name} is registered for another chat; to carry on that identity's work here, continue it with "
+                             f"`worklog agent register --chat CHAT_ID --continue {name}`, or register this chat under another --name") from None
         if exc.status is None or exc.status >= 500:
             raise AgentRequestError(f"{exc}; result uncertain; run the same register command again", exc.status) from None
         raise
     return {"name": name, **registration}
+
+
+def continue_command(args: argparse.Namespace, base: str, redact: list[str]) -> dict:
+    """Continue the identity registered here as --continue NAME in this chat, because its chat ended.
+
+    Worklog replaces that identity's token with a new one for this chat, generated and stored here
+    before it is first sent, as a registration's is, so an uncertain result can be retried. Until
+    Worklog confirms it, the new token waits under this chat's name (`NAME.next.json` while the name
+    stays the same) beside what it continues. A rerun finishes what an earlier one left: once the new
+    token works, the old name's file goes, or takes the new token when the name stays the same."""
+    if args.as_name is not None:
+        raise ValueError("--continue acts as the identity it continues; leave out --as")
+    if args.avatar is not None:
+        raise ValueError("A continued identity keeps its label and avatar; leave out --avatar")
+    old, new = _agent_name(args.continues), _chat_name(args)
+    store = _token_store(args, base)
+    old_path, new_path = store / f"{old}.json", store / f"{new}.json"
+    pending_path = store / f"{new}.next.json" if new == old else new_path
+
+    def registration(token: str) -> dict | None:
+        """The token's own registration, or None when Worklog refuses the token itself."""
+        redact.append(token)
+        try:
+            return AgentClient(base, token).request("GET", "/agent-registrations/self")
+        except AgentRequestError as exc:
+            if exc.status == 401 and exc.code == "authentication":
+                return None
+            raise
+
+    def finish(record: dict) -> dict:
+        if new == old:
+            os.replace(pending_path, old_path)
+        else:
+            old_path.unlink(missing_ok=True)
+        return {"name": new, **record}
+
+    revoked = (f"The credential stored for {old} was revoked; tell the person, and register this chat with --label only "
+               "if they agree")
+    pending = _stored(pending_path)
+    if pending is not None:
+        if pending.get("continues") != old:
+            raise ValueError(f"{new} names another agent here; continue this chat under another --name")
+        done = registration(pending["token"])
+        if done is not None and done["chatId"] == args.chat:
+            return finish(done)
+        if done is not None:
+            if new != old:
+                raise ValueError(f"{new} names {old}'s identity in chat {done['chatId']} already; continue this chat under another --name")
+            # An earlier run moved the identity to another chat under this name: carry on from there.
+            os.replace(pending_path, old_path)
+            pending = None
+        elif pending.get("chatId") != args.chat:
+            # An earlier run for another chat that never registered its token.
+            pending_path.unlink()
+            pending = None
+    old_token = _stored_token(old_path)
+    if old_token is None:
+        raise ValueError(f"No agent named {old} was registered for {base}; register this chat with --label instead")
+    current = registration(old_token)
+    if current is None:
+        raise ValueError(revoked)
+    if current["chatId"] == args.chat:
+        if pending is not None:
+            # Worklog refused its token above: it was never registered.
+            pending_path.unlink(missing_ok=True)
+        if new != old:
+            raise ValueError(f"{old} is registered with this chat already; carry on with --as {old}")
+        return {"name": old, **current}
+    token = pending["token"] if pending is not None else secrets.token_urlsafe(32)
+    if pending is None:
+        _store_new_token(pending_path, new, token, continues=old, chatId=args.chat)
+    redact.append(token)
+    directory = _registering_directory()
+    try:
+        record = AgentClient(base, old_token).request("POST", "/agent-registrations/continue", {
+            "token": token, "chatId": args.chat, **({"directory": directory} if directory else {})})
+    except AgentRequestError as exc:
+        if exc.status is None or exc.status >= 500:
+            raise AgentRequestError(f"{exc}; result uncertain; run the same register command again", exc.status) from None
+        # Refused: the new token was never registered.
+        pending_path.unlink(missing_ok=True)
+        if exc.status == 401 and exc.code == "authentication":
+            raise ValueError(revoked) from None
+        raise
+    return finish(record)
 
 
 def retire_command(client: AgentClient, args: argparse.Namespace) -> dict:
@@ -777,6 +873,9 @@ def agent_command(args: argparse.Namespace, port: int, redact: list[str]) -> Any
     if args.agent_action == "retire" and args.as_name is None:
         # WORKLOG_AGENT_TOKEN may be shared by other agents; only the person revokes it.
         raise ValueError("Retire an agent you registered with `worklog agent --as NAME retire`; revoke other credentials in Settings")
+    if args.agent_action == "register" and args.continues is not None:
+        # It acts with the stored token of the identity it continues, never WORKLOG_AGENT_TOKEN.
+        return continue_command(args, base, redact)
     token = None
     # An empty --as (say, from an unset variable) must fail, never fall back to WORKLOG_AGENT_TOKEN.
     if args.as_name is not None:
@@ -1536,13 +1635,19 @@ def parser() -> argparse.ArgumentParser:
                        help="Act as an agent registered here with `register` (default: WORKLOG_AGENT_TOKEN)")
     actions = agent.add_subparsers(dest="agent_action", required=True)
     actions.add_parser("guide", help="Print the agent guide; needs no credential or running Worklog")
-    register = actions.add_parser("register", help="Register a new agent identity for your chat, from the directory you work in, which "
-                                                   "Worklog records; its token is generated and kept here, never printed")
+    register = actions.add_parser("register", help="Register a new agent identity for your chat, or continue the identity of a chat that "
+                                                   "ended, from the directory you work in, which Worklog records; its token is generated "
+                                                   "and kept here, never printed")
     register.add_argument("--chat", required=True, metavar="CHAT_ID",
                           help="Your chat's ID: a Claude Code session ID, a Claude desktop local_ ID or a Codex thread ID. "
                                "Your runs report it, and the work they report tracks your chat")
     register.add_argument("--name", help="Local name for --as NAME afterwards (default: the chat ID)")
-    register.add_argument("--label", required=True, help="How the new agent appears in Worklog")
+    identity = register.add_mutually_exclusive_group(required=True)
+    identity.add_argument("--label", help="How the new agent appears in Worklog")
+    identity.add_argument("--continue", dest="continues", metavar="NAME",
+                          help="Continue the identity registered here as NAME, whose chat ended before its work, in this chat: "
+                               "it keeps its label, avatar, roles, ties, tickets and proposals, and this chat takes over the "
+                               "work and steps its old chat was tracked on")
     register.add_argument("--avatar", help="An available name from `discussions avatars`")
     actions.add_parser("retire", help="Revoke the credential of the agent given with --as and forget its token")
     _discussion_parser(actions)

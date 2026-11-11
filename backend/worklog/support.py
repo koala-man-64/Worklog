@@ -183,7 +183,9 @@ def for_owner(c: sqlite3.Connection, owner_type: str, owner_id: str) -> dict:
     return result
 
 
-def apply(c: sqlite3.Connection, actor: dict, action: str, p: dict) -> dict:
+def apply(c: sqlite3.Connection, actor: dict, action: str, p: dict, *, moved_to: dict | None = None) -> dict:
+    """Create or change a supporting record. `moved_to` is for continue_chats alone: the tracked chat
+    that takes over the steps a chat.update takes off this one, which each step's history names."""
     kind, verb = action.split(".", 1)
     table = {
         "note": "notes",
@@ -277,7 +279,7 @@ def apply(c: sqlite3.Connection, actor: dict, action: str, p: dict) -> dict:
             (val["id"], val["ownerType"], val["ownerId"], val["chatId"], val["title"], val["createdDate"], 0, val["revision"] + 1, val["createdAt"], now(),
              val["provider"], val["model"], json.dumps(val["repos"])),
         )
-        _assign_steps(c, actor, val, previous, assigned)
+        _assign_steps(c, actor, val, previous, assigned, moved_to)
         if before is not None and before["chatId"] != val["chatId"]:
             # Runs that reported the old ID are no longer tied to this chat.
             expire_pending(c, "chat_changed", chat_id=val["id"])
@@ -510,13 +512,14 @@ def _chat_step_ids(c: sqlite3.Connection, chat: dict, kept: builtins.list[str]) 
 
 
 def _assign_steps(c: sqlite3.Connection, actor: dict, chat: dict,
-                  previous: builtins.list[str], assigned: builtins.list[str]) -> None:
-    # Each step's own history records which chats took it on or let it go.
+                  previous: builtins.list[str], assigned: builtins.list[str], moved_to: dict | None = None) -> None:
+    # Each step's own history records which chats took it on or let it go: a chat taken off a step
+    # names no successor (_taken_off counts only those), one that continued elsewhere names its new chat.
     summary = {k: chat[k] for k in ("id", "chatId", "title", "provider", "model")}
     for step_id in previous:
         if step_id not in assigned:
             c.execute("DELETE FROM chat_steps WHERE chat_id=? AND step_id=?", (chat["id"], step_id))
-            event(c, actor, "chat.unassign", step_id, summary, None)
+            event(c, actor, "chat.unassign", step_id, summary, moved_to)
     stamp = now()
     for step_id in assigned:
         if step_id not in previous:
@@ -528,6 +531,92 @@ def _assign_steps(c: sqlite3.Connection, actor: dict, chat: dict,
 CHAT_OWNERS = {"item": ("work_items", "work item"), "roadmap": ("roadmaps", "roadmap")}
 
 
+def _lineage(c: sqlite3.Connection, record_id: str) -> builtins.list[str]:
+    """A tracked chat's record and every record it continues (continue_chats), however far back."""
+    found, pending = [record_id], [record_id]
+    while pending:
+        for (before,) in c.execute("SELECT json_extract(before_json,'$.id') FROM events WHERE entity_id=? AND kind='chat.continue'",
+                                   (pending.pop(),)).fetchall():
+            if before and before not in found:
+                found.append(before)
+                pending.append(before)
+    return found
+
+
+def _taken_off(c: sqlite3.Connection, record_id: str, step_ids: builtins.list[str]) -> builtins.list[str]:
+    """The steps of step_ids that this tracked chat, or one it continues, was taken off.
+
+    Only an update to a chat takes it off a step, the person's own or a proposal they let apply
+    (_assign_steps), and each records chat.unassign in the step's history with nothing after it. A
+    continuation also takes steps off the old chat, but its chat.unassign names the chat that took
+    them over, so it never counts: the identity may come back to that chat later."""
+    if not step_ids:
+        return []
+    lineage = _lineage(c, record_id)
+    marks = ",".join("?" for _ in lineage)
+    return [step_id for step_id in step_ids if c.execute(
+        "SELECT 1 FROM events WHERE entity_id=? AND kind='chat.unassign' AND json_type(after_json)='null' "
+        f"AND json_extract(before_json,'$.id') IN ({marks})", (step_id, *lineage)).fetchone()]
+
+
+def continue_chats(c: sqlite3.Connection, actor: dict, old_chat: str, new_chat: str) -> builtins.list[dict]:
+    """The chat an identity continues in takes over where its old chat is tracked
+    (registration.continue_identity).
+
+    On each active work item or roadmap that tracks the old chat, the new chat is tracked too, under
+    the old one's title, provider, model and active repositories, unless the person archived the new
+    chat there. It takes over the old chat's steps that are still in the plan, apart from any the new
+    chat was taken off. The old chat stays tracked, with its transcript, its GitHub references and any
+    step the new one did not take. What the person archived stays out: an archived record of the old
+    chat is not carried over, and work they archived takes no new chat. Each new record notes the one
+    it continues (chat.continue), so a step the person took the old chat off stays off the new one
+    (_taken_off), and each step it takes names it in the old chat's chat.unassign, so moving the step
+    never reads as taking the old chat off it. The records belong to the chat, not to one identity, so
+    they move even when another identity registered with the old chat. Returns the new chat's records
+    with their owners' titles and their steps' titles, each with `created`, once each: the person may
+    have tracked the old chat twice on one record."""
+    result: dict[str, dict] = {}
+    for old in c.execute("SELECT * FROM agent_chats WHERE chat_id=? AND archived=0 ORDER BY created_at,id", (old_chat,)).fetchall():
+        kind, owner_id = old["owner_type"], old["owner_id"]
+        owner = c.execute(f"SELECT title,archived FROM {CHAT_OWNERS[kind][0]} WHERE id=?", (owner_id,)).fetchone()
+        if owner is None or owner["archived"]:
+            continue
+        new = c.execute("SELECT * FROM agent_chats WHERE owner_type=? AND owner_id=? AND chat_id=? ORDER BY archived,created_at,id",
+                        (kind, owner_id, new_chat)).fetchone()
+        if new is not None and new["archived"]:
+            continue
+        steps = chat_steps(c, [old["id"]])[old["id"]]
+        in_plan = {r["id"] for r in rows_in(c, "SELECT id,roadmap_id,retired FROM steps WHERE id IN ({})", steps)
+                   if r["roadmap_id"] == owner_id and not r["retired"]}
+        held = chat_steps(c, [new["id"]])[new["id"]] if new is not None else []
+        refused = set(_taken_off(c, new["id"], [s for s in steps if s in in_plan and s not in held])) if new is not None else set()
+        moving = [s for s in steps if s in in_plan and s not in refused]
+        if new is None:
+            repositories = [r["id"] for r in rows_in(c, "SELECT id,archived,merged_into FROM repositories WHERE id IN ({})",
+                                                     linked_repositories(c, "chat", [old["id"]]).get(old["id"], []))
+                            if not r["archived"] and r["merged_into"] is None]
+            record = apply(c, actor, "chat.create", {"ownerType": kind, "ownerId": owner_id, "chatId": new_chat, "title": old["title"],
+                                                     "provider": old["provider"], "model": old["model"], "stepIds": moving,
+                                                     "repositoryIds": repositories})
+        elif any(s not in held for s in moving):
+            record = apply(c, actor, "chat.update", {"id": new["id"], "revision": new["revision"],
+                                                     "stepIds": [*held, *(s for s in moving if s not in held)]})
+        else:
+            record = chat_records(c, [new])[0]
+        summary = ("id", "chatId", "title", "provider", "model")
+        successor = {k: record[k] for k in summary}
+        if moving:
+            apply(c, actor, "chat.update", {"id": old["id"], "revision": old["revision"], "stepIds": [s for s in steps if s not in moving]},
+                  moved_to=successor)
+        event(c, actor, "chat.continue", record["id"], {k: support_record(old)[k] for k in summary}, successor)
+        titles = {r["id"]: r["title"] for r in rows_in(c, "SELECT id,title FROM steps WHERE id IN ({})", record["stepIds"])}
+        created = new is None or result.get(record["id"], {}).get("created", False)
+        result[record["id"]] = {"id": record["id"], "ownerType": kind, "ownerId": owner_id, "ownerTitle": owner["title"],
+                                "title": record["title"], "steps": [{"id": s, "title": titles[s]} for s in record["stepIds"]],
+                                "created": created}
+    return builtins.list(result.values())
+
+
 def track_own_chat(c: sqlite3.Connection, actor: dict, p: dict) -> dict:
     """An agent tracks the chat it registered with on a work item or roadmap, and on steps of that
     roadmap, without a proposal: the person asked for agents to do this themselves.
@@ -536,7 +625,8 @@ def track_own_chat(c: sqlite3.Connection, actor: dict, p: dict) -> dict:
     (coordination._track_chat), so an agent cannot fill work with chats by naming them. Where that
     chat is tracked already, it takes on the steps named and nothing else changes. What the person
     decided stays: a chat they archived there stays archived, and a step it was taken off, by them
-    or by a proposal they let apply, is not assigned again. Returns the chat with `created`."""
+    or by a proposal they let apply, is not assigned again, nor one they took a chat it continues
+    off (continue_chats). Returns the chat with `created`."""
     if actor["kind"] != "agent":
         raise AppError(403, "forbidden", "Agents track their own chats here; add a chat under Agent chats")
     agent = communication_actor(c, actor)
@@ -566,11 +656,7 @@ def track_own_chat(c: sqlite3.Connection, actor: dict, p: dict) -> dict:
                        {"id": row["id"]})
     current = chat_steps(c, [row["id"]])[row["id"]]
     added = [step_id for step_id in step_ids if step_id not in current]
-    # Only an update to the chat takes it off a step, the person's own or a proposal they let apply
-    # (_assign_steps), and each records chat.unassign in the step's history.
-    taken_off = [step_id for step_id in added if c.execute(
-        "SELECT 1 FROM events WHERE entity_id=? AND kind='chat.unassign' AND json_extract(before_json,'$.id')=?",
-        (step_id, row["id"])).fetchone()]
+    taken_off = _taken_off(c, row["id"], added)
     if taken_off:
         raise AppError(403, "forbidden", "Your chat was taken off that step; ask the person to assign it again",
                        {"stepIds": taken_off})

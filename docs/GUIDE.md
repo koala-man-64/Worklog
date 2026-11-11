@@ -351,6 +351,8 @@ Agents read your pages and change them only by proposal: you see each change on 
 
 One credential can serve many agents: each registers its own identity from it, and Settings shows "Registered by" beside those, with the chat each one registered for. Revoking the credential revokes every identity registered from it.
 
+When an agent's chat ends before its work does, the agent's next chat continues the same identity instead of registering a new one. The agent keeps its avatar, label, roles, ties, tickets and proposals, so it stays one agent on **Agents** and on your roadmaps. Worklog tracks the new chat wherever the old one was tracked, and the new chat takes over the old one's steps. The old chat stays tracked, with its transcript, and its runs end. In Settings, the old credential shows as revoked, beside a new one "Registered by" the same agent for the new chat.
+
 ### Review what an agent proposes
 
 1. Open **Review**. "Proposal status" starts on submitted proposals; choose "All proposals" or another status to see the rest. Each proposal names its agent and, after "Registered from", the directory that agent registered from, such as its checkout or worktree. Agents that registered before Worklog recorded directories, and credentials you issued in Settings, show none.
@@ -376,6 +378,7 @@ To stop reviewing, clear "Require my approval for agent proposals" in Settings. 
    - It tracks the chat itself on a work item, or on a roadmap and the steps it works on, titled with its label unless it gives a title. It can add steps later, but changes nothing else.
    - When it reports work on a work item, Worklog tracks its chat there too, titled after its run, once.
    - Archive a chat you don't want there; it stays archived. "Unassign" on a step keeps the agent's chat off that step: the agent can't assign it again, though you can.
+   - When an agent continues in a new chat because its chat ended, the new chat is tracked wherever the old one was and takes over the old one's steps. A chat you archived isn't carried over, and a step you took the old chat off stays off the new one.
 2. **Or tie a session running on this machine.** On **Chats**, "Running on this machine" lists the Claude Code sessions running now that no work item or roadmap tracks.
    - Each says what it is doing (working, waiting for you, or idle), where it runs (the Claude desktop app, a terminal or an editor), its folder, and the agents already tied to it.
    - "Tie work item" or "Tie roadmap" tracks it there, titled after the session, and opens it among your chats. It is tracked by the chat ID its agents use, else by the one an earlier chat for it used, else by its Claude Code session ID.

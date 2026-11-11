@@ -9958,6 +9958,62 @@
         }
       }
     },
+    "/api/v1/agent-registrations/self": {
+      "get": {
+        "summary": "Registration Self",
+        "operationId": "registration_self_api_v1_agent_registrations_self_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Registration"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agent-registrations/continue": {
+      "post": {
+        "summary": "Continue Agent",
+        "operationId": "continue_agent_api_v1_agent_registrations_continue_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentContinuation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Continuation"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/agent-registrations/retire": {
       "post": {
         "summary": "Retire Agent",
@@ -10764,6 +10820,44 @@
           "offset"
         ],
         "title": "AgentActivity"
+      },
+      "AgentContinuation": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 43,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Token"
+          },
+          "chatId": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Chatid"
+          },
+          "directory": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Directory"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "token",
+          "chatId"
+        ],
+        "title": "AgentContinuation",
+        "description": "The calling identity continues in another chat; its label and avatar stay its own."
       },
       "AgentCredential": {
         "properties": {
@@ -13849,6 +13943,248 @@
         ],
         "title": "ContextTag",
         "description": "A record a discussion is tagged with, or that a role in it brings in, as record_kinds.summary\ngives it, with who added the tag and when. A missing record has a null title."
+      },
+      "Continuation": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "agentId": {
+            "type": "string",
+            "title": "Agentid"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          },
+          "chatId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chatid"
+          },
+          "registeredBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CredentialSponsor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "directory": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Directory"
+          },
+          "continued": {
+            "$ref": "#/components/schemas/Continued"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "agentId",
+          "label",
+          "avatar",
+          "chatId",
+          "registeredBy",
+          "directory",
+          "continued"
+        ],
+        "title": "Continuation",
+        "description": "The new credential of an identity that continues in another chat."
+      },
+      "Continued": {
+        "properties": {
+          "credentialId": {
+            "type": "string",
+            "title": "Credentialid"
+          },
+          "chatId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chatid"
+          },
+          "runsEnded": {
+            "type": "integer",
+            "title": "Runsended"
+          },
+          "chats": {
+            "items": {
+              "$ref": "#/components/schemas/ContinuedChat"
+            },
+            "type": "array",
+            "title": "Chats"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/ContinuedRole"
+            },
+            "type": "array",
+            "title": "Roles"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "credentialId",
+          "chatId",
+          "runsEnded",
+          "chats",
+          "roles"
+        ],
+        "title": "Continued",
+        "description": "What continuing in the new chat changed, and the roles that stay the identity's."
+      },
+      "ContinuedChat": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "ownerType": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap"
+            ],
+            "title": "Ownertype"
+          },
+          "ownerId": {
+            "type": "string",
+            "title": "Ownerid"
+          },
+          "ownerTitle": {
+            "type": "string",
+            "title": "Ownertitle"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/ContinuedStep"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "created": {
+            "type": "boolean",
+            "title": "Created"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "ownerType",
+          "ownerId",
+          "ownerTitle",
+          "title",
+          "steps",
+          "created"
+        ],
+        "title": "ContinuedChat",
+        "description": "Where the new chat is tracked now, with the steps it holds there."
+      },
+      "ContinuedRole": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "contextType": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap",
+              "step"
+            ],
+            "title": "Contexttype"
+          },
+          "contextId": {
+            "type": "string",
+            "title": "Contextid"
+          },
+          "contextTitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contexttitle"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "contextType",
+          "contextId",
+          "contextTitle"
+        ],
+        "title": "ContinuedRole",
+        "description": "A responsibility role the identity owns, on the record its context names."
+      },
+      "ContinuedStep": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "ContinuedStep"
       },
       "CoordinationUpdate": {
         "properties": {

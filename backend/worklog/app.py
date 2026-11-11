@@ -890,7 +890,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     install_release_routes(app, db, apply)
     install_reminder_routes(app, db, mutate)
     install_discussion_routes(app, db, discussion_mutate)
-    install_registration_routes(app, db)
+    install_registration_routes(app, db, support.continue_chats)
     install_registry_routes(app, db, transcripts)
     dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
     if (dist / "assets").is_dir():

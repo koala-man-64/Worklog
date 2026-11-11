@@ -2367,6 +2367,53 @@ class Registration(Answer):
     directory: str | None
 
 
+class ContinuedStep(Answer):
+    id: str
+    title: str
+
+
+class ContinuedChat(Answer):
+    """Where the new chat is tracked now, with the steps it holds there."""
+
+    id: str
+    ownerType: Literal["item", "roadmap"]
+    ownerId: str
+    ownerTitle: str
+    title: str
+    steps: list[ContinuedStep]
+    # False where the new chat was tracked already.
+    created: bool
+
+
+class ContinuedRole(Answer):
+    """A responsibility role the identity owns, on the record its context names."""
+
+    id: str
+    label: str
+    contextType: Literal["item", "roadmap", "step"]
+    contextId: str
+    # Null for a record that no longer resolves.
+    contextTitle: str | None
+
+
+class Continued(Answer):
+    """What continuing in the new chat changed, and the roles that stay the identity's."""
+
+    # The credential that asked; it and any other live credential of the identity are revoked.
+    credentialId: str
+    # The chat the identity worked in before; null when it registered before chats were recorded.
+    chatId: str | None
+    runsEnded: int
+    chats: list[ContinuedChat]
+    roles: list[ContinuedRole]
+
+
+class Continuation(Registration):
+    """The new credential of an identity that continues in another chat."""
+
+    continued: Continued
+
+
 class Retirement(Answer):
     """An agent's own credential, retired, with how many credentials it had registered went with it."""
 
