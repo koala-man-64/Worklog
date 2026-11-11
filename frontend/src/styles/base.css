@@ -1240,10 +1240,11 @@ section:not(.draft) > h3 {
   background: transparent;
   border-style: dashed;
 }
-/* Toggle filters: Discussions' threads, the Work list's states and Usage's windows. The Guide's views are links in the same look, since each has an address. */
+/* Toggle filters: Discussions' threads, the Work list's states, and Usage's windows and whose uses it counts. The Guide's views are links in the same look, since each has an address. */
 .thread-filter,
 .status-toggles,
-.window-toggles {
+.window-toggles,
+.actor-toggles {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -1251,7 +1252,8 @@ section:not(.draft) > h3 {
 .thread-filter button,
 .status-toggles button,
 .status-toggles .button,
-.window-toggles button {
+.window-toggles button,
+.actor-toggles button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1262,7 +1264,8 @@ section:not(.draft) > h3 {
 .thread-filter button[aria-pressed="true"],
 .status-toggles button[aria-pressed="true"],
 .status-toggles .button[aria-current],
-.window-toggles button[aria-pressed="true"] {
+.window-toggles button[aria-pressed="true"],
+.actor-toggles button[aria-pressed="true"] {
   border-color: var(--teal);
   background: var(--teal-wash);
   color: var(--teal);

@@ -14,6 +14,7 @@ const report = (fields: Partial<UsageReport>): UsageReport => ({
   version: "1.0.0",
   recordedSince: "2026-11-02",
   window: { days: 7, from: "2026-11-02", to: "2026-11-08" },
+  actor: null,
   daily: [],
   pages: { used: [], unused: [] },
   calls: { used: [], unused: [] },

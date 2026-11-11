@@ -510,6 +510,9 @@ class SettingsUpdate(Command):
 Page = Literal["today", "work", "tickets", "reminders", "roadmaps", "releases", "repositories", "people",
                "resources", "agents", "chats", "discussions", "review", "settings", "usage", "guide",
                "agent-guide"]
+# Who made a use the usage counts keep (usage.py): the person or an agent. GET /usage reports
+# either alone on asking.
+Actor = Literal["person", "agent"]
 
 
 class PageView(Command):

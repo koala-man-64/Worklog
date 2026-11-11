@@ -35,7 +35,7 @@ test("each page the person opens counts once, by its name alone", async ({
   await expect.poll(() => views).toEqual(["work", "today", "people"]);
 });
 
-test("the Usage page shows the pages just opened, and opens an area onto its calls", async ({
+test("the Usage page shows the pages just opened, opens an area onto its calls, and counts yours or agents' uses alone on asking", async ({
   page,
 }) => {
   const counted = page.waitForResponse(
@@ -72,5 +72,39 @@ test("the Usage page shows the pages just opened, and opens an area onto its cal
   await area.locator("summary").click();
   await expect(
     area.getByRole("row", { name: /^GET \/work-items/ }).first(),
+  ).toBeVisible();
+  await expect(
+    area.getByRole("columnheader", { name: "Agents", exact: true }),
+  ).toBeVisible();
+  const answered = (actor: string) =>
+    page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return (
+        url.pathname === "/api/v1/usage" &&
+        url.searchParams.get("actor") === actor
+      );
+    });
+  // Your uses alone: agents' column goes once the answer comes.
+  const yours = answered("person");
+  await page.getByRole("button", { name: "You", exact: true }).click();
+  expect((await yours).status()).toBe(200);
+  await expect(
+    area.getByRole("columnheader", { name: "Agents", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    area.getByRole("columnheader", { name: "You", exact: true }),
+  ).toBeVisible();
+  // Agents' alone: your column goes, and so do page views, which only you make.
+  const theirs = answered("agent");
+  await page.getByRole("button", { name: "Agents", exact: true }).click();
+  expect((await theirs).status()).toBe(200);
+  await expect(
+    area.getByRole("columnheader", { name: "You", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    area.getByRole("columnheader", { name: "Agents", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Only you open pages, so agents have no page views."),
   ).toBeVisible();
 });

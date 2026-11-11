@@ -8763,6 +8763,8 @@ export interface components {
             /** Recordedsince */
             recordedSince: string | null;
             window: components["schemas"]["UsageWindow"];
+            /** Actor */
+            actor: ("person" | "agent") | null;
             /** Daily */
             daily: components["schemas"]["UsageDay"][];
             pages: components["schemas"]["UsedPages"];
@@ -9114,6 +9116,8 @@ export interface operations {
             query?: {
                 /** @description How many days to today it covers */
                 days?: number;
+                /** @description Whose uses alone: the person's or agents'; everyone's when left out */
+                actor?: ("person" | "agent") | null;
             };
             header?: never;
             path?: never;
