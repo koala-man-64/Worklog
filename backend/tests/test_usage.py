@@ -289,11 +289,11 @@ def test_the_report_shows_what_was_used_in_the_window_and_what_nothing_used(tmp_
     log = Usage(path, lambda: "America/Chicago", clock)
     assert log.describe([("api", "GET /work-items", policy.READ), ("api", "POST /work-items", policy.HUMAN),
                          ("api", "POST /roadmaps/{identity}/restore", policy.HUMAN),
-                         ("page", "today", policy.HUMAN), ("page", "releases", policy.HUMAN), ("page", "work", policy.HUMAN)],
+                         ("page", "today", policy.HUMAN), ("page", "people", policy.HUMAN), ("page", "work", policy.HUMAN)],
                         "9.9.9")
     # Used before the window only.
     log.record("api", "POST /roadmaps/{identity}/restore", "person")
-    log.record("page", "releases", "person")
+    log.record("page", "people", "person")
     assert log.flush()
     clock.now = datetime(2026, 11, 6, 15, tzinfo=UTC)
     for _ in range(3):
@@ -311,7 +311,7 @@ def test_the_report_shows_what_was_used_in_the_window_and_what_nothing_used(tmp_
     assert result["window"] == {"days": 7, "from": "2026-11-02", "to": "2026-11-08"}
     assert result["pages"] == {
         "used": [{"page": "today", "views": 2, "lastUsed": "2026-11-06"}, {"page": "work", "views": 1, "lastUsed": "2026-11-06"}],
-        "unused": [{"page": "releases", "lastUsed": "2026-10-01"}]}
+        "unused": [{"page": "people", "lastUsed": "2026-10-01"}]}
     assert result["calls"] == {
         "used": [{"call": "GET /work-items", "scope": policy.READ, "person": 1, "agent": 3, "failed": 1, "lastUsed": "2026-11-06"},
                  {"call": "GET /retired", "scope": None, "person": 1, "agent": 0, "failed": 0, "lastUsed": "2026-11-06"}],
@@ -322,7 +322,7 @@ def test_the_report_shows_what_was_used_in_the_window_and_what_nothing_used(tmp_
                                 "changes": {"person": 0, "agent": 0}, "failed": 1}]
     # A wider window takes in the older uses; today defaults to Worklog's, from the file.
     wide = report(path, 3650)
-    assert {row["page"] for row in wide["pages"]["used"]} == {"today", "work", "releases"}
+    assert {row["page"] for row in wide["pages"]["used"]} == {"today", "work", "people"}
     assert [row["call"] for row in wide["calls"]["unused"]] == ["POST /work-items"]
     assert wide["daily"][0] == {"day": "2026-10-01", "pageViews": 1, "reads": {"person": 0, "agent": 0},
                                 "changes": {"person": 1, "agent": 0}, "failed": 0}

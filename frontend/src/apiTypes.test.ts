@@ -11,8 +11,8 @@ it("reads each route's answer and body from the generated schema", () => {
   expectTypeOf<Answer<"/api/v1/tickets/{ref}", "patch">>().toEqualTypeOf<
     Schema["TicketListed"]
   >();
-  expectTypeOf<Answer<"/api/v1/releases", "post">>().toEqualTypeOf<
-    Schema["ReleaseFields"]
+  expectTypeOf<Answer<"/api/v1/resources", "post">>().toEqualTypeOf<
+    Schema["ResourcePage"]
   >();
   expectTypeOf<Body<"/api/v1/tickets/{ref}", "patch">>().toEqualTypeOf<
     Schema["TicketUpdate"]

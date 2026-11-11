@@ -66,6 +66,7 @@ The files that Phase 0 deletes outright hold about 9,100 of the codebase's 77,00
 | R3 | How does the chat that carries on an ended chat's work get back what that chat owned? Agents' chats often end before their work does, and the next one registered a new identity that held none of the old one's steps or roles. | It continues the old chat's identity (`worklog agent register --continue NAME`). A new credential for the new chat replaces the old one, as rotation does, so the identity's roles, ties, tickets and proposals stay with it. The new chat takes over where the old one was tracked, with its steps still in the plan. A chat or work the person archived isn't carried over, and a step they took the old chat off stays off the new one. No schema change. | Outside the plan | 2026-11-10, Rudy asked for it; Claude chose the mechanism while building it |
 | R4 | Do the end-of-day reflection's two columns go with it? | No. `days.reflection` and `days.reflection_revision` stay, unread and unwritten, so step 0.2 needs no schema change: K8 kept the repository labels' columns, and the coordination `handoff` kind kept its CHECK, for the same reason. Dropping them adds no integrity, and their way back would have to rebuild `days`, which `daily_entries` references, since `reflection` sits mid-table. | 0.2 | 2026-11-10, Claude, while building 0.2 |
 | R5 | Where does a roadmap's "Agents" list come from? It listed only ties set by hand, so a roadmap with agents at work on its steps read "No agents tied". | From the agents' work: every agent whose reported work, status updates, roles, discussion messages or tracked chats tie it to the roadmap, now or before. The rule is the one that names the roadmap on the agent's card on Agents (`AgentRegistry.roster` reuses it), so the two agree. A step lists the agents on it and on its sub-steps. Nobody ties agents there by hand any more; a tie to a roadmap or a step shows only on the agent's page until 0.6 removes ties. No schema change. | Outside the plan; 0.6 | 2026-11-11, Rudy asked for it; Claude chose the rule and the steps' lists while building it |
+| R6 | Do the discussion tag CHECKs lose `release` when Releases go? | No. `discussion_contexts` and `discussion_change_contexts` keep `release` in their CHECKs, so step 0.5 rebuilds no table that holds live data, as R4 kept columns and the coordination `handoff` kind kept its CHECK. The v28 upgrade deletes every release tag and the feed's record of it, the API and the agent command line no longer take one, and `worklog doctor` reports one written since as a type its table never takes. A later schema-bumping step can still drop `release` from the CHECKs. | 0.5 | 2026-11-11, Claude, while building 0.5 |
 
 ## Open questions
 
@@ -126,11 +127,13 @@ Done as schema v27 (`migrations.drop_reminders`): the table goes with its two in
 
 #### 0.5 · Remove Releases
 
-Status: Not started
+Status: Merged · Branch: `claude/remove-releases` · PR: [#188](https://github.com/koala-man-64/Worklog/pull/188)
 
 The Releases page, "Add to release" and the "Releases" sections on work items, roadmaps and steps, release checks, `releases.py` and `release_api.py`, the `release.*` proposal operations, a release as a discussion tag (no discussion has one), releases in search, and the `releases`, `release_contents` and `release_checks` tables. The files it owns hold about 3,200 lines. GitHub references stay; only the release's "Changes" view, which gathered them, goes. This changes what agents can call.
 
 Why: no release was ever made.
+
+Done as schema v28 (`migrations.drop_releases`): the three tables go with their indexes, and so do the search rows of releases and their checks and every discussion tag of a release, with the feed's record of it. The tag CHECKs keep `release` (R5). The work items, roadmaps, steps and GitHub references a release held stay, and so does a release's history. The `release.*` and `check.*` proposal operations, the agent's `releases` commands, the work context's `releases`, and releases in search and as a tag kind are gone, which changes what agents can read and call. `test_release_removal.py` pins the upgrade, the way back, the routes' 404s, every refused input, the agent command line and the doctor's report of a release tag; the v19 test keeps its way back, and the older upgrade tests say that v28 drops the tables.
 
 #### 0.6 · Remove agent ties
 
@@ -239,3 +242,4 @@ Why: adding, moving or retiring one step takes a whole-plan save today, which is
 - 2026-11-10: R3 recorded, outside the plan: the chat that carries on an ended chat's work continues its identity, with its roles and the steps its chat was on. It changes what agents can call: `register --continue` and `GET /agent-registrations/self`.
 - 2026-11-10: R4 recorded while building step 0.2: the reflection's two columns stay, so 0.2 has no schema change.
 - 2026-11-11: R5 recorded, outside the plan: a roadmap's and its steps' "Agents" list the agents whose work ties them there, instead of ties. It changes nothing agents call or read.
+- 2026-11-11: R6 recorded while building step 0.5: the discussion tag CHECKs keep `release`, so 0.5 rebuilds no table.

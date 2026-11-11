@@ -131,7 +131,6 @@ function contextHref(
   context: ContextRef,
   roadmapId: string | undefined,
 ): string | undefined {
-  if (context.type === "release") return "#releases/" + context.id;
   if (context.type === "step" && !roadmapId) return undefined;
   if (!(TIE_TYPES as readonly string[]).includes(context.type))
     return undefined;

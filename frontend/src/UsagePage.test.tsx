@@ -35,7 +35,7 @@ const report: UsageReport = {
       { page: "work", views: 1, lastUsed: "2026-11-05" },
     ],
     unused: [
-      { page: "releases", lastUsed: "2026-09-30" },
+      { page: "roadmaps", lastUsed: "2026-09-30" },
       { page: "people", lastUsed: null },
     ],
   },
@@ -278,8 +278,8 @@ it("shows the window's figures, its days and its pages, nothing opened included"
   expect(pages.map((page) => page.textContent)).toEqual([
     "Today3",
     "Work1",
-    // In sidebar order: Releases is in Plan, People in Directory.
-    `ReleasesNot opened since ${formatDay("2026-09-30")}`,
+    // In sidebar order: Roadmaps is in Plan, People in Directory.
+    `RoadmapsNot opened since ${formatDay("2026-09-30")}`,
     "PeopleNever opened",
   ]);
   expect(screen.getByText("C:/Worklog/usage.sqlite3")).toBeInTheDocument();

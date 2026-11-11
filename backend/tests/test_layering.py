@@ -29,12 +29,12 @@ ORDER = [
     "coordination", "registration", "registry",
     # Schema history, proposals, then backup and restore, offline compaction and the read-only doctor.
     "migrations", "proposals", "recovery", "compaction", "doctor",
-    # Work: the shapes the domains share, supporting records, work items, people, agent ties, releases,
-    # and the router.
-    "records", "support", "items", "people", "agent_links", "releases", "services",
+    # Work: the shapes the domains share, supporting records, work items, people, agent ties, and the
+    # router.
+    "records", "support", "items", "people", "agent_links", "services",
     # HTTP: the routes of each domain, the request guard in front of them all, the usage counts kept
     # inside it, and the app.
-    "agent_link_api", "chat_message_api", "coordination_api", "discussion_api", "registry_api", "release_api",
+    "agent_link_api", "chat_message_api", "coordination_api", "discussion_api", "registry_api",
     "resource_api", "ticket_api", "guard", "usage", "app",
     # The command line.
     "cli",

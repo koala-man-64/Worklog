@@ -9,7 +9,6 @@ import sqlite3
 import uuid
 import zipfile
 from contextlib import closing
-from pathlib import Path
 
 import pytest
 import sealed
@@ -19,8 +18,9 @@ from worklog import cli, migrations, recovery
 from worklog.db import Database
 from worklog.doctor import doctor_database
 
-# docs/UPGRADING.md: from version 27 to version 26, with Worklog stopped and after a manual backup.
-# The table and its indexes as version 26 had them.
+# From version 27 to version 26, with Worklog stopped and after a manual backup: the table and its
+# indexes as version 26 had them. docs/UPGRADING.md gave this way back while version 27 was the
+# latest; older upgrade tests now build their databases with it.
 WAY_BACK = """\
 CREATE TABLE reminders(id TEXT PRIMARY KEY,title TEXT NOT NULL,due_date TEXT NOT NULL,due_time TEXT,state TEXT NOT NULL DEFAULT 'open' CHECK(state IN('open','done')),target_type TEXT CHECK(target_type IN('item','ticket','roadmap','person','repository','chat')),target_id TEXT,author_id TEXT NOT NULL,author_label TEXT NOT NULL,author_kind TEXT NOT NULL CHECK(author_kind IN('agent','human')),archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL,done_at TEXT,notes TEXT NOT NULL DEFAULT '',CHECK((target_type IS NULL)=(target_id IS NULL)));
 CREATE INDEX reminders_due ON reminders(archived,state,due_date,due_time);
@@ -31,7 +31,10 @@ STAMP = "2026-11-01T00:00:00+00:00"
 
 
 def to_v26(path):
-    """Take a current database back to v26 the documented way."""
+    """Take a current database back to v26 the documented way: to version 27 first."""
+    from test_release_removal import to_v27
+
+    to_v27(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK)
 
@@ -87,9 +90,11 @@ def test_the_upgrade_drops_every_reminder_and_its_search_row_and_changes_no_othe
     assert after["search_keys"] == [row for row in before["search_keys"] if row[2] != "reminder"]
     assert (found(database, "certificate"), found(database, "vendor"), found(database, "release")) == (0, 0, 1)
     # Every other table keeps every row, the reminder's history among them; the index's own tables
-    # change with its rows.
-    kept = [table for table in before if table != "reminders" and not table.startswith("search_")]
-    assert set(after) == set(before) - {"reminders"}
+    # change with its rows. v28, which the upgrade also runs, drops the release tables, empty here.
+    dropped = {"reminders", "releases", "release_contents", "release_checks"}
+    assert [before[table] for table in sorted(dropped - {"reminders"})] == [[], [], []]
+    kept = [table for table in before if table not in dropped and not table.startswith("search_")]
+    assert set(after) == set(before) - dropped
     assert {table: after[table] for table in kept} == {table: before[table] for table in kept}
     assert [row[2] for row in after["events"] if row[0] == "reminder-event"] == ["reminder.create"]
     # Nothing is left for the doctor to find, and an export holds no reminders.
@@ -112,8 +117,6 @@ def test_the_way_back_gives_v26s_exact_shape_and_upgrades_again(tmp_path):
     with closing(sqlite3.connect(database)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
         assert recovery._schema_signature(conn) == sealed.current()
-    # The SQL tested here is the SQL docs/UPGRADING.md gives the person.
-    assert "```sql\n" + WAY_BACK + "```" in (Path(__file__).resolve().parents[2] / "docs" / "UPGRADING.md").read_text(encoding="utf-8")
 
 
 def test_the_routes_are_gone_and_neither_search_nor_usage_knows_reminders(tmp_path):

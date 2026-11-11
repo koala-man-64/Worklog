@@ -13,19 +13,18 @@ from .db import Database
 from .discussions import proposer_identity
 from .items import Items
 from .people import People
-from .releases import ReleaseService
 from .resources import ResourceService
 from .tickets import TicketService
 
 
 class WorkService:
     """Runs each command on the records it names: work items and their days, people, supporting
-    records, repositories, roadmaps and releases. Approved proposals reach every one of them through
-    apply, and resources and tickets as well, which the person's own routes write directly."""
+    records, repositories and roadmaps. Approved proposals reach every one of them through apply, and
+    resources and tickets as well, which the person's own routes write directly."""
 
     def __init__(self, db: Database, plans: Any, proposals: Any = None):
         self.db, self.plans, self.proposals = db, plans, proposals
-        self.items, self.people, self.releases = Items(db), People(db), ReleaseService()
+        self.items, self.people = Items(db), People(db)
         self.resources, self.tickets = ResourceService(), TicketService()
 
     def apply(self, c: sqlite3.Connection, actor: dict, action: str, p: dict, *, proposed: bool = False) -> dict:
@@ -60,10 +59,4 @@ class WorkService:
             return result
         if action.startswith("person."):
             return self.people.apply(c, actor, action, p)
-        if action.startswith(("release.", "check.")):
-            # The HTTP layer already refuses agents' release writes; this keeps any other caller to
-            # the rule. An agent's change to a release comes through a proposal the person decided.
-            if actor["kind"] != "human" and not proposed:
-                raise AppError(403, "agent_scope", "Only the person changes releases; agents read them")
-            return self.releases.apply(c, actor, action, p)
         raise AppError(422, "operation", "Unsupported operation")

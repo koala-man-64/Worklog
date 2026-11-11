@@ -147,29 +147,6 @@ class Resource(ResourcePage):
     history: list[Change]
 
 
-class ReleaseCheckRecord(Answer):
-    """A release check as its commands return it, with the person it names."""
-
-    id: str
-    releaseId: str
-    kind: Literal["notify", "test", "prepare"]
-    text: str
-    details: str
-    personId: str | None
-    dueDate: str | None
-    status: Literal["open", "doing", "waiting", "blocked", "done"]
-    archived: bool
-    revision: int
-    createdAt: str
-    updatedAt: str
-    personName: str | None
-    personArchived: bool
-
-
-class ReleaseCheck(ReleaseCheckRecord):
-    pastDue: bool
-
-
 class Author(Answer):
     """Who wrote a ticket or a ticket's comment, as written then, with the avatar their agent identity
     has now."""
@@ -779,136 +756,6 @@ class RoadmapSnapshot(RoadmapVersion):
     # The steps not retired then, each with its status then. plans._snapshot has written this
     # shape since the first version, and nothing rewrites a revision.
     steps: list[PlanStep]
-
-
-class ReleaseFields(Answer):
-    """A release's own fields, as its commands return them."""
-
-    id: str
-    title: str
-    description: str
-    # A YYYY-MM-DD day; null while the release is not dated.
-    releaseDate: str | None
-    status: Literal["planned", "released", "cancelled"]
-    archived: bool
-    revision: int
-    createdAt: str
-    updatedAt: str
-
-
-class ReleaseRecord(ReleaseFields):
-    """A release's own fields, as each read of it gives them."""
-
-    # Planned, with its date passed.
-    pastDue: bool
-
-
-class ReleaseCounts(Answer):
-    """A listed release's active work items and the done ones, its open checks of each kind, and
-    how many open checks are past due."""
-
-    items: int
-    itemsDone: int
-    notify: int
-    test: int
-    prepare: int
-    pastDue: int
-
-
-class ReleaseListed(ReleaseRecord):
-    counts: ReleaseCounts
-
-
-class Releases(Answer):
-    items: list[ReleaseListed]
-    total: int
-    limit: int
-    offset: int
-
-
-class ReleaseItem(Answer):
-    """A work item a release holds."""
-
-    id: str
-    title: str
-    status: Literal["open", "doing", "waiting", "blocked", "done"]
-    archived: bool
-    addedAt: str
-
-
-class ReleaseRoadmap(Answer):
-    """A roadmap a release holds, with its finished leaf steps out of all, as its progress bar counts them."""
-
-    id: str
-    title: str
-    archived: bool
-    addedAt: str
-    steps: int
-    stepsDone: int
-
-
-class ReleaseStep(Answer):
-    """A step a release holds, with its status as its roadmap shows it: a parent's follows its leaves."""
-
-    id: str
-    title: str
-    # steps.status has no CHECK.
-    status: str
-    retired: bool
-    roadmapId: str
-    roadmapTitle: str
-    roadmapArchived: bool
-    addedAt: str
-
-
-class ReleaseChange(Answer):
-    """A PR or commit: one the release holds itself (direct), or one on a work item or roadmap it holds."""
-
-    id: str
-    kind: Literal["commit", "pr"]
-    url: str
-    reference: str
-    title: str
-    ownerType: Literal["item", "roadmap"]
-    ownerId: str
-    # Null only if that work item or roadmap is missing, which `worklog doctor` reports.
-    ownerTitle: str | None
-    # The tracked chat that made it; all four are null when none did.
-    chatId: str | None
-    chatTitle: str | None
-    provider: str | None
-    model: str | None
-    direct: bool
-    # Archived itself, or on an archived work item or roadmap.
-    archived: bool
-    createdAt: str
-
-
-class ReleaseHistoryEntry(Answer):
-    """A change to a release or one of its checks, which entityId names, without its records:
-    /history has those."""
-
-    id: str
-    entityId: str
-    kind: str
-    actorId: str
-    actorLabel: str
-    # events.actor_kind has no CHECK.
-    actorKind: str
-    createdAt: str
-
-
-class Release(ReleaseRecord):
-    """A release with what it holds, its changes, every check and who changed them when."""
-
-    items: list[ReleaseItem]
-    roadmaps: list[ReleaseRoadmap]
-    steps: list[ReleaseStep]
-    changes: list[ReleaseChange]
-    # Every check, archived ones too, by due date (undated last), then as added.
-    checks: list[ReleaseCheck]
-    # The latest 100, newest first.
-    history: list[ReleaseHistoryEntry]
 
 
 class TicketWorkItem(Answer):
@@ -1656,8 +1503,7 @@ class DiscussionRoles(Answer):
     offset: int
 
 
-TagKind = Literal["item", "roadmap", "step", "repository", "ticket", "release", "person", "resource", "question",
-                  "decision"]
+TagKind = Literal["item", "roadmap", "step", "repository", "ticket", "person", "resource", "question", "decision"]
 
 
 class ContextTag(Answer):
@@ -1703,13 +1549,9 @@ class TicketContextTag(StatusContextTag):
     number: int
 
 
-class ReleaseContextTag(StatusContextTag):
-    releaseDate: str | None
-
-
 # One shape per kind of record, told apart by their keys, since each model forbids the keys it doesn't name.
 DescribedContext = (ContextTag | StatusContextTag | StepContextTag | DecisionContextTag | RepositoryContextTag
-                    | TicketContextTag | ReleaseContextTag)
+                    | TicketContextTag)
 
 
 class HomeRepository(Answer):
@@ -2125,14 +1967,12 @@ class ChatMessages(Answer):
 class SearchResult(Answer):
     id: str
     type: Literal["item", "step", "roadmap", "note", "attachment", "link", "chat", "github", "question", "decision",
-                  "person", "ticket", "ticket_comment", "discussion", "discussion_message", "resource", "release",
-                  "release_check"]
+                  "person", "ticket", "ticket_comment", "discussion", "discussion_message", "resource"]
     title: str
     snippet: str
     ownerId: str
     # The page a result opens on, and the record that page shows; null if that record is missing.
-    routeType: Literal["resources", "discussions", "tickets", "releases", "work", "people", "repositories",
-                       "roadmaps"]
+    routeType: Literal["resources", "discussions", "tickets", "work", "people", "repositories", "roadmaps"]
     routeId: str | None
 
 
@@ -2143,7 +1983,7 @@ class SearchResults(Answer):
 
 class WorkContext(Answer):
     """What an agent reads before it starts: the day, the work, the plans, the people, the proposals,
-    who is at work where, and the tickets, resources and releases."""
+    who is at work where, and the tickets and resources."""
 
     day: Day
     workItems: WorkItems
@@ -2160,7 +2000,6 @@ class WorkContext(Answer):
     updates: CoordinationUpdates
     tickets: Tickets
     resources: Resources
-    releases: Releases
 
 
 class Done(Answer):
@@ -2214,27 +2053,6 @@ class PersonUntied(Answer):
     personId: str
     targetType: Literal["item", "roadmap", "repository"]
     targetId: str
-
-
-class ReleaseHolding(Answer):
-    """A record a release holds, as holding it returns it."""
-
-    releaseId: str
-    targetType: Literal["item", "roadmap", "step", "github"]
-    targetId: str
-    createdAt: str
-    # False when the release held it already, and nothing was written.
-    changed: bool
-
-
-class ReleaseUnheld(Answer):
-    """A record a release no longer holds."""
-
-    releaseId: str
-    targetType: Literal["item", "roadmap", "step", "github"]
-    targetId: str
-    # False when the release held no such record.
-    changed: bool
 
 
 class EnsuredRepository(DiscussedRepository):

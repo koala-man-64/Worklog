@@ -1,14 +1,9 @@
-"""Schema v19 adds releases: what ships together and when, what each holds, and its checks.
+"""Schema v19 added releases, which v28 drops again (step 0.5 of docs/ROADMAPS-RETHINK.md). What stays:
+the upgrade from v18, which a failure rolls back whole, the way back to it, which older upgrade tests
+build their databases with, and that neither shape can pass for the other."""
 
-An older database comes up with none, a failed upgrade changes nothing, and restore, export and
-the way back keep everything else whole. test_releases.py has the rules of releases.
-"""
-
-import io
-import json
 import sqlite3
 import uuid
-import zipfile
 from contextlib import closing, contextmanager
 
 import pytest
@@ -21,6 +16,7 @@ from worklog.db import Database
 ORIGIN = "http://127.0.0.1:8877"
 RELEASE_TABLES = ("releases", "release_contents", "release_checks")
 RELEASE_TYPES = "('release','release_check')"
+STAMP = "2026-11-01T00:00:00+00:00"
 # From version 19 to version 18, with Worklog stopped and after a manual backup. The README gave this way back
 # while version 19 was the latest; older upgrade tests now build their databases with it.
 WAY_BACK = """\
@@ -35,24 +31,18 @@ COMMIT;
 """
 
 
+def to_v19(path):
+    """Take a current database back to the v19 shape the documented way."""
+    from test_reminder_recovery import to_v19 as from_v20
+
+    from_v20(path)
+
+
 def to_v18(path):
     """Take a current database back to the v18 shape the documented way: to version 19 first."""
-    from test_reminder_recovery import to_v19
-
     to_v19(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK)
-
-
-def dangling(path):
-    """The rows of release_contents that name no record of their type: none, ever."""
-    with closing(sqlite3.connect(path)) as conn:
-        return conn.execute(
-            """SELECT rc.release_id,rc.target_type,rc.target_id FROM release_contents rc WHERE NOT EXISTS(
-                   SELECT 1 FROM work_items WHERE rc.target_type='item' AND id=rc.target_id
-                   UNION ALL SELECT 1 FROM roadmaps WHERE rc.target_type='roadmap' AND id=rc.target_id
-                   UNION ALL SELECT 1 FROM steps WHERE rc.target_type='step' AND id=rc.target_id
-                   UNION ALL SELECT 1 FROM github_refs WHERE rc.target_type='github' AND id=rc.target_id)""").fetchall()
 
 
 @contextmanager
@@ -82,19 +72,30 @@ def work(c):
     return item, roadmap, ana
 
 
-def populate(c):
-    """Work, and a release holding it, with a check that names a person and one with a due date."""
-    item, roadmap, ana = work(c)
-    release = write(c, "POST", "/releases", {"title": "November release", "releaseDate": "2026-11-20",
-                                             "description": "Exports ship."})
-    for target_type, target in (("item", item), ("roadmap", roadmap)):
-        write(c, "POST", "/release-contents", {"releaseId": release["id"], "targetType": target_type,
-                                               "targetId": target["id"]})
-    write(c, "POST", "/release-checks", {"releaseId": release["id"], "kind": "notify", "text": "Tell support",
-                                         "personId": ana["id"]})
-    write(c, "POST", "/release-checks", {"releaseId": release["id"], "kind": "prepare",
-                                         "text": "Add the Key Vault secret", "dueDate": "2026-11-13"})
-    return release
+def index(conn, identity, kind, title, owner):
+    doc = conn.execute("INSERT INTO search_index(entity_id,type,title,body,owner_id,archived) VALUES(?,?,?,'',?,0)",
+                       (identity, kind, title, owner)).lastrowid
+    conn.execute("INSERT INTO search_keys(entity_id,doc,type,owner_id) VALUES(?,?,?,?)", (identity, doc, kind, owner))
+
+
+def populate(path, item, roadmap, ana):
+    """A release as v19 kept it, holding the work item and the roadmap, with a check that names the
+    person and one due on a day, each with the search row its service wrote."""
+    release, checks = str(uuid.uuid4()), (str(uuid.uuid4()), str(uuid.uuid4()))
+    with closing(sqlite3.connect(path)) as conn:
+        conn.execute("INSERT INTO releases(id,title,description,release_date,created_at,updated_at) "
+                     "VALUES(?,'November release','Exports ship.','2026-11-20',?,?)", (release, STAMP, STAMP))
+        for kind, target in (("item", item), ("roadmap", roadmap)):
+            conn.execute("INSERT INTO release_contents(release_id,target_type,target_id,created_at) VALUES(?,?,?,?)",
+                         (release, kind, target["id"], STAMP))
+        conn.execute("INSERT INTO release_checks(id,release_id,kind,text,person_id,created_at,updated_at) "
+                     "VALUES(?,?,'notify','Tell support',?,?,?)", (checks[0], release, ana["id"], STAMP, STAMP))
+        conn.execute("INSERT INTO release_checks(id,release_id,kind,text,due_date,created_at,updated_at) "
+                     "VALUES(?,?,'prepare','Add the Key Vault secret','2026-11-13',?,?)", (checks[1], release, STAMP, STAMP))
+        index(conn, release, "release", "November release", release)
+        for check, text in zip(checks, ("Tell support", "Add the Key Vault secret"), strict=True):
+            index(conn, check, "release_check", text, release)
+        conn.commit()
 
 
 def tables(path):
@@ -125,13 +126,16 @@ def state(path):
 def test_the_way_back_to_v18_drops_only_the_releases_and_upgrades_again(tmp_path):
     path = tmp_path / "worklog.sqlite3"
     with person(tmp_path) as c:
-        populate(c)
+        records = work(c)
+    to_v19(path)
+    populate(path, *records)
     # The release and its two checks are in the index under the types the way back removes.
     assert sorted(kind for _, kind, *_ in search_rows(path, "k.type IN " + RELEASE_TYPES)) == [
         "release", "release_check", "release_check"]
     kept_tables = [name for name in tables(path) if name not in RELEASE_TABLES]
     kept, kept_search = rows(path, kept_tables), search_rows(path, "k.type NOT IN " + RELEASE_TYPES)
-    to_v18(path)
+    with closing(sqlite3.connect(path)) as conn:
+        conn.executescript(WAY_BACK)
     recovery.validate_database(path)
     assert state(path) == (18, sealed.shape(18))
     assert search_rows(path, "1") == kept_search
@@ -143,11 +147,11 @@ def test_the_way_back_to_v18_drops_only_the_releases_and_upgrades_again(tmp_path
     assert rows(path, kept_tables) == kept
     Database(path).initialize()
     assert state(path) == (migrations.SCHEMA_VERSION, sealed.current())
-    assert rows(path, RELEASE_TABLES) == {name: [] for name in RELEASE_TABLES}
-    assert rows(path, kept_tables) == kept
+    # v19 adds the release tables and v28 drops them again.
+    assert not set(RELEASE_TABLES) & set(tables(path))
 
 
-def test_the_v19_upgrade_adds_empty_releases_after_a_snapshot_and_changes_no_record(tmp_path):
+def test_the_upgrade_from_v18_snapshots_first_and_changes_no_record(tmp_path):
     path = tmp_path / "live" / "worklog.sqlite3"
     path.parent.mkdir()
     with person(path.parent) as c:
@@ -159,7 +163,7 @@ def test_the_v19_upgrade_adds_empty_releases_after_a_snapshot_and_changes_no_rec
     before, search = rows(path, names), search_rows(path, "1")
     Database(path).initialize()
     assert state(path) == (migrations.SCHEMA_VERSION, sealed.current())
-    assert rows(path, RELEASE_TABLES) == {name: [] for name in RELEASE_TABLES}
+    assert set(tables(path)) == set(names)
     assert rows(path, names) == before
     assert search_rows(path, "1") == search
     snapshots = sorted((path.parent / "backups").glob("worklog-pre-migration-*.sqlite3"))
@@ -189,75 +193,16 @@ def test_a_failed_release_schema_rolls_back_the_v18_upgrade(tmp_path, monkeypatc
     recovery.validate_database(path)
 
 
-def test_restoring_a_v18_backup_upgrades_it_with_no_releases(tmp_path):
-    source, target = tmp_path / "source" / "worklog.sqlite3", tmp_path / "target" / "worklog.sqlite3"
-    with person(source.parent) as c:
-        work(c)
-    to_v18(source)
-    kept = rows(source, ["work_items", "github_refs", "people"])
-    Database(target).initialize()
-    recovery.restore_database(target, source, tmp_path / "restore-backups")
-    assert state(target) == (migrations.SCHEMA_VERSION, sealed.current())
-    assert rows(target, RELEASE_TABLES) == {name: [] for name in RELEASE_TABLES}
-    assert rows(target, ["work_items", "github_refs", "people"]) == kept
-
-
-def test_restoring_a_v19_backup_keeps_its_releases_whole(tmp_path):
-    source, target = tmp_path / "source" / "worklog.sqlite3", tmp_path / "target" / "worklog.sqlite3"
-    with person(source.parent) as c:
-        populate(c)
-    kept = rows(source, RELEASE_TABLES)
-    assert all(kept.values())
-    Database(target).initialize()
-    recovery.restore_database(target, source, tmp_path / "restore-backups")
-    assert state(target) == (migrations.SCHEMA_VERSION, sealed.current())
-    assert rows(target, RELEASE_TABLES) == kept
-    assert dangling(target) == []
-
-
 def test_a_v18_shape_cannot_claim_version_19_and_a_v19_shape_cannot_claim_18(tmp_path):
-    older, current = tmp_path / "older.sqlite3", tmp_path / "current.sqlite3"
-    Database(older).initialize()
+    older, newer = tmp_path / "older.sqlite3", tmp_path / "newer.sqlite3"
+    for path in (older, newer):
+        Database(path).initialize()
     to_v18(older)
-    recovery.validate_database(older)
-    Database(current).initialize()
-    recovery.validate_database(current)
-    for path, claimed in ((older, 19), (current, 18)):
+    to_v19(newer)
+    for path in (older, newer):
+        recovery.validate_database(path)
+    for path, claimed in ((older, 19), (newer, 18)):
         with closing(sqlite3.connect(path)) as conn:
             conn.execute(f"PRAGMA user_version={claimed}")
         with pytest.raises(ValueError, match="schema definitions"):
             recovery.validate_database(path)
-
-
-def test_the_dates_hold_only_calendar_days(tmp_path):
-    # Past-due flags and the list's order compare dates as text, so the database keeps only real days.
-    path = tmp_path / "worklog.sqlite3"
-    Database(path).initialize()
-    stamp = "2026-01-01T00:00:00+00:00"
-    with closing(sqlite3.connect(path)) as conn:
-        conn.execute("INSERT INTO releases(id,title,release_date,created_at,updated_at) VALUES('dated','R','2026-11-06',?,?)",
-                     (stamp, stamp))
-        conn.execute("INSERT INTO releases(id,title,release_date,created_at,updated_at) VALUES('open','R',NULL,?,?)",
-                     (stamp, stamp))
-        for bad in ("2026-02-30", "2026-1-6", "", "nonsense", "2026-11-06T10:00"):
-            with pytest.raises(sqlite3.IntegrityError):
-                conn.execute("INSERT INTO releases(id,title,release_date,created_at,updated_at) VALUES('bad','R',?,?,?)",
-                             (bad, stamp, stamp))
-            with pytest.raises(sqlite3.IntegrityError):
-                conn.execute("INSERT INTO release_checks(id,release_id,kind,text,due_date,created_at,updated_at) "
-                             "VALUES('bad','dated','test','T',?,?,?)", (bad, stamp, stamp))
-
-
-def test_export_carries_releases_their_contents_and_checks(tmp_path):
-    path = tmp_path / "worklog.sqlite3"
-    with person(tmp_path) as c:
-        release = populate(c)
-    with zipfile.ZipFile(io.BytesIO(recovery.export_database(path))) as archive:
-        exported = json.loads(archive.read("records/releases.json"))
-        assert [(r["id"], r["title"], r["release_date"]) for r in exported] == [
-            (release["id"], "November release", "2026-11-20")]
-        assert sorted(r["target_type"] for r in json.loads(archive.read("records/release_contents.json"))) == [
-            "item", "roadmap"]
-        assert sorted(r["text"] for r in json.loads(archive.read("records/release_checks.json"))) == [
-            "Add the Key Vault secret", "Tell support"]
-        assert "### November release" in archive.read("worklog.md").decode("utf-8")

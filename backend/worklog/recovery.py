@@ -74,6 +74,7 @@ SEALED_SCHEMAS: dict[int, frozenset[str]] = {
     25: frozenset({"8e46fdc307d7ae883967a50306f40cb91b4e577a2e523db4b25f4938f05ffc7a"}),  # the HTML plan import's table dropped (R1)
     26: frozenset({"1d4c0cd192f8cab75172d61d8aa2f237d3b3b0bfd9b7cfe3ffb930ac9c028882"}),  # work item checklists' tasks dropped (R1)
     27: frozenset({"5acced649fd0da636283d991382405f392e196cf7085e0af2efce4a986b2abdb"}),  # Reminders dropped (R1)
+    28: frozenset({"daf3bd059ebdc84494b049c1537a5e1f03436996ba73e4dac48c22a31fce6fbe"}),  # Releases dropped (R1, R5)
 }
 
 

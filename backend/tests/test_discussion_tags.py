@@ -1,15 +1,17 @@
-"""Discussion tags (schema v22): a thread names the records it is about, of ten kinds, and says who
-added each tag. Anyone adds a tag; an agent takes off only the tags it added, and the person any but a
-repository's tag on its own discussion. Feeds and filters follow every kind, free-text repository
-labels take no new writes (K8), and tags reserve and change nothing about the records they name."""
+"""Discussion tags (schema v22): a thread names the records it is about, of nine kinds since v28 dropped
+releases, and says who added each tag. Anyone adds a tag; an agent takes off only the tags it added,
+and the person any but a repository's tag on its own discussion. Feeds and filters follow every kind,
+free-text repository labels take no new writes (K8), and tags reserve and change nothing about the
+records they name."""
 
+import re
 import uuid
 from contextlib import contextmanager
 from typing import get_args
 
 import pytest
 from fastapi.testclient import TestClient
-from worklog import cli, discussion_models, discussions, migrations
+from worklog import cli, discussion_models, discussions, doctor, migrations
 from worklog.app import create_app
 
 ORIGIN = "http://127.0.0.1:8877"
@@ -84,7 +86,6 @@ def records(c):
         "step": roadmap["steps"][0],
         "repository": ok(write(c, "POST", "/repositories", {"name": "Worklog", "url": "https://example.com/acme/worklog"})),
         "ticket": ok(write(c, "POST", "/tickets", {"title": "Flaky import"})),
-        "release": ok(write(c, "POST", "/releases", {"title": "November"})),
         "person": ok(write(c, "POST", "/people", {"name": "Ada"})),
         "resource": ok(write(c, "POST", "/resources", {"title": "How we release", "summary": "The steps"})),
         "question": ok(write(c, "POST", "/questions", {"roadmapId": roadmap["id"], "title": "Which build?"})),
@@ -95,8 +96,11 @@ def records(c):
 def test_every_list_of_tag_kinds_agrees():
     assert discussions.TAG_KINDS == get_args(discussion_models.ContextType) == cli.DISCUSSION_TAG_KINDS
     assert discussions.ROLE_KINDS == get_args(discussion_models.RoleContextType) == cli.ROLE_CONTEXT_KINDS
-    check = "CHECK(context_type IN(" + ",".join(f"'{kind}'" for kind in discussions.TAG_KINDS) + "))"
-    assert check in migrations.DISCUSSION_CONTEXTS_TABLE and check in migrations.DISCUSSION_CHANGE_CONTEXTS_TABLE
+    # Both tag CHECKs allow every kind, and 'release', which v28 retired (decision R5).
+    for table in (migrations.DISCUSSION_CONTEXTS_TABLE, migrations.DISCUSSION_CHANGE_CONTEXTS_TABLE):
+        allowed = re.search(r"CHECK\(context_type IN\(([^)]*)\)\)", table).group(1)
+        assert {kind.strip("'") for kind in allowed.split(",")} == {*discussions.TAG_KINDS,
+                                                                     *doctor.RETIRED["discussion_contexts"]}
 
 
 def test_a_thread_is_tagged_with_a_record_of_every_kind_and_each_tag_says_what_it_names(client):
@@ -118,7 +122,7 @@ def test_a_thread_is_tagged_with_a_record_of_every_kind_and_each_tag_says_what_i
     assert (shown["step"]["roadmapId"], shown["step"]["roadmapTitle"]) == (made["roadmap"]["id"], "Release")
     assert (shown["ticket"]["number"], shown["ticket"]["status"]) == (1, "open")
     assert shown["question"]["roadmapId"] == shown["decision"]["roadmapId"] == made["roadmap"]["id"]
-    assert shown["release"]["status"] == "planned" and "mergedInto" in shown["repository"]
+    assert "mergedInto" in shown["repository"]
     # A tag names a record and changes nothing about it.
     assert read(client, f"/work-items/{made['item']['id']}")["revision"] == made["item"]["revision"]
 
@@ -190,16 +194,16 @@ def test_a_thread_holds_at_most_thirty_tags(client):
 
 def test_filters_feeds_and_snapshots_follow_every_kind_and_an_untag_reaches_the_record_it_left(client):
     repository = ok(write(client, "POST", "/repositories", {"name": "Worklog", "url": "https://example.com/acme/worklog"}))
-    release = ok(write(client, "POST", "/releases", {"title": "November"}))
+    resource = ok(write(client, "POST", "/resources", {"title": "Shipping", "summary": "How we ship"}))
     builder = credential(client)
-    scope = f"contextType=release&contextId={release['id']}"
+    scope = f"contextType=resource&contextId={resource['id']}"
     cursor = read(client, "/discussions/changes?" + scope, builder)["cursor"]
-    thread = start(client, builder, title="Ship notes", contexts=[{"type": "release", "id": release["id"]}])
+    thread = start(client, builder, title="Ship notes", contexts=[{"type": "resource", "id": resource["id"]}])
     ok(tag(client, thread, "repository", repository["id"], builder))
     assert [d["id"] for d in read(client, "/discussions?" + scope, builder)["items"]] == [thread["id"]]
     resumed = read(client, "/discussions/resume?" + scope, builder)
     assert [d["id"] for d in resumed["discussions"]] == [thread["id"]] and resumed["roles"] == []
-    ok(untag(client, thread, "release", release["id"], builder))
+    ok(untag(client, thread, "resource", resource["id"], builder))
     assert read(client, "/discussions?" + scope, builder)["total"] == 0
     feed = read(client, f"/discussions/changes?{scope}&cursor={cursor}", builder)
     assert [item["kind"] for item in feed["items"]] == ["discussion.create", "discussion.tag", "discussion.untag"]

@@ -32,7 +32,7 @@ from .tickets import TicketService
 
 # What a discussion can be tagged with (v22), in the order its tags list them. The first three are
 # v1's work contexts, which roles keep to.
-TAG_KINDS = ("item", "roadmap", "step", "repository", "ticket", "release", "person", "resource", "question", "decision")
+TAG_KINDS = ("item", "roadmap", "step", "repository", "ticket", "person", "resource", "question", "decision")
 ROLE_KINDS = ("item", "roadmap", "step")
 TAG_LIMIT = 30
 PERSON = {"id": "local-user", "label": "You", "kind": "human"}

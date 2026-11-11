@@ -1957,179 +1957,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/releases": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Releases */
-        get: operations["releases_api_v1_releases_get"];
-        put?: never;
-        /** Release Create */
-        post: operations["release_create_api_v1_releases_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/releases/{identity}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Release */
-        get: operations["release_api_v1_releases__identity__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** Release Update */
-        patch: operations["release_update_api_v1_releases__identity__patch"];
-        trace?: never;
-    };
-    "/api/v1/releases/{identity}/archive": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Release Archive */
-        post: operations["release_archive_api_v1_releases__identity__archive_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/releases/{identity}/recover": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Release Recover */
-        post: operations["release_recover_api_v1_releases__identity__recover_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/release-contents": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Release Add */
-        post: operations["release_add_api_v1_release_contents_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/release-contents/remove": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Release Remove */
-        post: operations["release_remove_api_v1_release_contents_remove_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/release-checks": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Check Create */
-        post: operations["check_create_api_v1_release_checks_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/release-checks/{identity}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Check */
-        get: operations["check_api_v1_release_checks__identity__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** Check Update */
-        patch: operations["check_update_api_v1_release_checks__identity__patch"];
-        trace?: never;
-    };
-    "/api/v1/release-checks/{identity}/archive": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Check Archive */
-        post: operations["check_archive_api_v1_release_checks__identity__archive_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/release-checks/{identity}/recover": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Check Recover */
-        post: operations["check_recover_api_v1_release_checks__identity__recover_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/discussions/participants": {
         parameters: {
             query?: never;
@@ -3958,7 +3785,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "item" | "roadmap" | "step" | "repository" | "ticket" | "release" | "person" | "resource" | "question" | "decision";
+            type: "item" | "roadmap" | "step" | "repository" | "ticket" | "person" | "resource" | "question" | "decision";
             /** Id */
             id: string;
         };
@@ -3972,7 +3799,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "item" | "roadmap" | "step" | "repository" | "ticket" | "release" | "person" | "resource" | "question" | "decision";
+            type: "item" | "roadmap" | "step" | "repository" | "ticket" | "person" | "resource" | "question" | "decision";
             /** Id */
             id: string;
             /** Title */
@@ -4309,7 +4136,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "item" | "roadmap" | "step" | "repository" | "ticket" | "release" | "person" | "resource" | "question" | "decision";
+            type: "item" | "roadmap" | "step" | "repository" | "ticket" | "person" | "resource" | "question" | "decision";
             /** Id */
             id: string;
             /** Title */
@@ -4563,7 +4390,7 @@ export interface components {
             /** Pinnedat */
             pinnedAt: string | null;
             /** Contexts */
-            contexts: (components["schemas"]["ContextTag"] | components["schemas"]["StatusContextTag"] | components["schemas"]["StepContextTag"] | components["schemas"]["DecisionContextTag"] | components["schemas"]["RepositoryContextTag"] | components["schemas"]["TicketContextTag"] | components["schemas"]["ReleaseContextTag"])[];
+            contexts: (components["schemas"]["ContextTag"] | components["schemas"]["StatusContextTag"] | components["schemas"]["StepContextTag"] | components["schemas"]["DecisionContextTag"] | components["schemas"]["RepositoryContextTag"] | components["schemas"]["TicketContextTag"])[];
             /** Repos */
             repos: string[];
             /** Pendingcount */
@@ -5182,7 +5009,7 @@ export interface components {
              * Action
              * @enum {string}
              */
-            action: "repository.create" | "repository.update" | "repository.archive" | "repository.recover" | "item.create" | "item.update" | "item.archive" | "item.recover" | "entry.upsert" | "note.create" | "note.update" | "roadmap.create" | "roadmap.revise" | "roadmap.move" | "progress.set" | "step.update" | "person.create" | "person.update" | "person.archive" | "person.recover" | "person.link" | "person.unlink" | "link.create" | "link.update" | "link.archive" | "link.recover" | "attachment.create" | "chat.create" | "chat.update" | "chat.archive" | "chat.recover" | "github.create" | "github.update" | "github.archive" | "github.recover" | "question.create" | "question.update" | "question.archive" | "question.recover" | "decision.create" | "decision.update" | "decision.archive" | "decision.recover" | "resource.create" | "resource.update" | "resource.archive" | "resource.recover" | "ticket.create" | "ticket.update" | "release.create" | "release.update" | "release.add" | "release.remove" | "check.create" | "check.update";
+            action: "repository.create" | "repository.update" | "repository.archive" | "repository.recover" | "item.create" | "item.update" | "item.archive" | "item.recover" | "entry.upsert" | "note.create" | "note.update" | "roadmap.create" | "roadmap.revise" | "roadmap.move" | "progress.set" | "step.update" | "person.create" | "person.update" | "person.archive" | "person.recover" | "person.link" | "person.unlink" | "link.create" | "link.update" | "link.archive" | "link.recover" | "attachment.create" | "chat.create" | "chat.update" | "chat.archive" | "chat.recover" | "github.create" | "github.update" | "github.archive" | "github.recover" | "question.create" | "question.update" | "question.archive" | "question.recover" | "decision.create" | "decision.update" | "decision.archive" | "decision.recover" | "resource.create" | "resource.update" | "resource.archive" | "resource.recover" | "ticket.create" | "ticket.update";
             /** Payload */
             payload: {
                 [key: string]: unknown;
@@ -5350,7 +5177,7 @@ export interface components {
              * Page
              * @enum {string}
              */
-            page: "today" | "work" | "tickets" | "roadmaps" | "releases" | "repositories" | "people" | "resources" | "agents" | "chats" | "discussions" | "review" | "settings" | "usage" | "guide" | "agent-guide";
+            page: "today" | "work" | "tickets" | "roadmaps" | "repositories" | "people" | "resources" | "agents" | "chats" | "discussions" | "review" | "settings" | "usage" | "guide" | "agent-guide";
         };
         /**
          * Participant
@@ -6184,482 +6011,10 @@ export interface components {
             /** Roadmapid */
             roadmapId: string | null;
         };
-        /**
-         * Release
-         * @description A release with what it holds, its changes, every check and who changed them when.
-         */
-        Release: {
-            /** Id */
-            id: string;
-            /** Title */
-            title: string;
-            /** Description */
-            description: string;
-            /** Releasedate */
-            releaseDate: string | null;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "planned" | "released" | "cancelled";
-            /** Archived */
-            archived: boolean;
-            /** Revision */
-            revision: number;
-            /** Createdat */
-            createdAt: string;
-            /** Updatedat */
-            updatedAt: string;
-            /** Pastdue */
-            pastDue: boolean;
-            /** Items */
-            items: components["schemas"]["ReleaseItem"][];
-            /** Roadmaps */
-            roadmaps: components["schemas"]["ReleaseRoadmap"][];
-            /** Steps */
-            steps: components["schemas"]["ReleaseStep"][];
-            /** Changes */
-            changes: components["schemas"]["ReleaseChange"][];
-            /** Checks */
-            checks: components["schemas"]["ReleaseCheck"][];
-            /** History */
-            history: components["schemas"]["ReleaseHistoryEntry"][];
-        };
-        /**
-         * ReleaseChange
-         * @description A PR or commit: one the release holds itself (direct), or one on a work item or roadmap it holds.
-         */
-        ReleaseChange: {
-            /** Id */
-            id: string;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "commit" | "pr";
-            /** Url */
-            url: string;
-            /** Reference */
-            reference: string;
-            /** Title */
-            title: string;
-            /**
-             * Ownertype
-             * @enum {string}
-             */
-            ownerType: "item" | "roadmap";
-            /** Ownerid */
-            ownerId: string;
-            /** Ownertitle */
-            ownerTitle: string | null;
-            /** Chatid */
-            chatId: string | null;
-            /** Chattitle */
-            chatTitle: string | null;
-            /** Provider */
-            provider: string | null;
-            /** Model */
-            model: string | null;
-            /** Direct */
-            direct: boolean;
-            /** Archived */
-            archived: boolean;
-            /** Createdat */
-            createdAt: string;
-        };
-        /** ReleaseCheck */
-        ReleaseCheck: {
-            /** Id */
-            id: string;
-            /** Releaseid */
-            releaseId: string;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "notify" | "test" | "prepare";
-            /** Text */
-            text: string;
-            /** Details */
-            details: string;
-            /** Personid */
-            personId: string | null;
-            /** Duedate */
-            dueDate: string | null;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "open" | "doing" | "waiting" | "blocked" | "done";
-            /** Archived */
-            archived: boolean;
-            /** Revision */
-            revision: number;
-            /** Createdat */
-            createdAt: string;
-            /** Updatedat */
-            updatedAt: string;
-            /** Personname */
-            personName: string | null;
-            /** Personarchived */
-            personArchived: boolean;
-            /** Pastdue */
-            pastDue: boolean;
-        };
-        /** ReleaseCheckCreate */
-        ReleaseCheckCreate: {
-            /** Releaseid */
-            releaseId: string;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "notify" | "test" | "prepare";
-            /** Text */
-            text: string;
-            /**
-             * Details
-             * @default
-             */
-            details: string;
-            /** Personid */
-            personId?: string | null;
-            /** Duedate */
-            dueDate?: string | null;
-            /**
-             * Status
-             * @default open
-             * @enum {string}
-             */
-            status: "open" | "doing" | "waiting" | "blocked" | "done";
-        };
-        /**
-         * ReleaseCheckRecord
-         * @description A release check as its commands return it, with the person it names.
-         */
-        ReleaseCheckRecord: {
-            /** Id */
-            id: string;
-            /** Releaseid */
-            releaseId: string;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "notify" | "test" | "prepare";
-            /** Text */
-            text: string;
-            /** Details */
-            details: string;
-            /** Personid */
-            personId: string | null;
-            /** Duedate */
-            dueDate: string | null;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "open" | "doing" | "waiting" | "blocked" | "done";
-            /** Archived */
-            archived: boolean;
-            /** Revision */
-            revision: number;
-            /** Createdat */
-            createdAt: string;
-            /** Updatedat */
-            updatedAt: string;
-            /** Personname */
-            personName: string | null;
-            /** Personarchived */
-            personArchived: boolean;
-        };
-        /** ReleaseCheckUpdate */
-        ReleaseCheckUpdate: {
-            /** Revision */
-            revision: number;
-            /** Kind */
-            kind?: ("notify" | "test" | "prepare") | null;
-            /** Text */
-            text?: string | null;
-            /** Details */
-            details?: string | null;
-            /** Personid */
-            personId?: string | null;
-            /** Duedate */
-            dueDate?: string | null;
-            /** Status */
-            status?: ("open" | "doing" | "waiting" | "blocked" | "done") | null;
-        };
-        /** ReleaseContentChange */
-        ReleaseContentChange: {
-            /** Releaseid */
-            releaseId: string;
-            /**
-             * Targettype
-             * @enum {string}
-             */
-            targetType: "item" | "roadmap" | "step" | "github";
-            /** Targetid */
-            targetId: string;
-        };
-        /** ReleaseContextTag */
-        ReleaseContextTag: {
-            /**
-             * Type
-             * @enum {string}
-             */
-            type: "item" | "roadmap" | "step" | "repository" | "ticket" | "release" | "person" | "resource" | "question" | "decision";
-            /** Id */
-            id: string;
-            /** Title */
-            title: string | null;
-            /** Archived */
-            archived: boolean;
-            /** Home */
-            home: boolean;
-            addedBy: components["schemas"]["Actor"] | null;
-            /** Addedat */
-            addedAt: string | null;
-            /** Status */
-            status: string;
-            /** Releasedate */
-            releaseDate: string | null;
-        };
-        /**
-         * ReleaseCounts
-         * @description A listed release's active work items and the done ones, its open checks of each kind, and
-         *     how many open checks are past due.
-         */
-        ReleaseCounts: {
-            /** Items */
-            items: number;
-            /** Itemsdone */
-            itemsDone: number;
-            /** Notify */
-            notify: number;
-            /** Test */
-            test: number;
-            /** Prepare */
-            prepare: number;
-            /** Pastdue */
-            pastDue: number;
-        };
-        /** ReleaseCreate */
-        ReleaseCreate: {
-            /** Title */
-            title: string;
-            /**
-             * Description
-             * @default
-             */
-            description: string;
-            /** Releasedate */
-            releaseDate?: string | null;
-            /**
-             * Status
-             * @default planned
-             * @enum {string}
-             */
-            status: "planned" | "released" | "cancelled";
-        };
-        /**
-         * ReleaseFields
-         * @description A release's own fields, as its commands return them.
-         */
-        ReleaseFields: {
-            /** Id */
-            id: string;
-            /** Title */
-            title: string;
-            /** Description */
-            description: string;
-            /** Releasedate */
-            releaseDate: string | null;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "planned" | "released" | "cancelled";
-            /** Archived */
-            archived: boolean;
-            /** Revision */
-            revision: number;
-            /** Createdat */
-            createdAt: string;
-            /** Updatedat */
-            updatedAt: string;
-        };
-        /**
-         * ReleaseHistoryEntry
-         * @description A change to a release or one of its checks, which entityId names, without its records:
-         *     /history has those.
-         */
-        ReleaseHistoryEntry: {
-            /** Id */
-            id: string;
-            /** Entityid */
-            entityId: string;
-            /** Kind */
-            kind: string;
-            /** Actorid */
-            actorId: string;
-            /** Actorlabel */
-            actorLabel: string;
-            /** Actorkind */
-            actorKind: string;
-            /** Createdat */
-            createdAt: string;
-        };
-        /**
-         * ReleaseHolding
-         * @description A record a release holds, as holding it returns it.
-         */
-        ReleaseHolding: {
-            /** Releaseid */
-            releaseId: string;
-            /**
-             * Targettype
-             * @enum {string}
-             */
-            targetType: "item" | "roadmap" | "step" | "github";
-            /** Targetid */
-            targetId: string;
-            /** Createdat */
-            createdAt: string;
-            /** Changed */
-            changed: boolean;
-        };
-        /**
-         * ReleaseItem
-         * @description A work item a release holds.
-         */
-        ReleaseItem: {
-            /** Id */
-            id: string;
-            /** Title */
-            title: string;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "open" | "doing" | "waiting" | "blocked" | "done";
-            /** Archived */
-            archived: boolean;
-            /** Addedat */
-            addedAt: string;
-        };
-        /** ReleaseListed */
-        ReleaseListed: {
-            /** Id */
-            id: string;
-            /** Title */
-            title: string;
-            /** Description */
-            description: string;
-            /** Releasedate */
-            releaseDate: string | null;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "planned" | "released" | "cancelled";
-            /** Archived */
-            archived: boolean;
-            /** Revision */
-            revision: number;
-            /** Createdat */
-            createdAt: string;
-            /** Updatedat */
-            updatedAt: string;
-            /** Pastdue */
-            pastDue: boolean;
-            counts: components["schemas"]["ReleaseCounts"];
-        };
         /** ReleaseRequest */
         ReleaseRequest: {
             /** Reason */
             reason: string;
-        };
-        /**
-         * ReleaseRoadmap
-         * @description A roadmap a release holds, with its finished leaf steps out of all, as its progress bar counts them.
-         */
-        ReleaseRoadmap: {
-            /** Id */
-            id: string;
-            /** Title */
-            title: string;
-            /** Archived */
-            archived: boolean;
-            /** Addedat */
-            addedAt: string;
-            /** Steps */
-            steps: number;
-            /** Stepsdone */
-            stepsDone: number;
-        };
-        /**
-         * ReleaseStep
-         * @description A step a release holds, with its status as its roadmap shows it: a parent's follows its leaves.
-         */
-        ReleaseStep: {
-            /** Id */
-            id: string;
-            /** Title */
-            title: string;
-            /** Status */
-            status: string;
-            /** Retired */
-            retired: boolean;
-            /** Roadmapid */
-            roadmapId: string;
-            /** Roadmaptitle */
-            roadmapTitle: string;
-            /** Roadmaparchived */
-            roadmapArchived: boolean;
-            /** Addedat */
-            addedAt: string;
-        };
-        /**
-         * ReleaseUnheld
-         * @description A record a release no longer holds.
-         */
-        ReleaseUnheld: {
-            /** Releaseid */
-            releaseId: string;
-            /**
-             * Targettype
-             * @enum {string}
-             */
-            targetType: "item" | "roadmap" | "step" | "github";
-            /** Targetid */
-            targetId: string;
-            /** Changed */
-            changed: boolean;
-        };
-        /** ReleaseUpdate */
-        ReleaseUpdate: {
-            /** Revision */
-            revision: number;
-            /** Title */
-            title?: string | null;
-            /** Description */
-            description?: string | null;
-            /** Releasedate */
-            releaseDate?: string | null;
-            /** Status */
-            status?: ("planned" | "released" | "cancelled") | null;
-        };
-        /** Releases */
-        Releases: {
-            /** Items */
-            items: components["schemas"]["ReleaseListed"][];
-            /** Total */
-            total: number;
-            /** Limit */
-            limit: number;
-            /** Offset */
-            offset: number;
         };
         /** Reorder */
         Reorder: {
@@ -6716,7 +6071,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "item" | "roadmap" | "step" | "repository" | "ticket" | "release" | "person" | "resource" | "question" | "decision";
+            type: "item" | "roadmap" | "step" | "repository" | "ticket" | "person" | "resource" | "question" | "decision";
             /** Id */
             id: string;
             /** Title */
@@ -7469,7 +6824,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "item" | "step" | "roadmap" | "note" | "attachment" | "link" | "chat" | "github" | "question" | "decision" | "person" | "ticket" | "ticket_comment" | "discussion" | "discussion_message" | "resource" | "release" | "release_check";
+            type: "item" | "step" | "roadmap" | "note" | "attachment" | "link" | "chat" | "github" | "question" | "decision" | "person" | "ticket" | "ticket_comment" | "discussion" | "discussion_message" | "resource";
             /** Title */
             title: string;
             /** Snippet */
@@ -7480,7 +6835,7 @@ export interface components {
              * Routetype
              * @enum {string}
              */
-            routeType: "resources" | "discussions" | "tickets" | "releases" | "work" | "people" | "repositories" | "roadmaps";
+            routeType: "resources" | "discussions" | "tickets" | "work" | "people" | "repositories" | "roadmaps";
             /** Routeid */
             routeId: string | null;
         };
@@ -7577,7 +6932,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "item" | "roadmap" | "step" | "repository" | "ticket" | "release" | "person" | "resource" | "question" | "decision";
+            type: "item" | "roadmap" | "step" | "repository" | "ticket" | "person" | "resource" | "question" | "decision";
             /** Id */
             id: string;
             /** Title */
@@ -7643,7 +6998,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "item" | "roadmap" | "step" | "repository" | "ticket" | "release" | "person" | "resource" | "question" | "decision";
+            type: "item" | "roadmap" | "step" | "repository" | "ticket" | "person" | "resource" | "question" | "decision";
             /** Id */
             id: string;
             /** Title */
@@ -7816,7 +7171,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "item" | "roadmap" | "step" | "repository" | "ticket" | "release" | "person" | "resource" | "question" | "decision";
+            type: "item" | "roadmap" | "step" | "repository" | "ticket" | "person" | "resource" | "question" | "decision";
             /** Id */
             id: string;
             /** Title */
@@ -8464,7 +7819,7 @@ export interface components {
         /**
          * WorkContext
          * @description What an agent reads before it starts: the day, the work, the plans, the people, the proposals,
-         *     who is at work where, and the tickets, resources and releases.
+         *     who is at work where, and the tickets and resources.
          */
         WorkContext: {
             day: components["schemas"]["Day"];
@@ -8479,7 +7834,6 @@ export interface components {
             updates: components["schemas"]["CoordinationUpdates"];
             tickets: components["schemas"]["Tickets"];
             resources: components["schemas"]["Resources"];
-            releases: components["schemas"]["Releases"];
         };
         /**
          * WorkItem
@@ -11241,7 +10595,7 @@ export interface operations {
                 archived?: boolean;
                 limit?: number;
                 offset?: number;
-                type?: ("item" | "step" | "roadmap" | "note" | "attachment" | "link" | "chat" | "github" | "question" | "decision" | "person" | "ticket" | "ticket_comment" | "discussion" | "discussion_message" | "resource" | "release" | "release_check")[];
+                type?: ("item" | "step" | "roadmap" | "note" | "attachment" | "link" | "chat" | "github" | "question" | "decision" | "person" | "ticket" | "ticket_comment" | "discussion" | "discussion_message" | "resource")[];
             };
             header?: never;
             path?: never;
@@ -13335,449 +12689,6 @@ export interface operations {
             };
         };
     };
-    releases_api_v1_releases_get: {
-        parameters: {
-            query?: {
-                /** @description planned, released, cancelled or all */
-                status?: string;
-                archived?: boolean;
-                q?: string;
-                /** @description item, roadmap, step or github, with targetId: the releases that hold that record */
-                targetType?: string | null;
-                targetId?: string | null;
-                limit?: number;
-                offset?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Releases"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    release_create_api_v1_releases_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ReleaseCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ReleaseFields"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    release_api_v1_releases__identity__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                identity: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Release"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    release_update_api_v1_releases__identity__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                identity: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ReleaseUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ReleaseFields"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    release_archive_api_v1_releases__identity__archive_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                identity: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["Expected"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ReleaseFields"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    release_recover_api_v1_releases__identity__recover_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                identity: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["Expected"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ReleaseFields"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    release_add_api_v1_release_contents_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ReleaseContentChange"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ReleaseHolding"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    release_remove_api_v1_release_contents_remove_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ReleaseContentChange"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ReleaseUnheld"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    check_create_api_v1_release_checks_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ReleaseCheckCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ReleaseCheckRecord"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    check_api_v1_release_checks__identity__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                identity: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ReleaseCheck"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    check_update_api_v1_release_checks__identity__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                identity: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ReleaseCheckUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ReleaseCheckRecord"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    check_archive_api_v1_release_checks__identity__archive_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                identity: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["Expected"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ReleaseCheckRecord"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    check_recover_api_v1_release_checks__identity__recover_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                identity: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["Expected"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ReleaseCheckRecord"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     participants_api_v1_discussions_participants_get: {
         parameters: {
             query?: never;
@@ -14198,7 +13109,7 @@ export interface operations {
         parameters: {
             query?: {
                 cursor?: string | null;
-                contextType?: ("item" | "roadmap" | "step" | "repository" | "ticket" | "release" | "person" | "resource" | "question" | "decision") | null;
+                contextType?: ("item" | "roadmap" | "step" | "repository" | "ticket" | "person" | "resource" | "question" | "decision") | null;
                 contextId?: string | null;
                 limit?: number;
             };
@@ -14231,7 +13142,7 @@ export interface operations {
     resume_api_v1_discussions_resume_get: {
         parameters: {
             query?: {
-                contextType?: ("item" | "roadmap" | "step" | "repository" | "ticket" | "release" | "person" | "resource" | "question" | "decision") | null;
+                contextType?: ("item" | "roadmap" | "step" | "repository" | "ticket" | "person" | "resource" | "question" | "decision") | null;
                 contextId?: string | null;
                 limit?: number;
                 offset?: number;
@@ -14403,7 +13314,7 @@ export interface operations {
             query?: {
                 view?: "all" | "awaiting" | "archived";
                 q?: string;
-                contextType?: ("item" | "roadmap" | "step" | "repository" | "ticket" | "release" | "person" | "resource" | "question" | "decision") | null;
+                contextType?: ("item" | "roadmap" | "step" | "repository" | "ticket" | "person" | "resource" | "question" | "decision") | null;
                 contextId?: string | null;
                 repo?: string | null;
                 pinned?: boolean | null;
