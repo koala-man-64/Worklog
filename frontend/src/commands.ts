@@ -252,12 +252,6 @@ export const commands = {
       "POST",
       body,
     ),
-  saveReflection: (date: string, body: Schema["Reflection"]) =>
-    request<Answer<"/api/v1/days/{date}/reflection", "put">>(
-      `/days/${date}/reflection`,
-      "PUT",
-      body,
-    ),
   rescheduleEntry: (date: string, body: Schema["Reschedule"]) =>
     request<Answer<"/api/v1/days/{date}/reschedule", "post">>(
       `/days/${date}/reschedule`,

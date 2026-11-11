@@ -339,11 +339,6 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         p = body.model_dump()
         return mutate(request, p, lambda c, a: work.items.remove_entry(c, a, date, item_id, p))
 
-    @app.put("/api/v1/days/{date}/reflection", response_model=out.DayReflection)
-    def reflection(date: str, request: Request, body: m.Reflection) -> dict:
-        p = body.model_dump()
-        return mutate(request, p, lambda c, a: work.items.reflection(c, a, date, p))
-
     @app.post("/api/v1/days/{date}/reorder", response_model=out.Done)
     def reorder_day(date: str, request: Request, body: m.Reorder) -> dict:
         p = body.model_dump()

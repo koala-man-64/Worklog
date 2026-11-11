@@ -26,7 +26,6 @@ Worklog runs at `http://127.0.0.1:8877`. Start it from PowerShell in your Worklo
 2. As you work, tick "Worked on" for the item.
 3. Write what happened, and what comes next, in "Outcome / next action".
 4. Set its status (Open, Doing, Waiting, Blocked or Done) with the status menu. Waiting is for work that waits on someone else, such as a review or a reply.
-5. Before you stop, write a few lines in "End-of-day reflection (Markdown)".
 
 You never press Save: Worklog saves as you type. Tomorrow, "Open work" on Today lists everything still open, ready to plan again.
 
@@ -127,7 +126,7 @@ They never change your work items, days, roadmaps, people, repositories or resou
    - set its status
    - write an "Outcome / next action"
 4. Put the entries in order by dragging the grip, or with the up and down buttons.
-5. At the end of the day, write the "End-of-day reflection (Markdown)". The counts beside the day's work show how many you worked on, completed and blocked; waiting work doesn't count as blocked. "Continue your next open item" jumps to the next planned item that is open or doing, so it passes over waiting and blocked work.
+5. The counts beside the day's work show how many you worked on, completed and blocked; waiting work doesn't count as blocked. "Continue your next open item" jumps to the next planned item that is open or doing, so it passes over waiting and blocked work.
 6. For your standup update, read "The day’s summary" below the day's work. It lists each entry ticked "Worked on" with its "Outcome / next action", under the status its item ended the day with: "Done", "Doing", "Open", "Waiting", then "Blocked". Press "Copy summary" and paste it into a chat, an email or a Markdown box; it keeps its headings and bullets.
 
 The summary keeps up as each outcome saves. A past day's summary keeps the status each item had that day, even after you change it later.
@@ -444,7 +443,6 @@ Plan the day and record what you worked on.
 - **The day's counts and "Continue your next open item".**
 - **"The day’s summary":** each entry ticked "Worked on" with its outcome, under the status its item ended the day with, and "Copy summary".
 - **"Open work":** every open, doing, waiting and blocked item not yet on the day, with "Find open work…" and "Work on today".
-- **"End-of-day reflection (Markdown)".**
 
 ### Work
 

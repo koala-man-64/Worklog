@@ -584,8 +584,6 @@ class DaySummary(Answer):
 class Day(Answer):
     date: str
     revision: int
-    reflection: str
-    reflectionRevision: int
     entries: list[DayEntry]
     summary: DaySummary
     nextItemId: str | None
@@ -2200,13 +2198,6 @@ class RankResult(Answer):
     id: str
     rank: int
     rankedCount: int
-
-
-class DayReflection(Answer):
-    date: str
-    reflection: str
-    # The reflection's own revision (v21), which its next save checks.
-    revision: int
 
 
 class SavedRoadmap(PlanRoadmap):

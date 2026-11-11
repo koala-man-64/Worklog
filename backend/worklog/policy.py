@@ -108,7 +108,6 @@ ROUTES: dict[str, dict[str, str | Only]] = {
     "/days/{date}": {"GET": READ},
     "/days/{date}/entries/{item_id}": {"PUT": HUMAN},
     "/days/{date}/entries/{item_id}/remove": {"POST": HUMAN},
-    "/days/{date}/reflection": {"PUT": HUMAN},
     "/days/{date}/reorder": {"POST": HUMAN},
     "/days/{date}/reschedule": {"POST": HUMAN},
 
