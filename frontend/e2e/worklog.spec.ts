@@ -183,35 +183,6 @@ test("scratchpad, checklist, paths, attachments and archive recovery persist", a
     page.getByRole("button", { name: "Archive", exact: true }).first(),
   ).toBeVisible();
 });
-test("HTML import previews safe content and preserves original reference", async ({
-  page,
-}) => {
-  await page.goto("/#roadmaps");
-  const title = "Import " + Date.now();
-  await page.getByLabel("Import HTML plan").setInputFiles({
-    name: "plan.html",
-    mimeType: "text/html",
-    buffer: Buffer.from(
-      `<h1>${title}</h1><p>Overview</p><h2>Build carefully</h2><p>First action</p><script>window.importExecuted=true</script>`,
-    ),
-  });
-  await expect(page.getByLabel("Imported title")).toHaveValue(title);
-  await expect(
-    page.getByText("Build carefully", { exact: true }),
-  ).toBeVisible();
-  expect(await page.evaluate(() => "importExecuted" in window)).toBe(false);
-  await page
-    .getByRole("button", { name: "Create from selected steps", exact: true })
-    .click();
-  await page
-    .locator("#main")
-    .getByRole("link", { name: title, exact: true })
-    .click();
-  await expect(page.getByRole("link", { name: "plan.html" })).toBeVisible();
-  await expect(
-    page.getByText("Build carefully", { exact: true }),
-  ).toBeVisible();
-});
 test("agent proposal remains unapplied until explicit human approval", async ({
   page,
 }) => {

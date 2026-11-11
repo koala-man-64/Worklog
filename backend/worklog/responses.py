@@ -491,15 +491,6 @@ class RoadmapVersion(Answer):
     note: str
 
 
-class RoadmapImport(Answer):
-    """A plan import committed to the roadmap; its original is read on its own."""
-
-    id: str
-    name: str
-    sha256: str
-    createdAt: str
-
-
 class FamilyRoadmap(Answer):
     """A roadmap above or below another, as that one lists it."""
 
@@ -539,7 +530,6 @@ class Roadmap(Answer):
     children: list[FamilyRoadmap]
     workItems: list[RoadmapWorkItem]
     people: list[RecordPerson]
-    imports: list[RoadmapImport]
 
 
 class Step(RoadmapStep):
@@ -2462,34 +2452,6 @@ class HashedBackup(BackupFile):
     """A backup a person made, with its file's SHA-256."""
 
     sha256: str
-
-
-class ImportStep(Answer):
-    """A step a plan import found under one of the page's headings."""
-
-    id: str
-    title: str
-    # Markdown.
-    description: str
-    parentId: str | None
-    position: int
-
-
-class ImportPreview(Answer):
-    """What committing an HTML plan would make: a roadmap's title, overview and steps."""
-
-    id: str
-    title: str
-    overview: str
-    steps: list[ImportStep]
-    warnings: list[str]
-    sha256: str
-
-
-class ImportedRoadmap(SavedRoadmap):
-    """The roadmap a plan import made or was attached to."""
-
-    importId: str
 
 
 class UsageWindow(Answer):

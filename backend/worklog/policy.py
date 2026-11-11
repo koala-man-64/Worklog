@@ -152,10 +152,6 @@ ROUTES: dict[str, dict[str, str | Only]] = {
 
     "/history": {"GET": READ},
 
-    "/imports/preview": {"POST": HUMAN},
-    "/imports/{identity}/commit": {"POST": HUMAN},
-    "/imports/{identity}/download": {"GET": READ},
-
     "/inbox/receive": {"POST": INBOX},
 
     "/links": {"POST": HUMAN},

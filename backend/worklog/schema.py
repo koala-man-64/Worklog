@@ -10,8 +10,8 @@ A seal covers each statement's text with its whitespace collapsed to single spac
 space falls is part of the shape, though not whether it was a space or a line break. Each statement
 here is spaced as an upgraded database records it: a column after ", " is one ALTER TABLE ADD
 COLUMN appended after the table's last column, and the spaces inside the parentheses of roadmaps,
-steps, roadmap_versions, plan_imports and proposals stand for the line breaks those tables were
-first written with. Never add or remove a space in one. A schema change needs a new version: its
+steps, roadmap_versions and proposals stand for the line breaks those tables were first written
+with. Never add or remove a space in one. A schema change needs a new version: its
 upgrade in migrations.py, the same change here, and a new seal (test_sealed_schemas.py says how).
 """
 
@@ -47,13 +47,12 @@ CREATE INDEX github_refs_owner ON github_refs(owner_type,owner_id,archived);
 CREATE TABLE chat_steps(chat_id TEXT NOT NULL REFERENCES agent_chats(id),step_id TEXT NOT NULL REFERENCES steps(id),created_at TEXT NOT NULL,PRIMARY KEY(chat_id,step_id));
 CREATE INDEX chat_steps_step ON chat_steps(step_id);
 
--- Roadmaps: their steps, saved versions, HTML imports, questions and decisions.
+-- Roadmaps: their steps, saved versions, questions and decisions.
 CREATE TABLE roadmaps ( id TEXT PRIMARY KEY, title TEXT NOT NULL, overview TEXT NOT NULL, revision INTEGER NOT NULL, archived INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL , parent_id TEXT REFERENCES roadmaps(id));
 CREATE TABLE steps ( id TEXT PRIMARY KEY, roadmap_id TEXT NOT NULL REFERENCES roadmaps(id), title TEXT NOT NULL, description TEXT NOT NULL, parent_id TEXT, position INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'open', revision INTEGER NOT NULL, retired INTEGER NOT NULL DEFAULT 0 );
 CREATE INDEX steps_parent ON steps(parent_id);
 CREATE INDEX steps_roadmap ON steps(roadmap_id);
 CREATE TABLE roadmap_versions ( roadmap_id TEXT NOT NULL REFERENCES roadmaps(id), number INTEGER NOT NULL, created_at TEXT NOT NULL, note TEXT NOT NULL, snapshot TEXT NOT NULL, PRIMARY KEY(roadmap_id,number) );
-CREATE TABLE plan_imports ( id TEXT PRIMARY KEY, name TEXT NOT NULL, original BLOB NOT NULL, sha256 TEXT NOT NULL, preview TEXT NOT NULL, actor_id TEXT NOT NULL, created_at TEXT NOT NULL, roadmap_id TEXT REFERENCES roadmaps(id) );
 CREATE TABLE roadmap_questions(id TEXT PRIMARY KEY,roadmap_id TEXT NOT NULL REFERENCES roadmaps(id),title TEXT NOT NULL,details TEXT NOT NULL DEFAULT '',answer TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT 'open' CHECK(status IN('open','answered')),archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
 CREATE INDEX roadmap_questions_roadmap ON roadmap_questions(roadmap_id,archived);
 CREATE TABLE roadmap_decisions(id TEXT PRIMARY KEY,roadmap_id TEXT NOT NULL REFERENCES roadmaps(id),title TEXT NOT NULL,rationale TEXT NOT NULL DEFAULT '',decided_date TEXT NOT NULL,archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);

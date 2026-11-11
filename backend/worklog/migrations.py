@@ -14,9 +14,10 @@ import sqlite3
 
 from .common import now, setting, today, uid
 
-SCHEMA_VERSION = 24
+SCHEMA_VERSION = 25
 # Older versions that startup and offline restore upgrade in one transaction.
-UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23})
+UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+                                 24})
 
 # v1 grew in place before versions were counted: _upgrade_v1 adds whichever of these a v1 database
 # lacks. People as v1 had them; v10 renames role to team, adds person details and lets links name
@@ -844,6 +845,13 @@ def link_chat_labels(conn: sqlite3.Connection) -> None:
                      [(chat, repository, stamp) for chat, repository in sorted(links)])
 
 
+def drop_plan_imports(conn: sqlite3.Connection) -> None:
+    """Drop the HTML plan import's table (v25, decision R1 in docs/ROADMAPS-RETHINK.md), with the
+    original files and previews it holds. A roadmap an import made is an ordinary roadmap and stays,
+    and so do the events an import wrote. The pre-migration backup keeps the table as it was."""
+    conn.execute("DROP TABLE IF EXISTS plan_imports")
+
+
 def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
     """Unlike executescript, preserve the caller's transaction and rollback boundary."""
     for statement in filter(str.strip, schema.split(";")):
@@ -869,7 +877,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
     repository label of it names exactly, and is the first to add records: it opens the discussion
     of each repository that takes changes. v23 adds CHECKs to tasks, notes, file references and
     attachments, and changes no record. v24 links each tracked chat to the one repository a label of
-    it names exactly, as v22 tagged discussions; the labels stay, and no record changes.
+    it names exactly, as v22 tagged discussions; the labels stay, and no record changes. v25 drops
+    the HTML plan import's table, with the files it holds, and changes no other record.
     """
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version == SCHEMA_VERSION:
@@ -927,6 +936,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
         add_leaf_constraints(conn)
     if version < 24:
         link_chat_labels(conn)
+    if version < 25:
+        drop_plan_imports(conn)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 

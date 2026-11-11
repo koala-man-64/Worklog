@@ -137,15 +137,13 @@ def test_the_guard_sets_the_actor_and_the_agent_scope_on_every_api_call(tmp_path
     assert seen == [{"kind": "human", "scope": None}, {"kind": "agent", "scope": "agent:read"}]
 
 
-def test_uploads_and_imports_keep_their_own_limits(tmp_path):
+def test_uploads_keep_their_own_limit(tmp_path):
     app, person, _ = started(tmp_path)
     item = person.post("/api/v1/work-items", json={"title": "Evidence"}, headers={"Idempotency-Key": str(uuid.uuid4())}).json()
     # Past the guard's limit for JSON, inside the upload's own.
     upload = person.post(f"/api/v1/attachments?ownerType=item&ownerId={item['id']}&name=big.bin", content=b"x" * 9_000_000,
                          headers={"Idempotency-Key": str(uuid.uuid4()), "Content-Type": "application/octet-stream"})
     assert upload.status_code == 200, upload.text
-    imported = person.post("/api/v1/imports/preview?name=big.html", content=b"<p>" + b"x" * 6_000_000)
-    assert imported.status_code == 413 and "5,000,000" in imported.json()["error"]["message"], imported.text
 
 
 def test_every_response_carries_the_security_headers(tmp_path, monkeypatch):

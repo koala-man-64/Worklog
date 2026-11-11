@@ -109,7 +109,7 @@ Records are archived, never deleted, and only the person archives or recovers th
 | Write a message into a chat | yes | no: you receive with `inbox` | - |
 | Upload evidence | - | to your own draft proposal | - |
 | Attach files to work items, roadmaps, steps or repositories | yes | no | yes, a copy of your evidence |
-| Archive or recover files, import plans, reorder, archive or restore roadmaps | yes | no | no |
+| Archive or recover files, reorder, archive or restore roadmaps | yes | no | no |
 | Issue, rotate or revoke credentials | yes | you register and retire identities you registered | - |
 
 Approval is on by default. When the person turns it off in Settings, `proposal submit` applies your proposal at once (section 6).
@@ -640,7 +640,7 @@ A proposal is a JSON file with a title (up to 1,000 bytes), a rationale for the 
 | `check.create` | `releaseId`, `kind`, `text` | `id`, `details`, `personId`, `dueDate`, `status` |
 | `check.update` | `id`, `revision` | `kind`, `text`, `details`, `personId`, `dueDate`, `status` |
 
-Any other field is refused. On a create, `id` is not an ID but a name for the new record (section 6.2, names). Proposals cannot archive or recover files, tickets, releases or release checks, comment on tickets, import plans, reorder, or archive or restore roadmaps.
+Any other field is refused. On a create, `id` is not an ID but a name for the new record (section 6.2, names). Proposals cannot archive or recover files, tickets, releases or release checks, comment on tickets, reorder, or archive or restore roadmaps.
 
 ### 6.2 Field rules
 
@@ -855,7 +855,6 @@ The following codes reach only the person's browser or a failed startup: `host` 
 | A JSON request | 8,000,000 bytes |
 | An evidence file or attachment | 25,000,000 bytes |
 | A note or scratchpad, a proposal's rationale, a discussion message | 1,000,000 bytes |
-| An HTML plan import (the person's) | 5,000,000 bytes |
 | A proposal | 500 operations; 5,000,000 bytes of operations; a title of 1,000 bytes |
 | Your proposals, under any of your credentials | 50 drafts; 100 awaiting review while approval is on |
 | A proposal's evidence | 20 files; 100,000,000 bytes in all |
@@ -889,7 +888,7 @@ The command line covers what agents need. For reads it lacks, such as a work ite
 Invoke-RestMethod -Uri 'http://127.0.0.1:8877/api/v1/work-items/ITEM_ID' -Headers @{ Authorization = "Bearer $env:WORKLOG_AGENT_TOKEN" }
 ```
 
-History older than 90 days may be thinned. When the person runs `worklog compact`, the older changes to work items, the day's plan and reflection, notes, tasks, links, GitHub and file references, questions, decisions, attachments, roadmaps, steps, progress and plan imports keep only each record's `id`, `title`, `status` and `_statusChanged`, so a record with none of them reads `{}`, and a payload that is not a record, such as the day's order or its reflection's text, reads `null`. Every change stays listed, and changes of every other kind keep everything. Compaction also keeps each roadmap's 20 newest versions, and removes plan imports never committed after 7 days.
+History older than 90 days may be thinned. When the person runs `worklog compact`, the older changes to work items, the day's plan and reflection, notes, tasks, links, GitHub and file references, questions, decisions, attachments, roadmaps, steps, progress and the plan imports of older versions keep only each record's `id`, `title`, `status` and `_statusChanged`, so a record with none of them reads `{}`, and a payload that is not a record, such as the day's order or its reflection's text, reads `null`. Every change stays listed, and changes of every other kind keep everything. Compaction also keeps each roadmap's 20 newest versions.
 
 - **Readable routes.** Worklog's route table (`policy.ROUTES`) lists each read an agent credential may make, in the scope `agent:read`: every GET under `/api/v1` but the person's. The person's are `/settings`, `/export`, `/openapi.json`, the usage counts `/usage`, the chat list `/chats` with a chat's `/chats/ID/messages` and `/chats/ID/transcript`, the running sessions `/claude-sessions`, the agents `/agents`, `/agents/ID`, `/agents/ID/activity` and `/agents/ID/proposals`, and a roadmap's `/roadmaps/ID/agents`. Those return `403 agent_scope`. A route the table does not open to agents is the person's, so a new route starts closed to you.
 - **Host header.** It must be `127.0.0.1:PORT`.

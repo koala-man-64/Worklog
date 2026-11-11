@@ -204,7 +204,6 @@ export type Step = Schema["RoadmapStep"];
 export type PlanStep = Schema["PlanStep"];
 /** A work item on a roadmap's page, with the people tied to it. */
 export type RoadmapWorkItem = Schema["RoadmapWorkItem"];
-export type ImportPreview = Schema["ImportPreview"];
 export type RoadmapRef = Schema["FamilyRoadmap"];
 export type RoadmapQuestion = Schema["Question"];
 export type RoadmapDecision = Schema["Decision"];

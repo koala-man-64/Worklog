@@ -4,8 +4,8 @@ The guard answers before any route does. A request must come to Worklog's own ad
 foreign browser origin. An API request needs a caller: an agent's credential, or the person's
 session, CSRF-checked for a write. policy.ROUTES decides what an agent may call. A JSON body is read
 here, refused as soon as it passes its limit, and handed on to the route unchanged, so the route's
-parser never allocates past it; uploads, HTML imports and the session bootstrap stream to their own
-handlers, which keep their own limits. Every response, an error included, carries the security
+parser never allocates past it; uploads and the session bootstrap stream to their own handlers,
+which keep their own limits. Every response, an error included, carries the security
 headers. The guard checks the path the router matches, so a root_path cannot walk past it.
 """
 
@@ -30,8 +30,8 @@ from .db import Database
 logger = logging.getLogger("worklog")
 
 JSON_LIMIT = 8_000_000
-# Their handlers read these bodies themselves, each to its own limit (common.FILE_LIMIT and HTML_LIMIT).
-STREAMED = {"/api/v1/attachments", "/api/v1/imports/preview"}
+# Their handlers read these bodies themselves, to their own limit (common.FILE_LIMIT).
+STREAMED = {"/api/v1/attachments"}
 # Starts the person's session, checking its own caller, so it needs none.
 BOOTSTRAP = "/api/v1/session/bootstrap"
 SECURITY_HEADERS = {

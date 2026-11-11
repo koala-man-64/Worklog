@@ -100,9 +100,6 @@ def test_roadmap_steps_reject_type_confused_fields(client, records, field):
         revised = send(client, "POST", f"/roadmaps/{roadmap_id}/revisions",
                        {"revision": revision, "title": "R", "steps": [step]})
         assert_handled(revised, ("revise", field, value))
-        preview = client.post("/api/v1/imports/preview?name=x.html", content=b"<h2>Imported</h2>").json()
-        committed = send(client, "POST", f"/imports/{preview['id']}/commit", {"title": "R", "steps": [step]})
-        assert_handled(committed, ("import", field, value))
 
 
 def test_malformed_step_in_approved_proposal_is_rejected_cleanly(client):

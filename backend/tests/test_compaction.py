@@ -33,8 +33,7 @@ KEPT_KINDS = ["credential.register", "credential.revoke", "proposal.create", "pr
               "ticket.create", "reminder.update", "person.update", "repository.create", "agent.link",
               "coordination.update", "run.create", "participation.create", "settings.timezone"]
 # What compaction may change; every other table exports as it was.
-CHANGED = {"events", "roadmap_versions", "plan_imports", "receipts"}
-HTML = b"<html><body><h1>Imported plan</h1><h2>First step</h2><p>Text</p></body></html>"
+CHANGED = {"events", "roadmap_versions", "receipts"}
 
 
 def connect(c):
@@ -61,10 +60,10 @@ def exported(path):
 
 def canonical(files):
     """The export's members compaction must leave alone: every table's records but CHANGED's, the
-    schema and the BLOBs. The Markdown holds every table, and imports/ the imports' originals."""
+    schema and the BLOBs. The Markdown holds every table."""
     return {name: data for name, data in files.items()
             if not (name.startswith("records/") and name[len("records/"):-len(".json")] in CHANGED)
-            and name != "worklog.md" and not name.startswith("imports/")}
+            and name != "worklog.md"}
 
 
 def rows(path, sql, *parameters):
@@ -74,8 +73,8 @@ def rows(path, sql, *parameters):
 
 @pytest.fixture
 def world(tmp_path):
-    """A stopped Worklog with a day of work, a roadmap of 25 versions, two plan imports and old events
-    of every kept kind. Returns its data directory, database and what was read before compaction."""
+    """A stopped Worklog with a day of work, a roadmap of 25 versions and old events of every kept
+    kind. Returns its data directory, database and what was read before compaction."""
     data = tmp_path / "data"
     with TestClient(create_app(data, testing=True), base_url=ORIGIN) as c:
         connect(c)
@@ -100,11 +99,8 @@ def world(tmp_path):
         small = call(c, "POST", "/roadmaps", {"title": "Small 1", "steps": []})
         for number in (2, 3):
             small = call(c, "POST", f"/roadmaps/{small['id']}/revisions", {"revision": small["revision"], "title": f"Small {number}", "steps": []})
-        imports = [c.post(f"/api/v1/imports/preview?name={name}.html", content=HTML).json() for name in ("kept", "left")]
-        committed = call(c, "POST", f"/imports/{imports[0]['id']}/commit", {"title": "Imported", "steps": []})
         before = {"day": day, "today": call(c, "GET", f"/days/{day}"), "roadmap": roadmap["id"], "step": step,
-                  "committed": committed["id"], "imports": [i["id"] for i in imports], "done": done["id"], "small": small["id"],
-                  "search": call(c, "GET", "/search?q=Finished")}
+                  "done": done["id"], "small": small["id"], "search": call(c, "GET", "/search?q=Finished")}
     database = data / "worklog.sqlite3"
     with closing(sqlite3.connect(database)) as conn:
         for position, kind in enumerate(KEPT_KINDS):
@@ -165,10 +161,6 @@ def test_compaction_thins_old_display_history_and_keeps_every_record_and_state(w
         revised = call(c, "POST", f"/roadmaps/{before['roadmap']}/revisions",
                        {"revision": roadmap["revision"], "title": "Plan 26", "steps": [{"id": before["step"], "title": "Step"}]})
         assert revised["versions"][-1]["number"] == 26
-        # An import committed to a roadmap stays; one never committed goes.
-        assert c.get(f"/api/v1/imports/{before['imports'][0]}/download").status_code == 200
-        assert c.get(f"/api/v1/imports/{before['imports'][1]}/download").status_code == 404
-    assert result["importsPurged"] == 1
     # The search index still finds each record's row by its key.
     assert rows(database, "SELECT count(*) FROM search_keys k LEFT JOIN search_index s ON s.rowid=k.doc "
                           "WHERE s.rowid IS NULL OR s.entity_id<>k.entity_id") == [(0,)]
@@ -186,18 +178,17 @@ def test_the_pre_compaction_backup_holds_the_database_as_it_was(world):
     assert canonical(exported(backup)) == canonical(before["files"])
 
 
-def test_recent_history_and_recent_imports_are_left_alone(world):
+def test_recent_history_is_left_alone(world):
     data, database, before = world
-    # Six days on, nothing is 90 days old, and the uncommitted import is not yet 7 days old.
+    # Six days on, nothing is 90 days old.
     result = compact_database(database, data / "backups", now=datetime.now(UTC) + timedelta(days=6))
-    assert (result["eventsThinned"], result["importsPurged"]) == (0, 0)
+    assert result["eventsThinned"] == 0
     assert result["versionsRemoved"] == 5
     events = rows(database, "SELECT id,kind,before_json,after_json FROM events ORDER BY rowid")
     assert events == before["events"]
-    assert rows(database, "SELECT count(*) FROM plan_imports") == [(2,)]
     # Compacting again lets nothing more go.
     again = compact_database(database, data / "backups", now=datetime.now(UTC) + timedelta(days=6))
-    assert (again["eventsThinned"], again["versionsRemoved"], again["importsPurged"]) == (0, 0, 0)
+    assert (again["eventsThinned"], again["versionsRemoved"]) == (0, 0)
 
 
 def test_compaction_refuses_while_worklog_runs_or_a_write_or_restore_is_unfinished(world):
@@ -321,6 +312,6 @@ def test_the_cli_compacts_and_reports_or_explains_a_refusal(world, capsys):
     assert "Worklog is running" in capsys.readouterr().err
     assert cli.main(["--data-dir", str(data), "compact"]) == 0
     report = json.loads(capsys.readouterr().out)
-    assert set(report) == {"compacted", "eventsThinned", "versionsRemoved", "importsPurged", "receiptsPruned",
+    assert set(report) == {"compacted", "eventsThinned", "versionsRemoved", "receiptsPruned",
                            "bytesBefore", "bytesAfter", "bytesReclaimed", "preCompactBackup"}
     assert report["versionsRemoved"] == 5

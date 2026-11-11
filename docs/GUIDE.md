@@ -98,7 +98,7 @@ Tick "Search archived records" to search the archive instead. Agent proposals ar
 
 ### Where your data lives
 
-Everything lives in one database file, `worklog.sqlite3`, in your data folder: your records, every attached file and every imported plan. The folder is `%LOCALAPPDATA%/Worklog` unless you chose another with `WORKLOG_DATA_DIR`. Worklog backs it up when it starts and once a day while it runs. Beside it, `usage.sqlite3` counts which pages you open and which features you and your agents use, by name and day alone; the `worklog usage` command shows what was used and what wasn't (see *See what you use* in `docs/OPERATIONS.md`). Drafts belong to one data folder: after a restore or a switch of folder, old drafts stay in the browser but are never applied, and Settings says so.
+Everything lives in one database file, `worklog.sqlite3`, in your data folder: your records and every attached file. The folder is `%LOCALAPPDATA%/Worklog` unless you chose another with `WORKLOG_DATA_DIR`. Worklog backs it up when it starts and once a day while it runs. Beside it, `usage.sqlite3` counts which pages you open and which features you and your agents use, by name and day alone; the `worklog usage` command shows what was used and what wasn't (see *See what you use* in `docs/OPERATIONS.md`). Drafts belong to one data folder: after a restore or a switch of folder, old drafts stay in the browser but are never applied, and Settings says so.
 
 ### What agents can change
 
@@ -241,14 +241,6 @@ Your agents can set reminders for you too, for example to merge once a pull requ
 6. To nest a roadmap under another, use "Add sub-roadmap" on the parent's overview, or choose its parent in "Nested under".
 
 The editor keeps your unsaved structure as a browser draft. If the roadmap changed in the meantime, choose "Rebase onto current" to keep your edits on the newest version: a title, description or parent you didn't change takes the newest one, so a step edited elsewhere keeps its new text, and a step retired elsewhere stays retired unless you changed it. Or choose "Discard draft". A save changes only the steps you changed: adding or retiring a step leaves the others as they were. Retired steps keep their history and are listed under "Retired steps".
-
-### Turn an HTML plan into a roadmap
-
-1. On **Roadmaps**, under "Bring in an HTML plan", choose the file (up to 5 MB). Worklog turns its headings into candidate steps; "Preview extracted content" shows what it found.
-2. Tick the steps to keep and press "Create from selected steps" for a new roadmap.
-3. Or choose an existing roadmap in "Or keep the original as a reference on an existing roadmap" and press "Attach original as reference".
-
-The original file is kept and can be downloaded with "Download original", but Worklog never opens it as a page.
 
 ### Record questions and decisions
 
@@ -500,7 +492,7 @@ Plans broken into steps, with every saved version kept.
 
 - **The list:**
   - "Your roadmaps": the tree of roadmaps, with "Show archive" and a person filter.
-  - "Start a roadmap": "Roadmap title", "Create roadmap" and "Bring in an HTML plan".
+  - "Start a roadmap": "Roadmap title" and "Create roadmap".
 - **A roadmap's page:**
   - **The header:**
     - Its parents ("All roadmaps" first) and the title.
@@ -515,7 +507,7 @@ Plans broken into steps, with every saved version kept.
       - The overview text and people, "Questions", "Decisions" and "Sub-roadmaps".
       - "Work items": "Add work item" creates one on the roadmap, and "Attach work item" links existing work.
       - Notes, links, agent chats, GitHub references, releases and files.
-      - "Immutable versions", "Original plan references", "Retired steps", "Archived supporting records", "Reminders", "Applied proposals" and "Activity history".
+      - "Immutable versions", "Retired steps", "Archived supporting records", "Reminders", "Applied proposals" and "Activity history".
     - **A step**, chosen in the outline:
       - Its description, with "Edit step" for its title and description, its work items and releases.
       - Its agent chats, with "Assign chat", "Add chat to step" and "Unassign".

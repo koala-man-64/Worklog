@@ -33,7 +33,6 @@ from .agent_links import ties_of_agent, visible_history
 from .chat_message_api import install_chat_message_routes
 from .common import (
     FILE_LIMIT,
-    HTML_LIMIT,
     AppError,
     event,
     now,
@@ -65,7 +64,7 @@ from .releases import ReleaseService
 from .reminder_api import install_reminder_routes
 from .resource_api import install_resource_routes
 from .resources import ResourceService
-from .search import SearchType, global_search, index_plans
+from .search import SearchType, global_search
 from .services import WorkService
 from .ticket_api import install_ticket_routes
 from .tickets import TicketService
@@ -580,7 +579,6 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             result["workItems"] = work.items.roadmap_items(c, identity)
             result["people"] = people_on(c, "roadmap", [identity]).get(identity, [])
             result["history"] = read_events(c, identity)
-            result["imports"] = [{"id": r["id"], "name": r["name"], "sha256": r["sha256"], "createdAt": r["created_at"]} for r in c.execute("SELECT * FROM plan_imports WHERE roadmap_id=?", (identity,))]
         return result
 
     @app.post("/api/v1/roadmaps/{identity}/revisions", response_model=out.SavedRoadmap)
@@ -620,31 +618,6 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     @app.get("/api/v1/steps/{identity}/history", response_model=out.History)
     def step_history(identity: str) -> dict:
         return plans.history(identity)
-
-    @app.post("/api/v1/imports/preview", response_model=out.ImportPreview)
-    async def import_preview(request: Request, name: str = "roadmap.html") -> dict:
-        data = await bounded_body(request, HTML_LIMIT)
-        return await run_in_threadpool(plans.preview, data, name, request.state.actor)
-
-    @app.post("/api/v1/imports/{identity}/commit", response_model=out.ImportedRoadmap)
-    def import_commit(identity: str, request: Request, body: m.ImportCommit) -> dict:
-        payload = body.model_dump(exclude_none=True)
-        def commit(c: sqlite3.Connection, actor: dict) -> dict:
-            result = plans.import_commit(identity, payload, actor, conn=c)
-            index_plans(c, result["id"])
-            if payload.get("roadmapId"):
-                proposals.notify_stale_proposals(c, result["id"])
-            return result
-        return mutate(request, payload, commit, required_key=True)
-
-    @app.get("/api/v1/imports/{identity}/download")
-    def original_import(identity: str, request: Request) -> Response:
-        with db.read() as c:
-            row = c.execute("SELECT * FROM plan_imports WHERE id=?", (identity,)).fetchone()
-            if row and not row["roadmap_id"] and request.state.actor["kind"] == "agent" and row["actor_id"] != request.state.actor["id"]:
-                raise AppError(404, "not_found", "Import not found")
-        data, name = plans.import_download(identity)
-        return download_response(data, name)
 
     def proposal_detail(identity: str, actor: dict) -> dict:
         result = proposals.detail(identity, actor)

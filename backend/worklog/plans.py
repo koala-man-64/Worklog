@@ -1,17 +1,10 @@
-"""Versioned roadmap trees and deliberately non-merging HTML imports."""
+"""Versioned roadmap trees."""
 
 from __future__ import annotations
 
-import hashlib
 import json
-import re
 import uuid
 from bisect import bisect_left
-from contextlib import nullcontext
-from pathlib import PurePath
-
-from bs4 import BeautifulSoup, Tag
-from markdownify import markdownify
 
 from .common import AppError, event, now, read_events, require_revision, uid
 
@@ -281,21 +274,6 @@ def step_tree(conn, roadmap_id):
     return _steps(conn, roadmap_id, retired=True)
 
 
-_URL_UNSAFE = re.compile(r"[()<>\s]")
-
-
-def _normalize_url(value: str) -> str:
-    """Make a kept URL safe to embed in Markdown link syntax.
-
-    Protocol-relative URLs become https; parentheses, angle brackets and whitespace are
-    percent-encoded so a crafted value cannot close the link and open another one.
-    """
-    value = value.strip()
-    if value.startswith("//"):
-        value = "https:" + value
-    return _URL_UNSAFE.sub(lambda m: "".join(f"%{b:02X}" for b in m.group().encode()), value)
-
-
 class PlanService:
     def __init__(self, db):
         self.db = db
@@ -561,111 +539,3 @@ class PlanService:
         # so the roadmap's event names them rather than holding two copies of the tree (B-02).
         event(conn, actor, action, identifier, None, {"versionNumber": number, "changedStepIds": changed})
         return self._detail(conn, identifier)
-
-    def preview(self, data: bytes, name: str, actor):
-        if not data or len(data) > 5_000_000:
-            raise AppError(413, "too_large", "HTML import must contain 1 to 5,000,000 bytes")
-        soup = BeautifulSoup(data, "html.parser")
-        document_title = soup.title.get_text(" ", strip=True) if soup.title else ""
-        for tag in soup.find_all(["script", "style", "iframe", "frame", "frameset", "object", "embed", "applet", "audio", "video", "source", "track", "form", "input", "button", "svg", "math", "template", "noscript", "base", "link", "meta"]):
-            tag.decompose()
-        for tag in soup.find_all(True):
-            depth = 0
-            for _ in tag.parents:
-                depth += 1
-                if depth > 100:
-                    raise AppError(422, "validation", "HTML nesting exceeds 100 levels")
-            for key in list(tag.attrs):
-                if key.lower().startswith("on") or key.lower() in {"style", "srcdoc"}:
-                    del tag.attrs[key]
-            for key in ("href", "src", "action", "poster", "xlink:href"):
-                value = tag.get(key)
-                compact = re.sub(r"[\x00-\x20\x7f]+", "", str(value or ""))
-                if compact and (re.match(r"[a-z][a-z0-9+.-]*:", compact, re.I)
-                                and not re.match(r"https?://", compact, re.I)):
-                    del tag.attrs[key]
-                elif compact:
-                    tag.attrs[key] = _normalize_url(str(value))
-        body = soup.body or soup
-        if body is soup and soup.head:
-            soup.head.decompose()
-        headings = body.find_all(re.compile(r"^h[1-6]$"))
-        title = (headings[0].get_text(" ", strip=True) if headings else
-                 document_title or PurePath(name).stem) or "Imported roadmap"
-        # Recurse through wrappers containing headings, retaining complete fragments
-        # elsewhere. This includes loose text and inline markup in document order.
-        pieces: list[str] = []
-        sections: list[dict] = []
-        current: dict | None = None
-        stack: list[tuple[int, str]] = []
-        overview = ""
-
-        def visit(node):
-            nonlocal current, pieces, overview
-            if isinstance(node, Tag) and re.fullmatch(r"h[1-6]", node.name or ""):
-                if current is not None:
-                    current["description"] = markdownify("".join(pieces), heading_style="ATX").strip()
-                else:
-                    overview = markdownify("".join(pieces), heading_style="ATX").strip()
-                pieces = []
-                level = int(node.name[1])
-                while stack and stack[-1][0] >= level:
-                    stack.pop()
-                current = {"id": uid(), "title": node.get_text(" ", strip=True) or "Untitled step",
-                           "description": "", "parentId": stack[-1][1] if stack else None,
-                           "position": len(sections)}
-                sections.append(current)
-                stack.append((level, current["id"]))
-            elif isinstance(node, Tag) and node.find(re.compile(r"^h[1-6]$")):
-                for child in node.children:
-                    visit(child)
-            else:
-                pieces.append(str(node))
-
-        for node in body.children:
-            visit(node)
-        if current is not None:
-            current["description"] = markdownify("".join(pieces), heading_style="ATX").strip()
-        else:
-            overview = markdownify("".join(pieces), heading_style="ATX").strip()
-        identifier = uid()
-        result = {"id": identifier, "title": title, "overview": overview, "steps": sections,
-                  "warnings": ["Review imported Markdown and select steps before committing."],
-                  "sha256": hashlib.sha256(data).hexdigest()}
-        safe_name = re.sub(r'[\x00-\x1f\x7f"]', "", name.replace("\\", "/").split("/")[-1])[:240] or "import.html"
-        with self.db.transaction() as conn:
-            conn.execute("INSERT INTO plan_imports(id,name,original,sha256,preview,actor_id,created_at,roadmap_id) VALUES(?,?,?,?,?,?,?,NULL)",
-                         (identifier, safe_name, data, result["sha256"], json.dumps(result), actor["id"], now()))
-            event(conn, actor, "import.preview", identifier, None, {"sha256": result["sha256"], "name": safe_name})
-        return result
-
-    def import_commit(self, identifier, payload, actor, conn=None):
-        with self.db.transaction() if conn is None else nullcontext(conn) as conn:
-            row = conn.execute("SELECT * FROM plan_imports WHERE id=?", (identifier,)).fetchone()
-            if row is None:
-                raise AppError(404, "not_found", "Import not found")
-            if row["roadmap_id"]:
-                raise AppError(409, "conflict", "Import has already been committed")
-            target = payload.get("roadmapId")
-            if target:
-                roadmap = _row(conn, target)
-                require_revision(roadmap, payload.get("revision"))
-                if roadmap["archived"]:
-                    raise AppError(409, "conflict", "Recover the roadmap before attaching an import")
-                before = _roadmap(roadmap)
-                conn.execute("UPDATE roadmaps SET revision=revision+1,updated_at=? WHERE id=?", (now(), target))
-                result = self._detail(conn, target)
-                event(conn, actor, "import.reference", target, before, {"importId": identifier, "sha256": row["sha256"]})
-            else:
-                result = self.apply(conn, actor, "roadmap.create", payload)
-                target = result["id"]
-            conn.execute("UPDATE plan_imports SET roadmap_id=? WHERE id=?", (target, identifier))
-            result["importId"] = identifier
-            return result
-
-    def import_download(self, identifier):
-        with self.db.read() as conn:
-            row = conn.execute("SELECT original,name FROM plan_imports WHERE id=?", (identifier,)).fetchone()
-            if row is None:
-                raise AppError(404, "not_found", "Import not found")
-            return bytes(row["original"]), row["name"]

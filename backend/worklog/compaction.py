@@ -11,7 +11,6 @@ Worklog keeps every record and every event row. Compaction lets go of what K6 de
   resources, releases, settings and the rest. No event row goes: discussion_changes names events,
   and history is read in the order it was written, by rowid, which VACUUM must keep.
 - Each roadmap's versions but its VERSIONS_KEPT newest.
-- Plan imports never committed to a roadmap, IMPORT_DAYS after their preview.
 - Idempotency receipts past their retention (maintenance.prune_receipts).
 
 VACUUM then hands the space back. Compaction runs while Worklog is stopped, under the server's
@@ -46,14 +45,14 @@ from .recovery import (
 
 HISTORY_DAYS = 90
 VERSIONS_KEPT = 20
-IMPORT_DAYS = 7
 # The pre-compaction backups kept: those of the newest compactions that finished.
 BACKUPS_KEPT = 3
 # The families of kinds, by the part of a kind's name before its first dot, whose payloads only show
 # in history: work items and the day's plan, supporting records, and roadmaps with their steps,
-# progress and imports. Every kind of a listed family is thinned, a new one too, so a payload of
-# these families must never hold state: state goes in columns (CONSOLIDATION.md's *Rules*). A kind
-# of any other family keeps its payloads whole.
+# progress and imports (the HTML plan import, which databases from before v25 recorded). Every kind
+# of a listed family is thinned, a new one too, so a payload of these families must never hold
+# state: state goes in columns (CONSOLIDATION.md's *Rules*). A kind of any other family keeps its
+# payloads whole.
 THINNED = frozenset({"item", "entry", "day", "backlog", "note", "task", "link", "github", "reference",
                      "question", "decision", "attachment", "step", "roadmap", "progress", "import"})
 KEPT = ("id", "title", "status", "_statusChanged")
@@ -145,9 +144,6 @@ def _compact(stage: Path, moment: datetime) -> dict[str, int]:
             counts = {
                 "eventsThinned": _thin_events(conn, (moment - timedelta(days=HISTORY_DAYS)).isoformat()),
                 "versionsRemoved": conn.execute(OLD_VERSIONS, (VERSIONS_KEPT,)).rowcount,
-                "importsPurged": conn.execute(
-                    "DELETE FROM plan_imports WHERE roadmap_id IS NULL AND created_at<?",
-                    ((moment - timedelta(days=IMPORT_DAYS)).isoformat(),)).rowcount,
                 "receiptsPruned": prune_receipts(conn, now=moment),
             }
             if conn.execute("PRAGMA foreign_key_check").fetchone() is not None:

@@ -17,7 +17,6 @@ STATUSES = {"open", "doing", "blocked", "done"}
 ITEM_STATUSES = STATUSES | {"waiting"}
 NOTE_LIMIT = 1_000_000
 FILE_LIMIT = 25_000_000
-HTML_LIMIT = 5_000_000
 # Ids bound per statement by rows_in, well below SQLite's limit on variables.
 IN_BATCH = 400
 # Whether the agent identity aliased `a` has a credential that is not revoked. A query using it
