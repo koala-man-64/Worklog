@@ -63,8 +63,8 @@ TIE_TYPES = ("item", "roadmap", "step", "repository", "person", "resource", "dis
              "agent", "question", "decision")
 # What a discussion can be tagged with, as discussions.TAG_KINDS lists them, and the work contexts roles
 # sit on; test_discussion_tags.py keeps them equal.
-DISCUSSION_TAG_KINDS = ("item", "roadmap", "step", "repository", "ticket", "release", "person", "resource",
-                        "question", "decision")
+DISCUSSION_TAG_KINDS = ("item", "roadmap", "step", "repository", "ticket", "person", "resource", "question",
+                        "decision")
 ROLE_CONTEXT_KINDS = ("item", "roadmap", "step")
 TICKET_KINDS = ("bug", "incident", "task")
 TICKET_PRIORITIES = ("low", "normal", "high", "urgent")
@@ -556,7 +556,7 @@ class AgentClient:
         # Explicit route allowlist makes canonical writes and approval unreachable from this client.
         route = path.split("?", 1)[0]
         segments = route.strip("/").split("/")
-        allowed = method == "GET" and route in {"/context", "/search", "/proposals", "/resources", "/releases", "/agent-registrations/self"}
+        allowed = method == "GET" and route in {"/context", "/search", "/proposals", "/resources", "/agent-registrations/self"}
         def valid_id(value: str) -> bool:
             try:
                 return str(uuid.UUID(value)) == value.lower()
@@ -567,7 +567,7 @@ class AgentClient:
             allowed = method in {"GET", "PATCH"} and valid_id(segments[1])
         if len(segments) == 3 and segments[0] == "proposals" and segments[2] in {"submit", "withdraw", "reopen"}:
             allowed = method == "POST" and valid_id(segments[1])
-        if len(segments) == 2 and segments[0] in {"roadmaps", "steps", "resources", "releases"}:
+        if len(segments) == 2 and segments[0] in {"roadmaps", "steps", "resources"}:
             allowed = method == "GET" and valid_id(segments[1])
         if route in {"/proposals", "/agent-registrations", "/agent-registrations/continue", "/agent-registrations/retire"} and method == "POST":
             allowed = True
@@ -882,13 +882,6 @@ def agent_command(args: argparse.Namespace, port: int, redact: list[str]) -> Any
         if args.resource_action == "list":
             return client.request("GET", "/resources" + _coordination_query(args, "q", "archived", "limit", "offset"))
         return client.request("GET", "/resources/" + args.id)
-    if args.agent_action == "releases":
-        if args.release_action == "list":
-            if args.item:
-                args.targetType, args.targetId = "item", args.item
-            return client.request("GET", "/releases" + _coordination_query(
-                args, "status", "q", "targetType", "targetId", "archived", "limit", "offset"))
-        return client.request("GET", "/releases/" + args.id)
     if args.agent_action == "inbox":
         return client.request("POST", "/inbox/receive", {"chatId": args.chat} if args.chat else {},
                               request_id=args.request_id)
@@ -1570,17 +1563,6 @@ def parser() -> argparse.ArgumentParser:
     listing.add_argument("--limit", type=int, default=50)
     listing.add_argument("--offset", type=int, default=0)
     resources.add_parser("show", help="One page with its full Markdown text").add_argument("id")
-    # Read-only: only the person changes releases, and the client has no route that changes one.
-    releases = actions.add_parser("releases", help="Read what ships together, and who to tell, what to test and what to prepare").add_subparsers(
-        dest="release_action", required=True)
-    listing = releases.add_parser("list", help="Releases with their counts, upcoming ones by default, soonest first")
-    listing.add_argument("--status", choices=("planned", "released", "cancelled", "all"), default="planned")
-    listing.add_argument("--q", help="Words from a release's title or description, or one of its checks")
-    listing.add_argument("--item", help="Only the releases that hold this work item")
-    listing.add_argument("--archived", action="store_true", help="List archived releases")
-    listing.add_argument("--limit", type=int, default=50)
-    listing.add_argument("--offset", type=int, default=0)
-    releases.add_parser("show", help="One release: what it holds, its changes, checks and history").add_argument("id")
     # context lists roadmaps without their steps and search shows snippets; these read the whole text.
     roadmap = actions.add_parser("roadmap", help="Read a roadmap with the full text of every step")
     roadmap.add_subparsers(dest="roadmap_action", required=True).add_parser("show").add_argument("id")

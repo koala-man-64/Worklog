@@ -64,20 +64,6 @@ export type TicketComment = Schema["TicketComment"];
 export type TicketKind = Ticket["kind"];
 export type TicketPriority = Ticket["priority"];
 
-// Releases.
-export type ReleaseRow = Schema["ReleaseListed"];
-export type ReleaseDetail = Schema["Release"];
-export type ReleaseStatus = ReleaseRow["status"];
-export type ReleaseCounts = Schema["ReleaseCounts"];
-export type ReleaseCheck = Schema["ReleaseCheck"];
-export type CheckKind = ReleaseCheck["kind"];
-export type ReleaseTarget = Schema["ReleaseHolding"]["targetType"];
-export type ReleaseItem = Schema["ReleaseItem"];
-export type ReleaseRoadmap = Schema["ReleaseRoadmap"];
-export type ReleaseStep = Schema["ReleaseStep"];
-export type ReleaseChange = Schema["ReleaseChange"];
-export type ReleaseEvent = Schema["ReleaseHistoryEntry"];
-
 // Resources.
 export type Resource = Schema["ResourceListed"];
 export type ResourcePage = Schema["ResourcePage"];
@@ -144,8 +130,7 @@ export type DiscussionContext = Schema["ContextTag"] &
       Schema["StepContextTag"] &
         Schema["DecisionContextTag"] &
         Schema["RepositoryContextTag"] &
-        Schema["TicketContextTag"] &
-        Schema["ReleaseContextTag"],
+        Schema["TicketContextTag"],
       keyof Schema["ContextTag"]
     >
   >;

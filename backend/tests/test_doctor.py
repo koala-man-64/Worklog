@@ -151,10 +151,12 @@ def test_the_doctor_knows_every_kind_the_schema_and_the_index_name():
     for kind, sql in record_kinds.SUMMARIES.items():
         if kind in doctor.TABLES:
             assert doctor.TABLES[kind] in re.findall(r"FROM (\w+)", sql), kind
-    # Each reference takes the types its table's CHECK allows, where it has one.
+    # Each reference takes the types its table's CHECK allows, where it has one, but for those it retired.
     for table, kind_column, _, kinds in doctor.REFERENCES:
         assert set(kinds) <= set(doctor.TABLES)
         definition = re.search(rf"CREATE TABLE {table}\s*\((.*?)\);", BASELINE, re.S).group(1)
         check = re.search(rf"{kind_column} TEXT[^,]*CHECK\({kind_column} IN ?\(([^)]*)\)\)", definition)
         if check:
-            assert set(kinds) == {value.strip().strip("'") for value in check.group(1).split(",")}, table
+            allowed = {value.strip().strip("'") for value in check.group(1).split(",")}
+            assert set(kinds) == allowed - set(doctor.RETIRED.get(table, ())), table
+            assert set(doctor.RETIRED.get(table, ())) <= allowed, table

@@ -4,7 +4,7 @@
     "id": "<id1>",
     "title": "Parser",
     "archived": false,
-    "revision": 12,
+    "revision": 11,
     "createdAt": "<time>",
     "updatedAt": "<time>",
     "pinned": true,
@@ -15,14 +15,14 @@
         "id": "<id2>",
         "title": "Parser",
         "archived": false,
-        "status": "doing",
         "home": false,
         "addedBy": {
           "id": "local-user",
           "label": "You",
           "kind": "human"
         },
-        "addedAt": "<time>"
+        "addedAt": "<time>",
+        "status": "doing"
       },
       {
         "type": "roadmap",
@@ -42,64 +42,49 @@
         "id": "<id4>",
         "title": "Child",
         "archived": false,
-        "status": "open",
-        "roadmapId": "<id3>",
-        "roadmapTitle": "Plan 2",
         "home": false,
         "addedBy": {
           "id": "local-user",
           "label": "You",
           "kind": "human"
         },
-        "addedAt": "<time>"
+        "addedAt": "<time>",
+        "status": "open",
+        "roadmapId": "<id3>",
+        "roadmapTitle": "Plan 2"
       },
       {
         "type": "repository",
         "id": "<id5>",
         "title": "worklog",
         "archived": false,
-        "mergedInto": null,
         "home": false,
         "addedBy": {
           "id": "local-user",
           "label": "You",
           "kind": "human"
         },
-        "addedAt": "<time>"
+        "addedAt": "<time>",
+        "mergedInto": null
       },
       {
         "type": "ticket",
         "id": "<id6>",
         "title": "Crash on save",
         "archived": false,
+        "home": false,
+        "addedBy": {
+          "id": "local-user",
+          "label": "You",
+          "kind": "human"
+        },
+        "addedAt": "<time>",
         "status": "open",
-        "number": 1,
-        "home": false,
-        "addedBy": {
-          "id": "local-user",
-          "label": "You",
-          "kind": "human"
-        },
-        "addedAt": "<time>"
-      },
-      {
-        "type": "release",
-        "id": "<id7>",
-        "title": "1.0",
-        "archived": false,
-        "status": "planned",
-        "releaseDate": "2026-12-01",
-        "home": false,
-        "addedBy": {
-          "id": "local-user",
-          "label": "You",
-          "kind": "human"
-        },
-        "addedAt": "<time>"
+        "number": 1
       },
       {
         "type": "person",
-        "id": "<id8>",
+        "id": "<id7>",
         "title": "Ada",
         "archived": false,
         "home": false,
@@ -112,7 +97,7 @@
       },
       {
         "type": "resource",
-        "id": "<id9>",
+        "id": "<id8>",
         "title": "Style",
         "archived": false,
         "home": false,
@@ -125,34 +110,34 @@
       },
       {
         "type": "question",
-        "id": "<id10>",
+        "id": "<id9>",
         "title": "Which parser?",
         "archived": false,
-        "status": "open",
-        "roadmapId": "<id3>",
-        "roadmapTitle": "Plan 2",
         "home": false,
         "addedBy": {
           "id": "local-user",
           "label": "You",
           "kind": "human"
         },
-        "addedAt": "<time>"
+        "addedAt": "<time>",
+        "status": "open",
+        "roadmapId": "<id3>",
+        "roadmapTitle": "Plan 2"
       },
       {
         "type": "decision",
-        "id": "<id11>",
+        "id": "<id10>",
         "title": "Use the HTML one",
         "archived": false,
-        "roadmapId": "<id3>",
-        "roadmapTitle": "Plan 2",
         "home": false,
         "addedBy": {
           "id": "local-user",
           "label": "You",
           "kind": "human"
         },
-        "addedAt": "<time>"
+        "addedAt": "<time>",
+        "roadmapId": "<id3>",
+        "roadmapTitle": "Plan 2"
       }
     ],
     "repos": [],

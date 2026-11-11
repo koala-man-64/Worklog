@@ -1,8 +1,8 @@
 """Read-only checks of what the schema does not enforce: `worklog doctor` (consolidation step 4.4, B-09).
 
 Startup and restore check SQLite's integrity, foreign keys and the exact schema. Some references the
-schema cannot state: a supporting record names its owner by type and id; ties, tags, releases,
-person links and applied proposals name records of many kinds; a step names its parent;
+schema cannot state: a supporting record names its owner by type and id; ties, tags, person links
+and applied proposals name records of many kinds; a step names its parent;
 and search_keys names the search_index row of each record, with nothing in the schema tying them
 (from the review of #96).
 
@@ -35,9 +35,9 @@ EXAMPLES = 5
 TABLES = {"item": "work_items", "roadmap": "roadmaps", "step": "steps", "repository": "repositories",
           "person": "people", "resource": "resources", "discussion": "discussions", "proposal": "proposals",
           "ticket": "tickets", "agent": "communication_agents", "question": "roadmap_questions",
-          "decision": "roadmap_decisions", "release": "releases", "github": "github_refs"}
+          "decision": "roadmap_decisions"}
 # What names a record by type and id, with the types each takes: those its CHECK allows (since v23,
-# notes and attachments have one too), which test_doctor.py keeps equal.
+# notes and attachments have one too) but for the RETIRED ones, which test_doctor.py keeps equal.
 REFERENCES = [
     ("notes", "owner_type", "owner_id", ("item", "roadmap", "step")),
     ("attachments", "owner_type", "owner_id", ("item", "roadmap", "step", "proposal", "repository")),
@@ -47,19 +47,21 @@ REFERENCES = [
     ("proposal_targets", "target_type", "target_id", ("item", "roadmap")),
     ("person_links", "target_type", "target_id", ("item", "roadmap", "repository")),
     ("discussion_contexts", "context_type", "context_id",
-     ("item", "roadmap", "step", "repository", "ticket", "release", "person", "resource", "question", "decision")),
+     ("item", "roadmap", "step", "repository", "ticket", "person", "resource", "question", "decision")),
     ("discussion_roles", "context_type", "context_id", ("item", "roadmap", "step")),
     ("agent_links", "target_type", "target_id",
      ("item", "roadmap", "step", "repository", "person", "resource", "discussion", "proposal", "ticket", "agent",
       "question", "decision")),
-    ("release_contents", "target_type", "target_id", ("item", "roadmap", "step", "github")),
 ]
+# Kinds a table's CHECK still allows that Worklog no longer takes (decision R6 in docs/ROADMAPS-RETHINK.md):
+# v28 removed every release tag with the releases. Discussion reads leave out one written since, and the
+# doctor reports it as a type its table never takes.
+RETIRED = {"discussion_contexts": ("release",)}
 # The table of each kind of record the search index holds (search.SearchType).
 SEARCHED = {"item": "work_items", "step": "steps", "roadmap": "roadmaps", "note": "notes", "attachment": "attachments",
             "link": "web_links", "chat": "agent_chats", "github": "github_refs", "question": "roadmap_questions",
             "decision": "roadmap_decisions", "person": "people", "ticket": "tickets", "ticket_comment": "ticket_comments",
-            "discussion": "discussions", "discussion_message": "discussion_messages", "resource": "resources",
-            "release": "releases", "release_check": "release_checks"}
+            "discussion": "discussions", "discussion_message": "discussion_messages", "resource": "resources"}
 
 
 def doctor_database(db_path: Path | str) -> dict[str, Any]:

@@ -147,17 +147,6 @@
       },
       {
         "seq": 14,
-        "kind": "discussion.tag",
-        "discussionId": "<id3>",
-        "messageId": null,
-        "roleId": null,
-        "actorId": "local-user",
-        "actorLabel": "You",
-        "actorKind": "human",
-        "createdAt": "<time>"
-      },
-      {
-        "seq": 15,
         "kind": "discussion.pin",
         "discussionId": "<id3>",
         "messageId": null,
@@ -168,7 +157,7 @@
         "createdAt": "<time>"
       },
       {
-        "seq": 16,
+        "seq": 15,
         "kind": "discussion.message",
         "discussionId": "<id3>",
         "messageId": "<id8>",
@@ -179,7 +168,7 @@
         "createdAt": "<time>"
       },
       {
-        "seq": 17,
+        "seq": 16,
         "kind": "discussion.acknowledge",
         "discussionId": "<id3>",
         "messageId": "<id8>",
@@ -190,7 +179,7 @@
         "createdAt": "<time>"
       },
       {
-        "seq": 18,
+        "seq": 17,
         "kind": "discussion.message",
         "discussionId": "<id3>",
         "messageId": "<id9>",

@@ -428,14 +428,6 @@ it("links each tag to its record by the title the discussion brings, whatever it
         },
         {
           ...tag,
-          type: "release",
-          id: "release-1",
-          title: "November",
-          status: "planned",
-          releaseDate: null,
-        },
-        {
-          ...tag,
           type: "step",
           id: "step-1",
           title: "Cut the branch",
@@ -455,9 +447,6 @@ it("links each tag to its record by the title the discussion brings, whatever it
   expect(
     within(list).getByRole("link", { name: "Flaky import" }),
   ).toHaveAttribute("href", "#tickets/ticket-1");
-  expect(
-    within(list).getByRole("link", { name: "November" }),
-  ).toHaveAttribute("href", "#releases/release-1");
   expect(
     within(list).getByRole("link", { name: "Cut the branch" }),
   ).toHaveAttribute("href", "#roadmaps/roadmap-1/step-1");

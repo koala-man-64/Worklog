@@ -140,14 +140,10 @@ class World:
         ticket = self.write(p, "POST", "/tickets", {"title": "Crash on save"})
         ids["ticket"] = ticket["id"]
         ids["ticketRef"] = ticket.get("key") or f"T-{ticket['number']}"
-        release = self.write(p, "POST", "/releases", {"title": "1.0", "releaseDate": "2026-12-01"})
-        ids["release"] = release["id"]
         discussion = self.write(p, "POST", "/discussions", {"title": "Parser", "text": "Where do we start?",
                                                             "contexts": [{"type": "item", "id": item["id"]}]})
         ids["discussion"] = discussion["discussion"]["id"]
         ids["message"] = discussion["message"]["id"]
-        ids["check"] = self.write(p, "POST", "/release-checks", {"releaseId": release["id"], "kind": "test",
-                                                                 "text": "Run the suite"})["id"]
         # What an agent writes for itself: a run, its participation, and a draft proposal.
         a = self.agent
         ids["agent"] = self.write(p, "GET", "/agents")["items"][0]["id"]
@@ -165,11 +161,6 @@ class World:
             "revision": ticket["revision"], "itemId": item["id"], "labels": ["parser"],
             "repositoryIds": [ids["repository"]], "assigneeId": ids["agent"]})
         self.write(a, "POST", f"/tickets/{ids['ticket']}/comments", {"text": "Seen it"})
-        # The release holds the work item, the roadmap, its child step and the GitHub reference.
-        for kind, target in (("item", item["id"]), ("roadmap", roadmap["id"]), ("step", child),
-                             ("github", ids["github"])):
-            self.write(p, "POST", "/release-contents", {"releaseId": release["id"], "targetType": kind,
-                                                        "targetId": target})
         # The agent proposes a link on the work item and a question on the roadmap, and the person
         # approves it, so each record's proposal history lists one with its changes.
         proposed = self.write(a, "POST", "/proposals", {"title": "Track the spec", "rationale": "One place", "operations": [
@@ -194,7 +185,7 @@ class World:
         # met request with its receipt and a pending one. A request's slots list in the order of their
         # random IDs, so each names one.
         for kind, target in (("roadmap", roadmap["id"]), ("step", child), ("repository", ids["repository"]),
-                             ("ticket", ids["ticket"]), ("release", release["id"]), ("person", ids["person"]),
+                             ("ticket", ids["ticket"]), ("person", ids["person"]),
                              ("resource", ids["resource"]), ("question", ids["question"]),
                              ("decision", ids["decision"])):
             self.write(p, "POST", f"/discussions/{ids['discussion']}/tags", {"type": kind, "id": target})
@@ -219,11 +210,10 @@ def concrete(template: str, ids: dict[str, str], today: str) -> str:
                  ("/references/", "reference"), ("/attachments/", "attachment"), ("/roadmaps/", "roadmap"),
                  ("/steps/", "step"), ("/questions/", "question"), ("/decisions/", "decision"),
                  ("/github/", "github"), ("/chats/", "chat"), ("/people/", "person"), ("/resources/", "resource"),
-                 ("/repositories/", "repository"), ("/releases/", "release"),
+                 ("/repositories/", "repository"),
                  ("/discussions/messages/", "message"),
                  ("/discussions/participants/", "agent"), ("/discussions/", "discussion"), ("/agents/", "agent"),
-                 ("/agent-runs/", "run"), ("/participations/", "participation"), ("/proposals/", "proposal"),
-                 ("/release-checks/", "check")]
+                 ("/agent-runs/", "run"), ("/participations/", "participation"), ("/proposals/", "proposal")]
     path = template
     if "{identity}" in path:
         name = next((key for prefix, key in by_prefix if path.startswith(prefix)), None)

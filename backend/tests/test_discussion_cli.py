@@ -128,7 +128,7 @@ def test_reply_from_stdin_keeps_role_and_uses_message_route(transport, monkeypat
      f"/discussions/roles/{ROLE}/offer", {"revision": 8, "successorId": AGENT, "note": "handoff"}),
     (["tag", DISCUSSION, "--context", f"repository:{AGENT}"], f"/discussions/{DISCUSSION}/tags", {"type": "repository", "id": AGENT}),
     (["tag", DISCUSSION, "--context", "ticket:12"], f"/discussions/{DISCUSSION}/tags", {"type": "ticket", "id": "12"}),
-    (["untag", DISCUSSION, "--context", f"release:{AGENT}"], f"/discussions/{DISCUSSION}/tags/remove", {"type": "release", "id": AGENT}),
+    (["untag", DISCUSSION, "--context", f"resource:{AGENT}"], f"/discussions/{DISCUSSION}/tags/remove", {"type": "resource", "id": AGENT}),
 ])
 def test_writes_use_exact_routes_payload_and_supplied_key(transport, args, route, payload):
     assert cli.main(command(*args, "--request-id", "same-retry-key")) == 0

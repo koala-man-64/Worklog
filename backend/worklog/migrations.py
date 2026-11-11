@@ -14,10 +14,10 @@ import sqlite3
 
 from .common import now, setting, today, uid
 
-SCHEMA_VERSION = 27
+SCHEMA_VERSION = 28
 # Older versions that startup and offline restore upgrade in one transaction.
 UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
-                                 24, 25, 26})
+                                 24, 25, 26, 27})
 
 # v1 grew in place before versions were counted: _upgrade_v1 adds whichever of these a v1 database
 # lacks. People as v1 had them; v10 renames role to team, adds person details and lets links name
@@ -869,6 +869,22 @@ def drop_reminders(conn: sqlite3.Connection) -> None:
     conn.execute("DROP TABLE IF EXISTS reminders")  # and its indexes
 
 
+def drop_releases(conn: sqlite3.Connection) -> None:
+    """Drop Releases (v28, step 0.5 of docs/ROADMAPS-RETHINK.md): the releases, release_contents and
+    release_checks tables with their indexes and every row in them, the search rows of releases and
+    their checks, and every discussion tag of a release with the feed's record of it. The two tag
+    CHECKs keep 'release' (decision R6), so no table is rebuilt. The records a release held stay, and
+    so do GitHub references and the events a release wrote. The pre-migration backup keeps the
+    tables as they were."""
+    conn.execute("DELETE FROM discussion_change_contexts WHERE context_type='release'")
+    conn.execute("DELETE FROM discussion_contexts WHERE context_type='release'")
+    conn.execute("DELETE FROM search_index WHERE type IN ('release','release_check')")
+    conn.execute("DELETE FROM search_keys WHERE type IN ('release','release_check')")
+    # The tables that name a release go first, so dropping releases deletes no row a foreign key names.
+    for table in ("release_checks", "release_contents", "releases"):
+        conn.execute(f"DROP TABLE IF EXISTS {table}")  # and its indexes
+
+
 def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
     """Unlike executescript, preserve the caller's transaction and rollback boundary."""
     for statement in filter(str.strip, schema.split(";")):
@@ -897,7 +913,9 @@ def upgrade(conn: sqlite3.Connection) -> None:
     it names exactly, as v22 tagged discussions; the labels stay, and no record changes. v25 drops
     the HTML plan import's table, with the files it holds, and changes no other record. v26 drops
     work item checklists, every task with them, and changes no other record. v27 drops Reminders,
-    every reminder and its search row with them, and changes no other record.
+    every reminder and its search row with them, and changes no other record. v28 drops Releases,
+    every release and check with their search rows, and every discussion tag of a release, and
+    changes no other record.
     """
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version == SCHEMA_VERSION:
@@ -961,6 +979,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
         drop_tasks(conn)
     if version < 27:
         drop_reminders(conn)
+    if version < 28:
+        drop_releases(conn)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 

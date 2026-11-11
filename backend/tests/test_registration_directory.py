@@ -219,11 +219,8 @@ def test_the_v18_upgrade_leaves_earlier_registrations_unknown_and_changes_no_rec
         assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
         upgraded = contents(conn)
     # Every row of every table is as it was; each registration gains a directory, unknown. The
-    # upgrade goes on to v19, whose releases start empty, to v20, whose reminders start empty too
-    # and which v27 drops again, and to v25 and v26, which drop the plan import and task tables,
-    # empty here.
-    for table in ("releases", "release_contents", "release_checks"):
-        assert upgraded.pop(table) == []
+    # upgrade goes on to v19 and v20, whose releases and reminders start empty and which v28 and v27
+    # drop again, and to v25 and v26, which drop the plan import and task tables, empty here.
     assert kept.pop("plan_imports") == []
     assert kept.pop("tasks") == []
     assert {row[-1] for row in upgraded["communication_credentials"]} == {None}

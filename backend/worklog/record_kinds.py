@@ -33,7 +33,6 @@ SUMMARIES: dict[str, str] = {
                 "FROM roadmap_questions q JOIN roadmaps r ON r.id=q.roadmap_id WHERE q.id IN ({})",
     "decision": "SELECT d.id,d.title,d.archived,d.roadmap_id AS roadmapId,r.title AS roadmapTitle "
                 "FROM roadmap_decisions d JOIN roadmaps r ON r.id=d.roadmap_id WHERE d.id IN ({})",
-    "release": "SELECT id,title,archived,status,release_date AS releaseDate FROM releases WHERE id IN ({})",
 }
 # Columns a summary query reads but never shows.
 HIDDEN = frozenset({"actor_id", "submitted_at"})

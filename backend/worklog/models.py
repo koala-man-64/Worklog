@@ -242,58 +242,6 @@ class ResourceUpdate(Expected):
     body: str | None = None
 
 
-# A release is planned until it ships or is called off.
-ReleaseStatus = Literal["planned", "released", "cancelled"]
-# What a release holds: a work item, a roadmap, a roadmap step, or a GitHub reference (a PR or commit).
-ReleaseTarget = Literal["item", "roadmap", "step", "github"]
-# Who needs to know (notify), what to test (test), or what to prepare before the release (prepare).
-CheckKind = Literal["notify", "test", "prepare"]
-
-
-class ReleaseCreate(Command):
-    title: str
-    description: str = ""
-    # A YYYY-MM-DD day, or null while the release is not dated.
-    releaseDate: str | None = None
-    status: ReleaseStatus = "planned"
-
-
-class ReleaseUpdate(Expected):
-    title: str | None = None
-    description: str | None = None
-    # Null makes the release not dated; omitted keeps its date.
-    releaseDate: str | None = None
-    status: ReleaseStatus | None = None
-
-
-class ReleaseContentChange(Command):
-    releaseId: str
-    targetType: ReleaseTarget
-    targetId: str
-
-
-class ReleaseCheckCreate(Command):
-    releaseId: str
-    kind: CheckKind
-    text: str
-    details: str = ""
-    # Someone from People: who to tell, who tests, or who handles it.
-    personId: str | None = None
-    # A YYYY-MM-DD day, or null.
-    dueDate: str | None = None
-    status: ItemState = "open"
-
-
-class ReleaseCheckUpdate(Expected):
-    kind: CheckKind | None = None
-    text: str | None = None
-    details: str | None = None
-    # Null clears the person or the due date; omitted keeps them.
-    personId: str | None = None
-    dueDate: str | None = None
-    status: ItemState | None = None
-
-
 class PersonCreate(Command):
     name: str
     title: str = ""
@@ -410,9 +358,7 @@ class Operation(Command):
                     "question.create", "question.update", "question.archive", "question.recover",
                     "decision.create", "decision.update", "decision.archive", "decision.recover",
                     "resource.create", "resource.update", "resource.archive", "resource.recover",
-                    "ticket.create", "ticket.update",
-                    "release.create", "release.update", "release.add", "release.remove",
-                    "check.create", "check.update"]
+                    "ticket.create", "ticket.update"]
     payload: dict[str, Any]
 
 
@@ -450,7 +396,7 @@ class SettingsUpdate(Command):
 # The pages the browser counts as the person opens them (usage.py): the sidebar's
 # (frontend/src/navigation.ts), then the Guide page's view for agents (frontend/src/Guide.tsx);
 # test_usage.py keeps the lists equal.
-Page = Literal["today", "work", "tickets", "roadmaps", "releases", "repositories", "people",
+Page = Literal["today", "work", "tickets", "roadmaps", "repositories", "people",
                "resources", "agents", "chats", "discussions", "review", "settings", "usage", "guide",
                "agent-guide"]
 # Who made a use the usage counts keep (usage.py): the person or an agent. GET /usage reports

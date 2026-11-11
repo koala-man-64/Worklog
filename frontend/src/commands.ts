@@ -11,8 +11,7 @@ export type ArchiveKind =
   | "chats"
   | "github"
   | "questions"
-  | "decisions"
-  | "release-checks";
+  | "decisions";
 /** What a proposal's author or the person can do to it next. */
 export type ProposalVerb =
   "submit" | "withdraw" | "reopen" | "approve" | "reject";
@@ -143,65 +142,6 @@ export const commands = {
   ) =>
     request<Answer<"/api/v1/resources/{identity}/{verb}", "post">>(
       `/resources/${id}/${verb(archived)}`,
-      "POST",
-      body,
-    ),
-  /** Fields left out take their defaults: no date, planned. */
-  createRelease: (
-    body: Pick<Schema["ReleaseCreate"], "title"> &
-      Partial<Schema["ReleaseCreate"]>,
-  ) => request<Answer<"/api/v1/releases", "post">>("/releases", "POST", body),
-  updateRelease: (id: string, body: Schema["ReleaseUpdate"]) =>
-    request<Answer<"/api/v1/releases/{identity}", "patch">>(
-      "/releases/" + id,
-      "PATCH",
-      body,
-    ),
-  setReleaseArchived: (
-    id: string,
-    archived: boolean,
-    body: Schema["Expected"],
-  ) =>
-    request<Answer<"/api/v1/releases/{identity}/archive", "post">>(
-      `/releases/${id}/${verb(archived)}`,
-      "POST",
-      body,
-    ),
-  /** Holds a work item, roadmap, step or GitHub reference; holding one twice changes nothing. */
-  holdInRelease: (body: Schema["ReleaseContentChange"]) =>
-    request<Answer<"/api/v1/release-contents", "post">>(
-      "/release-contents",
-      "POST",
-      body,
-    ),
-  removeFromRelease: (body: Schema["ReleaseContentChange"]) =>
-    request<Answer<"/api/v1/release-contents/remove", "post">>(
-      "/release-contents/remove",
-      "POST",
-      body,
-    ),
-  createReleaseCheck: (
-    body: Pick<Schema["ReleaseCheckCreate"], "releaseId" | "kind" | "text"> &
-      Partial<Schema["ReleaseCheckCreate"]>,
-  ) =>
-    request<Answer<"/api/v1/release-checks", "post">>(
-      "/release-checks",
-      "POST",
-      body,
-    ),
-  updateReleaseCheck: (id: string, body: Schema["ReleaseCheckUpdate"]) =>
-    request<Answer<"/api/v1/release-checks/{identity}", "patch">>(
-      "/release-checks/" + id,
-      "PATCH",
-      body,
-    ),
-  setReleaseCheckArchived: (
-    id: string,
-    archived: boolean,
-    body: Schema["Expected"],
-  ) =>
-    request<Answer<"/api/v1/release-checks/{identity}/archive", "post">>(
-      `/release-checks/${id}/${verb(archived)}`,
       "POST",
       body,
     ),

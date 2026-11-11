@@ -13,7 +13,6 @@ it("groups every page once, in K7's sections and sidebar order", () => {
     "work",
     "tickets",
     "roadmaps",
-    "releases",
     "repositories",
     "people",
     "resources",

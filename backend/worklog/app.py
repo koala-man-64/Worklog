@@ -59,8 +59,6 @@ from .registration import (
     revoke_registered,
 )
 from .registry_api import install_registry_routes
-from .release_api import install_release_routes
-from .releases import ReleaseService
 from .resource_api import install_resource_routes
 from .resources import ResourceService
 from .search import SearchType, global_search
@@ -661,9 +659,6 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                         "tickets": TicketService().list(c, item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset),
                         # The person's reference pages by title and summary; `resources show` reads one.
                         "resources": ResourceService().list(c, limit=limit, offset=offset),
-                        # Upcoming releases with their counts, or those holding the item; `releases show` reads one.
-                        "releases": ReleaseService().list(c, target_type="item" if itemId else None, target_id=itemId,
-                                                          limit=limit, offset=offset),
                         # Open proposals as summaries (K18); `proposal show` reads one whole.
                         "proposals": open_proposals(c, actor, limit, offset)}
         items_result = work.items.list(item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset)
@@ -839,7 +834,6 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     install_ticket_routes(app, db, mutate)
     install_agent_link_routes(app, db, mutate)
     install_resource_routes(app, db, mutate)
-    install_release_routes(app, db, apply)
     install_discussion_routes(app, db, discussion_mutate)
     install_registration_routes(app, db, support.continue_chats)
     install_registry_routes(app, db, transcripts)

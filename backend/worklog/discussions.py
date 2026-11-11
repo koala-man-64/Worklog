@@ -32,7 +32,7 @@ from .tickets import TicketService
 
 # What a discussion can be tagged with (v22), in the order its tags list them. The first three are
 # v1's work contexts, which roles keep to.
-TAG_KINDS = ("item", "roadmap", "step", "repository", "ticket", "release", "person", "resource", "question", "decision")
+TAG_KINDS = ("item", "roadmap", "step", "repository", "ticket", "person", "resource", "question", "decision")
 ROLE_KINDS = ("item", "roadmap", "step")
 TAG_LIMIT = 30
 PERSON = {"id": "local-user", "label": "You", "kind": "human"}
@@ -362,6 +362,10 @@ class DiscussionService:
         order = {kind: position for position, kind in enumerate(TAG_KINDS)}
         described = []
         for ctx in sorted(contexts, key=lambda ctx: (order.get(ctx["type"], len(order)), ctx["id"])):
+            if ctx["type"] not in order:
+                # A kind Worklog no longer takes, such as a release tag written behind its back since v28
+                # dropped releases (decision R6): reads leave it out, and `worklog doctor` reports it.
+                continue
             key = (ctx["type"], ctx["id"])
             tag, details = tags.get(key), {k: v for k, v in records.get(key, {}).items() if k != "id"}
             described.append({"type": ctx["type"], "id": ctx["id"], "title": None, "archived": False, **details,

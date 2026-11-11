@@ -33,7 +33,6 @@ import { ITEM_STATUSES, STATUSES, StatusSelect } from "./ui/Status";
 import { DecisionsSection, QuestionsSection } from "./QuestionsDecisions";
 import { AgentChips, AgentRoster, rosterOn, workersOn } from "./RoadmapAgents";
 import { AppliedProposals } from "./ProposalHistory";
-import { ReleasesSection } from "./Releases";
 import type {
   Answer,
   PlanStep,
@@ -741,11 +740,6 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
         chats={road.chats}
         disabled={road.archived}
       />
-      <ReleasesSection
-        targetType="roadmap"
-        targetId={id}
-        disabled={road.archived}
-      />
       <Files ownerType="roadmap" ownerId={id} files={road.attachments} />
       <section>
         <h3>Immutable versions</h3>
@@ -869,12 +863,6 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
           </p>
         )}
       </section>
-      <ReleasesSection
-        key={selected.id}
-        targetType="step"
-        targetId={selected.id}
-        disabled={road.archived || selected.retired}
-      />
       <StepAgentChats
         roadmapId={id}
         step={selected}

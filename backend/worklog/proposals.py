@@ -434,11 +434,8 @@ class ProposalService:
         # Dispatch uses this same transaction. Any stale revision, validation
         # error, or injected failure rolls back all operations and approval.
         # GitHub references may link to a chat created or updated elsewhere in the same proposal, so
-        # they apply after the other changes; a release change that holds a GitHub reference applies
-        # after them in turn, since the reference it names may be one they create.
+        # they apply after the other changes.
         def stage(operation: dict) -> int:
-            if operation["action"] in {"release.add", "release.remove"} and operation["payload"].get("targetType") == "github":
-                return 2
             return 1 if operation["action"].startswith("github.") else 0
 
         ordered = sorted(enumerate(operations, 1), key=lambda pair: stage(pair[1]))
@@ -446,7 +443,7 @@ class ProposalService:
         self._applying_id = row["id"]
         # The records this proposal's changes have made so far, by the names it gave them. A name is
         # used only after the change declaring it, and these stages keep that order: only another
-        # GitHub reference's change, or a release change after them, can name a GitHub reference.
+        # GitHub reference's change can name a GitHub reference.
         names: dict[str, str] = {}
         try:
             for number, operation in ordered:
