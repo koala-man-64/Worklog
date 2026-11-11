@@ -310,7 +310,7 @@ export const commands = {
       body,
     ),
 
-  // Roadmaps, steps and plan imports.
+  // Roadmaps and steps.
   setRoadmapArchived: (
     id: string,
     archived: boolean,

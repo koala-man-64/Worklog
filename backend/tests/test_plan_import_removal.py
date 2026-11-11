@@ -3,6 +3,7 @@ routes are gone, and the upgrade drops its table, with the originals and preview
 changes no other record. The pre-migration backup keeps the table, and the documented way back
 gives v24's exact shape."""
 
+import json
 import sqlite3
 import uuid
 from contextlib import closing
@@ -12,6 +13,7 @@ import sealed
 from test_chat_label_links import call, session
 from test_sealed_schemas import contents
 from worklog import migrations, recovery
+from worklog.compaction import compact_database
 from worklog.db import Database
 
 # docs/UPGRADING.md: from version 25 to version 24, with Worklog stopped and after a manual backup.
@@ -48,6 +50,10 @@ def test_the_upgrade_drops_the_imports_and_changes_no_other_record(tmp_path):
             conn.execute("INSERT INTO plan_imports(id,name,original,sha256,preview,actor_id,created_at,roadmap_id) "
                          "VALUES(?,?,?,'digest','{}','human','2026-11-01T00:00:00+00:00',?)",
                          (identity, "plan.html", ORIGINAL, target))
+        # And the history an import wrote, which stays.
+        conn.execute("INSERT INTO events(id,entity_id,kind,actor_id,actor_label,actor_kind,created_at,local_date,"
+                     "before_json,after_json) VALUES('import-event',?,'import.reference','human','You','human',"
+                     "'2026-11-01T00:00:00+00:00','2026-11-01','{}',?)", (roadmap, json.dumps({"sha256": "digest"})))
         conn.commit()
     recovery.validate_database(database)
     _, _, before = contents(database)
@@ -55,9 +61,10 @@ def test_the_upgrade_drops_the_imports_and_changes_no_other_record(tmp_path):
     version, signature, after = contents(database)
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
     assert "plan_imports" not in after
-    # Every other table keeps every row; the roadmap an import made is an ordinary roadmap.
+    # Every other table keeps every row, events included; the roadmap an import made is an ordinary roadmap.
     assert after == {table: rows for table, rows in before.items() if table != "plan_imports"}
     assert [row[0] for row in after["roadmaps"]] == [roadmap]
+    assert [row[2] for row in after["events"] if row[0] == "import-event"] == ["import.reference"]
     # The pre-migration backup holds the database as v24 had it, imports included.
     snapshot, = (tmp_path / "data" / "backups").glob("worklog-pre-migration-*.sqlite3")
     with closing(sqlite3.connect(snapshot)) as conn:
@@ -78,6 +85,23 @@ def test_the_way_back_gives_v24s_exact_shape_and_upgrades_again(tmp_path):
         assert recovery._schema_signature(conn) == sealed.current()
     # The SQL tested here is the SQL docs/UPGRADING.md gives the person.
     assert "```sql\n" + WAY_BACK + "```" in (Path(__file__).resolve().parents[2] / "docs" / "UPGRADING.md").read_text(encoding="utf-8")
+
+
+def test_compaction_still_thins_the_import_events_older_databases_hold(tmp_path):
+    # compaction.THINNED keeps the import family on purpose: a database upgraded from before v25 can
+    # hold its events, which only ever showed in history.
+    database, roadmap = planned(tmp_path / "data")
+    with closing(sqlite3.connect(database)) as conn:
+        conn.execute("INSERT INTO events(id,entity_id,kind,actor_id,actor_label,actor_kind,created_at,local_date,"
+                     "before_json,after_json) VALUES('old-import',?,'import.reference','human','You','human',"
+                     "'2020-01-01T00:00:00+00:00','2020-01-01',?,?)",
+                     (roadmap, json.dumps({"id": roadmap, "title": "Imported", "overview": "x" * 200}),
+                      json.dumps({"importId": "gone", "sha256": "digest"})))
+        conn.commit()
+    compact_database(database, tmp_path / "data" / "backups")
+    with closing(sqlite3.connect(database)) as conn:
+        before, after = conn.execute("SELECT before_json,after_json FROM events WHERE id='old-import'").fetchone()
+    assert (json.loads(before), json.loads(after)) == ({"id": roadmap, "title": "Imported"}, {})
 
 
 def test_the_import_routes_are_gone_and_a_roadmap_lists_no_imports(tmp_path):

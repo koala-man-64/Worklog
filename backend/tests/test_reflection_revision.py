@@ -109,6 +109,8 @@ def test_the_v21_upgrade_starts_each_reflection_at_its_days_revision_and_changes
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
     # A draft opened before the upgrade carries its day's revision, which its reflection now starts at.
     assert after.pop("days") == [(*row, row[2]) for row in before.pop("days")]
+    # v25 drops the plan import table, empty here.
+    assert before.pop("plan_imports") == []
     assert after == before
     snapshot, = (tmp_path / "backups").glob("worklog-pre-migration-*.sqlite3")
     with closing(sqlite3.connect(snapshot)) as conn:

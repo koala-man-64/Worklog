@@ -154,7 +154,9 @@ def test_the_v19_upgrade_adds_empty_releases_after_a_snapshot_and_changes_no_rec
     with person(path.parent) as c:
         work(c)
     to_v18(path)
-    names = tables(path)
+    # v25 drops the plan import table, empty here.
+    assert rows(path, ["plan_imports"]) == {"plan_imports": []}
+    names = [name for name in tables(path) if name != "plan_imports"]
     before, search = rows(path, names), search_rows(path, "1")
     Database(path).initialize()
     assert state(path) == (migrations.SCHEMA_VERSION, sealed.current())

@@ -145,7 +145,7 @@ class World:
                                                                "targetType": "item", "targetId": item["id"]})["id"]
         release = self.write(p, "POST", "/releases", {"title": "1.0", "releaseDate": "2026-12-01"})
         ids["release"] = release["id"]
-        discussion =self.write(p, "POST", "/discussions", {"title": "Parser", "text": "Where do we start?",
+        discussion = self.write(p, "POST", "/discussions", {"title": "Parser", "text": "Where do we start?",
                                                             "contexts": [{"type": "item", "id": item["id"]}]})
         ids["discussion"] = discussion["discussion"]["id"]
         ids["message"] = discussion["message"]["id"]

@@ -101,7 +101,9 @@ def test_the_v22_upgrade_keeps_every_tag_links_exact_labels_and_opens_each_activ
     Database(path).initialize()
     version, signature, after = contents(path)
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
-    # Every table v22 doesn't touch is as it was, the search index's aside, which gains the new threads.
+    # Every table v22 doesn't touch is as it was, the search index's aside, which gains the new threads,
+    # and the plan import table, empty here, which v25 drops.
+    assert before.pop("plan_imports") == []
     untouched = [t for t in before if t not in TOUCHED and not t.startswith("search_")]
     assert {t: after[t] for t in untouched} == {t: before[t] for t in untouched}
     # Earlier threads keep their rows, with no pin, and every message stays.

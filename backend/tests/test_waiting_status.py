@@ -275,8 +275,10 @@ def test_the_v15_upgrade_keeps_every_work_item_and_every_reference_to_one(tmp_pa
         # agent ties start empty, to v18, whose registration directory is unknown for every
         # identity here, none having registered, to v19, whose releases start empty, to v20,
         # whose reminders start empty too, to v21, which starts each day's reflection revision
-        # at its day's revision, and to v22, which pins no discussion.
+        # at its day's revision, to v22, which pins no discussion, and to v25, which drops the
+        # plan import table, empty here.
         upgraded = contents(conn)
+        assert kept.pop("plan_imports") == []
         assert upgraded.pop("proposal_targets") == []
         assert upgraded.pop("agent_links") == []
         assert upgraded.pop("reminders") == []
@@ -397,6 +399,8 @@ def test_the_way_back_to_v14_gives_its_exact_shape_and_upgrades_again(tmp_path):
     before.pop("agent_links")
     before.pop("proposal_targets")
     before.pop("reminders")
+    # The way back to v24, which to_v14 takes first of all, makes the plan import table again, empty.
+    before["plan_imports"] = []
     to_v14(path)
     recovery.validate_database(path)
     with closing(sqlite3.connect(path)) as conn:
