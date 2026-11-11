@@ -65,6 +65,40 @@
         "lastAt": "<time>",
         "stale": false
       }
-    ]
+    ],
+    "roster": {
+      "items": [
+        {
+          "id": "<id1>",
+          "label": "Builder",
+          "avatar": "red-dots-antenna",
+          "active": true,
+          "via": [
+            "participation",
+            "role",
+            "update",
+            "message",
+            "chat"
+          ],
+          "current": true,
+          "lastAt": "<time>",
+          "steps": [
+            {
+              "stepId": "<id2>",
+              "via": [
+                "participation",
+                "role",
+                "update",
+                "message",
+                "chat"
+              ],
+              "current": true,
+              "lastAt": "<time>"
+            }
+          ]
+        }
+      ],
+      "total": 1
+    }
   }
 }

@@ -108,6 +108,9 @@ export type TieReason = Schema["TiedWorkItem"]["via"][number];
 export type TiedChat = Schema["TiedChat"];
 export type RoadmapTie = Schema["RoadmapTie"];
 export type RoadmapWorker = Schema["RoadmapWorker"];
+/** An agent whose work ties it to a roadmap, now or before, with the steps it touched. */
+export type RosterAgent = Schema["RosterAgent"];
+export type RoadmapAgents = Schema["RoadmapAgents"];
 export type AgentActivity = Schema["AgentActivity"]["items"][number];
 
 // Agent ties.

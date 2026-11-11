@@ -65,6 +65,7 @@ The files that Phase 0 deletes outright hold about 9,100 of the codebase's 77,00
 | R2 | Do tickets, people and resources go too? | Not yet. Revisit them with a month of usage counts, from 2026-12-08. | — | 2026-11-10, Rudy |
 | R3 | How does the chat that carries on an ended chat's work get back what that chat owned? Agents' chats often end before their work does, and the next one registered a new identity that held none of the old one's steps or roles. | It continues the old chat's identity (`worklog agent register --continue NAME`). A new credential for the new chat replaces the old one, as rotation does, so the identity's roles, ties, tickets and proposals stay with it. The new chat takes over where the old one was tracked, with its steps still in the plan. A chat or work the person archived isn't carried over, and a step they took the old chat off stays off the new one. No schema change. | Outside the plan | 2026-11-10, Rudy asked for it; Claude chose the mechanism while building it |
 | R4 | Do the end-of-day reflection's two columns go with it? | No. `days.reflection` and `days.reflection_revision` stay, unread and unwritten, so step 0.2 needs no schema change: K8 kept the repository labels' columns, and the coordination `handoff` kind kept its CHECK, for the same reason. Dropping them adds no integrity, and their way back would have to rebuild `days`, which `daily_entries` references, since `reflection` sits mid-table. | 0.2 | 2026-11-10, Claude, while building 0.2 |
+| R5 | Where does a roadmap's "Agents" list come from? It listed only ties set by hand, so a roadmap with agents at work on its steps read "No agents tied". | From the agents' work: every agent whose reported work, status updates, roles, discussion messages or tracked chats tie it to the roadmap, now or before. The rule is the one that names the roadmap on the agent's card on Agents (`AgentRegistry.roster` reuses it), so the two agree. A step lists the agents on it and on its sub-steps. Nobody ties agents there by hand any more; a tie to a roadmap or a step shows only on the agent's page until 0.6 removes ties. No schema change. | Outside the plan; 0.6 | 2026-11-11, Rudy asked for it; Claude chose the rule and the steps' lists while building it |
 
 ## Open questions
 
@@ -137,7 +138,7 @@ Status: Not started
 
 The "Agents" ties on record pages (`AgentTies`) and on the Agents and People pages, `agent_links.py` and `agent_link_api.py`, the agent's `ties` commands, and the `agent_links` table with its 5 rows. The files it owns hold about 1,900 lines. This changes what agents can call.
 
-Settle in the step: the overlap check reads ties (`registry.py`, `overlaps`), and a repository merge moves them (`coordination.py`). Participations, discussion roles and tracked chats say who works where, and they stay; "Agents working here" on a roadmap reads those, not ties.
+Settle in the step: the overlap check reads ties (`registry.py`, `overlaps`), and a repository merge moves them (`coordination.py`). Participations, discussion roles and tracked chats say who works where, and they stay; "Agents working here" on a roadmap reads those, not ties, and since R5 so do the roadmap's and its steps' "Agents" lists, which this step leaves alone.
 
 Why: 5 ties, all set by agents on one day; chats on steps say the same.
 
@@ -237,3 +238,4 @@ Why: adding, moving or retiring one step takes a whole-plan save today, which is
 - 2026-11-10: Plan created from a review of `92675f1` and of the personal instance's usage. R1 and R2 recorded.
 - 2026-11-10: R3 recorded, outside the plan: the chat that carries on an ended chat's work continues its identity, with its roles and the steps its chat was on. It changes what agents can call: `register --continue` and `GET /agent-registrations/self`.
 - 2026-11-10: R4 recorded while building step 0.2: the reflection's two columns stay, so 0.2 has no schema change.
+- 2026-11-11: R5 recorded, outside the plan: a roadmap's and its steps' "Agents" list the agents whose work ties them there, instead of ties. It changes nothing agents call or read.

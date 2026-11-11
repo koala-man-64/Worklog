@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { Avatar } from "./Avatar";
-import type { RoadmapTie, RoadmapWorker } from "./apiTypes";
+import {
+  exactDiscussionDate,
+  formatDiscussionDate,
+} from "./discussionFormatting";
+import { REASONS, REASON_ORDER } from "./tieReasons";
+import { ErrorMessage } from "./ui/Messages";
+import type { RoadmapTie, RoadmapWorker, RosterAgent } from "./apiTypes";
 
 /** A worker with the ties that place it on one part of a roadmap. */
 export type Placed = { worker: RoadmapWorker; ties: RoadmapTie[] };
@@ -30,6 +36,114 @@ export function workersOn(
         Number(quiet(a.ties)) - Number(quiet(b.ties)) ||
         latest(b.ties).localeCompare(latest(a.ties)),
     );
+}
+
+const newest = (times: (string | null)[]) =>
+  times.reduce<string | null>((at, t) => (t && (!at || t > at) ? t : at), null);
+
+/**
+ * The agents whose work ties them to any of `steps`, each with only those steps' ties: its reasons
+ * there, whether something still open holds it there, and its latest time there. Current first,
+ * then the latest.
+ */
+export function rosterOn(
+  roster: RosterAgent[],
+  steps: ReadonlySet<string>,
+): RosterAgent[] {
+  return roster
+    .flatMap((agent) => {
+      const here = agent.steps.filter((s) => steps.has(s.stepId));
+      if (!here.length) return [];
+      return [
+        {
+          ...agent,
+          via: REASON_ORDER.filter((v) => here.some((s) => s.via.includes(v))),
+          current: here.some((s) => s.current),
+          lastAt: newest(here.map((s) => s.lastAt)),
+          steps: here,
+        },
+      ];
+    })
+    .sort(
+      (a, b) =>
+        Number(b.current) - Number(a.current) ||
+        (b.lastAt ?? "").localeCompare(a.lastAt ?? ""),
+    );
+}
+
+function rosterRow(agent: RosterAgent) {
+  return (
+    <div className="line agent-tie-row agent-roster-row" key={agent.id}>
+      <span className="agent-tie">
+        <Avatar name={agent.avatar} size={18} />
+        <a href={"#agents/" + agent.id}>{agent.label}</a>
+      </span>
+      <span className="person-badges">
+        {agent.current && <span className="badge">Current</span>}
+        {agent.via.map((via) => (
+          <span className="badge" key={via}>
+            {REASONS[via]}
+          </span>
+        ))}
+      </span>
+      {agent.lastAt && (
+        <small>
+          <time
+            dateTime={agent.lastAt}
+            title={exactDiscussionDate(agent.lastAt)}
+          >
+            {formatDiscussionDate(agent.lastAt)}
+          </time>
+        </small>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The agents whose work ties them to a roadmap or a step, now or before, worked out from what
+ * they reported rather than tied by hand. Something still open first, then the latest; agents
+ * whose credentials are revoked sit folded below the rest.
+ */
+export function AgentRoster({
+  agents,
+  total,
+  loaded,
+  error,
+  note,
+  empty,
+}: {
+  agents: RosterAgent[];
+  /** Every agent, where `agents` may hold only the first of them. */
+  total: number;
+  loaded: boolean;
+  error: unknown;
+  /** Says where the list comes from. */
+  note: string;
+  empty: string;
+}) {
+  const live = agents.filter((agent) => agent.active);
+  const retired = agents.filter((agent) => !agent.active);
+  return (
+    <section className="agent-ties-panel" aria-label="Agents">
+      <h3>Agents {loaded && <span className="count">{total}</span>}</h3>
+      <p className="muted">{note}</p>
+      <ErrorMessage error={error} />
+      {loaded && !agents.length && <p className="muted">{empty}</p>}
+      {live.map(rosterRow)}
+      {retired.length > 0 && (
+        <details className="retired-ties">
+          <summary>Retired agents ({retired.length})</summary>
+          {retired.map(rosterRow)}
+        </details>
+      )}
+      {total > agents.length && (
+        <p className="muted">
+          Showing {agents.length} of {total}.
+        </p>
+      )}
+    </section>
+  );
 }
 
 /** What a tie says, where unless it is the step the chips sit on, and when a stale report was last made. */

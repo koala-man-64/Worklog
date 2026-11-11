@@ -141,6 +141,15 @@ test("the agents tab shows who works on what, and why", async ({
   await expect(
     step.getByRole("link", { name: label, exact: true }),
   ).toHaveAttribute("href", "#agents/" + agentId);
+  // The overview lists it under Agents from that same work, with no tie set by hand.
+  const listed = page
+    .getByRole("region", { name: "Roadmap details" })
+    .getByRole("region", { name: "Agents", exact: true })
+    .locator(".agent-tie-row")
+    .filter({ has: page.getByRole("link", { name: label, exact: true }) });
+  await expect(listed).toContainText(
+    "Current" + "Reported work" + "Discussion" + "Tracked chat",
+  );
 
   // The registry joins tracked chats, so it stays the person's view.
   for (const path of ["/agents", `/roadmaps/${roadmap.id}/agents`]) {
@@ -164,6 +173,16 @@ test("the agents tab shows who works on what, and why", async ({
     step.getByRole("link", { name: label, exact: true }),
   ).toHaveCount(0);
   await expect(page.getByText("Agents working here")).toHaveCount(0);
+  // Its work stays on the roadmap's record, no longer current, and on the step's.
+  await expect(listed).toContainText("Reported work");
+  await expect(listed.getByText("Current", { exact: true })).toHaveCount(0);
+  await step.getByRole("link", { name: "Registry step", exact: true }).click();
+  await expect(
+    page
+      .getByRole("region", { name: "Step details" })
+      .getByRole("region", { name: "Agents", exact: true })
+      .getByRole("link", { name: label, exact: true }),
+  ).toHaveAttribute("href", "#agents/" + agentId);
 });
 
 test("an agent registers its own identity and speaks as it", async ({

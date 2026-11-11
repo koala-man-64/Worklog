@@ -27,4 +27,5 @@ def install_registry_routes(app: FastAPI, db: Database, transcripts: TranscriptR
 
     @app.get("/api/v1/roadmaps/{identity}/agents", response_model=out.RoadmapAgents)
     def roadmap_agents(identity: str) -> dict:
-        return read(lambda c: registry.roadmap(c, identity, transcripts.archived))
+        # Who works on it now, and everyone whose work ever tied them to it, from one snapshot.
+        return read(lambda c: {**registry.roadmap(c, identity, transcripts.archived), "roster": registry.roster(c, identity)})

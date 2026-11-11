@@ -1446,9 +1446,43 @@ class RoadmapWorker(Answer):
     stale: bool
 
 
+class RosterStep(Answer):
+    """A step still in the plan that an agent's work ties it to, with why and when."""
+
+    stepId: str
+    via: list[TieReason]
+    current: bool
+    lastAt: str | None
+
+
+class RosterAgent(Answer):
+    """An agent whose work ties it to the roadmap, now or before: one whose card names the roadmap."""
+
+    id: str
+    label: str
+    avatar: str | None
+    # Its credential is live.
+    active: bool
+    # Every reason, across the roadmap and its steps, in display order.
+    via: list[TieReason]
+    # Tied by something still open: participation, a role, an open run.
+    current: bool
+    lastAt: str | None
+    # Current ties first, then the latest. Work with no step, or on a retired one, ties no step.
+    steps: list[RosterStep]
+
+
+class RoadmapRoster(Answer):
+    # Current ties first, then the latest; the first 200, and total counts them all.
+    items: list[RosterAgent]
+    total: int
+
+
 class RoadmapAgents(Answer):
     # Fresh work first, then the latest.
     items: list[RoadmapWorker]
+    # Every agent whose work ties it to the roadmap, now or before.
+    roster: RoadmapRoster
 
 
 class OverlapRepository(Answer):

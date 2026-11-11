@@ -40,6 +40,18 @@ def _stale(last_seen_at: str) -> bool:
     return datetime.fromisoformat(last_seen_at) < datetime.now(UTC) - STALE_AFTER
 
 
+def _why(entry: dict[str, Any]) -> dict[str, Any]:
+    """A tie's reasons in display order, whether something still open holds it, and its latest time."""
+    return {"via": [v for v in VIA if v in entry["via"]], "current": entry["current"], "lastAt": entry["lastAt"]}
+
+
+def _first(records: list[dict]) -> list[dict]:
+    """Current ties first, then the most recent."""
+    records.sort(key=lambda r: r["lastAt"] or "", reverse=True)
+    records.sort(key=lambda r: not r["current"])
+    return records
+
+
 class _Ties:
     """Distinct records with every reason that ties them and the latest time it happened."""
 
@@ -56,11 +68,7 @@ class _Ties:
 
     def render(self, records: dict[str, dict]) -> dict:
         """Current ties first, then the most recent; unresolvable IDs are left out."""
-        items = [{**records[identity], "via": [v for v in VIA if v in entry["via"]],
-                  "current": entry["current"], "lastAt": entry["lastAt"]}
-                 for identity, entry in self.entries.items() if identity in records]
-        items.sort(key=lambda r: r["lastAt"] or "", reverse=True)
-        items.sort(key=lambda r: not r["current"])
+        items = _first([{**records[identity], **_why(entry)} for identity, entry in self.entries.items() if identity in records])
         return {"items": items[:TIE_LIMIT], "total": len(items)}
 
 
@@ -184,14 +192,16 @@ class AgentRegistry:
     def _chats(c: sqlite3.Connection, chat_ids: Iterable[str]) -> list[sqlite3.Row]:
         return rows_in(c, "SELECT * FROM agent_chats WHERE chat_id IN ({})", chat_ids)
 
-    def _ties(self, c: sqlite3.Connection, roles: dict[str, list[dict]]) -> tuple[dict[str, dict], dict[str, list[dict]]]:
+    def _gather(self, c: sqlite3.Connection, roles: dict[str, list[dict]]) -> tuple[
+            dict[str, _Tied], list[sqlite3.Row], dict[str, list[sqlite3.Row]], dict[str, dict]]:
         """What each agent's runs, participation, updates, messages, roles and confirmed chats tie it
-        to: its work items, roadmaps, repositories and tracked chats, each with every reason and the
-        latest time, as an agent's page lists them. `roles` holds the roles each agent owns, keyed by
-        the agents to gather for, so a page of agents costs the same few queries as one agent.
+        to, before any record is named: its work items, roadmaps, repositories and tracked chats, each
+        with every reason and the latest time. A tie to a step or to a work item is a tie to its
+        roadmap too. `roles` holds the roles each agent owns, keyed by the agents to gather for, so a
+        page of agents costs the same few queries as one agent.
 
-        Also gives the tracked chats that carry each chat ID those agents' runs, messages and
-        confirmations name, for the runs that report them."""
+        Also gives the tracked chats those agents' runs, messages and confirmations name, those
+        chats by chat ID, and each work item tied, with its roadmap."""
         tied = {identity: _Tied() for identity in roles}
         for r in rows_in(c, "SELECT ar.agent_id,p.item_id,p.last_seen_at,p.released_at,pc.repository_id FROM participations p "
                             "JOIN agent_runs ar ON ar.id=p.run_id LEFT JOIN participation_contexts pc ON pc.participation_id=p.id "
@@ -270,6 +280,15 @@ class AgentRegistry:
                 roadmap_id = work.get(item_id, {}).get("roadmapId")
                 for via in entry["via"]:
                     agent.roadmaps.add(roadmap_id, via, entry["lastAt"], entry["current"])
+        return tied, tracked, by_chat_id, work
+
+    def _ties(self, c: sqlite3.Connection, roles: dict[str, list[dict]]) -> tuple[dict[str, dict], dict[str, list[dict]]]:
+        """What each agent's work ties it to (`_gather`), each record named, as an agent's page lists
+        them: its work items, roadmaps, repositories and tracked chats.
+
+        Also gives the tracked chats that carry each chat ID those agents' runs, messages and
+        confirmations name, for the runs that report them."""
+        tied, tracked, by_chat_id, work = self._gather(c, roles)
         roadmap_titles = self._roadmap_titles(c, [r for agent in tied.values() for r in agent.roadmaps.entries])
         for record in work.values():
             record["roadmap"] = roadmap_titles.get(record.pop("roadmapId") or "")
@@ -400,6 +419,54 @@ class AgentRegistry:
         result.sort(key=lambda w: (w["lastAt"] or "", w["id"]), reverse=True)
         result.sort(key=lambda w: w["stale"])
         return {"items": result}
+
+    def roster(self, c: sqlite3.Connection, roadmap_id: str) -> dict:
+        """Every agent whose work ties it to the roadmap, now or before. The rule is the one that
+        names the roadmaps on an agent's card and page (`_gather`), so a roadmap lists exactly the
+        agents whose cards name it. Revoked identities stay: their work happened.
+
+        Each comes with every reason, whether something still open ties it, the latest time, and the
+        steps still in the plan that its work ties it to: a work item's step, a step's roles and
+        discussions, and each step a roadmap's tracked chat is assigned to. Work with no step, or on a
+        retired one, ties the roadmap alone. Current ties first, then the latest; the first TIE_LIMIT,
+        and `total` counts them all.
+        """
+        if c.execute("SELECT 1 FROM roadmaps WHERE id=?", (roadmap_id,)).fetchone() is None:
+            raise AppError(404, "not_found", "Roadmap not found")
+        agents = c.execute(f"SELECT a.id,a.label,a.avatar,{LIVE_AGENT} AS active FROM communication_agents a ORDER BY a.id").fetchall()
+        owned = self._roles(c, None)
+        tied, tracked, _, _ = self._gather(c, {a["id"]: owned.get(a["id"], []) for a in agents})
+        plan = {r[0] for r in c.execute("SELECT id FROM steps WHERE roadmap_id=? AND retired=0", (roadmap_id,))}
+        # A work item's step, where `_gather` finds the item's roadmap: the step's, over the item's own.
+        item_steps = {r[0]: r[1] for r in c.execute("SELECT w.id,w.step_id FROM work_items w JOIN steps s ON s.id=w.step_id "
+                                                    "WHERE s.roadmap_id=? AND s.retired=0", (roadmap_id,))}
+        chats = [chat["id"] for chat in tracked if chat["owner_type"] == "roadmap" and chat["owner_id"] == roadmap_id]
+        assigned: dict[str, list[str]] = {}
+        for r in rows_in(c, "SELECT chat_id,step_id FROM chat_steps WHERE chat_id IN ({})", chats):
+            if r["step_id"] in plan:
+                assigned.setdefault(r["chat_id"], []).append(r["step_id"])
+        items = []
+        for a in agents:
+            agent = tied[a["id"]]
+            entry = agent.roadmaps.entries.get(roadmap_id)
+            if entry is None:
+                continue
+            places = _Ties()
+            for item_id, tie in agent.items.entries.items():
+                if item_id in item_steps:
+                    for via in tie["via"]:
+                        places.add(item_steps[item_id], via, tie["lastAt"], tie["current"])
+            for step_id, via, at, current in agent.steps:
+                if step_id in plan:
+                    places.add(step_id, via, at, current)
+            for chat_key, (at, current) in agent.chat_ties.items():
+                for step_id in assigned.get(chat_key, ()):
+                    places.add(step_id, "chat", at, current)
+            steps = _first([{"stepId": step_id, **_why(tie)} for step_id, tie in sorted(places.entries.items())])
+            items.append({"id": a["id"], "label": a["label"], "avatar": a["avatar"], "active": bool(a["active"]),
+                          **_why(entry), "steps": steps})
+        items = _first(items)
+        return {"items": items[:TIE_LIMIT], "total": len(items)}
 
     def activity(self, c: sqlite3.Connection, identity: str, limit: int = 50, offset: int = 0) -> dict:
         """The agent's discussion messages and status updates, newest first."""

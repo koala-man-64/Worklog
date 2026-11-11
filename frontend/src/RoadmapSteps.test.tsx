@@ -1,5 +1,11 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setDataContext } from "./api";
@@ -9,6 +15,7 @@ import type {
   Roadmap,
   RoadmapTie,
   RoadmapWorker,
+  RosterAgent,
   Step,
 } from "./apiTypes";
 import { aChat, aRoadmap, aStep } from "./fixtures";
@@ -32,10 +39,16 @@ const road: Roadmap = aRoadmap({
 });
 let served = road;
 let workers: RoadmapWorker[] = [];
+let roster: RosterAgent[] = [];
+let rosterTotal: number | null = null;
 const AGENTS = `/roadmaps/${ROADMAP}/agents`;
 function respond(input: RequestInfo | URL) {
   const url = String(input);
-  if (url.endsWith(AGENTS)) return Response.json({ items: workers });
+  if (url.endsWith(AGENTS))
+    return Response.json({
+      items: workers,
+      roster: { items: roster, total: rosterTotal ?? roster.length },
+    });
   return Response.json(
     url.endsWith("/roadmaps/" + ROADMAP) ? served : { items: [], total: 0 },
   );
@@ -45,6 +58,8 @@ beforeEach(() => {
   setDataContext("roadmap-steps-" + crypto.randomUUID());
   served = road;
   workers = [];
+  roster = [];
+  rosterTotal = null;
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input) =>
     respond(input),
   );
@@ -564,6 +579,216 @@ it("shows three agents on a step until asked for the rest", async () => {
   expect(chipsIn(row("Solo"))).toEqual(["One", "Two", "Three", "Four", "Five"]);
 });
 
+function onRoster(
+  id: string,
+  label: string,
+  steps: Partial<RosterAgent["steps"][number]>[],
+  extra: Partial<RosterAgent> = {},
+): RosterAgent {
+  const full = steps.map((s) => ({
+    stepId: SOLO,
+    via: ["participation" as const],
+    current: false,
+    lastAt: "2026-11-02T04:00:00+00:00",
+    ...s,
+  }));
+  return {
+    id,
+    label,
+    avatar: null,
+    active: true,
+    via: [...new Set(full.flatMap((s) => s.via))],
+    current: full.some((s) => s.current),
+    lastAt: full[0]?.lastAt ?? "2026-11-01T00:00:00+00:00",
+    steps: full,
+    ...extra,
+  };
+}
+const HAND = onRoster("ffffffff-0000-4000-8000-000000000001", "Builder", [
+  { stepId: CHILD, current: true, lastAt: "2026-11-03T09:00:00+00:00" },
+]);
+const LEAD = onRoster("ffffffff-0000-4000-8000-000000000002", "Reviewer", [
+  { stepId: PARENT, via: ["role"], current: true },
+]);
+const WRITER = onRoster("ffffffff-0000-4000-8000-000000000003", "Writer", [
+  { via: ["message"], lastAt: "2026-11-02T08:00:00+00:00" },
+]);
+// Its tracked chat worked on Child before; it reports work on Solo now.
+const FIXER = onRoster("ffffffff-0000-4000-8000-000000000004", "Fixer", [
+  { stepId: SOLO, current: true, lastAt: "2026-11-03T08:00:00+00:00" },
+  { stepId: CHILD, via: ["chat"], lastAt: "2026-11-02T07:00:00+00:00" },
+]);
+// Its only work had no step: the roadmap lists it, no step does.
+const OLD_HAND = onRoster(
+  "ffffffff-0000-4000-8000-000000000005",
+  "Old hand",
+  [],
+  { active: false, via: ["chat"], lastAt: "2026-10-30T00:00:00+00:00" },
+);
+// It wrote about Parent lately and reports work on Child, under Parent, now.
+const PAIR = onRoster("ffffffff-0000-4000-8000-000000000006", "Pair", [
+  {
+    stepId: PARENT,
+    via: ["message"],
+    lastAt: "2026-11-03T10:00:00+00:00",
+  },
+  { stepId: CHILD, current: true, lastAt: "2026-11-01T10:00:00+00:00" },
+]);
+async function agentsSection() {
+  const detail = await screen.findByRole("region", {
+    name: /Roadmap details|Step details/,
+  });
+  return within(detail).findByRole("region", { name: "Agents" });
+}
+const rowsIn = (section: HTMLElement) =>
+  Array.from(section.querySelectorAll(".agent-tie-row")).map((row) =>
+    Array.from(row.querySelectorAll("a, .badge, time")).map((part) =>
+      part.tagName === "TIME"
+        ? part.getAttribute("datetime")
+        : part.textContent,
+    ),
+  );
+
+it("lists every agent whose work ties it to the roadmap, from that work, with no tying by hand", async () => {
+  roster = [HAND, FIXER, LEAD, WRITER, OLD_HAND];
+  view();
+  const section = await agentsSection();
+  await waitFor(() => expect(section).toHaveTextContent("Agents 5"));
+  expect(section).toHaveTextContent(
+    "From their work here: reported work, status updates, responsibilities, discussions and tracked chats.",
+  );
+  // As the roadmap's read orders them; the agents whose credentials are revoked are folded below.
+  expect(rowsIn(section)).toEqual([
+    ["Builder", "Current", "Reported work", "2026-11-03T09:00:00+00:00"],
+    [
+      "Fixer",
+      "Current",
+      "Reported work",
+      "Tracked chat",
+      "2026-11-03T08:00:00+00:00",
+    ],
+    ["Reviewer", "Current", "Responsibility", "2026-11-02T04:00:00+00:00"],
+    ["Writer", "Discussion", "2026-11-02T08:00:00+00:00"],
+    ["Old hand", "Tracked chat", "2026-10-30T00:00:00+00:00"],
+  ]);
+  expect(
+    within(section).getByRole("link", { name: "Builder" }),
+  ).toHaveAttribute("href", "#agents/" + HAND.id);
+  const retired = within(section)
+    .getByText("Retired agents (1)")
+    .closest("details") as HTMLElement;
+  expect(
+    within(retired).getByRole("link", { name: "Old hand" }),
+  ).toBeInTheDocument();
+  expect(
+    within(section).queryByRole("button", { name: "Tie agent" }),
+  ).toBeNull();
+  expect(within(section).queryByRole("combobox")).toBeNull();
+});
+
+it("says when no agent has worked on the roadmap, and how many it does not show", async () => {
+  view();
+  const section = await agentsSection();
+  expect(
+    await within(section).findByText(
+      "No agent has worked on this roadmap yet.",
+    ),
+  ).toBeVisible();
+  cleanup();
+  roster = [HAND];
+  rosterTotal = 201;
+  view();
+  const listed = await agentsSection();
+  expect(await within(listed).findByText("Showing 1 of 201.")).toBeVisible();
+  expect(listed).toHaveTextContent("Agents 201");
+});
+
+it("lists a step's agents from its work there and on the steps under it, with only those ties", async () => {
+  roster = [HAND, FIXER, LEAD, PAIR, WRITER, OLD_HAND];
+  view(PARENT);
+  const section = await agentsSection();
+  await waitFor(() => expect(section).toHaveTextContent("Agents 4"));
+  expect(section).toHaveTextContent(
+    "From their work on this step and the steps under it.",
+  );
+  // Pair's two steps merge: every reason, current if either is, and the later time. The Fixer's
+  // work under Parent is its chat on Child, which finished.
+  expect(rowsIn(section)).toEqual([
+    [
+      "Pair",
+      "Current",
+      "Reported work",
+      "Discussion",
+      "2026-11-03T10:00:00+00:00",
+    ],
+    ["Builder", "Current", "Reported work", "2026-11-03T09:00:00+00:00"],
+    ["Reviewer", "Current", "Responsibility", "2026-11-02T04:00:00+00:00"],
+    ["Fixer", "Tracked chat", "2026-11-02T07:00:00+00:00"],
+  ]);
+  cleanup();
+  view(SOLO);
+  const solo = await agentsSection();
+  await waitFor(() => expect(solo).toHaveTextContent("Agents 2"));
+  expect(solo).toHaveTextContent("From their work on this step.");
+  expect(rowsIn(solo)).toEqual([
+    ["Fixer", "Current", "Reported work", "2026-11-03T08:00:00+00:00"],
+    ["Writer", "Discussion", "2026-11-02T08:00:00+00:00"],
+  ]);
+});
+
+it("never shows the last roadmap's agents on another roadmap while that one's load", async () => {
+  roster = [HAND];
+  workers = [BUILDER];
+  const OTHER = "33333333-3333-4333-8333-333333333333";
+  let release = () => {};
+  const held = new Promise<void>((resolve) => (release = resolve));
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const url = String(input);
+    if (url.endsWith(`/roadmaps/${OTHER}/agents`)) {
+      await held;
+      return Response.json({
+        items: [],
+        roster: { items: [WRITER], total: 1 },
+      });
+    }
+    if (url.endsWith("/roadmaps/" + OTHER))
+      return Response.json({ ...road, id: OTHER, title: "Other plan" });
+    return respond(input);
+  });
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const page = (id: string) => (
+    <QueryClientProvider client={client}>
+      <RoadmapDetail id={id} />
+    </QueryClientProvider>
+  );
+  const { rerender } = render(page(ROADMAP));
+  expect(
+    await within(await agentsSection()).findByRole("link", { name: "Builder" }),
+  ).toBeInTheDocument();
+  rerender(page(OTHER));
+  await screen.findByRole("heading", { name: "Other plan", level: 1 });
+  const other = await agentsSection();
+  expect(within(other).queryByRole("link", { name: "Builder" })).toBeNull();
+  expect(other.querySelector(".count")).toBeNull();
+  expect(screen.queryByText("Agents working here")).toBeNull();
+  release();
+  expect(
+    await within(other).findByRole("link", { name: "Writer" }),
+  ).toBeInTheDocument();
+});
+
+it("says when no agent has worked on a step", async () => {
+  roster = [WRITER];
+  view(CHILD);
+  const section = await agentsSection();
+  expect(
+    await within(section).findByText("No agent has worked on this step yet."),
+  ).toBeVisible();
+  expect(section).toHaveTextContent("Agents 0");
+});
+
 it("says when it cannot tell who works on the roadmap, and keeps the plan", async () => {
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input) =>
     String(input).endsWith(AGENTS)
@@ -579,4 +804,11 @@ it("says when it cannot tell who works on the roadmap, and keeps the plan", asyn
     "Database is busy",
   );
   expect(within(outline).getByRole("link", { name: "Child" })).toBeVisible();
+  // The overview's agents say so too, rather than counting none.
+  const section = await agentsSection();
+  expect(await within(section).findByRole("alert")).toHaveTextContent(
+    "Database is busy",
+  );
+  expect(section.querySelector(".count")).toBeNull();
+  expect(within(section).queryByText(/No agent has worked/)).toBeNull();
 });

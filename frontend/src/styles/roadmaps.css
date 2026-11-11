@@ -148,6 +148,13 @@
   gap: 0 12px;
   font-variant-numeric: tabular-nums;
 }
+/* An agent on a roadmap's or a step's Agents list: its avatar stays beside its label, which wraps. */
+.agent-roster-row .agent-tie {
+  flex-wrap: nowrap;
+}
+.agent-roster-row .agent-tie > a {
+  min-width: 0;
+}
 /* Who works on a step: an avatar and a name, linking to the agent or its tracked chat. */
 .agents-here {
   display: flex;
