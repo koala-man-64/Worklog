@@ -2519,8 +2519,8 @@ class UsageReport(Answer):
     version: str | None
     recordedSince: str | None
     window: UsageWindow
-    # False when agents' uses are left out (GET /usage?agents=false): every count is then the person's.
-    agents: bool
+    # Whose uses the counts are (GET /usage?actor=): the person's or agents' alone, or null for everyone's.
+    actor: Literal["person", "agent"] | None
     daily: list[UsageDay]
     pages: UsedPages
     calls: UsedCalls

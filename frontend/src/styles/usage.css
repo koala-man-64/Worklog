@@ -69,14 +69,15 @@
   border-radius: inherit;
   background: var(--chart-you);
 }
-/* Page views across the page; changes and reads side by side under it, stacked when narrow. */
+/* Page views across the page, unless agents' uses alone are shown, which have none; changes and
+   reads side by side under it, stacked when narrow. */
 .usage-charts {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr));
   gap: 28px 40px;
   margin-bottom: 12px;
 }
-.usage-charts > :first-child {
+.usage-charts > .wide {
   grid-column: 1 / -1;
 }
 .column-chart {

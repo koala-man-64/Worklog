@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useData } from "./hooks";
 import type { UsageReport } from "./apiTypes";
-import { ColumnChart, Meter, type Column, type Series } from "./ui/charts";
+import { ColumnChart, Meter, type Column, type Tone } from "./ui/charts";
 import { formatCount, formatDay } from "./ui/format";
 import { Empty, ErrorMessage } from "./ui/Messages";
 import {
@@ -19,23 +19,52 @@ import {
 
 /** The windows the page offers, in days; 30 is `worklog usage`'s own. */
 const WINDOWS = [7, 30, 90, 365];
-const YOU_AND_AGENTS: Series[] = [
-  { label: "You", tone: "you" },
-  { label: "Agents", tone: "agents" },
+
+type Actor = NonNullable<UsageReport["actor"]>;
+/** Whose uses the page counts: everyone's, or one actor's alone, as GET /usage?actor= takes it. */
+const WHOSE: { label: string; actor: Actor | null }[] = [
+  { label: "You and agents", actor: null },
+  { label: "You", actor: "person" },
+  { label: "Agents", actor: "agent" },
 ];
-const YOU_ALONE: Series[] = [YOU_AND_AGENTS[0]];
+
+/** An actor as the page names it: its series and column, who its uses are "by", and its colour. */
+type Shown = { actor: Actor; label: string; by: string; tone: Tone };
+const YOU: Shown = { actor: "person", label: "You", by: "you", tone: "you" };
+const AGENTS: Shown = {
+  actor: "agent",
+  label: "Agents",
+  by: "agents",
+  tone: "agents",
+};
+/** The actors a report counts: the one it names, or both. */
+const shownIn = (report: UsageReport) =>
+  report.actor === "person"
+    ? [YOU]
+    : report.actor === "agent"
+      ? [AGENTS]
+      : [YOU, AGENTS];
+/** Uses by each actor shown, such as "3 by you, 5 by agents". */
+const madeBy = (shown: Shown[], made: Actors) =>
+  shown
+    .map(({ actor, by }) => `${formatCount(made[actor])} by ${by}`)
+    .join(", ");
+const NOTHING_USED: Record<Actor, string> = {
+  person: "You used nothing",
+  agent: "Your agents used nothing",
+};
 
 /**
  * Which pages and features you and your agents use, and which nothing uses, in a window of days:
  * the counts usage.sqlite3 holds and those the server holds for its next write (GET /usage).
- * Without agents, every count is yours alone (GET /usage?agents=false).
+ * It counts both, or yours or agents' alone.
  */
 export function Usage() {
   const [days, setDays] = useState(30);
-  const [agents, setAgents] = useState(true);
+  const [actor, setActor] = useState<Actor | null>(null);
   // No refresh on a timer: each read of this page is a call it counts.
   const query = useData<UsageReport>(
-    `/usage?days=${days}${agents ? "" : "&agents=false"}`,
+    `/usage?days=${days}${actor ? `&actor=${actor}` : ""}`,
     undefined,
     { keepPrevious: true },
   );
@@ -66,21 +95,17 @@ export function Usage() {
             </button>
           ))}
         </div>
-        <div className="agent-toggles" role="group" aria-label="Agents' uses">
-          <button
-            type="button"
-            aria-pressed={agents}
-            onClick={() => setAgents(true)}
-          >
-            With agents
-          </button>
-          <button
-            type="button"
-            aria-pressed={!agents}
-            onClick={() => setAgents(false)}
-          >
-            Without agents
-          </button>
+        <div className="actor-toggles" role="group" aria-label="Whose uses">
+          {WHOSE.map((option) => (
+            <button
+              key={option.label}
+              type="button"
+              aria-pressed={actor === option.actor}
+              onClick={() => setActor(option.actor)}
+            >
+              {option.label}
+            </button>
+          ))}
         </div>
         {began && <small>Counting began {formatDay(began)}.</small>}
       </div>
@@ -96,15 +121,14 @@ export function Usage() {
 
 function UsageView({ report, stale }: { report: UsageReport; stale: boolean }) {
   const sums = totals(report);
-  // Drawn as the report counts, which, while another loads, may not be as the toggle now says.
-  const { agents } = report;
-  const series = agents ? YOU_AND_AGENTS : YOU_ALONE;
-  const each = (made: Actors) =>
-    agents ? [made.person, made.agent] : [made.person];
+  // Drawn as the report counts, which, while another loads, may not be as the toggles now say.
+  const shown = shownIn(report);
+  // Only you open pages, so agents' uses alone have no page views to show.
+  const pages = report.actor !== "agent";
+  const series = shown.map(({ label, tone }) => ({ label, tone }));
+  const each = (made: Actors) => shown.map(({ actor }) => made[actor]);
   const split = (made: Actors) =>
-    agents
-      ? `${formatCount(made.person)} by you, ${formatCount(made.agent)} by agents`
-      : "By you";
+    shown.length > 1 ? madeBy(shown, made) : `By ${shown[0].by}`;
   const weekly = report.window.days > DAILY_LIMIT;
   const columns = buckets(report);
   const column = (values: (bucket: Bucket) => number[]): Column[] =>
@@ -121,13 +145,15 @@ function UsageView({ report, stale }: { report: UsageReport; stale: boolean }) {
   return (
     <div className={"usage" + (stale ? " stale" : "")} aria-busy={stale}>
       <dl className="usage-tiles">
-        <div className="usage-tile">
-          <dt>Page views</dt>
-          <dd>{formatCount(sums.pageViews)}</dd>
-          <small>
-            {sums.pagesOpened} of {sums.pages} pages opened
-          </small>
-        </div>
+        {pages && (
+          <div className="usage-tile">
+            <dt>Page views</dt>
+            <dd>{formatCount(sums.pageViews)}</dd>
+            <small>
+              {sums.pagesOpened} of {sums.pages} pages opened
+            </small>
+          </div>
+        )}
         <div className="usage-tile">
           <dt>Changes</dt>
           <dd>{formatCount(sums.changes.person + sums.changes.agent)}</dd>
@@ -165,12 +191,15 @@ function UsageView({ report, stale }: { report: UsageReport; stale: boolean }) {
       </dl>
       {report.daily.length ? (
         <div className="usage-charts">
-          <ColumnChart
-            title={`Page views per ${per}`}
-            unit={unit}
-            series={[{ label: "Page views", tone: "you" }]}
-            columns={column((bucket) => [bucket.pageViews])}
-          />
+          {pages && (
+            <ColumnChart
+              className="wide"
+              title={`Page views per ${per}`}
+              unit={unit}
+              series={[{ label: "Page views", tone: "you" }]}
+              columns={column((bucket) => [bucket.pageViews])}
+            />
+          )}
           <ColumnChart
             title={`Changes per ${per}`}
             unit={unit}
@@ -182,18 +211,28 @@ function UsageView({ report, stale }: { report: UsageReport; stale: boolean }) {
             unit={unit}
             series={series}
             columns={column((bucket) => each(bucket.reads))}
-            note="Reads include pages refreshing what they show, so they say less about what you use than page views and changes."
+            note={
+              pages
+                ? "Reads include pages refreshing what they show, so they say less about what you use than page views and changes."
+                : undefined
+            }
           />
         </div>
       ) : (
         <Empty>
-          {agents ? "Nothing was used" : "You used nothing"} in these{" "}
-          {report.window.days} days.
+          {report.actor ? NOTHING_USED[report.actor] : "Nothing was used"} in
+          these {report.window.days} days.
         </Empty>
       )}
       <section aria-labelledby="usage-pages">
         <h2 id="usage-pages">Pages</h2>
-        <PageBars rows={pageRows(report)} />
+        {pages ? (
+          <PageBars rows={pageRows(report)} />
+        ) : (
+          <p className="muted">
+            Only you open pages, so agents have no page views.
+          </p>
+        )}
       </section>
       <section aria-labelledby="usage-areas">
         <h2 id="usage-areas">Features by area</h2>
@@ -203,7 +242,7 @@ function UsageView({ report, stale }: { report: UsageReport; stale: boolean }) {
         </p>
         <div className="usage-areas">
           {areas(report).map((area) => (
-            <AreaRow key={area.name} area={area} agents={agents} />
+            <AreaRow key={area.name} area={area} shown={shown} />
           ))}
         </div>
       </section>
@@ -249,10 +288,10 @@ function PageBars({ rows }: { rows: PageRow[] }) {
 }
 
 /**
- * An area's share of calls used and its uses; opened, each call with who may make it and its uses.
- * Without agents, the uses are yours alone, so agents' column is left out.
+ * An area's share of calls used and its uses; opened, each call with who may make it and its uses,
+ * a column for each actor shown.
  */
-function AreaRow({ area, agents }: { area: Area; agents: boolean }) {
+function AreaRow({ area, shown }: { area: Area; shown: Shown[] }) {
   return (
     <details className="usage-area">
       <summary>
@@ -262,11 +301,7 @@ function AreaRow({ area, agents }: { area: Area; agents: boolean }) {
           {area.used} of {area.served} used
         </span>
         <span className="usage-area-calls">
-          {area.person + area.agent
-            ? agents
-              ? `${formatCount(area.person)} by you, ${formatCount(area.agent)} by agents`
-              : `${formatCount(area.person)} by you`
-            : "No calls"}
+          {area.person + area.agent ? madeBy(shown, area) : "No calls"}
         </span>
         {area.failed > 0 && (
           <span className="usage-area-failed">
@@ -280,14 +315,11 @@ function AreaRow({ area, agents }: { area: Area; agents: boolean }) {
             <tr>
               <th scope="col">Call</th>
               <th scope="col">Who may make it</th>
-              <th scope="col" className="number">
-                You
-              </th>
-              {agents && (
-                <th scope="col" className="number">
-                  Agents
+              {shown.map(({ actor, label }) => (
+                <th key={actor} scope="col" className="number">
+                  {label}
                 </th>
-              )}
+              ))}
               <th scope="col" className="number">
                 Failed
               </th>
@@ -312,14 +344,15 @@ function AreaRow({ area, agents }: { area: Area; agents: boolean }) {
                 </td>
                 {feature.used ? (
                   <>
-                    <td className="number">{formatCount(feature.person)}</td>
-                    {agents && (
-                      <td className="number">{formatCount(feature.agent)}</td>
-                    )}
+                    {shown.map(({ actor }) => (
+                      <td key={actor} className="number">
+                        {formatCount(feature[actor])}
+                      </td>
+                    ))}
                     <td className="number">{formatCount(feature.failed)}</td>
                   </>
                 ) : (
-                  <td colSpan={agents ? 3 : 2}>Not used</td>
+                  <td colSpan={shown.length + 1}>Not used</td>
                 )}
                 <td>
                   {feature.lastUsed ? formatDay(feature.lastUsed) : "Never"}

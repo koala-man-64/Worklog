@@ -28,6 +28,7 @@ export function ColumnChart({
   series,
   columns,
   note,
+  className,
 }: {
   title: string;
   /** What a column is, such as "Day" or "Week": the table's first heading. */
@@ -35,6 +36,8 @@ export function ColumnChart({
   series: Series[];
   columns: Column[];
   note?: string;
+  /** Added to the figure's own, for the page to place the chart. */
+  className?: string;
 }) {
   const [pointed, setPointed] = useState<number | null>(null);
   const totals = columns.map((column) =>
@@ -76,7 +79,7 @@ export function ColumnChart({
       ? columns[Math.floor((columns.length - 1) / 2)]
       : undefined;
   return (
-    <figure className="column-chart">
+    <figure className={"column-chart" + (className ? ` ${className}` : "")}>
       <figcaption>
         <h3>{title}</h3>
         {series.length > 1 && (

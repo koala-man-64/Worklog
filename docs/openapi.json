@@ -97,16 +97,26 @@
             "description": "How many days to today it covers"
           },
           {
-            "name": "agents",
+            "name": "actor",
             "in": "query",
             "required": false,
             "schema": {
-              "type": "boolean",
-              "description": "Whether agents' uses count; false reports the person's alone",
-              "default": true,
-              "title": "Agents"
+              "anyOf": [
+                {
+                  "enum": [
+                    "person",
+                    "agent"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Whose uses alone: the person's or agents'; everyone's when left out",
+              "title": "Actor"
             },
-            "description": "Whether agents' uses count; false reports the person's alone"
+            "description": "Whose uses alone: the person's or agents'; everyone's when left out"
           }
         ],
         "responses": {
@@ -27233,9 +27243,20 @@
           "window": {
             "$ref": "#/components/schemas/UsageWindow"
           },
-          "agents": {
-            "type": "boolean",
-            "title": "Agents"
+          "actor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "person",
+                  "agent"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor"
           },
           "daily": {
             "items": {
@@ -27258,7 +27279,7 @@
           "version",
           "recordedSince",
           "window",
-          "agents",
+          "actor",
           "daily",
           "pages",
           "calls"

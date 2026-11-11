@@ -29,7 +29,7 @@ from zoneinfo import ZoneInfo
 
 from . import policy
 from .guard import Disconnected
-from .models import Page
+from .models import Actor, Page
 
 if TYPE_CHECKING:
     from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -297,12 +297,12 @@ def _start(today: date, days: int) -> str:
 class Counts:
     """What a report sums: from its window's first day (`start`) on, each feature's uses and failures
     by actor, and each day's by surface, actor and whether the call was a read (a GET); and, over
-    every day, the first day anything was used and the last day each feature was. Without `agents`
-    it sums the person's uses alone, though `since` still goes by everyone's: counting began then."""
+    every day, the first day anything was used and the last day each feature was. With an `actor`, it
+    sums that actor's uses alone, though `since` still goes by everyone's: counting began then."""
 
     start: str
     since: str | None = None
-    agents: bool = True
+    actor: Actor | None = None
     # (surface, feature) -> the last day it was used
     last: dict[tuple[str, str], str] = field(default_factory=dict)
     # (surface, feature, actor) -> [uses, failures]
@@ -313,7 +313,7 @@ class Counts:
     def add(self, day: str, surface: str, feature: str, actor: str, uses: int, failures: int) -> None:
         """Takes in one count the file doesn't hold, such as one held for the next write."""
         self.since = min(self.since or day, day)
-        if actor == "agent" and not self.agents:
+        if self.actor is not None and actor != self.actor:
             return
         self.last[surface, feature] = max(self.last.get((surface, feature), day), day)
         if day >= self.start:
@@ -334,10 +334,10 @@ class Recorded:
     served: dict[tuple[str, str], str]
 
 
-def _read(path: Path, days: int, today: date | None = None, *, agents: bool = True) -> Recorded | None:
+def _read(path: Path, days: int, today: date | None = None, *, actor: Actor | None = None) -> Recorded | None:
     """The file's counts for the `days` days to today, or None while it records nothing yet: no file,
     or one nothing has written. Today is Worklog's, in the timezone it last wrote counts in, unless
-    given. Without `agents`, the person's counts alone (Counts). Every query reads the same state of
+    given. With an `actor`, that actor's counts alone (Counts). Every query reads the same state of
     the file."""
     if not path.is_file():
         return None
@@ -353,17 +353,18 @@ def _read(path: Path, days: int, today: date | None = None, *, agents: bool = Tr
             meta = dict(conn.execute("SELECT key,value FROM meta").fetchall())
             today = today or datetime.now(_zone(meta.get("timezone"))).date()
             counts = Counts(_start(today, days), conn.execute("SELECT MIN(day) FROM counts").fetchone()[0],
-                            agents=agents)
-            # Each query below keeps a row when agents count or the row is the person's.
+                            actor=actor)
+            # Each query below keeps a row when no actor is asked for, or when the row is that actor's.
+            asked = {"start": counts.start, "actor": actor}
             counts.last = {(s, f): d for s, f, d in conn.execute(
-                "SELECT surface,feature,MAX(day) FROM counts WHERE ? OR actor='person' "
-                "GROUP BY surface,feature", (agents,))}
-            counts.features = {(s, f, actor): [uses, failures] for s, f, actor, uses, failures in conn.execute(
+                "SELECT surface,feature,MAX(day) FROM counts WHERE :actor IS NULL OR actor=:actor "
+                "GROUP BY surface,feature", asked)}
+            counts.features = {(s, f, a): [uses, failures] for s, f, a, uses, failures in conn.execute(
                 "SELECT surface,feature,actor,SUM(uses),SUM(failures) FROM counts "
-                "WHERE day>=? AND (? OR actor='person') GROUP BY surface,feature,actor", (counts.start, agents))}
-            counts.days = {(d, s, actor, bool(read)): [uses, failures] for d, s, actor, read, uses, failures in conn.execute(
+                "WHERE day>=:start AND (:actor IS NULL OR actor=:actor) GROUP BY surface,feature,actor", asked)}
+            counts.days = {(d, s, a, bool(read)): [uses, failures] for d, s, a, read, uses, failures in conn.execute(
                 "SELECT day,surface,actor,substr(feature,1,4)='GET ' AS read,SUM(uses),SUM(failures) FROM counts "
-                "WHERE day>=? AND (? OR actor='person') GROUP BY day,surface,actor,read", (counts.start, agents))}
+                "WHERE day>=:start AND (:actor IS NULL OR actor=:actor) GROUP BY day,surface,actor,read", asked)}
             served = {(s, f): scope for s, f, scope in conn.execute("SELECT surface,feature,scope FROM features")}
     except sqlite3.DatabaseError as exc:
         if isinstance(exc, sqlite3.OperationalError) and any(word in str(exc) for word in ("locked", "busy")):
@@ -388,16 +389,15 @@ def report(path: Path, days: int = 30, today: date | None = None) -> dict[str, A
 
 
 def live_report(usage: Usage, days: int, today: date, served: Iterable[tuple[str, str, str]],
-                version: str, *, agents: bool = True) -> dict[str, Any]:
+                version: str, *, actor: Actor | None = None) -> dict[str, Any]:
     """What report() says, for the running server whose counts `usage` holds: those in the file and those
     held for its next write, each once (Usage.snapshot), to `today`. What nothing used goes by `served`,
     the features this version serves as catalog lists them. Before anything is written, the counts
-    held are all there is. Without `agents`, it reports the person's uses alone: what the person used,
-    and what the person didn't."""
-    recorded, held = usage.snapshot(lambda: _read(usage.path, days, today, agents=agents))
-    counts = recorded.counts if recorded else Counts(_start(today, days), agents=agents)
-    for (day, surface, feature, actor), (uses, failures) in held.items():
-        counts.add(day, surface, feature, actor, uses, failures)
+    held are all there is. With an `actor`, it reports that actor's uses alone (summary)."""
+    recorded, held = usage.snapshot(lambda: _read(usage.path, days, today, actor=actor))
+    counts = recorded.counts if recorded else Counts(_start(today, days), actor=actor)
+    for (day, surface, feature, who), (uses, failures) in held.items():
+        counts.add(day, surface, feature, who, uses, failures)
     return summary(usage.path, days, today, counts, {(s, f): scope for s, f, scope in served}, version)
 
 
@@ -407,8 +407,9 @@ def summary(path: Path, days: int, today: date, counts: Counts, served: Mapping[
     `served` lists that nothing used in it, by name; each with the last day anything used it, if ever.
     A call's scope is null when `served` no longer lists it. `daily` sums each day that has counts,
     oldest first: the page views, the reads (GET) and changes (any other method) the person and
-    agents made, and the calls that failed. `agents` is false when the counts leave agents' uses
-    out, so that every figure is the person's."""
+    agents made, and the calls that failed. `actor` is null when the counts are everyone's. With an
+    actor they are that actor's alone, and what nothing used is what it didn't of what it may use:
+    for agents, no page and no call that is the person's alone (policy.agent_may)."""
     used: dict[tuple[str, str], dict[str, list[int]]] = {}
     for (surface, feature, actor), sums in counts.features.items():
         used.setdefault((surface, feature), {})[actor] = sums
@@ -423,7 +424,8 @@ def summary(path: Path, days: int, today: date, counts: Counts, served: Mapping[
                           "agent": agent[0], "failed": person[1] + agent[1], "lastUsed": counts.last[surface, feature]})
     pages.sort(key=lambda row: -row["views"])
     calls.sort(key=lambda row: -(row["person"] + row["agent"]))
-    unused = [(s, f, scope) for (s, f), scope in sorted(served.items()) if (s, f) not in used]
+    unused = [(s, f, scope) for (s, f), scope in sorted(served.items())
+              if (s, f) not in used and (counts.actor != "agent" or policy.agent_may(scope))]
     daily: dict[str, dict[str, Any]] = {}
     for (day, surface, actor, read), (uses, failures) in sorted(counts.days.items()):
         entry = daily.setdefault(day, {"day": day, "pageViews": 0, "reads": {"person": 0, "agent": 0},
@@ -438,7 +440,7 @@ def summary(path: Path, days: int, today: date, counts: Counts, served: Mapping[
         "version": version,
         "recordedSince": counts.since,
         "window": {"days": days, "from": counts.start, "to": today.isoformat()},
-        "agents": counts.agents,
+        "actor": counts.actor,
         "daily": list(daily.values()),
         "pages": {"used": pages,
                   "unused": [{"page": f, "lastUsed": counts.last.get((s, f))} for s, f, _ in unused if s == "page"]},
