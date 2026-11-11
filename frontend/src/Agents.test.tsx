@@ -1,11 +1,13 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setDataContext } from "./api";
 import { Agents } from "./Agents";
 import type { AgentActivity, AgentDetail, AgentSummary } from "./apiTypes";
 
 const roadmap = { id: "road-1", title: "Platform", archived: false };
+const none = { items: [], total: 0 };
 const summary: AgentSummary = {
   id: "agent-1",
   label: "Builder",
@@ -16,6 +18,7 @@ const summary: AgentSummary = {
   openRuns: 1,
   runCount: 2,
   messageCount: 1,
+  avatar: "teal-visor-antenna",
   working: [
     {
       participationId: "p-1",
@@ -55,6 +58,46 @@ const summary: AgentSummary = {
       updatedAt: "2026-11-01T09:00:00Z",
     },
   ],
+  repositories: {
+    items: [
+      {
+        id: "repo-1",
+        name: "Worklog",
+        archived: false,
+        via: ["participation"],
+        current: true,
+        lastAt: "2026-11-01T10:00:00Z",
+      },
+      {
+        id: "repo-2",
+        name: "Parser",
+        archived: true,
+        via: ["update", "message"],
+        current: false,
+        lastAt: "2026-10-20T09:00:00Z",
+      },
+    ],
+    total: 2,
+  },
+  roadmaps: {
+    items: [
+      {
+        ...roadmap,
+        via: ["participation", "role"],
+        current: true,
+        lastAt: "2026-11-01T10:00:00Z",
+      },
+      {
+        id: "road-2",
+        title: "Docs",
+        archived: false,
+        via: ["message"],
+        current: false,
+        lastAt: "2026-10-21T09:00:00Z",
+      },
+    ],
+    total: 2,
+  },
 };
 const idle: AgentSummary = {
   ...summary,
@@ -66,8 +109,18 @@ const idle: AgentSummary = {
   openRuns: 0,
   runCount: 0,
   messageCount: 0,
+  avatar: null,
   working: [],
   roles: [],
+  repositories: none,
+  roadmaps: none,
+};
+const quiet: AgentSummary = {
+  ...idle,
+  id: "agent-3",
+  label: "Reviewer",
+  active: true,
+  avatar: "red-dots-antenna",
 };
 const chat = {
   id: "chat-1",
@@ -208,55 +261,299 @@ const json = (value: unknown, status = 200) =>
 const page = <T,>(items: T[]) => ({
   items,
   total: items.length,
-  limit: 50,
+  limit: 200,
   offset: 0,
 });
+/** The registry, as the page reads it: the list, an agent's page and its activity. */
+function serve(agents: AgentSummary[]) {
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const path = String(input);
+    if (path.includes("/activity")) return json(page(activity));
+    if (path.includes("/proposals")) return json(page([]));
+    return json(path.includes("/agents?") ? page(agents) : detail);
+  });
+}
+const index = () => screen.getByRole("region", { name: "Agent index" });
+const stage = () => screen.getByRole("region", { name: "Agent card" });
+// Read out on each flip: where the card is, and whose it is.
+const position = () => within(stage()).getByText(/^Card \d+ of \d+/);
+const entry = (name: string) =>
+  within(index()).getByRole("button", { name: new RegExp("^" + name) });
 beforeEach(() => {
   vi.restoreAllMocks();
   setDataContext("agents-test-" + crypto.randomUUID());
 });
 
-it("lists who works on what with links to the work, roadmap and repository", async () => {
-  vi.spyOn(globalThis, "fetch").mockResolvedValue(json(page([summary, idle])));
+it("shows each agent as a card with the repositories and roadmaps its work ties it to", async () => {
+  serve([summary, idle]);
   show(<Agents />);
-  const builder = (
-    await screen.findByRole("link", { name: "Builder" })
-  ).closest("article")!;
-  expect(builder).toHaveTextContent("Reporting work");
-  expect(builder).toHaveTextContent("claude · 1 open of 2 runs · 1 message");
-  const work = within(builder).getByRole("list", { name: "Reported work" });
+  const card = await within(stage()).findByRole("article", {
+    name: "Builder",
+  });
+  expect(fetch).toHaveBeenCalledWith(
+    "/api/v1/agents?limit=200&offset=0",
+    expect.anything(),
+  );
+  expect(card).toHaveTextContent("Reporting work");
+  expect(card).toHaveTextContent("claude · 1 open of 2 runs · 1 message");
+  expect(within(card).getByRole("link", { name: "Builder" })).toHaveAttribute(
+    "href",
+    "#agents/agent-1",
+  );
+  expect(
+    within(card).getByRole("link", { name: "Open full record" }),
+  ).toHaveAttribute("href", "#agents/agent-1");
+
+  const repositories = within(card).getByRole("region", {
+    name: "Repositories",
+  });
+  expect(
+    within(repositories).getByRole("link", { name: "Worklog" }),
+  ).toHaveAttribute("href", "#repositories/repo-1");
+  const [now, before] = within(repositories).getAllByRole("listitem");
+  expect(now).toHaveTextContent(/^WorklogCurrentReported work$/);
+  expect(before).toHaveTextContent("Parser (archived)");
+  expect(before).toHaveTextContent("Status update · Discussion");
+  expect(within(before).getByRole("time")).toHaveAttribute(
+    "dateTime",
+    "2026-10-20T09:00:00Z",
+  );
+  const roadmaps = within(card).getByRole("region", { name: "Roadmaps" });
+  expect(
+    within(roadmaps).getByRole("link", { name: "Platform" }),
+  ).toHaveAttribute("href", "#roadmaps/road-1");
+  expect(within(roadmaps).getByRole("link", { name: "Docs" })).toHaveAttribute(
+    "href",
+    "#roadmaps/road-2",
+  );
+  expect(roadmaps).toHaveTextContent("Reported work · Responsibility");
+
+  const work = within(card).getByRole("list", { name: "Reported work" });
   expect(
     within(work).getByRole("link", { name: "Build the API" }),
   ).toHaveAttribute("href", "#work/item-1");
-  expect(within(work).getByRole("link", { name: "Platform" })).toHaveAttribute(
-    "href",
-    "#roadmaps/road-1",
-  );
   expect(
     within(work).getByRole("link", { name: "Worklog · claude/api" }),
   ).toHaveAttribute("href", "#repositories/repo-1");
-  const roles = within(builder).getByRole("list", { name: "Responsibilities" });
+  const roles = within(card).getByRole("list", { name: "Responsibilities" });
   expect(within(roles).getByRole("link", { name: "Web" })).toHaveAttribute(
     "href",
     "#roadmaps/road-1/step-1",
   );
-  const retired = screen
-    .getByRole("link", { name: "Retired" })
-    .closest("article")!;
-  expect(retired).toHaveTextContent("Credential revoked");
-  expect(retired).toHaveTextContent(
-    "Provider unspecified · 0 open of 0 runs · 0 messages · No activity yet",
-  );
-  expect(fetch).toHaveBeenCalledWith(
-    "/api/v1/agents?limit=50&offset=0",
-    expect.anything(),
+  expect(position()).toHaveTextContent("Card 1 of 2: Builder");
+  expect(position()).toHaveAttribute("aria-live", "polite");
+
+  // The index files active agents apart from retired ones, each saying where it worked.
+  const active = within(index()).getByRole("region", { name: "Active agents" });
+  expect(within(active).getByRole("heading")).toHaveTextContent("Active 1");
+  expect(
+    within(active).getByRole("button", { name: /^Builder/ }),
+  ).toHaveAttribute("aria-current", "true");
+  expect(entry("Builder")).toHaveTextContent(/Worklog · Platform · /);
+  expect(entry("Builder")).toHaveTextContent(/Reporting work$/);
+  const retired = within(index()).getByRole("region", {
+    name: "Retired agents",
+  });
+  expect(within(retired).getByRole("heading")).toHaveTextContent("Retired 1");
+  expect(within(retired).getByRole("button")).toHaveTextContent(
+    /^RetiredNo activity yetCredential revoked$/,
   );
 });
 
+it("flips through the cards with its buttons and the arrow keys, round from either end", async () => {
+  const user = userEvent.setup();
+  serve([summary, quiet, idle]);
+  show(<Agents />);
+  await within(stage()).findByRole("article", { name: "Builder" });
+  const open = (name: string) => within(stage()).getByRole("article", { name });
+  // The two cards behind show their tabs, the furthest first.
+  expect(
+    [...stage().querySelectorAll(".rolodex-peek .rolodex-tab")].map(
+      (tab) => tab.textContent,
+    ),
+  ).toEqual(["Retired", "Reviewer"]);
+
+  // Previous from the first card goes round to the last.
+  await user.click(
+    within(stage()).getByRole("button", { name: "Previous card" }),
+  );
+  const card = open("Retired");
+  expect(card).toHaveClass("flip-back");
+  expect(
+    within(stage()).queryByRole("article", { name: "Builder" }),
+  ).not.toBeInTheDocument();
+  expect(card).toHaveTextContent("Credential revoked");
+  expect(card).toHaveTextContent(
+    "Provider unspecified · 0 open of 0 runs · 0 messages · No activity yet",
+  );
+  expect(card).toHaveTextContent("No repositories yet.");
+  expect(card).toHaveTextContent("No roadmaps yet.");
+  expect(position()).toHaveTextContent("Card 3 of 3: Retired");
+  expect(entry("Retired")).toHaveAttribute("aria-current", "true");
+  expect(entry("Builder")).not.toHaveAttribute("aria-current");
+
+  // Next from the last card goes round to the first.
+  await user.click(within(stage()).getByRole("button", { name: "Next card" }));
+  expect(open("Builder")).toHaveClass("flip-next");
+  expect(position()).toHaveTextContent("Card 1 of 3: Builder");
+  // Keys on the buttons flip the card and leave focus on the button.
+  await user.keyboard("{ArrowRight}");
+  expect(open("Reviewer")).toBeInTheDocument();
+  expect(
+    within(stage()).getByRole("button", { name: "Next card" }),
+  ).toHaveFocus();
+  // The index is one tab stop, the open card's tab; the arrow keys move within it.
+  expect(entry("Reviewer")).toHaveAttribute("tabindex", "0");
+  expect(entry("Builder")).toHaveAttribute("tabindex", "-1");
+  expect(entry("Retired")).toHaveAttribute("tabindex", "-1");
+
+  // In the index, focus follows the open card, across groups and round from the last.
+  await user.click(entry("Builder"));
+  expect(open("Builder")).toHaveClass("flip-back");
+  await user.keyboard("{ArrowDown}");
+  expect(open("Reviewer")).toBeInTheDocument();
+  expect(entry("Reviewer")).toHaveFocus();
+  await user.keyboard("{ArrowDown}");
+  expect(open("Retired")).toBeInTheDocument();
+  expect(entry("Retired")).toHaveFocus();
+  await user.keyboard("{ArrowDown}");
+  expect(entry("Builder")).toHaveFocus();
+  await user.keyboard("{End}");
+  expect(entry("Retired")).toHaveFocus();
+  await user.keyboard("{Home}");
+  expect(open("Builder")).toBeInTheDocument();
+  expect(entry("Builder")).toHaveFocus();
+});
+
+it("finds agents by name, repository or roadmap", async () => {
+  const user = userEvent.setup();
+  serve([summary, idle]);
+  show(<Agents />);
+  await within(stage()).findByRole("article", { name: "Builder" });
+  const find = within(index()).getByRole("searchbox", { name: "Find agents" });
+
+  await user.type(find, "docs");
+  expect(entry("Builder")).toBeInTheDocument();
+  expect(
+    within(index()).queryByRole("button", { name: /^Retired/ }),
+  ).not.toBeInTheDocument();
+  expect(position()).toHaveTextContent("Card 1 of 1: Builder");
+  expect(
+    within(stage()).getByRole("button", { name: "Next card" }),
+  ).toBeDisabled();
+  // A key with no card to flip to moves nothing, focus included, now or at the next change.
+  await user.click(entry("Builder"));
+  await user.keyboard("{ArrowDown}");
+  expect(entry("Builder")).toHaveFocus();
+
+  // Words that hide the open card open the first card they find, which stays open once cleared.
+  await user.clear(find);
+  await user.type(find, "RETIRED");
+  expect(
+    within(stage()).getByRole("article", { name: "Retired" }),
+  ).toBeInTheDocument();
+  expect(find).toHaveValue("RETIRED");
+  expect(find).toHaveFocus();
+  await user.clear(find);
+  expect(
+    within(stage()).getByRole("article", { name: "Retired" }),
+  ).toBeInTheDocument();
+  expect(position()).toHaveTextContent("Card 2 of 2: Retired");
+
+  await user.type(find, "nowhere");
+  expect(
+    within(index()).getByText("No agent matches those words."),
+  ).toBeInTheDocument();
+  expect(within(stage()).queryByRole("article")).not.toBeInTheDocument();
+});
+
+it("opens again the card left open, or the agent whose page was open", async () => {
+  const user = userEvent.setup();
+  serve([summary, idle]);
+  const first = show(<Agents />);
+  await within(stage()).findByRole("article", { name: "Builder" });
+  await user.click(within(stage()).getByRole("button", { name: "Next card" }));
+  first.unmount();
+
+  const again = show(<Agents />);
+  expect(
+    await within(stage()).findByRole("article", { name: "Retired" }),
+  ).toBeInTheDocument();
+  again.unmount();
+
+  const agentPage = show(<Agents selected="agent-1" />);
+  await screen.findByRole("heading", { name: "Builder", level: 1 });
+  agentPage.unmount();
+  show(<Agents />);
+  expect(
+    await within(stage()).findByRole("article", { name: "Builder" }),
+  ).toBeInTheDocument();
+});
+
+it("opens the first card, without a flip, when the open agent leaves the list", async () => {
+  const user = userEvent.setup();
+  let agents = [summary, idle];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
+    json(page(agents)),
+  );
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  render(
+    <QueryClientProvider client={client}>
+      <Agents />
+    </QueryClientProvider>,
+  );
+  await within(stage()).findByRole("article", { name: "Builder" });
+  await user.click(within(stage()).getByRole("button", { name: "Next card" }));
+  expect(within(stage()).getByRole("article", { name: "Retired" })).toHaveClass(
+    "flip-next",
+  );
+
+  agents = [summary];
+  await act(() => client.invalidateQueries());
+  const card = await within(stage()).findByRole("article", {
+    name: "Builder",
+  });
+  expect(card).not.toHaveClass("flip-next");
+  expect(card).not.toHaveClass("flip-back");
+});
+
+it("names the first repositories and roadmaps on a card and leaves the rest to the agent's page", async () => {
+  const many = Array.from({ length: 10 }, (_, n) => ({
+    id: "repo-" + n,
+    name: "Repository " + n,
+    archived: false,
+    via: ["update" as const],
+    current: false,
+    lastAt: "2026-11-01T10:00:00Z",
+  }));
+  serve([{ ...summary, repositories: { items: many, total: 12 } }]);
+  show(<Agents />);
+  const card = await within(stage()).findByRole("article", {
+    name: "Builder",
+  });
+  const repositories = within(card).getByRole("region", {
+    name: "Repositories",
+  });
+  expect(repositories).toHaveTextContent(/^Repositories 12/);
+  expect(within(repositories).getAllByRole("listitem")).toHaveLength(8);
+  expect(
+    within(repositories).getByRole("link", { name: "4 more on its page" }),
+  ).toHaveAttribute("href", "#agents/agent-1");
+  // A lone card has nothing to flip to.
+  expect(
+    within(stage()).getByRole("button", { name: "Previous card" }),
+  ).toBeDisabled();
+});
+
 it("explains an empty registry", async () => {
-  vi.spyOn(globalThis, "fetch").mockResolvedValue(json(page([])));
+  serve([]);
   show(<Agents />);
   expect(await screen.findByText(/No agents yet/)).toBeInTheDocument();
+  expect(
+    screen.queryByRole("region", { name: "Agent index" }),
+  ).not.toBeInTheDocument();
 });
 
 it("shows an agent's ties with their reasons, runs, messages and updates", async () => {

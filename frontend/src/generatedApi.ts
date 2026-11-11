@@ -2875,12 +2875,14 @@ export interface components {
             working: components["schemas"]["AgentWork"][];
             /** Roles */
             roles: components["schemas"]["AgentRole"][];
+            /** Avatar */
+            avatar: string | null;
+            roadmaps: components["schemas"]["TiedRoadmaps"];
+            repositories: components["schemas"]["TiedRepositories"];
             /** Credentials */
             credentials: components["schemas"]["AgentCredential"][];
             runs: components["schemas"]["AgentRunsListed"];
             workItems: components["schemas"]["TiedWorkItems"];
-            roadmaps: components["schemas"]["TiedRoadmaps"];
-            repositories: components["schemas"]["TiedRepositories"];
             chats: components["schemas"]["TiedChats"];
         };
         /** AgentActivity */
@@ -2893,6 +2895,40 @@ export interface components {
             limit: number;
             /** Offset */
             offset: number;
+        };
+        /**
+         * AgentCard
+         * @description An agent identity as its card on the Agents page shows it: who it is, and the roadmaps and
+         *     repositories its work ties it to, as its own page lists them. The person's alone, like the
+         *     page: tracked chats tie it too (AgentProfile, which any caller reads, holds none of this).
+         */
+        AgentCard: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Active */
+            active: boolean;
+            /** Createdat */
+            createdAt: string;
+            /** Lastactivityat */
+            lastActivityAt: string | null;
+            /** Providers */
+            providers: string[];
+            /** Openruns */
+            openRuns: number;
+            /** Runcount */
+            runCount: number;
+            /** Messagecount */
+            messageCount: number;
+            /** Working */
+            working: components["schemas"]["AgentWork"][];
+            /** Roles */
+            roles: components["schemas"]["AgentRole"][];
+            /** Avatar */
+            avatar: string | null;
+            roadmaps: components["schemas"]["TiedRoadmaps"];
+            repositories: components["schemas"]["TiedRepositories"];
         };
         /**
          * AgentContinuation
@@ -2951,34 +2987,6 @@ export interface components {
              * @default
              */
             relationship: string;
-        };
-        /**
-         * AgentListed
-         * @description An agent identity as the Agents page lists it, gathered from what it wrote.
-         */
-        AgentListed: {
-            /** Id */
-            id: string;
-            /** Label */
-            label: string;
-            /** Active */
-            active: boolean;
-            /** Createdat */
-            createdAt: string;
-            /** Lastactivityat */
-            lastActivityAt: string | null;
-            /** Providers */
-            providers: string[];
-            /** Openruns */
-            openRuns: number;
-            /** Runcount */
-            runCount: number;
-            /** Messagecount */
-            messageCount: number;
-            /** Working */
-            working: components["schemas"]["AgentWork"][];
-            /** Roles */
-            roles: components["schemas"]["AgentRole"][];
         };
         /**
          * AgentMessage
@@ -3265,7 +3273,7 @@ export interface components {
         /** Agents */
         Agents: {
             /** Items */
-            items: components["schemas"]["AgentListed"][];
+            items: components["schemas"]["AgentCard"][];
             /** Total */
             total: number;
             /** Limit */

@@ -9942,6 +9942,23 @@
             "type": "array",
             "title": "Roles"
           },
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          },
+          "roadmaps": {
+            "$ref": "#/components/schemas/TiedRoadmaps"
+          },
+          "repositories": {
+            "$ref": "#/components/schemas/TiedRepositories"
+          },
           "credentials": {
             "items": {
               "$ref": "#/components/schemas/AgentCredential"
@@ -9954,12 +9971,6 @@
           },
           "workItems": {
             "$ref": "#/components/schemas/TiedWorkItems"
-          },
-          "roadmaps": {
-            "$ref": "#/components/schemas/TiedRoadmaps"
-          },
-          "repositories": {
-            "$ref": "#/components/schemas/TiedRepositories"
           },
           "chats": {
             "$ref": "#/components/schemas/TiedChats"
@@ -9979,11 +9990,12 @@
           "messageCount",
           "working",
           "roles",
+          "avatar",
+          "roadmaps",
+          "repositories",
           "credentials",
           "runs",
           "workItems",
-          "roadmaps",
-          "repositories",
           "chats"
         ],
         "title": "Agent",
@@ -10027,6 +10039,107 @@
           "offset"
         ],
         "title": "AgentActivity"
+      },
+      "AgentCard": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "lastActivityAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastactivityat"
+          },
+          "providers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Providers"
+          },
+          "openRuns": {
+            "type": "integer",
+            "title": "Openruns"
+          },
+          "runCount": {
+            "type": "integer",
+            "title": "Runcount"
+          },
+          "messageCount": {
+            "type": "integer",
+            "title": "Messagecount"
+          },
+          "working": {
+            "items": {
+              "$ref": "#/components/schemas/AgentWork"
+            },
+            "type": "array",
+            "title": "Working"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/AgentRole"
+            },
+            "type": "array",
+            "title": "Roles"
+          },
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          },
+          "roadmaps": {
+            "$ref": "#/components/schemas/TiedRoadmaps"
+          },
+          "repositories": {
+            "$ref": "#/components/schemas/TiedRepositories"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "active",
+          "createdAt",
+          "lastActivityAt",
+          "providers",
+          "openRuns",
+          "runCount",
+          "messageCount",
+          "working",
+          "roles",
+          "avatar",
+          "roadmaps",
+          "repositories"
+        ],
+        "title": "AgentCard",
+        "description": "An agent identity as its card on the Agents page shows it: who it is, and the roadmaps and\nrepositories its work ties it to, as its own page lists them. The person's alone, like the\npage: tracked chats tie it too (AgentProfile, which any caller reads, holds none of this)."
       },
       "AgentContinuation": {
         "properties": {
@@ -10211,87 +10324,6 @@
         ],
         "title": "AgentLinkSet",
         "description": "The person names the agent. An agent ties only itself, so it may leave agentId out."
-      },
-      "AgentListed": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "label": {
-            "type": "string",
-            "title": "Label"
-          },
-          "active": {
-            "type": "boolean",
-            "title": "Active"
-          },
-          "createdAt": {
-            "type": "string",
-            "title": "Createdat"
-          },
-          "lastActivityAt": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Lastactivityat"
-          },
-          "providers": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Providers"
-          },
-          "openRuns": {
-            "type": "integer",
-            "title": "Openruns"
-          },
-          "runCount": {
-            "type": "integer",
-            "title": "Runcount"
-          },
-          "messageCount": {
-            "type": "integer",
-            "title": "Messagecount"
-          },
-          "working": {
-            "items": {
-              "$ref": "#/components/schemas/AgentWork"
-            },
-            "type": "array",
-            "title": "Working"
-          },
-          "roles": {
-            "items": {
-              "$ref": "#/components/schemas/AgentRole"
-            },
-            "type": "array",
-            "title": "Roles"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "label",
-          "active",
-          "createdAt",
-          "lastActivityAt",
-          "providers",
-          "openRuns",
-          "runCount",
-          "messageCount",
-          "working",
-          "roles"
-        ],
-        "title": "AgentListed",
-        "description": "An agent identity as the Agents page lists it, gathered from what it wrote."
       },
       "AgentMessage": {
         "properties": {
@@ -11148,7 +11180,7 @@
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/AgentListed"
+              "$ref": "#/components/schemas/AgentCard"
             },
             "type": "array",
             "title": "Items"

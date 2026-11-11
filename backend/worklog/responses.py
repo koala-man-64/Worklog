@@ -1231,7 +1231,8 @@ class AgentRole(Answer):
 
 
 class AgentListed(Answer):
-    """An agent identity as the Agents page lists it, gathered from what it wrote."""
+    """An agent identity, gathered from what it wrote: what its card on the Agents page and its
+    participant profile both show."""
 
     id: str
     label: str
@@ -1246,13 +1247,6 @@ class AgentListed(Answer):
     messageCount: int
     working: list[AgentWork]
     roles: list[AgentRole]
-
-
-class Agents(Answer):
-    items: list[AgentListed]
-    total: int
-    limit: int
-    offset: int
 
 
 class AgentCredential(Answer):
@@ -1350,14 +1344,29 @@ class TiedChats(Answer):
     total: int
 
 
-class Agent(AgentListed):
+class AgentCard(AgentListed):
+    """An agent identity as its card on the Agents page shows it: who it is, and the roadmaps and
+    repositories its work ties it to, as its own page lists them. The person's alone, like the
+    page: tracked chats tie it too (AgentProfile, which any caller reads, holds none of this)."""
+
+    avatar: str | None
+    roadmaps: TiedRoadmaps
+    repositories: TiedRepositories
+
+
+class Agents(Answer):
+    items: list[AgentCard]
+    total: int
+    limit: int
+    offset: int
+
+
+class Agent(AgentCard):
     """An agent identity with its credentials, its runs and what it is tied to, and why."""
 
     credentials: list[AgentCredential]
     runs: AgentRunsListed
     workItems: TiedWorkItems
-    roadmaps: TiedRoadmaps
-    repositories: TiedRepositories
     chats: TiedChats
 
 

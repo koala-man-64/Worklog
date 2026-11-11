@@ -1,15 +1,374 @@
 /* Agents: the rules only its page uses. */
-/* An agent reads as who and its state, then what it reports working on now. */
-.agent-row {
-  padding: 18px 0;
-  border-top: 1px solid var(--line);
+/* The rolodex: every agent's tab in an index beside the open card, the next cards' tabs behind it. */
+@media (min-width: 900px) and (min-height: 560px) {
+  .agents-split {
+    grid-template-columns: minmax(280px, 1fr) minmax(0, 2.4fr);
+  }
 }
-.agent-row-head {
+@media not all and (min-width: 900px) and (min-height: 560px) {
+  .agents-split .panel-body {
+    max-height: 40dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+.rolodex-find {
+  padding: 12px 16px 4px;
+}
+.rolodex-find input {
+  width: 100%;
+  margin: 0;
+}
+.agents-split .rolodex-group {
+  margin: 14px 8px 6px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.rolodex-index {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rolodex-index button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 46px;
+  padding: 6px 10px 6px 8px;
+  border: 0;
+  border-left: 3px solid transparent;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink);
+  text-align: left;
+}
+.rolodex-index button:hover {
+  background: var(--bg);
+}
+.rolodex-index button[aria-current="true"] {
+  border-left-color: var(--teal);
+  background: var(--teal-wash);
+}
+.rolodex-entry {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.4;
+}
+/* Labels run long and often differ only at the end, so a name takes two lines before it is cut. */
+.rolodex-entry-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  font-weight: 600;
+}
+.rolodex-entry small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+/* The agent's state as a colour; the words beside it, or read out, say it too. */
+.rolodex-dot {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--field-edge);
+  border-radius: 50%;
+}
+.rolodex-dot.reporting {
+  border-color: var(--teal);
+  background: var(--teal);
+}
+.rolodex-dot.stale {
+  border-color: var(--status-doing-border);
+  background: var(--status-doing-border);
+}
+.rolodex-dot.revoked {
+  border-color: var(--line);
+  background: var(--line);
+}
+/* Room above the card for the tabs of the two cards behind it. */
+.rolodex-stage {
+  padding: 60px clamp(4px, 2vw, 24px) 16px;
+}
+.rolodex-deck {
+  position: relative;
+  perspective: 1400px;
+}
+.rolodex-card,
+.rolodex-peek {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+}
+.rolodex-peek {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 0;
+  pointer-events: none;
+}
+.rolodex-peek.depth-1 {
+  z-index: 1;
+  transform: translateY(-14px) scale(0.97);
+}
+.rolodex-peek.depth-2 {
+  z-index: 0;
+  transform: translateY(-28px) scale(0.94);
+}
+.rolodex-card {
+  position: relative;
+  z-index: 2;
+  padding: 26px clamp(18px, 3vw, 36px) 44px;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.06),
+    0 12px 28px -14px rgba(0, 0, 0, 0.3);
+}
+/* The slots a card sits on the rails by. */
+.rolodex-card::before,
+.rolodex-card::after {
+  content: "";
+  position: absolute;
+  bottom: 14px;
+  width: 28px;
+  height: 12px;
+  border-radius: 6px;
+  background: var(--bg);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+.rolodex-card::before {
+  left: calc(50% - 48px);
+}
+.rolodex-card::after {
+  left: calc(50% + 20px);
+}
+.rolodex-tab {
+  position: absolute;
+  bottom: 100%;
+  left: 28px;
+  max-width: 40%;
+  margin-bottom: -1px;
+  padding: 2px 14px 1px;
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  background: var(--paper);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rolodex-tab .rolodex-dot {
+  margin-right: 4px;
+  vertical-align: -1px;
+}
+.rolodex-peek .rolodex-tab {
+  max-width: 26%;
+  color: var(--muted);
+}
+.rolodex-peek.depth-1 .rolodex-tab {
+  left: 38%;
+}
+.rolodex-peek.depth-2 .rolodex-tab {
+  left: 66%;
+}
+/* The head is ruled off from the rest, as on an index card. */
+.rolodex-card-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid var(--teal);
+}
+.rolodex-card-head > div {
+  min-width: 0;
+}
+.rolodex-card-head .avatar {
+  flex-shrink: 0;
+}
+.rolodex-card-head h2 {
+  margin: 0 0 4px;
+  font-size: clamp(24px, 2.4vw, 32px);
+}
+.rolodex-card-head h2 a {
+  color: var(--ink);
+  text-decoration: none;
+}
+.rolodex-card-head h2 a:hover {
+  color: var(--teal);
+  text-decoration: underline;
+}
+.rolodex-card-head p {
+  margin: 0;
+}
+.rolodex-card-ties {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: 16px 36px;
+}
+.rolodex-card .rolodex-ties h3,
+.rolodex-card .rolodex-card-section h3 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.rolodex-ties ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rolodex-ties li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0 12px;
+  padding: 7px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.rolodex-tie-name {
+  min-width: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.rolodex-ties time {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.rolodex-current {
+  padding: 0 8px;
+  border-radius: 10px;
+  background: var(--teal-wash);
+  color: var(--teal);
+  font-size: 11px;
+  font-weight: 600;
+}
+.rolodex-why {
+  grid-column: 1 / -1;
+  font-size: 12px;
+}
+.rolodex-ties > .muted {
+  margin: 0;
+}
+.rolodex-more {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 12px;
+}
+.rolodex-card-section {
+  margin-top: 22px;
+}
+.rolodex-card-section > .agent-work {
+  margin: 0;
+}
+.rolodex-card-foot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 22px;
+  font-size: 13px;
+}
+.rolodex-controls {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 12px;
+  justify-content: center;
+  gap: 8px 16px;
+  margin-top: 18px;
 }
+.rolodex-controls button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.rolodex-controls span {
+  min-width: 10ch;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+@media (min-width: 900px) and (min-height: 560px) {
+  /* A card taller than the window scrolls under the buttons, which stay in reach. */
+  .rolodex-controls {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    margin-top: 0;
+    padding: 18px 0 4px;
+    background: var(--bg);
+  }
+}
+@media (max-width: 760px) {
+  .rolodex-stage {
+    padding-inline: 0;
+  }
+  .rolodex-card {
+    padding: 24px 16px 44px;
+  }
+  .rolodex-card-head {
+    align-items: flex-start;
+  }
+  .rolodex-tab {
+    max-width: 50%;
+  }
+  .rolodex-peek.depth-1 .rolodex-tab {
+    right: 20px;
+    left: auto;
+    max-width: 34%;
+  }
+  .rolodex-peek.depth-2 .rolodex-tab {
+    display: none;
+  }
+}
+/* A flip turns the next card up from behind the drum, or the previous one back down onto it. */
+@media (prefers-reduced-motion: no-preference) {
+  .rolodex-card.flip-next,
+  .rolodex-card.flip-back {
+    transform-origin: 50% 100%;
+    animation: rolodex-next 300ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .rolodex-card.flip-back {
+    animation-name: rolodex-back;
+  }
+  @keyframes rolodex-next {
+    from {
+      opacity: 0.3;
+      transform: rotateX(55deg);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes rolodex-back {
+    from {
+      opacity: 0.3;
+      transform: rotateX(-55deg);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+/* An agent's page: its avatar beside its name. */
+.agent-title .avatar {
+  margin-right: 4px;
+  vertical-align: middle;
+}
+/* An agent reads as who and its state, then what it reports working on now. */
 .agent-work {
   display: grid;
   gap: 8px;
