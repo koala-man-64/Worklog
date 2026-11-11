@@ -141,10 +141,13 @@ def registered_chats(c: sqlite3.Connection, credential_ids: Iterable[str]) -> di
 
 
 def identity_chat(c: sqlite3.Connection, agent_id: str) -> str | None:
-    """The chat an identity registered with, whichever of its credentials registered it:
-    rotating the credential in Settings keeps the identity, and so its chat."""
-    credentials = [r[0] for r in c.execute("SELECT credential_id FROM communication_credentials WHERE agent_id=?", (agent_id,))]
-    return next(iter(registered_chats(c, credentials).values()), None)
+    """The chat an identity works in: the one its newest credential that names a chat registered
+    with, a live one first. Rotating the credential in Settings keeps the identity, and so its chat;
+    continuing it in another chat (registration.continue_identity) names the new one."""
+    row = c.execute("SELECT cc.chat_id FROM communication_credentials cc JOIN credentials cr ON cr.id=cc.credential_id "
+                    "WHERE cc.agent_id=? AND cc.chat_id IS NOT NULL ORDER BY cr.revoked,cr.created_at DESC,cr.rowid DESC LIMIT 1",
+                    (agent_id,)).fetchone()
+    return row[0] if row else None
 
 
 class DiscussionService:

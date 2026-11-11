@@ -63,6 +63,7 @@ The files that Phase 0 deletes outright hold about 9,100 of the codebase's 77,00
 |---|---|---|---|---|
 | R1 | What goes? | The HTML plan import, work item checklists, the end-of-day reflection, messaging agents from a chat, agent ties, Releases and Reminders: each with its pages and sections, routes, tables, agent commands, proposal operations and guide sections. This retires K3 and K12 (messages in a chat), K14 (reminders) and K2's read of imported HTML originals. | 0.1 to 0.7 | 2026-11-10, Rudy |
 | R2 | Do tickets, people and resources go too? | Not yet. Revisit them with a month of usage counts, from 2026-12-08. | — | 2026-11-10, Rudy |
+| R3 | How does the chat that carries on an ended chat's work get back what that chat owned? Agents' chats often end before their work does, and the next one registered a new identity that held none of the old one's steps or roles. | It continues the old chat's identity (`worklog agent register --continue NAME`). A new credential for the new chat replaces the old one, as rotation does, so the identity's roles, ties, tickets and proposals stay with it. The new chat takes over where the old one was tracked, with its steps still in the plan. A chat or work the person archived isn't carried over, and a step they took the old chat off stays off the new one. No schema change. | Outside the plan | 2026-11-10, Rudy asked for it; Claude chose the mechanism while building it |
 
 ## Open questions
 
@@ -225,3 +226,4 @@ Why: adding, moving or retiring one step takes a whole-plan save today, which is
 ## Change log
 
 - 2026-11-10: Plan created from a review of `92675f1` and of the personal instance's usage. R1 and R2 recorded.
+- 2026-11-10: R3 recorded, outside the plan: the chat that carries on an ended chat's work continues its identity, with its roles and the steps its chat was on. It changes what agents can call: `register --continue` and `GET /agent-registrations/self`.

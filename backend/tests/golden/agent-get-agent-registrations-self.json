@@ -1,0 +1,12 @@
+{
+  "status": 200,
+  "body": {
+    "id": "<id1>",
+    "agentId": "<id1>",
+    "label": "Builder",
+    "avatar": "red-dots-antenna",
+    "chatId": null,
+    "registeredBy": null,
+    "directory": null
+  }
+}

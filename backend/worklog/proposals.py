@@ -23,9 +23,13 @@ AUTOMATIC = {"id": AUTOMATIC_APPROVAL_ID, "label": "Automatic approval", "kind":
 # Since v12 a proposal's row says when it was last submitted and whether automatic approval
 # applied it; before, both were read from its events. Since v18 a proposal also names the directory
 # its agent's identity registered from, whichever of the identity's credentials wrote it: rotating a
-# credential keeps the identity. Only a registration row holds a directory, one per identity.
+# credential keeps the identity. Only a credential an agent registered, or continued its identity
+# with in another chat, holds a directory: the one that wrote the proposal names its own, and one
+# that holds none, as after rotation, names the identity's newest.
 SELECT = ("SELECT p.*,(SELECT reg.directory FROM communication_credentials cc JOIN communication_credentials reg"
-          " ON reg.agent_id=cc.agent_id WHERE cc.credential_id=p.actor_id AND reg.directory IS NOT NULL LIMIT 1)"
+          " ON reg.agent_id=cc.agent_id JOIN credentials held ON held.id=reg.credential_id"
+          " WHERE cc.credential_id=p.actor_id AND reg.directory IS NOT NULL"
+          " ORDER BY reg.credential_id=cc.credential_id DESC,held.created_at DESC,held.rowid DESC LIMIT 1)"
           " AS actor_directory FROM proposals p")
 # Changes whose record proposal_targets reads from applying them: the work item or roadmap a create
 # made, whose ID Worklog chooses, and the ticket a change was made to, which may be named by its key.

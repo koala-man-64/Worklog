@@ -38,7 +38,7 @@ DISCUSS = "agent:discuss"  # discussion threads, requests and roles
 COORDINATE = "agent:coordinate"  # an agent's own runs, participations and chat, and the repositories they name
 TICKET = "agent:ticket"  # filing, changing and commenting on tickets
 REMIND = "agent:remind"  # setting, snoozing and completing the person's reminders
-REGISTER = "agent:register"  # registering and retiring agent identities
+REGISTER = "agent:register"  # registering, continuing and retiring agent identities
 INBOX = "agent:inbox"  # taking the messages the person writes into an agent's chats
 TIE = "agent:tie"  # an agent's own ties to records, and its role on each
 
@@ -61,7 +61,9 @@ ROUTES: dict[str, dict[str, str | Only]] = {
     "/agent-links/unlink": {"POST": TIE},
 
     "/agent-registrations": {"POST": REGISTER},
+    "/agent-registrations/continue": {"POST": REGISTER},
     "/agent-registrations/retire": {"POST": REGISTER},
+    "/agent-registrations/self": {"GET": READ},
 
     "/agent-runs": {"GET": READ, "POST": COORDINATE},
     "/agent-runs/{identity}": {"GET": READ},
