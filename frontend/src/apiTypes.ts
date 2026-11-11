@@ -105,9 +105,11 @@ export type Participation = Schema["Participation"];
 export type ParticipationRepository = Schema["ParticipationRepository"];
 export type CoordinationUpdate = Schema["CoordinationUpdate"];
 
-// The agent registry.
-export type AgentSummary = Schema["AgentListed"];
+// The agent registry. `/agents` lists each agent as its card on the Agents page shows it.
+export type AgentSummary = Schema["AgentCard"];
 export type AgentDetail = Schema["Agent"];
+export type TiedRoadmap = Schema["TiedRoadmap"];
+export type TiedRepository = Schema["TiedRepository"];
 export type RegistryWork = Schema["AgentWork"];
 export type RegistryRole = Schema["AgentRole"];
 export type TieReason = Schema["TiedWorkItem"]["via"][number];

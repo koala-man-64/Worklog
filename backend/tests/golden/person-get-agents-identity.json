@@ -57,6 +57,43 @@
         "updatedAt": "<time>"
       }
     ],
+    "avatar": "red-dots-antenna",
+    "roadmaps": {
+      "items": [
+        {
+          "id": "<id5>",
+          "title": "Plan 2",
+          "archived": false,
+          "via": [
+            "participation",
+            "role",
+            "update",
+            "message",
+            "chat"
+          ],
+          "current": true,
+          "lastAt": "<time>"
+        }
+      ],
+      "total": 1
+    },
+    "repositories": {
+      "items": [
+        {
+          "id": "<id6>",
+          "name": "worklog",
+          "archived": false,
+          "via": [
+            "participation",
+            "update",
+            "message"
+          ],
+          "current": true,
+          "lastAt": "<time>"
+        }
+      ],
+      "total": 1
+    },
     "credentials": [
       {
         "id": "<id1>",
@@ -105,42 +142,6 @@
             "update",
             "message",
             "chat"
-          ],
-          "current": true,
-          "lastAt": "<time>"
-        }
-      ],
-      "total": 1
-    },
-    "roadmaps": {
-      "items": [
-        {
-          "id": "<id5>",
-          "title": "Plan 2",
-          "archived": false,
-          "via": [
-            "participation",
-            "role",
-            "update",
-            "message",
-            "chat"
-          ],
-          "current": true,
-          "lastAt": "<time>"
-        }
-      ],
-      "total": 1
-    },
-    "repositories": {
-      "items": [
-        {
-          "id": "<id6>",
-          "name": "worklog",
-          "archived": false,
-          "via": [
-            "participation",
-            "update",
-            "message"
           ],
           "current": true,
           "lastAt": "<time>"

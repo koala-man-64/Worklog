@@ -64,6 +64,17 @@ class _Ties:
         return {"items": items[:TIE_LIMIT], "total": len(items)}
 
 
+class _Tied:
+    """What one agent's work ties it to, by kind of record, before any record is named."""
+
+    def __init__(self) -> None:
+        self.items, self.roadmaps, self.repositories, self.chats = _Ties(), _Ties(), _Ties(), _Ties()
+        # A step ties its roadmap once the step's roadmap is known.
+        self.steps: list[tuple[str, str, str | None, bool]] = []
+        # Each tracked chat it is tied to: the latest time, and whether something still open ties it.
+        self.chat_ties: dict[str, tuple[str | None, bool]] = {}
+
+
 class AgentRegistry:
     def _agent(self, c: sqlite3.Connection, identity: str) -> sqlite3.Row:
         row = c.execute(f"SELECT a.*,{LIVE_AGENT} AS active FROM communication_agents a WHERE a.id=?", (identity,)).fetchone()
@@ -154,107 +165,142 @@ class AgentRegistry:
 
     def agents(self, c: sqlite3.Connection, limit: int = 50, offset: int = 0, q: str = "") -> dict:
         """Agents with an active credential first, then the most recently active; `q` keeps those
-        whose label holds it, ignoring case."""
+        whose label holds it, ignoring case. Each comes as its card on the Agents page shows it: with
+        its avatar, and the roadmaps and repositories its work ties it to, as its own page lists them."""
         rows = c.execute(f"SELECT a.*,{LIVE_AGENT} AS active FROM communication_agents a").fetchall()
         if q.strip():
             rows = [r for r in rows if q.strip().casefold() in r["label"].casefold()]
         summaries = self._summaries(c, rows) if rows else []
         summaries.sort(key=lambda s: (s["lastActivityAt"] or s["createdAt"], s["id"]), reverse=True)
         summaries.sort(key=lambda s: not s["active"])
-        return {"items": summaries[offset:offset + limit], "total": len(summaries), "limit": limit, "offset": offset}
+        page = summaries[offset:offset + limit]
+        avatars = {r["id"]: r["avatar"] for r in rows}
+        ties, _ = self._ties(c, {s["id"]: s["roles"] for s in page})
+        items = [{**s, "avatar": avatars[s["id"]], "roadmaps": ties[s["id"]]["roadmaps"],
+                  "repositories": ties[s["id"]]["repositories"]} for s in page]
+        return {"items": items, "total": len(summaries), "limit": limit, "offset": offset}
 
     @staticmethod
     def _chats(c: sqlite3.Connection, chat_ids: Iterable[str]) -> list[sqlite3.Row]:
         return rows_in(c, "SELECT * FROM agent_chats WHERE chat_id IN ({})", chat_ids)
 
-    def agent(self, c: sqlite3.Connection, identity: str) -> dict:
-        row = self._agent(c, identity)
-        summary = self._summaries(c, [row])[0]
-        items, roadmaps, repositories, chats = _Ties(), _Ties(), _Ties(), _Ties()
-        step_ties: list[tuple[str, str, str | None, bool]] = []
+    def _ties(self, c: sqlite3.Connection, roles: dict[str, list[dict]]) -> tuple[dict[str, dict], dict[str, list[dict]]]:
+        """What each agent's runs, participation, updates, messages, roles and confirmed chats tie it
+        to: its work items, roadmaps, repositories and tracked chats, each with every reason and the
+        latest time, as an agent's page lists them. `roles` holds the roles each agent owns, keyed by
+        the agents to gather for, so a page of agents costs the same few queries as one agent.
 
-        runs = c.execute("SELECT * FROM agent_runs WHERE agent_id=? ORDER BY created_at DESC,id DESC", (identity,)).fetchall()
-        for r in c.execute("SELECT p.item_id,p.last_seen_at,p.released_at,pc.repository_id FROM participations p JOIN agent_runs ar ON ar.id=p.run_id LEFT JOIN participation_contexts pc ON pc.participation_id=p.id WHERE ar.agent_id=?", (identity,)):
-            current = r["released_at"] is None
-            items.add(r["item_id"], "participation", r["last_seen_at"], current)
-            repositories.add(r["repository_id"], "participation", r["last_seen_at"], current)
-        for r in c.execute("SELECT u.item_id,u.created_at,ur.repository_id FROM coordination_updates u LEFT JOIN coordination_update_repositories ur ON ur.update_id=u.id WHERE u.agent_id=?", (identity,)):
-            items.add(r["item_id"], "update", r["created_at"])
-            repositories.add(r["repository_id"], "update", r["created_at"])
-        for role in summary["roles"]:
-            target = {"item": items, "roadmap": roadmaps}.get(role["contextType"])
-            if target is not None:
-                target.add(role["contextId"], "role", role["updatedAt"], True)
-            else:
-                step_ties.append((role["contextId"], "role", role["updatedAt"], True))
+        Also gives the tracked chats that carry each chat ID those agents' runs, messages and
+        confirmations name, for the runs that report them."""
+        tied = {identity: _Tied() for identity in roles}
+        for r in rows_in(c, "SELECT ar.agent_id,p.item_id,p.last_seen_at,p.released_at,pc.repository_id FROM participations p "
+                            "JOIN agent_runs ar ON ar.id=p.run_id LEFT JOIN participation_contexts pc ON pc.participation_id=p.id "
+                            "WHERE ar.agent_id IN ({})", tied):
+            agent, current = tied[r["agent_id"]], r["released_at"] is None
+            agent.items.add(r["item_id"], "participation", r["last_seen_at"], current)
+            agent.repositories.add(r["repository_id"], "participation", r["last_seen_at"], current)
+        for r in rows_in(c, "SELECT u.agent_id,u.item_id,u.created_at,ur.repository_id FROM coordination_updates u "
+                            "LEFT JOIN coordination_update_repositories ur ON ur.update_id=u.id WHERE u.agent_id IN ({})", tied):
+            agent = tied[r["agent_id"]]
+            agent.items.add(r["item_id"], "update", r["created_at"])
+            agent.repositories.add(r["repository_id"], "update", r["created_at"])
+        for identity, owned in roles.items():
+            agent = tied[identity]
+            for role in owned:
+                target = {"item": agent.items, "roadmap": agent.roadmaps}.get(role["contextType"])
+                if target is not None:
+                    target.add(role["contextId"], "role", role["updatedAt"], True)
+                else:
+                    agent.steps.append((role["contextId"], "role", role["updatedAt"], True))
 
-        # Messages tie the agent to their discussions' work contexts and reported chats.
-        latest_by_discussion: dict[str, str] = {}
-        chat_refs: list[tuple[str, str, str | None, bool]] = []
-        for r in c.execute("SELECT discussion_id,chat_id,created_at FROM discussion_messages WHERE author_id=? AND author_kind='agent'", (identity,)):
-            latest_by_discussion[r["discussion_id"]] = _latest(latest_by_discussion.get(r["discussion_id"]), r["created_at"]) or r["created_at"]
+        # Messages tie each agent to their discussions' work contexts and reported chats.
+        posted: dict[str, dict[str, str]] = {}
+        chat_refs: dict[str, list[tuple[str, str, str | None, bool]]] = {identity: [] for identity in tied}
+        for r in rows_in(c, "SELECT author_id,discussion_id,chat_id,created_at FROM discussion_messages "
+                            "WHERE author_kind='agent' AND author_id IN ({})", tied):
+            latest = posted.setdefault(r["discussion_id"], {})
+            latest[r["author_id"]] = _latest(latest.get(r["author_id"]), r["created_at"]) or r["created_at"]
             if r["chat_id"]:
-                chat_refs.append((r["chat_id"], "message", r["created_at"], False))
+                chat_refs[r["author_id"]].append((r["chat_id"], "message", r["created_at"], False))
         # A thread's work contexts and repositories tie them; its other tags (v22) tie nothing here.
-        for r in rows_in(c, "SELECT * FROM discussion_contexts WHERE discussion_id IN ({})", latest_by_discussion):
-            posted = latest_by_discussion[r["discussion_id"]]
-            if r["context_type"] == "step":
-                step_ties.append((r["context_id"], "message", posted, False))
-            elif r["context_type"] in {"item", "roadmap", "repository"}:
-                {"item": items, "roadmap": roadmaps, "repository": repositories}[r["context_type"]].add(r["context_id"], "message", posted)
-        chat_refs += [(r["external_chat_id"], "run", r["created_at"], r["ended_at"] is None) for r in runs if r["external_chat_id"]]
+        for r in rows_in(c, "SELECT * FROM discussion_contexts WHERE discussion_id IN ({})", posted):
+            for identity, last in posted[r["discussion_id"]].items():
+                agent = tied[identity]
+                if r["context_type"] == "step":
+                    agent.steps.append((r["context_id"], "message", last, False))
+                elif r["context_type"] in {"item", "roadmap", "repository"}:
+                    {"item": agent.items, "roadmap": agent.roadmaps,
+                     "repository": agent.repositories}[r["context_type"]].add(r["context_id"], "message", last)
+        for r in rows_in(c, "SELECT agent_id,external_chat_id,created_at,ended_at FROM agent_runs WHERE agent_id IN ({})", tied):
+            if r["external_chat_id"]:
+                chat_refs[r["agent_id"]].append((r["external_chat_id"], "run", r["created_at"], r["ended_at"] is None))
         # The person's word that the agent works in a chat ties it too, though not to current work.
-        chat_refs += [(r["chat_id"], "confirmed", r["created_at"], False)
-                      for r in c.execute("SELECT chat_id,created_at FROM chat_confirmations WHERE agent_id=?", (identity,))]
+        for r in rows_in(c, "SELECT agent_id,chat_id,created_at FROM chat_confirmations WHERE agent_id IN ({})", tied):
+            chat_refs[r["agent_id"]].append((r["chat_id"], "confirmed", r["created_at"], False))
 
         # A reported chat ID that a tracked chat carries ties the agent to that chat's work.
-        tracked = self._chats(c, {ref[0] for ref in chat_refs})
+        tracked = self._chats(c, {ref[0] for refs in chat_refs.values() for ref in refs})
         by_chat_id: dict[str, list[sqlite3.Row]] = {}
         for chat in tracked:
             by_chat_id.setdefault(chat["chat_id"], []).append(chat)
-        chat_ties: dict[str, tuple[str | None, bool]] = {}
-        for chat_id, via, at, current in chat_refs:
-            for chat in by_chat_id.get(chat_id, []):
-                chats.add(chat["id"], via, at, current)
-                prior = chat_ties.get(chat["id"], (None, False))
-                chat_ties[chat["id"]] = (_latest(prior[0], at), prior[1] or current)
         tracked_by_id = {chat["id"]: chat for chat in tracked}
-        for chat_key, (at, current) in chat_ties.items():
-            chat = tracked_by_id[chat_key]
-            {"item": items, "roadmap": roadmaps}[chat["owner_type"]].add(chat["owner_id"], "chat", at, current)
-        for r in rows_in(c, "SELECT chat_id,repository_id FROM chat_repositories WHERE chat_id IN ({})", chat_ties):
-            repositories.add(r["repository_id"], "chat", *chat_ties[r["chat_id"]])
+        holders: dict[str, list[_Tied]] = {}
+        for identity, refs in chat_refs.items():
+            agent = tied[identity]
+            for chat_id, via, at, current in refs:
+                for chat in by_chat_id.get(chat_id, []):
+                    agent.chats.add(chat["id"], via, at, current)
+                    prior = agent.chat_ties.get(chat["id"], (None, False))
+                    agent.chat_ties[chat["id"]] = (_latest(prior[0], at), prior[1] or current)
+            for chat_key, (at, current) in agent.chat_ties.items():
+                chat = tracked_by_id[chat_key]
+                {"item": agent.items, "roadmap": agent.roadmaps}[chat["owner_type"]].add(chat["owner_id"], "chat", at, current)
+                holders.setdefault(chat_key, []).append(agent)
+        for r in rows_in(c, "SELECT chat_id,repository_id FROM chat_repositories WHERE chat_id IN ({})", holders):
+            for agent in holders[r["chat_id"]]:
+                agent.repositories.add(r["repository_id"], "chat", *agent.chat_ties[r["chat_id"]])
 
-        steps = self._step_roadmaps(c, [s[0] for s in step_ties])
-        for step_id, via, at, current in step_ties:
-            roadmaps.add(steps.get(step_id, {}).get("roadmapId"), via, at, current)
-        work = self._work_titles(c, items.entries)
-        # Work on a roadmap's item is work on that roadmap, for every reason it was tied.
-        for item_id, entry in items.entries.items():
-            roadmap_id = work.get(item_id, {}).get("roadmapId")
-            for via in entry["via"]:
-                roadmaps.add(roadmap_id, via, entry["lastAt"], entry["current"])
-        roadmap_titles = self._roadmap_titles(c, roadmaps.entries)
+        steps = self._step_roadmaps(c, [step[0] for agent in tied.values() for step in agent.steps])
+        work = self._work_titles(c, [item for agent in tied.values() for item in agent.items.entries])
+        for agent in tied.values():
+            for step_id, via, at, current in agent.steps:
+                agent.roadmaps.add(steps.get(step_id, {}).get("roadmapId"), via, at, current)
+            # Work on a roadmap's item is work on that roadmap, for every reason it was tied.
+            for item_id, entry in agent.items.entries.items():
+                roadmap_id = work.get(item_id, {}).get("roadmapId")
+                for via in entry["via"]:
+                    agent.roadmaps.add(roadmap_id, via, entry["lastAt"], entry["current"])
+        roadmap_titles = self._roadmap_titles(c, [r for agent in tied.values() for r in agent.roadmaps.entries])
         for record in work.values():
             record["roadmap"] = roadmap_titles.get(record.pop("roadmapId") or "")
         repos = {r["id"]: {"id": r["id"], "name": r["name"], "archived": bool(r["archived"])}
-                 for r in rows_in(c, "SELECT id,name,archived FROM repositories WHERE id IN ({})", repositories.entries)}
-        # Every tracked chat's owner was tied above, so its title is already resolved.
+                 for r in rows_in(c, "SELECT id,name,archived FROM repositories WHERE id IN ({})",
+                                  [r for agent in tied.values() for r in agent.repositories.entries])}
+        # Every tracked chat's owner was tied above, for the agent whose reference found it, so its
+        # title is already resolved.
         owner_titles = {**{k: v["title"] for k, v in work.items()}, **{k: v["title"] for k, v in roadmap_titles.items()}}
         chat_records = {chat["id"]: {"id": chat["id"], "chatId": chat["chat_id"], "title": chat["title"],
                                      "provider": chat["provider"], "model": chat["model"], "archived": bool(chat["archived"]),
                                      "ownerType": chat["owner_type"], "ownerId": chat["owner_id"],
                                      "ownerTitle": owner_titles.get(chat["owner_id"], chat["owner_id"])} for chat in tracked}
+        rendered = {identity: {"workItems": agent.items.render(work), "roadmaps": agent.roadmaps.render(roadmap_titles),
+                               "repositories": agent.repositories.render(repos), "chats": agent.chats.render(chat_records)}
+                    for identity, agent in tied.items()}
+        return rendered, {chat_id: [chat_records[chat["id"]] for chat in chats] for chat_id, chats in by_chat_id.items()}
 
+    def agent(self, c: sqlite3.Connection, identity: str) -> dict:
+        row = self._agent(c, identity)
+        summary = self._summaries(c, [row])[0]
+        ties, carried = self._ties(c, {identity: summary["roles"]})
+        runs = c.execute("SELECT * FROM agent_runs WHERE agent_id=? ORDER BY created_at DESC,id DESC", (identity,)).fetchall()
         credentials = c.execute("SELECT cr.id,cr.label,cr.created_at,cr.revoked FROM credentials cr JOIN communication_credentials cc ON cc.credential_id=cr.id WHERE cc.agent_id=? ORDER BY cr.created_at DESC,cr.id", (identity,)).fetchall()
         sponsors = registered_by(c, [r["id"] for r in credentials])
         registered = registered_chats(c, [r["id"] for r in credentials])
-        return {**summary,
+        return {**summary, "avatar": row["avatar"], **ties[identity],
                 "credentials": [{"id": r["id"], "label": r["label"], "createdAt": r["created_at"], "revoked": bool(r["revoked"]),
                                  "registeredBy": sponsors.get(r["id"]), "chatId": registered.get(r["id"])} for r in credentials],
-                "runs": {"items": [{**CoordinationService.run_record(r), "chats": [chat_records[chat["id"]] for chat in by_chat_id.get(r["external_chat_id"] or "", [])]} for r in runs[:TIE_LIMIT]], "total": len(runs)},
-                "workItems": items.render(work), "roadmaps": roadmaps.render(roadmap_titles),
-                "repositories": repositories.render(repos), "chats": chats.render(chat_records)}
+                "runs": {"items": [{**CoordinationService.run_record(r), "chats": carried.get(r["external_chat_id"] or "", [])}
+                                   for r in runs[:TIE_LIMIT]], "total": len(runs)}}
 
     def roadmap(self, c: sqlite3.Connection, roadmap_id: str, archived: Callable[[str], bool]) -> dict:
         """Who works on a roadmap now and on which of its steps, from current ties only.

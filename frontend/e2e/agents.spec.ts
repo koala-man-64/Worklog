@@ -86,18 +86,35 @@ test("the agents tab shows who works on what, and why", async ({
     .getByRole("link", { name: "Agents", exact: true })
     .click();
   await expect(page).toHaveURL(/#agents$/);
-  const row = page.locator("article.agent-row").filter({
-    has: page.getByRole("link", { name: label, exact: true }),
-  });
-  await expect(row.getByText("Reporting work", { exact: true })).toBeVisible();
+  // Data persists between local runs, so the agent is found by its own words.
+  const index = page.getByRole("region", { name: "Agent index" });
+  await index.getByRole("searchbox", { name: "Find agents" }).fill(suffix);
+  await index.getByRole("button", { name: new RegExp("^" + label) }).click();
+  const card = page
+    .getByRole("region", { name: "Agent card" })
+    .getByRole("article", { name: label, exact: true });
+  await expect(card.getByText("Reporting work", { exact: true })).toBeVisible();
   await expect(
-    row.getByRole("link", { name: item.title, exact: true }),
+    card.getByRole("link", { name: item.title, exact: true }),
   ).toHaveAttribute("href", "#work/" + item.id);
   await expect(
-    row.getByRole("link", { name: `${repository.name} · claude/registry` }),
+    card.getByRole("link", { name: `${repository.name} · claude/registry` }),
   ).toBeVisible();
+  // The card names the repositories and roadmaps its work took it to.
+  const repositories = card.getByRole("region", { name: "Repositories" });
+  await expect(
+    repositories.getByRole("link", { name: repository.name, exact: true }),
+  ).toHaveAttribute("href", "#repositories/" + repository.id);
+  await expect(
+    repositories.getByText("Current", { exact: true }),
+  ).toBeVisible();
+  const cardRoadmaps = card.getByRole("region", { name: "Roadmaps" });
+  await expect(
+    cardRoadmaps.getByRole("link", { name: roadmap.title, exact: true }),
+  ).toHaveAttribute("href", "#roadmaps/" + roadmap.id);
+  await expect(cardRoadmaps).toContainText("Reported work · Discussion");
 
-  await row.getByRole("link", { name: label, exact: true }).click();
+  await card.getByRole("link", { name: label, exact: true }).click();
   await expect(
     page.getByRole("heading", { name: label, exact: true }),
   ).toBeVisible();

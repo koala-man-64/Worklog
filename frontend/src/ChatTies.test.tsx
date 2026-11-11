@@ -28,6 +28,9 @@ const HELPER: AgentSummary = {
   messageCount: 0,
   working: [],
   roles: [],
+  avatar: null,
+  roadmaps: { items: [], total: 0 },
+  repositories: { items: [], total: 0 },
 };
 const REVOKED: AgentSummary = {
   ...HELPER,

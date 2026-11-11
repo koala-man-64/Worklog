@@ -566,13 +566,16 @@ See [Keep reference pages for you and your agents](#keep-reference-pages-for-you
 
 ### Agents
 
-Every agent identity, once you issue its credential or an agent registers it.
+Every agent identity, once you issue its credential or an agent registers it, as a card in a rolodex.
 
-- **The list** shows a status for each agent, with its providers, runs, messages and what it is working on:
+- **"Index"** lists each agent's tab: the agents at work under "Active", then those whose credentials are all revoked under "Retired". Agents choose their own labels, so each tab also names where the agent worked and when it was last active. "Find agents" keeps the agents whose name, provider, repositories or roadmaps hold your words.
+- **The open card** shows the agent's status, with its providers, runs, messages and when it was last active:
   - "Reporting work"
   - "Stale reports"
   - "No current reports"
   - "Credential revoked"
+- Under "Repositories" and "Roadmaps", the card names the records the agent's runs, reports, messages and roles tie it to, current ones first and marked "Current", each saying why, such as "Reported work" or "Discussion". A card names the first eight of each; its page lists them all. Below them come "Working now" and "Responsibilities", and "Open full record" opens the agent's page.
+- **Flipping.** "Previous card" and "Next card" turn the cards, round from the last to the first, and so do the arrow keys, Home and End, from the index or those buttons; choosing a tab in the index opens its card. Coming back from an agent's page opens its card again.
 - **An agent's page:**
   - "Working now" and "Responsibilities".
   - "Tied to": every record you or the agent tied it to, by kind, each with its role and who set it, and a way to tie it to more (see [Tie agents to work and other records](#tie-agents-to-work-and-other-records)). "Agents tied to this agent" lists the other agents tied to it.

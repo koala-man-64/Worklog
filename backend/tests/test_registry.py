@@ -60,9 +60,11 @@ def test_every_identity_is_listed_with_active_agents_first(client):
     busy, quiet, gone = listing["items"]
     assert (busy["openRuns"], busy["runCount"], busy["providers"]) == (1, 1, ["claude"])
     assert busy["lastActivityAt"] == running["createdAt"]
+    none = {"items": [], "total": 0}
     assert quiet == {"id": idle["agentId"], "label": "Idle reviewer", "active": True, "createdAt": quiet["createdAt"],
                      "lastActivityAt": None, "providers": [], "openRuns": 0, "runCount": 0, "messageCount": 0,
-                     "working": [], "roles": []}
+                     "working": [], "roles": [], "avatar": quiet["avatar"], "roadmaps": none, "repositories": none}
+    assert quiet["avatar"]
     assert not gone["active"]
     page = ok(get(client, "/agents?limit=1&offset=1"))
     assert (page["total"], [a["label"] for a in page["items"]]) == (3, ["Idle reviewer"])
@@ -130,6 +132,52 @@ def test_messages_roles_runs_and_tracked_chats_tie_through_their_contexts(client
     assert [c["title"] for c in detail["runs"]["items"][0]["chats"]] == ["Fix session"]
     # The other agent's message context never leaks into this record.
     assert ties(ok(get(client, f"/agents/{other['agentId']}")), "workItems") == {work["id"]: (["message"], False)}
+
+
+def test_each_card_carries_the_roadmaps_and_repositories_its_own_page_lists(client):
+    """The list gathers a whole page of agents' ties at once. Each card matches the agent's own page,
+    and one agent's ties never reach another's card, even where both wrote in one thread."""
+    platform = ok(write(client, "/roadmaps", {"title": "Platform", "steps": [{"title": "API"}]}))
+    docs = ok(write(client, "/roadmaps", {"title": "Docs"}))
+    api = platform["steps"][0]["id"]
+    build = ok(write(client, "/work-items", {"title": "Build the API", "roadmapId": platform["id"], "stepId": api}))
+    fix = ok(write(client, "/work-items", {"title": "Unplanned fix"}))
+    worklog, parser, site = (ok(write(client, "/repositories", {"name": name})) for name in ("Worklog", "Parser", "Site"))
+    ok(write(client, "/chats", {"ownerType": "item", "ownerId": fix["id"], "chatId": "chat-1", "title": "Fix session",
+                                "repositoryIds": [site["id"]]}))
+    builder, reviewer, idle = (enroll(client, label) for label in ("Builder", "Reviewer", "Idle"))
+
+    # Builder works on the API in Worklog now, and worked in Parser before.
+    running = run(client, builder)
+    ok(write(client, "/participations", {"runId": running["id"], "itemId": build["id"],
+                                         "contexts": [{"repositoryId": worklog["id"]}]}, builder))
+    earlier = ok(write(client, "/participations", {"runId": running["id"], "contexts": [{"repositoryId": parser["id"]}]}, builder))
+    ok(write(client, f"/participations/{earlier['id']}/release", {"revision": earlier["revision"]}, builder))
+    # Both write in one thread on Docs. Reviewer owns a step's review and reports the chat Builder never named.
+    thread = ok(write(client, "/discussions", {"title": "Docs", "text": "Drafting",
+                                               "contexts": [{"type": "roadmap", "id": docs["id"]}]}, builder))
+    ok(write(client, f"/discussions/{thread['discussion']['id']}/messages", {"text": "Reviewing"}, reviewer))
+    role = ok(write(client, "/discussions/roles", {"contextType": "step", "contextId": api, "label": "Review"}))
+    ok(write(client, f"/discussions/roles/{role['id']}/claim", {"revision": role["revision"]}, reviewer))
+    run(client, reviewer, externalChatId="chat-1")
+
+    listing = ok(get(client, "/agents"))
+    cards = {card["label"]: card for card in listing["items"]}
+    for label, card in cards.items():
+        page = ok(get(client, f"/agents/{card['id']}"))
+        assert (card["avatar"], card["roadmaps"], card["repositories"]) == (page["avatar"], page["roadmaps"], page["repositories"]), label
+    assert ties(cards["Builder"], "roadmaps") == {platform["id"]: (["participation"], True), docs["id"]: (["message"], False)}
+    assert ties(cards["Builder"], "repositories") == {worklog["id"]: (["participation"], True), parser["id"]: (["participation"], False)}
+    # Current ties come first.
+    assert [r["name"] for r in cards["Builder"]["repositories"]["items"]] == ["Worklog", "Parser"]
+    assert ties(cards["Reviewer"], "roadmaps") == {platform["id"]: (["role"], True), docs["id"]: (["message"], False)}
+    assert ties(cards["Reviewer"], "repositories") == {site["id"]: (["chat"], True)}
+    assert cards["Idle"]["roadmaps"] == cards["Idle"]["repositories"] == {"items": [], "total": 0}
+    # A page of the list gathers its own agents' ties alone, and finds the same.
+    assert [ok(get(client, f"/agents?limit=1&offset={n}"))["items"][0] for n in range(3)] == listing["items"]
+    # The profile any agent reads holds none of it: tracked chats, the person's to see, tie these too.
+    profile = ok(get(client, f"/discussions/participants/{builder['agentId']}", reviewer))
+    assert profile["label"] == "Builder" and not {"roadmaps", "repositories"} & set(profile)
 
 
 def placed(worker):
