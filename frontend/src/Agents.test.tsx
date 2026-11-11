@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setDataContext } from "./api";
@@ -114,6 +114,13 @@ const idle: AgentSummary = {
   roles: [],
   repositories: none,
   roadmaps: none,
+};
+const quiet: AgentSummary = {
+  ...idle,
+  id: "agent-3",
+  label: "Reviewer",
+  active: true,
+  avatar: "red-dots-antenna",
 };
 const chat = {
   id: "chat-1",
@@ -268,6 +275,8 @@ function serve(agents: AgentSummary[]) {
 }
 const index = () => screen.getByRole("region", { name: "Agent index" });
 const stage = () => screen.getByRole("region", { name: "Agent card" });
+// Read out on each flip: where the card is, and whose it is.
+const position = () => within(stage()).getByText(/^Card \d+ of \d+/);
 const entry = (name: string) =>
   within(index()).getByRole("button", { name: new RegExp("^" + name) });
 beforeEach(() => {
@@ -331,10 +340,12 @@ it("shows each agent as a card with the repositories and roadmaps its work ties 
     "href",
     "#roadmaps/road-1/step-1",
   );
-  expect(within(stage()).getByText("Card 1 of 2")).toBeInTheDocument();
+  expect(position()).toHaveTextContent("Card 1 of 2: Builder");
+  expect(position()).toHaveAttribute("aria-live", "polite");
 
   // The index files active agents apart from retired ones, each saying where it worked.
   const active = within(index()).getByRole("region", { name: "Active agents" });
+  expect(within(active).getByRole("heading")).toHaveTextContent("Active 1");
   expect(
     within(active).getByRole("button", { name: /^Builder/ }),
   ).toHaveAttribute("aria-current", "true");
@@ -343,19 +354,31 @@ it("shows each agent as a card with the repositories and roadmaps its work ties 
   const retired = within(index()).getByRole("region", {
     name: "Retired agents",
   });
+  expect(within(retired).getByRole("heading")).toHaveTextContent("Retired 1");
   expect(within(retired).getByRole("button")).toHaveTextContent(
     /^RetiredNo activity yetCredential revoked$/,
   );
 });
 
-it("flips through the cards with its buttons and the arrow keys, round from the last to the first", async () => {
+it("flips through the cards with its buttons and the arrow keys, round from either end", async () => {
   const user = userEvent.setup();
-  serve([summary, idle]);
+  serve([summary, quiet, idle]);
   show(<Agents />);
   await within(stage()).findByRole("article", { name: "Builder" });
+  const open = (name: string) => within(stage()).getByRole("article", { name });
+  // The two cards behind show their tabs, the furthest first.
+  expect(
+    [...stage().querySelectorAll(".rolodex-peek .rolodex-tab")].map(
+      (tab) => tab.textContent,
+    ),
+  ).toEqual(["Retired", "Reviewer"]);
 
-  await user.click(within(stage()).getByRole("button", { name: "Next card" }));
-  const card = within(stage()).getByRole("article", { name: "Retired" });
+  // Previous from the first card goes round to the last.
+  await user.click(
+    within(stage()).getByRole("button", { name: "Previous card" }),
+  );
+  const card = open("Retired");
+  expect(card).toHaveClass("flip-back");
   expect(
     within(stage()).queryByRole("article", { name: "Builder" }),
   ).not.toBeInTheDocument();
@@ -365,41 +388,41 @@ it("flips through the cards with its buttons and the arrow keys, round from the 
   );
   expect(card).toHaveTextContent("No repositories yet.");
   expect(card).toHaveTextContent("No roadmaps yet.");
-  expect(within(stage()).getByText("Card 2 of 2")).toBeInTheDocument();
+  expect(position()).toHaveTextContent("Card 3 of 3: Retired");
   expect(entry("Retired")).toHaveAttribute("aria-current", "true");
   expect(entry("Builder")).not.toHaveAttribute("aria-current");
 
+  // Next from the last card goes round to the first.
   await user.click(within(stage()).getByRole("button", { name: "Next card" }));
-  expect(
-    within(stage()).getByRole("article", { name: "Builder" }),
-  ).toBeInTheDocument();
+  expect(open("Builder")).toHaveClass("flip-next");
+  expect(position()).toHaveTextContent("Card 1 of 3: Builder");
   // Keys on the buttons flip the card and leave focus on the button.
-  await user.keyboard("{ArrowLeft}");
-  expect(
-    within(stage()).getByRole("article", { name: "Retired" }),
-  ).toBeInTheDocument();
+  await user.keyboard("{ArrowRight}");
+  expect(open("Reviewer")).toBeInTheDocument();
   expect(
     within(stage()).getByRole("button", { name: "Next card" }),
   ).toHaveFocus();
+  // The index is one tab stop, the open card's tab; the arrow keys move within it.
+  expect(entry("Reviewer")).toHaveAttribute("tabindex", "0");
+  expect(entry("Builder")).toHaveAttribute("tabindex", "-1");
+  expect(entry("Retired")).toHaveAttribute("tabindex", "-1");
 
-  // In the index, focus follows the open card.
+  // In the index, focus follows the open card, across groups and round from the last.
   await user.click(entry("Builder"));
-  expect(
-    within(stage()).getByRole("article", { name: "Builder" }),
-  ).toBeInTheDocument();
+  expect(open("Builder")).toHaveClass("flip-back");
   await user.keyboard("{ArrowDown}");
-  expect(
-    within(stage()).getByRole("article", { name: "Retired" }),
-  ).toBeInTheDocument();
+  expect(open("Reviewer")).toBeInTheDocument();
+  expect(entry("Reviewer")).toHaveFocus();
+  await user.keyboard("{ArrowDown}");
+  expect(open("Retired")).toBeInTheDocument();
   expect(entry("Retired")).toHaveFocus();
   await user.keyboard("{ArrowDown}");
   expect(entry("Builder")).toHaveFocus();
   await user.keyboard("{End}");
   expect(entry("Retired")).toHaveFocus();
   await user.keyboard("{Home}");
-  expect(
-    within(stage()).getByRole("article", { name: "Builder" }),
-  ).toBeInTheDocument();
+  expect(open("Builder")).toBeInTheDocument();
+  expect(entry("Builder")).toHaveFocus();
 });
 
 it("finds agents by name, repository or roadmap", async () => {
@@ -414,7 +437,7 @@ it("finds agents by name, repository or roadmap", async () => {
   expect(
     within(index()).queryByRole("button", { name: /^Retired/ }),
   ).not.toBeInTheDocument();
-  expect(within(stage()).getByText("Card 1 of 1")).toBeInTheDocument();
+  expect(position()).toHaveTextContent("Card 1 of 1: Builder");
   expect(
     within(stage()).getByRole("button", { name: "Next card" }),
   ).toBeDisabled();
@@ -435,7 +458,7 @@ it("finds agents by name, repository or roadmap", async () => {
   expect(
     within(stage()).getByRole("article", { name: "Retired" }),
   ).toBeInTheDocument();
-  expect(within(stage()).getByText("Card 2 of 2")).toBeInTheDocument();
+  expect(position()).toHaveTextContent("Card 2 of 2: Retired");
 
   await user.type(find, "nowhere");
   expect(
@@ -465,6 +488,35 @@ it("opens again the card left open, or the agent whose page was open", async () 
   expect(
     await within(stage()).findByRole("article", { name: "Builder" }),
   ).toBeInTheDocument();
+});
+
+it("opens the first card, without a flip, when the open agent leaves the list", async () => {
+  const user = userEvent.setup();
+  let agents = [summary, idle];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
+    json(page(agents)),
+  );
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  render(
+    <QueryClientProvider client={client}>
+      <Agents />
+    </QueryClientProvider>,
+  );
+  await within(stage()).findByRole("article", { name: "Builder" });
+  await user.click(within(stage()).getByRole("button", { name: "Next card" }));
+  expect(within(stage()).getByRole("article", { name: "Retired" })).toHaveClass(
+    "flip-next",
+  );
+
+  agents = [summary];
+  await act(() => client.invalidateQueries());
+  const card = await within(stage()).findByRole("article", {
+    name: "Builder",
+  });
+  expect(card).not.toHaveClass("flip-next");
+  expect(card).not.toHaveClass("flip-back");
 });
 
 it("names the first repositories and roadmaps on a card and leaves the rest to the agent's page", async () => {

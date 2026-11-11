@@ -241,6 +241,8 @@ function Rolodex() {
                           aria-current={
                             agent.id === cardId ? "true" : undefined
                           }
+                          // One tab stop for the index: the arrow keys move within it.
+                          tabIndex={agent.id === cardId ? 0 : -1}
                           onClick={() => show(cards.indexOf(agent))}
                         >
                           <Avatar name={agent.avatar} />
@@ -296,7 +298,12 @@ function Rolodex() {
                       </div>
                     ),
                 )}
-                <AgentCard key={card.id} agent={card} flip={flip} />
+                {/* A card that opens in place of one gone from the list arrives without a flip. */}
+                <AgentCard
+                  key={card.id}
+                  agent={card}
+                  flip={found < 0 ? null : flip}
+                />
               </div>
             )}
             {card && (
@@ -313,8 +320,9 @@ function Rolodex() {
                 >
                   <Icon name="back" /> Previous card
                 </button>
-                <span aria-live="polite">
+                <span aria-live="polite" aria-atomic="true">
                   Card {at + 1} of {cards.length}
+                  <span className="visually-hidden">: {card.label}</span>
                 </span>
                 <button
                   type="button"

@@ -153,13 +153,14 @@ def test_each_card_carries_the_roadmaps_and_repositories_its_own_page_lists(clie
                                          "contexts": [{"repositoryId": worklog["id"]}]}, builder))
     earlier = ok(write(client, "/participations", {"runId": running["id"], "contexts": [{"repositoryId": parser["id"]}]}, builder))
     ok(write(client, f"/participations/{earlier['id']}/release", {"revision": earlier["revision"]}, builder))
-    # Both write in one thread on Docs. Reviewer owns a step's review and reports the chat Builder never named.
-    thread = ok(write(client, "/discussions", {"title": "Docs", "text": "Drafting",
+    # Both write in one thread on Docs, Builder naming the tracked chat. Reviewer owns a step's review,
+    # and its open run reports that chat too.
+    thread = ok(write(client, "/discussions", {"title": "Docs", "text": "Drafting", "chatId": "chat-1",
                                                "contexts": [{"type": "roadmap", "id": docs["id"]}]}, builder))
-    ok(write(client, f"/discussions/{thread['discussion']['id']}/messages", {"text": "Reviewing"}, reviewer))
+    reply = ok(write(client, f"/discussions/{thread['discussion']['id']}/messages", {"text": "Reviewing"}, reviewer))
     role = ok(write(client, "/discussions/roles", {"contextType": "step", "contextId": api, "label": "Review"}))
     ok(write(client, f"/discussions/roles/{role['id']}/claim", {"revision": role["revision"]}, reviewer))
-    run(client, reviewer, externalChatId="chat-1")
+    watching = run(client, reviewer, externalChatId="chat-1")
 
     listing = ok(get(client, "/agents"))
     cards = {card["label"]: card for card in listing["items"]}
@@ -167,14 +168,22 @@ def test_each_card_carries_the_roadmaps_and_repositories_its_own_page_lists(clie
         page = ok(get(client, f"/agents/{card['id']}"))
         assert (card["avatar"], card["roadmaps"], card["repositories"]) == (page["avatar"], page["roadmaps"], page["repositories"]), label
     assert ties(cards["Builder"], "roadmaps") == {platform["id"]: (["participation"], True), docs["id"]: (["message"], False)}
-    assert ties(cards["Builder"], "repositories") == {worklog["id"]: (["participation"], True), parser["id"]: (["participation"], False)}
+    assert ties(cards["Builder"], "repositories") == {worklog["id"]: (["participation"], True), parser["id"]: (["participation"], False),
+                                                      site["id"]: (["chat"], False)}
     # Current ties come first.
-    assert [r["name"] for r in cards["Builder"]["repositories"]["items"]] == ["Worklog", "Parser"]
+    assert [r["name"] for r in cards["Builder"]["repositories"]["items"]][0] == "Worklog"
     assert ties(cards["Reviewer"], "roadmaps") == {platform["id"]: (["role"], True), docs["id"]: (["message"], False)}
     assert ties(cards["Reviewer"], "repositories") == {site["id"]: (["chat"], True)}
+    # Each agent's tie to the thread and to the chat's repository carries its own latest time.
+    def last(card, kind, record):
+        return next(tie["lastAt"] for tie in card[kind]["items"] if tie["id"] == record["id"])
+    assert last(cards["Builder"], "roadmaps", docs) == last(cards["Builder"], "repositories", site) == thread["message"]["createdAt"]
+    assert last(cards["Reviewer"], "roadmaps", docs) == reply["createdAt"]
+    assert last(cards["Reviewer"], "repositories", site) == watching["createdAt"]
     assert cards["Idle"]["roadmaps"] == cards["Idle"]["repositories"] == {"items": [], "total": 0}
-    # A page of the list gathers its own agents' ties alone, and finds the same.
+    # A page of the list gathers its own agents' ties alone, and finds the same; past the end there are none.
     assert [ok(get(client, f"/agents?limit=1&offset={n}"))["items"][0] for n in range(3)] == listing["items"]
+    assert ok(get(client, "/agents?limit=1&offset=3")) == {"items": [], "total": 3, "limit": 1, "offset": 3}
     # The profile any agent reads holds none of it: tracked chats, the person's to see, tie these too.
     profile = ok(get(client, f"/discussions/participants/{builder['agentId']}", reviewer))
     assert profile["label"] == "Builder" and not {"roadmaps", "repositories"} & set(profile)

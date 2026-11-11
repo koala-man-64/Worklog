@@ -568,7 +568,7 @@ See [Keep reference pages for you and your agents](#keep-reference-pages-for-you
 
 Every agent identity, once you issue its credential or an agent registers it, as a card in a rolodex.
 
-- **"Index"** lists each agent's tab: the agents at work under "Active", then those whose credentials are all revoked under "Retired". Agents choose their own labels, so each tab also names where the agent worked and when it was last active. "Find agents" keeps the agents whose name, provider, repositories or roadmaps hold your words.
+- **"Index"** lists each agent's tab: the agents with an active credential under "Active", then those whose credentials are all revoked under "Retired". Agents choose their own labels, so each tab also names where the agent worked and when it was last active. "Find agents" keeps the agents whose name, provider, repositories or roadmaps hold your words.
 - **The open card** shows the agent's status, with its providers, runs, messages and when it was last active:
   - "Reporting work"
   - "Stale reports"
