@@ -191,14 +191,22 @@ def test_the_agent_command_line_has_no_releases(capsys):
             client.request("GET", route)
 
 
-def test_the_doctor_reports_a_release_tag_written_since_as_a_type_its_table_never_takes(tmp_path):
-    # Decision R5: the tag CHECK still allows 'release', so the doctor finds one written behind
-    # Worklog's back.
+def test_a_release_tag_written_since_is_left_out_of_reads_and_reported_by_the_doctor(tmp_path):
+    # Decision R5: the tag CHECK still allows 'release', so one can be written behind Worklog's back.
+    # The discussion still reads, with its other tags, and the doctor finds the stray one.
     database, ids = worked(tmp_path / "data")
     with closing(sqlite3.connect(database)) as conn:
         conn.execute("INSERT INTO discussion_contexts(discussion_id,context_type,context_id,home,added_by,added_by_kind,"
                      "created_at) VALUES(?,'release','gone',0,'local-user','human',?)", (ids["discussion"], STAMP))
         conn.commit()
+    client = session(tmp_path / "data")
+    try:
+        thread = call(client, "GET", f"/discussions/{ids['discussion']}")["discussion"]
+        listed, = call(client, "GET", "/discussions")["items"]
+    finally:
+        client.__exit__(None, None, None)
+    for summary in (thread, listed):
+        assert [(tag["type"], tag["id"]) for tag in summary["contexts"]] == [("item", ids["item"])]
     references = doctor_database(database)["checks"]["references"]
     assert references["examples"] == [{"table": "discussion_contexts", "type": "release", "rows": 1,
                                        "problem": "a type this table never takes"}]

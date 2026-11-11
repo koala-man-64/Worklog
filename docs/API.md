@@ -161,7 +161,7 @@ Schema v9 adds the `resources` table; an upgrade leaves it empty.
 
 ## Removed features
 
-Schema v19 added the `releases`, `release_contents` and `release_checks` tables, which v28 drops with every release, check and their search rows, and every discussion tag of a release with the feed's record of it (step 0.5 of docs/ROADMAPS-RETHINK.md). The two tag CHECKs still allow `release` (decision R5), and the `release.*` and `check.*` events an older database holds stay in history.
+Schema v19 added the `releases`, `release_contents` and `release_checks` tables, which v28 drops with every release, check and their search rows, and every discussion tag of a release with the feed's record of it (step 0.5 of docs/ROADMAPS-RETHINK.md). The two tag CHECKs still allow `release` (decision R5): discussion reads leave out a release tag written since, and `worklog doctor` reports it. The `release.*` and `check.*` events an older database holds stay in history.
 
 Schema v20 added the `reminders` table, which v27 drops with every reminder and its search row (step 0.4 of docs/ROADMAPS-RETHINK.md). The `reminder.*` events an older database holds stay in history, and a repository merge event written before v27 may count its moved reminders under `moved.reminders`.
 

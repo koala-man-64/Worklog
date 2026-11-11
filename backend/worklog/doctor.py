@@ -54,8 +54,8 @@ REFERENCES = [
       "question", "decision")),
 ]
 # Kinds a table's CHECK still allows that Worklog no longer takes (decision R5 in docs/ROADMAPS-RETHINK.md):
-# v28 removed every release tag with the releases, and the doctor reports one written since as a type its
-# table never takes.
+# v28 removed every release tag with the releases. Discussion reads leave out one written since, and the
+# doctor reports it as a type its table never takes.
 RETIRED = {"discussion_contexts": ("release",)}
 # The table of each kind of record the search index holds (search.SearchType).
 SEARCHED = {"item": "work_items", "step": "steps", "roadmap": "roadmaps", "note": "notes", "attachment": "attachments",
