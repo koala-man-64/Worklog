@@ -180,7 +180,6 @@ export function useDraft(
       .replace(/^repository-(name|url|description)-/, "repository-")
       .replace(/^ticket-(title|description|resolution)-/, "ticket-")
       .replace(/^resource-(title|summary|body)-/, "resource-")
-      .replace(/^reminder-(title|notes)-/, "reminder-")
       .replace(/^note-title-/, "note-"),
     dataId,
   );

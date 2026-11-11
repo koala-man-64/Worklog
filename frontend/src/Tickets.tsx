@@ -8,7 +8,6 @@ import { Markdown } from "./ui/Markdown";
 import { Empty, ErrorMessage } from "./ui/Messages";
 import { STATUSES, StatusSelect } from "./ui/Status";
 import { Pager } from "./ui/Pager";
-import { RecordReminders } from "./RecordReminders";
 import { Avatar } from "./Avatar";
 import {
   RepositoryBadges,
@@ -529,12 +528,6 @@ function TicketView({ id }: { id: string }) {
       </section>
       <AgentTies targetType="ticket" targetId={ticket.id} headingLevel={2} />
       <Comments ticket={ticket} />
-      <RecordReminders
-        targetType="ticket"
-        targetId={ticket.id}
-        archived={ticket.archived}
-        heading="h2"
-      />
       <ChangeHistory id={ticket.id} changes={ticket.history.length} />
     </>
   );

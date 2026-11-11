@@ -275,15 +275,14 @@ def test_the_v15_upgrade_keeps_every_work_item_and_every_reference_to_one(tmp_pa
         # to v16, whose table names no proposal here, none having been approved, to v17, whose
         # agent ties start empty, to v18, whose registration directory is unknown for every
         # identity here, none having registered, to v19, whose releases start empty, to v20,
-        # whose reminders start empty too, to v21, which starts each day's reflection revision
-        # at its day's revision, to v22, which pins no discussion, and to v25 and v26, which drop
-        # the plan import and task tables, empty here.
+        # whose reminders start empty too and which v27 drops again, to v21, which starts each
+        # day's reflection revision at its day's revision, to v22, which pins no discussion, and to
+        # v25 and v26, which drop the plan import and task tables, empty here.
         upgraded = contents(conn)
         assert kept.pop("plan_imports") == []
         assert kept.pop("tasks") == []
         assert upgraded.pop("proposal_targets") == []
         assert upgraded.pop("agent_links") == []
-        assert upgraded.pop("reminders") == []
         for table in ("releases", "release_contents", "release_checks"):
             assert upgraded.pop(table) == []
         assert {row[-1] for row in upgraded["communication_credentials"]} == {None}
@@ -399,9 +398,8 @@ def test_the_way_back_to_v14_gives_its_exact_shape_and_upgrades_again(tmp_path):
     before["days"] = [row[:-1] for row in before["days"]]
     before.pop("agent_links")
     before.pop("proposal_targets")
-    before.pop("reminders")
-    # The ways back to v25 and v24, which to_v14 takes first of all, make the task and plan import
-    # tables again, empty.
+    # The ways back to v26, v25 and v24, which to_v14 takes first of all, make the reminder, task and
+    # plan import tables again, empty; the way back to v19 drops the reminders again.
     before["tasks"] = []
     before["plan_imports"] = []
     to_v14(path)

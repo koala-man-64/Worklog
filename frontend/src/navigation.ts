@@ -4,9 +4,9 @@ type Destination = { route: string; icon: IconName; label: string };
 type Section = { label: string; destinations: Destination[] };
 
 /**
- * The sidebar's sections and their pages, in order (K7). Releases and Reminders, added after K7,
- * plan work as Tickets and Roadmaps do, so they sit in Plan. The guide describes each page under
- * its Pages heading.
+ * The sidebar's sections and their pages, in order (K7). Releases, added after K7, plan work as
+ * Tickets and Roadmaps do, so they sit in Plan. The guide describes each page under its Pages
+ * heading.
  */
 export const sections: Section[] = [
   {
@@ -15,7 +15,6 @@ export const sections: Section[] = [
       { route: "today", icon: "today", label: "Today" },
       { route: "work", icon: "work", label: "Work" },
       { route: "tickets", icon: "tickets", label: "Tickets" },
-      { route: "reminders", icon: "reminders", label: "Reminders" },
       { route: "roadmaps", icon: "roadmaps", label: "Roadmaps" },
       { route: "releases", icon: "releases", label: "Releases" },
     ],

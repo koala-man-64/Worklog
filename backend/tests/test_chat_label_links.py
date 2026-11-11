@@ -113,11 +113,13 @@ def test_the_upgrade_links_each_label_that_names_one_repository_and_changes_no_r
     # Exactly one repository not merged aside: active, archived, or the one left beside a merged one.
     # Not a name two share, one only a merged repository has, another case, extra space, or nothing.
     assert links(database) == {chat: repositories for chat, repositories in expected.items() if repositories}
-    # Only links are new: every chat, its labels, revision and times, and every other row stay. v25
-    # and v26, which the upgrade also runs, drop the plan import and task tables, empty here.
+    # Only links are new: every chat, its labels, revision and times, and every other row stay. v25,
+    # v26 and v27, which the upgrade also runs, drop the plan import, task and reminder tables, empty
+    # here.
     assert chats(database) == before
     assert {table: rows for table, rows in after.items() if table != "chat_repositories"} == \
-        {table: rows for table, rows in records.items() if table not in ("chat_repositories", "plan_imports", "tasks")}
+        {table: rows for table, rows in records.items()
+         if table not in ("chat_repositories", "plan_imports", "tasks", "reminders")}
     # The link a chat had before keeps its row, its time included.
     assert len(earlier) == 1 and earlier <= set(after["chat_repositories"])
     snapshot, = (tmp_path / "data" / "backups").glob("worklog-pre-migration-*.sqlite3")

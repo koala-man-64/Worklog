@@ -11,7 +11,6 @@ import sqlite3
 import typing
 import uuid
 from contextlib import closing
-from datetime import date
 from pathlib import Path
 
 import pytest
@@ -51,10 +50,9 @@ def world(tmp_path):
         parent, child = str(uuid.uuid4()), str(uuid.uuid4())
         roadmap = call(c, "POST", "/roadmaps", {"title": "Plan", "steps": [{"id": parent, "title": "Parent"},
                                                                            {"id": child, "title": "Child", "parentId": parent}]})
-        call(c, "POST", "/reminders", {"title": "Check the parser", "date": date.today().isoformat(),
-                                       "targetType": "item", "targetId": item["id"]})
+        ticket = call(c, "POST", "/tickets", {"title": "Check the parser"})
     names = {"item": item["id"], "note": note["id"], "link": link["id"], "chat": chat["id"], "reference": reference["id"],
-             "roadmap": roadmap["id"], "child": child}
+             "roadmap": roadmap["id"], "child": child, "ticket": ticket["id"]}
     return data, data / "worklog.sqlite3", names
 
 
@@ -94,7 +92,7 @@ def test_each_check_finds_what_the_schema_cannot_refuse(world):
         (link_doc,), = conn.execute("SELECT doc FROM search_keys WHERE entity_id=?", (names["link"],))
         conn.execute("DELETE FROM search_index WHERE rowid=?", (link_doc,))
         conn.execute("INSERT INTO search_index(entity_id,type,title,body,owner_id,archived) VALUES('stray','item','Stray','','',0)")
-        conn.execute("DELETE FROM reminders")
+        conn.execute("DELETE FROM tickets WHERE id=?", (names["ticket"],))
         conn.commit()
     report = doctor_database(database)
     checks = report["checks"]

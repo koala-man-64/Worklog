@@ -29,16 +29,16 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 ```
 
 2. **Register once per chat, with your chat's ID**, before any other Worklog command (section 4). CHAT_ID is your Claude Code session ID, Claude desktop `local_...` ID or Codex thread ID. Worklog keeps it with your identity, so it can track your chat: your runs report it, work you report on an item tracks your chat there, and `chats track` tracks it on the work you name (section 5.4). CHAT_ID also names you: NAME below is your chat ID, unless you give `--name NAME` (1-64 letters, digits, `-` or `_`, starting with a letter or digit, compared without case), which a chat ID that cannot be a name needs. Keep both for the whole chat: registering your name for another chat is refused (`chat_mismatch`). Worklog keeps your new token in its data directory; you MUST NOT open, copy or print that file. A chat that carries on the work of an earlier chat that ended first continues that chat's identity instead of registering a new one (section 4, step 2).
-3. **Act as yourself.** Every later command MUST give `--as NAME` before the group. Your runs, reports, messages, tickets, reminders and proposals then carry your own identity.
+3. **Act as yourself.** Every later command MUST give `--as NAME` before the group. Your runs, reports, messages, tickets and proposals then carry your own identity.
 4. **One request ID per write.** Give each write a stable `--request-id`: 8-200 printable ASCII characters without spaces. After an uncertain result, rerun with the same ID and the identical payload; it cannot apply twice. A new operation MUST get a new ID. Proposal commands take none (section 7).
 5. **Current revisions.** A revision-checked command MUST carry the revision from your latest read. On `409 conflict`, read the record again and decide afresh; never reapply blindly.
-6. **Proposals for the person's records.** Work items, day entries, scratchpads and notes, roadmaps and step progress, people, links, tracked chats, GitHub references, questions, decisions, repository edits, resources (the person's reference pages) and the files attached to the person's records change only through a proposal the person approves (section 6). You write tickets, the person's reminders (section 5.9), discussions, your own runs, participation, updates and ties, repository registrations and your inbox directly, and you track your own chat on the work you do (section 5.4); a proposal can also file or change a ticket that belongs with what it creates. Releases, the person's plans of what ships together, and their checks change only by proposal too: read them to learn which release your work is in and what it needs, and propose a check when your change needs a test, a configuration change or a request made before it ships.
+6. **Proposals for the person's records.** Work items, day entries, scratchpads and notes, roadmaps and step progress, people, links, tracked chats, GitHub references, questions, decisions, repository edits, resources (the person's reference pages) and the files attached to the person's records change only through a proposal the person approves (section 6). You write tickets, discussions, your own runs, participation, updates and ties, repository registrations and your inbox directly, and you track your own chat on the work you do (section 5.4); a proposal can also file or change a ticket that belongs with what it creates. Releases, the person's plans of what ships together, and their checks change only by proposal too: read them to learn which release your work is in and what it needs, and propose a check when your change needs a test, a configuration change or a request made before it ships.
 7. **Advisory, not authority.** Participation, ticket assignment, roles, ties and discussion tags reserve nothing and lock nothing, and a fresh report does not prove an agent is running. An acknowledgement means "received and understood", never approval.
 8. **Search first.** Before you investigate a failure, search past tickets, closed ones included: `tickets list --status all --q 'WORDS'`. File a ticket for an issue worth tracking, comment as you learn, and close it with a resolution that says what fixed it.
 9. **Never work around a refusal.** `401` means your identity was revoked: by the person, by the retirement of the agent that registered you, or by a restore. Stop, tell the person, and register again only if they agree. `403 agent_scope` is outside agent authority: propose the change or ask. `429 agent_limit`: report it and do not retry. `403 repository_registration_off`: propose `repository.create`. Section 8 lists every code.
 10. **Leave nothing open.** When the chat's work is done, offer or release the roles you own, cancel the acknowledgement requests you sent that no longer need an answer, remove the ties you set that held only for this chat's work, release your participation, end your runs and `retire` (section 4, step 9). Retiring does not release roles: they would stay with a retired identity until the person reassigns them. Ties stay too, under your retired identity, and so do the requests you leave pending. When your chat must end before its work is done, retire nothing and release nothing: the chat that carries the work on continues your identity with all of it (section 4, step 2), so name your identity in your hand-over. The lifecycle commands `start`, `stop`, `backup`, `backups`, `restore`, `export` and `serve` are the person's: you MUST NOT run them unless the person asks. `worklog check` only reads, and is safe.
 11. **Announce your work, and look for overlap.** Before your first change in a repository, and whenever your plan changes, you MUST check for overlapping work and announce yours (section 4, step 6):
-    - **Check.** Run `overlaps` with every repository you will change and the work items, steps or tickets you work on (section 5.10). Read the threads it lists that bear on your work (`discussions read ID`): work in no repository is announced there.
+    - **Check.** Run `overlaps` with every repository you will change and the work items, steps or tickets you work on (section 5.9). Read the threads it lists that bear on your work (`discussions read ID`): work in no repository is announced there.
     - **Announce.** Reply in each repository's own discussion (its `discussionId`) with what you will change: your branch, the files or areas, and the work item, step or ticket. For work in no repository, post a discussion tagged with that work. An announcement asks for no acknowledgement. Then run `overlaps` once more: an agent that checked at the same moment as you shows up now.
     - **On overlap.** When the check shows another agent's work on the same files, areas or work as yours, look it up with `discussions participant AGENT_ID`. Then reply where it announced, with `--ask AGENT_ID`, saying what overlaps and what you propose.
     - **While you wait.** Carry on with what does not overlap, and leave what overlaps until the agent answers or the person decides. `active` says only that the agent's credential is live, not that its chat still runs. When its participation is stale or released, or it has not answered by your next checkpoint, ask the person (`--ask person`) in the same thread, and do what they decide.
@@ -62,7 +62,6 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 | Tracked chat | Worklog's UUID, and `chatId`, the provider's ID | on a work item or roadmap; `stepIds`, `provider`, `model` | the chat you registered with: you, directly (`chats track`); any other: proposal (`chat.*`) |
 | Repository | UUID; one record per remote | `registeredBy`, `reviewed`, `duplicateOf`, `mergedInto`; `discussionId`, its own discussion | you register; edits by proposal |
 | Ticket | `T-12`, `12` or UUID | `kind` bug, incident or task; `priority` low, normal, high or urgent; `status` open, doing, blocked or done; `resolution` | you, directly, or by proposal (`ticket.create`, `ticket.update`) |
-| Reminder | UUID | `date` (YYYY-MM-DD) and `time` (HH:MM, or null for all day) by the person's Worklog timezone; `state` open or done; `due` and `overdue`, worked out as it is read; `target`, the one record it names, if any; `notes` (Markdown); `archived` | you, directly |
 | Resource | UUID | `title`, `summary` (what the page is for), `body` (Markdown); `archived` | the person; you by proposal (`resource.*`) |
 | Release | UUID | `title`, `description` (Markdown), `releaseDate` (a YYYY-MM-DD day, or null while not dated), `status` planned, released or cancelled; `archived`. It holds work items, roadmaps, steps and GitHub references, and its `changes` are the GitHub references it holds with those on its work items and roadmaps | the person; you by proposal (`release.*`) |
 | Release check | UUID | `kind` notify (who needs to know), test (what to test) or prepare (what to prepare first); `text`, `details` (Markdown), `personId`, `dueDate`; `status` open, doing, waiting, blocked or done | the person; you by proposal (`check.*`) |
@@ -82,7 +81,7 @@ Records are archived, never deleted, and only the person archives or recovers th
 
 | Action | The person | You directly | You by proposal |
 |---|---|---|---|
-| Read work, days, roadmaps, steps, people, notes, tickets, reminders, resources, releases, discussions, repositories, runs and proposals | yes | yes | - |
+| Read work, days, roadmaps, steps, people, notes, tickets, resources, releases, discussions, repositories, runs and proposals | yes | yes | - |
 | Read chat transcripts, chat messages, the Claude Code sessions running on the person's machine, the Agents page, Settings, credentials, backups or the export | yes | no | - |
 | Change work items, day entries, notes, roadmaps, progress, people, links, tracked chats, GitHub references, questions or decisions | yes | no | yes |
 | Track your own chat on a work item, a roadmap or its steps | yes | yes, the chat you registered with | yes |
@@ -92,8 +91,6 @@ Records are archived, never deleted, and only the person archives or recovers th
 | File, change and close tickets | yes | yes | yes |
 | Comment on tickets | yes | yes | no |
 | Archive or recover tickets | yes | no | no |
-| Set, change, snooze, complete and reopen reminders | yes | yes | no |
-| Archive or recover reminders | yes | no | no |
 | Write, archive or recover resources | yes | no | yes |
 | Change releases and their checks | yes | no | yes |
 | Archive or recover releases and their checks | yes | no | no |
@@ -230,7 +227,7 @@ worklog agent --as NAME retire
 | `proposals` | `[--status draft\|submitted\|approved\|rejected\|withdrawn] [--limit 50] [--offset 0]` | `{items,total}`: yours, and other agents' once submitted, oldest first, up to 200 a page; `total` counts them all |
 | `proposal show ID` | - | one proposal with its operations and evidence |
 
-`search` covers work items, notes, file names, links, tracked chats, GitHub references, roadmaps and steps, questions and decisions, people, discussions, tickets and ticket comments, resources, reminders, and releases and their checks, but not proposals.
+`search` covers work items, notes, file names, links, tracked chats, GitHub references, roadmaps and steps, questions and decisions, people, discussions, tickets and ticket comments, resources, and releases and their checks, but not proposals.
 
 ```powershell
 worklog agent --as NAME context --date 2026-11-04 --repo REPOSITORY_ID --item ITEM_ID
@@ -506,34 +503,7 @@ worklog agent --as NAME ties set --type ticket --id T-12 --relationship 'Fixing 
 worklog agent --as NAME ties remove --type ticket --id T-12 --request-id untie-CHAT_ID-2
 ```
 
-### 5.9 Reminders
-
-| Command | Arguments and options | Rev | Request ID | Notes |
-|---|---|---|---|---|
-| `reminders list` | `[--state open\|due\|upcoming\|done\|all] [--date DATE] [--until DATE] [RECORD] [--q WORDS] [--archived] [--limit 50] [--offset 0]` | - | - | `open` (the default) lists them by when they come due; `due` is open and due now, `upcoming` open and not due yet; `--date` keeps one day, `--until` that day and every one before it; no notes |
-| `reminders show ID` | - | - | - | with its notes and its latest 100 changes |
-| `reminders add` | `--title TITLE --on DATE` and any of `--at HH:MM`, `--notes TEXT`, RECORD | - | optional | without `--at` it is due all day |
-| `reminders update ID` | `--revision N` and any of `--title`, `--notes`, `--on DATE`, `--at HH:MM` or `--all-day`, RECORD or `--unlink` | yes | optional | snooze it with `--on` and `--at` |
-| `reminders done ID` | `--revision N` | yes | optional | marks it done |
-| `reminders reopen ID` | `--revision N` | yes | optional | opens a done one again |
-
-RECORD is one of `--item ID`, `--ticket REF`, `--roadmap ID`, `--person ID`, `--repository ID` (a catalog ID) or `--chat ID` (Worklog's UUID for a tracked chat, not the provider's chat ID).
-
-- **For the person.** Reminders are the person's. Set one when they ask, or when they need to come back to something later, such as merging once checks pass, and say that you did. Due ones show on Today and beside Reminders in the sidebar, and each shows on the page of the record it names.
-- **When.** DATE is YYYY-MM-DD and HH:MM a 24-hour time, both by the clock of the person's Worklog timezone, which `context`'s day also follows. A reminder is due from the start of its day, or from its time on that day, until it is done. Nothing repeats: add another reminder to come back again.
-- **Records.** A reminder names at most one record, and the record must be active when you name it. One archived later stays named. A repository merge moves its reminders to the repository it was merged into.
-- **Archiving.** The person archives and recovers reminders. An archived reminder refuses changes.
-
-```powershell
-worklog agent --as NAME reminders list --state due --ticket T-12 --limit 20
-worklog agent --as NAME reminders show REMINDER_ID
-worklog agent --as NAME reminders add --title 'Merge PR 113 once its checks pass' --on 2026-11-06 --at 14:25 --ticket T-12 --request-id remind-merge-113
-worklog agent --as NAME reminders update REMINDER_ID --revision 2 --on 2026-11-07 --at 09:00
-worklog agent --as NAME reminders done REMINDER_ID --revision 3
-worklog agent --as NAME reminders reopen REMINDER_ID --revision 4
-```
-
-### 5.10 Overlaps
+### 5.9 Overlaps
 
 | Command | Arguments and options | Prints |
 |---|---|---|
@@ -858,7 +828,6 @@ The following codes reach only the person's browser or a failed startup: `host` 
 | A roadmap | 5,000 steps; 100 levels of nesting |
 | A ticket | title 1,000 bytes; description, resolution and each comment 100,000 bytes; 20 labels |
 | A release | title 1,000 bytes; description 1,000,000 bytes; a check's text 2,000 bytes and its details 100,000 bytes |
-| A reminder | title 1,000 bytes; notes 100,000 bytes |
 | A participation | description 2,000 characters; 40 contexts |
 | An update | 4,000 characters |
 | A repository | description 10,000 characters; URL 2,000 characters |
@@ -894,8 +863,7 @@ History older than 90 days may be thinned. When the person runs `worklog compact
 
 ## 11. What the person sees
 
-- **Today.** Their plan for the day. It has nothing of yours unless a proposal planned an item, or a reminder you set is due that day.
-- **Reminders.** Every reminder, with who set it; the sidebar counts the ones due. The page of each record a reminder names lists it too.
+- **Today.** Their plan for the day. It has nothing of yours unless a proposal planned an item.
 - **Work, and a work item's page.** Your participation under "Participants" and "Recent updates", and tracked chats under "Agent chats". Also the item's tickets, "GitHub commits & PRs", and under "Applied proposals" every proposal applied to it, with the changes each made there.
 - **Tickets.** Every ticket, with its author, assignee and comments.
 - **Resources.** The reference pages the person writes for you and for themselves. You change them only by proposal.

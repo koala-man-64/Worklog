@@ -140,8 +140,6 @@ class World:
         ticket = self.write(p, "POST", "/tickets", {"title": "Crash on save"})
         ids["ticket"] = ticket["id"]
         ids["ticketRef"] = ticket.get("key") or f"T-{ticket['number']}"
-        ids["reminder"] = self.write(p, "POST", "/reminders", {"title": "Check the parser", "date": today,
-                                                               "targetType": "item", "targetId": item["id"]})["id"]
         release = self.write(p, "POST", "/releases", {"title": "1.0", "releaseDate": "2026-12-01"})
         ids["release"] = release["id"]
         discussion = self.write(p, "POST", "/discussions", {"title": "Parser", "text": "Where do we start?",
@@ -221,7 +219,7 @@ def concrete(template: str, ids: dict[str, str], today: str) -> str:
                  ("/references/", "reference"), ("/attachments/", "attachment"), ("/roadmaps/", "roadmap"),
                  ("/steps/", "step"), ("/questions/", "question"), ("/decisions/", "decision"),
                  ("/github/", "github"), ("/chats/", "chat"), ("/people/", "person"), ("/resources/", "resource"),
-                 ("/repositories/", "repository"), ("/reminders/", "reminder"), ("/releases/", "release"),
+                 ("/repositories/", "repository"), ("/releases/", "release"),
                  ("/discussions/messages/", "message"),
                  ("/discussions/participants/", "agent"), ("/discussions/", "discussion"), ("/agents/", "agent"),
                  ("/agent-runs/", "run"), ("/participations/", "participation"), ("/proposals/", "proposal"),

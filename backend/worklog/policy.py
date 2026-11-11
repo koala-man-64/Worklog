@@ -37,7 +37,6 @@ PROPOSE = "agent:propose"  # drafts and their evidence, which the person approve
 DISCUSS = "agent:discuss"  # discussion threads, requests and roles
 COORDINATE = "agent:coordinate"  # an agent's own runs, participations and chat, and the repositories they name
 TICKET = "agent:ticket"  # filing, changing and commenting on tickets
-REMIND = "agent:remind"  # setting, snoozing and completing the person's reminders
 REGISTER = "agent:register"  # registering, continuing and retiring agent identities
 INBOX = "agent:inbox"  # taking the messages the person writes into an agent's chats
 TIE = "agent:tie"  # an agent's own ties to records, and its role on each
@@ -207,10 +206,6 @@ ROUTES: dict[str, dict[str, str | Only]] = {
     "/releases/{identity}": {"GET": READ, "PATCH": HUMAN},
     "/releases/{identity}/archive": {"POST": HUMAN},
     "/releases/{identity}/recover": {"POST": HUMAN},
-
-    "/reminders": {"GET": READ, "POST": REMIND},
-    "/reminders/{identity}": {"GET": READ, "PATCH": REMIND},
-    "/reminders/{identity}/{verb}": {"POST": HUMAN},
 
     "/repositories": {"GET": READ, "POST": HUMAN},
     "/repositories/ensure": {"POST": COORDINATE},

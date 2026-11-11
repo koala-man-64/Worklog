@@ -12,7 +12,6 @@ import { ITEM_STATUSES, StatusSelect } from "./ui/Status";
 import { Tabs } from "./ui/Tabs";
 import { CreateItem } from "./Work";
 import { DaySummary } from "./DaySummary";
-import { TodayReminders } from "./RecordReminders";
 import type { Answer, Day, Detail, Entry, ItemStatus } from "./apiTypes";
 import { Icon } from "./icons";
 import { RankBadge } from "./StackRank";
@@ -302,7 +301,6 @@ export function Today({
         </label>
       </header>
       <CreateItem day={date} />
-      <TodayReminders date={date} today={today} />
       <ErrorMessage error={day.error || action.error || rescheduleError} />
       {data && (
         <>
