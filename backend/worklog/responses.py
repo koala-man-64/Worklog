@@ -2165,8 +2165,6 @@ class WorkContext(Answer):
     releases: Releases
 
 
-
-
 class Done(Answer):
     """A command that changed what it was asked to, or found nothing to change, and names nothing back."""
 

@@ -118,6 +118,39 @@ def test_a_proposal_cannot_carry_a_task(tmp_path):
         client.__exit__(None, None, None)
 
 
+def test_a_task_change_proposed_before_v26_still_reads_but_can_only_be_rejected(tmp_path):
+    # A proposal stored before v26 can hold a task change: its operations are kept as written, so
+    # it reads as before, but no update, submit or approval accepts the change, and nothing applies.
+    database, item = planned(tmp_path / "data")
+    client = session(tmp_path / "data")
+    try:
+        agent = {"Authorization": "Bearer " + call(client, "POST", "/credentials", {"label": "Coding agent"})["token"]}
+        link = [{"action": "link.create", "payload": {"ownerType": "item", "ownerId": item, "url": "https://example.com/a"}}]
+        task = [{"action": "task.update", "payload": {"id": str(uuid.uuid4()), "revision": 1, "done": True}}]
+        proposal = {"title": "Tick it", "rationale": "Done", "operations": link}
+        draft = call(client, "POST", "/proposals", proposal, agent)
+        # An edit is checked against the actions there are, before the proposal's own rules run.
+        refused = call(client, "PATCH", f"/proposals/{draft['id']}", {"revision": draft["revision"], "operations": task},
+                       agent, status=422)
+        assert [field["field"] for field in refused["error"]["fields"]] == ["body.operations.0.action"]
+        # A stored proposal is refused for the action when it is submitted or approved.
+        pending = call(client, "POST", "/proposals", proposal, agent)
+        pending = call(client, "POST", f"/proposals/{pending['id']}/submit", {"revision": pending["revision"]}, agent)
+        with closing(sqlite3.connect(database)) as conn:
+            conn.executemany("UPDATE proposals SET operations=? WHERE id=?",
+                             [(json.dumps(task), draft["id"]), (json.dumps(task), pending["id"])])
+            conn.commit()
+        refused = call(client, "POST", f"/proposals/{draft['id']}/submit", {"revision": draft["revision"]}, agent, status=422)
+        assert refused["error"]["message"] == "Unsupported proposal action"
+        refused = call(client, "POST", f"/proposals/{pending['id']}/approve", {"revision": pending["revision"]}, status=422)
+        assert refused["error"]["message"] == "Unsupported proposal action"
+        assert call(client, "GET", f"/proposals/{pending['id']}")["operations"] == task
+        assert call(client, "GET", f"/work-items/{item}")["links"] == []
+        assert call(client, "POST", f"/proposals/{pending['id']}/reject", {"revision": pending["revision"]})["status"] == "rejected"
+    finally:
+        client.__exit__(None, None, None)
+
+
 def test_compaction_still_thins_the_task_events_older_databases_hold(tmp_path):
     # compaction.THINNED keeps the task family on purpose: a database upgraded from before v26 can
     # hold its events, which only ever showed in history.
