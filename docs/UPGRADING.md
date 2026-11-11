@@ -6,12 +6,13 @@ restores.
 
 ## Upgrade
 
-For an upgrade, stop Worklog, make a manual backup with the installed version, update the checkout, run `Setup.ps1`, then start and check the application. Use the same data directory and port throughout. The first startup snapshots a supported version 1 to 27 database and upgrades it to version 28 in one transaction.
+For an upgrade, stop Worklog, make a manual backup with the installed version, update the checkout, run `Setup.ps1`, then start and check the application. Use the same data directory and port throughout. The first startup snapshots a supported version 1 to 28 database and upgrades it to version 29 in one transaction.
 
 `./scripts/Run.ps1` does the stop, backup, setup and start in one step after you update the checkout, passing the same `-DataDir` and `-Port` to each. Its backup is taken before the new version first starts, so it is the pre-upgrade backup; if the stop or backup fails, it ends before setup. It runs Setup's shared-folder check first, so a refusal leaves Worklog running.
 
 ## What each version changes
 
+- **Version 29** removes agent ties. The upgrade drops the table that held which records each agent was tied to, every tie with it. The agents and the records they were tied to stay as they are, and so does the history each tie wrote; no other record changes. The pre-migration backup keeps the table, but only the three newest pre-migration backups are kept: copy it aside if you still need a tie.
 - **Version 28** removes Releases. The upgrade drops the tables that held releases, what each held and their checks, every row with them, their entries in search, and every discussion tag of a release. The work items, roadmaps, steps and GitHub references a release held stay as they are, and no other record changes. The pre-migration backup keeps the tables, but only the three newest pre-migration backups are kept: copy it aside if you still need a release.
 - **Version 27** removes Reminders. The upgrade drops the table that held reminders, every reminder with it, and their entries in search. The records a reminder named stay as they are, and no other record changes. The pre-migration backup keeps the table, but only the three newest pre-migration backups are kept: copy it aside if you still need a reminder.
 - **Version 26** removes work item checklists. The upgrade drops the table that held each work item's tasks, every task with it. The work items stay as they are, and no other record changes. The pre-migration backup keeps the table, but only the three newest pre-migration backups are kept: copy it aside if you still need a task.
@@ -36,20 +37,17 @@ For an upgrade, stop Worklog, make a manual backup with the installed version, u
 
 Keep the previous version and its manual backup until verification succeeds. To roll back, stop Worklog, switch to the previous version and run its setup, then use that version’s `restore` command with the pre-upgrade backup. Start and check Worklog again. Restoring returns the data to the time of the snapshot, creates a new data identity, and revokes the restored credentials.
 
-## The way back from version 28
+## The way back from version 29
 
-From version 28 to version 27, a way back keeps every record. The releases, their contents and their checks, which version 28's upgrade dropped, don't come back with it, and neither do their search entries or the discussion tags of a release; the pre-upgrade backup has them. With Worklog stopped and after a manual backup, run this on the database, then start the version 27 checkout:
+From version 29 to version 28, a way back keeps every record. The agent ties, which version 29's upgrade dropped, don't come back with it; the pre-upgrade backup has them. With Worklog stopped and after a manual backup, run this on the database, then start the version 28 checkout:
 
 ```sql
-CREATE TABLE releases(id TEXT PRIMARY KEY,title TEXT NOT NULL,description TEXT NOT NULL DEFAULT '',release_date TEXT CHECK(release_date IS NULL OR date(release_date) IS release_date),status TEXT NOT NULL DEFAULT 'planned' CHECK(status IN('planned','released','cancelled')),archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
-CREATE TABLE release_contents(release_id TEXT NOT NULL REFERENCES releases(id),target_type TEXT NOT NULL CHECK(target_type IN('item','roadmap','step','github')),target_id TEXT NOT NULL,created_at TEXT NOT NULL,PRIMARY KEY(release_id,target_type,target_id));
-CREATE INDEX release_contents_target ON release_contents(target_type,target_id,release_id);
-CREATE TABLE release_checks(id TEXT PRIMARY KEY,release_id TEXT NOT NULL REFERENCES releases(id),kind TEXT NOT NULL CHECK(kind IN('notify','test','prepare')),text TEXT NOT NULL,details TEXT NOT NULL DEFAULT '',person_id TEXT REFERENCES people(id),due_date TEXT CHECK(due_date IS NULL OR date(due_date) IS due_date),status TEXT NOT NULL DEFAULT 'open' CHECK(status IN('open','doing','waiting','blocked','done')),archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
-CREATE INDEX release_checks_release ON release_checks(release_id,archived,kind);
-PRAGMA user_version=27;
+CREATE TABLE agent_links(id TEXT PRIMARY KEY,agent_id TEXT NOT NULL REFERENCES communication_agents(id),target_type TEXT NOT NULL CHECK(target_type IN('item','roadmap','step','repository','person','resource','discussion','proposal','ticket','agent','question','decision')),target_id TEXT NOT NULL,relationship TEXT NOT NULL DEFAULT '',set_by TEXT NOT NULL CHECK(set_by IN('human','agent')),created_at TEXT NOT NULL,UNIQUE(agent_id,target_type,target_id));
+CREATE INDEX agent_links_target ON agent_links(target_type,target_id);
+PRAGMA user_version=28;
 ```
 
-Upgrading again drops the tables again, with any release added at version 27, its checks, search entries and tags.
+Upgrading again drops the table again, with any tie set at version 28.
 
 Only the latest version's way back is kept here. Each older one was given while its version was
 the latest: the history of this file in the repository has them, and before this file, the

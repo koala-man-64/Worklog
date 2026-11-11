@@ -1,5 +1,4 @@
 {
-  "GET /api/v1/agent-links": "reaches handler",
   "GET /api/v1/agent-registrations/self": "reaches handler",
   "GET /api/v1/agent-runs": "reaches handler",
   "GET /api/v1/agent-runs/{identity}": "reaches handler",
@@ -77,8 +76,6 @@
   "PATCH /api/v1/steps/{identity}/progress": "refused",
   "PATCH /api/v1/tickets/{ref}": "reaches handler",
   "PATCH /api/v1/work-items/{identity}": "refused",
-  "POST /api/v1/agent-links": "reaches handler",
-  "POST /api/v1/agent-links/unlink": "reaches handler",
   "POST /api/v1/agent-registrations": "reaches handler",
   "POST /api/v1/agent-registrations/continue": "reaches handler",
   "POST /api/v1/agent-registrations/retire": "refused",

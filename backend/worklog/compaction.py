@@ -7,8 +7,8 @@ Worklog keeps every record and every event row. Compaction lets go of what K6 de
   becomes {}: Today's completed and blocked lists, and each day entry's status on its day, replay
   item events by those fields. A payload that is not an object becomes null. Every other family
   keeps its payloads whole, since they hold state, are read at runtime, or are history the guides
-  promise (CONSOLIDATION.md's *Rules*): credentials, proposals, chats, discussions, agent ties,
-  resources, settings and the rest. No event row goes: discussion_changes names events,
+  promise (CONSOLIDATION.md's *Rules*): credentials, proposals, chats, discussions, resources,
+  settings and the rest. No event row goes: discussion_changes names events,
   and history is read in the order it was written, by rowid, which VACUUM must keep.
 - Each roadmap's versions but its VERSIONS_KEPT newest.
 - Idempotency receipts past their retention (maintenance.prune_receipts).

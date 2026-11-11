@@ -27,7 +27,6 @@ import {
   RepositoryPicker,
   RepositoryFilter,
 } from "./RepositoryControls";
-import { AgentTies } from "./AgentTies";
 import { Coordination } from "./Coordination";
 import { AppliedProposals } from "./ProposalHistory";
 import { TicketsSection } from "./Tickets";
@@ -605,7 +604,6 @@ export function ItemDetail({ id }: { id: string }) {
       <Coordination key={id} itemId={id} />
       <Scratchpad itemId={id} notes={item.notes} />
       <PeopleLinks targetType="item" targetId={id} people={item.people} />
-      <AgentTies targetType="item" targetId={id} />
       <LinksSection ownerType="item" ownerId={id} links={item.links} />
       <AgentChatsSection ownerType="item" ownerId={id} chats={item.chats} />
       <GithubRefsSection

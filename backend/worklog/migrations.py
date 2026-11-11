@@ -14,10 +14,10 @@ import sqlite3
 
 from .common import now, setting, today, uid
 
-SCHEMA_VERSION = 28
+SCHEMA_VERSION = 29
 # Older versions that startup and offline restore upgrade in one transaction.
 UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
-                                 24, 25, 26, 27})
+                                 24, 25, 26, 27, 28})
 
 # v1 grew in place before versions were counted: _upgrade_v1 adds whichever of these a v1 database
 # lacks. People as v1 had them; v10 renames role to team, adds person details and lets links name
@@ -572,9 +572,9 @@ def add_proposal_targets(conn: sqlite3.Connection) -> None:
             record(conn, proposal, number, action, payload, created.get(number))
 
 
-# v17 ties agent identities to records: any of these types, with the agent's role there, set by the
-# person or by the agent itself (agent_links.py). A record's id is not a foreign key, since a tie names
-# one of many tables; Worklog never deletes a record a tie can name, and a repository merge moves them.
+# v17 tied agent identities to records: any of these types, with the agent's role there, set by the
+# person or by the agent itself. A record's id is not a foreign key, since a tie named one of many
+# tables. v29 drops the table again (drop_agent_links).
 AGENT_LINKS_SCHEMA = """
 CREATE TABLE agent_links(id TEXT PRIMARY KEY,agent_id TEXT NOT NULL REFERENCES communication_agents(id),target_type TEXT NOT NULL CHECK(target_type IN('item','roadmap','step','repository','person','resource','discussion','proposal','ticket','agent','question','decision')),target_id TEXT NOT NULL,relationship TEXT NOT NULL DEFAULT '',set_by TEXT NOT NULL CHECK(set_by IN('human','agent')),created_at TEXT NOT NULL,UNIQUE(agent_id,target_type,target_id));
 CREATE INDEX agent_links_target ON agent_links(target_type,target_id);
@@ -885,6 +885,14 @@ def drop_releases(conn: sqlite3.Connection) -> None:
         conn.execute(f"DROP TABLE IF EXISTS {table}")  # and its indexes
 
 
+def drop_agent_links(conn: sqlite3.Connection) -> None:
+    """Drop agent ties (v29, step 0.6 of docs/ROADMAPS-RETHINK.md): the agent_links table, its index and
+    every tie in it. The agents and the records they were tied to stay, and so do the agent.link and
+    agent.unlink events a tie wrote. Nothing references agent_links, and no search row is a tie's. The
+    pre-migration backup keeps the table as it was."""
+    conn.execute("DROP TABLE IF EXISTS agent_links")  # and its index
+
+
 def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
     """Unlike executescript, preserve the caller's transaction and rollback boundary."""
     for statement in filter(str.strip, schema.split(";")):
@@ -915,7 +923,7 @@ def upgrade(conn: sqlite3.Connection) -> None:
     work item checklists, every task with them, and changes no other record. v27 drops Reminders,
     every reminder and its search row with them, and changes no other record. v28 drops Releases,
     every release and check with their search rows, and every discussion tag of a release, and
-    changes no other record.
+    changes no other record. v29 drops agent ties, every tie with them, and changes no other record.
     """
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version == SCHEMA_VERSION:
@@ -981,6 +989,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
         drop_reminders(conn)
     if version < 28:
         drop_releases(conn)
+    if version < 29:
+        drop_agent_links(conn)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 

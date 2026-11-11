@@ -219,10 +219,6 @@
       "limit": 100,
       "offset": 0
     },
-    "ties": {
-      "items": [],
-      "total": 0
-    },
     "participations": {
       "items": [
         {

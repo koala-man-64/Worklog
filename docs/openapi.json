@@ -6600,169 +6600,6 @@
         }
       }
     },
-    "/api/v1/agent-links": {
-      "get": {
-        "summary": "Agent Links",
-        "operationId": "agent_links_api_v1_agent_links_get",
-        "parameters": [
-          {
-            "name": "agentId",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Agentid"
-            }
-          },
-          {
-            "name": "targetType",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "enum": [
-                    "item",
-                    "roadmap",
-                    "step",
-                    "repository",
-                    "person",
-                    "resource",
-                    "discussion",
-                    "proposal",
-                    "ticket",
-                    "agent",
-                    "question",
-                    "decision"
-                  ],
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Targettype"
-            }
-          },
-          {
-            "name": "targetId",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "default": [],
-              "title": "Targetid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AgentTies"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "summary": "Agent Link Set",
-        "operationId": "agent_link_set_api_v1_agent_links_post",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AgentLinkSet"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AgentTie"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/agent-links/unlink": {
-      "post": {
-        "summary": "Agent Link Remove",
-        "operationId": "agent_link_remove_api_v1_agent_links_unlink_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AgentLinkRemove"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AgentUntied"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/resources": {
       "get": {
         "summary": "Resources",
@@ -9589,100 +9426,6 @@
         ],
         "title": "AgentCredential"
       },
-      "AgentLinkRemove": {
-        "properties": {
-          "agentId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Agentid"
-          },
-          "targetType": {
-            "type": "string",
-            "enum": [
-              "item",
-              "roadmap",
-              "step",
-              "repository",
-              "person",
-              "resource",
-              "discussion",
-              "proposal",
-              "ticket",
-              "agent",
-              "question",
-              "decision"
-            ],
-            "title": "Targettype"
-          },
-          "targetId": {
-            "type": "string",
-            "title": "Targetid"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "targetType",
-          "targetId"
-        ],
-        "title": "AgentLinkRemove"
-      },
-      "AgentLinkSet": {
-        "properties": {
-          "agentId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Agentid"
-          },
-          "targetType": {
-            "type": "string",
-            "enum": [
-              "item",
-              "roadmap",
-              "step",
-              "repository",
-              "person",
-              "resource",
-              "discussion",
-              "proposal",
-              "ticket",
-              "agent",
-              "question",
-              "decision"
-            ],
-            "title": "Targettype"
-          },
-          "targetId": {
-            "type": "string",
-            "title": "Targetid"
-          },
-          "relationship": {
-            "type": "string",
-            "title": "Relationship",
-            "default": ""
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "targetType",
-          "targetId"
-        ],
-        "title": "AgentLinkSet",
-        "description": "The person names the agent. An agent ties only itself, so it may leave agentId out."
-      },
       "AgentMessage": {
         "properties": {
           "id": {
@@ -10250,219 +9993,6 @@
           "total"
         ],
         "title": "AgentRunsListed"
-      },
-      "AgentSummary": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "title": {
-            "type": "string",
-            "title": "Title"
-          },
-          "archived": {
-            "type": "boolean",
-            "title": "Archived"
-          },
-          "avatar": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Avatar"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "title",
-          "archived",
-          "avatar"
-        ],
-        "title": "AgentSummary",
-        "description": "An agent identity, by its label. One without a live credential reads as archived."
-      },
-      "AgentTie": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "agentId": {
-            "type": "string",
-            "title": "Agentid"
-          },
-          "agent": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/TieAgent"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "targetType": {
-            "type": "string",
-            "enum": [
-              "item",
-              "roadmap",
-              "step",
-              "repository",
-              "person",
-              "resource",
-              "discussion",
-              "proposal",
-              "ticket",
-              "agent",
-              "question",
-              "decision"
-            ],
-            "title": "Targettype"
-          },
-          "targetId": {
-            "type": "string",
-            "title": "Targetid"
-          },
-          "target": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/RecordSummary"
-              },
-              {
-                "$ref": "#/components/schemas/StatusSummary"
-              },
-              {
-                "$ref": "#/components/schemas/StepSummary"
-              },
-              {
-                "$ref": "#/components/schemas/DecisionSummary"
-              },
-              {
-                "$ref": "#/components/schemas/RepositorySummary"
-              },
-              {
-                "$ref": "#/components/schemas/TicketSummary"
-              },
-              {
-                "$ref": "#/components/schemas/AgentSummary"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Target"
-          },
-          "relationship": {
-            "type": "string",
-            "title": "Relationship"
-          },
-          "setBy": {
-            "type": "string",
-            "enum": [
-              "human",
-              "agent"
-            ],
-            "title": "Setby"
-          },
-          "createdAt": {
-            "type": "string",
-            "title": "Createdat"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "agentId",
-          "agent",
-          "targetType",
-          "targetId",
-          "target",
-          "relationship",
-          "setBy",
-          "createdAt"
-        ],
-        "title": "AgentTie",
-        "description": "An agent's tie to a record, with the agent and the record as they stand now."
-      },
-      "AgentTies": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/AgentTie"
-            },
-            "type": "array",
-            "title": "Items"
-          },
-          "total": {
-            "type": "integer",
-            "title": "Total"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "items",
-          "total"
-        ],
-        "title": "AgentTies"
-      },
-      "AgentUntied": {
-        "properties": {
-          "ok": {
-            "type": "boolean",
-            "const": true,
-            "title": "Ok"
-          },
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "agentId": {
-            "type": "string",
-            "title": "Agentid"
-          },
-          "targetType": {
-            "type": "string",
-            "enum": [
-              "item",
-              "roadmap",
-              "step",
-              "repository",
-              "person",
-              "resource",
-              "discussion",
-              "proposal",
-              "ticket",
-              "agent",
-              "question",
-              "decision"
-            ],
-            "title": "Targettype"
-          },
-          "targetId": {
-            "type": "string",
-            "title": "Targetid"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "ok",
-          "id",
-          "agentId",
-          "targetType",
-          "targetId"
-        ],
-        "title": "AgentUntied",
-        "description": "The tie an agent identity no longer has."
       },
       "AgentWork": {
         "properties": {
@@ -13566,40 +13096,6 @@
         ],
         "title": "DecisionCreate"
       },
-      "DecisionSummary": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "title": {
-            "type": "string",
-            "title": "Title"
-          },
-          "archived": {
-            "type": "boolean",
-            "title": "Archived"
-          },
-          "roadmapId": {
-            "type": "string",
-            "title": "Roadmapid"
-          },
-          "roadmapTitle": {
-            "type": "string",
-            "title": "Roadmaptitle"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "title",
-          "archived",
-          "roadmapId",
-          "roadmapTitle"
-        ],
-        "title": "DecisionSummary"
-      },
       "DecisionUpdate": {
         "properties": {
           "revision": {
@@ -16341,56 +15837,6 @@
         ],
         "title": "OverlapTicket"
       },
-      "OverlapTie": {
-        "properties": {
-          "agent": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Participant"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "targetType": {
-            "type": "string",
-            "enum": [
-              "repository",
-              "item",
-              "step",
-              "ticket"
-            ],
-            "title": "Targettype"
-          },
-          "targetId": {
-            "type": "string",
-            "title": "Targetid"
-          },
-          "relationship": {
-            "type": "string",
-            "title": "Relationship"
-          },
-          "setBy": {
-            "type": "string",
-            "enum": [
-              "human",
-              "agent"
-            ],
-            "title": "Setby"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "agent",
-          "targetType",
-          "targetId",
-          "relationship",
-          "setBy"
-        ],
-        "title": "OverlapTie"
-      },
       "OverlapWorkItem": {
         "properties": {
           "id": {
@@ -16459,13 +15905,6 @@
             "type": "array",
             "title": "Roles"
           },
-          "ties": {
-            "items": {
-              "$ref": "#/components/schemas/OverlapTie"
-            },
-            "type": "array",
-            "title": "Ties"
-          },
           "tickets": {
             "items": {
               "$ref": "#/components/schemas/OverlapTicket"
@@ -16482,7 +15921,6 @@
           "announcements",
           "discussions",
           "roles",
-          "ties",
           "tickets"
         ],
         "title": "Overlaps",
@@ -18625,7 +18063,7 @@
           "archived"
         ],
         "title": "RecordSummary",
-        "description": "A roadmap, person, resource or discussion."
+        "description": "A record by its title, and whether it is archived."
       },
       "ReferenceCreate": {
         "properties": {
@@ -19278,43 +18716,6 @@
         ],
         "title": "RepositoryResolution",
         "description": "What registering an address would do: link to the record holding its remote, or add one."
-      },
-      "RepositorySummary": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "title": {
-            "type": "string",
-            "title": "Title"
-          },
-          "archived": {
-            "type": "boolean",
-            "title": "Archived"
-          },
-          "mergedInto": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mergedinto"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "title",
-          "archived",
-          "mergedInto"
-        ],
-        "title": "RepositorySummary",
-        "description": "A repository, by its name. A merged one reads as archived."
       },
       "RepositoryUpdate": {
         "properties": {
@@ -21539,36 +20940,6 @@
         "title": "StatusContextTag",
         "description": "A work item's tag."
       },
-      "StatusSummary": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "title": {
-            "type": "string",
-            "title": "Title"
-          },
-          "archived": {
-            "type": "boolean",
-            "title": "Archived"
-          },
-          "status": {
-            "type": "string",
-            "title": "Status"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "title",
-          "archived",
-          "status"
-        ],
-        "title": "StatusSummary",
-        "description": "A work item or proposal. A proposal is never archived; its status says where it got to."
-      },
       "Step": {
         "properties": {
           "id": {
@@ -21737,46 +21108,6 @@
         ],
         "title": "StepContextTag",
         "description": "A step's or a question's tag, with the roadmap it opens on."
-      },
-      "StepSummary": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "title": {
-            "type": "string",
-            "title": "Title"
-          },
-          "archived": {
-            "type": "boolean",
-            "title": "Archived"
-          },
-          "status": {
-            "type": "string",
-            "title": "Status"
-          },
-          "roadmapId": {
-            "type": "string",
-            "title": "Roadmapid"
-          },
-          "roadmapTitle": {
-            "type": "string",
-            "title": "Roadmaptitle"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "title",
-          "archived",
-          "status",
-          "roadmapId",
-          "roadmapTitle"
-        ],
-        "title": "StepSummary",
-        "description": "A step or question, with its roadmap. A retired step reads as archived."
       },
       "StepUpdate": {
         "properties": {
@@ -22530,40 +21861,6 @@
         "title": "TicketListed",
         "description": "A ticket as lists show it: its description and resolution cut to 1,000 characters each."
       },
-      "TicketSummary": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "title": {
-            "type": "string",
-            "title": "Title"
-          },
-          "archived": {
-            "type": "boolean",
-            "title": "Archived"
-          },
-          "status": {
-            "type": "string",
-            "title": "Status"
-          },
-          "number": {
-            "type": "integer",
-            "title": "Number"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "title",
-          "archived",
-          "status",
-          "number"
-        ],
-        "title": "TicketSummary"
-      },
       "TicketUpdate": {
         "properties": {
           "revision": {
@@ -22782,43 +22079,6 @@
           "offset"
         ],
         "title": "Tickets"
-      },
-      "TieAgent": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "label": {
-            "type": "string",
-            "title": "Label"
-          },
-          "avatar": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Avatar"
-          },
-          "active": {
-            "type": "boolean",
-            "title": "Active"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "label",
-          "avatar",
-          "active"
-        ],
-        "title": "TieAgent",
-        "description": "An agent as its ties show it."
       },
       "TiedChat": {
         "properties": {
@@ -24169,9 +23429,6 @@
           "runs": {
             "$ref": "#/components/schemas/AgentRuns"
           },
-          "ties": {
-            "$ref": "#/components/schemas/AgentTies"
-          },
           "participations": {
             "$ref": "#/components/schemas/Participations"
           },
@@ -24195,7 +23452,6 @@
           "proposals",
           "repositories",
           "runs",
-          "ties",
           "participations",
           "updates",
           "tickets",

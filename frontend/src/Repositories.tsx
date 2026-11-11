@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useData, useWrites } from "./hooks";
 import { commands } from "./commands";
-import { AgentTies } from "./AgentTies";
 import { Files } from "./sections/Files";
 import { PeopleLinks } from "./sections/PeopleLinks";
 import { RecoverRecords } from "./sections/RecoverRecords";
@@ -521,14 +520,6 @@ function RepositoryDetail({ id }: { id: string }) {
           targetType="repository"
           targetId={repo.id}
           people={repo.people}
-          canTie={!repo.archived}
-          headingLevel={2}
-        />
-      )}
-      {!repo.mergedInto && (
-        <AgentTies
-          targetType="repository"
-          targetId={repo.id}
           canTie={!repo.archived}
           headingLevel={2}
         />

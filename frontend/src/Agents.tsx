@@ -6,7 +6,6 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
-import { AgentTiedTo, AgentTies } from "./AgentTies";
 import { getDataContext } from "./api";
 import { Avatar } from "./Avatar";
 import { Icon } from "./icons";
@@ -620,13 +619,6 @@ function AgentView({ id }: { id: string }) {
           <p className="muted">No responsibility roles owned.</p>
         )}
       </section>
-      <AgentTiedTo agentId={id} />
-      <AgentTies
-        targetType="agent"
-        targetId={id}
-        heading="Agents tied to this agent"
-        headingLevel={2}
-      />
       <section>
         <h2>From its work</h2>
         <p className="muted">

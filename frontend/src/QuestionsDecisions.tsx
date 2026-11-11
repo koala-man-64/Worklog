@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { AgentTieFold, useTiesOn } from "./AgentTies";
 import { Markdown } from "./ui/Markdown";
 import { ErrorMessage } from "./ui/Messages";
 import { useWrites } from "./hooks";
@@ -25,10 +24,6 @@ export function QuestionsSection({
   const active = questions.filter((q) => !q.archived);
   const open = active.filter((q) => q.status === "open");
   const answered = active.filter((q) => q.status === "answered");
-  const ties = useTiesOn(
-    "question",
-    active.map((q) => q.id),
-  );
   const save = (q: RoadmapQuestion, fields: Partial<RoadmapQuestion>) =>
     action
       .mutateAsync(() =>
@@ -104,13 +99,6 @@ export function QuestionsSection({
             <Markdown text={q.answer} />
           </div>
         )}
-        <AgentTieFold
-          targetType="question"
-          targetId={q.id}
-          title={q.title}
-          ties={ties.get(q.id)}
-          disabled={disabled}
-        />
       </article>
     );
   return (
@@ -251,10 +239,6 @@ export function DecisionsSection({
   const action = useWrites();
   const [editing, setEditing] = useState<string | null>(null);
   const active = decisions.filter((d) => !d.archived);
-  const ties = useTiesOn(
-    "decision",
-    active.map((d) => d.id),
-  );
   return (
     <section>
       <h3>
@@ -312,13 +296,6 @@ export function DecisionsSection({
               )}
             </div>
             {d.rationale && <Markdown text={d.rationale} />}
-            <AgentTieFold
-              targetType="decision"
-              targetId={d.id}
-              title={d.title}
-              ties={ties.get(d.id)}
-              disabled={disabled}
-            />
           </article>
         ),
       )}

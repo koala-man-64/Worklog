@@ -153,8 +153,6 @@ class World:
             "runId": run["id"], "itemId": item["id"], "contexts": [{"repositoryId": ids["repository"]}]})["id"]
         ids["proposal"] = self.write(a, "POST", "/proposals", {"title": "Rename", "rationale": "Clearer",
                                                                "operations": []})["id"]
-        # The agent ties itself to the work item, so the agent's ties list one.
-        self.write(a, "POST", "/agent-links", {"targetType": "item", "targetId": item["id"], "relationship": "Builds it"})
         # The ticket names the work item, a label and the repository and is the agent's, which
         # comments on it, so the ticket's list and read pin each with an entry.
         self.write(p, "PATCH", f"/tickets/{ids['ticket']}", {
@@ -204,7 +202,7 @@ class World:
 def concrete(template: str, ids: dict[str, str], today: str) -> str:
     """The template with this world's records in it, and the query parameters a read needs."""
     owner = {"/attachments": f"?ownerType=item&ownerId={ids['item']}", "/history": f"?entityId={ids['item']}",
-             "/agent-links": f"?agentId={ids['agent']}", "/coordination-overlaps": f"?itemId={ids['item']}",
+             "/coordination-overlaps": f"?itemId={ids['item']}",
              "/search": "?q=parser", "/repositories/resolve": "?url=https://github.com/example/worklog"}
     by_prefix = [("/work-items/", "item"), ("/notes/", "note"), ("/links/", "link"),
                  ("/references/", "reference"), ("/attachments/", "attachment"), ("/roadmaps/", "roadmap"),

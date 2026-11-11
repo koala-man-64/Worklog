@@ -11,7 +11,6 @@ import sqlite3
 import uuid
 import zipfile
 from contextlib import closing
-from pathlib import Path
 
 import pytest
 import sealed
@@ -21,8 +20,9 @@ from worklog import cli, migrations, recovery
 from worklog.db import Database
 from worklog.doctor import doctor_database
 
-# docs/UPGRADING.md: from version 28 to version 27, with Worklog stopped and after a manual backup.
-# The tables and their indexes as version 27 had them.
+# From version 28 to version 27, with Worklog stopped and after a manual backup: the tables and their
+# indexes as version 27 had them. docs/UPGRADING.md gave this way back while version 28 was the
+# latest; older upgrade tests now build their databases with it.
 WAY_BACK = """\
 CREATE TABLE releases(id TEXT PRIMARY KEY,title TEXT NOT NULL,description TEXT NOT NULL DEFAULT '',release_date TEXT CHECK(release_date IS NULL OR date(release_date) IS release_date),status TEXT NOT NULL DEFAULT 'planned' CHECK(status IN('planned','released','cancelled')),archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
 CREATE TABLE release_contents(release_id TEXT NOT NULL REFERENCES releases(id),target_type TEXT NOT NULL CHECK(target_type IN('item','roadmap','step','github')),target_id TEXT NOT NULL,created_at TEXT NOT NULL,PRIMARY KEY(release_id,target_type,target_id));
@@ -38,7 +38,10 @@ STAMP = "2026-11-01T00:00:00+00:00"
 
 
 def to_v27(path):
-    """Take a current database back to v27 the documented way."""
+    """Take a current database back to v27 the documented way: to version 28 first."""
+    from test_agent_tie_removal import to_v28
+
+    to_v28(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK)
 
@@ -113,9 +116,11 @@ def test_the_upgrade_drops_every_release_its_search_rows_and_tags_and_changes_no
         assert [row for row in before[table] if rid in row] and not [row for row in after[table] if rid in row]
         assert after[table] == [row for row in before[table] if rid not in row]
     # Every other table keeps every row: the records the release held, the discussion, its feed and
-    # the release's history among them. The index's own tables change with its rows.
-    kept = [table for table in before if table not in (*RELEASE_TABLES, *SHRUNK) and not table.startswith("search_")]
-    assert set(after) == set(before) - set(RELEASE_TABLES)
+    # the release's history among them. The index's own tables change with its rows. v29, which the
+    # upgrade also runs, drops the ties table, empty here.
+    dropped = (*RELEASE_TABLES, "agent_links")
+    kept = [table for table in before if table not in (*dropped, *SHRUNK) and not table.startswith("search_")]
+    assert set(after) == set(before) - set(dropped)
     assert {table: after[table] for table in kept} == {table: before[table] for table in kept}
     assert [row[2] for row in after["events"] if row[0] == "release-event"] == ["release.create"]
     # Nothing is left for the doctor to find, and an export holds no releases.
@@ -139,8 +144,6 @@ def test_the_way_back_gives_v27s_exact_shape_and_upgrades_again(tmp_path):
     with closing(sqlite3.connect(database)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
         assert recovery._schema_signature(conn) == sealed.current()
-    # The SQL tested here is the SQL docs/UPGRADING.md gives the person.
-    assert "```sql\n" + WAY_BACK + "```" in (Path(__file__).resolve().parents[2] / "docs" / "UPGRADING.md").read_text(encoding="utf-8")
 
 
 def test_the_routes_are_gone_and_nothing_takes_a_release(tmp_path):

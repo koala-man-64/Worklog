@@ -102,11 +102,12 @@ def test_the_v22_upgrade_keeps_every_tag_links_exact_labels_and_opens_each_activ
     version, signature, after = contents(path)
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
     # Every table v22 doesn't touch is as it was, the search index's aside, which gains the new threads,
-    # and the plan import, task, reminder and release tables, empty here, which v25 to v28 drop.
+    # and the plan import, task, reminder, release and ties tables, empty here, which v25 to v29
+    # drop.
     assert before.pop("plan_imports") == []
     assert before.pop("tasks") == []
     assert before.pop("reminders") == []
-    for table in ("releases", "release_contents", "release_checks"):
+    for table in ("releases", "release_contents", "release_checks", "agent_links"):
         assert before.pop(table) == []
     untouched = [t for t in before if t not in TOUCHED and not t.startswith("search_")]
     assert {t: after[t] for t in untouched} == {t: before[t] for t in untouched}

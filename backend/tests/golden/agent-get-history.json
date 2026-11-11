@@ -5,28 +5,6 @@
       {
         "id": "<id1>",
         "entityId": "<id2>",
-        "kind": "agent.link",
-        "actorId": "<id3>",
-        "actorLabel": "Builder",
-        "actorKind": "agent",
-        "createdAt": "<time>",
-        "localDate": "<today>",
-        "before": null,
-        "after": {
-          "id": "<id4>",
-          "agentId": "<id3>",
-          "agentLabel": "Builder",
-          "targetType": "item",
-          "targetId": "<id2>",
-          "targetTitle": "Parser",
-          "relationship": "Builds it",
-          "setBy": "agent",
-          "createdAt": "<time>"
-        }
-      },
-      {
-        "id": "<id5>",
-        "entityId": "<id2>",
         "kind": "person.link",
         "actorId": "local-user",
         "actorLabel": "You",
@@ -35,8 +13,8 @@
         "localDate": "<today>",
         "before": null,
         "after": {
-          "id": "<id6>",
-          "personId": "<id7>",
+          "id": "<id3>",
+          "personId": "<id4>",
           "name": "Ada",
           "personTitle": "Engineer",
           "personTeam": "",
@@ -48,7 +26,7 @@
         }
       },
       {
-        "id": "<id8>",
+        "id": "<id5>",
         "entityId": "<id2>",
         "kind": "item.update",
         "actorId": "local-user",
@@ -77,8 +55,8 @@
           "description": "Parse the plan",
           "status": "doing",
           "adoUrl": null,
-          "roadmapId": "<id9>",
-          "stepId": "<id10>",
+          "roadmapId": "<id6>",
+          "stepId": "<id7>",
           "backlogOrder": 1,
           "archived": false,
           "revision": 3,
@@ -89,7 +67,7 @@
         }
       },
       {
-        "id": "<id11>",
+        "id": "<id8>",
         "entityId": "<id2>",
         "kind": "entry.upsert",
         "actorId": "local-user",
@@ -99,7 +77,7 @@
         "localDate": "<today>",
         "before": null,
         "after": {
-          "id": "<id12>",
+          "id": "<id9>",
           "date": "<today>",
           "itemId": "<id2>",
           "planned": true,
@@ -110,7 +88,7 @@
         }
       },
       {
-        "id": "<id13>",
+        "id": "<id10>",
         "entityId": "<id2>",
         "kind": "item.update",
         "actorId": "local-user",
@@ -151,7 +129,7 @@
         }
       },
       {
-        "id": "<id14>",
+        "id": "<id11>",
         "entityId": "<id2>",
         "kind": "item.create",
         "actorId": "local-user",

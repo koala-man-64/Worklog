@@ -613,84 +613,12 @@ class Attachments(Answer):
     total: int
 
 
-class TieAgent(Answer):
-    """An agent as its ties show it."""
-
-    id: str
-    label: str
-    avatar: str | None
-    # Whether it holds a credential that isn't revoked.
-    active: bool
-
-
-# A tied record as record_kinds.summary gives it: one shape per kind, told apart by their keys, since
-# each model forbids the keys it doesn't name.
 class RecordSummary(Answer):
-    """A roadmap, person, resource or discussion."""
+    """A record by its title, and whether it is archived."""
 
     id: str
     title: str
     archived: bool
-
-
-class StatusSummary(RecordSummary):
-    """A work item or proposal. A proposal is never archived; its status says where it got to."""
-
-    status: str
-
-
-class StepSummary(StatusSummary):
-    """A step or question, with its roadmap. A retired step reads as archived."""
-
-    roadmapId: str
-    roadmapTitle: str
-
-
-class DecisionSummary(RecordSummary):
-    roadmapId: str
-    roadmapTitle: str
-
-
-class RepositorySummary(RecordSummary):
-    """A repository, by its name. A merged one reads as archived."""
-
-    mergedInto: str | None
-
-
-class TicketSummary(StatusSummary):
-    number: int
-
-
-class AgentSummary(RecordSummary):
-    """An agent identity, by its label. One without a live credential reads as archived."""
-
-    avatar: str | None
-
-
-TiedRecord = RecordSummary | StatusSummary | StepSummary | DecisionSummary | RepositorySummary | TicketSummary | AgentSummary
-
-
-class AgentTie(Answer):
-    """An agent's tie to a record, with the agent and the record as they stand now."""
-
-    id: str
-    agentId: str
-    # Null if the agent identity is gone.
-    agent: TieAgent | None
-    targetType: Literal["item", "roadmap", "step", "repository", "person", "resource", "discussion", "proposal",
-                        "ticket", "agent", "question", "decision"]
-    targetId: str
-    # Null if the record is gone. A draft proposal the reader may not see leaves its tie out.
-    target: TiedRecord | None
-    relationship: str
-    setBy: Literal["human", "agent"]
-    createdAt: str
-
-
-class AgentTies(Answer):
-    # The first 500 (agent_links.READ_LIMIT); total counts them all.
-    items: list[AgentTie]
-    total: int
 
 
 class CredentialSponsor(Answer):
@@ -1403,14 +1331,6 @@ class OverlapRole(Answer):
     owner: Participant | None
 
 
-class OverlapTie(Answer):
-    agent: Participant | None
-    targetType: Literal["repository", "item", "step", "ticket"]
-    targetId: str
-    relationship: str
-    setBy: Literal["human", "agent"]
-
-
 class OverlapTicket(Answer):
     id: str
     number: int
@@ -1427,7 +1347,6 @@ class Overlaps(Answer):
     announcements: list[Announcement]
     discussions: list[OverlapDiscussion]
     roles: list[OverlapRole]
-    ties: list[OverlapTie]
     tickets: list[OverlapTicket]
 
 
@@ -1994,8 +1913,6 @@ class WorkContext(Answer):
     proposals: OpenProposals
     repositories: Repositories
     runs: AgentRuns
-    # The calling agent's ties; the person has none.
-    ties: AgentTies
     participations: Participations
     updates: CoordinationUpdates
     tickets: Tickets

@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { ApiError, download, request, getDataContext } from "./api";
 import { useData, useWrites } from "./hooks";
 import { commands } from "./commands";
-import { AgentTies } from "./AgentTies";
 import { Files } from "./sections/Files";
 import { Markdown } from "./ui/Markdown";
 import { Empty, ErrorMessage } from "./ui/Messages";
@@ -200,7 +199,6 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
           readOnly
         />
       )}
-      <AgentTies targetType="proposal" targetId={id} />
       <ErrorMessage error={action.error} />
       {p.status === "submitted" && (
         <div className="decision">

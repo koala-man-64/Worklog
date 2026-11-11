@@ -15,7 +15,7 @@ from test_discussion_tags import credential, error, ok, person, read, start, wri
 from test_repository_discussions import repository
 from worklog import cli
 
-KEYS = {"repositories", "participations", "announcements", "discussions", "roles", "ties", "tickets"}
+KEYS = {"repositories", "participations", "announcements", "discussions", "roles", "tickets"}
 
 
 @pytest.fixture
@@ -77,7 +77,7 @@ def test_an_agent_sees_who_else_works_in_a_repository_and_what_they_announced(cl
                     "authorReporting": True, "createdAt": announced["createdAt"],
                     "text": "Changing the parser on claude/parser", "truncated": False}
     # The repository's own discussion comes with it, not again among the threads.
-    assert (found["discussions"], found["roles"], found["ties"], found["tickets"]) == ([], [], [], [])
+    assert (found["discussions"], found["roles"], found["tickets"]) == ([], [], [])
 
     # What a caller did itself is left out of its own check.
     report(client, reviewer, repositories=[repo], description="Reviewing the parser")
@@ -165,29 +165,23 @@ def test_work_on_named_items_or_on_a_steps_items_and_threads_tagged_with_them_ar
     assert own["id"] in [d["id"] for d in check(client, reviewer, steps=[step["id"]])["discussions"]]
 
 
-def test_roles_ties_and_ticket_assignees_name_the_agents_on_the_records(client):
+def test_roles_and_ticket_assignees_name_the_agents_on_the_records(client):
     repo = repository(client)
     work = item(client)
     builder, reviewer = credential(client, "Builder"), credential(client, "Reviewer")
     role = ok(write(client, "POST", "/discussions/roles", {"contextType": "item", "contextId": work["id"], "label": "Implementation"}, builder))
     ok(write(client, "POST", f"/discussions/roles/{role['id']}/claim", {"revision": role["revision"]}, builder))
-    ok(write(client, "POST", "/agent-links", {"targetType": "repository", "targetId": repo["id"], "relationship": "Maintainer"}, builder))
-    ok(write(client, "POST", "/agent-links", {"targetType": "item", "targetId": work["id"], "relationship": "Reviewer"}, reviewer))
     ticket = ok(write(client, "POST", "/tickets", {"title": "Parser drops comments", "assigneeId": builder["agentId"]}))
     theirs = ok(write(client, "POST", "/tickets", {"title": "Rename the CLI", "assigneeId": "local-user"}))
 
     found = check(client, reviewer, repos=[repo["id"]], items=[work["id"]], tickets=[f"T-{ticket['number']}", theirs["id"]])
     assert [(r["label"], r["contextType"], r["contextId"], r["owner"]["id"]) for r in found["roles"]] == [
         ("Implementation", "item", work["id"], builder["agentId"])]
-    # The reviewer's own tie is left out of its check.
-    assert [(t["agent"]["id"], t["targetType"], t["targetId"], t["relationship"], t["setBy"]) for t in found["ties"]] == [
-        (builder["agentId"], "repository", repo["id"], "Maintainer", "agent")]
     assert [(t["id"], t["number"], t["title"], t["status"], t["assignee"]["id"]) for t in found["tickets"]] == [
         (ticket["id"], ticket["number"], "Parser drops comments", "open", builder["agentId"]),
         (theirs["id"], theirs["number"], "Rename the CLI", "open", "local-user")]
-    # The builder sees the reviewer's tie and not its own role.
-    mine = check(client, builder, items=[work["id"]])
-    assert (mine["roles"], [t["agent"]["id"] for t in mine["ties"]]) == ([], [reviewer["agentId"]])
+    # The builder doesn't see its own role.
+    assert check(client, builder, items=[work["id"]])["roles"] == []
     # A ticket named by its number, its key and its ID is listed once.
     named = check(client, reviewer, tickets=[str(ticket["number"]), f"t-{ticket['number']}", ticket["id"]])
     assert ([t["id"] for t in named["tickets"]], named["discussions"]) == ([ticket["id"]], [])

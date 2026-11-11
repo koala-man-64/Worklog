@@ -28,8 +28,6 @@ from . import __version__, operations, policy, support
 from . import models as m
 from . import responses as out
 from .active_sessions import running_sessions
-from .agent_link_api import install_agent_link_routes
-from .agent_links import ties_of_agent, visible_history
 from .chat_message_api import install_chat_message_routes
 from .common import (
     FILE_LIMIT,
@@ -50,7 +48,7 @@ from .discussions import bind_credential, communication_actor, registered_by, re
 from .guard import RequestGuard, error_response, read_body
 from .maintenance import prune_receipts
 from .plans import PlanService
-from .proposals import ProposalService, approval_required, open_proposals
+from .proposals import ProposalService, approval_required, open_proposals, visible_history
 from .records import check_owner, people_on, support_record
 from .recovery import automatic_backup, backup_database, list_backups, write_export
 from .registration import (
@@ -650,9 +648,6 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             c.execute("BEGIN")
             current = today(setting(c, "timezone", "America/Chicago"))
             activity = {**coordination.context_summaries(c, item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset),
-                        # What the calling agent is tied to, and its role on each; the person has no ties.
-                        "ties": (ties_of_agent(c, communication_actor(c, actor)["id"], actor) if actor["kind"] == "agent"
-                                 else {"items": [], "total": 0}),
                         "participations": coordination.participations(c, item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset),
                         "updates": coordination.updates(c, item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset),
                         # Open, doing and blocked tickets, so an agent sees known issues before it starts.
@@ -832,7 +827,6 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     install_coordination_routes(app, db, mutate)
     install_chat_message_routes(app, db, mutate)
     install_ticket_routes(app, db, mutate)
-    install_agent_link_routes(app, db, mutate)
     install_resource_routes(app, db, mutate)
     install_discussion_routes(app, db, discussion_mutate)
     install_registration_routes(app, db, support.continue_chats)

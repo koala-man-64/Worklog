@@ -1,10 +1,11 @@
 """The kinds of record other records name, and the query that summarizes each.
 
-Agent ties (agent_links.py, v17) and discussion tags (discussions.py, v22) both name records of many
-kinds by type and id. Each kind's query gives its id, title and archived state, and what a page needs
-to link to it: a step, question or decision opens on its roadmap, and a ticket shows its key. A step
-that is retired, a repository that is merged and an agent whose credentials are all revoked count as
-archived. Each user of these lists its own kinds in its own order.
+Discussion tags (discussions.py, v22) name records of many kinds by type and id, and roles and the
+overlap check name some of the same. Each kind's query gives its id, title and archived state, and
+what a page needs to link to it: a step, question or decision opens on its roadmap, and a ticket shows
+its key. A step that is retired and a repository that is merged count as archived. Each user of these
+lists its own kinds in its own order. Agent ties named three more kinds (discussions, proposals and
+agents) until v29 dropped them.
 """
 
 from __future__ import annotations
@@ -12,7 +13,7 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Iterable
 
-from .common import LIVE_AGENT, rows_in
+from .common import rows_in
 
 SUMMARIES: dict[str, str] = {
     "item": "SELECT id,title,archived,status FROM work_items WHERE id IN ({})",
@@ -23,19 +24,12 @@ SUMMARIES: dict[str, str] = {
                   "FROM repositories WHERE id IN ({})",
     "person": "SELECT id,name AS title,archived FROM people WHERE id IN ({})",
     "resource": "SELECT id,title,archived FROM resources WHERE id IN ({})",
-    "discussion": "SELECT id,title,archived FROM discussions WHERE id IN ({})",
-    # A proposal is never archived; its status says where it got to. actor_id and submitted_at decide
-    # who may see it, and are left out of the summary.
-    "proposal": "SELECT id,title,0 AS archived,status,actor_id,submitted_at FROM proposals WHERE id IN ({})",
     "ticket": "SELECT id,title,archived,status,number FROM tickets WHERE id IN ({})",
-    "agent": f"SELECT a.id,a.label AS title,NOT {LIVE_AGENT} AS archived,a.avatar FROM communication_agents a WHERE a.id IN ({{}})",
     "question": "SELECT q.id,q.title,q.archived,q.status,q.roadmap_id AS roadmapId,r.title AS roadmapTitle "
                 "FROM roadmap_questions q JOIN roadmaps r ON r.id=q.roadmap_id WHERE q.id IN ({})",
     "decision": "SELECT d.id,d.title,d.archived,d.roadmap_id AS roadmapId,r.title AS roadmapTitle "
                 "FROM roadmap_decisions d JOIN roadmaps r ON r.id=d.roadmap_id WHERE d.id IN ({})",
 }
-# Columns a summary query reads but never shows.
-HIDDEN = frozenset({"actor_id", "submitted_at"})
 
 
 def rows(c: sqlite3.Connection, kind: str, ids: Iterable[str]) -> list[sqlite3.Row]:
@@ -45,7 +39,7 @@ def rows(c: sqlite3.Connection, kind: str, ids: Iterable[str]) -> list[sqlite3.R
 
 
 def summary(row: sqlite3.Row) -> dict:
-    """A summary row as a record shows it: its hidden columns left out, and archived a boolean."""
-    record = {key: row[key] for key in row.keys() if key not in HIDDEN}
+    """A summary row as a record shows it, archived a boolean."""
+    record = {key: row[key] for key in row.keys()}
     record["archived"] = bool(record["archived"])
     return record

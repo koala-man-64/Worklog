@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { commands } from "./commands";
 import { useCommand, useData, useWrites } from "./hooks";
-import { AgentTies } from "./AgentTies";
 import { ChangeHistory } from "./sections/History";
 import { DraftField } from "./ui/DraftField";
 import { Markdown } from "./ui/Markdown";
@@ -526,7 +525,6 @@ function TicketView({ id }: { id: string }) {
           />
         )}
       </section>
-      <AgentTies targetType="ticket" targetId={ticket.id} headingLevel={2} />
       <Comments ticket={ticket} />
       <ChangeHistory id={ticket.id} changes={ticket.history.length} />
     </>
