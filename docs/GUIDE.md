@@ -5,7 +5,6 @@ Worklog is a personal workbench that runs entirely on your own machine. It keeps
 - your plan for each day and what you actually did;
 - a backlog of work with its notes, files and links;
 - tickets for issues;
-- reminders for a day, or a time on it;
 - roadmaps for bigger efforts;
 - the people involved;
 - reference pages you write for yourself and your agents.
@@ -35,10 +34,9 @@ The sidebar groups these pages into four sections, in this order:
 
 | Section | Page | What it is for |
 |---|---|---|
-| Plan | Today | Plan a day, record what you worked on, reflect |
+| Plan | Today | Plan a day and record what you worked on |
 | Plan | Work | Every work item, the backlog, and each item's page |
 | Plan | Tickets | Issues you and your agents file, work and close |
-| Plan | Reminders | What to come back to on a day, or at a time on it, set by you or your agents |
 | Plan | Roadmaps | Bigger efforts broken into steps, with versions |
 | Plan | Releases | What ships together and when, who needs to know, what to test and what to prepare first |
 | Directory | Repositories | The code repositories you and your agents work in |
@@ -71,14 +69,14 @@ The field shows "Conflict: draft kept. Reload to compare." beside the saved valu
 
 Nothing is deleted. Archived records leave the lists, and their pages show what happened to them:
 
-- Work items, tickets, reminders, roadmaps, releases, people, repositories and resources have "Archive" and "Recover" on their page or row.
+- Work items, tickets, roadmaps, releases, people, repositories and resources have "Archive" and "Recover" on their page or row.
 - Lists have "Show archive" to show only archived records.
 - On a work item, roadmap or repository, archived notes, links and files are under "Archived supporting records", each with "Recover". So are a release's archived checks.
-- An archived roadmap, ticket, reminder, resource or release is read-only until you recover it.
+- An archived roadmap, ticket, resource or release is read-only until you recover it.
 
 ### Activity history
 
-Work items, roadmaps, people, tickets, reminders, resources and releases keep an "Activity history" at the bottom of their page. Every change is listed with who made it, including changes applied from an agent's proposal. Each entry is the raw record of the change. A release's also lists the changes to its checks.
+Work items, roadmaps, people, tickets, resources and releases keep an "Activity history" at the bottom of their page. Every change is listed with who made it, including changes applied from an agent's proposal. Each entry is the raw record of the change. A release's also lists the changes to its checks.
 
 Work items and roadmaps also keep "Applied proposals" just above it. It lists every proposal applied to the record, the latest first, each numbered in the order it was applied. A row names the agent that proposed it, when it was applied, and which of its changes were made here, by their numbers on Review. Its title opens the proposal on Review.
 
@@ -90,7 +88,7 @@ The box at the top of every page ("Search your work…") searches:
 - work items, notes, file names, links and tracked agent chats
 - GitHub references, roadmaps and steps, questions and decisions
 - people, discussions, tickets and ticket comments
-- resources and reminders
+- resources
 - releases and their checks
 
 Tick "Search archived records" to search the archive instead. Agent proposals are not searched: find them on Review. Clearing the box returns you to the page you were on.
@@ -108,7 +106,6 @@ Agents act with credentials you issue in Settings (see [Bring an AI agent in](#b
 - talk in Discussions
 - file and work tickets
 - tie themselves to the records they work on, with their role there, and change or remove the ties they set
-- set reminders for you, and snooze or complete them
 - receive the messages you write into their chat
 
 They never change your work items, days, roadmaps, people, repositories or resources directly, nor attach files to them. They propose those changes, and you approve or reject each proposal on Review. You can turn approval off in Settings; then a proposal applies as soon as its agent submits it. A proposal can also file or change tickets beside the work it creates. They propose changes to releases too: a release, what it holds and its checks. Only you archive or recover one.
@@ -214,15 +211,6 @@ Below these come the item's "Daily record" (every day it was planned or worked),
 The list shows open, doing and blocked tickets, most urgent first. Filter it by text (which also searches comments and resolutions), status, kind, priority, label, repository and assignee. "Recent activity first" sorts by latest activity instead. Closed tickets stay searchable, so the next agent can find what fixed an issue last time.
 
 A ticket filed from the browser starts open. An agent can file a past incident already Done.
-
-### Set a reminder
-
-1. Open **Reminders**. Type what to come back to into "New reminder". "New reminder date" starts at today; add a "New reminder time" if a time matters, or leave it empty for all day. Press "Add reminder".
-2. To set one about a work item, ticket, roadmap, person, repository or tracked chat, use "Add reminder" in the "Reminders" section of that record's page. The reminder links back to the record, and the record's page lists it while it is open.
-3. Once a reminder is due, from the start of its day or at its time, it shows on **Today** and as a count beside Reminders in the sidebar. Overdue ones say so.
-4. When you are done with it, press "Mark done". Not yet? "Snooze 1 hour" or "Snooze to tomorrow", or change its "Date" and "Time" on its page. "All day" drops its time.
-
-Your agents can set reminders for you too, for example to merge once a pull request's checks pass. Their reminders say "Set by" and the agent's name. Reminders follow the timezone in Settings, and nothing repeats: add another one to come back again. Only you archive a reminder.
 
 ### Plan a larger effort as a roadmap
 
@@ -432,7 +420,6 @@ Plan the day and record what you worked on.
 
 - **The header:** "Working day", the date this page shows.
 - **Adding work:** "New work item", "Capture mode" ("Plan work" or "Log work already performed") and "Add work".
-- **"Reminders":** shown when there are any. On today, every open reminder due by the end of the day, overdue ones first; on another day, those due that day. Each has "Mark done", and "Snooze to tomorrow" once it is due.
 - **"The day’s work":**
   - Each entry is numbered, shows its item's stack rank, and collapses to its title row.
   - Each has a drag grip, "Reschedule", "Remove from today", "Planned", "Worked on" and a status menu.
@@ -450,7 +437,7 @@ Capture work once and keep each item's next action current.
   - "New work item" and "Add work".
   - The filters: text, repository, "Work view", "Show archive", the status buttons and "Filter by person".
   - Each row shows the item's stack rank, status, title, people, repositories and the start of its description, with the up and down buttons and "Archive" or "Recover".
-- **An item's page:** see [Keep notes, links and files on a work item](#keep-notes-links-and-files-on-a-work-item). Its "Reminders" lists the open reminders about it, with "Add reminder". "All work" returns to the list.
+- **An item's page:** see [Keep notes, links and files on a work item](#keep-notes-links-and-files-on-a-work-item). "All work" returns to the list.
 
 ### Tickets
 
@@ -463,24 +450,7 @@ Issues you and your agents file, work on and close, kept as history.
 - **A ticket's page:**
   - The key and title, the status, "Archive ticket" or "Recover ticket", and who filed it.
   - "Kind", "Priority", "Assignee", "Title", "Description" and "Resolution (needed to mark Done)".
-  - "Labels", "Repositories", the linked work item, "Agents", "Comments", "Reminders" and "Activity history".
-
-### Reminders
-
-What to come back to on a day, or at a time on it, set by you or your agents.
-
-- **The list:**
-  - "New reminder", "New reminder date", "New reminder time" and "Add reminder".
-  - "Show reminders": "Open" (the default, by when each comes due), "Due", "Done" or "All". "Find reminders" also searches notes, and "Show archive" lists the archived ones.
-  - Each row says when the reminder is due ("Overdue" once its day has passed), the record it is about, and which agent set it. The first reminder opens beside the list.
-- **A reminder's page:**
-  - Its title, "Mark done" or "Reopen", and "Archive" or "Recover".
-  - Whether it is "Due now", "Overdue" or "Coming up", and when. Once it is due: "Snooze 1 hour" and "Snooze to tomorrow".
-  - "Date" and "Time", which save when you leave the field, and "All day" to drop the time.
-  - The record it is about, with "Unlink", then "Title", "Notes (Markdown)", who set it and when, and "Activity history".
-- **Addresses.** A reminder has its own address, such as `#reminders/ID`.
-
-See [Set a reminder](#set-a-reminder).
+  - "Labels", "Repositories", the linked work item, "Agents", "Comments" and "Activity history".
 
 ### Roadmaps
 
@@ -503,7 +473,7 @@ Plans broken into steps, with every saved version kept.
       - The overview text and people, "Questions", "Decisions" and "Sub-roadmaps".
       - "Work items": "Add work item" creates one on the roadmap, and "Attach work item" links existing work.
       - Notes, links, agent chats, GitHub references, releases and files.
-      - "Immutable versions", "Retired steps", "Archived supporting records", "Reminders", "Applied proposals" and "Activity history".
+      - "Immutable versions", "Retired steps", "Archived supporting records", "Applied proposals" and "Activity history".
     - **A step**, chosen in the outline:
       - Its description, with "Edit step" for its title and description, its work items and releases.
       - Its agent chats, with "Assign chat", "Add chat to step" and "Unassign".
@@ -541,7 +511,6 @@ The repositories you and your agents work in.
   - "People" ("Tie person"): who is tied to it, with their role.
   - "Agents" ("Tie agent"): the agents tied to it, with their role.
   - "Files" ("Attach a file"), with archived files under "Archived supporting records".
-  - "Reminders" ("Add reminder"): its open reminders. Merging moves them to the repository it is merged into.
   - "Participants" and "Recent updates": who works there, on which branch, checkout or worktree, and what they reported.
 - **Reports are advisory.** They reserve nothing, and show "Stale report" after two hours without news.
 
@@ -550,7 +519,7 @@ The repositories you and your agents work in.
 The people involved in your work.
 
 - **The list** has "Person name", "Person title", "Person team", "Add person", "Filter people by text" and "Show archive". Each row shows a person's title and team, how many work items, roadmaps and repositories they are tied to, their description and how to reach them.
-- **A person's page** has "Name", "Title", "Team", "Email", "Phone", "Chat", "Location or time zone", "Description" and "Notes (Markdown)". Below them come the work items, roadmaps and repositories they are tied to, each with a role and "Unlink", with "Tie work item", "Tie roadmap" and "Tie repository", then "Reminders" and "Activity history".
+- **A person's page** has "Name", "Title", "Team", "Email", "Phone", "Chat", "Location or time zone", "Description" and "Notes (Markdown)". Below them come the work items, roadmaps and repositories they are tied to, each with a role and "Unlink", with "Tie work item", "Tie roadmap" and "Tie repository", then "Activity history".
 
 See [Keep people and tie them to work](#keep-people-and-tie-them-to-work).
 
@@ -584,7 +553,7 @@ Apart from its ties, the page only shows what agents reported; a fresh report do
 
 ### Chats
 
-The agent chats you track, and who is working on what. The left side lists the chats, with "Show archive" and "Show activity by". Above them, "Running on this machine" offers the Claude Code sessions running now that nothing tracks yet, to tie to a work item, roadmap or agent. The right side, "Chat history", shows a chat's "Agents", its transcript, "Message this chat’s agents" (see [Follow a chat and message its agents](#follow-a-chat-and-message-its-agents)) and its "Reminders". The most recently active chat opens first. Codex keeps most messages between its agents encrypted, so Chats labels those instead of showing them blank.
+The agent chats you track, and who is working on what. The left side lists the chats, with "Show archive" and "Show activity by". Above them, "Running on this machine" offers the Claude Code sessions running now that nothing tracks yet, to tie to a work item, roadmap or agent. The right side, "Chat history", shows a chat's "Agents", its transcript and "Message this chat’s agents" (see [Follow a chat and message its agents](#follow-a-chat-and-message-its-agents)). The most recently active chat opens first. Codex keeps most messages between its agents encrypted, so Chats labels those instead of showing them blank.
 
 ### Discussions
 
@@ -630,7 +599,7 @@ This guide, and the one your agents read:
 ### Sidebar and header
 
 - **Navigation.**
-  - The sidebar links to every page. Beside Reminders, a count says how many reminders are due.
+  - The sidebar links to every page.
   - Under Roadmaps, it shows your roadmaps as a tree; "Collapse roadmaps" and "Expand roadmaps" fold it.
   - Drag the sidebar's edge to resize it; double-click the edge to reset it.
 - **The header** shows the day and the page, and holds the search box.

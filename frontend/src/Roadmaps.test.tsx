@@ -421,8 +421,7 @@ it("adds, attaches, reassigns, and unlinks work items on a roadmap", async () =>
         url.includes("/roadmaps?") ||
         url.includes("/agent-links?") ||
         url.includes("/discussions/participants") ||
-        url.includes("/releases?") ||
-        url.includes("/reminders?"))
+        url.includes("/releases?"))
     )
       return new Response(JSON.stringify({ items: [], total: 0 }), {
         status: 200,

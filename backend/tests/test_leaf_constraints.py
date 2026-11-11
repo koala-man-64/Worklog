@@ -113,9 +113,9 @@ def test_the_v23_upgrade_keeps_every_row_and_rowid_and_gives_the_sealed_shape(tm
     Database(database).initialize()
     version, signature, after = contents(database)
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
-    # Every row stays; v25 and v26, which the upgrade also runs, drop the plan import and task tables,
-    # empty here.
-    assert after == {table: rows for table, rows in records.items() if table not in ("plan_imports", "tasks")}
+    # Every row stays; v25, v26 and v27, which the upgrade also runs, drop the plan import, task and
+    # reminder tables, empty here.
+    assert after == {table: rows for table, rows in records.items() if table not in ("plan_imports", "tasks", "reminders")}
     assert leaves(database) == before
     snapshot, = (tmp_path / "data" / "backups").glob("worklog-pre-migration-*.sqlite3")
     with closing(sqlite3.connect(snapshot)) as conn:

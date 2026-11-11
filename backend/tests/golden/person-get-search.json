@@ -31,24 +31,15 @@
       },
       {
         "id": "<id5>",
-        "type": "reminder",
-        "title": "Check the parser",
-        "snippet": "",
+        "type": "item",
+        "title": "Parser",
+        "snippet": "Parse the plan",
         "ownerId": "<id5>",
-        "routeType": "reminders",
+        "routeType": "work",
         "routeId": "<id5>"
       },
       {
         "id": "<id6>",
-        "type": "item",
-        "title": "Parser",
-        "snippet": "Parse the plan",
-        "ownerId": "<id6>",
-        "routeType": "work",
-        "routeId": "<id6>"
-      },
-      {
-        "id": "<id7>",
         "type": "discussion_message",
         "title": "Parser",
         "snippet": "Where do we start?",
@@ -57,7 +48,7 @@
         "routeId": "<id1>"
       },
       {
-        "id": "<id8>",
+        "id": "<id7>",
         "type": "discussion_message",
         "title": "Parser",
         "snippet": "Starting with the tables",
@@ -66,7 +57,7 @@
         "routeId": "<id1>"
       },
       {
-        "id": "<id9>",
+        "id": "<id8>",
         "type": "discussion_message",
         "title": "Parser",
         "snippet": "Confirm the table plan",
@@ -75,15 +66,15 @@
         "routeId": "<id1>"
       },
       {
-        "id": "<id10>",
+        "id": "<id9>",
         "type": "ticket",
         "title": "T-1 Crash on save",
         "snippet": "bug parser",
-        "ownerId": "<id10>",
+        "ownerId": "<id9>",
         "routeType": "tickets",
-        "routeId": "<id10>"
+        "routeId": "<id9>"
       }
     ],
-    "total": 9
+    "total": 8
   }
 }

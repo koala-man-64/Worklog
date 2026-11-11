@@ -115,11 +115,13 @@ Done as schema v26 (`migrations.drop_tasks`): the work items stay, and so does a
 
 #### 0.4 · Remove Reminders
 
-Status: Not started
+Status: Merged · Branch: `claude/remove-reminders` · PR: [#186](https://github.com/koala-man-64/Worklog/pull/186)
 
 The Reminders page and its count in the sidebar, "Reminders" on Today and on each record's page (`RecordReminders`), `reminders.py` and `reminder_api.py`, the agent's `reminders` commands, reminders in search, and the `reminders` table. The files it owns hold about 2,600 lines. This changes what agents can call, and retires K14.
 
 Why: no reminder was ever set, by the person or an agent.
+
+Done as schema v27 (`migrations.drop_reminders`): the table goes with its two indexes, and so do the reminders' rows in the search index, which global search would otherwise still return. The records a reminder named stay, and so does a reminder's history. Search, the usage page list, the doctor, a repository merge and the agent client no longer know reminders, and the agent scope `agent:remind` is gone. `test_reminder_removal.py` pins the upgrade, the way back, the routes' 404s and the agent command line; the v20 test keeps its way back, and the older upgrade tests say that v27 drops the table.
 
 #### 0.5 · Remove Releases
 

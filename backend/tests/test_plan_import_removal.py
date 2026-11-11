@@ -65,8 +65,8 @@ def test_the_upgrade_drops_the_imports_and_changes_no_other_record(tmp_path):
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
     assert "plan_imports" not in after
     # Every other table keeps every row, events included; the roadmap an import made is an ordinary
-    # roadmap. v26, which the upgrade also runs, drops the tasks table, empty here.
-    assert after == {table: rows for table, rows in before.items() if table not in ("plan_imports", "tasks")}
+    # roadmap. v26 and v27, which the upgrade also runs, drop the task and reminder tables, empty here.
+    assert after == {table: rows for table, rows in before.items() if table not in ("plan_imports", "tasks", "reminders")}
     assert [row[0] for row in after["roadmaps"]] == [roadmap]
     assert [row[2] for row in after["events"] if row[0] == "import-event"] == ["import.reference"]
     # The pre-migration backup holds the database as v24 had it, imports included.

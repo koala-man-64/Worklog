@@ -24,7 +24,7 @@ ORDER = [
     # Roadmaps, then the database, which opens, upgrades and validates the file.
     "plans", "db",
     # Records that stand on their own, and the agent identities that discussions and chats share.
-    "resources", "tickets", "reminders", "discussions", "chat_messages",
+    "resources", "tickets", "discussions", "chat_messages",
     # Agent runs and participations with the repository catalog, then agent registration.
     "coordination", "registration", "registry",
     # Schema history, proposals, then backup and restore, offline compaction and the read-only doctor.
@@ -35,7 +35,7 @@ ORDER = [
     # HTTP: the routes of each domain, the request guard in front of them all, the usage counts kept
     # inside it, and the app.
     "agent_link_api", "chat_message_api", "coordination_api", "discussion_api", "registry_api", "release_api",
-    "reminder_api", "resource_api", "ticket_api", "guard", "usage", "app",
+    "resource_api", "ticket_api", "guard", "usage", "app",
     # The command line.
     "cli",
 ]

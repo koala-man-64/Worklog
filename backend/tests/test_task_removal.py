@@ -7,7 +7,6 @@ import json
 import sqlite3
 import uuid
 from contextlib import closing
-from pathlib import Path
 
 import sealed
 from test_chat_label_links import call, session
@@ -16,8 +15,9 @@ from worklog import migrations, recovery
 from worklog.compaction import compact_database
 from worklog.db import Database
 
-# docs/UPGRADING.md: from version 26 to version 25, with Worklog stopped and after a manual backup.
-# The table and its index as version 25 had them.
+# From version 26 to version 25, with Worklog stopped and after a manual backup: the table and its
+# index as version 25 had them. docs/UPGRADING.md gave this way back while version 26 was the latest;
+# older upgrade tests now build their databases with it.
 WAY_BACK = """\
 CREATE TABLE tasks(id TEXT PRIMARY KEY,item_id TEXT NOT NULL REFERENCES work_items(id),text TEXT NOT NULL,done INTEGER NOT NULL DEFAULT 0 CHECK(done IN(0,1)),archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,position INTEGER NOT NULL DEFAULT 0 CHECK(position>=0));
 CREATE INDEX tasks_item ON tasks(item_id,archived);
@@ -28,7 +28,10 @@ DAY = "2026-11-04"
 
 
 def to_v25(path):
-    """Take a current database back to v25 the documented way."""
+    """Take a current database back to v25 the documented way: to version 26 first."""
+    from test_reminder_removal import to_v26
+
+    to_v26(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK)
 
@@ -62,8 +65,9 @@ def test_the_upgrade_drops_every_task_and_changes_no_other_record(tmp_path):
     version, signature, after = contents(database)
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
     assert "tasks" not in after and len(before["tasks"]) == 2
-    # Every other table keeps every row, the work item and the task's history among them.
-    assert after == {table: rows for table, rows in before.items() if table != "tasks"}
+    # Every other table keeps every row, the work item and the task's history among them; v27, which
+    # the upgrade also runs, drops the reminders table, empty here.
+    assert after == {table: rows for table, rows in before.items() if table not in ("tasks", "reminders")}
     assert [row[2] for row in after["events"] if row[0] == "task-event"] == ["task.create"]
     snapshot, = (tmp_path / "data" / "backups").glob("worklog-pre-migration-*.sqlite3")
     with closing(sqlite3.connect(snapshot)) as conn:
@@ -82,8 +86,6 @@ def test_the_way_back_gives_v25s_exact_shape_and_upgrades_again(tmp_path):
     with closing(sqlite3.connect(database)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
         assert recovery._schema_signature(conn) == sealed.current()
-    # The SQL tested here is the SQL docs/UPGRADING.md gives the person.
-    assert "```sql\n" + WAY_BACK + "```" in (Path(__file__).resolve().parents[2] / "docs" / "UPGRADING.md").read_text(encoding="utf-8")
 
 
 def test_a_work_item_lists_no_tasks_and_the_routes_are_gone(tmp_path):

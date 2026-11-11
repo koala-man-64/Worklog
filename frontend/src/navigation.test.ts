@@ -12,7 +12,6 @@ it("groups every page once, in K7's sections and sidebar order", () => {
     "today",
     "work",
     "tickets",
-    "reminders",
     "roadmaps",
     "releases",
     "repositories",

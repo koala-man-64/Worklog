@@ -256,9 +256,6 @@ def repository_merge(c: sqlite3.Connection, actor: dict, identity: str, p: dict)
     c.execute("UPDATE OR IGNORE agent_links SET target_id=? WHERE target_type='repository' AND target_id=?",
               (survivor["id"], source["id"]))
     c.execute("DELETE FROM agent_links WHERE target_type='repository' AND target_id=?", (source["id"],))
-    # Reminders about it name the survivor, archived ones included.
-    moved["reminders"] = c.execute("UPDATE reminders SET target_id=? WHERE target_type='repository' AND target_id=?",
-                                   (survivor["id"], source["id"])).rowcount
     # Discussions tagged with it are tagged with the survivor, its own discussion among them.
     moved["discussions"] = DiscussionService.move_repository_tags(c, source["id"], survivor["id"])
     # Attached files follow too, archived ones included, so none stay on a record that takes no changes.

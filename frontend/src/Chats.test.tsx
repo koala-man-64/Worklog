@@ -201,15 +201,12 @@ function serve(
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
     const url = String(input);
     urls.push(url);
-    // An open chat also asks who a message to it would reach and which reminders name it, and the
-    // list what runs untracked.
+    // An open chat also asks who a message to it would reach, and the list what runs untracked.
     const body = /\/chats\/[^/]+\/messages/.test(url)
       ? noMessages
       : url.includes("/claude-sessions")
         ? { items: running }
-        : url.includes("/api/v1/reminders?")
-          ? { items: [], total: 0, limit: 50, offset: 0 }
-          : respond(url);
+        : respond(url);
     return new Response(JSON.stringify(body), { status: 200 });
   });
   render(
