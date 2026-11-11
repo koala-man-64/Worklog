@@ -96,7 +96,7 @@ def records(c):
 def test_every_list_of_tag_kinds_agrees():
     assert discussions.TAG_KINDS == get_args(discussion_models.ContextType) == cli.DISCUSSION_TAG_KINDS
     assert discussions.ROLE_KINDS == get_args(discussion_models.RoleContextType) == cli.ROLE_CONTEXT_KINDS
-    # Both tag CHECKs allow every kind, and 'release', which v28 retired (decision R5).
+    # Both tag CHECKs allow every kind, and 'release', which v28 retired (decision R6).
     for table in (migrations.DISCUSSION_CONTEXTS_TABLE, migrations.DISCUSSION_CHANGE_CONTEXTS_TABLE):
         allowed = re.search(r"CHECK\(context_type IN\(([^)]*)\)\)", table).group(1)
         assert {kind.strip("'") for kind in allowed.split(",")} == {*discussions.TAG_KINDS,

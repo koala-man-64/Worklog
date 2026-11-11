@@ -92,7 +92,7 @@ CREATE INDEX discussions_updated ON discussions(archived,updated_at,id);
 -- A discussion's tags: the records it is about, who added each and when. A repository's own
 -- discussion is the one whose tag of it is home. 'release' stays in the CHECKs of this table and of
 -- discussion_change_contexts, though no release tag can be written since v28 dropped releases
--- (decision R5 in docs/ROADMAPS-RETHINK.md).
+-- (decision R6 in docs/ROADMAPS-RETHINK.md).
 CREATE TABLE discussion_contexts(discussion_id TEXT NOT NULL REFERENCES discussions(id),context_type TEXT NOT NULL CHECK(context_type IN('item','roadmap','step','repository','ticket','release','person','resource','question','decision')),context_id TEXT NOT NULL,home INTEGER NOT NULL DEFAULT 0 CHECK(home IN(0,1)),added_by TEXT NOT NULL,added_by_kind TEXT NOT NULL CHECK(added_by_kind IN('agent','human')),created_at TEXT NOT NULL,PRIMARY KEY(discussion_id,context_type,context_id),CHECK(home=0 OR context_type='repository'));
 CREATE INDEX discussion_contexts_context ON discussion_contexts(context_type,context_id,discussion_id);
 CREATE UNIQUE INDEX discussion_contexts_home ON discussion_contexts(context_type,context_id) WHERE home=1;

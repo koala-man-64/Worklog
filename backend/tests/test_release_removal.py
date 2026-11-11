@@ -2,7 +2,7 @@
 proposal operations and agent commands are gone, search finds none and a discussion can't be tagged
 with one. The upgrade drops the releases, release_contents and release_checks tables, every row and
 search row of them, and every release tag with the feed's record of it, and changes no other record.
-The two tag CHECKs keep 'release' (decision R5). The pre-migration backup keeps the tables, and the
+The two tag CHECKs keep 'release' (decision R6). The pre-migration backup keeps the tables, and the
 documented way back gives v27's exact shape."""
 
 import io
@@ -192,7 +192,7 @@ def test_the_agent_command_line_has_no_releases(capsys):
 
 
 def test_a_release_tag_written_since_is_left_out_of_reads_and_reported_by_the_doctor(tmp_path):
-    # Decision R5: the tag CHECK still allows 'release', so one can be written behind Worklog's back.
+    # Decision R6: the tag CHECK still allows 'release', so one can be written behind Worklog's back.
     # The discussion still reads, with its other tags, and the doctor finds the stray one.
     database, ids = worked(tmp_path / "data")
     with closing(sqlite3.connect(database)) as conn:

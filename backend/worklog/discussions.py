@@ -364,7 +364,7 @@ class DiscussionService:
         for ctx in sorted(contexts, key=lambda ctx: (order.get(ctx["type"], len(order)), ctx["id"])):
             if ctx["type"] not in order:
                 # A kind Worklog no longer takes, such as a release tag written behind its back since v28
-                # dropped releases (decision R5): reads leave it out, and `worklog doctor` reports it.
+                # dropped releases (decision R6): reads leave it out, and `worklog doctor` reports it.
                 continue
             key = (ctx["type"], ctx["id"])
             tag, details = tags.get(key), {k: v for k, v in records.get(key, {}).items() if k != "id"}

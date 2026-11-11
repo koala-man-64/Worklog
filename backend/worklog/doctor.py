@@ -53,7 +53,7 @@ REFERENCES = [
      ("item", "roadmap", "step", "repository", "person", "resource", "discussion", "proposal", "ticket", "agent",
       "question", "decision")),
 ]
-# Kinds a table's CHECK still allows that Worklog no longer takes (decision R5 in docs/ROADMAPS-RETHINK.md):
+# Kinds a table's CHECK still allows that Worklog no longer takes (decision R6 in docs/ROADMAPS-RETHINK.md):
 # v28 removed every release tag with the releases. Discussion reads leave out one written since, and the
 # doctor reports it as a type its table never takes.
 RETIRED = {"discussion_contexts": ("release",)}

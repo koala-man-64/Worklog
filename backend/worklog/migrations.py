@@ -873,7 +873,7 @@ def drop_releases(conn: sqlite3.Connection) -> None:
     """Drop Releases (v28, step 0.5 of docs/ROADMAPS-RETHINK.md): the releases, release_contents and
     release_checks tables with their indexes and every row in them, the search rows of releases and
     their checks, and every discussion tag of a release with the feed's record of it. The two tag
-    CHECKs keep 'release' (decision R5), so no table is rebuilt. The records a release held stay, and
+    CHECKs keep 'release' (decision R6), so no table is rebuilt. The records a release held stay, and
     so do GitHub references and the events a release wrote. The pre-migration backup keeps the
     tables as they were."""
     conn.execute("DELETE FROM discussion_change_contexts WHERE context_type='release'")

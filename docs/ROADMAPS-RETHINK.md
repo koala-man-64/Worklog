@@ -127,13 +127,13 @@ Done as schema v27 (`migrations.drop_reminders`): the table goes with its two in
 
 #### 0.5 · Remove Releases
 
-Status: Merged · Branch: `claude/remove-releases` · PR: [#188](https://github.com/koala-man-64/Worklog/pull/188)
+Status: Merged · Branch: `claude/remove-releases` · PR: [#189](https://github.com/koala-man-64/Worklog/pull/189)
 
 The Releases page, "Add to release" and the "Releases" sections on work items, roadmaps and steps, release checks, `releases.py` and `release_api.py`, the `release.*` proposal operations, a release as a discussion tag (no discussion has one), releases in search, and the `releases`, `release_contents` and `release_checks` tables. The files it owns hold about 3,200 lines. GitHub references stay; only the release's "Changes" view, which gathered them, goes. This changes what agents can call.
 
 Why: no release was ever made.
 
-Done as schema v28 (`migrations.drop_releases`): the three tables go with their indexes, and so do the search rows of releases and their checks and every discussion tag of a release, with the feed's record of it. The tag CHECKs keep `release` (R5). The work items, roadmaps, steps and GitHub references a release held stay, and so does a release's history. The `release.*` and `check.*` proposal operations, the agent's `releases` commands, the work context's `releases`, and releases in search and as a tag kind are gone, which changes what agents can read and call. `test_release_removal.py` pins the upgrade, the way back, the routes' 404s, every refused input, the agent command line and the doctor's report of a release tag; the v19 test keeps its way back, and the older upgrade tests say that v28 drops the tables.
+Done as schema v28 (`migrations.drop_releases`): the three tables go with their indexes, and so do the search rows of releases and their checks and every discussion tag of a release, with the feed's record of it. The tag CHECKs keep `release` (R6). The work items, roadmaps, steps and GitHub references a release held stay, and so does a release's history. The `release.*` and `check.*` proposal operations, the agent's `releases` commands, the work context's `releases`, and releases in search and as a tag kind are gone, which changes what agents can read and call. `test_release_removal.py` pins the upgrade, the way back, the routes' 404s, every refused input, the agent command line and the doctor's report of a release tag; the v19 test keeps its way back, and the older upgrade tests say that v28 drops the tables.
 
 #### 0.6 · Remove agent ties
 
