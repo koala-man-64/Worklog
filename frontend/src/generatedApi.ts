@@ -7045,6 +7045,7 @@ export interface components {
         RoadmapAgents: {
             /** Items */
             items: components["schemas"]["RoadmapWorker"][];
+            roster: components["schemas"]["RoadmapRoster"];
         };
         /** RoadmapCreate */
         RoadmapCreate: {
@@ -7130,6 +7131,13 @@ export interface components {
              * @default
              */
             note: string;
+        };
+        /** RoadmapRoster */
+        RoadmapRoster: {
+            /** Items */
+            items: components["schemas"]["RosterAgent"][];
+            /** Total */
+            total: number;
         };
         /**
          * RoadmapSnapshot
@@ -7335,6 +7343,42 @@ export interface components {
         RoleRevision: {
             /** Revision */
             revision: number;
+        };
+        /**
+         * RosterAgent
+         * @description An agent whose work ties it to the roadmap, now or before: one whose card names the roadmap.
+         */
+        RosterAgent: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Avatar */
+            avatar: string | null;
+            /** Active */
+            active: boolean;
+            /** Via */
+            via: ("participation" | "role" | "update" | "message" | "run" | "confirmed" | "chat")[];
+            /** Current */
+            current: boolean;
+            /** Lastat */
+            lastAt: string | null;
+            /** Steps */
+            steps: components["schemas"]["RosterStep"][];
+        };
+        /**
+         * RosterStep
+         * @description A step still in the plan that an agent's work ties it to, with why and when.
+         */
+        RosterStep: {
+            /** Stepid */
+            stepId: string;
+            /** Via */
+            via: ("participation" | "role" | "update" | "message" | "run" | "confirmed" | "chat")[];
+            /** Current */
+            current: boolean;
+            /** Lastat */
+            lastAt: string | null;
         };
         /** RunCreate */
         RunCreate: {

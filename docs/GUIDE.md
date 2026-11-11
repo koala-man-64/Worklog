@@ -272,7 +272,7 @@ Search finds a person by their name or any of their other fields. Agents you giv
 
 A tie says what an agent is tied to and its role there, such as Maintainer of a repository or Reviewer of a work item. An agent reads its ties with its context, so a tie tells it what is its to look after.
 
-1. Tie from the record. A work item, roadmap, step, repository, person, proposal or ticket has an "Agents" section; a resource and a discussion have it as a fold under their content, and a roadmap's questions and decisions each have one. A tracked chat's agents are the ones bound to it: "Tie agent" under its title on **Chats** confirms one there, which also brings it your messages (see [Follow a chat and message its agents](#follow-a-chat-and-message-its-agents)). Pick the agent in "Choose agent", type its role in "Agent's role" if you like, and press "Tie agent". The list offers agents with a live credential that are not tied there yet.
+1. Tie from the record. A work item, repository, person, proposal or ticket has an "Agents" section; a resource and a discussion have it as a fold under their content, and a roadmap's questions and decisions each have one. A roadmap and its steps list their agents from the agents' own work instead, with no tying by hand (see [Roadmaps](#roadmaps)), so a tie to a roadmap or a step shows only on the agent's page. A tracked chat's agents are the ones bound to it: "Tie agent" under its title on **Chats** confirms one there, which also brings it your messages (see [Follow a chat and message its agents](#follow-a-chat-and-message-its-agents)). Pick the agent in "Choose agent", type its role in "Agent's role" if you like, and press "Tie agent". The list offers agents with a live credential that are not tied there yet.
 2. Or tie from the agent. On its page under "Tied to", pick a kind of record in "Type of record to tie", type its role in "Role on the record", press "Tie to a record" and pick a match. Records you can search for, such as steps, questions, decisions and discussions, need a few letters first.
 3. Change a role in its row; it saves when you leave the field. "Unlink" removes a tie.
 
@@ -470,13 +470,15 @@ Plans broken into steps, with every saved version kept.
     - Drag the outline's edge to resize it.
   - **The detail pane** shows one of three views:
     - **The overview:**
-      - The overview text and people, "Questions", "Decisions" and "Sub-roadmaps".
+      - The overview text and people, "Agents", "Questions", "Decisions" and "Sub-roadmaps".
+      - "Agents" lists every agent whose work ties it to the roadmap, now or before: its reported work, status updates, responsibilities, discussion messages and tracked chats, the same work that names the roadmap on its card on **Agents**. Each row says why, with "Current" while something is still open and otherwise when it last was. Agents whose credentials are revoked sit under "Retired agents". Nobody ties them here by hand.
       - "Work items": "Add work item" creates one on the roadmap, and "Attach work item" links existing work.
       - Notes, links, agent chats, GitHub references, releases and files.
       - "Immutable versions", "Retired steps", "Archived supporting records", "Applied proposals" and "Activity history".
     - **A step**, chosen in the outline:
       - Its description, with "Edit step" for its title and description, its work items and releases.
       - Its agent chats, with "Assign chat", "Add chat to step" and "Unassign".
+      - "Agents": the agents whose work ties them to the step or to the steps under it, as the overview lists them.
       - Its notes and files, and "Step history".
     - **"Edit roadmap structure"**: the editor.
 

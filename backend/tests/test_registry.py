@@ -293,6 +293,105 @@ def test_agents_that_finished_and_the_chats_they_reported_leave_the_roadmap(clie
     assert placed(workers()["Reviewer"]) == {(api, "role", None, None, "Review", False)}
 
 
+def test_a_roadmap_lists_every_agent_its_work_ever_tied_to_it_as_their_cards_do(client):
+    """The roster outlives the work: finished, archived and revoked work stays. It holds exactly the
+    agents whose cards name the roadmap, with the same reasons, and places each on the steps still
+    in the plan that its work touched."""
+    delivery, api, web, old, far = (str(uuid.uuid4()) for _ in range(5))
+    steps = [{"id": delivery, "title": "Delivery"}, {"id": api, "title": "API", "parentId": delivery}, {"id": web, "title": "Web"}]
+    roadmap = ok(write(client, "/roadmaps", {"title": "Platform", "steps": [*steps, {"id": old, "title": "Old"}]}))
+    elsewhere = ok(write(client, "/roadmaps", {"title": "Elsewhere", "steps": [{"id": far, "title": "Far"}]}))
+    build, chores, legacy, docs, moved = (ok(write(client, "/work-items", {"title": title, "roadmapId": roadmap["id"], "stepId": step}))
+                                          for title, step in (("Build the API", api), ("Chores", None), ("Legacy", old),
+                                                              ("Old docs", web), ("Moved", web)))
+    unrelated = ok(write(client, "/work-items", {"title": "Unrelated", "roadmapId": elsewhere["id"]}))
+    labels = ("Builder", "Updater", "Finisher", "Archivist", "Retired", "Reviewer", "Owner", "Tester", "Writer", "Chatter",
+              "Planner", "Fixer", "Mover", "Other", "Stranger", "Idle")
+    agents = {label: enroll(client, label) for label in labels}
+
+    def report(label, work, **extra):
+        return ok(write(client, "/participations", {"runId": run(client, agents[label], **extra)["id"], "itemId": work["id"]}, agents[label]))
+
+    def release(label, reported):
+        ok(write(client, f"/participations/{reported['id']}/release", {"revision": reported["revision"]}, agents[label]))
+
+    def owns(label, context_type, context_id, title):
+        role = ok(write(client, "/discussions/roles", {"contextType": context_type, "contextId": context_id, "label": title}))
+        ok(write(client, f"/discussions/roles/{role['id']}/claim", {"revision": role["revision"]}, agents[label]))
+
+    report("Builder", build)
+    updating = report("Updater", build)
+    ok(write(client, f"/participations/{updating['id']}/updates", {"text": "Routes done"}, agents["Updater"]))
+    release("Finisher", report("Finisher", chores))
+    report("Archivist", docs)
+    ok(write(client, f"/work-items/{docs['id']}/archive", {"revision": docs["revision"]}))
+    report("Retired", legacy)
+    ok(write(client, f"/credentials/{agents['Retired']['id']}/revoke"))
+    owns("Reviewer", "step", delivery, "Review")
+    # A role on the roadmap ties no step; one on a work item ties the item's step.
+    owns("Owner", "roadmap", roadmap["id"], "Owner")
+    owns("Tester", "item", build["id"], "Tests")
+    ok(write(client, "/discussions", {"title": "Web plan", "text": "Layout first", "contexts": [{"type": "step", "id": web}]}, agents["Writer"]))
+    # A thread on another roadmap's step stays there.
+    ok(write(client, "/discussions", {"title": "Far plan", "text": "Elsewhere", "contexts": [{"type": "step", "id": far}]}, agents["Stranger"]))
+    for chat_id, title, owner, extra in (("chat-1", "Web session", roadmap, {"stepIds": [web]}), ("chat-2", "Planning", roadmap, {}),
+                                         ("chat-3", "Fix session", build, {})):
+        ok(write(client, "/chats", {"ownerType": "item" if owner is build else "roadmap", "ownerId": owner["id"],
+                                    "chatId": chat_id, "title": title, **extra}))
+    run(client, agents["Chatter"], externalChatId="chat-1")
+    planning = run(client, agents["Planner"], externalChatId="chat-2")
+    ok(write(client, f"/agent-runs/{planning['id']}/end", {"revision": planning["revision"]}, agents["Planner"]))
+    run(client, agents["Fixer"], externalChatId="chat-3")
+    report("Mover", moved)
+    report("Other", unrelated)
+    # A work item whose own roadmap disagrees with its step's counts where its step is, as on the cards.
+    with client.app.state.db.transaction() as c:
+        c.execute("UPDATE work_items SET roadmap_id=? WHERE id=?", (elsewhere["id"], moved["id"]))
+    # Retiring a step leaves its work on the roadmap alone.
+    current = ok(get(client, f"/roadmaps/{roadmap['id']}"))
+    ok(write(client, f"/roadmaps/{roadmap['id']}/revisions", {"revision": current["revision"], "title": "Platform", "steps": steps}))
+
+    roster = ok(get(client, f"/roadmaps/{roadmap['id']}/agents"))["roster"]
+    by_label = {agent["label"]: agent for agent in roster["items"]}
+    assert roster["total"] == len(roster["items"]) == 13
+    on = {label: (agent["active"], agent["via"], agent["current"],
+                  {step["stepId"]: (step["via"], step["current"]) for step in agent["steps"]}) for label, agent in by_label.items()}
+    assert on == {
+        "Builder": (True, ["participation"], True, {api: (["participation"], True)}),
+        "Updater": (True, ["participation", "update"], True, {api: (["participation", "update"], True)}),
+        "Finisher": (True, ["participation"], False, {}),
+        "Archivist": (True, ["participation"], False, {web: (["participation"], False)}),
+        "Retired": (False, ["participation"], False, {}),
+        "Reviewer": (True, ["role"], True, {delivery: (["role"], True)}),
+        "Owner": (True, ["role"], True, {}),
+        "Tester": (True, ["role"], True, {api: (["role"], True)}),
+        "Writer": (True, ["message"], False, {web: (["message"], False)}),
+        "Chatter": (True, ["chat"], True, {web: (["chat"], True)}),
+        "Planner": (True, ["chat"], False, {}),
+        "Fixer": (True, ["chat"], True, {api: (["chat"], True)}),
+        "Mover": (True, ["participation"], True, {web: (["participation"], True)}),
+    }
+    assert by_label["Builder"]["id"] == agents["Builder"]["agentId"] and by_label["Builder"]["avatar"]
+    # Something still open first, then the latest.
+    flags = [(agent["current"], agent["lastAt"]) for agent in roster["items"]]
+    assert flags == sorted(flags, key=lambda flag: (flag[0], flag[1] or ""), reverse=True)
+    # Exactly the agents whose cards name the roadmap, with the reasons and times the cards give.
+    for card in ok(get(client, "/agents"))["items"]:
+        tie = next((tie for tie in card["roadmaps"]["items"] if tie["id"] == roadmap["id"]), None)
+        listed = by_label.get(card["label"])
+        assert (tie is None) == (listed is None), card["label"]
+        if tie:
+            assert (listed["via"], listed["current"], listed["lastAt"]) == (tie["via"], tie["current"], tie["lastAt"]), card["label"]
+    there = ok(get(client, f"/roadmaps/{elsewhere['id']}/agents"))["roster"]["items"]
+    assert [(agent["label"], agent["steps"][0]["stepId"] if agent["steps"] else None) for agent in there] == [
+        ("Other", None), ("Stranger", far)]
+    # The first TIE_LIMIT, in the same order, and total counts them all.
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr("worklog.registry.TIE_LIMIT", 3)
+        capped = ok(get(client, f"/roadmaps/{roadmap['id']}/agents"))["roster"]
+    assert (capped["total"], capped["items"]) == (13, roster["items"][:3])
+
+
 def test_activity_pages_this_agents_messages_and_updates_newest_first(client):
     repository = ok(write(client, "/repositories", {"name": "Worklog"}))
     builder, other = enroll(client, "Builder"), enroll(client, "Other")

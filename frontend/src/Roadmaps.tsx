@@ -30,17 +30,16 @@ import { Markdown } from "./ui/Markdown";
 import { Empty, ErrorMessage } from "./ui/Messages";
 import { ResizeHandle } from "./ui/ResizeHandle";
 import { ITEM_STATUSES, STATUSES, StatusSelect } from "./ui/Status";
-import { AgentTies } from "./AgentTies";
 import { DecisionsSection, QuestionsSection } from "./QuestionsDecisions";
-import { AgentChips, workersOn } from "./RoadmapAgents";
+import { AgentChips, AgentRoster, rosterOn, workersOn } from "./RoadmapAgents";
 import { AppliedProposals } from "./ProposalHistory";
 import { ReleasesSection } from "./Releases";
 import type {
   Answer,
   PlanStep,
   Roadmap,
+  RoadmapAgents,
   RoadmapListed,
-  RoadmapWorker,
   RoadmapWorkItem,
   Step,
 } from "./apiTypes";
@@ -228,7 +227,7 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
   const workList = useData<Answer<"/api/v1/work-items">>(
     `/work-items?view=all&archived=false&limit=100&q=${encodeURIComponent(workQuery)}`,
   );
-  const stepAgents = useData<{ items: RoadmapWorker[] }>(
+  const stepAgents = useData<RoadmapAgents>(
     `/roadmaps/${id}/agents`,
     AGENTS_REFRESH,
   );
@@ -272,7 +271,10 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
   const completed = leaves.filter((s) => s.status === "done").length;
   const roadWorkItems = road.workItems ?? [];
   const roadChats = road.chats ?? [];
-  const workers = stepAgents.data?.items ?? [];
+  // Opening another roadmap keeps the last one's answer as a placeholder: its agents aren't this one's.
+  const agents = stepAgents.isPlaceholderData ? undefined : stepAgents.data;
+  const workers = agents?.items ?? [];
+  const roster = agents?.roster;
   const titles = new Map(active.map((s) => [s.id, s.title]));
   const stepTitle = (stepId: string) =>
     titles.get(stepId) ?? "a step no longer in the plan";
@@ -322,6 +324,11 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
       : undefined;
   const selectedItems = selected
     ? roadWorkItems.filter((w) => w.stepId === selected.id)
+    : [];
+  // Work on a sub-step is work on the step above it. The roster holds a roadmap's first 200
+  // agents, so past that a step lists only those among them.
+  const stepRoster = selected
+    ? rosterOn(roster?.items ?? [], subtree(selected.id))
     : [];
   const showHistory = async (path: string) => {
     try {
@@ -492,7 +499,14 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
         people={road.people}
         disabled={road.archived}
       />
-      <AgentTies targetType="roadmap" targetId={id} disabled={road.archived} />
+      <AgentRoster
+        agents={roster?.items ?? []}
+        total={roster?.total ?? 0}
+        loaded={!!roster}
+        error={stepAgents.error}
+        note="From their work here: reported work, status updates, responsibilities, discussions and tracked chats."
+        empty="No agent has worked on this roadmap yet."
+      />
       <QuestionsSection
         roadmapId={id}
         questions={road.questions}
@@ -868,11 +882,17 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
         chats={roadChats}
         disabled={road.archived}
       />
-      <AgentTies
-        targetType="step"
-        targetId={selected.id}
-        canTie={!selected.retired}
-        disabled={road.archived}
+      <AgentRoster
+        agents={stepRoster}
+        total={stepRoster.length}
+        loaded={!!roster}
+        error={stepAgents.error}
+        note={
+          kidsOf.has(selected.id)
+            ? "From their work on this step and the steps under it."
+            : "From their work on this step."
+        }
+        empty="No agent has worked on this step yet."
       />
       <Notes
         ownerType="step"

@@ -21894,12 +21894,16 @@
             },
             "type": "array",
             "title": "Items"
+          },
+          "roster": {
+            "$ref": "#/components/schemas/RoadmapRoster"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "items"
+          "items",
+          "roster"
         ],
         "title": "RoadmapAgents"
       },
@@ -22114,6 +22118,28 @@
           "revision"
         ],
         "title": "RoadmapRevision"
+      },
+      "RoadmapRoster": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RosterAgent"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "RoadmapRoster"
       },
       "RoadmapSnapshot": {
         "properties": {
@@ -22713,6 +22739,134 @@
           "revision"
         ],
         "title": "RoleRevision"
+      },
+      "RosterAgent": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          },
+          "via": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "participation",
+                "role",
+                "update",
+                "message",
+                "run",
+                "confirmed",
+                "chat"
+              ]
+            },
+            "type": "array",
+            "title": "Via"
+          },
+          "current": {
+            "type": "boolean",
+            "title": "Current"
+          },
+          "lastAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastat"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/RosterStep"
+            },
+            "type": "array",
+            "title": "Steps"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "avatar",
+          "active",
+          "via",
+          "current",
+          "lastAt",
+          "steps"
+        ],
+        "title": "RosterAgent",
+        "description": "An agent whose work ties it to the roadmap, now or before: one whose card names the roadmap."
+      },
+      "RosterStep": {
+        "properties": {
+          "stepId": {
+            "type": "string",
+            "title": "Stepid"
+          },
+          "via": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "participation",
+                "role",
+                "update",
+                "message",
+                "run",
+                "confirmed",
+                "chat"
+              ]
+            },
+            "type": "array",
+            "title": "Via"
+          },
+          "current": {
+            "type": "boolean",
+            "title": "Current"
+          },
+          "lastAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "stepId",
+          "via",
+          "current",
+          "lastAt"
+        ],
+        "title": "RosterStep",
+        "description": "A step still in the plan that an agent's work ties it to, with why and when."
       },
       "RunCreate": {
         "properties": {

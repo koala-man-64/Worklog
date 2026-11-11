@@ -19,6 +19,7 @@ import {
   exactDiscussionDate,
   formatDiscussionDate,
 } from "./discussionFormatting";
+import { REASONS as reasons } from "./tieReasons";
 import type {
   AgentDetail,
   AgentSummary,
@@ -34,15 +35,6 @@ const CARDS = 200;
 // A card names this many repositories and roadmaps; the agent's page lists them all.
 const SHOWN = 8;
 const REFRESH = 30_000;
-const reasons: Record<TieReason, string> = {
-  participation: "Reported work",
-  role: "Responsibility",
-  update: "Status update",
-  message: "Discussion",
-  run: "Run",
-  confirmed: "Confirmed by you",
-  chat: "Tracked chat",
-};
 function timestamp(value: string) {
   return <time dateTime={value}>{new Date(value).toLocaleString()}</time>;
 }
