@@ -1129,3 +1129,73 @@ test("an open page carries on after the server forgets its session", async ({
   expect(renewed.ok()).toBeTruthy();
   await add("After another tab renewed " + Date.now());
 });
+
+test("a long step title takes one line in the outline and on the board, in full on hover", async ({
+  page,
+  baseURL,
+}) => {
+  const origin = new URL(baseURL!).origin;
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Today", exact: true }),
+  ).toBeVisible();
+  const boot = await page.request.post("/api/v1/session/bootstrap", {
+    headers: { Origin: origin, "X-Worklog-Bootstrap": "1" },
+    data: {},
+  });
+  const { csrfToken } = await boot.json();
+  // As long as the person's titles run: the median is about 90 characters.
+  const long =
+    "Port production rule group 1 to the recursive descent parser and keep every one of its golden tests passing";
+  const phase = crypto.randomUUID();
+  const created = await page.request.post("/api/v1/roadmaps", {
+    headers: {
+      Origin: origin,
+      "X-CSRF-Token": csrfToken,
+      "Idempotency-Key": crypto.randomUUID(),
+    },
+    data: {
+      title: "Long titles " + Date.now(),
+      steps: [
+        {
+          id: phase,
+          title:
+            "Phase 1: rewrite the parser, rule group by rule group, behind a flag",
+        },
+        { title: long, parentId: phase },
+      ],
+    },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { id } = await created.json();
+  const oneLine = (link: Locator) =>
+    link.evaluate((a) => ({
+      wraps: getComputedStyle(a).whiteSpace !== "nowrap",
+      cut: a.scrollWidth > a.clientWidth,
+      ellipsis: getComputedStyle(a).textOverflow,
+      title: a.getAttribute("title"),
+    }));
+  await page.goto(`/#roadmaps/${id}/outline`);
+  const inOutline = page
+    .getByRole("region", { name: "Plan outline" })
+    .getByRole("link", { name: long, exact: true });
+  await expect(inOutline).toBeVisible();
+  expect(await oneLine(inOutline)).toEqual({
+    wraps: false,
+    cut: true,
+    ellipsis: "ellipsis",
+    title: long,
+  });
+  await page.goto("/#roadmaps/" + id);
+  const onBoard = page
+    .getByRole("region", { name: "Status" })
+    .getByRole("link", { name: long, exact: true });
+  await expect(onBoard).toBeVisible();
+  expect(await oneLine(onBoard)).toEqual({
+    wraps: false,
+    cut: true,
+    ellipsis: "ellipsis",
+    title: long,
+  });
+});

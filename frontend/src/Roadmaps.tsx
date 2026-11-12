@@ -454,7 +454,9 @@ export function RoadmapDetail({
               {head}
               <span className={"status-dot " + s.status} aria-hidden="true" />
               <span className="step-text">
-                <span>{s.title}</span>
+                <span className="step-name" title={s.title}>
+                  {s.title}
+                </span>
                 <span className="step-meta">
                   <small>Retired · {statusLabel(s.status)}</small>
                 </span>
@@ -477,6 +479,7 @@ export function RoadmapDetail({
               <a
                 className="step-link"
                 href={`#roadmaps/${id}/${s.id}`}
+                title={s.title}
                 aria-current={current ? "true" : undefined}
               >
                 {s.title}
@@ -1109,11 +1112,17 @@ function StatusBoard({
       <li className="line board-step" key={s.id}>
         <span className={"status-dot " + s.status} aria-hidden="true" />
         <span className="board-step-text">
-          <a className="item-title" href={`#roadmaps/${id}/${s.id}`}>
+          <a
+            className="item-title"
+            href={`#roadmaps/${id}/${s.id}`}
+            title={s.title}
+          >
             {s.title}
           </a>
           {phase && phase.id !== s.id && (
-            <small className="muted">{phase.title}</small>
+            <small className="muted" title={phase.title}>
+              {phase.title}
+            </small>
           )}
         </span>
         {aside}
@@ -1144,6 +1153,7 @@ function StatusBoard({
                   <a
                     className="item-title"
                     href={`#roadmaps/${id}/${phase.id}`}
+                    title={phase.title}
                   >
                     {phase.title}
                   </a>
@@ -1208,7 +1218,11 @@ function StatusBoard({
             <ul className="board-list">
               {questions.slice(0, BOARD_ROWS).map((q) => (
                 <li className="line" key={q.id}>
-                  <a className="item-title" href={viewAddress(id, "questions")}>
+                  <a
+                    className="item-title"
+                    href={viewAddress(id, "questions")}
+                    title={q.title}
+                  >
                     {q.title}
                   </a>
                 </li>
@@ -1236,7 +1250,11 @@ function StatusBoard({
             <ul className="board-list">
               {waiting.slice(0, BOARD_ROWS).map((p) => (
                 <li className="line" key={p.id}>
-                  <a className="item-title" href={"#review/" + p.id}>
+                  <a
+                    className="item-title"
+                    href={"#review/" + p.id}
+                    title={p.title}
+                  >
                     {p.title}
                   </a>
                   <small className="muted">
