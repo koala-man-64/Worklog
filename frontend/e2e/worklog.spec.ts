@@ -109,14 +109,19 @@ test("roadmap immutable revisions and mobile navigation", async ({ page }) => {
   await expect(
     page.getByText("First safe step", { exact: true }),
   ).toBeVisible();
+  const views = page.getByRole("navigation", { name: "Roadmap views" });
+  const fits = () =>
+    page.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
+  await views.getByRole("link", { name: "Status", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "View version 2", exact: true }),
+    page
+      .getByRole("region", { name: "Status" })
+      .getByRole("link", { name: "First safe step", exact: true }),
   ).toBeVisible();
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-  ).toBeTruthy();
+  expect(await fits()).toBeTruthy();
+  await views.getByRole("link", { name: "History", exact: true }).click();
+  await expect(page.getByText("Version 2", { exact: true })).toBeVisible();
+  expect(await fits()).toBeTruthy();
   await page.getByRole("link", { name: "Settings", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Settings", exact: true }),
@@ -843,7 +848,7 @@ test("the sidebar and plan outline resize by drag and keep their widths", async 
   });
   expect(created.ok()).toBeTruthy();
   const { id } = await created.json();
-  await page.goto("/#roadmaps/" + id);
+  await page.goto(`/#roadmaps/${id}/outline`);
   const outline = page.getByRole("region", { name: "Plan outline" });
   const sidebar = page.getByRole("complementary");
   const outlineHandle = page.getByRole("separator", {
@@ -868,7 +873,7 @@ test("the sidebar and plan outline resize by drag and keep their widths", async 
   await expect(sidebarHandle).toHaveAttribute("aria-valuenow", "290");
   // The outline stops where the detail pane would drop below 300px.
   await drag(outlineHandle, 2000);
-  const detail = page.getByRole("region", { name: "Roadmap details" });
+  const detail = page.getByRole("region", { name: "Step details" });
   expect(Math.round(await width(detail))).toBe(300);
   await drag(outlineHandle, -2000);
   expect(await width(outline)).toBe(300);
@@ -942,7 +947,7 @@ test("every page spends the whole window beside the sidebar", async ({
     expect(edges.barStart, route).toBeCloseTo(edges.pageStart, 0);
     expect(edges.barEnd, route).toBeCloseTo(edges.pageEnd, 0);
   }
-  // A roadmap's overview runs the width of its pane.
+  // A roadmap's overview runs the width of its status view.
   const boot = await page.request.post("/api/v1/session/bootstrap", {
     headers: { Origin: origin, "X-Worklog-Bootstrap": "1" },
     data: {},
@@ -964,11 +969,11 @@ test("every page spends the whole window beside the sidebar", async ({
   const { id } = await created.json();
   await page.goto("/#roadmaps/" + id);
   const overview = page
-    .getByRole("region", { name: "Roadmap details" })
-    .locator(":scope > .markdown");
+    .getByRole("region", { name: "Status" })
+    .locator(":scope > section > .markdown");
   await expect(overview).toBeVisible();
   const fit = await overview.evaluate((markdown) => {
-    const pane = markdown.parentElement!;
+    const pane = markdown.closest('[role="region"]')!;
     const style = getComputedStyle(pane);
     return {
       text: markdown.getBoundingClientRect().width,
@@ -1032,12 +1037,26 @@ test("a roadmap's questions are answered and its decisions recorded", async ({
   });
   expect(created.ok()).toBeTruthy();
   const { id } = await created.json();
-  await page.goto("/#roadmaps/" + id);
-  const detail = page.getByRole("region", { name: "Roadmap details" });
+  await page.goto(`/#roadmaps/${id}/questions`);
+  const detail = page.getByRole("region", { name: "Questions and decisions" });
+  const tab = page
+    .getByRole("navigation", { name: "Roadmap views" })
+    .getByRole("link", { name: /^Questions and decisions/ });
   await detail
     .getByRole("textbox", { name: "New question" })
     .fill("Which region hosts replicas?");
   await detail.getByRole("button", { name: "Add question" }).click();
+  // The view counts it as open, and the status board asks for it under Needs you.
+  await expect(tab).toHaveAccessibleName("Questions and decisions, 1 open");
+  await page
+    .getByRole("navigation", { name: "Roadmap views" })
+    .getByRole("link", { name: "Status", exact: true })
+    .click();
+  await page
+    .getByRole("region", { name: "Status" })
+    .getByRole("link", { name: "Which region hosts replicas?" })
+    .click();
+  await expect(page).toHaveURL(new RegExp(`#roadmaps/${id}/questions$`));
   await detail
     .getByRole("button", {
       name: "Answer question Which region hosts replicas?",
@@ -1046,6 +1065,7 @@ test("a roadmap's questions are answered and its decisions recorded", async ({
   await detail.getByRole("textbox", { name: "Answer" }).fill("Frankfurt");
   await detail.getByRole("button", { name: "Save answer" }).click();
   await expect(detail.getByText("No open questions.")).toBeVisible();
+  await expect(tab).toHaveAccessibleName("Questions and decisions");
   await detail.getByText("Answered (1)").click();
   await expect(detail.getByText("Frankfurt")).toBeVisible();
 

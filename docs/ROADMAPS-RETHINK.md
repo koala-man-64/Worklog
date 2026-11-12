@@ -184,7 +184,7 @@ Done in the roadmap page (`StepWorkForms`): a step's page adds a work item on it
 
 #### 1.3 · A roadmap page with a job
 
-Status: Not started
+Status: Merged · Branch: `claude/roadmap-status-board` · PR: [#194](https://github.com/koala-man-64/Worklog/pull/194)
 
 - A status board is the default view, with:
   - progress for each phase;
@@ -201,6 +201,8 @@ Status: Not started
 - Open questions count beside Roadmaps in the sidebar.
 
 Why: the overview stacks about 19 sections, most of them empty; one progress bar hides where each phase stands; and agents' questions sit under the overview text.
+
+Done in the roadmap page. Each view has its own address after the roadmap's (`/outline`, `/questions`, `/material`, `/history`), and a step's address opens the outline beside it. The board (`StatusBoard`) also reads `GET /roadmaps/{id}/board`, the person's alone: the submitted proposals that would change the roadmap (`proposals.waiting_on`) and the leaves lately done (`plans.recently_done`). Now, Next and each list under Needs you show eight and link to the rest, Recently done shows the last ten, and "Phases" shows only for a plan that has them. The overview text, its people and its agents follow the board, and the work items go under Material. The structure editor opens beside the outline, and another view closes it, keeping its draft. A step's history opens below it as "Activity history", since the raw-JSON viewer goes. `GET /roadmaps` gives each roadmap's `openQuestions`, which the sidebar adds up, and which agents can read. No schema change. `test_roadmap_board.py` pins the board's lists, the count and the refusal to agents; `RoadmapBoard.test.tsx` the board, the views and the editor.
 
 #### 1.4 · Short titles
 

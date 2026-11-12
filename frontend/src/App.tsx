@@ -15,7 +15,7 @@ import { Pager } from "./ui/Pager";
 import { Today } from "./Today";
 import { Work } from "./Work";
 import { Roadmaps } from "./Roadmaps";
-import { RoadmapNav } from "./RoadmapNav";
+import { RoadmapNav, RoadmapsLink } from "./RoadmapNav";
 import { Repositories } from "./Repositories";
 import { Tickets } from "./Tickets";
 import { People } from "./People";
@@ -71,17 +71,14 @@ export default function App() {
   useEffect(() => {
     if (dataId) countPageView(page);
   }, [page, dataId]);
+  const current = (route: string) =>
+    destination !== route
+      ? undefined
+      : route === "roadmaps" && id
+        ? "true"
+        : "page";
   const link = (route: string, icon: IconName, label: string) => (
-    <a
-      href={"#" + route}
-      aria-current={
-        destination !== route
-          ? undefined
-          : route === "roadmaps" && id
-            ? "true"
-            : "page"
-      }
-    >
+    <a href={"#" + route} aria-current={current(route)}>
       <Icon name={icon} size={18} />
       {label}
     </a>
@@ -137,7 +134,16 @@ export default function App() {
                   <Fragment key={route}>
                     {route === "roadmaps" ? (
                       <div className="nav-row">
-                        {link(route, icon, label)}
+                        {/* Counting open questions needs the session. */}
+                        {session.data ? (
+                          <RoadmapsLink
+                            current={current(route)}
+                            icon={icon}
+                            label={label}
+                          />
+                        ) : (
+                          link(route, icon, label)
+                        )}
                         <button
                           type="button"
                           className="nav-toggle"

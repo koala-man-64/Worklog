@@ -56,6 +56,11 @@ OPEN = ("SELECT p.id,p.title,p.status,p.revision,p.actor_label,cc.agent_id,p.cre
         "CASE WHEN json_valid(p.operations) THEN json_array_length(p.operations) ELSE 0 END,p.actor_id"
         " FROM proposals p LEFT JOIN communication_credentials cc ON cc.credential_id=p.actor_id"
         " WHERE p.status IN ('draft','submitted') ORDER BY p.created_at,p.id")
+# The submitted proposals with their changes, for the roadmaps they would change (waiting_on).
+WAITING = ("SELECT p.id,p.title,p.status,p.revision,p.actor_label,cc.agent_id,p.created_at,p.submitted_at,p.updated_at,"
+           "CASE WHEN json_valid(p.operations) THEN json_array_length(p.operations) ELSE 0 END,p.operations"
+           " FROM proposals p LEFT JOIN communication_credentials cc ON cc.credential_id=p.actor_id"
+           " WHERE p.status='submitted' ORDER BY p.submitted_at,p.id")
 APPLIED_TO = ("p.status='approved' AND p.id IN "
               "(SELECT proposal_id FROM proposal_targets WHERE target_type=? AND target_id=?)")
 MADE_BY = ("p.actor_kind='agent' AND p.actor_id IN "
@@ -254,6 +259,29 @@ def open_proposals(conn, actor, limit, offset=0) -> dict:
                        "agentId": row[5], "createdAt": row[6], "submittedAt": None if row[2] == "draft" else row[7],
                        "updatedAt": row[8], "operationCount": row[9]} for row in visible[offset:offset + limit]],
             "total": len(visible)}
+
+
+def waiting_on(conn, roadmap_id) -> list[dict]:
+    """The submitted proposals that would change this roadmap or what it holds, oldest first, as the
+    context lists open proposals: what waits on the person's decision there. Their changes count by
+    the rules a record's proposal history uses (proposal_targets). A change to a record the proposal
+    itself creates names it by a name no record has yet, so it counts through the roadmap that record
+    goes on."""
+    waiting = []
+    for row in conn.execute(WAITING):
+        try:
+            operations = json.loads(row[10])
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(operations, list):
+            continue
+        touched = set().union(*(proposal_targets.targets(conn, op.get("action"), op.get("payload"))
+                                for op in operations if isinstance(op, dict)))
+        if ("roadmap", roadmap_id) in touched:
+            waiting.append({"id": row[0], "title": row[1], "status": row[2], "revision": row[3], "actorLabel": row[4],
+                            "agentId": row[5], "createdAt": row[6], "submittedAt": row[7], "updatedAt": row[8],
+                            "operationCount": row[9]})
+    return waiting
 
 
 def _visible(conn, row, actor):

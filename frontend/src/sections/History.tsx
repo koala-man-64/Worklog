@@ -11,19 +11,22 @@ export function History({ items }: { items: unknown[] }) {
 }
 /**
  * Each change's full before and after records repeat the whole record, so the history
- * of a long one that changes often is large: it loads only when opened.
+ * of a long one that changes often is large: it loads only when opened. A record whose
+ * page doesn't count its changes leaves `changes` out.
  */
 export function ChangeHistory({
   id,
   changes,
 }: {
   id: string;
-  changes: number;
+  changes?: number;
 }) {
   const [open, setOpen] = useState(false);
   return (
     <details onToggle={(e) => setOpen(e.currentTarget.open)}>
-      <summary>Activity history ({changes})</summary>
+      <summary>
+        Activity history{changes === undefined ? "" : ` (${changes})`}
+      </summary>
       {open && <Changes id={id} />}
     </details>
   );

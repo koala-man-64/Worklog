@@ -1,15 +1,20 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { contextStorageKey, setDataContext } from "./api";
-import { RoadmapNav } from "./RoadmapNav";
+import { RoadmapNav, RoadmapsLink } from "./RoadmapNav";
 
 const A = "22222222-2222-4222-8222-222222222221";
 const B = "22222222-2222-4222-8222-222222222222";
 
 function mockRoadmaps(
-  items: { id: string; title: string; parentId?: string | null }[],
+  items: {
+    id: string;
+    title: string;
+    parentId?: string | null;
+    openQuestions?: number;
+  }[],
 ) {
   vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
     Response.json({ items, total: items.length }),
@@ -131,4 +136,40 @@ it("shows the selected roadmap inside a collapsed parent without forgetting the 
   render(view());
   await screen.findByRole("link", { name: "Platform" });
   expect(screen.queryByRole("link", { name: "Storage" })).toBeNull();
+});
+
+function sidebar(current?: "page" | "true") {
+  return (
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      <RoadmapsLink current={current} icon="roadmaps" label="Roadmaps" />
+      <RoadmapNav />
+    </QueryClientProvider>
+  );
+}
+
+it("counts the questions open on every roadmap beside the Roadmaps link", async () => {
+  mockRoadmaps([
+    { id: A, title: "Platform", openQuestions: 2 },
+    { id: B, title: "Storage", parentId: A, openQuestions: 1 },
+  ]);
+  render(sidebar("page"));
+  const link = screen.getByRole("link", { name: "Roadmaps" });
+  expect(await within(link).findByText("3")).toHaveClass("nav-count");
+  expect(link).toHaveAccessibleDescription("3 open questions");
+  expect(link).toHaveAttribute("href", "#roadmaps");
+  expect(link).toHaveAttribute("aria-current", "page");
+});
+
+it("shows no count when no question is open", async () => {
+  mockRoadmaps([{ id: A, title: "Platform", openQuestions: 0 }]);
+  render(sidebar());
+  await screen.findByRole("link", { name: "Platform" });
+  const link = screen.getByRole("link", { name: "Roadmaps" });
+  expect(link.querySelector(".nav-count")).toBeNull();
+  expect(link).not.toHaveAttribute("aria-describedby");
+  expect(link).not.toHaveAttribute("aria-current");
 });

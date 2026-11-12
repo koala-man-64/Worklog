@@ -274,6 +274,21 @@ def step_tree(conn, roadmap_id):
     return _steps(conn, roadmap_id, retired=True)
 
 
+def recently_done(conn, roadmap_id, limit=10):
+    """The roadmap's steps in the plan that are done, the latest marked done first, with when: its
+    leaves, since a parent's progress is derived from them. A step counts from its latest change to
+    done from another status, so setting done again doesn't move it up. A step whose history holds
+    no such change is left out, as when it was done before Worklog recorded progress."""
+    _row(conn, roadmap_id)
+    return [{"id": row[0], "title": row[1], "doneAt": row[2]} for row in conn.execute(
+        "SELECT s.id,s.title,max(e.created_at) AS done_at FROM steps s JOIN events e ON e.entity_id=s.id"
+        " AND e.kind='progress.set' AND json_extract(e.after_json,'$.status')='done'"
+        " AND coalesce(json_extract(e.before_json,'$.status'),'')<>'done'"
+        " WHERE s.roadmap_id=? AND s.retired=0 AND s.status='done'"
+        " AND NOT EXISTS(SELECT 1 FROM steps c WHERE c.parent_id=s.id AND c.retired=0)"
+        " GROUP BY s.id ORDER BY done_at DESC,s.id LIMIT ?", (roadmap_id, limit))]
+
+
 def outline_order(steps):
     """Steps depth-first, each before its children and siblings in (position, id) order, as the
     outline shows them. A step whose parent is not among them starts a branch of its own, and so does

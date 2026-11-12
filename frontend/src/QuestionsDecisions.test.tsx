@@ -93,12 +93,17 @@ const view = () =>
         new QueryClient({ defaultOptions: { queries: { retry: false } } })
       }
     >
-      <RoadmapDetail id={ROADMAP} />
+      <RoadmapDetail id={ROADMAP} step="questions" />
     </QueryClientProvider>,
   );
+// Each section's heading is under the view's own, "Questions and decisions".
 const section = async (name: string) =>
-  (await screen.findByRole("heading", { name: new RegExp("^" + name) }))
-    .parentElement as HTMLElement;
+  (
+    await screen.findByRole("heading", {
+      level: 3,
+      name: new RegExp("^" + name),
+    })
+  ).parentElement as HTMLElement;
 
 it("lists open questions, keeps answered ones with their answers, and asks a new one", async () => {
   view();

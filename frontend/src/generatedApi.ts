@@ -903,6 +903,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/roadmaps/{identity}/board": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Roadmap Board */
+        get: operations["roadmap_board_api_v1_roadmaps__identity__board_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/roadmaps/{identity}/outline": {
         parameters: {
             query?: never;
@@ -4028,6 +4045,18 @@ export interface components {
              */
             ok: true;
         };
+        /**
+         * DoneStep
+         * @description A step marked done, and when it last was.
+         */
+        DoneStep: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Doneat */
+            doneAt: string;
+        };
         /** Empty */
         Empty: Record<string, never>;
         /**
@@ -5945,6 +5974,16 @@ export interface components {
             items: components["schemas"]["RoadmapWorker"][];
             roster: components["schemas"]["RoadmapRoster"];
         };
+        /**
+         * RoadmapBoard
+         * @description What a roadmap's status board reads besides the roadmap itself.
+         */
+        RoadmapBoard: {
+            /** Waiting */
+            waiting: components["schemas"]["OpenProposal"][];
+            /** Recentlydone */
+            recentlyDone: components["schemas"]["DoneStep"][];
+        };
         /** RoadmapCreate */
         RoadmapCreate: {
             /** Title */
@@ -5981,6 +6020,8 @@ export interface components {
             updatedAt: string;
             /** People */
             people: components["schemas"]["RecordPerson"][];
+            /** Openquestions */
+            openQuestions: number;
         };
         /** RoadmapMove */
         RoadmapMove: {
@@ -9590,6 +9631,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Roadmap"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    roadmap_board_api_v1_roadmaps__identity__board_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoadmapBoard"];
                 };
             };
             /** @description Validation Error */

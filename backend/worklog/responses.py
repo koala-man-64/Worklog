@@ -485,6 +485,23 @@ class Step(RoadmapStep):
     chats: list[TrackedChat]
 
 
+class DoneStep(Answer):
+    """A step marked done, and when it last was."""
+
+    id: str
+    title: str
+    doneAt: str
+
+
+class RoadmapBoard(Answer):
+    """What a roadmap's status board reads besides the roadmap itself."""
+
+    # The submitted proposals that would change it or what it holds, oldest first.
+    waiting: list[OpenProposal]
+    # Its steps in the plan marked done, the latest first; at most 10.
+    recentlyDone: list[DoneStep]
+
+
 class OutlineStep(Answer):
     """A step as a roadmap's outline gives it: no text."""
 
@@ -605,6 +622,8 @@ class PlanRoadmap(Answer):
 
 class RoadmapListed(PlanRoadmap):
     people: list[RecordPerson]
+    # Its questions still open, archived ones aside.
+    openQuestions: int
 
 
 class Roadmaps(Answer):

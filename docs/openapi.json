@@ -2946,6 +2946,45 @@
         }
       }
     },
+    "/api/v1/roadmaps/{identity}/board": {
+      "get": {
+        "summary": "Roadmap Board",
+        "operationId": "roadmap_board_api_v1_roadmaps__identity__board_get",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoadmapBoard"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/roadmaps/{identity}/outline": {
       "get": {
         "summary": "Roadmap Outline",
@@ -13134,6 +13173,31 @@
         "title": "Done",
         "description": "A command that changed what it was asked to, or found nothing to change, and names nothing back."
       },
+      "DoneStep": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "doneAt": {
+            "type": "string",
+            "title": "Doneat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "doneAt"
+        ],
+        "title": "DoneStep",
+        "description": "A step marked done, and when it last was."
+      },
       "Empty": {
         "properties": {},
         "additionalProperties": false,
@@ -18486,6 +18550,32 @@
         ],
         "title": "RoadmapAgents"
       },
+      "RoadmapBoard": {
+        "properties": {
+          "waiting": {
+            "items": {
+              "$ref": "#/components/schemas/OpenProposal"
+            },
+            "type": "array",
+            "title": "Waiting"
+          },
+          "recentlyDone": {
+            "items": {
+              "$ref": "#/components/schemas/DoneStep"
+            },
+            "type": "array",
+            "title": "Recentlydone"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "waiting",
+          "recentlyDone"
+        ],
+        "title": "RoadmapBoard",
+        "description": "What a roadmap's status board reads besides the roadmap itself."
+      },
       "RoadmapCreate": {
         "properties": {
           "title": {
@@ -18571,6 +18661,10 @@
             },
             "type": "array",
             "title": "People"
+          },
+          "openQuestions": {
+            "type": "integer",
+            "title": "Openquestions"
           }
         },
         "additionalProperties": false,
@@ -18584,7 +18678,8 @@
           "archived",
           "createdAt",
           "updatedAt",
-          "people"
+          "people",
+          "openQuestions"
         ],
         "title": "RoadmapListed"
       },

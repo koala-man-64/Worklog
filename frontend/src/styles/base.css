@@ -456,6 +456,19 @@ small {
 .sidebar nav .nav-toggle:hover {
   background: var(--teal-wash);
 }
+/* How many questions are open on the roadmaps, at the end of the Roadmaps link. */
+.sidebar nav .nav-count {
+  margin-left: auto;
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--status-doing-bg);
+  color: var(--status-doing-ink);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: center;
+}
 /* Parent roadmaps in the sidebar tree get a smaller toggle at the row's end. */
 .sidebar nav .subnav .nav-row > a {
   padding-right: 28px;
@@ -1136,9 +1149,6 @@ section:not(.draft) > h3 {
 .detail .markdown h1,
 .detail .markdown h2 {
   font-size: 20px;
-}
-.detail > .back {
-  margin-bottom: 16px;
 }
 /* A work item's title, and a quick-add field, take the room the row's controls leave. */
 .roadmap-work-item .item-title,

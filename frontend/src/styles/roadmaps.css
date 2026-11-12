@@ -77,6 +77,122 @@
 .roadmap-progress span {
   white-space: nowrap;
 }
+/* Where the roadmap sits among the others, until a step opens into its own roadmap (2.1). */
+.roadmap-family {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  margin-top: 10px;
+  font-size: 12px;
+}
+.roadmap-family label,
+.roadmap-family form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+.roadmap-family label {
+  white-space: nowrap;
+}
+.roadmap-family select,
+.roadmap-family input,
+.roadmap-family button {
+  font-size: 12px;
+}
+/* The roadmap's views: links, each to its own address, drawn as tabs. */
+.roadmap-views {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin-top: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.roadmap-views a {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 5px 12px;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  text-decoration: none;
+}
+.roadmap-views a:hover {
+  color: var(--ink);
+  border-bottom-color: var(--field-edge);
+}
+.roadmap-views a[aria-current] {
+  color: var(--ink);
+  border-bottom-color: var(--teal);
+}
+/* The status board: each phase's progress across the top, then what is in progress, next,
+   waiting on the person and lately done, side by side where there is room. */
+.roadmap-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 0 32px;
+  align-items: start;
+}
+.roadmap-board > .error,
+.board-phases {
+  grid-column: 1 / -1;
+}
+.board-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.phase-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(100px, 3fr) auto;
+  align-items: center;
+  gap: 4px 16px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+.phase-row > a {
+  overflow-wrap: anywhere;
+}
+.phase-row progress {
+  width: 100%;
+}
+.phase-row > small {
+  white-space: nowrap;
+}
+.board-step-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-wrap: anywhere;
+}
+.roadmap-board h4 {
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.board-more {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+/* A retired step, shown when asked for: out of the plan, so nothing to open or set. */
+.step.retired {
+  border-left-style: dashed;
+}
+.step.retired > .step-row {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.retired-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  font-size: 12px;
+}
 .roadmaps-split .panel-body {
   padding: 0 16px;
 }
@@ -302,6 +418,13 @@ button.agent-chip.more {
   .outline ul {
     padding-left: 8px;
   }
+  /* A phase's title takes its own row, its bar and count the one below. */
+  .phase-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .phase-row > a {
+    grid-column: 1 / -1;
+  }
   .structure-editor {
     padding: 15px;
   }
@@ -325,5 +448,9 @@ button.agent-chip.more {
   }
   .roadmaps-split {
     grid-template-columns: minmax(0, 3fr) minmax(300px, 2fr);
+  }
+  /* Every view but the outline fills the screen under the header and scrolls on its own. */
+  .roadmap-view {
+    flex: 1;
   }
 }

@@ -496,7 +496,7 @@ it("adds, attaches and unlinks work on a step's own page", async () => {
     }),
   );
 });
-it("lists the roadmap's work on its overview, each with its step and no form or picker", async () => {
+it("lists the roadmap's work under Material, each with its step and no form or picker", async () => {
   const onStep = anItem({
     id: "bbbbbbbb-0000-4000-8000-000000000003",
     title: "On Alpha",
@@ -518,7 +518,7 @@ it("lists the roadmap's work on its overview, each with its step and no form or 
     { ...roadmap(4, [A, B]), workItems: [onStep, onRoadmap, onRetired] },
     [],
   );
-  showRoadmap();
+  showRoadmap("material");
   const row = (await screen.findByText("On Alpha")).closest(
     ".roadmap-work-item",
   ) as HTMLElement;
@@ -593,6 +593,8 @@ it("lists sub-roadmaps nested under their parent roadmap", async () => {
   mockNested();
   render(withClient(<Roadmaps />));
   const storage = await screen.findByRole("link", { name: "Storage" });
+  // The list filters by nothing but the archive.
+  expect(screen.queryByRole("combobox")).toBeNull();
   const plan = screen.getByRole("link", { name: "Plan" });
   const platformItem = screen
     .getByRole("link", { name: "Platform" })
@@ -620,11 +622,14 @@ it("shows where a roadmap sits, adds sub-roadmaps, and moves it", async () => {
   expect(
     within(crumbs).getByRole("link", { name: "Platform" }),
   ).toHaveAttribute("href", "#roadmaps/" + TOP);
+  // Its sub-roadmaps and its place sit in the header, whichever view shows.
   expect(screen.getByRole("link", { name: "Storage" })).toHaveAttribute(
     "href",
     "#roadmaps/" + CHILD,
   );
-  expect(screen.getByText("Archived")).toBeInTheDocument();
+  expect(
+    screen.getByRole("link", { name: "Retired idea (archived)" }),
+  ).toHaveAttribute("href", "#roadmaps/" + DEEP);
 
   // Neither the roadmap itself nor anything below it can become its parent.
   const parent = screen.getByRole("combobox", { name: "Nested under" });
