@@ -382,7 +382,39 @@ it("reorders steps without mutating the cached roadmap", async () => {
     ["Beta", 1],
   ]);
 });
-it("adds, attaches, reassigns, and unlinks work items on a roadmap", async () => {
+function serveWork(roadData: Roadmap, work: Item[]) {
+  const calls: { url: string; method: string; body: unknown }[] = [];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const url = String(input);
+    const method = init?.method ?? "GET";
+    const json = (data: unknown) =>
+      new Response(JSON.stringify(data), { status: 200 });
+    if (method === "GET" && url.includes(`/roadmaps/${ROADMAP}`))
+      return json(roadData);
+    if (method === "GET" && url.includes("/work-items"))
+      return json({ items: work, total: work.length });
+    if (method === "GET") return json({ items: [], total: 0 });
+    calls.push({
+      url,
+      method,
+      body: init?.body ? JSON.parse(String(init.body)) : null,
+    });
+    return json({ id: "new", revision: 1 });
+  });
+  return calls;
+}
+function showRoadmap(step?: string) {
+  render(
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      <RoadmapDetail id={ROADMAP} step={step} />
+    </QueryClientProvider>,
+  );
+}
+it("adds, attaches and unlinks work on a step's own page", async () => {
   const existingItem: Item = anItem({
     id: "bbbbbbbb-0000-4000-8000-000000000001",
     revision: 2,
@@ -390,64 +422,24 @@ it("adds, attaches, reassigns, and unlinks work items on a roadmap", async () =>
   });
   const linkedItem = anItem({
     id: "bbbbbbbb-0000-4000-8000-000000000002",
-    title: "Roadmap item",
+    title: "Step item",
     roadmapId: ROADMAP,
+    stepId: A.id,
   });
-  const roadData: Roadmap = {
-    ...roadmap(4, [A, B]),
-    workItems: [linkedItem],
-  };
-  const calls: { url: string; method: string; body: unknown }[] = [];
-  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
-    if (
-      (init?.method ?? "GET") === "GET" &&
-      String(input).includes("/repositories")
-    )
-      return new Response(JSON.stringify({ items: [], total: 0 }), {
-        status: 200,
-      });
-    const url = String(input);
-    const method = init?.method ?? "GET";
-    if (method === "GET" && url.includes(`/roadmaps/${ROADMAP}`))
-      return new Response(JSON.stringify(roadData), { status: 200 });
-    if (method === "GET" && url.includes("/work-items"))
-      return new Response(
-        JSON.stringify({ items: [existingItem, linkedItem], total: 2 }),
-        { status: 200 },
-      );
-    if (
-      method === "GET" &&
-      (url.includes("/people") ||
-        url.includes("/roadmaps?") ||
-        url.includes("/discussions/participants"))
-    )
-      return new Response(JSON.stringify({ items: [], total: 0 }), {
-        status: 200,
-      });
-    calls.push({
-      url,
-      method,
-      body: init?.body ? JSON.parse(String(init.body)) : null,
-    });
-    return new Response(JSON.stringify({ id: "new", revision: 1 }), {
-      status: 200,
-    });
-  });
-  render(
-    <QueryClientProvider
-      client={
-        new QueryClient({ defaultOptions: { queries: { retry: false } } })
-      }
-    >
-      <RoadmapDetail id={ROADMAP} />
-    </QueryClientProvider>,
-  );
-  expect(await screen.findByText("Roadmap item")).toBeInTheDocument();
+  const calls = serveWork({ ...roadmap(4, [A, B]), workItems: [linkedItem] }, [
+    existingItem,
+    linkedItem,
+  ]);
+  showRoadmap(A.id);
+  expect(await screen.findByText("Step item")).toBeInTheDocument();
+  // The step's own page needs no step picker: what it adds and attaches goes on this step.
+  expect(
+    screen.queryByRole("combobox", { name: /^Step for / }),
+  ).not.toBeInTheDocument();
 
-  // Create a new work item directly on the roadmap
   await userEvent.type(
-    screen.getByRole("textbox", { name: "New roadmap work item" }),
-    "Fresh roadmap task",
+    screen.getByRole("textbox", { name: "New work item on this step" }),
+    "Fresh step task",
   );
   await userEvent.click(screen.getByRole("button", { name: "Add work item" }));
   await waitFor(() =>
@@ -455,24 +447,25 @@ it("adds, attaches, reassigns, and unlinks work items on a roadmap", async () =>
       url: "/api/v1/work-items",
       method: "POST",
       body: {
-        title: "Fresh roadmap task",
+        title: "Fresh step task",
         description: "",
         roadmapId: ROADMAP,
-        stepId: null,
+        stepId: A.id,
         worked: false,
       },
     }),
   );
 
-  // Attach an existing work item to step Alpha
-  await userEvent.selectOptions(
-    screen.getByRole("combobox", { name: "Choose existing work" }),
-    existingItem.id,
+  // Work already on this step isn't offered again.
+  const choose = screen.getByRole("combobox", { name: "Choose existing work" });
+  await waitFor(() =>
+    expect(
+      within(choose)
+        .getAllByRole("option")
+        .map((o) => o.textContent),
+    ).toEqual(["Attach existing work to this step…", "Existing item"]),
   );
-  await userEvent.selectOptions(
-    screen.getByRole("combobox", { name: "Step for existing work item" }),
-    A.id,
-  );
+  await userEvent.selectOptions(choose, existingItem.id);
   await userEvent.click(
     screen.getByRole("button", { name: "Attach work item" }),
   );
@@ -488,9 +481,8 @@ it("adds, attaches, reassigns, and unlinks work items on a roadmap", async () =>
     }),
   );
 
-  // Unlink a work item from the roadmap
   await userEvent.click(
-    screen.getByRole("button", { name: "Unlink Roadmap item" }),
+    screen.getByRole("button", { name: "Unlink Step item" }),
   );
   await waitFor(() =>
     expect(calls.at(-1)).toEqual({
@@ -503,6 +495,56 @@ it("adds, attaches, reassigns, and unlinks work items on a roadmap", async () =>
       },
     }),
   );
+});
+it("lists the roadmap's work on its overview, each with its step and no form or picker", async () => {
+  const onStep = anItem({
+    id: "bbbbbbbb-0000-4000-8000-000000000003",
+    title: "On Alpha",
+    roadmapId: ROADMAP,
+    stepId: A.id,
+  });
+  const onRoadmap = anItem({
+    id: "bbbbbbbb-0000-4000-8000-000000000004",
+    title: "On the roadmap",
+    roadmapId: ROADMAP,
+  });
+  const onRetired = anItem({
+    id: "bbbbbbbb-0000-4000-8000-000000000005",
+    title: "On a retired step",
+    roadmapId: ROADMAP,
+    stepId: "aaaaaaaa-0000-4000-8000-0000000000ff",
+  });
+  serveWork(
+    { ...roadmap(4, [A, B]), workItems: [onStep, onRoadmap, onRetired] },
+    [],
+  );
+  showRoadmap();
+  const row = (await screen.findByText("On Alpha")).closest(
+    ".roadmap-work-item",
+  ) as HTMLElement;
+  expect(
+    within(row).getByRole("link", { name: "Step: Alpha" }),
+  ).toHaveAttribute("href", `#roadmaps/${ROADMAP}/${A.id}`);
+  const plain = screen
+    .getByText("On the roadmap")
+    .closest(".roadmap-work-item") as HTMLElement;
+  expect(within(plain).queryByText(/^Step: /)).not.toBeInTheDocument();
+  expect(
+    within(
+      screen
+        .getByText("On a retired step")
+        .closest(".roadmap-work-item") as HTMLElement,
+    ).getByText("On a step no longer in the plan"),
+  ).toBeInTheDocument();
+  for (const name of [
+    "New roadmap work item",
+    "New work item on this step",
+    "Find existing work",
+  ])
+    expect(screen.queryByRole("textbox", { name })).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("combobox", { name: /^Step for / }),
+  ).not.toBeInTheDocument();
 });
 const TOP = "33333333-3333-4333-8333-333333333331";
 const CHILD = "33333333-3333-4333-8333-333333333332";

@@ -199,7 +199,6 @@ export function Roadmaps({
 export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
   const query = useData<Roadmap>("/roadmaps/" + id);
   const action = useWrites();
-  const createItem = useCommand(commands.createItem);
   const [editing, setEditing] = useState(false);
   // The step whose own text is being edited, alone, apart from the structure editor.
   const [editingStep, setEditingStep] = useState<string | null>(null);
@@ -210,11 +209,6 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
     readIdSet(collapsedKey),
   );
   const [revealed, setRevealed] = useState<string | undefined>();
-  const [newItemTitle, setNewItemTitle] = useState("");
-  const [newItemStepId, setNewItemStepId] = useState("");
-  const [workQuery, setWorkQuery] = useState("");
-  const [pickItemId, setPickItemId] = useState("");
-  const [pickStepId, setPickStepId] = useState("");
   const [subTitle, setSubTitle] = useState("");
   const roads = useData<Answer<"/api/v1/roadmaps">>("/roadmaps?archived=false");
   const outlineRef = useRef<HTMLDivElement>(null);
@@ -223,9 +217,6 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
   const outlineWidth = useStoredWidth("outline-width", OUTLINE_MIN, 2000);
   const detailRef = useRef<HTMLDivElement>(null);
   const snapshotRef = useRef<HTMLElement>(null);
-  const workList = useData<Answer<"/api/v1/work-items">>(
-    `/work-items?view=all&archived=false&limit=100&q=${encodeURIComponent(workQuery)}`,
-  );
   const stepAgents = useData<RoadmapAgents>(
     `/roadmaps/${id}/agents`,
     AGENTS_REFRESH,
@@ -336,7 +327,8 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
       setSnapshot({ error: String(error) });
     }
   };
-  const renderWorkItem = (item: RoadmapWorkItem) => (
+  /** A work item's row. The overview names the step it is on, which its page attaches work to. */
+  const renderWorkItem = (item: RoadmapWorkItem, onStepPage = false) => (
     <div className="line roadmap-work-item" key={item.id}>
       <span className={"status-dot " + item.status} />
       <a className="item-title" href={"#work/" + item.id}>
@@ -354,31 +346,15 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
           )
         }
       />
-      <select
-        aria-label={"Step for " + item.title}
-        disabled={road.archived}
-        value={
-          item.stepId && active.some((s) => s.id === item.stepId)
-            ? item.stepId
-            : ""
-        }
-        onChange={(e) =>
-          action.mutate(() =>
-            commands.updateItem(item.id, {
-              revision: item.revision,
-              roadmapId: id,
-              stepId: e.target.value || null,
-            }),
-          )
-        }
-      >
-        <option value="">Roadmap (no specific step)</option>
-        {active.map((s) => (
-          <option key={s.id} value={s.id}>
-            Step: {s.title}
-          </option>
+      {!onStepPage &&
+        item.stepId &&
+        (titles.has(item.stepId) ? (
+          <a href={`#roadmaps/${id}/${item.stepId}`}>
+            Step: {stepTitle(item.stepId)}
+          </a>
+        ) : (
+          <small className="muted">On {stepTitle(item.stepId)}</small>
         ))}
-      </select>
       <button
         type="button"
         className="quiet"
@@ -595,129 +571,13 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
         <h3>
           Work items <span className="count">{roadWorkItems.length}</span>
         </h3>
-        <form
-          className="quick-add"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            if (!newItemTitle.trim() || road.archived) return;
-            await createItem
-              .mutateAsync({
-                title: newItemTitle,
-                description: "",
-                roadmapId: id,
-                stepId: newItemStepId || null,
-                worked: false,
-              })
-              .then(() => setNewItemTitle(""))
-              .catch(() => undefined);
-          }}
-        >
-          <input
-            aria-label="New roadmap work item"
-            placeholder="Add a work item to this roadmap…"
-            value={newItemTitle}
-            onChange={(e) => setNewItemTitle(e.target.value)}
-            maxLength={500}
-            disabled={road.archived}
-          />
-          <select
-            aria-label="Step for new work item"
-            value={newItemStepId}
-            disabled={road.archived}
-            onChange={(e) => setNewItemStepId(e.target.value)}
-          >
-            <option value="">Roadmap (no specific step)</option>
-            {active.map((s) => (
-              <option key={s.id} value={s.id}>
-                Step: {s.title}
-              </option>
-            ))}
-          </select>
-          <button
-            type="submit"
-            className="primary"
-            disabled={
-              road.archived || createItem.isPending || !newItemTitle.trim()
-            }
-          >
-            Add work item
-          </button>
-        </form>
-        <form
-          className="inline plan-picker"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            const chosen = workList.data?.items.find(
-              (i) => i.id === pickItemId,
-            );
-            if (!chosen || road.archived) return;
-            await action
-              .mutateAsync(() =>
-                commands.updateItem(chosen.id, {
-                  revision: chosen.revision,
-                  roadmapId: id,
-                  stepId: pickStepId || null,
-                }),
-              )
-              .then(() => setPickItemId(""))
-              .catch(() => undefined);
-          }}
-        >
-          <input
-            aria-label="Find existing work"
-            placeholder="Find existing work…"
-            value={workQuery}
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck={false}
-            disabled={road.archived}
-            onChange={(e) => {
-              setWorkQuery(e.target.value);
-              setPickItemId("");
-            }}
-          />
-          <select
-            aria-label="Choose existing work"
-            value={pickItemId}
-            disabled={road.archived}
-            onChange={(e) => setPickItemId(e.target.value)}
-          >
-            <option value="">Attach existing work to this roadmap…</option>
-            {workList.data?.items
-              .filter(
-                (i) =>
-                  !roadWorkItems.some(
-                    (w) =>
-                      w.id === i.id && (w.stepId ?? "") === (pickStepId || ""),
-                  ),
-              )
-              .map((i) => (
-                <option value={i.id} key={i.id}>
-                  {i.title}
-                </option>
-              ))}
-          </select>
-          <select
-            aria-label="Step for existing work item"
-            value={pickStepId}
-            disabled={road.archived}
-            onChange={(e) => setPickStepId(e.target.value)}
-          >
-            <option value="">Roadmap (no specific step)</option>
-            {active.map((s) => (
-              <option key={s.id} value={s.id}>
-                Step: {s.title}
-              </option>
-            ))}
-          </select>
-          <button
-            type="submit"
-            disabled={road.archived || !pickItemId || action.isPending}
-          >
-            Attach work item
-          </button>
-        </form>
-        {roadWorkItems.map(renderWorkItem)}
+        {roadWorkItems.length ? (
+          roadWorkItems.map((item) => renderWorkItem(item))
+        ) : (
+          <p className="muted">
+            None yet. Add or attach work on a step's page.
+          </p>
+        )}
       </section>
       <Notes ownerType="roadmap" ownerId={id} notes={road.notes} />
       <LinksSection
@@ -856,12 +716,17 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
           Work items <span className="count">{selectedItems.length}</span>
         </h3>
         {selectedItems.length ? (
-          selectedItems.map(renderWorkItem)
+          selectedItems.map((item) => renderWorkItem(item, true))
         ) : (
-          <p className="muted">
-            None on this step. Attach work from the roadmap overview.
-          </p>
+          <p className="muted">None on this step yet.</p>
         )}
+        <StepWorkForms
+          key={selected.id}
+          roadmapId={id}
+          stepId={selected.id}
+          onStep={new Set(selectedItems.map((w) => w.id))}
+          disabled={road.archived}
+        />
       </section>
       <StepAgentChats
         roadmapId={id}
@@ -958,9 +823,7 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
           <span className="muted">Revision {road.revision}</span>
         </div>
       </header>
-      <ErrorMessage
-        error={action.error || createItem.error || workList.error}
-      />
+      <ErrorMessage error={action.error} />
       <div
         className="split roadmap-split"
         ref={splitRef}
@@ -1073,6 +936,119 @@ export function RoadmapDetail({ id, step }: { id: string; step?: string }) {
         </div>
       </div>
     </div>
+  );
+}
+/**
+ * Adds a work item to a step, or attaches existing work to it, from the step's own page: no step to
+ * find in a list. Attaching work that sits on another step moves it here.
+ */
+function StepWorkForms({
+  roadmapId,
+  stepId,
+  onStep,
+  disabled,
+}: {
+  roadmapId: string;
+  stepId: string;
+  // The work items already on this step, which attaching does not offer.
+  onStep: Set<string>;
+  disabled: boolean;
+}) {
+  const createItem = useCommand(commands.createItem);
+  const attach = useWrites();
+  const [title, setTitle] = useState("");
+  const [query, setQuery] = useState("");
+  const [pick, setPick] = useState("");
+  const work = useData<Answer<"/api/v1/work-items">>(
+    `/work-items?view=all&archived=false&limit=100&q=${encodeURIComponent(query)}`,
+  );
+  return (
+    <>
+      <form
+        className="quick-add"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (!title.trim() || disabled) return;
+          await createItem
+            .mutateAsync({
+              title,
+              description: "",
+              roadmapId,
+              stepId,
+              worked: false,
+            })
+            .then(() => setTitle(""))
+            .catch(() => undefined);
+        }}
+      >
+        <input
+          aria-label="New work item on this step"
+          placeholder="Add a work item to this step…"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          maxLength={500}
+          disabled={disabled}
+        />
+        <button
+          type="submit"
+          className="primary"
+          disabled={disabled || createItem.isPending || !title.trim()}
+        >
+          Add work item
+        </button>
+      </form>
+      <form
+        className="inline plan-picker"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          const chosen = work.data?.items.find((i) => i.id === pick);
+          if (!chosen || disabled) return;
+          await attach
+            .mutateAsync(() =>
+              commands.updateItem(chosen.id, {
+                revision: chosen.revision,
+                roadmapId,
+                stepId,
+              }),
+            )
+            .then(() => setPick(""))
+            .catch(() => undefined);
+        }}
+      >
+        <input
+          aria-label="Find existing work"
+          placeholder="Find existing work…"
+          value={query}
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          disabled={disabled}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setPick("");
+          }}
+        />
+        <select
+          aria-label="Choose existing work"
+          value={pick}
+          disabled={disabled}
+          onChange={(e) => setPick(e.target.value)}
+        >
+          <option value="">Attach existing work to this step…</option>
+          {work.data?.items
+            .filter((i) => !onStep.has(i.id))
+            .map((i) => (
+              <option value={i.id} key={i.id}>
+                {i.title}
+              </option>
+            ))}
+        </select>
+        <button type="submit" disabled={disabled || !pick || attach.isPending}>
+          Attach work item
+        </button>
+      </form>
+      <ErrorMessage error={createItem.error || attach.error || work.error} />
+    </>
   );
 }
 /**

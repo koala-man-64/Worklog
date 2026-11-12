@@ -174,11 +174,13 @@ Done as `GET /roadmaps/{id}/outline` (`plans.outline`), which lists each step in
 
 #### 1.2 · Work from the step
 
-Status: Not started
+Status: Merged · Branch: `claude/work-from-step` · PR: [#193](https://github.com/koala-man-64/Worklog/pull/193)
 
 A step's page adds and attaches work items. The overview's work item forms go, with their step picker, which lists every step of the roadmap: 487 on the largest.
 
 Why: attaching work to a step means leaving it for the overview and finding the step again.
+
+Done in the roadmap page (`StepWorkForms`): a step's page adds a work item on it and attaches existing work to it, moving work from another step; its search loads only there. The overview lists the roadmap's work with a link to each item's step, and its forms go, with the step picker on each row as well as in the forms, since every one listed every step. Work on the roadmap with no step, or moved off a step, is set on the work item's own page. No API or schema change.
 
 #### 1.3 · A roadmap page with a job
 

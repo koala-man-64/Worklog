@@ -1140,14 +1140,10 @@ section:not(.draft) > h3 {
 .detail > .back {
   margin-bottom: 16px;
 }
-/* Step pickers list every step title; a fixed basis keeps them from crushing the title or input beside them. */
+/* A work item's title, and a quick-add field, take the room the row's controls leave. */
 .roadmap-work-item .item-title,
 .detail .quick-add input {
   flex: 1 1 12rem;
-}
-.detail .quick-add select {
-  flex: 0 1 16rem;
-  min-width: 0;
 }
 .person-badges {
   display: inline-flex;
