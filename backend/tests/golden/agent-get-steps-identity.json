@@ -9,8 +9,17 @@
     "status": "open",
     "revision": 1,
     "retired": false,
-    "roadmapId": "<id3>",
     "notes": [],
-    "attachments": []
+    "attachments": [],
+    "roadmapId": "<id3>",
+    "ancestors": [
+      {
+        "id": "<id2>",
+        "title": "Parent",
+        "status": "open"
+      }
+    ],
+    "siblings": [],
+    "chats": []
   }
 }

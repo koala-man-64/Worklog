@@ -47,6 +47,7 @@
   "GET /api/v1/roadmaps": "reaches handler",
   "GET /api/v1/roadmaps/{identity}": "reaches handler",
   "GET /api/v1/roadmaps/{identity}/agents": "refused",
+  "GET /api/v1/roadmaps/{identity}/outline": "reaches handler",
   "GET /api/v1/roadmaps/{identity}/proposals": "reaches handler",
   "GET /api/v1/roadmaps/{identity}/revisions/{number}": "reaches handler",
   "GET /api/v1/search": "reaches handler",

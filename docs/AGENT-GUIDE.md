@@ -208,8 +208,9 @@ worklog agent --as NAME retire
 |---|---|---|
 | `context` | `[--date DATE] [--repo REPOSITORY_ID] [--item ITEM_ID]` | `{day,workItems,roadmaps,people,proposals,repositories,runs,participations,updates,tickets,resources}`: the day's entries, roadmaps without their steps, up to 100 of each list, open proposals (yours in draft and those submitted for review) by title, status and `operationCount` without their changes, open tickets, and resources by title and summary without their text |
 | `search QUERY` | `[--limit 50] [--archived]` | `{items:[{id,type,title,snippet,ownerId,routeType,routeId}],total}`; 220-character snippets; the first 30 words of QUERY count |
+| `roadmap outline ID` | - | `{id,title,archived,revision,steps:[{id,title,status,parentId,position}]}`: each step in the plan, retired ones aside, depth-first in outline order, without its text; a parent's status comes from its leaves |
 | `roadmap show ID` | - | the roadmap with every step's full text, progress, revision and `retired` flag, its versions, work items, notes, links, tracked chats, GitHub references, questions and decisions; without its history |
-| `step show ID` | - | the step with its `roadmapId`, notes and attachments |
+| `step show ID` | - | the step with its full text, `roadmapId`, notes and attachments; `ancestors`, the steps above it from the top down, and `siblings`, the others under its parent in outline order, each `{id,title,status}` (siblings with `position`); and `chats`, the roadmap's tracked chats on it, archived ones included, in the order they were put there |
 | `resources list` | `[--q WORDS] [--archived] [--limit 50] [--offset 0]` | `{items:[{id,title,summary,archived,revision,createdAt,updatedAt}],total,limit,offset}` by title, without the pages' text; `--q` searches titles, summaries and text; `--archived` lists archived pages only |
 | `resources show ID` | - | one page with its whole Markdown `body`, and its latest 100 changes without their records |
 | `proposals` | `[--status draft\|submitted\|approved\|rejected\|withdrawn] [--limit 50] [--offset 0]` | `{items,total}`: yours, and other agents' once submitted, oldest first, up to 200 a page; `total` counts them all |
@@ -217,9 +218,12 @@ worklog agent --as NAME retire
 
 `search` covers work items, notes, file names, links, tracked chats, GitHub references, roadmaps and steps, questions and decisions, people, discussions, tickets and ticket comments, and resources, but not proposals.
 
+To find your way in a roadmap, read its outline, then the steps you work on with `step show`. `roadmap show` returns every step's full text, a megabyte or more for a large roadmap; read it when you need the whole plan at once, such as before a `roadmap.revise`.
+
 ```powershell
 worklog agent --as NAME context --date 2026-11-04 --repo REPOSITORY_ID --item ITEM_ID
 worklog agent --as NAME search 'deploy steps' --limit 20 --archived
+worklog agent --as NAME roadmap outline ROADMAP_ID
 worklog agent --as NAME roadmap show ROADMAP_ID
 worklog agent --as NAME step show STEP_ID
 worklog agent --as NAME resources list --q 'deploy steps' --limit 20 --archived

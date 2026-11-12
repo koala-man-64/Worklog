@@ -459,10 +459,52 @@ class Roadmap(Answer):
     people: list[RecordPerson]
 
 
+class NearbyStep(Answer):
+    """A step above or beside another, by its title and status."""
+
+    id: str
+    title: str
+    # steps.status has no CHECK; a parent's is derived from its leaves.
+    status: str
+
+
+class SiblingStep(NearbyStep):
+    position: int
+
+
 class Step(RoadmapStep):
-    """A step as its own read returns it: with its roadmap, and retired or not."""
+    """A step as its own read returns it: with its roadmap, retired or not, where it sits in the plan,
+    and the tracked chats on it."""
 
     roadmapId: str
+    # The steps above it, from the top of the plan down; none for a top-level step.
+    ancestors: list[NearbyStep]
+    # The other steps under its parent, retired ones aside, in outline order.
+    siblings: list[SiblingStep]
+    # The roadmap's tracked chats assigned to it, archived ones included, in the order they were put there.
+    chats: list[TrackedChat]
+
+
+class OutlineStep(Answer):
+    """A step as a roadmap's outline gives it: no text."""
+
+    id: str
+    title: str
+    # steps.status has no CHECK; a parent's is derived from its leaves.
+    status: str
+    parentId: str | None
+    position: int
+
+
+class RoadmapOutline(Answer):
+    """A roadmap's plan without its text: each step in it, retired ones aside, depth-first in outline
+    order, each before its children."""
+
+    id: str
+    title: str
+    archived: bool
+    revision: int
+    steps: list[OutlineStep]
 
 
 class History(Answer):

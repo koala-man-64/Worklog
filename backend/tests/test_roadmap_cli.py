@@ -1,4 +1,5 @@
-"""Agents read roadmaps and steps in full, not only context summaries and search snippets."""
+"""Agents read roadmaps and steps in full, not only context summaries and search snippets, and a
+roadmap's outline without its text."""
 
 import io
 import json
@@ -33,6 +34,7 @@ def transport(monkeypatch):
 
 @pytest.mark.parametrize("arguments,route", [
     (["roadmap", "show", ID], f"/roadmaps/{ID}"),
+    (["roadmap", "outline", ID], f"/roadmaps/{ID}/outline"),
     (["step", "show", ID], f"/steps/{ID}"),
 ])
 def test_show_reads_one_record_by_id(transport, arguments, route):
@@ -49,6 +51,7 @@ def test_show_reads_one_record_by_id(transport, arguments, route):
     # A roadmap's view of the agent registry is the person's alone.
     ("GET", f"/roadmaps/{ID}/agents"),
     ("GET", "/roadmaps/%2e%2e"), ("GET", "/steps/not-a-step"),
+    ("POST", f"/roadmaps/{ID}/outline"), ("GET", f"/roadmaps/{ID}/outlines"), ("GET", "/roadmaps/not-a-roadmap/outline"),
 ])
 def test_only_reading_one_roadmap_or_step_is_reachable(transport, method, path):
     with pytest.raises(ValueError, match="outside"):
@@ -108,6 +111,14 @@ def test_an_agent_reads_every_step_in_full_from_the_application(tmp_path, monkey
 
         step = run("step", "show", PARENT)
         assert (step["description"], step["roadmapId"], step["status"]) == (DESCRIPTION, roadmap["id"], "open")
+
+        # The outline names each step without its text, and a step's read places it in the plan.
+        outline = run("roadmap", "outline", roadmap["id"])
+        assert [(s["id"], s["parentId"], s["title"]) for s in outline["steps"]] == [
+            (PARENT, None, "Stream the reads"), (CHILD, PARENT, "Measure")]
+        assert DESCRIPTION[:40] not in json.dumps(outline, ensure_ascii=False)
+        child = run("step", "show", CHILD)
+        assert ([a["id"] for a in child["ancestors"]], child["siblings"], child["chats"]) == ([PARENT], [], [])
 
         shown = run("roadmap", "show", roadmap["id"])
         assert "history" not in shown

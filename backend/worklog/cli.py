@@ -561,6 +561,8 @@ class AgentClient:
             allowed = method == "POST" and valid_id(segments[1])
         if len(segments) == 2 and segments[0] in {"roadmaps", "steps", "resources"}:
             allowed = method == "GET" and valid_id(segments[1])
+        if len(segments) == 3 and segments[0] == "roadmaps" and segments[2] == "outline":
+            allowed = method == "GET" and valid_id(segments[1])
         if route in {"/proposals", "/agent-registrations", "/agent-registrations/continue", "/agent-registrations/retire"} and method == "POST":
             allowed = True
         if route == "/attachments" and method == "POST":
@@ -879,6 +881,8 @@ def agent_command(args: argparse.Namespace, port: int, redact: list[str]) -> Any
         return client.request("GET", "/search?" + urlencode({"q": args.query, "limit": args.limit,
                                                             "archived": str(args.archived).lower()}))
     if args.agent_action == "roadmap":
+        if args.roadmap_action == "outline":
+            return client.request("GET", f"/roadmaps/{args.id}/outline")
         roadmap = client.request("GET", "/roadmaps/" + args.id)
         # Each history event keeps whole before-and-after copies of the plan; the steps already hold its text.
         roadmap.pop("history", None)
@@ -1513,9 +1517,11 @@ def parser() -> argparse.ArgumentParser:
     listing.add_argument("--offset", type=int, default=0)
     resources.add_parser("show", help="One page with its full Markdown text").add_argument("id")
     # context lists roadmaps without their steps and search shows snippets; these read the whole text.
-    roadmap = actions.add_parser("roadmap", help="Read a roadmap with the full text of every step")
-    roadmap.add_subparsers(dest="roadmap_action", required=True).add_parser("show").add_argument("id")
-    step = actions.add_parser("step", help="Read one step's full text, progress and notes")
+    roadmap = actions.add_parser("roadmap", help="Read a roadmap: its outline, or the full text of every step")
+    roadmap_actions = roadmap.add_subparsers(dest="roadmap_action", required=True)
+    roadmap_actions.add_parser("outline", help="Each step's ID, title, status, parent and position, without text").add_argument("id")
+    roadmap_actions.add_parser("show", help="The roadmap with the full text of every step").add_argument("id")
+    step = actions.add_parser("step", help="Read one step's full text, progress and notes, the steps around it and its tracked chats")
     step.add_subparsers(dest="step_action", required=True).add_parser("show").add_argument("id")
     proposals = actions.add_parser("proposals", help="Proposals you may see, oldest first, 50 at a time by default")
     proposals.add_argument("--status")
