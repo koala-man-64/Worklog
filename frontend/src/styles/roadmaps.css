@@ -247,10 +247,6 @@ button.agent-chip.more {
   width: 100%;
   margin: 0;
 }
-.roadmap-work-item select:not(.status-select) {
-  font-size: 12px;
-  flex: 0 1 16rem;
-}
 /* Your own messages sit in from the left, the way a conversation reads. */
 .message.user {
   margin-left: clamp(0px, 8%, 64px);

@@ -428,11 +428,12 @@ Plans broken into steps, with every saved version kept.
     - **The overview:**
       - The overview text and people, "Agents", "Questions", "Decisions" and "Sub-roadmaps".
       - "Agents" lists every agent whose work ties it to the roadmap, now or before: its reported work, status updates, responsibilities, discussion messages and tracked chats, the same work that names the roadmap on its card on **Agents**. Each row says why, with "Current" while something is still open and otherwise when it last was. Agents whose credentials are revoked sit under "Retired agents". Nobody ties them here by hand.
-      - "Work items": "Add work item" creates one on the roadmap, and "Attach work item" links existing work.
+      - "Work items": the work on the roadmap, each with a link to the step it is on. Add and attach work on a step's page.
       - Notes, links, agent chats, GitHub references and files.
       - "Immutable versions", "Retired steps", "Archived supporting records", "Applied proposals" and "Activity history".
     - **A step**, chosen in the outline:
-      - Its description, with "Edit step" for its title and description, and its work items.
+      - Its description, with "Edit step" for its title and description.
+      - Its work items, each with its status and "Unlink". "Add work item" creates one on this step, and "Attach work item" puts existing work, found with "Find existing work", on it, moving it from another step.
       - Its agent chats, with "Assign chat", "Add chat to step" and "Unassign".
       - "Agents": the agents whose work ties them to the step or to the steps under it, as the overview lists them.
       - Its notes and files, and "Step history".
