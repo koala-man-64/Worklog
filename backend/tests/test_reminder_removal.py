@@ -90,10 +90,10 @@ def test_the_upgrade_drops_every_reminder_and_its_search_row_and_changes_no_othe
     assert after["search_keys"] == [row for row in before["search_keys"] if row[2] != "reminder"]
     assert (found(database, "certificate"), found(database, "vendor"), found(database, "release")) == (0, 0, 1)
     # Every other table keeps every row, the reminder's history among them; the index's own tables
-    # change with its rows. v28 and v29, which the upgrade also runs, drop the release and ties
-    # tables, empty here.
-    dropped = {"reminders", "releases", "release_contents", "release_checks", "agent_links"}
-    assert [before[table] for table in sorted(dropped - {"reminders"})] == [[], [], [], []]
+    # change with its rows. v28 to v30, which the upgrade also runs, drop the release, ties and chat
+    # message tables, empty here.
+    dropped = {"reminders", "releases", "release_contents", "release_checks", "agent_links", "chat_messages", "chat_message_deliveries", "chat_confirmations"}
+    assert [before[table] for table in sorted(dropped - {"reminders"})] == [[]] * 7
     kept = [table for table in before if table not in dropped and not table.startswith("search_")]
     assert set(after) == set(before) - dropped
     assert {table: after[table] for table in kept} == {table: before[table] for table in kept}

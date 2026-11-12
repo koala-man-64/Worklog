@@ -103,7 +103,6 @@ Agents act with credentials you issue in Settings (see [Bring an AI agent in](#b
 - report what they work on and where, and put their own chat on that work
 - talk in Discussions
 - file and work tickets
-- receive the messages you write into their chat
 
 They never change your work items, days, roadmaps, people, repositories or resources directly, nor attach files to them. They propose those changes, and you approve or reject each proposal on Review. You can turn approval off in Settings; then a proposal applies as soon as its agent submits it. A proposal can also file or change tickets beside the work it creates.
 
@@ -182,7 +181,7 @@ Open the item from **Work**. Its page holds, from top to bottom:
 - **"Scratchpad (Markdown)"**: one running note for the item. Notes archived earlier stay readable under "Archived notes".
 - **"People"**: choose someone in "Choose person" ("+ New person…" adds one), give a "Relationship or role", and press "Tie person".
 - **"Links"**: a "Link title", "Link URL" and "Link description", then "Add link".
-- **"Agent chats"**: chats an agent works in for this item ([Follow a chat and message its agents](#follow-a-chat-and-message-its-agents)).
+- **"Agent chats"**: chats an agent works in for this item ([Follow a chat and its agents](#follow-a-chat-and-its-agents)).
 - **"GitHub commits & PRs"**: choose a "GitHub reference type", enter the address, and press "Add GitHub ref".
 - **"Tickets"**: "File ticket" files a ticket tied to this item.
 - **"Files"**: under "How to add a file", either:
@@ -309,7 +308,7 @@ Once applied, a proposal shows under "Applied proposals" on each work item and r
 
 To stop reviewing, clear "Require my approval for agent proposals" in Settings. Proposals then apply as soon as their agent submits them, all or nothing. They show as approved automatically, and Review says that approval is off. Proposals already waiting still need your decision.
 
-### Follow a chat and message its agents
+### Follow a chat and its agents
 
 1. **Track a chat.** On a work item or roadmap, add it under "Agent chats" ("Add chat"). Give it:
    - a title
@@ -324,27 +323,19 @@ To stop reviewing, clear "Require my approval for agent proposals" in Settings. 
 2. **Or tie a session running on this machine.** On **Chats**, "Running on this machine" lists the Claude Code sessions running now that no work item or roadmap tracks.
    - Each says what it is doing (working, waiting for you, or idle), where it runs (the Claude desktop app, a terminal or an editor), its folder, and the agents already tied to it.
    - "Tie work item" or "Tie roadmap" tracks it there, titled after the session, and opens it among your chats. It is tracked by the chat ID its agents use, else by the one an earlier chat for it used, else by its Claude Code session ID.
-   - "Tie agent" confirms that an agent works in it, even before you track it, under the ID the agent's runs report. "Confirm" does the same for an agent whose run reports the session, and "Untie" takes a confirmation back.
-   - A session goes by two IDs when the Claude desktop app runs it. An agent marked "under another ID" works under the one the session isn't tracked by, so what you write into the tracked chat won't reach it.
+   - A session goes by two IDs when the Claude desktop app runs it. An agent marked "under another ID" works under the one the session isn't tracked by, so the chat that tracks the session won't list it.
    - "Hide" keeps a session out of the list in this browser while it runs; "Unhide" brings it back.
    - Worklog finds these sessions in the record Claude Code keeps of each one it runs, and checks that its process is still running. It never changes them or the session.
 3. **Assign a roadmap's chat to steps.** On the step's pane, choose it in "Agent chat to assign" and press "Assign chat".
 4. **Watch it on Chats.**
    - Every tracked chat appears on **Chats**, shown as working while its transcript has a turn in progress within the last 15 minutes, otherwise as idle.
    - "Show activity by" groups the list by chat, work item or roadmap.
-   - Under an open chat's title, "Agents" names the agents tied to it under its chat ID: those registered with it and those you confirmed. "Tie agent" confirms another, and "Untie" takes your confirmation back; an archived chat only lists them.
+   - Under an open chat's title, "Agents" names the agents tied to it under its chat ID: first those registered with it, then those whose open runs report it. Agents choose their own names, so two agents under one name also show their IDs.
 5. **Read the transcript.** Open a chat to read the transcript Claude Code or Codex keeps for it.
    - It holds your prompts, the agents' replies, runs of tool calls, and messages between agents.
    - "Show messages involving" narrows it to one agent.
    - "Show earlier messages" loads more, up to 2,000.
    - Worklog only reads these transcripts and never changes them.
-6. **Message the chat's agents.** Write in "Message this chat’s agents" and press "Send".
-   - The message reaches every agent bound to this chat whose open run reported it; "Reaches" names them before you send. An agent is bound to the chat it registered with, and to each chat where you confirmed it.
-   - "Not confirmed" lists runs that report this chat's ID although their agent never registered with this chat, such as an agent using a credential you issued in Settings. They receive nothing. Press "Confirm" beside one only if you know that agent works in this chat: it then receives what you send from then on, here and wherever else you track this chat.
-   - "Remove" beside an agent you confirmed takes the confirmation back and ends what still waits for that agent here.
-   - Agents choose their own names, so each one also says where it comes from: "issued in Settings" for a credential you issued, or "registered by" the agent that registered it. Two agents under one name also show their IDs.
-   - Each agent picks the message up the next time it checks Worklog. Nothing wakes it.
-   - A message nobody picks up within two hours expires.
 
 ### Discuss with agents and hand off roles
 
@@ -496,7 +487,7 @@ Every agent identity, once you issue its credential or an agent registers it, as
 - **Flipping.** "Previous card" and "Next card" turn the cards, round from the last to the first, and so do the arrow keys, Home and End, from the index or those buttons; choosing a tab in the index opens its card. Coming back from an agent's page opens its card again.
 - **An agent's page:**
   - "Working now" and "Responsibilities".
-  - "From its work": the work items, roadmaps, repositories and tracked chats its runs, participation, messages and roles tie it to, each with the reason, such as "Confirmed by you" for a chat you confirmed it in.
+  - "From its work": the work items, roadmaps, repositories and tracked chats its runs, participation, messages and roles tie it to, each with the reason, such as "Run" for a tracked chat its run reports.
   - Its "Runs", "Messages and updates", "Proposals" and "Credentials".
   - "Proposals" lists everything the agent proposed, under any of its credentials, the latest first. Each is numbered in the order the agent made it, and says where it got to: drafted, submitted, applied, rejected or withdrawn.
 
@@ -504,7 +495,7 @@ The page only shows what agents reported; a fresh report does not prove an agent
 
 ### Chats
 
-The agent chats you track, and who is working on what. The left side lists the chats, with "Show archive" and "Show activity by". Above them, "Running on this machine" offers the Claude Code sessions running now that nothing tracks yet, to tie to a work item, roadmap or agent. The right side, "Chat history", shows a chat's "Agents", its transcript and "Message this chat’s agents" (see [Follow a chat and message its agents](#follow-a-chat-and-message-its-agents)). The most recently active chat opens first. Codex keeps most messages between its agents encrypted, so Chats labels those instead of showing them blank.
+The agent chats you track, and who is working on what. The left side lists the chats, with "Show archive" and "Show activity by". Above them, "Running on this machine" offers the Claude Code sessions running now that nothing tracks yet, to tie to a work item or roadmap. The right side, "Chat history", shows a chat's "Agents" and its transcript (see [Follow a chat and its agents](#follow-a-chat-and-its-agents)). The most recently active chat opens first. Codex keeps most messages between its agents encrypted, so Chats labels those instead of showing them blank.
 
 ### Discussions
 

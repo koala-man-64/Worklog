@@ -37,19 +37,21 @@ def test_v4_upgrade_adds_tickets_after_a_snapshot_and_restores(tmp_path):
     path = tmp_path / "live" / "worklog.sqlite3"
     path.parent.mkdir()
     v4_database(path)
-    before = {t: rows(path, t) for t in ("credentials", "communication_agents", "work_items", "chat_messages")}
-    # v4 already holds messages to chats, so the upgrade must not create them again.
+    before = {t: rows(path, t) for t in ("credentials", "communication_agents", "work_items")}
+    # v4 already holds messages to chats, so the upgrade must not create them again; v30 drops them.
     Database(path).initialize()
     with Database(path).read() as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
         assert recovery._schema_signature(conn) == sealed.current()
         assert conn.execute("SELECT count(*) FROM tickets").fetchone()[0] == 0
+        assert conn.execute("SELECT count(*) FROM sqlite_master WHERE name='chat_messages'").fetchone()[0] == 0
     assert {t: rows(path, t) for t in before} == before
     snapshots = list((path.parent / "backups").glob("worklog-pre-migration-*.sqlite3"))
     assert len(snapshots) == 1
     with closing(sqlite3.connect(snapshots[0])) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 4
         assert recovery._schema_signature(conn) == sealed.shape(4)
+        assert conn.execute("SELECT text FROM chat_messages").fetchone()[0] == "Hello"
     Database(path).initialize()
     assert len(list((path.parent / "backups").glob("worklog-pre-migration-*.sqlite3"))) == 1
     restored = tmp_path / "restored" / "worklog.sqlite3"
@@ -57,7 +59,6 @@ def test_v4_upgrade_adds_tickets_after_a_snapshot_and_restores(tmp_path):
     with Database(restored).read() as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
         assert recovery._schema_signature(conn) == sealed.current()
-        assert conn.execute("SELECT text FROM chat_messages").fetchone()[0] == "Hello"
 
 
 def test_failed_ticket_schema_rolls_back_the_v4_upgrade(tmp_path, monkeypatch):

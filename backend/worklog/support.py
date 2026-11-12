@@ -10,14 +10,15 @@ import hashlib
 import json
 import re
 import sqlite3
+from collections.abc import Iterable
 from pathlib import PureWindowsPath
 from typing import Any
 from urllib.parse import urlsplit
 
 from . import scratchpad, search
-from .chat_messages import chat_agents, expire_pending
 from .common import (
     FILE_LIMIT,
+    LIVE_AGENT,
     AppError,
     event,
     now,
@@ -73,6 +74,41 @@ def chat_records(c: sqlite3.Connection, rows: builtins.list[Any]) -> builtins.li
     return [{**support_record(r), "stepIds": steps[r["id"]], "repositoryIds": repos.get(r["id"], [])} for r in rows]
 
 
+# The identities tied to chat IDs, closest tie first, with the column each tie keeps its chat ID in.
+TIES = (
+    ("registered", "SELECT reg.chat_id AS chat_id,reg.agent_id AS ref FROM communication_credentials reg WHERE {}", "reg.chat_id"),
+    ("run", "SELECT ar.external_chat_id AS chat_id,ar.agent_id AS ref FROM agent_runs ar JOIN credentials cred ON cred.id=ar.credential_id "
+            "WHERE ar.ended_at IS NULL AND cred.revoked=0 AND {}", "ar.external_chat_id"),
+)
+
+
+def chat_agents(c: sqlite3.Connection, chat_ids: Iterable[str], *, exact: bool) -> dict[str, builtins.list[dict]]:
+    """The agent identities tied to each chat ID: to the chat it registered with, and to the chat an
+    open run on a live credential reports. Each comes once per chat, with its closest tie as
+    `binding`, and `chatId` as that tie stored it. `exact` compares chat IDs character for
+    character, as runs report them, and keys the result by them; otherwise they are compared and
+    keyed without case or surrounding space, which finds every tie to a session that goes by more
+    than one ID."""
+    def key(value: str) -> str:
+        return value if exact else value.strip().lower()
+
+    keys = builtins.list({key(i) for i in chat_ids if i and i.strip()})
+    ties: dict[str, dict[str, tuple[str, str]]] = {}
+    for binding, sql, column in TIES:
+        match = f"{column} IN ({{}})" if exact else f"lower(trim({column})) IN ({{}})"
+        for r in rows_in(c, sql.format(match), keys):
+            ties.setdefault(key(r["chat_id"]), {}).setdefault(r["ref"], (binding, r["chat_id"]))
+    agents = {r["id"]: r for r in rows_in(c, f"SELECT a.id,a.label,a.avatar,{LIVE_AGENT} AS active FROM communication_agents a WHERE a.id IN ({{}})",
+                                          {ref for found in ties.values() for ref in found})}
+    order = {tie[0]: place for place, tie in enumerate(TIES)}
+    result: dict[str, builtins.list[dict]] = {}
+    for chat_id, found in ties.items():
+        listed = [{"id": ref, "label": agents[ref]["label"], "avatar": agents[ref]["avatar"], "active": bool(agents[ref]["active"]),
+                   "binding": binding, "chatId": stored} for ref, (binding, stored) in found.items() if ref in agents]
+        result[chat_id] = sorted(listed, key=lambda a: (order[a["binding"]], a["label"].casefold(), a["id"]))
+    return result
+
+
 def chat_overview(c: sqlite3.Connection, archived: bool = False) -> builtins.list[dict]:
     """Every agent chat with the record it belongs to, the roadmaps that record sits within, and the steps it works on."""
     chats = chat_records(c, c.execute("SELECT * FROM agent_chats WHERE archived=? ORDER BY created_date DESC,created_at DESC,id", (int(archived),)).fetchall())
@@ -109,7 +145,7 @@ def chat_overview(c: sqlite3.Connection, archived: bool = False) -> builtins.lis
             [ch["id"] for ch in chats],
         ):
             steps[r["chat_id"]].append({"id": r["id"], "title": r["title"], "status": r["status"], "retired": bool(r["retired"])})
-    # A tracked chat names only the agents its own chat ID reaches, compared as delivery compares it.
+    # A tracked chat names only the agents tied to its own chat ID, compared exactly, as runs report it.
     agents = chat_agents(c, [ch["chatId"] for ch in chats], exact=True)
     return [{**ch, "owner": owners.get((ch["ownerType"], ch["ownerId"]), {"type": ch["ownerType"], "id": ch["ownerId"], "title": "", "archived": False}),
              "roadmaps": path(within.get((ch["ownerType"], ch["ownerId"]))), "steps": steps[ch["id"]],
@@ -122,8 +158,8 @@ def session_ties(c: sqlite3.Connection, sessions: builtins.list[dict]) -> builti
 
     A session goes by its own ID and, when the Claude desktop app runs it, by the desktop
     session's local_ ID too; either ties it, compared without case. A session is tracked by the ID
-    its agents registered with, were confirmed under or report, closest tie first, since delivery
-    matches that ID exactly; failing those, by the ID a record already tracks it under, and
+    its agents registered with or report, closest tie first, so the tracked chat ties to their runs,
+    which match it exactly; failing those, by the ID a record already tracks it under, and
     otherwise by its own."""
     ids = {s["sessionId"]: [i for i in (s["sessionId"], s["hostSessionId"]) if i] for s in sessions}
     keys = {i for found in ids.values() for i in found}
@@ -134,7 +170,7 @@ def session_ties(c: sqlite3.Connection, sessions: builtins.list[dict]) -> builti
                                                      [ch["owner_id"] for ch in chats if ch["owner_type"] == "item"])}
     owners.update((("roadmap", r["id"]), r) for r in rows_in(c, "SELECT id,title FROM roadmaps WHERE id IN ({})",
                                                              [ch["owner_id"] for ch in chats if ch["owner_type"] == "roadmap"]))
-    order = {"registered": 0, "confirmed": 1, "run": 2}
+    order = {"registered": 0, "run": 1}
     result = []
     for s in sessions:
         own = ids[s["sessionId"]]
@@ -208,9 +244,6 @@ def apply(c: sqlite3.Connection, actor: dict, action: str, p: dict, *, moved_to:
             if pad is not None and pad[0] != row["id"]:
                 raise AppError(409, "conflict", "This work item already has a scratchpad; copy what you need from this note into it")
         c.execute(f"UPDATE {table} SET archived=?,revision=revision+1 WHERE id=?", (int(verb == "archive"), row["id"]))
-        if kind == "chat" and verb == "archive":
-            # Recovering the chat later never revives these deliveries.
-            expire_pending(c, "chat_archived", chat_id=row["id"])
     elif kind == "note" and verb in {"create", "update"}:
         val = before.copy() if before else {"id": uid(), "ownerType": p.get("ownerType"), "ownerId": p.get("ownerId"), "title": "", "text": "", "createdAt": now(), "revision": 0}
         check_owner(c, val["ownerType"], val["ownerId"])
@@ -274,9 +307,6 @@ def apply(c: sqlite3.Connection, actor: dict, action: str, p: dict, *, moved_to:
              val["provider"], val["model"], json.dumps(val["repos"])),
         )
         _assign_steps(c, actor, val, previous, assigned, moved_to)
-        if before is not None and before["chatId"] != val["chatId"]:
-            # Runs that reported the old ID are no longer tied to this chat.
-            expire_pending(c, "chat_changed", chat_id=val["id"])
         p = {**p, "id": val["id"]}
     elif kind == "github" and verb in {"create", "update"}:
         val = before.copy() if before else {"id": uid(), "ownerType": p.get("ownerType"), "ownerId": p.get("ownerId"), "kind": "pr", "url": "", "reference": "", "title": "", "description": "", "chatId": None, "createdAt": now(), "revision": 0}

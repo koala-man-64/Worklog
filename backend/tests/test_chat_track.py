@@ -86,11 +86,10 @@ def test_an_agent_tracks_its_registered_chat_on_a_work_item_without_a_proposal(c
     assert ok(client.get("/api/v1/proposals"))["items"] == []
     history = ok(client.get("/api/v1/history", params={"entityId": chat["id"]}))["items"]
     assert [(e["kind"], e["actorKind"], e["actorId"]) for e in history] == [("chat.create", "agent", identity["id"])]
-    # Chats lists it with the work, and what the person writes there reaches the agent's run.
+    # Chats lists it with the work, and names the agent registered with it.
     listed = [c for c in ok(client.get("/api/v1/chats"))["items"] if c["id"] == chat["id"]]
     assert listed and listed[0]["owner"] == {"type": "item", "id": item["id"], "title": "Parser fix", "archived": False}
-    run = ok(write(agent_http, "POST", "/agent-runs", {"clientRunKey": "run-1", "displayName": "Parser fix"}, token))
-    assert [r["runId"] for r in ok(client.get(f"/api/v1/chats/{chat['id']}/messages"))["recipients"]] == [run["id"]]
+    assert [(a["id"], a["binding"]) for a in listed[0]["agents"]] == [(identity["agentId"], "registered")]
 
     # Tracking it again finds the same chat, changed in nothing.
     again = ok(track(agent_http, token, ownerType="item", ownerId=item["id"], title="Another title", provider="codex"))

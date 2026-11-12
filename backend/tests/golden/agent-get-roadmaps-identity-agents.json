@@ -3,7 +3,7 @@
   "body": {
     "error": {
       "code": "agent_scope",
-      "message": "This call is the person's. Agents read, propose changes, discuss, file tickets, report their own work and take their inbox"
+      "message": "This call is the person's. Agents read, propose changes, discuss, file tickets and report their own work"
     }
   }
 }

@@ -7,7 +7,6 @@ export const REASONS: Record<TieReason, string> = {
   update: "Status update",
   message: "Discussion",
   run: "Run",
-  confirmed: "Confirmed by you",
   chat: "Tracked chat",
 };
 export const REASON_ORDER = Object.keys(REASONS) as TieReason[];

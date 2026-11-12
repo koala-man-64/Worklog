@@ -6,7 +6,6 @@ import json
 from contextlib import nullcontext
 
 from . import proposal_names, proposal_targets, scratchpad
-from .chat_messages import BOUND, RECIPIENTS, ChatMessageService
 from .common import (
     NOTE_LIMIT,
     AppError,
@@ -687,18 +686,6 @@ class ProposalService:
                 },
             },
         )
-        chat_service = ChatMessageService()
-        # Only chats the agent's identity is bound to: a chat ID its run merely claims is not its chat.
-        for chat_id, ext_id in conn.execute(
-            """SELECT DISTINCT ch.id, ch.chat_id FROM agent_chats ch
-               JOIN agent_runs ar ON ar.external_chat_id = ch.chat_id
-               JOIN credentials cr ON cr.id = ar.credential_id
-               WHERE ch.archived = 0 AND ar.ended_at IS NULL AND cr.revoked = 0
-                 AND (ar.agent_id = ? OR ar.credential_id = ?) AND """ + BOUND,
-            (agent["id"], row["actor_id"]),
-        ).fetchall():
-            if conn.execute(RECIPIENTS, (ext_id,)).fetchone():
-                chat_service.post(conn, notifier, chat_id, {"text": body})
         if reason == "plan_changed":
             stamp = now()
             conn.execute("INSERT OR IGNORE INTO proposal_stale_notices(proposal_id,proposal_revision,conflicts,created_at) VALUES(?,?,?,?)",

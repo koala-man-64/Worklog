@@ -28,7 +28,6 @@ from . import __version__, operations, policy, support
 from . import models as m
 from . import responses as out
 from .active_sessions import running_sessions
-from .chat_message_api import install_chat_message_routes
 from .common import (
     FILE_LIMIT,
     AppError,
@@ -200,8 +199,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     app.add_middleware(RequestGuard, owner=app, db=db, hosts=allowed_hosts, origins=allowed_origins)
 
     def mutate(request: Request, payload: Any, fn: Callable, *, required_key: bool = False,
-               redact: tuple[str, ...] = (), communication: bool = False,
-               receipt_if: Callable[[dict], bool] | None = None) -> dict:
+               redact: tuple[str, ...] = (), communication: bool = False) -> dict:
         key = request.headers.get("idempotency-key")
         if required_key and not key:
             raise AppError(428, "idempotency", "An Idempotency-Key is required for this command")
@@ -210,7 +208,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         digest = hashlib.sha256((request.method + str(request.url.path) + "?" + str(request.url.query) + json.dumps(payload, sort_keys=True)).encode()).hexdigest()
         actor = request.state.actor
         with db.transaction() as c:
-            if actor["kind"] == "agent" and getattr(request.state, "agent_scope", None) in {policy.COORDINATE, policy.INBOX}:
+            if actor["kind"] == "agent" and getattr(request.state, "agent_scope", None) == policy.COORDINATE:
                 # Middleware authentication precedes the write lock; revoke may win that race.
                 # Recheck before receipt replay as well as before a new mutation.
                 communication_actor(c, actor)
@@ -224,7 +222,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                         raise AppError(409, "idempotency_conflict", "This key was already used for a different request")
                     return json.loads(receipt["response_json"])
             result = fn(c, actor)
-            if key and (receipt_if is None or receipt_if(result)):
+            if key:
                 stored = {**result, **dict.fromkeys(redact)}
                 c.execute("INSERT INTO receipts(actor_id,key,request_hash,response_json,created_at) VALUES(?,?,?,?,?)",
                           (receipt_actor, key, digest, json.dumps(stored), now()))
@@ -345,9 +343,11 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         return mutate(request, p, lambda c, a: work.items.reschedule(c, a, date, p))
 
     def authorize_history(conn: sqlite3.Connection, identity: str, actor: dict) -> None:
-        # A chat message's history holds its text and every recipient; agents receive only their own.
-        if actor["kind"] == "agent" and conn.execute("SELECT 1 FROM chat_messages WHERE id=?", (identity,)).fetchone():
-            raise AppError(403, "agent_scope", "A chat's messages stay with the person; agents receive theirs from the inbox")
+        # A chat message's history holds its text and every recipient. v30 dropped chat messages, but
+        # an older database's history keeps them, and they stay with the person.
+        if actor["kind"] == "agent" and conn.execute(
+                "SELECT 1 FROM events WHERE entity_id=? AND kind IN ('chat.message','chat.message.deliver') LIMIT 1", (identity,)).fetchone():
+            raise AppError(403, "agent_scope", "A chat's messages stay with the person")
         if conn.execute("SELECT 1 FROM proposals WHERE id=?", (identity,)).fetchone():
             proposals.detail(identity, actor)
         attachment = conn.execute("SELECT owner_type,owner_id FROM attachments WHERE id=?", (identity,)).fetchone()
@@ -825,7 +825,6 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         return mutate(request, p, transition, required_key=verb == "approve")
 
     install_coordination_routes(app, db, mutate)
-    install_chat_message_routes(app, db, mutate)
     install_ticket_routes(app, db, mutate)
     install_resource_routes(app, db, mutate)
     install_discussion_routes(app, db, discussion_mutate)

@@ -38,7 +38,7 @@
             "label": "Builder",
             "avatar": "red-dots-antenna",
             "active": true,
-            "binding": "confirmed",
+            "binding": "run",
             "chatId": "chat-1"
           }
         ],

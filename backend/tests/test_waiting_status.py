@@ -277,10 +277,11 @@ def test_the_v15_upgrade_keeps_every_work_item_and_every_reference_to_one(tmp_pa
         # is unknown for every identity here, none having registered, to v19 and v20, whose
         # releases and reminders start empty and which v28 and v27 drop again, to v21, which starts
         # each day's reflection revision at its day's revision, to v22, which pins no discussion,
-        # and to v25 and v26, which drop the plan import and task tables, empty here.
+        # and to v25, v26 and v30, which drop the plan import, task and chat message tables, empty
+        # here.
         upgraded = contents(conn)
-        assert kept.pop("plan_imports") == []
-        assert kept.pop("tasks") == []
+        for table in ("plan_imports", "tasks", "chat_messages", "chat_message_deliveries", "chat_confirmations"):
+            assert kept.pop(table) == []
         assert upgraded.pop("proposal_targets") == []
         assert {row[-1] for row in upgraded["communication_credentials"]} == {None}
         upgraded["communication_credentials"] = [row[:-1] for row in upgraded["communication_credentials"]]
@@ -392,11 +393,11 @@ def test_the_way_back_to_v14_gives_its_exact_shape_and_upgrades_again(tmp_path):
     before["communication_credentials"] = [row[:-1] for row in before["communication_credentials"]]
     before["days"] = [row[:-1] for row in before["days"]]
     before.pop("proposal_targets")
-    # The ways back to v28 to v24, which to_v14 takes first of all, make the ties, release, reminder,
-    # task and plan import tables again, empty; the ways back to v19, v18 and v16 drop the reminders,
-    # releases and ties again.
-    before["tasks"] = []
-    before["plan_imports"] = []
+    # The ways back to v29 to v24, which to_v14 takes first of all, make the chat message, ties,
+    # release, reminder, task and plan import tables again, empty; the ways back to v19, v18 and v16
+    # drop the reminders, releases and ties again.
+    for table in ("tasks", "plan_imports", "chat_messages", "chat_message_deliveries", "chat_confirmations"):
+        before[table] = []
     to_v14(path)
     recovery.validate_database(path)
     with closing(sqlite3.connect(path)) as conn:

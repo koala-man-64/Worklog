@@ -66,8 +66,9 @@ def test_the_upgrade_drops_every_task_and_changes_no_other_record(tmp_path):
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
     assert "tasks" not in after and len(before["tasks"]) == 2
     # Every other table keeps every row, the work item and the task's history among them; v27 to
-    # v29, which the upgrade also runs, drop the reminder, release and ties tables, empty here.
-    dropped = ("tasks", "reminders", "releases", "release_contents", "release_checks", "agent_links")
+    # v30, which the upgrade also runs, drop the reminder, release, ties and chat message tables,
+    # empty here.
+    dropped = ("tasks", "reminders", "releases", "release_contents", "release_checks", "agent_links", "chat_messages", "chat_message_deliveries", "chat_confirmations")
     assert after == {table: rows for table, rows in before.items() if table not in dropped}
     assert [row[2] for row in after["events"] if row[0] == "task-event"] == ["task.create"]
     snapshot, = (tmp_path / "data" / "backups").glob("worklog-pre-migration-*.sqlite3")

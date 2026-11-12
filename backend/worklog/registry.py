@@ -28,7 +28,7 @@ SNIPPET = 1000
 OVERLAP_IDS = 20
 OVERLAP_LIMIT = 50
 # How an agent came to be tied to a record, in display order.
-VIA = ("participation", "role", "update", "message", "run", "confirmed", "chat")
+VIA = ("participation", "role", "update", "message", "run", "chat")
 
 
 def _latest(*values: str | None) -> str | None:
@@ -194,14 +194,14 @@ class AgentRegistry:
 
     def _gather(self, c: sqlite3.Connection, roles: dict[str, list[dict]]) -> tuple[
             dict[str, _Tied], list[sqlite3.Row], dict[str, list[sqlite3.Row]], dict[str, dict]]:
-        """What each agent's runs, participation, updates, messages, roles and confirmed chats tie it
-        to, before any record is named: its work items, roadmaps, repositories and tracked chats, each
-        with every reason and the latest time. A tie to a step or to a work item is a tie to its
-        roadmap too. `roles` holds the roles each agent owns, keyed by the agents to gather for, so a
-        page of agents costs the same few queries as one agent.
+        """What each agent's runs, participation, updates, messages and roles tie it to, before any
+        record is named: its work items, roadmaps, repositories and tracked chats, each with every
+        reason and the latest time. A tie to a step or to a work item is a tie to its roadmap too.
+        `roles` holds the roles each agent owns, keyed by the agents to gather for, so a page of
+        agents costs the same few queries as one agent.
 
-        Also gives the tracked chats those agents' runs, messages and confirmations name, those
-        chats by chat ID, and each work item tied, with its roadmap."""
+        Also gives the tracked chats those agents' runs and messages name, those chats by chat ID,
+        and each work item tied, with its roadmap."""
         tied = {identity: _Tied() for identity in roles}
         for r in rows_in(c, "SELECT ar.agent_id,p.item_id,p.last_seen_at,p.released_at,pc.repository_id FROM participations p "
                             "JOIN agent_runs ar ON ar.id=p.run_id LEFT JOIN participation_contexts pc ON pc.participation_id=p.id "
@@ -244,9 +244,6 @@ class AgentRegistry:
         for r in rows_in(c, "SELECT agent_id,external_chat_id,created_at,ended_at FROM agent_runs WHERE agent_id IN ({})", tied):
             if r["external_chat_id"]:
                 chat_refs[r["agent_id"]].append((r["external_chat_id"], "run", r["created_at"], r["ended_at"] is None))
-        # The person's word that the agent works in a chat ties it too, though not to current work.
-        for r in rows_in(c, "SELECT agent_id,chat_id,created_at FROM chat_confirmations WHERE agent_id IN ({})", tied):
-            chat_refs[r["agent_id"]].append((r["chat_id"], "confirmed", r["created_at"], False))
 
         # A reported chat ID that a tracked chat carries ties the agent to that chat's work.
         tracked = self._chats(c, {ref[0] for refs in chat_refs.values() for ref in refs})
@@ -286,8 +283,8 @@ class AgentRegistry:
         """What each agent's work ties it to (`_gather`), each record named, as an agent's page lists
         them: its work items, roadmaps, repositories and tracked chats.
 
-        Also gives the tracked chats that carry each chat ID those agents' runs, messages and
-        confirmations name, for the runs that report them."""
+        Also gives the tracked chats that carry each chat ID those agents' runs and messages name,
+        for the runs that report them."""
         tied, tracked, by_chat_id, work = self._gather(c, roles)
         roadmap_titles = self._roadmap_titles(c, [r for agent in tied.values() for r in agent.roadmaps.entries])
         for record in work.values():

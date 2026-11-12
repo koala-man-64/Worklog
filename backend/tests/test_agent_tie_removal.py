@@ -10,7 +10,6 @@ import sqlite3
 import uuid
 import zipfile
 from contextlib import closing
-from pathlib import Path
 
 import pytest
 import sealed
@@ -20,8 +19,9 @@ from worklog import cli, migrations, recovery
 from worklog.db import Database
 from worklog.doctor import doctor_database
 
-# docs/UPGRADING.md: from version 29 to version 28, with Worklog stopped and after a manual backup.
-# The table and its index as version 28 had them.
+# From version 29 to version 28, with Worklog stopped and after a manual backup: the table and its
+# index as version 28 had them. docs/UPGRADING.md gave this way back while version 29 was the latest;
+# older upgrade tests now build their databases with it.
 WAY_BACK = """\
 CREATE TABLE agent_links(id TEXT PRIMARY KEY,agent_id TEXT NOT NULL REFERENCES communication_agents(id),target_type TEXT NOT NULL CHECK(target_type IN('item','roadmap','step','repository','person','resource','discussion','proposal','ticket','agent','question','decision')),target_id TEXT NOT NULL,relationship TEXT NOT NULL DEFAULT '',set_by TEXT NOT NULL CHECK(set_by IN('human','agent')),created_at TEXT NOT NULL,UNIQUE(agent_id,target_type,target_id));
 CREATE INDEX agent_links_target ON agent_links(target_type,target_id);
@@ -31,7 +31,10 @@ STAMP = "2026-11-07T00:00:00+00:00"
 
 
 def to_v28(path):
-    """Take a current database back to v28 the documented way."""
+    """Take a current database back to v28 the documented way: to version 29 first."""
+    from test_chat_message_removal import to_v29
+
+    to_v29(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK)
 
@@ -73,7 +76,10 @@ def test_the_upgrade_drops_every_tie_and_changes_no_other_record(tmp_path):
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
     assert "agent_links" not in after and len(before["agent_links"]) == 2
     # Every other table keeps every row: the agent, the records it was tied to, and the ties' history.
-    assert after == {table: rows for table, rows in before.items() if table != "agent_links"}
+    # v30, which the upgrade also runs, drops the chat message and confirmation tables, empty here.
+    dropped = ("agent_links", "chat_messages", "chat_message_deliveries", "chat_confirmations")
+    assert [before[table] for table in dropped[1:]] == [[], [], []]
+    assert after == {table: rows for table, rows in before.items() if table not in dropped}
     assert sorted(row[2] for row in after["events"] if row[2] == "agent.link") == ["agent.link", "agent.link"]
     # Nothing is left for the doctor to find, and an export holds no ties.
     assert doctor_database(database)["ok"] is True
@@ -95,8 +101,6 @@ def test_the_way_back_gives_v28s_exact_shape_and_upgrades_again(tmp_path):
     with closing(sqlite3.connect(database)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
         assert recovery._schema_signature(conn) == sealed.current()
-    # The SQL tested here is the SQL docs/UPGRADING.md gives the person.
-    assert "```sql\n" + WAY_BACK + "```" in (Path(__file__).resolve().parents[2] / "docs" / "UPGRADING.md").read_text(encoding="utf-8")
 
 
 def test_the_routes_are_gone_and_no_read_lists_ties(tmp_path):

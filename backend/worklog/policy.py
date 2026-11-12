@@ -10,10 +10,9 @@ the redirect leads to the person's page or to a path that serves no read, and re
 (passes_unserved).
 
 Agents read what they read before this table (K2), apart from the person's own pages: settings, export
-and the API document, the agent registry, the list of tracked chats, each chat's messages and
-transcript, and the Claude Code sessions running on the person's machine. A transcript holds a whole
-conversation, tool output included, and a chat's messages are the person's prompts to it: agents take
-theirs from the inbox. The agent registry joins tracked chats into every agent's record, as a
+and the API document, the agent registry, the list of tracked chats, each chat's transcript, and the
+Claude Code sessions running on the person's machine. A transcript holds a whole conversation, tool
+output included. The agent registry joins tracked chats into every agent's record, as a
 roadmap's view of its agents does. One participant's profile and the overlap check leave tracked chats
 and credentials out, and agents read both.
 """
@@ -38,7 +37,6 @@ DISCUSS = "agent:discuss"  # discussion threads, requests and roles
 COORDINATE = "agent:coordinate"  # an agent's own runs, participations and chat, and the repositories they name
 TICKET = "agent:ticket"  # filing, changing and commenting on tickets
 REGISTER = "agent:register"  # registering, continuing and retiring agent identities
-INBOX = "agent:inbox"  # taking the messages the person writes into an agent's chats
 
 
 @dataclass(frozen=True)
@@ -76,16 +74,10 @@ ROUTES: dict[str, dict[str, str | Only]] = {
 
     "/backups": {"POST": HUMAN},
 
-    "/chat-confirmations": {"POST": HUMAN},
-    "/chat-confirmations/remove": {"POST": HUMAN},
-
     "/chats": {"GET": HUMAN, "POST": HUMAN},
     "/chats/track": {"POST": COORDINATE},
     "/chats/{identity}": {"GET": READ, "PATCH": HUMAN},
     "/chats/{identity}/archive": {"POST": HUMAN},
-    "/chats/{identity}/confirmations": {"POST": HUMAN},
-    "/chats/{identity}/confirmations/remove": {"POST": HUMAN},
-    "/chats/{identity}/messages": {"GET": HUMAN, "POST": HUMAN},
     "/chats/{identity}/recover": {"POST": HUMAN},
     "/chats/{identity}/transcript": {"GET": HUMAN},
 
@@ -145,8 +137,6 @@ ROUTES: dict[str, dict[str, str | Only]] = {
     "/github/{identity}/recover": {"POST": HUMAN},
 
     "/history": {"GET": READ},
-
-    "/inbox/receive": {"POST": INBOX},
 
     "/links": {"POST": HUMAN},
     "/links/{identity}": {"GET": READ, "PATCH": HUMAN},

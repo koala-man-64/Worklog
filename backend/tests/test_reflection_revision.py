@@ -46,11 +46,12 @@ def test_the_v21_upgrade_starts_each_reflection_at_its_days_revision_and_changes
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
     # A draft opened before the upgrade carries its day's revision, which its reflection now starts at.
     assert after.pop("days") == [(*row, row[2]) for row in before.pop("days")]
-    # v25 to v29 drop the plan import, task, reminder, release and ties tables, empty here.
+    # v25 to v30 drop the plan import, task, reminder, release, ties and chat message tables, empty
+    # here.
     assert before.pop("plan_imports") == []
     assert before.pop("tasks") == []
     assert before.pop("reminders") == []
-    for table in ("releases", "release_contents", "release_checks", "agent_links"):
+    for table in ("releases", "release_contents", "release_checks", "agent_links", "chat_messages", "chat_message_deliveries", "chat_confirmations"):
         assert before.pop(table) == []
     assert after == before
     snapshot, = (tmp_path / "backups").glob("worklog-pre-migration-*.sqlite3")

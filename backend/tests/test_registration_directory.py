@@ -220,11 +220,10 @@ def test_the_v18_upgrade_leaves_earlier_registrations_unknown_and_changes_no_rec
         upgraded = contents(conn)
     # Every row of every table is as it was; each registration gains a directory, unknown. The
     # upgrade goes on to v19 and v20, whose releases and reminders start empty and which v28 and v27
-    # drop again, and to v25, v26 and v29, which drop the plan import, task and ties tables, empty
-    # here.
-    assert kept.pop("plan_imports") == []
-    assert kept.pop("tasks") == []
-    assert kept.pop("agent_links") == []
+    # drop again, and to v25, v26, v29 and v30, which drop the plan import, task, ties and chat
+    # message tables, empty here.
+    for table in ("plan_imports", "tasks", "agent_links", "chat_messages", "chat_message_deliveries", "chat_confirmations"):
+        assert kept.pop(table) == []
     assert {row[-1] for row in upgraded["communication_credentials"]} == {None}
     upgraded["communication_credentials"] = [row[:-1] for row in upgraded["communication_credentials"]]
     assert upgraded == kept

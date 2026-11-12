@@ -14,7 +14,6 @@ import asyncio
 import json
 import uuid
 
-import pytest
 from fastapi.testclient import TestClient
 from starlette.datastructures import QueryParams
 from starlette.routing import Route
@@ -308,27 +307,21 @@ def test_the_cli_sends_no_call_the_table_refuses_and_can_make_every_agent_write(
     assert writes == listed
 
 
-@pytest.mark.parametrize("path", ["/agent-runs", "/inbox/receive"])
-def test_a_retry_in_coordination_or_the_inbox_refuses_a_credential_revoked_after_the_middleware_let_it_in(tmp_path, monkeypatch, path):
+def test_a_coordination_retry_refuses_a_credential_revoked_after_the_middleware_let_it_in(tmp_path, monkeypatch):
     # The guard authenticates before the write lock, so the person's revoke can land in between. A
-    # write in these scopes checks the credential again before it replays a receipt, which would
-    # otherwise hand a revoked credential the response it was given before, messages included.
-    from test_chat_messages import agent, confirm, ok, request, send, tracked_chat
+    # coordination write checks the credential again before it replays a receipt, which would
+    # otherwise hand a revoked credential the response it was given before.
     from worklog import guard
 
     app = create_app(tmp_path, testing=True)
     with TestClient(app, base_url=ORIGIN) as c:
         c.headers["Origin"] = ORIGIN
         c.headers["X-CSRF-Token"] = c.post("/api/v1/session/bootstrap", headers={"X-Worklog-Bootstrap": "1"}, json={}).json()["csrfToken"]
-        chat = tracked_chat(c)
-        credential = agent(c)
-        payloads = {"/agent-runs": {"clientRunKey": "raced", "displayName": "Raced run", "externalChatId": "session-1"}, "/inbox/receive": {}}
-        ok(request(c, "POST", "/agent-runs", payloads["/agent-runs"], credential, "run-key-1"))
-        confirm(c, chat, credential)
-        send(c, chat)
-        first = ok(request(c, "POST", "/inbox/receive", {}, credential, "receive-key-1"))
-        assert first["total"] == 1  # so the receive kept a receipt
-        keys = {"/agent-runs": "run-key-1", "/inbox/receive": "receive-key-1"}
+        credential = c.post("/api/v1/credentials", headers={"Idempotency-Key": str(uuid.uuid4())}, json={"label": "Implementer"}).json()
+        headers = {"Authorization": "Bearer " + credential["token"], "Idempotency-Key": "run-key-1"}
+        payload = {"clientRunKey": "raced", "displayName": "Raced run", "externalChatId": "session-1"}
+        first = c.post("/api/v1/agent-runs", headers=headers, json=payload)
+        assert first.status_code == 200, first.text
         read_body = guard.read_body
 
         async def revoke_after_authentication(receive, headers, maximum):
@@ -337,7 +330,7 @@ def test_a_retry_in_coordination_or_the_inbox_refuses_a_credential_revoked_after
             return await read_body(receive, headers, maximum)
 
         monkeypatch.setattr(guard, "read_body", revoke_after_authentication)
-        replay = request(c, "POST", path, payloads[path], credential, keys[path])
+        replay = c.post("/api/v1/agent-runs", headers=headers, json=payload)
         assert replay.status_code == 401 and replay.json()["error"]["code"] == "authentication", replay.text
 
 

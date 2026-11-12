@@ -129,24 +129,6 @@ class ChatUpdate(Expected):
     stepIds: list[str] | None = None
 
 
-class ChatMessageCreate(Command):
-    text: str = Field(min_length=1, max_length=1_000_000)
-
-
-class InboxReceive(Command):
-    chatId: str | None = Field(default=None, min_length=1, max_length=500)
-
-
-class ChatConfirmation(Command):
-    # The identity, communication_agents.id, as the chat page's recipients and claims give it.
-    agentId: str = Field(min_length=1, max_length=200)
-
-
-class ChatIdConfirmation(ChatConfirmation):
-    # The chat's ID as its runs report it, tracked on a record or not.
-    chatId: str = Field(min_length=1, max_length=500)
-
-
 class GithubRefCreate(Command):
     ownerType: Literal["item", "roadmap"]
     ownerId: str
