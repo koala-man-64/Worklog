@@ -206,11 +206,13 @@ Done in the roadmap page. Each view has its own address after the roadmap's (`/o
 
 #### 1.4 · Short titles
 
-Status: Not started
+Status: Merged · Branch: `claude/short-step-titles` · PR: [#195](https://github.com/koala-man-64/Worklog/pull/195)
 
 Titles show on one line in the outline, the status board and the sidebar, and in full on hover. The agent guide asks for step titles under about 60 characters, with the detail in the description. A one-time pass proposes shorter titles with `step.update`, for the person to approve.
 
 Why: the median step title is 91 characters.
+
+Done in the roadmap page: a step's title takes one line in the outline, cut short with an ellipsis, and so does every title on the status board, each in full on hover (its `title`). The sidebar already showed roadmaps that way. The agent guide asks for step titles under about 60 characters. The one-time pass ran on 2026-11-11, on the person's word: 23 proposals, one for each active roadmap that had any, propose shorter titles for the 925 steps, of 1,167 on active roadmaps, whose titles ran over 60 characters, each moving the full former title to the top of the step's description, for the person to approve on Review. No API or schema change.
 
 ### Phase 2 · One tree
 

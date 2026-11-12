@@ -433,7 +433,7 @@ Plans broken into steps, with every saved version kept.
     - "Now", "Next" and each list under "Needs you" show their first eight and link to the rest; "Recently done" shows the last ten.
     - Then the overview text, its people and "Agents": every agent whose work ties it to the roadmap, now or before: its reported work, status updates, responsibilities, discussion messages and tracked chats, the same work that names the roadmap on its card on **Agents**. Each row says why, with "Current" while something is still open and otherwise when it last was. Agents whose credentials are revoked sit under "Retired agents". Nobody ties them here by hand.
   - **"Outline":**
-    - "Plan & progress": the outline of steps, with "Collapse done", "Collapse all" and "Expand all", and "Show retired steps" once a step is retired.
+    - "Plan & progress": the outline of steps, with "Collapse done", "Collapse all" and "Expand all", and "Show retired steps" once a step is retired. A long title is cut short on its line; hover over it to read it whole, as on "Status".
     - "Agents working here", and each step's progress, work-item count and agents.
     - Drag the outline's edge to resize it.
     - "Edit structure" opens the editor beside it. Otherwise it has the step chosen in the outline:

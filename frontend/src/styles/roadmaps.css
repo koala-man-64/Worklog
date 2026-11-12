@@ -144,17 +144,23 @@
   margin: 0;
   padding: 0;
 }
+/* The title takes the larger share: cut to one line, it says more than a longer bar. */
 .phase-row {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(100px, 3fr) auto;
+  grid-template-columns: minmax(0, 3fr) minmax(100px, 2fr) auto;
   align-items: center;
   gap: 4px 16px;
   padding: 9px 0;
   border-bottom: 1px solid var(--line);
   font-variant-numeric: tabular-nums;
 }
-.phase-row > a {
-  overflow-wrap: anywhere;
+/* Titles on the board take one line too, in full on hover. */
+.phase-row > a,
+.roadmap-board .item-title,
+.board-step-text > small {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .phase-row progress {
   width: 100%;
@@ -167,7 +173,6 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  overflow-wrap: anywhere;
 }
 .roadmap-board h4 {
   margin: 14px 0 0;
@@ -182,9 +187,9 @@
 .step.retired {
   border-left-style: dashed;
 }
-.step.retired > .step-row {
+.step.retired > .step-row,
+.step.retired .step-name {
   color: var(--muted);
-  overflow-wrap: anywhere;
 }
 .retired-toggle {
   display: inline-flex;
@@ -239,12 +244,15 @@
   display: flex;
   flex-direction: column;
 }
-.step-link {
+/* A step's title takes one line, cut short, and shows in full on hover (its title). */
+.step-link,
+.step-name {
   color: var(--ink);
   line-height: 1.4;
   text-decoration: none;
-  text-wrap: pretty;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .outline > .step > .step-row .step-link {
   font-weight: 600;

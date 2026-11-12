@@ -389,3 +389,40 @@ it("opens the structure editor beside the outline, and closes it for another vie
   expect(screen.queryByRole("region", { name: "Structure editor" })).toBeNull();
   expect(screen.getByRole("button", { name: "Edit structure" })).toBeVisible();
 });
+
+it("gives each title it may cut short in full on hover", async () => {
+  const long =
+    "Write the lexer as a hand-written scanner that keeps every token kind the downstream tools read";
+  served = {
+    ...served,
+    steps: plan.map((s) => (s.id === id(3) ? { ...s, title: long } : s)),
+    questions: [
+      question(1, "Which grammar do we keep for the old configuration files?"),
+    ],
+  };
+  const { rerender } = render(page());
+  const now = await section("Now");
+  expect(within(now).getByRole("link", { name: long })).toHaveAttribute(
+    "title",
+    long,
+  );
+  // The step's phase, and each phase's own row, say theirs too.
+  expect(within(now).getByText("Build")).toHaveAttribute("title", "Build");
+  expect(
+    within(await section("Phases")).getByRole("link", { name: "Ship" }),
+  ).toHaveAttribute("title", "Ship");
+  expect(
+    within(await section("Needs you")).getByRole("link", {
+      name: "Which grammar do we keep for the old configuration files?",
+    }),
+  ).toHaveAttribute(
+    "title",
+    "Which grammar do we keep for the old configuration files?",
+  );
+  rerender(page("outline"));
+  const outline = await screen.findByRole("region", { name: "Plan outline" });
+  expect(within(outline).getByRole("link", { name: long })).toHaveAttribute(
+    "title",
+    long,
+  );
+});
