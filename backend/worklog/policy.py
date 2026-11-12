@@ -195,6 +195,7 @@ ROUTES: dict[str, dict[str, str | Only]] = {
     "/roadmaps": {"GET": READ, "POST": HUMAN},
     "/roadmaps/{identity}": {"GET": READ},
     "/roadmaps/{identity}/agents": {"GET": HUMAN},
+    "/roadmaps/{identity}/board": {"GET": HUMAN},
     "/roadmaps/{identity}/move": {"POST": HUMAN},
     "/roadmaps/{identity}/outline": {"GET": READ},
     "/roadmaps/{identity}/proposals": {"GET": READ},

@@ -75,7 +75,7 @@ Nothing is deleted. Archived records leave the lists, and their pages show what 
 
 ### Activity history
 
-Work items, roadmaps, people, tickets and resources keep an "Activity history" at the bottom of their page. Every change is listed with who made it, including changes applied from an agent's proposal. Each entry is the raw record of the change.
+Work items, roadmaps, people, tickets and resources keep an "Activity history" at the bottom of their page, a roadmap's under its "History". Every change is listed with who made it, including changes applied from an agent's proposal. Each entry is the raw record of the change.
 
 Work items and roadmaps also keep "Applied proposals" just above it. It lists every proposal applied to the record, the latest first, each numbered in the order it was applied. A row names the agent that proposed it, when it was applied, and which of its changes were made here, by their numbers on Review. Its title opens the proposal on Review.
 
@@ -215,19 +215,21 @@ A ticket filed from the browser starts open. An agent can file a past incident a
    - nest it under another step by choosing its parent
    - move it up or down
    - "Retire step"
-3. Add a "Version note" and press "Save new version". Each saved version is kept for good under "Immutable versions", where "Restore as new version" brings an old one back.
-4. Set progress on leaf steps (Open, Doing, Blocked or Done) in "Plan & progress". A parent step follows its children: Done when all are done, Blocked if any is blocked, otherwise Doing once any has started. The bar at the top counts finished steps.
+3. Add a "Version note" and press "Save new version". Each saved version is kept for good under "Immutable versions" in the roadmap's "History", where "Restore as new version" brings an old one back.
+4. Set progress on leaf steps (Open, Doing, Blocked or Done) in "Plan & progress", the roadmap's "Outline". A parent step follows its children: Done when all are done, Blocked if any is blocked, otherwise Doing once any has started. The bar at the top counts finished steps, and the roadmap's "Status" shows where each phase stands.
 5. To change one step's title or description, open the step, press "Edit step", then "Save step". It saves that step alone, without a new version, so agents working on other steps carry on undisturbed. Agents propose the same change for one step.
-6. To nest a roadmap under another, use "Add sub-roadmap" on the parent's overview, or choose its parent in "Nested under".
+6. To nest a roadmap under another, use "Add sub-roadmap" at the top of the parent's page, or choose its parent in "Nested under" beside it.
 
-The editor keeps your unsaved structure as a browser draft. If the roadmap changed in the meantime, choose "Rebase onto current" to keep your edits on the newest version: a title, description or parent you didn't change takes the newest one, so a step edited elsewhere keeps its new text, and a step retired elsewhere stays retired unless you changed it. Or choose "Discard draft". A save changes only the steps you changed: adding or retiring a step leaves the others as they were. Retired steps keep their history and are listed under "Retired steps".
+The editor opens beside the outline, and keeps your unsaved structure as a browser draft. If the roadmap changed in the meantime, choose "Rebase onto current" to keep your edits on the newest version: a title, description or parent you didn't change takes the newest one, so a step edited elsewhere keeps its new text, and a step retired elsewhere stays retired unless you changed it. Or choose "Discard draft". A save changes only the steps you changed: adding or retiring a step leaves the others as they were. Retired steps keep their history; "Show retired steps" shows them in the outline, where they were.
 
 ### Record questions and decisions
 
-On a roadmap's overview:
+On a roadmap's "Questions and decisions":
 
 - **"Questions"**: type a "New question" and press "Add question". "Answer" records the answer, "Reopen" opens it again, and answered questions collapse under "Answered".
 - **"Decisions"**: write the "New decision", its "Date decided" and why, then press "Record decision".
+
+Open questions also wait under "Needs you" on the roadmap's "Status", and the sidebar counts them beside Roadmaps.
 
 ### Keep people and tie them to work
 
@@ -413,31 +415,36 @@ Issues you and your agents file, work on and close, kept as history.
 Plans broken into steps, with every saved version kept.
 
 - **The list:**
-  - "Your roadmaps": the tree of roadmaps, with "Show archive" and a person filter.
+  - "Your roadmaps": the tree of roadmaps, with "Show archive".
   - "Start a roadmap": "Roadmap title" and "Create roadmap".
 - **A roadmap's page:**
   - **The header:**
     - Its parents ("All roadmaps" first) and the title.
     - "Edit structure", and "Archive" or "Recover".
-    - The progress bar and the current revision.
-  - **"Plan & progress":**
-    - The outline of steps, with "Collapse done", "Collapse all" and "Expand all".
+    - The progress bar.
+    - "Nested under", the sub-roadmaps and "Add sub-roadmap".
+    - Its views, each at its own address: "Status", "Outline", "Questions and decisions" with how many are open, "Material" and "History".
+  - **"Status"**, which the roadmap opens on:
+    - "Phases": each step at the top of the outline, with how many of the steps under it are done.
+    - "Now": the steps in progress, each with its phase and the agents working on it.
+    - "Next": the open steps, in outline order.
+    - "Needs you": the open questions, the blocked steps, and the proposals waiting on Review that would change the roadmap.
+    - "Recently done": the steps last marked done, the latest first.
+    - "Now", "Next" and each list under "Needs you" show their first eight and link to the rest; "Recently done" shows the last ten.
+    - Then the overview text, its people and "Agents": every agent whose work ties it to the roadmap, now or before: its reported work, status updates, responsibilities, discussion messages and tracked chats, the same work that names the roadmap on its card on **Agents**. Each row says why, with "Current" while something is still open and otherwise when it last was. Agents whose credentials are revoked sit under "Retired agents". Nobody ties them here by hand.
+  - **"Outline":**
+    - "Plan & progress": the outline of steps, with "Collapse done", "Collapse all" and "Expand all", and "Show retired steps" once a step is retired.
     - "Agents working here", and each step's progress, work-item count and agents.
     - Drag the outline's edge to resize it.
-  - **The detail pane** shows one of three views:
-    - **The overview:**
-      - The overview text and people, "Agents", "Questions", "Decisions" and "Sub-roadmaps".
-      - "Agents" lists every agent whose work ties it to the roadmap, now or before: its reported work, status updates, responsibilities, discussion messages and tracked chats, the same work that names the roadmap on its card on **Agents**. Each row says why, with "Current" while something is still open and otherwise when it last was. Agents whose credentials are revoked sit under "Retired agents". Nobody ties them here by hand.
-      - "Work items": the work on the roadmap, each with a link to the step it is on. Add and attach work on a step's page.
-      - Notes, links, agent chats, GitHub references and files.
-      - "Immutable versions", "Retired steps", "Archived supporting records", "Applied proposals" and "Activity history".
-    - **A step**, chosen in the outline:
+    - "Edit structure" opens the editor beside it. Otherwise it has the step chosen in the outline:
       - Its description, with "Edit step" for its title and description.
       - Its work items, each with its status and "Unlink". "Add work item" creates one on this step, and "Attach work item" puts existing work, found with "Find existing work", on it, moving it from another step.
       - Its agent chats, with "Assign chat", "Add chat to step" and "Unassign".
-      - "Agents": the agents whose work ties them to the step or to the steps under it, as the overview lists them.
-      - Its notes and files, and "Step history".
-    - **"Edit roadmap structure"**: the editor.
+      - "Agents": the agents whose work ties them to the step or to the steps under it, as "Status" lists them.
+      - Its notes and files, and "Activity history".
+  - **"Questions and decisions"**: "Questions" and "Decisions", with archived ones under "Archived supporting records".
+  - **"Material"**: "Work items", the work on the roadmap, each with a link to the step it is on; add and attach work on a step's page. Then notes, links, agent chats, GitHub references and files, with archived ones under "Archived supporting records".
+  - **"History"**: "Immutable versions", each with its note and "Restore as new version", then "Applied proposals" and "Activity history".
 
 ### Repositories
 
@@ -543,7 +550,7 @@ This guide, and the one your agents read:
 
 - **Navigation.**
   - The sidebar links to every page.
-  - Under Roadmaps, it shows your roadmaps as a tree; "Collapse roadmaps" and "Expand roadmaps" fold it.
+  - Under Roadmaps, it shows your roadmaps as a tree; "Collapse roadmaps" and "Expand roadmaps" fold it. Beside Roadmaps, a count of the questions open on them.
   - Drag the sidebar's edge to resize it; double-click the edge to reset it.
 - **The header** shows the day and the page, and holds the search box.
 - **On a narrow window:**

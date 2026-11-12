@@ -1,8 +1,46 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { contextStorageKey } from "./api";
 import { useCollapsed, useData } from "./hooks";
-import { Icon } from "./icons";
+import { Icon, type IconName } from "./icons";
 import type { Answer } from "./apiTypes";
+
+/**
+ * The sidebar's Roadmaps link, with how many questions are open on the person's roadmaps. It
+ * shares the Roadmaps list query, so answering one counts again.
+ */
+export function RoadmapsLink({
+  current,
+  icon,
+  label,
+}: {
+  current?: "page" | "true";
+  icon: IconName;
+  label: string;
+}) {
+  const roads = useData<Answer<"/api/v1/roadmaps">>("/roadmaps?archived=false");
+  const description = useId();
+  const open = roads.data?.items.reduce((n, r) => n + r.openQuestions, 0) ?? 0;
+  return (
+    <a
+      href="#roadmaps"
+      aria-current={current}
+      aria-describedby={open ? description : undefined}
+    >
+      <Icon name={icon} size={18} />
+      {label}
+      {open > 0 && (
+        <>
+          <span className="nav-count" aria-hidden="true">
+            {open}
+          </span>
+          <span id={description} hidden>
+            {open} open question{open === 1 ? "" : "s"}
+          </span>
+        </>
+      )}
+    </a>
+  );
+}
 
 /**
  * Groups roadmaps under their parents, keeping list order. A roadmap whose parent

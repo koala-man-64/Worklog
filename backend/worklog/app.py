@@ -46,8 +46,14 @@ from .discussion_api import install_discussion_routes
 from .discussions import bind_credential, communication_actor, registered_by, registered_chats
 from .guard import RequestGuard, error_response, read_body
 from .maintenance import prune_receipts
-from .plans import PlanService, step_place
-from .proposals import ProposalService, approval_required, open_proposals, visible_history
+from .plans import PlanService, recently_done, step_place
+from .proposals import (
+    ProposalService,
+    approval_required,
+    open_proposals,
+    visible_history,
+    waiting_on,
+)
 from .records import check_owner, people_on, support_record
 from .recovery import automatic_backup, backup_database, list_backups, write_export
 from .registration import (
@@ -537,7 +543,9 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                 linked_ids = {r[0] for r in c.execute("SELECT target_id FROM person_links WHERE target_type='roadmap' AND person_id=?", (personId,))}
                 items_list = [r for r in items_list if r["id"] in linked_ids]
             people_map = people_on(c, "roadmap", [r["id"] for r in items_list])
-            enriched = [{**r, "people": people_map.get(r["id"], [])} for r in items_list]
+            asked = dict(c.execute("SELECT roadmap_id,count(*) FROM roadmap_questions WHERE status='open' AND archived=0 "
+                                   "GROUP BY roadmap_id").fetchall())
+            enriched = [{**r, "people": people_map.get(r["id"], []), "openQuestions": asked.get(r["id"], 0)} for r in items_list]
         return {"items": enriched, "total": len(enriched)}
 
     @app.post("/api/v1/roadmaps", response_model=out.SavedRoadmap)
@@ -555,6 +563,12 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             result["people"] = people_on(c, "roadmap", [identity]).get(identity, [])
             result["history"] = read_events(c, identity)
         return result
+
+    @app.get("/api/v1/roadmaps/{identity}/board", response_model=out.RoadmapBoard)
+    def roadmap_board(identity: str) -> dict:
+        with db.read() as c:
+            done = recently_done(c, identity)  # first: an unknown roadmap's 404 needs no proposal read
+            return {"waiting": waiting_on(c, identity), "recentlyDone": done}
 
     @app.get("/api/v1/roadmaps/{identity}/outline", response_model=out.RoadmapOutline)
     def roadmap_outline(identity: str) -> dict:

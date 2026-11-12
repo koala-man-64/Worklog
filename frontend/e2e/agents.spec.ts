@@ -131,7 +131,7 @@ test("the agents tab shows who works on what, and why", async ({
   ).toBeVisible();
 
   // The roadmap's plan shows the agent beside the step its work sits on.
-  await page.goto("/#roadmaps/" + roadmap.id);
+  await page.goto(`/#roadmaps/${roadmap.id}/outline`);
   const step = page
     .getByRole("region", { name: "Plan outline" })
     .locator(".step-row")
@@ -141,9 +141,10 @@ test("the agents tab shows who works on what, and why", async ({
   await expect(
     step.getByRole("link", { name: label, exact: true }),
   ).toHaveAttribute("href", "#agents/" + agentId);
-  // The overview lists it under Agents from that same work, with no tie set by hand.
+  // The status board lists it under Agents from that same work, with no tie set by hand.
+  await page.goto("/#roadmaps/" + roadmap.id);
   const listed = page
-    .getByRole("region", { name: "Roadmap details" })
+    .getByRole("region", { name: "Status" })
     .getByRole("region", { name: "Agents", exact: true })
     .locator(".agent-tie-row")
     .filter({ has: page.getByRole("link", { name: label, exact: true }) });
@@ -166,6 +167,10 @@ test("the agents tab shows who works on what, and why", async ({
   );
   await page.reload();
   expect((await (await workers).json()).items).toEqual([]);
+  // Its work stays on the roadmap's record, no longer current, and on the step's.
+  await expect(listed).toContainText("Reported work");
+  await expect(listed.getByText("Current", { exact: true })).toHaveCount(0);
+  await page.goto(`/#roadmaps/${roadmap.id}/outline`);
   await expect(
     step.getByRole("link", { name: "Registry step", exact: true }),
   ).toBeVisible();
@@ -173,9 +178,6 @@ test("the agents tab shows who works on what, and why", async ({
     step.getByRole("link", { name: label, exact: true }),
   ).toHaveCount(0);
   await expect(page.getByText("Agents working here")).toHaveCount(0);
-  // Its work stays on the roadmap's record, no longer current, and on the step's.
-  await expect(listed).toContainText("Reported work");
-  await expect(listed.getByText("Current", { exact: true })).toHaveCount(0);
   await step.getByRole("link", { name: "Registry step", exact: true }).click();
   await expect(
     page

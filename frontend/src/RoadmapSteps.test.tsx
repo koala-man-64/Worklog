@@ -79,7 +79,7 @@ const view = (step?: string) =>
   );
 
 it("collapses and expands a step's sub-steps, only for steps that have them", async () => {
-  view();
+  view("outline");
   expect(await screen.findByText("Child")).toBeVisible();
   expect(screen.queryByRole("button", { name: "Collapse Solo" })).toBeNull();
   const toggle = screen.getByRole("button", { name: "Collapse Parent" });
@@ -98,7 +98,7 @@ it("collapses and expands a step's sub-steps, only for steps that have them", as
 });
 
 it("collapses and expands every parent at once", async () => {
-  view();
+  view("outline");
   await screen.findByText("Child");
   const expand = screen.getByRole("button", { name: "Expand all" });
   expect(expand).toBeDisabled();
@@ -123,7 +123,7 @@ it("collapses the sections whose steps are all done, keeping the rest as they ar
       },
     ],
   };
-  const first = view();
+  const first = view("outline");
   expect(await screen.findByText("Released")).toBeVisible();
   const collapseDone = screen.getByRole("button", { name: "Collapse done" });
   await userEvent.click(collapseDone);
@@ -140,7 +140,7 @@ it("collapses the sections whose steps are all done, keeping the rest as they ar
   expect(screen.queryByText("Child")).toBeNull();
 
   first.unmount();
-  view();
+  view("outline");
   expect(
     await screen.findByRole("button", { name: "Expand Shipped" }),
   ).toBeVisible();
@@ -148,7 +148,7 @@ it("collapses the sections whose steps are all done, keeping the rest as they ar
 });
 
 it("applies prominent state classes to step containers, status dots, and status selects", async () => {
-  view();
+  view("outline");
   await screen.findByText("Child");
   const select = screen.getByRole("combobox", { name: "Progress for Solo" });
   expect(select).toHaveClass("status-select", "open");
@@ -182,24 +182,30 @@ it("shows the selected step's details beside the outline", async () => {
   ).not.toHaveAttribute("aria-current");
 });
 
-it("falls back to the roadmap overview for a step that is not in the plan", async () => {
+it("says beside the outline when a step is not in the plan", async () => {
   view("bbbbbbbb-0000-4000-8000-000000000009");
-  const details = await screen.findByRole("region", {
-    name: "Roadmap details",
-  });
+  const details = await screen.findByRole("region", { name: "Step details" });
   expect(within(details).getByText(/not in the current plan/)).toBeVisible();
   expect(
-    within(details).getByRole("heading", { name: "Overview" }),
+    within(details).getByText(
+      "Choose a step to see its work, chats and notes.",
+    ),
   ).toBeVisible();
+  expect(
+    within(screen.getByRole("region", { name: "Plan outline" })).getByRole(
+      "link",
+      { name: "Child" },
+    ),
+  ).not.toHaveAttribute("aria-current");
 });
 
 it("remembers collapsed steps when the roadmap is opened again", async () => {
-  const first = view();
+  const first = view("outline");
   await userEvent.click(
     await screen.findByRole("button", { name: "Collapse Parent" }),
   );
   first.unmount();
-  view();
+  view("outline");
   expect(
     await screen.findByRole("button", { name: "Expand Parent" }),
   ).toBeVisible();
@@ -207,7 +213,7 @@ it("remembers collapsed steps when the roadmap is opened again", async () => {
 });
 
 it("expands the collapsed parents of a step opened by link", async () => {
-  const first = view();
+  const first = view("outline");
   await userEvent.click(
     await screen.findByRole("button", { name: "Collapse Parent" }),
   );
@@ -218,6 +224,65 @@ it("expands the collapsed parents of a step opened by link", async () => {
   expect(
     screen.getByRole("button", { name: "Collapse Parent" }),
   ).toHaveAttribute("aria-expanded", "true");
+});
+
+it("shows retired steps at their places in the outline only when asked", async () => {
+  view("outline");
+  await screen.findByText("Child");
+  expect(
+    screen.queryByRole("checkbox", { name: "Show retired steps" }),
+  ).toBeNull();
+  cleanup();
+  served = {
+    ...road,
+    steps: [
+      ...road.steps,
+      {
+        ...step("aaaaaaaa-0000-4000-8000-000000000009", "Old idea", PARENT),
+        position: 1,
+        status: "done",
+        retired: true,
+      },
+      {
+        ...step("aaaaaaaa-0000-4000-8000-00000000000a", "Older idea", SOLO),
+        retired: true,
+      },
+    ],
+  };
+  view("outline");
+  const outline = await screen.findByRole("region", { name: "Plan outline" });
+  await within(outline).findByText("Child");
+  expect(within(outline).queryByText("Old idea")).toBeNull();
+  await userEvent.click(
+    within(outline).getByRole("checkbox", { name: "Show retired steps" }),
+  );
+  const old = within(outline).getByText("Old idea").closest(".step");
+  expect(old).toHaveClass("retired");
+  expect(within(old as HTMLElement).getByText("Retired · Done")).toBeVisible();
+  // Out of the plan, it has nothing to open or set.
+  expect(within(old as HTMLElement).queryByRole("link")).toBeNull();
+  expect(within(old as HTMLElement).queryByRole("combobox")).toBeNull();
+  // It sits under its old parent.
+  const parent = within(outline)
+    .getByRole("link", { name: "Parent" })
+    .closest(".step");
+  expect(parent).toContainElement(old as HTMLElement);
+  // A step with only retired steps under it is still a leaf of the plan, its progress set by hand,
+  // and folds with the rest.
+  expect(
+    within(outline).getByRole("combobox", { name: "Progress for Solo" }),
+  ).toBeEnabled();
+  await userEvent.click(
+    within(outline).getByRole("button", { name: "Collapse all" }),
+  );
+  expect(
+    within(outline).getByRole("button", { name: "Expand Solo" }),
+  ).toBeVisible();
+  expect(within(outline).queryByText("Older idea")).toBeNull();
+  await userEvent.click(
+    within(outline).getByRole("button", { name: "Expand all" }),
+  );
+  expect(within(outline).getByText("Older idea")).toBeVisible();
 });
 
 function chat(id: string, title: string, stepIds: string[]): AgentChat {
@@ -260,10 +325,8 @@ function recordWrites() {
 
 it("shows the roadmap's chats with their agents, repositories and steps", async () => {
   served = { ...road, chats: [API_CHAT, DOCS_CHAT] };
-  view();
-  const details = await screen.findByRole("region", {
-    name: "Roadmap details",
-  });
+  view("material");
+  const details = await screen.findByRole("region", { name: "Material" });
   const apiChat = within(details)
     .getByText("Build the API")
     .closest(".chat-line") as HTMLElement;
@@ -354,10 +417,8 @@ it("assigns, unassigns, and adds agent chats from a step", async () => {
 it("edits a chat's provider and model in place, leaving its labels alone", async () => {
   served = { ...road, chats: [API_CHAT] };
   const writes = recordWrites();
-  view();
-  const details = await screen.findByRole("region", {
-    name: "Roadmap details",
-  });
+  view("material");
+  const details = await screen.findByRole("region", { name: "Material" });
   await userEvent.click(
     await within(details).findByRole("button", {
       name: "Edit chat Build the API",
@@ -494,7 +555,7 @@ async function outlineRows() {
 
 it("shows which agents work on each step, and on the sub-steps a collapsed step hides", async () => {
   workers = [SLEEPY, REVIEWER, BUILDER, DOCS];
-  view();
+  view("outline");
   const { outline, row } = await outlineRows();
   const summary = (await within(outline).findByText("Agents working here"))
     .parentElement;
@@ -568,7 +629,7 @@ it("shows three agents on a step until asked for the rest", async () => {
       { stepId: SOLO, chat: { id: "chat-" + i, title: label } },
     ]),
   );
-  view();
+  view("outline");
   const { row } = await outlineRows();
   await waitFor(() =>
     expect(chipsIn(row("Solo"))).toEqual(["One", "Two", "Three"]),
@@ -634,9 +695,10 @@ const PAIR = onRoster("ffffffff-0000-4000-8000-000000000006", "Pair", [
   },
   { stepId: CHILD, current: true, lastAt: "2026-11-01T10:00:00+00:00" },
 ]);
+// The roadmap's agents are on its status board; a step's beside the outline.
 async function agentsSection() {
   const detail = await screen.findByRole("region", {
-    name: /Roadmap details|Step details/,
+    name: /^(Status|Step details)$/,
   });
   return within(detail).findByRole("region", { name: "Agents" });
 }
@@ -758,12 +820,14 @@ it("never shows the last roadmap's agents on another roadmap while that one's lo
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  const page = (id: string) => (
+  const page = (id: string, view?: string) => (
     <QueryClientProvider client={client}>
-      <RoadmapDetail id={id} />
+      <RoadmapDetail id={id} step={view} />
     </QueryClientProvider>
   );
-  const { rerender } = render(page(ROADMAP));
+  const { rerender } = render(page(ROADMAP, "outline"));
+  expect(await screen.findByText("Agents working here")).toBeInTheDocument();
+  rerender(page(ROADMAP));
   expect(
     await within(await agentsSection()).findByRole("link", { name: "Builder" }),
   ).toBeInTheDocument();
@@ -772,10 +836,14 @@ it("never shows the last roadmap's agents on another roadmap while that one's lo
   const other = await agentsSection();
   expect(within(other).queryByRole("link", { name: "Builder" })).toBeNull();
   expect(other.querySelector(".count")).toBeNull();
+  // Nor does its outline say the last roadmap's agents work here.
+  rerender(page(OTHER, "outline"));
+  await screen.findByRole("region", { name: "Plan outline" });
   expect(screen.queryByText("Agents working here")).toBeNull();
   release();
+  rerender(page(OTHER));
   expect(
-    await within(other).findByRole("link", { name: "Writer" }),
+    await within(await agentsSection()).findByRole("link", { name: "Writer" }),
   ).toBeInTheDocument();
 });
 
@@ -798,13 +866,15 @@ it("says when it cannot tell who works on the roadmap, and keeps the plan", asyn
         )
       : respond(input),
   );
-  view();
+  view("outline");
   const { outline } = await outlineRows();
   expect(await within(outline).findByRole("alert")).toHaveTextContent(
     "Database is busy",
   );
   expect(within(outline).getByRole("link", { name: "Child" })).toBeVisible();
-  // The overview's agents say so too, rather than counting none.
+  cleanup();
+  // The roadmap's agents, on its status board, say so too, rather than counting none.
+  view();
   const section = await agentsSection();
   expect(await within(section).findByRole("alert")).toHaveTextContent(
     "Database is busy",

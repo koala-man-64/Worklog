@@ -22,7 +22,8 @@
             "archived": false,
             "createdAt": "<time>"
           }
-        ]
+        ],
+        "openQuestions": 2
       },
       {
         "id": "<id4>",
@@ -33,7 +34,8 @@
         "archived": false,
         "createdAt": "<time>",
         "updatedAt": "<time>",
-        "people": []
+        "people": [],
+        "openQuestions": 0
       }
     ],
     "total": 2
