@@ -1061,7 +1061,7 @@ class AgentRunsListed(Answer):
     total: int
 
 
-TieReason = Literal["participation", "role", "update", "message", "run", "confirmed", "chat"]
+TieReason = Literal["participation", "role", "update", "message", "run", "chat"]
 
 
 class TiedWorkItem(Answer):
@@ -1658,8 +1658,8 @@ class ChatAgent(Answer):
     label: str
     avatar: str | None
     active: bool
-    # Registered with the chat, confirmed in it by the person, or only claimed by an open run.
-    binding: Literal["registered", "confirmed", "run"]
+    # Registered with the chat, or reported by an open run.
+    binding: Literal["registered", "run"]
     # The chat ID as that tie stored it.
     chatId: str
 
@@ -1703,7 +1703,7 @@ class ChatListed(TrackedChat):
     # The roadmaps its record sits within, from the top level down.
     roadmaps: list[RecordSummary]
     steps: list[ChatStep]
-    # The agent identities its own chat ID reaches, as delivery compares it.
+    # The agent identities tied to its own chat ID, compared exactly, as runs report it.
     agents: list[ChatAgent]
     transcript: TranscriptSummary | UnreadTranscript
 
@@ -1817,70 +1817,6 @@ class Transcript(TranscriptSummary):
     more: bool
 
 
-class ChatRecipient(Answer):
-    """An open run that reports a chat's ID, and its agent identity."""
-
-    runId: str
-    runName: str
-    provider: str
-    startedAt: str
-    agentId: str
-    agentLabel: str
-    avatar: str | None
-    # Null for an identity whose credential was issued in Settings.
-    registeredBy: CredentialSponsor | None
-
-
-class BoundRecipient(ChatRecipient):
-    """A run a message sent now would reach: its identity registered with the chat or was confirmed in it."""
-
-    binding: Literal["registered", "confirmed"]
-
-
-class ChatDelivery(Answer):
-    runId: str
-    runName: str
-    agentId: str
-    agentLabel: str
-    avatar: str | None
-    # A pending delivery past its expiry reads as expired, not picked up.
-    status: Literal["pending", "delivered", "expired"]
-    reason: str | None
-    expiresAt: str
-    deliveredAt: str | None
-    expiredAt: str | None
-
-
-class ChatMessageSent(Answer):
-    """A message the person wrote into a chat, with each recipient's delivery as it stands now."""
-
-    id: str
-    chatId: str
-    text: str
-    authorId: str
-    authorLabel: str
-    createdAt: str
-    deliveries: list[ChatDelivery]
-
-
-class ChatAddress(Answer):
-    id: str
-    chatId: str
-    archived: bool
-
-
-class ChatMessages(Answer):
-    """A tracked chat's messages, newest first, with who a message sent now would reach."""
-
-    chat: ChatAddress
-    # Nobody, once the chat is archived.
-    recipients: list[BoundRecipient]
-    # Runs that only claim the chat: a message reaches them once the person confirms their identity.
-    unconfirmed: list[ChatRecipient]
-    items: list[ChatMessageSent]
-    total: int
-    limit: int
-    offset: int
 
 
 class SearchResult(Answer):
@@ -1984,65 +1920,6 @@ class ChatTracked(TrackedChat):
 
     # False when a record already tracked the chat there.
     created: bool
-
-
-class ChatPlace(Answer):
-    id: str
-    chatId: str
-
-
-class ChatBinding(Answer):
-    """How an agent identity is bound to a tracked chat after the person confirms it there, or not."""
-
-    chat: ChatPlace
-    agentId: str
-    # Null when it is bound there no longer.
-    binding: Literal["registered", "confirmed"] | None
-
-
-class ChatIdBinding(Answer):
-    """How an agent identity is bound to a chat ID after the person confirms it there, or not."""
-
-    chatId: str
-    agentId: str
-    binding: Literal["registered", "confirmed"] | None
-
-
-class InboxChat(Answer):
-    id: str
-    chatId: str
-    title: str
-
-
-class InboxMessage(Answer):
-    """A message the person wrote into a chat, handed to the calling credential once."""
-
-    id: str
-    text: str
-    authorKind: Literal["human"]
-    authorId: str
-    authorLabel: str
-    sentAt: str
-    chat: InboxChat
-    # The credential's open runs on the chat that it was delivered to.
-    runIds: list[str]
-
-
-class Inbox(Answer):
-    # Oldest first.
-    items: list[InboxMessage]
-    total: int
-
-
-class AgentUntied(Answer):
-    """The tie an agent identity no longer has."""
-
-    ok: Literal[True]
-    id: str
-    agentId: str
-    targetType: Literal["item", "roadmap", "step", "repository", "person", "resource", "discussion", "proposal",
-                        "ticket", "agent", "question", "decision"]
-    targetId: str
 
 
 class Registration(Answer):

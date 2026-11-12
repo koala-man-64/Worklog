@@ -5826,327 +5826,6 @@
         }
       }
     },
-    "/api/v1/chats/{identity}/messages": {
-      "get": {
-        "summary": "Chat Messages",
-        "operationId": "chat_messages_api_v1_chats__identity__messages_get",
-        "parameters": [
-          {
-            "name": "identity",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Identity"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 200,
-              "minimum": 1,
-              "default": 50,
-              "title": "Limit"
-            }
-          },
-          {
-            "name": "offset",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 0,
-              "default": 0,
-              "title": "Offset"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ChatMessages"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "summary": "Chat Message Create",
-        "operationId": "chat_message_create_api_v1_chats__identity__messages_post",
-        "parameters": [
-          {
-            "name": "identity",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Identity"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ChatMessageCreate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ChatMessageSent"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/chats/{identity}/confirmations": {
-      "post": {
-        "summary": "Chat Confirmation Create",
-        "operationId": "chat_confirmation_create_api_v1_chats__identity__confirmations_post",
-        "parameters": [
-          {
-            "name": "identity",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Identity"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ChatConfirmation"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ChatBinding"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/chats/{identity}/confirmations/remove": {
-      "post": {
-        "summary": "Chat Confirmation Remove",
-        "operationId": "chat_confirmation_remove_api_v1_chats__identity__confirmations_remove_post",
-        "parameters": [
-          {
-            "name": "identity",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Identity"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ChatConfirmation"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ChatBinding"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/chat-confirmations": {
-      "post": {
-        "summary": "Chat Id Confirmation Create",
-        "operationId": "chat_id_confirmation_create_api_v1_chat_confirmations_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ChatIdConfirmation"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ChatIdBinding"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/chat-confirmations/remove": {
-      "post": {
-        "summary": "Chat Id Confirmation Remove",
-        "operationId": "chat_id_confirmation_remove_api_v1_chat_confirmations_remove_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ChatIdConfirmation"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ChatIdBinding"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/inbox/receive": {
-      "post": {
-        "summary": "Inbox Receive",
-        "operationId": "inbox_receive_api_v1_inbox_receive_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/InboxReceive"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Inbox"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/tickets": {
       "get": {
         "summary": "Tickets",
@@ -10603,78 +10282,6 @@
         "title": "BackupFile",
         "description": "A backup or raw recovery file, by its file's metadata; Settings reads no hashes."
       },
-      "BoundRecipient": {
-        "properties": {
-          "runId": {
-            "type": "string",
-            "title": "Runid"
-          },
-          "runName": {
-            "type": "string",
-            "title": "Runname"
-          },
-          "provider": {
-            "type": "string",
-            "title": "Provider"
-          },
-          "startedAt": {
-            "type": "string",
-            "title": "Startedat"
-          },
-          "agentId": {
-            "type": "string",
-            "title": "Agentid"
-          },
-          "agentLabel": {
-            "type": "string",
-            "title": "Agentlabel"
-          },
-          "avatar": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Avatar"
-          },
-          "registeredBy": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/CredentialSponsor"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "binding": {
-            "type": "string",
-            "enum": [
-              "registered",
-              "confirmed"
-            ],
-            "title": "Binding"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "runId",
-          "runName",
-          "provider",
-          "startedAt",
-          "agentId",
-          "agentLabel",
-          "avatar",
-          "registeredBy",
-          "binding"
-        ],
-        "title": "BoundRecipient",
-        "description": "A run a message sent now would reach: its identity registered with the chat or was confirmed in it."
-      },
       "CallUnused": {
         "properties": {
           "call": {
@@ -10792,30 +10399,6 @@
         "title": "Change",
         "description": "One entry of a record's history as the record's own read lists it: who changed it, how and when."
       },
-      "ChatAddress": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "chatId": {
-            "type": "string",
-            "title": "Chatid"
-          },
-          "archived": {
-            "type": "boolean",
-            "title": "Archived"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "chatId",
-          "archived"
-        ],
-        "title": "ChatAddress"
-      },
       "ChatAgent": {
         "properties": {
           "id": {
@@ -10845,7 +10428,6 @@
             "type": "string",
             "enum": [
               "registered",
-              "confirmed",
               "run"
             ],
             "title": "Binding"
@@ -10867,57 +10449,6 @@
         ],
         "title": "ChatAgent",
         "description": "An agent identity tied to a chat ID, by its closest tie."
-      },
-      "ChatBinding": {
-        "properties": {
-          "chat": {
-            "$ref": "#/components/schemas/ChatPlace"
-          },
-          "agentId": {
-            "type": "string",
-            "title": "Agentid"
-          },
-          "binding": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "registered",
-                  "confirmed"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Binding"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "chat",
-          "agentId",
-          "binding"
-        ],
-        "title": "ChatBinding",
-        "description": "How an agent identity is bound to a tracked chat after the person confirms it there, or not."
-      },
-      "ChatConfirmation": {
-        "properties": {
-          "agentId": {
-            "type": "string",
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Agentid"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "agentId"
-        ],
-        "title": "ChatConfirmation"
       },
       "ChatCreate": {
         "properties": {
@@ -10994,157 +10525,6 @@
           "title"
         ],
         "title": "ChatCreate"
-      },
-      "ChatDelivery": {
-        "properties": {
-          "runId": {
-            "type": "string",
-            "title": "Runid"
-          },
-          "runName": {
-            "type": "string",
-            "title": "Runname"
-          },
-          "agentId": {
-            "type": "string",
-            "title": "Agentid"
-          },
-          "agentLabel": {
-            "type": "string",
-            "title": "Agentlabel"
-          },
-          "avatar": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Avatar"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "pending",
-              "delivered",
-              "expired"
-            ],
-            "title": "Status"
-          },
-          "reason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reason"
-          },
-          "expiresAt": {
-            "type": "string",
-            "title": "Expiresat"
-          },
-          "deliveredAt": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Deliveredat"
-          },
-          "expiredAt": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Expiredat"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "runId",
-          "runName",
-          "agentId",
-          "agentLabel",
-          "avatar",
-          "status",
-          "reason",
-          "expiresAt",
-          "deliveredAt",
-          "expiredAt"
-        ],
-        "title": "ChatDelivery"
-      },
-      "ChatIdBinding": {
-        "properties": {
-          "chatId": {
-            "type": "string",
-            "title": "Chatid"
-          },
-          "agentId": {
-            "type": "string",
-            "title": "Agentid"
-          },
-          "binding": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "registered",
-                  "confirmed"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Binding"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "chatId",
-          "agentId",
-          "binding"
-        ],
-        "title": "ChatIdBinding",
-        "description": "How an agent identity is bound to a chat ID after the person confirms it there, or not."
-      },
-      "ChatIdConfirmation": {
-        "properties": {
-          "agentId": {
-            "type": "string",
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Agentid"
-          },
-          "chatId": {
-            "type": "string",
-            "maxLength": 500,
-            "minLength": 1,
-            "title": "Chatid"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "agentId",
-          "chatId"
-        ],
-        "title": "ChatIdConfirmation"
       },
       "ChatListed": {
         "properties": {
@@ -11284,123 +10664,6 @@
         "title": "ChatListed",
         "description": "A tracked chat as the Chats page lists it."
       },
-      "ChatMessageCreate": {
-        "properties": {
-          "text": {
-            "type": "string",
-            "maxLength": 1000000,
-            "minLength": 1,
-            "title": "Text"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "text"
-        ],
-        "title": "ChatMessageCreate"
-      },
-      "ChatMessageSent": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "chatId": {
-            "type": "string",
-            "title": "Chatid"
-          },
-          "text": {
-            "type": "string",
-            "title": "Text"
-          },
-          "authorId": {
-            "type": "string",
-            "title": "Authorid"
-          },
-          "authorLabel": {
-            "type": "string",
-            "title": "Authorlabel"
-          },
-          "createdAt": {
-            "type": "string",
-            "title": "Createdat"
-          },
-          "deliveries": {
-            "items": {
-              "$ref": "#/components/schemas/ChatDelivery"
-            },
-            "type": "array",
-            "title": "Deliveries"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "chatId",
-          "text",
-          "authorId",
-          "authorLabel",
-          "createdAt",
-          "deliveries"
-        ],
-        "title": "ChatMessageSent",
-        "description": "A message the person wrote into a chat, with each recipient's delivery as it stands now."
-      },
-      "ChatMessages": {
-        "properties": {
-          "chat": {
-            "$ref": "#/components/schemas/ChatAddress"
-          },
-          "recipients": {
-            "items": {
-              "$ref": "#/components/schemas/BoundRecipient"
-            },
-            "type": "array",
-            "title": "Recipients"
-          },
-          "unconfirmed": {
-            "items": {
-              "$ref": "#/components/schemas/ChatRecipient"
-            },
-            "type": "array",
-            "title": "Unconfirmed"
-          },
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/ChatMessageSent"
-            },
-            "type": "array",
-            "title": "Items"
-          },
-          "total": {
-            "type": "integer",
-            "title": "Total"
-          },
-          "limit": {
-            "type": "integer",
-            "title": "Limit"
-          },
-          "offset": {
-            "type": "integer",
-            "title": "Offset"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "chat",
-          "recipients",
-          "unconfirmed",
-          "items",
-          "total",
-          "limit",
-          "offset"
-        ],
-        "title": "ChatMessages",
-        "description": "A tracked chat's messages, newest first, with who a message sent now would reach."
-      },
       "ChatOwner": {
         "properties": {
           "type": {
@@ -11434,88 +10697,6 @@
         ],
         "title": "ChatOwner",
         "description": "The work item or roadmap a tracked chat belongs to; empty if that record is missing."
-      },
-      "ChatPlace": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "chatId": {
-            "type": "string",
-            "title": "Chatid"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "chatId"
-        ],
-        "title": "ChatPlace"
-      },
-      "ChatRecipient": {
-        "properties": {
-          "runId": {
-            "type": "string",
-            "title": "Runid"
-          },
-          "runName": {
-            "type": "string",
-            "title": "Runname"
-          },
-          "provider": {
-            "type": "string",
-            "title": "Provider"
-          },
-          "startedAt": {
-            "type": "string",
-            "title": "Startedat"
-          },
-          "agentId": {
-            "type": "string",
-            "title": "Agentid"
-          },
-          "agentLabel": {
-            "type": "string",
-            "title": "Agentlabel"
-          },
-          "avatar": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Avatar"
-          },
-          "registeredBy": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/CredentialSponsor"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "runId",
-          "runName",
-          "provider",
-          "startedAt",
-          "agentId",
-          "agentLabel",
-          "avatar",
-          "registeredBy"
-        ],
-        "title": "ChatRecipient",
-        "description": "An open run that reports a chat's ID, and its agent identity."
       },
       "ChatStep": {
         "properties": {
@@ -14587,125 +13768,6 @@
         ],
         "title": "HomeRepository",
         "description": "The repository whose own discussion this is."
-      },
-      "Inbox": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/InboxMessage"
-            },
-            "type": "array",
-            "title": "Items"
-          },
-          "total": {
-            "type": "integer",
-            "title": "Total"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "items",
-          "total"
-        ],
-        "title": "Inbox"
-      },
-      "InboxChat": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "chatId": {
-            "type": "string",
-            "title": "Chatid"
-          },
-          "title": {
-            "type": "string",
-            "title": "Title"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "chatId",
-          "title"
-        ],
-        "title": "InboxChat"
-      },
-      "InboxMessage": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "text": {
-            "type": "string",
-            "title": "Text"
-          },
-          "authorKind": {
-            "type": "string",
-            "const": "human",
-            "title": "Authorkind"
-          },
-          "authorId": {
-            "type": "string",
-            "title": "Authorid"
-          },
-          "authorLabel": {
-            "type": "string",
-            "title": "Authorlabel"
-          },
-          "sentAt": {
-            "type": "string",
-            "title": "Sentat"
-          },
-          "chat": {
-            "$ref": "#/components/schemas/InboxChat"
-          },
-          "runIds": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Runids"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "id",
-          "text",
-          "authorKind",
-          "authorId",
-          "authorLabel",
-          "sentAt",
-          "chat",
-          "runIds"
-        ],
-        "title": "InboxMessage",
-        "description": "A message the person wrote into a chat, handed to the calling credential once."
-      },
-      "InboxReceive": {
-        "properties": {
-          "chatId": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 500,
-                "minLength": 1
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Chatid"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "title": "InboxReceive"
       },
       "ItemCreate": {
         "properties": {
@@ -20185,7 +19247,6 @@
                 "update",
                 "message",
                 "run",
-                "confirmed",
                 "chat"
               ]
             },
@@ -20245,7 +19306,6 @@
                 "update",
                 "message",
                 "run",
-                "confirmed",
                 "chat"
               ]
             },
@@ -22190,7 +21250,6 @@
                 "update",
                 "message",
                 "run",
-                "confirmed",
                 "chat"
               ]
             },
@@ -22298,7 +21357,6 @@
                 "update",
                 "message",
                 "run",
-                "confirmed",
                 "chat"
               ]
             },
@@ -22356,7 +21414,6 @@
                 "update",
                 "message",
                 "run",
-                "confirmed",
                 "chat"
               ]
             },
@@ -22457,7 +21514,6 @@
                 "update",
                 "message",
                 "run",
-                "confirmed",
                 "chat"
               ]
             },

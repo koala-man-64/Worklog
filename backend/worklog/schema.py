@@ -134,13 +134,6 @@ CREATE INDEX coordination_updates_participation ON coordination_updates(particip
 CREATE TABLE coordination_update_repositories(update_id TEXT NOT NULL REFERENCES coordination_updates(id),repository_id TEXT NOT NULL REFERENCES repositories(id),PRIMARY KEY(update_id,repository_id));
 CREATE INDEX coordination_update_repositories_repository ON coordination_update_repositories(repository_id,update_id);
 
--- Messages the person writes into tracked chats, their deliveries, and the identities the person confirmed in each chat.
-CREATE TABLE chat_messages(id TEXT PRIMARY KEY,chat_id TEXT NOT NULL REFERENCES agent_chats(id),text TEXT NOT NULL,author_id TEXT NOT NULL,author_label TEXT NOT NULL,created_at TEXT NOT NULL);
-CREATE INDEX chat_messages_chat ON chat_messages(chat_id,created_at,id);
-CREATE TABLE chat_message_deliveries(message_id TEXT NOT NULL REFERENCES chat_messages(id),run_id TEXT NOT NULL REFERENCES agent_runs(id),status TEXT NOT NULL CHECK(status IN('pending','delivered','expired')),expires_at TEXT NOT NULL,delivered_at TEXT,expired_at TEXT,expire_reason TEXT,PRIMARY KEY(message_id,run_id));
-CREATE INDEX chat_message_deliveries_run ON chat_message_deliveries(run_id,status);
-CREATE TABLE chat_confirmations(chat_id TEXT NOT NULL,agent_id TEXT NOT NULL REFERENCES communication_agents(id),confirmed_by TEXT NOT NULL,confirmed_by_label TEXT NOT NULL,created_at TEXT NOT NULL,PRIMARY KEY(chat_id,agent_id));
-
 -- Tickets.
 CREATE TABLE tickets(id TEXT PRIMARY KEY,number INTEGER NOT NULL UNIQUE CHECK(number>=1),title TEXT NOT NULL,description TEXT NOT NULL DEFAULT '',kind TEXT NOT NULL DEFAULT 'bug' CHECK(kind IN('bug','incident','task')),priority TEXT NOT NULL DEFAULT 'normal' CHECK(priority IN('low','normal','high','urgent')),status TEXT NOT NULL DEFAULT 'open' CHECK(status IN('open','doing','blocked','done')),resolution TEXT NOT NULL DEFAULT '',item_id TEXT REFERENCES work_items(id),assignee_id TEXT,author_id TEXT NOT NULL,author_label TEXT NOT NULL,author_kind TEXT NOT NULL CHECK(author_kind IN('agent','human')),archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL,closed_at TEXT,last_activity_at TEXT NOT NULL);
 CREATE INDEX tickets_assignee ON tickets(assignee_id,archived,status);

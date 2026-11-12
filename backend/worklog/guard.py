@@ -190,7 +190,7 @@ class RequestGuard:
             granted = policy.decide(routes, scope)
             if not (policy.agent_may(granted) if granted is not None else policy.passes_unserved(routes, scope)):
                 raise AppError(403, "agent_scope", "This call is the person's. Agents read, propose changes, discuss, "
-                               "file tickets, report their own work and take their inbox")
+                               "file tickets and report their own work")
             state["agent_scope"] = granted
         else:
             session = self.owner.state.sessions.get(cookies(headers).get("worklog_session", ""))

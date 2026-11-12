@@ -63,12 +63,12 @@ def test_the_upgrade_from_v19_snapshots_first_and_changes_no_record(tmp_path):
     Database(path).initialize()
     version, signature, after = contents(path)
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
-    # v20 adds the reminders table and v27 drops it again; v25, v26, v28 and v29 drop the plan
-    # import, task, release and ties tables, empty here.
+    # v20 adds the reminders table and v27 drops it again; v25, v26 and v28 to v30 drop the plan
+    # import, task, release, ties and chat message tables, empty here.
     assert "reminders" not in after
     assert before.pop("plan_imports") == []
     assert before.pop("tasks") == []
-    for table in ("releases", "release_contents", "release_checks", "agent_links"):
+    for table in ("releases", "release_contents", "release_checks", "agent_links", "chat_messages", "chat_message_deliveries", "chat_confirmations"):
         assert before.pop(table) == []
     assert after == before
     snapshots = list((tmp_path / "backups").glob("worklog-pre-migration-*.sqlite3"))

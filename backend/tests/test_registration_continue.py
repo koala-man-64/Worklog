@@ -288,17 +288,6 @@ def test_the_old_chats_records_move_whoever_else_registered_with_it(client, agen
     assert ok(agent_http.get("/api/v1/agent-registrations/self", headers=bearer(other)))["chatId"] == OLD_CHAT
 
 
-def test_a_message_waiting_in_the_old_chat_ends_with_its_run(client, agent_http):
-    _, _, old = enroll(client, agent_http)
-    item = ok(write(client, "POST", "/work-items", {"title": "Parser fix"}))
-    ok(write(agent_http, "POST", "/agent-runs", {"clientRunKey": "run-1", "displayName": "Parser fix"}, old))
-    chat = ok(track(agent_http, old, ownerType="item", ownerId=item["id"]))
-    ok(write(client, "POST", f"/chats/{chat['id']}/messages", {"text": "Please also handle the revision field."}))
-    ok(carry_on(agent_http, old)[0])
-    [delivery] = ok(client.get(f"/api/v1/chats/{chat['id']}/messages"))["items"][0]["deliveries"]
-    assert (delivery["status"], delivery["reason"]) == ("expired", "credential_continued")
-
-
 def test_a_failure_partway_changes_nothing(client, agent_http, monkeypatch):
     from worklog import support
     from worklog.common import AppError

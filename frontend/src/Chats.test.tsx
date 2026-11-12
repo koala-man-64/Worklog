@@ -13,7 +13,6 @@ import { Chats, ago, tallyText, toolText } from "./Chats";
 import type {
   ChatOverview,
   ChatThread,
-  Outbox,
   RunningSession,
   Transcript,
 } from "./apiTypes";
@@ -180,15 +179,6 @@ function transcript(fields: Partial<Transcript> = {}): Transcript {
   };
 }
 
-const noMessages: Outbox = {
-  chat: { id: "release", chatId: "release-chat", archived: false },
-  recipients: [],
-  unconfirmed: [],
-  items: [],
-  total: 0,
-  limit: 20,
-  offset: 0,
-};
 function serve(
   respond: (url: string) => unknown = (url) =>
     url.includes("/transcript")
@@ -201,12 +191,10 @@ function serve(
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
     const url = String(input);
     urls.push(url);
-    // An open chat also asks who a message to it would reach, and the list what runs untracked.
-    const body = /\/chats\/[^/]+\/messages/.test(url)
-      ? noMessages
-      : url.includes("/claude-sessions")
-        ? { items: running }
-        : respond(url);
+    // The list also asks what runs untracked.
+    const body = url.includes("/claude-sessions")
+      ? { items: running }
+      : respond(url);
     return new Response(JSON.stringify(body), { status: 200 });
   });
   render(

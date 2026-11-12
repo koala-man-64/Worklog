@@ -33,19 +33,7 @@
             "role": null,
             "lastAt": "<time>",
             "stale": false
-          }
-        ],
-        "lastAt": "<time>",
-        "stale": false
-      },
-      {
-        "kind": "chat",
-        "id": "<id5>",
-        "label": "Build",
-        "avatar": null,
-        "provider": "",
-        "model": "",
-        "ties": [
+          },
           {
             "stepId": "<id2>",
             "via": "chat",

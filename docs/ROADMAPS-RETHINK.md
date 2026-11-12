@@ -67,6 +67,7 @@ The files that Phase 0 deletes outright hold about 9,100 of the codebase's 77,00
 | R4 | Do the end-of-day reflection's two columns go with it? | No. `days.reflection` and `days.reflection_revision` stay, unread and unwritten, so step 0.2 needs no schema change: K8 kept the repository labels' columns, and the coordination `handoff` kind kept its CHECK, for the same reason. Dropping them adds no integrity, and their way back would have to rebuild `days`, which `daily_entries` references, since `reflection` sits mid-table. | 0.2 | 2026-11-10, Claude, while building 0.2 |
 | R5 | Where does a roadmap's "Agents" list come from? It listed only ties set by hand, so a roadmap with agents at work on its steps read "No agents tied". | From the agents' work: every agent whose reported work, status updates, roles, discussion messages or tracked chats tie it to the roadmap, now or before. The rule is the one that names the roadmap on the agent's card on Agents (`AgentRegistry.roster` reuses it), so the two agree. A step lists the agents on it and on its sub-steps. Nobody ties agents there by hand any more; a tie to a roadmap or a step shows only on the agent's page until 0.6 removes ties. No schema change. | Outside the plan; 0.6 | 2026-11-11, Rudy asked for it; Claude chose the rule and the steps' lists while building it |
 | R6 | Do the discussion tag CHECKs lose `release` when Releases go? | No. `discussion_contexts` and `discussion_change_contexts` keep `release` in their CHECKs, so step 0.5 rebuilds no table that holds live data, as R4 kept columns and the coordination `handoff` kind kept its CHECK. The v28 upgrade deletes every release tag and the feed's record of it, the API and the agent command line no longer take one, and discussion reads leave out one written since, which `worklog doctor` reports as a type its table never takes. A later schema-bumping step can still drop `release` from the CHECKs. | 0.5 | 2026-11-11, Claude, while building 0.5 |
+| R7 | Does the agent registry's `message` reason go with messaging agents from a chat? | No. It comes from agents' discussion messages, and from the chat ID a discussion message reports, not from what the person writes into a chat: Discussions stay, and R5's roster reads it. Only the `confirmed` reason goes, with confirmations. | 0.7 | 2026-11-11, Claude, while building 0.7 |
 
 ## Open questions
 
@@ -149,11 +150,13 @@ Done as schema v29 (`migrations.drop_agent_links`): the table goes with its inde
 
 #### 0.7 · Remove messaging agents from a chat
 
-Status: Not started
+Status: Merged · Branch: `claude/remove-chat-messaging` · PR: [#191](https://github.com/koala-man-64/Worklog/pull/191)
 
-The send box on Chats (`ChatOutbox`), the confirmations in `ChatTies.tsx`, `chat_messages.py` and `chat_message_api.py`, the agent's `inbox` command, the agent registry's `message` and `confirmed` sources, and the `chat_messages`, `chat_message_deliveries` and `chat_confirmations` tables. The files it owns hold about 1,400 lines. Registering with a chat, `chats track`, runs and participations stay. This changes what agents can call, and retires K3 and K12. K17 stands: runs still hold participations.
+The send box on Chats (`ChatOutbox`), the confirmations in `ChatTies.tsx`, `chat_messages.py` and `chat_message_api.py`, the agent's `inbox` command, the agent registry's `message` and `confirmed` sources (`message` stays, R7), and the `chat_messages`, `chat_message_deliveries` and `chat_confirmations` tables. The files it owns hold about 1,400 lines. Registering with a chat, `chats track`, runs and participations stay. This changes what agents can call, and retires K3 and K12. K17 stands: runs still hold participations.
 
 Why: no message was ever sent.
+
+Done as schema v30 (`migrations.drop_chat_messages`): the three tables go with their two indexes, every message, delivery and confirmation with them. The tracked chats, the agents registered with them, their runs and participations stay, and so does the history messages and confirmations wrote, whose text an agent still never reads. The send box, the confirmation controls on a chat and on a running session ("Tie agent", "Confirm", "Untie"), the routes, the agent scope `agent:inbox` and the `inbox` command are gone, which changes what agents can call. A proposal notice reaches its agent in Discussions alone. A chat's "Agents" lists the agents registered with it, then those whose open runs report it. The registry's `confirmed` reason goes; its `message` reason stays (R7). `test_chat_message_removal.py` pins the upgrade, the way back, the routes' answers to the person and to an agent, a message's history kept from agents and the agent command line; the v4 and v13 tests keep their way backs, and the older upgrade tests say that v30 drops the tables.
 
 ### Phase 1 · The roadmap page and the agents' reads
 
@@ -245,3 +248,4 @@ Why: adding, moving or retiring one step takes a whole-plan save today, which is
 - 2026-11-10: R4 recorded while building step 0.2: the reflection's two columns stay, so 0.2 has no schema change.
 - 2026-11-11: R5 recorded, outside the plan: a roadmap's and its steps' "Agents" list the agents whose work ties them there, instead of ties. It changes nothing agents call or read.
 - 2026-11-11: R6 recorded while building step 0.5: the discussion tag CHECKs keep `release`, so 0.5 rebuilds no table.
+- 2026-11-11: R7 recorded while building step 0.7: the agent registry's `message` reason is discussion messages and stays; only `confirmed` goes.

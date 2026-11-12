@@ -14,10 +14,10 @@ import sqlite3
 
 from .common import now, setting, today, uid
 
-SCHEMA_VERSION = 29
+SCHEMA_VERSION = 30
 # Older versions that startup and offline restore upgrade in one transaction.
 UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
-                                 24, 25, 26, 27, 28})
+                                 24, 25, 26, 27, 28, 29})
 
 # v1 grew in place before versions were counted: _upgrade_v1 adds whichever of these a v1 database
 # lacks. People as v1 had them; v10 renames role to team, adds person details and lets links name
@@ -133,7 +133,8 @@ CREATE TABLE coordination_update_repositories(update_id TEXT NOT NULL REFERENCES
 CREATE INDEX coordination_update_repositories_repository ON coordination_update_repositories(repository_id,update_id);
 """
 
-# v4: messages the person writes into a tracked chat, and their deliveries to agent runs.
+# v4: messages the person writes into a tracked chat, and their deliveries to agent runs. v30 drops
+# them again (drop_chat_messages).
 CHAT_MESSAGE_SCHEMA = """
 CREATE TABLE chat_messages(id TEXT PRIMARY KEY,chat_id TEXT NOT NULL REFERENCES agent_chats(id),text TEXT NOT NULL,author_id TEXT NOT NULL,author_label TEXT NOT NULL,created_at TEXT NOT NULL);
 CREATE INDEX chat_messages_chat ON chat_messages(chat_id,created_at,id);
@@ -430,6 +431,7 @@ def add_decision_state(conn: sqlite3.Connection) -> None:
 # (communication_credentials.chat_id, since v12) with no row here; this table holds the other
 # bindings, each one the person confirmed on the chat page. chat_id is the chat's own ID, as runs
 # report it and tracked chats hold it, so one confirmation covers every record that tracks the chat.
+# v30 drops the table again, with messaging (drop_chat_messages).
 CHAT_CONFIRMATIONS_SCHEMA = """
 CREATE TABLE chat_confirmations(chat_id TEXT NOT NULL,agent_id TEXT NOT NULL REFERENCES communication_agents(id),confirmed_by TEXT NOT NULL,confirmed_by_label TEXT NOT NULL,created_at TEXT NOT NULL,PRIMARY KEY(chat_id,agent_id));
 """
@@ -893,6 +895,18 @@ def drop_agent_links(conn: sqlite3.Connection) -> None:
     conn.execute("DROP TABLE IF EXISTS agent_links")  # and its index
 
 
+def drop_chat_messages(conn: sqlite3.Connection) -> None:
+    """Drop messaging agents from a chat (v30, step 0.7 of docs/ROADMAPS-RETHINK.md): the messages the
+    person wrote into tracked chats, their deliveries and the person's confirmations of who works in
+    each chat, every row of them. Deliveries go first, as they reference messages. The tracked chats,
+    the agents registered with them and their runs stay, and so do the chat.message, delivery and
+    confirmation events in history. No other table references these, and no search row is theirs.
+    The retry receipts of the calls that wrote them age out after 14 days, as every receipt does. The
+    pre-migration backup keeps the tables as they were."""
+    for table in ("chat_message_deliveries", "chat_messages", "chat_confirmations"):
+        conn.execute(f"DROP TABLE IF EXISTS {table}")  # and its index
+
+
 def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
     """Unlike executescript, preserve the caller's transaction and rollback boundary."""
     for statement in filter(str.strip, schema.split(";")):
@@ -924,6 +938,7 @@ def upgrade(conn: sqlite3.Connection) -> None:
     every reminder and its search row with them, and changes no other record. v28 drops Releases,
     every release and check with their search rows, and every discussion tag of a release, and
     changes no other record. v29 drops agent ties, every tie with them, and changes no other record.
+    v30 drops chat messages, their deliveries and chat confirmations, and changes no other record.
     """
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version == SCHEMA_VERSION:
@@ -991,6 +1006,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
         drop_releases(conn)
     if version < 29:
         drop_agent_links(conn)
+    if version < 30:
+        drop_chat_messages(conn)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 
@@ -1018,9 +1035,6 @@ def _upgrade_v1(conn: sqlite3.Connection, tables: set[str]) -> None:
 
 
 def invalidate_restored_presence(conn: sqlite3.Connection, stamp: str) -> None:
-    """Retain reports while making restored runs, participation and their deliveries visibly ended."""
-    from .chat_messages import expire_pending
-
+    """Retain reports while making restored runs and participation visibly ended."""
     conn.execute("UPDATE participations SET released_at=?,release_reason='restore',updated_at=?,revision=revision+1 WHERE released_at IS NULL", (stamp, stamp))
     conn.execute("UPDATE agent_runs SET ended_at=?,end_reason='restore',updated_at=?,revision=revision+1 WHERE ended_at IS NULL", (stamp, stamp))
-    expire_pending(conn, "restore", stamp=stamp)

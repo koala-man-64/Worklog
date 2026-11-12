@@ -1,6 +1,6 @@
 # Worklog agent guide
 
-> Worklog is a single-user workbench that runs on the person's own machine, by default at http://127.0.0.1:8877. It holds the person's daily plan, work items, roadmaps, people, repositories, tickets and resources (reference pages the person writes for you), and it coordinates the AI agents working for them. Agents use the `worklog agent` command line to read that context, report their own runs and repository activity, write tickets and discussion messages, receive the messages the person writes into their chats, and propose changes to the person's records for the person to approve.
+> Worklog is a single-user workbench that runs on the person's own machine, by default at http://127.0.0.1:8877. It holds the person's daily plan, work items, roadmaps, people, repositories, tickets and resources (reference pages the person writes for you), and it coordinates the AI agents working for them. Agents use the `worklog agent` command line to read that context, report their own runs and repository activity, write tickets and discussion messages, and propose changes to the person's records for the person to approve.
 
 This guide is for AI agents (Claude Code, Codex and others) acting for the person. Read sections 1 to 4 before your first Worklog command; sections 5 to 12 are reference. `worklog agent guide` prints this guide; it needs no credential and no running Worklog. The person's own guide is `docs/GUIDE.md`. Worklog's Guide page shows them both: theirs under "For you", and this one under "For agents".
 
@@ -32,13 +32,13 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 3. **Act as yourself.** Every later command MUST give `--as NAME` before the group. Your runs, reports, messages, tickets and proposals then carry your own identity.
 4. **One request ID per write.** Give each write a stable `--request-id`: 8-200 printable ASCII characters without spaces. After an uncertain result, rerun with the same ID and the identical payload; it cannot apply twice. A new operation MUST get a new ID. Proposal commands take none (section 7).
 5. **Current revisions.** A revision-checked command MUST carry the revision from your latest read. On `409 conflict`, read the record again and decide afresh; never reapply blindly.
-6. **Proposals for the person's records.** Work items, day entries, scratchpads and notes, roadmaps and step progress, people, links, tracked chats, GitHub references, questions, decisions, repository edits, resources (the person's reference pages) and the files attached to the person's records change only through a proposal the person approves (section 6). You write tickets, discussions, your own runs, participation and updates, repository registrations and your inbox directly, and you track your own chat on the work you do (section 5.4); a proposal can also file or change a ticket that belongs with what it creates.
+6. **Proposals for the person's records.** Work items, day entries, scratchpads and notes, roadmaps and step progress, people, links, tracked chats, GitHub references, questions, decisions, repository edits, resources (the person's reference pages) and the files attached to the person's records change only through a proposal the person approves (section 6). You write tickets, discussions, your own runs, participation and updates, and repository registrations directly, and you track your own chat on the work you do (section 5.4); a proposal can also file or change a ticket that belongs with what it creates.
 7. **Advisory, not authority.** Participation, ticket assignment, roles and discussion tags reserve nothing and lock nothing, and a fresh report does not prove an agent is running. An acknowledgement means "received and understood", never approval.
 8. **Search first.** Before you investigate a failure, search past tickets, closed ones included: `tickets list --status all --q 'WORDS'`. File a ticket for an issue worth tracking, comment as you learn, and close it with a resolution that says what fixed it.
 9. **Never work around a refusal.** `401` means your identity was revoked: by the person, by the retirement of the agent that registered you, or by a restore. Stop, tell the person, and register again only if they agree. `403 agent_scope` is outside agent authority: propose the change or ask. `429 agent_limit`: report it and do not retry. `403 repository_registration_off`: propose `repository.create`. Section 8 lists every code.
 10. **Leave nothing open.** When the chat's work is done, offer or release the roles you own, cancel the acknowledgement requests you sent that no longer need an answer, release your participation, end your runs and `retire` (section 4, step 9). Retiring does not release roles: they would stay with a retired identity until the person reassigns them, and so do the requests you leave pending. When your chat must end before its work is done, retire nothing and release nothing: the chat that carries the work on continues your identity with all of it (section 4, step 2), so name your identity in your hand-over. The lifecycle commands `start`, `stop`, `backup`, `backups`, `restore`, `export` and `serve` are the person's: you MUST NOT run them unless the person asks. `worklog check` only reads, and is safe.
 11. **Announce your work, and look for overlap.** Before your first change in a repository, and whenever your plan changes, you MUST check for overlapping work and announce yours (section 4, step 6):
-    - **Check.** Run `overlaps` with every repository you will change and the work items, steps or tickets you work on (section 5.8). Read the threads it lists that bear on your work (`discussions read ID`): work in no repository is announced there.
+    - **Check.** Run `overlaps` with every repository you will change and the work items, steps or tickets you work on (section 5.7). Read the threads it lists that bear on your work (`discussions read ID`): work in no repository is announced there.
     - **Announce.** Reply in each repository's own discussion (its `discussionId`) with what you will change: your branch, the files or areas, and the work item, step or ticket. For work in no repository, post a discussion tagged with that work. An announcement asks for no acknowledgement. Then run `overlaps` once more: an agent that checked at the same moment as you shows up now.
     - **On overlap.** When the check shows another agent's work on the same files, areas or work as yours, look it up with `discussions participant AGENT_ID`. Then reply where it announced, with `--ask AGENT_ID`, saying what overlaps and what you propose.
     - **While you wait.** Carry on with what does not overlap, and leave what overlaps until the agent answers or the person decides. `active` says only that the agent's credential is live, not that its chat still runs. When its participation is stale or released, or it has not answered by your next checkpoint, ask the person (`--ask person`) in the same thread, and do what they decide.
@@ -70,7 +70,6 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 | Update | UUID | `kind` update or blocker (an older one may be a handoff); immutable | you, directly |
 | Discussion, message | UUID | messages are immutable; a request is pending, satisfied, released_by_human or cancelled; `contexts`, its tags, each with who added it; `pinned`; `repository`, on a repository's own discussion | you, directly; only the person pins |
 | Role | UUID | one owner; at most one pending offer | you, directly; the person reassigns |
-| Inbox message | UUID | handed out once; expires after 2 hours | the person writes; you receive |
 
 Records are archived, never deleted, and only the person archives or recovers them.
 
@@ -79,7 +78,7 @@ Records are archived, never deleted, and only the person archives or recovers th
 | Action | The person | You directly | You by proposal |
 |---|---|---|---|
 | Read work, days, roadmaps, steps, people, notes, tickets, resources, discussions, repositories, runs and proposals | yes | yes | - |
-| Read chat transcripts, chat messages, the Claude Code sessions running on the person's machine, the Agents page, Settings, credentials, backups or the export | yes | no | - |
+| Read chat transcripts, the Claude Code sessions running on the person's machine, the Agents page, Settings, credentials, backups or the export | yes | no | - |
 | Change work items, day entries, notes, roadmaps, progress, people, links, tracked chats, GitHub references, questions or decisions | yes | no | yes |
 | Track your own chat on a work item, a roadmap or its steps | yes | yes, the chat you registered with | yes |
 | Register a repository | yes | yes, unless the person turned it off | yes |
@@ -95,7 +94,6 @@ Records are archived, never deleted, and only the person archives or recovers th
 | Start and end runs; report participation and updates | - | yes, your own | - |
 | End another agent's run | yes | no | - |
 | Approve or reject proposals; change Settings | yes | no | no |
-| Write a message into a chat | yes | no: you receive with `inbox` | - |
 | Upload evidence | - | to your own draft proposal | - |
 | Attach files to work items, roadmaps, steps or repositories | yes | no | yes, a copy of your evidence |
 | Archive or recover files, reorder, archive or restore roadmaps | yes | no | no |
@@ -119,7 +117,7 @@ worklog agent register --chat CHAT_ID --label 'Parser fix (Claude)'
 worklog agent register --chat CHAT_ID --continue EARLIER_NAME
 ```
 
-**Step 3. Start a run.** It reports the chat you registered with; you need not give `--chat`. Keep the run's `id` and `revision`. The person sees your chat through it, and their messages reach you there, because your identity is bound to the chat it registered with. Starting again with the same `--client-run-key` returns the same run; use a new key for a new run.
+**Step 3. Start a run.** It reports the chat you registered with; you need not give `--chat`. Keep the run's `id` and `revision`. The person sees your chat through it. Starting again with the same `--client-run-key` returns the same run; use a new key for a new run.
 
 ```powershell
 worklog agent --as NAME runs start --client-run-key CHAT_ID --display-name 'Parser fix' --provider claude --request-id run-start-CHAT_ID
@@ -156,15 +154,14 @@ worklog agent --as NAME discussions reply REPOSITORY_DISCUSSION_ID --text 'We bo
 worklog agent --as NAME chats track --roadmap ROADMAP_ID --step STEP_ID --provider claude --request-id track-CHAT_ID-1
 ```
 
-**Step 8. Work, and keep the record true.** Post updates, file and close tickets, propose changes and discuss. Nothing wakes you: at natural checkpoints, check your inbox and the discussions awaiting you. Another agent that finds your work overlapping its own asks you there: answer in its thread, then acknowledge. When your plan changes, check and announce again (step 6).
+**Step 8. Work, and keep the record true.** Post updates, file and close tickets, propose changes and discuss. Nothing wakes you: at natural checkpoints, check the discussions awaiting you. Another agent that finds your work overlapping its own asks you there: answer in its thread, then acknowledge. When your plan changes, check and announce again (step 6).
 
 ```powershell
 worklog agent --as NAME updates post --participation PARTICIPATION_ID --text 'Parser fixed; running the tests.' --request-id update-CHAT_ID-1
-worklog agent --as NAME inbox
 worklog agent --as NAME discussions list --view awaiting
 ```
 
-**Step 9. Finish.** Reply in the discussions where you announced your work with its outcome, and cancel the requests you sent that no longer need an answer (rule 11). Offer or release any roles you own (section 5.7). Release participation and end the run, each with the revision from your latest read (posting an update advances a participation's revision), then retire. `retire` alone also ends your open runs and releases their participation; it revokes your identity and every identity you registered, and deletes your stored token. When the chat ends before the work is done, skip this step: the next chat continues your identity (step 2).
+**Step 9. Finish.** Reply in the discussions where you announced your work with its outcome, and cancel the requests you sent that no longer need an answer (rule 11). Offer or release any roles you own (section 5.6). Release participation and end the run, each with the revision from your latest read (posting an update advances a participation's revision), then retire. `retire` alone also ends your open runs and releases their participation; it revokes your identity and every identity you registered, and deletes your stored token. When the chat ends before the work is done, skip this step: the next chat continues your identity (step 2).
 
 ```powershell
 worklog agent --as NAME participation release PARTICIPATION_ID --revision 2 --request-id release-CHAT_ID
@@ -277,12 +274,12 @@ worklog agent --as NAME proposal withdraw PROPOSAL_ID --revision 4
 
 - **Remotes.** A remote is an `https://` address, `ssh://git@host/path` or `git@host:path`. Every form of one remote names the same record: HTTPS or SSH, with or without `.git` or a trailing `/`, in any case, and Azure DevOps' `dev.azure.com`, `{org}.visualstudio.com` and `ssh.dev.azure.com` forms.
 - **Unreviewed registrations.** A repository you register shows as unreviewed until the person confirms or edits it.
-- **A repository's discussion.** Every repository has a discussion of its own, which Worklog opens when the repository is registered, by you, the person or an approved proposal: `repositories list`, `show` and `ensure` give its `discussionId`. It is null for a merged repository, whose discussion is tagged with the survivor now, and for an archived one that has none until the person recovers it. Section 5.7 says more.
+- **A repository's discussion.** Every repository has a discussion of its own, which Worklog opens when the repository is registered, by you, the person or an approved proposal: `repositories list`, `show` and `ensure` give its `discussionId`. It is null for a merged repository, whose discussion is tagged with the survivor now, and for an archived one that has none until the person recovers it. Section 5.6 says more.
 - **Checkouts.** `--checkout PATH` reads the checkout's `origin` remote, branch and checkout or worktree path with git; a folder without an `origin` fails before any request.
 - **The participation file.** `participation start --file` takes `{runId,itemId,description,contexts:[{repositoryId or repositoryUrl,checkoutPath,worktreePath,branch}]}`.
 - **Staleness.** Participation is stale after 2 hours without a report. Stale is a label: the participation is not released.
 - **Snapshots.** An update keeps the repositories and work item it was posted with.
-- **Handoffs.** An update is no longer a handoff: `updates post` has no `--kind handoff`, and a file that sets it is refused (`422 validation`). To hand work on, offer the role you own to the agent taking over (`discussions roles offer`, section 5.7); when it accepts, the role's pending requests move to it. Work that has no role is handed on by saying so, in an update and in its discussion. Handoffs posted before stay readable in `updates list`, and retrying one with its request ID still returns it.
+- **Handoffs.** An update is no longer a handoff: `updates post` has no `--kind handoff`, and a file that sets it is refused (`422 validation`). To hand work on, offer the role you own to the agent taking over (`discussions roles offer`, section 5.6); when it accepts, the role's pending requests move to it. Work that has no role is handed on by saying so, in an update and in its discussion. Handoffs posted before stay readable in `updates list`, and retrying one with its request ID still returns it.
 - **Merged repositories.** When the person merges a repository into another, your reports and updates move to the survivor, keeping their revisions.
 - **Your chat on the work.** `chats track` needs no proposal.
   - It tracks only the chat you registered with: Worklog takes its ID from your identity, and you cannot name another. A credential the person issued in Settings registered no chat, so it gets `403 agent_scope`; propose `chat.create` instead.
@@ -340,22 +337,7 @@ worklog agent --as NAME tickets close T-12 --revision 3 --resolution 'Read the f
 worklog agent --as NAME tickets comment T-12 --text 'Reproduced with a file that has no trailing newline.' --request-id ticket-12-repro
 ```
 
-### 5.6 Inbox
-
-| Command | Arguments and options | Request ID | Prints |
-|---|---|---|---|
-| `inbox` | `[--chat CHAT_ID]` | optional | `{items,total}`; each item is `{id,text,authorKind,authorId,authorLabel,sentAt,chat:{id,chatId,title},runIds}` |
-
-The person writes to a chat's agents from the Chats page. A message reaches every identity bound to the chat with an open run that reported the chat's ID when it was sent. Your identity is bound to the chat you registered with, and your runs report it. A run that reports another chat's ID receives nothing there until the person confirms you on that chat's page, which is also the only way a credential issued in Settings receives messages. `inbox` hands you your waiting messages oldest first and marks them delivered, so each arrives once. `--chat` takes only the messages for runs that reported that chat ID. Check with a fresh request ID each time. After an uncertain result, rerun with the ID the error names to receive the same messages again.
-
-A message expires when its run ends, its credential is revoked, rotated, continued in another chat or retired, its chat is archived or given another ID, the person removes your confirmation in that chat, or Worklog is restored. It also expires when nobody picks it up within 2 hours. You cannot read a chat's messages or their history, only receive your own.
-
-```powershell
-worklog agent --as NAME inbox
-worklog agent --as NAME inbox --chat CHAT_ID --request-id inbox-CHAT_ID-7
-```
-
-### 5.7 Discussions
+### 5.6 Discussions
 
 | Command | Arguments and options | Rev | Request ID | Notes |
 |---|---|---|---|---|
@@ -432,7 +414,7 @@ worklog agent --as NAME inbox --chat CHAT_ID --request-id inbox-CHAT_ID-7
   - A new chat registers a new identity. A role passes to it by an accepted offer, a claim after a release, or the person's reassignment.
   - A chat that continues an identity whose chat ended (section 5.1) keeps its roles, with no handoff. Token rotation is not a handoff either. Archiving a chat cancels nothing.
 - **Resume.** `resume` returns roles, offers, discussions and pending requests for a context, with a cursor. `changes --cursor` reads what changed since, tags (`discussion.tag`, `discussion.untag`), pins (`discussion.pin`, `discussion.unpin`) and a repository discussion's new title (`discussion.retitle`) included; a tag taken off reaches the feed of the record it named. Read every page while `hasMore` is true. After a restore, an old cursor returns `cursor_reset`: resume again.
-- **Proposal notices.** When the person returns your proposal to draft, or a plan change makes a submitted proposal stale, Worklog posts a discussion asking you to acknowledge. It also writes to the chats your open runs reported that your identity is bound to. Look for it in `discussions list --view awaiting` and `inbox`.
+- **Proposal notices.** When the person returns your proposal to draft, or a plan change makes a submitted proposal stale, Worklog posts a discussion asking you to acknowledge. Look for it in `discussions list --view awaiting`.
 
 ```powershell
 worklog agent --as NAME discussions participants
@@ -467,7 +449,7 @@ worklog agent --as NAME discussions roles withdraw ROLE_ID --revision 3
 worklog agent --as NAME discussions roles release ROLE_ID --revision 4
 ```
 
-### 5.8 Overlaps
+### 5.7 Overlaps
 
 | Command | Arguments and options | Prints |
 |---|---|---|
@@ -649,7 +631,7 @@ Uploading evidence leaves the proposal's revision alone. Before the update, `pro
   - `submit` applies the proposal at once and returns it approved, with `autoApproved: true`.
   - If any operation fails, the submit is refused with a message that starts `Not submitted:`. Nothing applies, and the proposal stays your draft to fix and submit again.
   - Proposals that were already submitted still wait for the person.
-- **Notices.** When the person returns your proposal to draft, or a plan change leaves a submitted proposal's target revision stale, Worklog tells you in Discussions and in your inbox (section 5.7). Reload the plan, update the draft and submit it again.
+- **Notices.** When the person returns your proposal to draft, or a plan change leaves a submitted proposal's target revision stale, Worklog tells you in Discussions (section 5.6). Reload the plan, update the draft and submit it again.
 
 ## 7. Idempotency, revisions and retries
 
@@ -660,7 +642,7 @@ Uploading evidence leaves the proposal's revision alone. Before the update, `pro
   - Keys are 8-200 printable ASCII characters without spaces.
 - **Which writes take a request ID.**
   - **Required:** `repositories ensure`, `runs start`, `runs end`, and the `participation` start, update, check-in, release and rejoin commands, plus `updates post` and `chats track`.
-  - **Optional:** the `tickets` writes, `inbox`, and the `discussions` writes.
+  - **Optional:** the `tickets` writes and the `discussions` writes.
   - **None:** the `proposal` commands. `register` uses its token as the key: rerun the same command.
 - **Uncertain results.** A server error (5xx), a lost connection or an unreadable response leaves a write's result uncertain. For a write that takes a request ID, the error line ends with `result uncertain; retry the same command and payload with --request-id ID`; do exactly that.
 - **Proposals.**
@@ -759,8 +741,6 @@ worklog check
 | `self_acknowledgement` | 403 | Nobody acknowledges their own message | Do not retry |
 | `acknowledgement_authority` | 403 | You are not one of the requested targets | Acknowledge only the slots in `request.actionableTargetIds` |
 | `request_authority` | 403 | Only the request's manager may cancel it | Do not retry |
-| `chat_archived` | 409 | The chat is archived, so it takes no messages | The person's; not yours |
-| `no_recipients` | 409 | No open run of an agent bound to the chat reported it | The person's; not yours |
 | `ticket_archived` | 409 | The ticket is archived and read-only | Ask the person to recover it |
 | `assignee_unavailable` | 422 | The assignee is neither the person nor an identity with a live credential | Choose another assignee |
 
@@ -790,7 +770,6 @@ The following codes reach only the person's browser or a failed startup: `host` 
 | Pages | 50 by default, at most 200; `context` lists 100 |
 | Search | 220-character snippets; the first 30 words of a query |
 | A stale report | 2 hours without a report |
-| An inbox message | expires 2 hours after it was sent if nobody picks it up |
 | A chat shown as working | its turn is open and its transcript changed in the last 15 minutes |
 | `discussions wait` | 30 seconds by default, at most 60; polls after about 2, 5, then every 10 seconds |
 | The HTTP timeout | 30 seconds per request |
@@ -805,7 +784,7 @@ Invoke-RestMethod -Uri 'http://127.0.0.1:8877/api/v1/work-items/ITEM_ID' -Header
 
 History older than 90 days may be thinned. When the person runs `worklog compact`, the older changes to work items, the day's plan, notes, links, GitHub and file references, questions, decisions, attachments, roadmaps, steps, progress, and the plan imports, day reflections and checklist tasks of older versions keep only each record's `id`, `title`, `status` and `_statusChanged`, so a record with none of them reads `{}`, and a payload that is not a record, such as the day's order or an old reflection's text, reads `null`. Every change stays listed, and changes of every other kind keep everything. Compaction also keeps each roadmap's 20 newest versions.
 
-- **Readable routes.** Worklog's route table (`policy.ROUTES`) lists each read an agent credential may make, in the scope `agent:read`: every GET under `/api/v1` but the person's. The person's are `/settings`, `/export`, `/openapi.json`, the usage counts `/usage`, the chat list `/chats` with a chat's `/chats/ID/messages` and `/chats/ID/transcript`, the running sessions `/claude-sessions`, the agents `/agents`, `/agents/ID`, `/agents/ID/activity` and `/agents/ID/proposals`, and a roadmap's `/roadmaps/ID/agents`. Those return `403 agent_scope`. A route the table does not open to agents is the person's, so a new route starts closed to you.
+- **Readable routes.** Worklog's route table (`policy.ROUTES`) lists each read an agent credential may make, in the scope `agent:read`: every GET under `/api/v1` but the person's. The person's are `/settings`, `/export`, `/openapi.json`, the usage counts `/usage`, the chat list `/chats` with a chat's `/chats/ID/transcript`, the running sessions `/claude-sessions`, the agents `/agents`, `/agents/ID`, `/agents/ID/activity` and `/agents/ID/proposals`, and a roadmap's `/roadmaps/ID/agents`. Those return `403 agent_scope`. A route the table does not open to agents is the person's, so a new route starts closed to you.
 - **Host header.** It must be `127.0.0.1:PORT`.
 - **Writes.** Make them only through the command line with `--as NAME`. A raw request carries the person's credential instead of your identity, and skips the client's safety checks.
 - **Contract.** `docs/API.md` describes the routes; `docs/openapi.json` is the generated schema.
@@ -818,8 +797,8 @@ History older than 90 days may be thinned. When the person runs `worklog compact
 - **Resources.** The reference pages the person writes for you and for themselves. You change them only by proposal.
 - **Roadmaps.** "Agents working here" and agent chips beside each step, for work going on now. Under "Agents", on the roadmap and on each step, every agent whose reported work, updates, roles, discussion messages or tracked chats tie it there, now or before. Also tracked chats, questions and decisions, and "Applied proposals".
 - **Repositories.** Registered repositories; yours say "Registered by" your label and "unreviewed" until the person confirms them. A repository's page lists participants and recent updates. "Open agent runs" lets the person end a run you left open. Each repository's own discussion is on Discussions.
-- **Agents.** One entry per identity. It shows a status ("Reporting work", "Stale reports", "No current reports" or "Credential revoked"), your runs, messages and updates, under "From its work" the work your runs, messages and updates tie you to, and the chats the person confirmed you in, and under "Proposals" every proposal you made, with where each got to. An identity that continued in a new chat stays one entry, its credentials naming each chat it worked in.
-- **Chats.** Tracked chats, shown as "Working" or "Idle", with their transcripts. The person writes to a chat's agents there, and you receive it in your inbox.
+- **Agents.** One entry per identity. It shows a status ("Reporting work", "Stale reports", "No current reports" or "Credential revoked"), your runs, messages and updates, under "From its work" the work your runs, messages and updates tie you to, and under "Proposals" every proposal you made, with where each got to. An identity that continued in a new chat stays one entry, its credentials naming each chat it worked in.
+- **Chats.** Tracked chats, shown as "Working" or "Idle", with their transcripts, and the agents registered with each chat or whose runs report it.
 - **Discussions.** Threads with their tags, the ones the person pinned first, acknowledgement requests and roles.
 - **Review.** Your submitted proposals, with "Approve proposal", "Return to draft" and "Reject proposal", each confirmed. A change that attaches a file names it, with its size and a download link.
 - **Settings.**
@@ -853,4 +832,3 @@ Point the person to the page that matters:
 | role | `/discussions/roles` | "Discussion roles" |
 | acknowledgement request | a message's `request` | "Request acknowledgement (received and understood)" |
 | the person | `local-user`, labelled `You` | - |
-| inbox message | `/inbox/receive` | the message box under a chat's history on the Chats page |

@@ -9,7 +9,6 @@ import { Icon } from "./icons";
 import { LinkPicker } from "./LinkPicker";
 import { localStore, readIdSet } from "./storage";
 import type {
-  AgentSummary,
   Answer,
   ChatAgent,
   ChatOverview,
@@ -34,8 +33,7 @@ export function runsIn(entrypoint: string) {
 const HIDDEN_LIMIT = 200;
 const BINDINGS: Record<ChatAgent["binding"], string> = {
   registered: "registered with this chat",
-  confirmed: "confirmed by you",
-  run: "reports this chat, not confirmed",
+  run: "reports this chat",
 };
 /** The last folder of a path, Windows or not. */
 function folderName(path: string) {
@@ -58,7 +56,7 @@ export function sessionState(
   return "Idle" + (when ? ", last active " + when : "");
 }
 
-/** A tie or untie that reports its own failure where it was asked for. */
+/** A tie that reports its own failure where it was asked for. */
 function useTie() {
   const writes = useWrites();
   const [error, setError] = useState<unknown>(null);
@@ -77,46 +75,6 @@ function useTie() {
   };
 }
 
-function AgentPicker({
-  tied,
-  onPick,
-  disabled,
-}: {
-  // Agents already bound: they are not offered again.
-  tied: Set<string>;
-  onPick: (agentId: string) => void;
-  disabled: boolean;
-}) {
-  return (
-    <LinkPicker<AgentSummary>
-      action="Tie agent"
-      label="Agent to tie"
-      placeholder="Find agents…"
-      path={(q) => `/agents?limit=20&q=${encodeURIComponent(q)}`}
-      // A revoked agent can no longer run, so tying it would reach nothing.
-      linked={(agent) => tied.has(agent.id) || !agent.active}
-      // Agents choose their own labels, so each also says what tells it apart.
-      option={(agent) => (
-        <>
-          <span>{agent.label}</span>
-          <small>
-            {[
-              agent.providers.join(", ") || "Provider unspecified",
-              agent.openRuns === 1
-                ? "1 open run"
-                : `${agent.openRuns} open runs`,
-              "id " + agent.id.slice(0, 8),
-            ].join(" · ")}
-          </small>
-        </>
-      )}
-      none="No agents yet. An agent appears here once it registers, or once you issue it a credential in Settings."
-      onPick={(agent) => onPick(agent.id)}
-      disabled={disabled}
-    />
-  );
-}
-
 /** Labels that more than one of these agents goes by: their IDs tell them apart. */
 function sharedLabels(agents: ChatAgent[]) {
   const seen = new Set<string>();
@@ -125,26 +83,20 @@ function sharedLabels(agents: ChatAgent[]) {
   return shared;
 }
 
-/** One agent tied to a chat, with how, and what you can change about it. */
+/** One agent tied to a chat, and how. */
 function AgentTie({
   agent,
-  busy,
   alike,
   otherId,
-  untie,
-  confirm,
 }: {
   agent: ChatAgent;
-  busy: boolean;
   // Another agent here goes by the same label.
   alike: boolean;
   // A session's agent tied under another of its IDs than the one it is tracked by.
   otherId?: string;
-  untie?: () => void;
-  confirm?: () => void;
 }) {
   return (
-    <li className={agent.binding === "run" ? "unconfirmed" : undefined}>
+    <li className={agent.binding === "run" ? "claim" : undefined}>
       <Avatar name={agent.avatar} size={18} />
       <a href={"#agents/" + agent.id}>{agent.label}</a>
       <small>
@@ -153,94 +105,48 @@ function AgentTie({
       </small>
       {otherId && (
         <small
-          title={`It is tied under ${agent.chatId}, but this session is tracked by ${otherId}, so what you write into its chat won't reach it.`}
+          title={`It is tied under ${agent.chatId}, but this session is tracked by ${otherId}, so its tracked chat won't list this agent.`}
         >
           · under another ID
         </small>
-      )}
-      {agent.binding === "confirmed" && untie && (
-        <button
-          type="button"
-          aria-label={`Untie ${agent.label}`}
-          disabled={busy}
-          onClick={untie}
-        >
-          Untie
-        </button>
-      )}
-      {agent.binding === "run" && confirm && (
-        <button
-          type="button"
-          aria-label={`Confirm ${agent.label} works in this session`}
-          disabled={busy}
-          onClick={confirm}
-        >
-          Confirm
-        </button>
       )}
     </li>
   );
 }
 
 /**
- * The agents tied to a tracked chat under its own chat ID: those registered with it and those
- * you confirmed in it. "Tie agent" confirms another, so what you write into the chat reaches
- * its open runs here; "Untie" takes a confirmation back. Both go through the chat itself, as
- * "Confirm" does, so its history keeps them and an archived chat refuses them. Runs that only
- * report the chat's ID wait for confirmation under "Message this chat's agents".
+ * The agents tied to a tracked chat under its own chat ID: those registered with it, then those
+ * whose open runs report it.
  */
 export function ChatAgents({ chat }: { chat: ChatOverview }) {
-  const tie = useTie();
-  const bound = chat.agents.filter((a) => a.binding !== "run");
-  const alike = sharedLabels(bound);
+  const alike = sharedLabels(chat.agents);
   return (
     <div className="chat-recipients chat-agents">
       <span className="muted">Agents</span>
-      {bound.length ? (
+      {chat.agents.length ? (
         <ul aria-label="Agents tied to this chat">
-          {bound.map((agent) => (
+          {chat.agents.map((agent) => (
             <AgentTie
               key={agent.id}
               agent={agent}
-              busy={tie.busy}
               alike={alike.has(agent.label)}
-              untie={
-                chat.archived
-                  ? undefined
-                  : () =>
-                      void tie.send(() =>
-                        commands.setChatConfirmed(chat.id, false, {
-                          agentId: agent.id,
-                        }),
-                      )
-              }
             />
           ))}
         </ul>
       ) : (
-        <small className="muted">None tied yet.</small>
+        <small className="muted">
+          None yet. An agent shows here once it registers with this chat or its
+          run reports it.
+        </small>
       )}
-      {!chat.archived && (
-        <AgentPicker
-          tied={new Set(bound.map((a) => a.id))}
-          onPick={(agentId) =>
-            void tie.send(() =>
-              commands.setChatConfirmed(chat.id, true, { agentId }),
-            )
-          }
-          disabled={tie.busy}
-        />
-      )}
-      <ErrorMessage error={tie.error} />
     </div>
   );
 }
 
 /**
  * The Claude Code sessions running on this machine that no work item or roadmap tracks yet.
- * Tying one to a work item or roadmap tracks it there and opens it; tying an agent confirms
- * that agent works in it, before or after it is tracked. "Hide" keeps a session out of this
- * list in this browser while it runs.
+ * Tying one to a work item or roadmap tracks it there and opens it. "Hide" keeps a session out of
+ * this list in this browser while it runs.
  */
 export function RunningSessions({
   refreshMs,
@@ -359,9 +265,6 @@ function RunningSessionItem({
   const archivedOn = new Set(
     s.tracked.map((t) => t.ownerType + ":" + t.ownerId),
   );
-  const bound = new Set(
-    s.agents.filter((a) => a.binding !== "run").map((a) => a.id),
-  );
   const alike = sharedLabels(s.agents);
   async function track(ownerType: "item" | "roadmap", ownerId: string) {
     const chat = await tie.send(() =>
@@ -377,19 +280,6 @@ function RunningSessionItem({
     // Tracked now, the session leaves this list and opens among the chats.
     if (chat) window.location.hash = "#chats/" + chat.id;
   }
-  /**
-   * Confirms an agent in this session under the ID its run reports, since delivery matches that
-   * ID exactly; an agent with no run here yet is confirmed under the ID the session is tracked by.
-   */
-  const confirm = (agentId: string) => {
-    const claim = s.agents.find((a) => a.id === agentId && a.binding === "run");
-    void tie.send(() =>
-      commands.setChatIdConfirmed(true, {
-        chatId: claim?.chatId ?? s.chatId,
-        agentId,
-      }),
-    );
-  };
   return (
     <li className={hidden ? "hidden-session" : undefined}>
       <div className="chat-link">
@@ -439,19 +329,8 @@ function RunningSessionItem({
               <AgentTie
                 key={agent.id}
                 agent={agent}
-                busy={tie.busy}
                 alike={alike.has(agent.label)}
                 otherId={agent.chatId === s.chatId ? undefined : s.chatId}
-                // A confirmation is taken back under the ID it was given.
-                untie={() =>
-                  void tie.send(() =>
-                    commands.setChatIdConfirmed(false, {
-                      chatId: agent.chatId,
-                      agentId: agent.id,
-                    }),
-                  )
-                }
-                confirm={() => confirm(agent.id)}
               />
             ))}
           </ul>
@@ -491,7 +370,6 @@ function RunningSessionItem({
           onPick={(roadmap) => void track("roadmap", roadmap.id)}
           disabled={tie.busy}
         />
-        <AgentPicker tied={bound} onPick={confirm} disabled={tie.busy} />
         <button
           type="button"
           className="quiet"

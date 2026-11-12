@@ -113,13 +113,25 @@
           "clientRunKey": "golden",
           "displayName": "Builder",
           "provider": "",
-          "externalChatId": null,
+          "externalChatId": "chat-1",
           "revision": 1,
           "createdAt": "<time>",
           "updatedAt": "<time>",
           "endedAt": null,
           "endReason": null,
-          "chats": []
+          "chats": [
+            {
+              "id": "<id8>",
+              "chatId": "chat-1",
+              "title": "Build",
+              "provider": "",
+              "model": "",
+              "archived": false,
+              "ownerType": "item",
+              "ownerId": "<id4>",
+              "ownerTitle": "Parser"
+            }
+          ]
         }
       ],
       "total": 1
@@ -163,9 +175,9 @@
           "ownerTitle": "Parser",
           "via": [
             "message",
-            "confirmed"
+            "run"
           ],
-          "current": false,
+          "current": true,
           "lastAt": "<time>"
         }
       ],

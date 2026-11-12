@@ -302,37 +302,6 @@ export const commands = {
       "POST",
       body,
     ),
-  sendChatMessage: (id: string, body: Schema["ChatMessageCreate"]) =>
-    request<Answer<"/api/v1/chats/{identity}/messages", "post">>(
-      `/chats/${id}/messages`,
-      "POST",
-      body,
-    ),
-  /** Confirms an agent as the one working in the chat, or takes that back. */
-  setChatConfirmed: (
-    id: string,
-    confirmed: boolean,
-    body: Schema["ChatConfirmation"],
-  ) =>
-    request<Answer<"/api/v1/chats/{identity}/confirmations", "post">>(
-      `/chats/${id}/confirmations${confirmed ? "" : "/remove"}`,
-      "POST",
-      body,
-    ),
-
-  /**
-   * Confirms an agent under a chat ID its run reports, as a running session's list does, or takes
-   * that back; the chat need not be tracked.
-   */
-  setChatIdConfirmed: (
-    confirmed: boolean,
-    body: Schema["ChatIdConfirmation"],
-  ) =>
-    request<Answer<"/api/v1/chat-confirmations", "post">>(
-      `/chat-confirmations${confirmed ? "" : "/remove"}`,
-      "POST",
-      body,
-    ),
 
   // Discussions.
   startDiscussion: (body: Schema["DiscussionCreate"]) =>

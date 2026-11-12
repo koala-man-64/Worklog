@@ -142,10 +142,10 @@ def test_reported_work_tracks_the_runs_chat_on_that_item_once(client, agent_http
     # The chat's history says which agent's report tracked it.
     history = ok(client.get("/api/v1/history", params={"entityId": chat["id"]}))["items"]
     assert [(e["kind"], e["actorKind"], e["actorId"]) for e in history] == [("chat.create", "agent", registered["id"])]
-    # Chats lists it with the work, and a message written there reaches the agent's run.
+    # Chats lists it with the work, and names the agent registered with it.
     listed = [c for c in ok(client.get("/api/v1/chats"))["items"] if c["id"] == chat["id"]]
     assert listed and listed[0]["owner"] == {"type": "item", "id": item["id"], "title": "Parser fix", "archived": False}
-    assert [r["runId"] for r in ok(client.get(f"/api/v1/chats/{chat['id']}/messages"))["recipients"]] == [run["id"]]
+    assert [(a["id"], a["binding"]) for a in listed[0]["agents"]] == [(registered["agentId"], "registered")]
     # The Agents page ties the agent to its tracked chat and that chat's work.
     agent = ok(client.get(f"/api/v1/agents/{registered['agentId']}"))
     assert [c["id"] for c in agent["chats"]["items"]] == [chat["id"]]
@@ -207,8 +207,8 @@ def test_a_repeated_report_under_its_key_tracks_the_chat_once(client, agent_http
     assert len(tracked(client, item["id"])) == 1
 
 
-def test_the_outbox_lists_runs_that_only_claim_the_chat_apart_from_its_recipients(client, agent_http):
-    # Any credential's run can report any chat ID; a registered identity is bound to its chat by itself.
+def test_a_chat_names_the_agent_registered_with_it_before_runs_that_only_report_it(client, agent_http):
+    # Any credential's run can report any chat ID; a registered identity is tied to its chat by itself.
     sponsor = issue(client)
     response, token = register(agent_http, sponsor["token"])
     ok(response)
@@ -218,6 +218,5 @@ def test_the_outbox_lists_runs_that_only_claim_the_chat_apart_from_its_recipient
     item = work_item(client)
     chat = ok(write(client, "POST", "/chats", {"ownerType": "item", "ownerId": item["id"], "chatId": CHAT,
                                                "title": "Parser fix"}))
-    outbox = ok(client.get(f"/api/v1/chats/{chat['id']}/messages"))
-    assert [(r["agentLabel"], r["binding"]) for r in outbox["recipients"]] == [("Parser fix (Claude)", "registered")]
-    assert [r["agentLabel"] for r in outbox["unconfirmed"]] == ["Other agents"]
+    [listed] = [c for c in ok(client.get("/api/v1/chats"))["items"] if c["id"] == chat["id"]]
+    assert [(a["label"], a["binding"]) for a in listed["agents"]] == [("Parser fix (Claude)", "registered"), ("Other agents", "run")]

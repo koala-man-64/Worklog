@@ -1696,109 +1696,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chats/{identity}/messages": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Chat Messages */
-        get: operations["chat_messages_api_v1_chats__identity__messages_get"];
-        put?: never;
-        /** Chat Message Create */
-        post: operations["chat_message_create_api_v1_chats__identity__messages_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/chats/{identity}/confirmations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Chat Confirmation Create */
-        post: operations["chat_confirmation_create_api_v1_chats__identity__confirmations_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/chats/{identity}/confirmations/remove": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Chat Confirmation Remove */
-        post: operations["chat_confirmation_remove_api_v1_chats__identity__confirmations_remove_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/chat-confirmations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Chat Id Confirmation Create */
-        post: operations["chat_id_confirmation_create_api_v1_chat_confirmations_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/chat-confirmations/remove": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Chat Id Confirmation Remove */
-        post: operations["chat_id_confirmation_remove_api_v1_chat_confirmations_remove_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/inbox/receive": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Inbox Receive */
-        post: operations["inbox_receive_api_v1_inbox_receive_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/tickets": {
         parameters: {
             query?: never;
@@ -3156,32 +3053,6 @@ export interface components {
             /** Createdat */
             createdAt: string;
         };
-        /**
-         * BoundRecipient
-         * @description A run a message sent now would reach: its identity registered with the chat or was confirmed in it.
-         */
-        BoundRecipient: {
-            /** Runid */
-            runId: string;
-            /** Runname */
-            runName: string;
-            /** Provider */
-            provider: string;
-            /** Startedat */
-            startedAt: string;
-            /** Agentid */
-            agentId: string;
-            /** Agentlabel */
-            agentLabel: string;
-            /** Avatar */
-            avatar: string | null;
-            registeredBy: components["schemas"]["CredentialSponsor"] | null;
-            /**
-             * Binding
-             * @enum {string}
-             */
-            binding: "registered" | "confirmed";
-        };
         /** CallUnused */
         CallUnused: {
             /** Call */
@@ -3224,15 +3095,6 @@ export interface components {
             /** Createdat */
             createdAt: string;
         };
-        /** ChatAddress */
-        ChatAddress: {
-            /** Id */
-            id: string;
-            /** Chatid */
-            chatId: string;
-            /** Archived */
-            archived: boolean;
-        };
         /**
          * ChatAgent
          * @description An agent identity tied to a chat ID, by its closest tie.
@@ -3250,25 +3112,9 @@ export interface components {
              * Binding
              * @enum {string}
              */
-            binding: "registered" | "confirmed" | "run";
+            binding: "registered" | "run";
             /** Chatid */
             chatId: string;
-        };
-        /**
-         * ChatBinding
-         * @description How an agent identity is bound to a tracked chat after the person confirms it there, or not.
-         */
-        ChatBinding: {
-            chat: components["schemas"]["ChatPlace"];
-            /** Agentid */
-            agentId: string;
-            /** Binding */
-            binding: ("registered" | "confirmed") | null;
-        };
-        /** ChatConfirmation */
-        ChatConfirmation: {
-            /** Agentid */
-            agentId: string;
         };
         /** ChatCreate */
         ChatCreate: {
@@ -3301,51 +3147,6 @@ export interface components {
             repos?: string[];
             /** Stepids */
             stepIds?: string[];
-        };
-        /** ChatDelivery */
-        ChatDelivery: {
-            /** Runid */
-            runId: string;
-            /** Runname */
-            runName: string;
-            /** Agentid */
-            agentId: string;
-            /** Agentlabel */
-            agentLabel: string;
-            /** Avatar */
-            avatar: string | null;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "pending" | "delivered" | "expired";
-            /** Reason */
-            reason: string | null;
-            /** Expiresat */
-            expiresAt: string;
-            /** Deliveredat */
-            deliveredAt: string | null;
-            /** Expiredat */
-            expiredAt: string | null;
-        };
-        /**
-         * ChatIdBinding
-         * @description How an agent identity is bound to a chat ID after the person confirms it there, or not.
-         */
-        ChatIdBinding: {
-            /** Chatid */
-            chatId: string;
-            /** Agentid */
-            agentId: string;
-            /** Binding */
-            binding: ("registered" | "confirmed") | null;
-        };
-        /** ChatIdConfirmation */
-        ChatIdConfirmation: {
-            /** Agentid */
-            agentId: string;
-            /** Chatid */
-            chatId: string;
         };
         /**
          * ChatListed
@@ -3395,50 +3196,6 @@ export interface components {
             /** Transcript */
             transcript: components["schemas"]["TranscriptSummary"] | components["schemas"]["UnreadTranscript"];
         };
-        /** ChatMessageCreate */
-        ChatMessageCreate: {
-            /** Text */
-            text: string;
-        };
-        /**
-         * ChatMessageSent
-         * @description A message the person wrote into a chat, with each recipient's delivery as it stands now.
-         */
-        ChatMessageSent: {
-            /** Id */
-            id: string;
-            /** Chatid */
-            chatId: string;
-            /** Text */
-            text: string;
-            /** Authorid */
-            authorId: string;
-            /** Authorlabel */
-            authorLabel: string;
-            /** Createdat */
-            createdAt: string;
-            /** Deliveries */
-            deliveries: components["schemas"]["ChatDelivery"][];
-        };
-        /**
-         * ChatMessages
-         * @description A tracked chat's messages, newest first, with who a message sent now would reach.
-         */
-        ChatMessages: {
-            chat: components["schemas"]["ChatAddress"];
-            /** Recipients */
-            recipients: components["schemas"]["BoundRecipient"][];
-            /** Unconfirmed */
-            unconfirmed: components["schemas"]["ChatRecipient"][];
-            /** Items */
-            items: components["schemas"]["ChatMessageSent"][];
-            /** Total */
-            total: number;
-            /** Limit */
-            limit: number;
-            /** Offset */
-            offset: number;
-        };
         /**
          * ChatOwner
          * @description The work item or roadmap a tracked chat belongs to; empty if that record is missing.
@@ -3455,34 +3212,6 @@ export interface components {
             title: string;
             /** Archived */
             archived: boolean;
-        };
-        /** ChatPlace */
-        ChatPlace: {
-            /** Id */
-            id: string;
-            /** Chatid */
-            chatId: string;
-        };
-        /**
-         * ChatRecipient
-         * @description An open run that reports a chat's ID, and its agent identity.
-         */
-        ChatRecipient: {
-            /** Runid */
-            runId: string;
-            /** Runname */
-            runName: string;
-            /** Provider */
-            provider: string;
-            /** Startedat */
-            startedAt: string;
-            /** Agentid */
-            agentId: string;
-            /** Agentlabel */
-            agentLabel: string;
-            /** Avatar */
-            avatar: string | null;
-            registeredBy: components["schemas"]["CredentialSponsor"] | null;
         };
         /**
          * ChatStep
@@ -4525,51 +4254,6 @@ export interface components {
             id: string;
             /** Name */
             name: string | null;
-        };
-        /** Inbox */
-        Inbox: {
-            /** Items */
-            items: components["schemas"]["InboxMessage"][];
-            /** Total */
-            total: number;
-        };
-        /** InboxChat */
-        InboxChat: {
-            /** Id */
-            id: string;
-            /** Chatid */
-            chatId: string;
-            /** Title */
-            title: string;
-        };
-        /**
-         * InboxMessage
-         * @description A message the person wrote into a chat, handed to the calling credential once.
-         */
-        InboxMessage: {
-            /** Id */
-            id: string;
-            /** Text */
-            text: string;
-            /**
-             * Authorkind
-             * @constant
-             */
-            authorKind: "human";
-            /** Authorid */
-            authorId: string;
-            /** Authorlabel */
-            authorLabel: string;
-            /** Sentat */
-            sentAt: string;
-            chat: components["schemas"]["InboxChat"];
-            /** Runids */
-            runIds: string[];
-        };
-        /** InboxReceive */
-        InboxReceive: {
-            /** Chatid */
-            chatId?: string | null;
         };
         /** ItemCreate */
         ItemCreate: {
@@ -6527,7 +6211,7 @@ export interface components {
             /** Active */
             active: boolean;
             /** Via */
-            via: ("participation" | "role" | "update" | "message" | "run" | "confirmed" | "chat")[];
+            via: ("participation" | "role" | "update" | "message" | "run" | "chat")[];
             /** Current */
             current: boolean;
             /** Lastat */
@@ -6543,7 +6227,7 @@ export interface components {
             /** Stepid */
             stepId: string;
             /** Via */
-            via: ("participation" | "role" | "update" | "message" | "run" | "confirmed" | "chat")[];
+            via: ("participation" | "role" | "update" | "message" | "run" | "chat")[];
             /** Current */
             current: boolean;
             /** Lastat */
@@ -7175,7 +6859,7 @@ export interface components {
             /** Ownertitle */
             ownerTitle: string;
             /** Via */
-            via: ("participation" | "role" | "update" | "message" | "run" | "confirmed" | "chat")[];
+            via: ("participation" | "role" | "update" | "message" | "run" | "chat")[];
             /** Current */
             current: boolean;
             /** Lastat */
@@ -7204,7 +6888,7 @@ export interface components {
             /** Archived */
             archived: boolean;
             /** Via */
-            via: ("participation" | "role" | "update" | "message" | "run" | "confirmed" | "chat")[];
+            via: ("participation" | "role" | "update" | "message" | "run" | "chat")[];
             /** Current */
             current: boolean;
             /** Lastat */
@@ -7219,7 +6903,7 @@ export interface components {
             /** Archived */
             archived: boolean;
             /** Via */
-            via: ("participation" | "role" | "update" | "message" | "run" | "confirmed" | "chat")[];
+            via: ("participation" | "role" | "update" | "message" | "run" | "chat")[];
             /** Current */
             current: boolean;
             /** Lastat */
@@ -7247,7 +6931,7 @@ export interface components {
             archived: boolean;
             roadmap: components["schemas"]["RecordSummary"] | null;
             /** Via */
-            via: ("participation" | "role" | "update" | "message" | "run" | "confirmed" | "chat")[];
+            via: ("participation" | "role" | "update" | "message" | "run" | "chat")[];
             /** Current */
             current: boolean;
             /** Lastat */
@@ -11710,244 +11394,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Overlaps"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    chat_messages_api_v1_chats__identity__messages_get: {
-        parameters: {
-            query?: {
-                limit?: number;
-                offset?: number;
-            };
-            header?: never;
-            path: {
-                identity: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ChatMessages"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    chat_message_create_api_v1_chats__identity__messages_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                identity: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ChatMessageCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ChatMessageSent"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    chat_confirmation_create_api_v1_chats__identity__confirmations_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                identity: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ChatConfirmation"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ChatBinding"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    chat_confirmation_remove_api_v1_chats__identity__confirmations_remove_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                identity: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ChatConfirmation"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ChatBinding"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    chat_id_confirmation_create_api_v1_chat_confirmations_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ChatIdConfirmation"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ChatIdBinding"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    chat_id_confirmation_remove_api_v1_chat_confirmations_remove_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ChatIdConfirmation"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ChatIdBinding"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    inbox_receive_api_v1_inbox_receive_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["InboxReceive"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Inbox"];
                 };
             };
             /** @description Validation Error */

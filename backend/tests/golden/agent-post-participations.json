@@ -29,7 +29,7 @@
       "clientRunKey": "golden",
       "displayName": "Builder",
       "provider": "",
-      "externalChatId": null,
+      "externalChatId": "chat-1",
       "revision": 1,
       "createdAt": "<time>",
       "updatedAt": "<time>",

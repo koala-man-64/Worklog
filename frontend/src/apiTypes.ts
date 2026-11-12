@@ -99,13 +99,6 @@ export type RosterAgent = Schema["RosterAgent"];
 export type RoadmapAgents = Schema["RoadmapAgents"];
 export type AgentActivity = Schema["AgentActivity"]["items"][number];
 
-// A chat's outbox.
-export type Outbox = Schema["ChatMessages"];
-export type OutboxRun = Schema["ChatRecipient"];
-export type OutboxRecipient = Schema["BoundRecipient"];
-export type OutboxDelivery = Schema["ChatDelivery"];
-export type OutboxMessage = Schema["ChatMessageSent"];
-
 // Discussions.
 export type DiscussionContextType = Schema["ContextTag"]["type"];
 /** A thread's tag in one shape: what every kind has, and each kind's own fields where it has them. */

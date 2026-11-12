@@ -1226,25 +1226,14 @@ section:not(.draft) > h3 {
   color: var(--teal);
   font-weight: 600;
 }
-/* Chats', kept here: an agent picker sits among a chat's recipients, and .link-search ul, further
-   down, must still win on its list. */
-.chat-recipients ul,
-.chat-deliveries {
+/* Chats': the agents tied to a chat or a running session. */
+.chat-recipients ul {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
-}
-/* Chats', kept here: .link-search li button, further down, must still win on an agent picker's
-   choices among a chat's recipients. */
-.chat-recipients li button {
-  min-height: 24px;
-  padding: 0 9px;
-  border-radius: 999px;
-  font-size: 12px;
-  line-height: 22px;
 }
 .acknowledgement-recipient-list .checkbox-label,
 .checkbox-label {

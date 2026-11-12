@@ -6,7 +6,6 @@ import { useState } from "react";
 import { setDataContext } from "./api";
 import { ChatAgents, RunningSessions, runsIn, sessionState } from "./ChatTies";
 import type {
-  AgentSummary,
   ChatAgent,
   ChatOverview,
   Item,
@@ -16,28 +15,6 @@ import type {
 
 const ITEM = { id: "item-1", title: "Import format", status: "doing" } as Item;
 const ROADMAP = { id: "roadmap-1", title: "Platform" } as Roadmap;
-const HELPER: AgentSummary = {
-  id: "agent-helper",
-  label: "Helper",
-  active: true,
-  createdAt: "2026-11-01T10:00:00Z",
-  lastActivityAt: null,
-  providers: ["claude"],
-  openRuns: 1,
-  runCount: 1,
-  messageCount: 0,
-  working: [],
-  roles: [],
-  avatar: null,
-  roadmaps: { items: [], total: 0 },
-  repositories: { items: [], total: 0 },
-};
-const REVOKED: AgentSummary = {
-  ...HELPER,
-  id: "agent-old",
-  label: "Old helper",
-  active: false,
-};
 const registered: ChatAgent = {
   id: "agent-parser",
   label: "Parser agent",
@@ -53,11 +30,11 @@ const claimant: ChatAgent = {
   binding: "run",
   chatId: "LOCAL_PARSER",
 };
-const confirmed: ChatAgent = {
+const reviewer: ChatAgent = {
   ...registered,
-  id: "agent-confirmed",
+  id: "agent-reviewer",
   label: "Reviewer",
-  binding: "confirmed",
+  binding: "run",
   chatId: "local_parser",
 };
 function session(
@@ -90,7 +67,7 @@ const parser = session("Parser fix", {
   hostSessionId: "local_parser",
   chatId: "session-parser",
   status: "working",
-  agents: [registered, confirmed, claimant],
+  agents: [registered, reviewer, claimant],
 });
 const docs = session("Docs pass", {
   status: "waiting",
@@ -138,16 +115,6 @@ function serve(sessions: RunningSession[]) {
       return json({ items: [ITEM], total: 1 });
     if (path.startsWith("/roadmaps"))
       return json({ items: [ROADMAP], total: 1 });
-    if (path.startsWith("/agents"))
-      return json({
-        items: [
-          HELPER,
-          REVOKED,
-          { ...HELPER, id: registered.id, label: registered.label },
-          { ...HELPER, id: claimant.id, label: claimant.label, openRuns: 2 },
-        ],
-        total: 4,
-      });
     return json({ items: [], total: 0 });
   });
   return calls;
@@ -181,18 +148,6 @@ function show(node = <Sessions />) {
   );
 }
 const writes = (calls: Call[]) => calls.filter((c) => c.method !== "GET");
-/**
- * Clicks a tie control once the write before it has finished. Each tie and untie disables the
- * chat's ties until it and the refresh after it are done, and a click on a disabled button does
- * nothing, as it does for a person.
- */
-async function clickWhenReady(
-  user: ReturnType<typeof userEvent.setup>,
-  find: () => HTMLElement,
-) {
-  await waitFor(() => expect(find()).toBeEnabled(), { timeout: 5000 });
-  await user.click(find());
-}
 
 beforeEach(() => {
   vi.restoreAllMocks();
@@ -229,7 +184,7 @@ it("offers the sessions running on this machine that nothing tracks yet", async 
   expect(within(rows[1]).getByText("claude-opus-5-5")).toBeInTheDocument();
   expect(rows[2]).toHaveTextContent("Idle, last active an hour ago");
   // Who works in it already, how each is tied, and which are tied under the session's other ID,
-  // which a chat tracked by "session-parser" does not reach.
+  // which a chat tracked by "session-parser" does not list.
   const agents = within(rows[1]).getByRole("list", {
     name: "Agents tied to Parser fix",
   });
@@ -239,16 +194,21 @@ it("offers the sessions running on this machine that nothing tracks yet", async 
       .map((li) => li.textContent),
   ).toEqual([
     "Parser agent· registered with this chat",
-    "Reviewer· confirmed by you· under another IDUntie",
-    "Claimant· reports this chat, not confirmed· under another IDConfirm",
+    "Reviewer· reports this chat· under another ID",
+    "Claimant· reports this chat· under another ID",
   ]);
   expect(within(agents).getAllByText("· under another ID")[0]).toHaveAttribute(
     "title",
-    "It is tied under local_parser, but this session is tracked by session-parser, so what you write into its chat won't reach it.",
+    "It is tied under local_parser, but this session is tracked by session-parser, so its tracked chat won't list this agent.",
   );
   expect(
     within(agents).getByRole("link", { name: "Parser agent" }),
   ).toHaveAttribute("href", "#agents/agent-parser");
+  // Nothing here ties an agent: agents tie themselves by registering with a chat or reporting it.
+  expect(within(agents).queryByRole("button")).not.toBeInTheDocument();
+  expect(
+    within(rows[1]).queryByRole("button", { name: "Tie agent" }),
+  ).not.toBeInTheDocument();
   expect(
     within(rows[2]).getByRole("link", { name: ITEM.title }),
   ).toHaveAttribute("href", "#work/" + ITEM.id);
@@ -301,70 +261,6 @@ it("does not offer the record whose archived chat already tracks the session", a
   expect(
     await within(ties).findByText("Every match is already linked."),
   ).toBeInTheDocument();
-});
-
-it("ties, confirms and unties agents under the ID each one's runs report", async () => {
-  const user = userEvent.setup();
-  const calls = serve([parser]);
-  show();
-  const ties = await screen.findByRole("group", { name: "Tie Parser fix" });
-  await user.click(within(ties).getByRole("button", { name: "Tie agent" }));
-  const matches = await within(ties).findByRole("list", {
-    name: "Agent to tie matches",
-  });
-  // Agents already bound and agents whose credential was revoked are not offered, and each
-  // offer says what tells it apart, since agents choose their own labels.
-  expect(
-    within(matches)
-      .getAllByRole("button")
-      .map((b) => b.textContent),
-  ).toEqual([
-    "Helperclaude · 1 open run · id agent-he",
-    "Claimantclaude · 2 open runs · id agent-cl",
-  ]);
-  await user.click(within(matches).getByRole("button", { name: /^Helper/ }));
-  // Picked or confirmed on its row, an agent whose run reports the session is confirmed
-  // under the ID that run reports, which delivery matches exactly.
-  await clickWhenReady(user, () =>
-    within(ties).getByRole("button", { name: "Tie agent" }),
-  );
-  await user.click(
-    await within(ties).findByRole("button", { name: /^Claimant/ }),
-  );
-  await waitFor(() => expect(writes(calls)).toHaveLength(2));
-  await clickWhenReady(user, () =>
-    screen.getByRole("button", {
-      name: "Confirm Claimant works in this session",
-    }),
-  );
-  await waitFor(() => expect(writes(calls)).toHaveLength(3));
-  await clickWhenReady(user, () =>
-    screen.getByRole("button", { name: "Untie Reviewer" }),
-  );
-  await waitFor(() => expect(writes(calls)).toHaveLength(4));
-  expect(writes(calls)).toEqual([
-    {
-      method: "POST",
-      path: "/chat-confirmations",
-      body: { chatId: "session-parser", agentId: HELPER.id },
-    },
-    {
-      method: "POST",
-      path: "/chat-confirmations",
-      body: { chatId: "LOCAL_PARSER", agentId: claimant.id },
-    },
-    {
-      method: "POST",
-      path: "/chat-confirmations",
-      body: { chatId: "LOCAL_PARSER", agentId: claimant.id },
-    },
-    // A confirmation is taken back under the ID it was given, whichever of the session's IDs that was.
-    {
-      method: "POST",
-      path: "/chat-confirmations/remove",
-      body: { chatId: "local_parser", agentId: confirmed.id },
-    },
-  ]);
 });
 
 it("tells apart agents that go by the same label", async () => {
@@ -465,56 +361,36 @@ it("names where a session runs and what it is doing", () => {
   ).toBe("Idle");
 });
 
-it("lists the agents tied to a tracked chat, and ties and unties them through the chat", async () => {
-  const user = userEvent.setup();
-  const calls = serve([]);
+it("lists the agents tied to a tracked chat: registered ones, then those whose runs report it", () => {
   const chat = {
     id: "chat-1",
     chatId: "session-parser",
     archived: false,
-    agents: [registered, { ...confirmed, chatId: "session-parser" }, claimant],
+    agents: [registered, { ...claimant, chatId: "session-parser" }],
   } as unknown as ChatOverview;
   const view = show(<ChatAgents chat={chat} />);
   const tied = screen.getByRole("list", { name: "Agents tied to this chat" });
-  // A run that only claims the chat waits for confirmation where messages are sent.
   expect(
     within(tied)
-      .getAllByRole("link")
-      .map((a) => a.textContent),
-  ).toEqual(["Parser agent", "Reviewer"]);
-  await user.click(screen.getByRole("button", { name: "Tie agent" }));
-  await user.click(await screen.findByRole("button", { name: /^Helper/ }));
-  await waitFor(() => expect(writes(calls)).toHaveLength(1));
-  await clickWhenReady(user, () =>
-    screen.getByRole("button", { name: "Untie Reviewer" }),
-  );
-  await waitFor(() =>
-    expect(writes(calls)).toEqual([
-      {
-        method: "POST",
-        path: "/chats/chat-1/confirmations",
-        body: { agentId: HELPER.id },
-      },
-      {
-        method: "POST",
-        path: "/chats/chat-1/confirmations/remove",
-        body: { agentId: confirmed.id },
-      },
-    ]),
-  );
-  view.unmount();
-  // An archived chat shows who was tied, and changes nothing until it is recovered.
-  const archived = show(<ChatAgents chat={{ ...chat, archived: true }} />);
+      .getAllByRole("listitem")
+      .map((li) => li.textContent),
+  ).toEqual([
+    "Parser agent· registered with this chat",
+    "Claimant· reports this chat",
+  ]);
+  // Any credential's run can report any chat, so that tie shows apart from a registration.
   expect(
-    within(
-      screen.getByRole("list", { name: "Agents tied to this chat" }),
-    ).getAllByRole("link"),
-  ).toHaveLength(2);
+    within(tied)
+      .getAllByRole("listitem")
+      .map((li) => li.className),
+  ).toEqual(["", "claim"]);
+  // Nothing here changes who works in the chat.
   expect(screen.queryByRole("button")).not.toBeInTheDocument();
-  archived.unmount();
+  view.unmount();
   show(<ChatAgents chat={{ ...chat, archived: true, agents: [] }} />);
-  expect(screen.getByText("None tied yet.")).toBeInTheDocument();
   expect(
-    screen.queryByRole("button", { name: "Tie agent" }),
-  ).not.toBeInTheDocument();
+    screen.getByText(
+      "None yet. An agent shows here once it registers with this chat or its run reports it.",
+    ),
+  ).toBeInTheDocument();
 });

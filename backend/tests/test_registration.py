@@ -268,22 +268,3 @@ def test_daily_registration_limit_bounds_register_and_retire_loops(client, agent
         assert agent_http.post("/api/v1/agent-registrations/retire", headers=bearer(token)).status_code == 200
     refused, _ = register(agent_http, sponsor["token"])
     assert refused.status_code == 429 and "today" in refused.json()["error"]["message"]
-
-
-def test_retiring_or_cascading_expires_messages_waiting_for_the_agents(client, agent_http):
-    sponsor = issue(client)
-    item = write(client, "POST", "/work-items", {"title": "Import format"}).json()
-    chat = write(client, "POST", "/chats", {"ownerType": "item", "ownerId": item["id"], "chatId": "session-1", "title": "Parser work"}).json()
-    # Both register with the chat, so both are bound to it and receive what the person writes there.
-    child, child_token = register(agent_http, sponsor["token"], "Parser fix", chatId="session-1")
-    _, grandchild_token = register(agent_http, child_token, "Parser subagent", chatId="session-1")
-    for token in (child_token, grandchild_token):
-        started = write(agent_http, "POST", "/agent-runs", {"clientRunKey": str(uuid.uuid4()), "displayName": "Run", "externalChatId": "session-1"},
-                        headers=bearer(token))
-        assert started.status_code == 200, started.text
-    sent = write(client, "POST", f"/chats/{chat['id']}/messages", {"text": "Please also handle the revision field."})
-    assert sent.status_code == 200, sent.text
-    assert agent_http.post("/api/v1/agent-registrations/retire", headers=bearer(child_token)).json()["registeredRevoked"] == 1
-    deliveries = client.get(f"/api/v1/chats/{chat['id']}/messages").json()["items"][0]["deliveries"]
-    assert sorted((d["agentLabel"], d["status"], d["reason"]) for d in deliveries) == [
-        ("Parser fix", "expired", "credential_retired"), ("Parser subagent", "expired", "credential_revoked")]

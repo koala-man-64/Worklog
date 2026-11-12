@@ -1013,9 +1013,6 @@ def test_plan_change_and_reopen_notify_submitting_agent_and_allow_in_place_rebas
         headers=agent,
     ).json()
     assert run["id"]
-    # A credential issued in Settings reaches a chat once the person confirms it there.
-    confirmed = write(client, "POST", f"/chats/{chat['id']}/confirmations", {"agentId": cred["agentId"]})
-    assert confirmed.json()["binding"] == "confirmed", confirmed.text
 
     proposal = write(
         client,
@@ -1079,11 +1076,9 @@ def test_plan_change_and_reopen_notify_submitting_agent_and_allow_in_place_rebas
     thread = client.get(f"/api/v1/discussions/{awaiting['items'][0]['id']}", headers=agent).json()
     assert proposal["id"] in thread["messages"][0]["text"]
 
-    # 2. Agent also receives a chat inbox delivery for its open run tied to the roadmap's tracked chat.
-    inbox = write(client, "POST", "/inbox/receive", {}, headers=agent).json()
-    assert len(inbox["items"]) == 1
-    assert proposal["id"] in inbox["items"][0]["text"]
-    assert "expected revision 1, current revision 2" in inbox["items"][0]["text"]
+    # 2. The discussion is the whole notice: since v30 nothing writes into the agent's tracked chat.
+    with client.app.state.db.read() as c:
+        assert c.execute("SELECT count(*) FROM events WHERE kind='chat.message'").fetchone()[0] == 0
 
     # 3. Reviewer returns the submitted proposal to draft ("reopen"), allowing in-place rebase.
     reopened = write(

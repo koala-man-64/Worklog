@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from test_chat_confirmations import error, issue, ok, post, register, request, run
+from test_chat_confirmations import error, issue, ok, post, register, run
 from worklog import active_sessions
 from worklog.active_sessions import (
     EPOCH_TICKS,
@@ -257,113 +257,76 @@ def test_a_tracked_session_names_its_chats_and_keeps_their_id(client, machine):
 def test_agents_tied_to_a_session_and_the_id_they_are_tied_by(client, machine):
     session = machine.start(231)
     sponsor = issue(client, "Settings credential")
-    registered = register(client, sponsor, "Parser agent", chat=session["sessionId"])
+    register(client, sponsor, "Parser agent", chat=session["sessionId"])
     claimant = issue(client, "Helper")
     run(client, claimant, chat_id=session["hostSessionId"], name="Helper run")
 
     found = sessions(client)[session["sessionId"]]
     assert [(a["label"], a["binding"], a["chatId"], a["active"]) for a in found["agents"]] == [
         ("Parser agent", "registered", session["sessionId"], True), ("Helper", "run", session["hostSessionId"], True)]
-    # The registered identity's ID wins: its runs report it, and delivery matches it exactly.
+    # The registered identity's ID wins: its runs report it, and a tracked chat ties to them by it exactly.
     assert found["chatId"] == session["sessionId"]
 
-    # Confirmed under the desktop ID, the helper is bound there, before any record tracks the session.
-    tie = {"chatId": session["hostSessionId"], "agentId": claimant["agentId"]}
-    assert post(client, "/chat-confirmations", tie) == {**tie, "binding": "confirmed"}
-    assert [(a["label"], a["binding"]) for a in sessions(client)[session["sessionId"]]["agents"]] == [
-        ("Parser agent", "registered"), ("Helper", "confirmed")]
-    assert post(client, "/chat-confirmations/remove", tie) == {**tie, "binding": None}
-    assert [a["binding"] for a in sessions(client)[session["sessionId"]]["agents"]] == ["registered", "run"]
-    # An identity bound by registration stays as it is.
-    own = {"chatId": session["sessionId"], "agentId": registered["agentId"]}
-    assert post(client, "/chat-confirmations", own)["binding"] == "registered"
-    assert post(client, "/chat-confirmations/remove", own)["binding"] == "registered"
 
-
-def test_an_agent_confirmed_before_the_session_is_tracked_receives_its_messages(client, machine):
+def test_tracking_a_session_names_the_agents_whose_runs_report_it(client, machine):
     session = machine.start(241)
     helper = issue(client, "Helper")
     run(client, helper, chat_id=session["sessionId"], name="Helper run")
-    post(client, "/chat-confirmations", {"chatId": session["sessionId"], "agentId": helper["agentId"]})
-    # With no record tracking the chat yet, the agent's own history keeps the confirmation.
-    history = ok(client.get("/api/v1/history", params={"entityId": helper["agentId"]}))["items"]
-    assert ("chat.confirm", {"chatId": session["sessionId"], "agentId": helper["agentId"]}) in [(e["kind"], e["after"]) for e in history]
-
     item = post(client, "/work-items", {"title": "Import format"})
     chat = post(client, "/chats", {"ownerType": "item", "ownerId": item["id"], "chatId": session["sessionId"], "title": "Parser"})
     listed = {c["id"]: c for c in ok(client.get("/api/v1/chats"))["items"]}
-    assert [(a["label"], a["binding"]) for a in listed[chat["id"]]["agents"]] == [("Helper", "confirmed")]
-    message = post(client, f"/chats/{chat['id']}/messages", {"text": "Rebase first"})
-    assert [d["agentLabel"] for d in message["deliveries"]] == ["Helper"]
-    assert [m["text"] for m in post(client, "/inbox/receive", {}, helper)["items"]] == ["Rebase first"]
+    assert [(a["label"], a["binding"]) for a in listed[chat["id"]]["agents"]] == [("Helper", "run")]
     # Once tracked, the session is no longer only a suggestion: it names the chat.
     assert [t["id"] for t in sessions(client)[session["sessionId"]]["tracked"]] == [chat["id"]]
 
 
-def test_an_agent_whose_run_reports_the_desktop_id_is_confirmed_and_reached_under_that_id(client, machine):
-    # What Chats does for a run that only claims the session: confirm under the ID the run
-    # reports, then track the session by the ID offered, which now follows that agent.
+def test_a_session_is_offered_under_the_id_an_agents_run_reports(client, machine):
+    # Tracking the session by the ID offered ties the chat to that agent's run, which reports the
+    # desktop session's ID.
     session = machine.start(245)
     helper = issue(client, "Helper")
     run(client, helper, chat_id=session["hostSessionId"], name="Helper run")
-    claim = next(a for a in sessions(client)[session["sessionId"]]["agents"] if a["id"] == helper["agentId"])
-    assert (claim["binding"], claim["chatId"]) == ("run", session["hostSessionId"])
-    post(client, "/chat-confirmations", {"chatId": claim["chatId"], "agentId": helper["agentId"]})
     offered = sessions(client)[session["sessionId"]]
+    claim = next(a for a in offered["agents"] if a["id"] == helper["agentId"])
+    assert (claim["binding"], claim["chatId"]) == ("run", session["hostSessionId"])
     assert offered["chatId"] == session["hostSessionId"]
 
     item = post(client, "/work-items", {"title": "Import format"})
     chat = post(client, "/chats", {"ownerType": "item", "ownerId": item["id"], "chatId": offered["chatId"], "title": "Parser"})
-    post(client, f"/chats/{chat['id']}/messages", {"text": "Rebase first"})
-    assert [m["text"] for m in post(client, "/inbox/receive", {}, helper)["items"]] == ["Rebase first"]
+    listed = {c["id"]: c for c in ok(client.get("/api/v1/chats"))["items"]}
+    assert [(a["label"], a["binding"]) for a in listed[chat["id"]]["agents"]] == [("Helper", "run")]
 
 
-def test_a_tracked_chat_names_only_the_agents_its_own_chat_id_reaches(client, machine):
-    # Delivery compares chat IDs exactly, so a tie under another form of the ID is not this chat's,
-    # though the running session, which goes by both, still finds it.
+def test_a_tracked_chat_names_only_the_agents_tied_to_its_own_chat_id(client, machine):
+    # A tracked chat compares chat IDs exactly, as runs report them, so a tie under another form of
+    # the ID is not this chat's, though the running session, which goes by both, still finds it.
     session = machine.start(247)
     exact, other = issue(client, "Exact"), issue(client, "Other case")
     item = post(client, "/work-items", {"title": "Import format"})
     chat = post(client, "/chats", {"ownerType": "item", "ownerId": item["id"], "chatId": session["sessionId"], "title": "Parser"})
-    post(client, "/chat-confirmations", {"chatId": session["sessionId"], "agentId": exact["agentId"]})
-    post(client, "/chat-confirmations", {"chatId": session["sessionId"].upper(), "agentId": other["agentId"]})
+    run(client, exact, chat_id=session["sessionId"])
+    run(client, other, chat_id=session["sessionId"].upper())
     listed = {c["id"]: c for c in ok(client.get("/api/v1/chats"))["items"]}
     assert [a["label"] for a in listed[chat["id"]]["agents"]] == ["Exact"]
     assert [a["label"] for a in sessions(client)[session["sessionId"]]["agents"]] == ["Exact", "Other case"]
 
 
-def test_the_chat_page_confirmation_checks_the_chat_before_the_agent(client, machine):
-    item = post(client, "/work-items", {"title": "Import format"})
-    chat = post(client, "/chats", {"ownerType": "item", "ownerId": item["id"], "chatId": str(uuid.uuid4()), "title": "Parser"})
-    unknown = {"agentId": str(uuid.uuid4())}
-    assert error(request(client, "POST", f"/chats/{uuid.uuid4()}/confirmations", unknown), 404, "not_found")["message"] == "Agent chat not found"
-    post(client, f"/chats/{chat['id']}/archive", {"revision": chat["revision"]})
-    error(request(client, "POST", f"/chats/{chat['id']}/confirmations", unknown), 409, "chat_archived")
-    error(request(client, "POST", f"/chats/{chat['id']}/confirmations/remove", unknown), 409, "chat_archived")
-
-
-def test_confirming_by_chat_id_is_the_persons_alone(client, machine):
+def test_agents_never_see_the_persons_sessions(client, machine):
     helper = issue(client, "Helper")
-    chat_id = str(uuid.uuid4())
-    error(request(client, "POST", "/chat-confirmations", {"chatId": chat_id, "agentId": str(uuid.uuid4())}), 404, "not_found")
-    error(request(client, "POST", "/chat-confirmations", {"chatId": "  ", "agentId": helper["agentId"]}), 422, "validation")
-    error(request(client, "POST", "/chat-confirmations", {"chatId": chat_id, "agentId": helper["agentId"]}, helper), 403, "agent_scope")
-    error(request(client, "POST", "/chat-confirmations/remove", {"chatId": chat_id, "agentId": helper["agentId"]}, helper), 403, "agent_scope")
-    # Agents never see the person's sessions.
     machine.start(251)
     error(client.get("/api/v1/claude-sessions", headers={"Authorization": "Bearer " + helper["token"]}), 403, "agent_scope")
     error(client.get("/api/v1/claude-sessions/", headers={"Authorization": "Bearer " + helper["token"]}), 403, "agent_scope")
 
 
-def test_an_agent_page_shows_the_chats_you_confirmed_it_in(client, machine):
+def test_an_agent_page_shows_the_chats_its_runs_report(client, machine):
     helper = issue(client, "Parser helper")
     issue(client, "Docs writer")
     item = post(client, "/work-items", {"title": "Import format"})
     chat_id = str(uuid.uuid4())
     chat = post(client, "/chats", {"ownerType": "item", "ownerId": item["id"], "chatId": chat_id, "title": "Parser"})
-    post(client, "/chat-confirmations", {"chatId": chat_id, "agentId": helper["agentId"]})
+    run(client, helper, chat_id=chat_id)
     agent = ok(client.get(f"/api/v1/agents/{helper['agentId']}"))
-    assert [(c["id"], c["via"], c["current"]) for c in agent["chats"]["items"]] == [(chat["id"], ["confirmed"], False)]
+    assert [(c["id"], c["via"], c["current"]) for c in agent["chats"]["items"]] == [(chat["id"], ["run"], True)]
     assert [(w["id"], w["via"]) for w in agent["workItems"]["items"]] == [(item["id"], ["chat"])]
     # The agent list finds agents by label, for the picker that ties them.
     assert [a["label"] for a in ok(client.get("/api/v1/agents", params={"q": "PARSER"}))["items"]] == ["Parser helper"]

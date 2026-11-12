@@ -116,9 +116,9 @@ def test_the_upgrade_drops_every_release_its_search_rows_and_tags_and_changes_no
         assert [row for row in before[table] if rid in row] and not [row for row in after[table] if rid in row]
         assert after[table] == [row for row in before[table] if rid not in row]
     # Every other table keeps every row: the records the release held, the discussion, its feed and
-    # the release's history among them. The index's own tables change with its rows. v29, which the
-    # upgrade also runs, drops the ties table, empty here.
-    dropped = (*RELEASE_TABLES, "agent_links")
+    # the release's history among them. The index's own tables change with its rows. v29 and v30,
+    # which the upgrade also runs, drop the ties and chat message tables, empty here.
+    dropped = (*RELEASE_TABLES, "agent_links", "chat_messages", "chat_message_deliveries", "chat_confirmations")
     kept = [table for table in before if table not in (*dropped, *SHRUNK) and not table.startswith("search_")]
     assert set(after) == set(before) - set(dropped)
     assert {table: after[table] for table in kept} == {table: before[table] for table in kept}
