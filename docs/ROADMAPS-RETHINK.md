@@ -68,13 +68,13 @@ The files that Phase 0 deletes outright hold about 9,100 of the codebase's 77,00
 | R5 | Where does a roadmap's "Agents" list come from? It listed only ties set by hand, so a roadmap with agents at work on its steps read "No agents tied". | From the agents' work: every agent whose reported work, status updates, roles, discussion messages or tracked chats tie it to the roadmap, now or before. The rule is the one that names the roadmap on the agent's card on Agents (`AgentRegistry.roster` reuses it), so the two agree. A step lists the agents on it and on its sub-steps. Nobody ties agents there by hand any more; a tie to a roadmap or a step shows only on the agent's page until 0.6 removes ties. No schema change. | Outside the plan; 0.6 | 2026-11-11, Rudy asked for it; Claude chose the rule and the steps' lists while building it |
 | R6 | Do the discussion tag CHECKs lose `release` when Releases go? | No. `discussion_contexts` and `discussion_change_contexts` keep `release` in their CHECKs, so step 0.5 rebuilds no table that holds live data, as R4 kept columns and the coordination `handoff` kind kept its CHECK. The v28 upgrade deletes every release tag and the feed's record of it, the API and the agent command line no longer take one, and discussion reads leave out one written since, which `worklog doctor` reports as a type its table never takes. A later schema-bumping step can still drop `release` from the CHECKs. | 0.5 | 2026-11-11, Claude, while building 0.5 |
 | R7 | Does the agent registry's `message` reason go with messaging agents from a chat? | No. It comes from agents' discussion messages, and from the chat ID a discussion message reports, not from what the person writes into a chat: Discussions stay, and R5's roster reads it. Only the `confirmed` reason goes, with confirmations. | 0.7 | 2026-11-11, Claude, while building 0.7 |
+| R8 | Were the two pairs of identical roadmaps meant to show one plan in two places, or are they copies to archive? (Q2) | Copies. Each pair matched step for step, in text and status alike, because the newer roadmap of each was made from the older on 2026-11-01 or 2026-11-02 and its progress set once to match; neither moved after. The person archives the newer of each pair: archiving is the person's alone, since `roadmap.archive` is not a proposal operation. So 2.1 needs no roadmap that shows in two places: a step that names a program opens into its one roadmap. | 2.1 | 2026-11-12, Rudy |
 
 ## Open questions
 
 | ID | Question | Shapes |
 |---|---|---|
 | Q1 | In the largest roadmap, do the Blocked steps mean "not yet", waiting on an earlier phase, or stuck? | 3.1 |
-| Q2 | Were the two pairs of identical roadmaps meant to show one plan in two places, or are they copies to archive? | 2.1 |
 | Q3 | Does Today stay? Nothing here depends on it, and steps on Today are parked until it is settled. | Parked |
 
 ## Steps
@@ -220,7 +220,7 @@ Done in the roadmap page: a step's title takes one line in the outline, cut shor
 
 Status: Not started
 
-A roadmap can hang off a step, whose status then rolls up from that roadmap's steps. A step gets "Open as roadmap", and Move puts a roadmap under a step. A one-time pass proposes a link from each existing sub-roadmap to the parent step whose title matches it, for the person to confirm. Schema change; it changes what agents can read and call. Q2 shapes it.
+A roadmap can hang off a step, whose status then rolls up from that roadmap's steps. A step gets "Open as roadmap", and Move puts a roadmap under a step. A one-time pass proposes a link from each existing sub-roadmap to the parent step whose title matches it, for the person to confirm. Schema change; it changes what agents can read and call. R8 settles Q2's part of it.
 
 Why: a parent's steps shadow its sub-roadmaps by hand, and drift from them.
 
@@ -257,3 +257,4 @@ Why: adding, moving or retiring one step takes a whole-plan save today, which is
 - 2026-11-11: R5 recorded, outside the plan: a roadmap's and its steps' "Agents" list the agents whose work ties them there, instead of ties. It changes nothing agents call or read.
 - 2026-11-11: R6 recorded while building step 0.5: the discussion tag CHECKs keep `release`, so 0.5 rebuilds no table.
 - 2026-11-11: R7 recorded while building step 0.7: the agent registry's `message` reason is discussion messages and stays; only `confirmed` goes.
+- 2026-11-12: R8 recorded, Rudy's answer to Q2: the two pairs of identical roadmaps were copies, and the newer of each goes to the archive.
