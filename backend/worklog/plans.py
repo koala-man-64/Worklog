@@ -274,6 +274,47 @@ def step_tree(conn, roadmap_id):
     return _steps(conn, roadmap_id, retired=True)
 
 
+def outline_order(steps):
+    """Steps depth-first, each before its children and siblings in (position, id) order, as the
+    outline shows them. A step whose parent is not among them starts a branch of its own, and so does
+    any step a broken parent chain leaves unreached, so each comes exactly once."""
+    ids = {step["id"] for step in steps}
+    by_place = sorted(steps, key=lambda step: (step["position"], step["id"]))
+    children: dict[str | None, list[dict]] = {}
+    for step in by_place:
+        children.setdefault(step["parentId"] if step["parentId"] in ids else None, []).append(step)
+    ordered: list[dict] = []
+    seen: set[str] = set()
+    for root in [*children.get(None, []), *by_place]:
+        stack = [root]
+        while stack:
+            step = stack.pop()
+            if step["id"] in seen:
+                continue
+            seen.add(step["id"])
+            ordered.append(step)
+            stack.extend(reversed(children.get(step["id"], [])))
+    return ordered
+
+
+def step_place(steps, identity):
+    """Where a step sits among its roadmap's steps: those above it, from the top down, and the others
+    under its parent in outline order, retired ones aside. Each is named by its title and status."""
+    by_id = {step["id"]: step for step in steps}
+    current = by_id[identity]
+    ancestors: list[dict] = []
+    seen, parent = {identity}, current["parentId"]
+    while parent in by_id and parent not in seen:
+        seen.add(parent)
+        step = by_id[parent]
+        ancestors.insert(0, {"id": step["id"], "title": step["title"], "status": step["status"]})
+        parent = step["parentId"]
+    siblings = [{"id": step["id"], "title": step["title"], "status": step["status"], "position": step["position"]}
+                for step in sorted(steps, key=lambda step: (step["position"], step["id"]))
+                if step["parentId"] == current["parentId"] and step["id"] != identity and not step["retired"]]
+    return {"ancestors": ancestors, "siblings": siblings}
+
+
 class PlanService:
     def __init__(self, db):
         self.db = db
@@ -298,6 +339,17 @@ class PlanService:
             result = self._detail(conn, identifier)
             result.update(self.family(conn, identifier))
             return result
+
+    def outline(self, identifier):
+        """A roadmap's plan without its text, small enough for an agent to read whole: each step in
+        it, retired ones aside, in outline order, with its title, status (a parent's derived from its
+        leaves, as the page shows it), parent and position."""
+        with self.db.read() as conn:
+            roadmap = _roadmap(_row(conn, identifier))
+            steps = [{key: step[key] for key in ("id", "title", "status", "parentId", "position")}
+                     for step in outline_order(_steps(conn, identifier))]
+            return {"id": roadmap["id"], "title": roadmap["title"], "archived": roadmap["archived"],
+                    "revision": roadmap["revision"], "steps": steps}
 
     @staticmethod
     def family(conn, identifier):

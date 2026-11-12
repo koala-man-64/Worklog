@@ -903,6 +903,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/roadmaps/{identity}/outline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Roadmap Outline */
+        get: operations["roadmap_outline_api_v1_roadmaps__identity__outline_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/roadmaps/{identity}/revisions": {
         parameters: {
             query?: never;
@@ -4448,6 +4465,18 @@ export interface components {
             /** Title */
             title: string;
         };
+        /**
+         * NearbyStep
+         * @description A step above or beside another, by its title and status.
+         */
+        NearbyStep: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Status */
+            status: string;
+        };
         /** Note */
         Note: {
             /** Id */
@@ -4546,6 +4575,22 @@ export interface components {
             payload: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * OutlineStep
+         * @description A step as a roadmap's outline gives it: no text.
+         */
+        OutlineStep: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Status */
+            status: string;
+            /** Parentid */
+            parentId: string | null;
+            /** Position */
+            position: number;
         };
         /**
          * OverlapDiscussion
@@ -5945,6 +5990,23 @@ export interface components {
             parentId: string | null;
         };
         /**
+         * RoadmapOutline
+         * @description A roadmap's plan without its text: each step in it, retired ones aside, depth-first in outline
+         *     order, each before its children.
+         */
+        RoadmapOutline: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Steps */
+            steps: components["schemas"]["OutlineStep"][];
+        };
+        /**
          * RoadmapRecord
          * @description A roadmap's own fields, as other records embed it.
          */
@@ -6421,6 +6483,17 @@ export interface components {
             /** Agentrepositoryregistration */
             agentRepositoryRegistration?: boolean | null;
         };
+        /** SiblingStep */
+        SiblingStep: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Status */
+            status: string;
+            /** Position */
+            position: number;
+        };
         /**
          * StatusContextTag
          * @description A work item's tag.
@@ -6447,7 +6520,8 @@ export interface components {
         };
         /**
          * Step
-         * @description A step as its own read returns it: with its roadmap, and retired or not.
+         * @description A step as its own read returns it: with its roadmap, retired or not, where it sits in the plan,
+         *     and the tracked chats on it.
          */
         Step: {
             /** Id */
@@ -6472,6 +6546,12 @@ export interface components {
             attachments: components["schemas"]["Attachment"][];
             /** Roadmapid */
             roadmapId: string;
+            /** Ancestors */
+            ancestors: components["schemas"]["NearbyStep"][];
+            /** Siblings */
+            siblings: components["schemas"]["SiblingStep"][];
+            /** Chats */
+            chats: components["schemas"]["TrackedChat"][];
         };
         /**
          * StepContextTag
@@ -9510,6 +9590,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Roadmap"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    roadmap_outline_api_v1_roadmaps__identity__outline_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoadmapOutline"];
                 };
             };
             /** @description Validation Error */

@@ -164,11 +164,13 @@ No schema change.
 
 #### 1.1 · Agent reads that fit in a context
 
-Status: Not started
+Status: Merged · Branch: `claude/roadmap-outline-reads` · PR: [#192](https://github.com/koala-man-64/Worklog/pull/192)
 
 `roadmap outline ID` gives each step's ID, title, status, parent and position, without text. `step show ID` adds the step's ancestors, siblings and tracked chats. This changes what agents can read.
 
 Why: `roadmap show` returns every step's full text, about 1 MB for the largest roadmap, to find one step.
+
+Done as `GET /roadmaps/{id}/outline` (`plans.outline`), which lists each step in the plan, retired ones aside, depth-first in outline order, with a parent's status derived from its leaves, as the page shows it. `GET /steps/{id}` adds `ancestors` and `siblings`, each by title and status (`plans.step_place`), and `chats`, the roadmap's tracked chats assigned to the step. The agent guide steers agents to the outline, then `step show`, before `roadmap show`. Nothing is removed. `test_roadmap_outline.py` pins the order, the derived statuses, the left-out text and retired step, and each step's place and chats; `test_roadmap_cli.py` the command and the allowlist.
 
 #### 1.2 · Work from the step
 

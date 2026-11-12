@@ -2946,6 +2946,45 @@
         }
       }
     },
+    "/api/v1/roadmaps/{identity}/outline": {
+      "get": {
+        "summary": "Roadmap Outline",
+        "operationId": "roadmap_outline_api_v1_roadmaps__identity__outline_get",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoadmapOutline"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/roadmaps/{identity}/revisions": {
       "post": {
         "summary": "Roadmap Revise",
@@ -14347,6 +14386,31 @@
         ],
         "title": "Named"
       },
+      "NearbyStep": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "status"
+        ],
+        "title": "NearbyStep",
+        "description": "A step above or beside another, by its title and status."
+      },
       "Note": {
         "properties": {
           "id": {
@@ -14643,6 +14707,48 @@
           "payload"
         ],
         "title": "Operation"
+      },
+      "OutlineStep": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "parentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parentid"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "status",
+          "parentId",
+          "position"
+        ],
+        "title": "OutlineStep",
+        "description": "A step as a roadmap's outline gives it: no text."
       },
       "OverlapDiscussion": {
         "properties": {
@@ -18509,6 +18615,44 @@
         ],
         "title": "RoadmapMove"
       },
+      "RoadmapOutline": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/OutlineStep"
+            },
+            "type": "array",
+            "title": "Steps"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "archived",
+          "revision",
+          "steps"
+        ],
+        "title": "RoadmapOutline",
+        "description": "A roadmap's plan without its text: each step in it, retired ones aside, depth-first in outline\norder, each before its children."
+      },
       "RoadmapRecord": {
         "properties": {
           "id": {
@@ -19919,6 +20063,35 @@
         "type": "object",
         "title": "SettingsUpdate"
       },
+      "SiblingStep": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "status",
+          "position"
+        ],
+        "title": "SiblingStep"
+      },
       "StatusContextTag": {
         "properties": {
           "type": {
@@ -20058,6 +20231,27 @@
           "roadmapId": {
             "type": "string",
             "title": "Roadmapid"
+          },
+          "ancestors": {
+            "items": {
+              "$ref": "#/components/schemas/NearbyStep"
+            },
+            "type": "array",
+            "title": "Ancestors"
+          },
+          "siblings": {
+            "items": {
+              "$ref": "#/components/schemas/SiblingStep"
+            },
+            "type": "array",
+            "title": "Siblings"
+          },
+          "chats": {
+            "items": {
+              "$ref": "#/components/schemas/TrackedChat"
+            },
+            "type": "array",
+            "title": "Chats"
           }
         },
         "additionalProperties": false,
@@ -20073,10 +20267,13 @@
           "retired",
           "notes",
           "attachments",
-          "roadmapId"
+          "roadmapId",
+          "ancestors",
+          "siblings",
+          "chats"
         ],
         "title": "Step",
-        "description": "A step as its own read returns it: with its roadmap, and retired or not."
+        "description": "A step as its own read returns it: with its roadmap, retired or not, where it sits in the plan,\nand the tracked chats on it."
       },
       "StepContextTag": {
         "properties": {

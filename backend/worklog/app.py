@@ -46,7 +46,7 @@ from .discussion_api import install_discussion_routes
 from .discussions import bind_credential, communication_actor, registered_by, registered_chats
 from .guard import RequestGuard, error_response, read_body
 from .maintenance import prune_receipts
-from .plans import PlanService
+from .plans import PlanService, step_place
 from .proposals import ProposalService, approval_required, open_proposals, visible_history
 from .records import check_owner, people_on, support_record
 from .recovery import automatic_backup, backup_database, list_backups, write_export
@@ -556,6 +556,10 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             result["history"] = read_events(c, identity)
         return result
 
+    @app.get("/api/v1/roadmaps/{identity}/outline", response_model=out.RoadmapOutline)
+    def roadmap_outline(identity: str) -> dict:
+        return plans.outline(identity)
+
     @app.post("/api/v1/roadmaps/{identity}/revisions", response_model=out.SavedRoadmap)
     def roadmap_revise(identity: str, request: Request, body: m.RoadmapRevision) -> dict:
         return apply(request, "roadmap.revise", {"id": identity, **body.model_dump()}, create=True)
@@ -584,11 +588,15 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def step_detail(identity: str) -> dict:
         with db.read() as c:
             row = plans.get_step(c, identity)
-            roadmap = plans._detail(c, row["roadmap_id"])
-            current = next((s for s in roadmap["steps"] if s["id"] == identity), None)
-            if current is None:
-                current = {"id": row["id"], "title": row["title"], "description": row["description"], "parentId": row["parent_id"], "position": row["position"], "status": row["status"], "revision": row["revision"], "retired": True}
-            return {**current, "roadmapId": row["roadmap_id"], **support.for_owner(c, "step", identity)}
+            # Every step of the roadmap, retired ones included, so this one is among them.
+            steps = plans._detail(c, row["roadmap_id"])["steps"]
+            current = next(s for s in steps if s["id"] == identity)
+            # The roadmap's tracked chats on this step, in the order they were put there.
+            chats = support.chat_records(c, c.execute(
+                "SELECT ch.* FROM agent_chats ch JOIN chat_steps cs ON cs.chat_id=ch.id WHERE cs.step_id=? ORDER BY cs.created_at,ch.id",
+                (identity,)).fetchall())
+            return {**current, "roadmapId": row["roadmap_id"], **step_place(steps, identity), "chats": chats,
+                    **support.for_owner(c, "step", identity)}
 
     @app.get("/api/v1/steps/{identity}/history", response_model=out.History)
     def step_history(identity: str) -> dict:
