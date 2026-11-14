@@ -119,6 +119,28 @@ test("roadmap immutable revisions and mobile navigation", async ({ page }) => {
       .getByRole("link", { name: "First safe step", exact: true }),
   ).toBeVisible();
   expect(await fits()).toBeTruthy();
+  // A chat tracked from the roadmap's Chats view opens there, beside the list.
+  await views.getByRole("link", { name: "Chats", exact: true }).click();
+  const chatList = page.getByRole("region", {
+    name: "Agent chats",
+    exact: true,
+  });
+  await chatList
+    .getByRole("textbox", { name: "Agent chat title", exact: true })
+    .fill("Plan review");
+  await chatList
+    .getByRole("textbox", { name: "Agent chat ID", exact: true })
+    .fill("e2e-" + crypto.randomUUID());
+  await chatList.getByRole("button", { name: "Add chat", exact: true }).click();
+  await expect(page).toHaveURL(/\/chats\/[0-9a-f-]{36}$/);
+  const chatHistory = page.getByRole("region", { name: "Chat history" });
+  await expect(
+    chatHistory.getByRole("heading", { name: "Plan review", exact: true }),
+  ).toBeVisible();
+  await expect(
+    chatHistory.getByText(/No transcript on this machine has this chat ID/),
+  ).toBeVisible();
+  expect(await fits()).toBeTruthy();
   await views.getByRole("link", { name: "History", exact: true }).click();
   await expect(page.getByText("Version 2", { exact: true })).toBeVisible();
   expect(await fits()).toBeTruthy();

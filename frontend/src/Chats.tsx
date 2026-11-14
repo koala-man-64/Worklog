@@ -1,4 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { contextStorageKey } from "./api";
 import { useCollapsed, useData } from "./hooks";
 import { RepositoryBadges } from "./RepositoryControls";
@@ -286,6 +292,15 @@ export function tallyText(t: Tally) {
   );
 }
 
+/** The tracked chats, working ones first, then the most recently active; the list notices new activity. */
+export function useChatList(archived = false) {
+  const list = useData<Answer<"/api/v1/chats">>(
+    `/chats?archived=${archived}`,
+    LIST_REFRESH_MS,
+  );
+  return { list, chats: [...(list.data?.items ?? [])].sort(byActivity) };
+}
+
 export function Chats({ selected }: { selected?: string }) {
   const [archived, setArchived] = useState(false);
   const levelKey = contextStorageKey("chats-level", "list");
@@ -297,11 +312,7 @@ export function Chats({ selected }: { selected?: string }) {
     contextStorageKey("chats-collapsed", "list"),
   );
   const [revealed, setRevealed] = useState<string>();
-  const list = useData<Answer<"/api/v1/chats">>(
-    `/chats?archived=${archived}`,
-    LIST_REFRESH_MS,
-  );
-  const chats = [...(list.data?.items ?? [])].sort(byActivity);
+  const { list, chats } = useChatList(archived);
   const groups = level === "chat" ? [] : groupChats(chats, level);
   const keys = everyKey(groups);
   // With nothing chosen, the most recently active chat opens.
@@ -508,7 +519,7 @@ function GroupItem({
               key={c.id}
               chat={c}
               current={c.id === current}
-              grouped
+              ownerShown
             />
           ))}
         </ul>
@@ -517,15 +528,18 @@ function GroupItem({
   );
 }
 
-function ChatListItem({
+export function ChatListItem({
   chat,
   current,
-  grouped = false,
+  ownerShown = false,
+  href = "#chats/" + chat.id,
 }: {
   chat: ChatOverview;
   current: boolean;
-  // Under its record's group the chat need not name that record again.
-  grouped?: boolean;
+  // Its record is already on screen, as its group or its own page, so the chat need not name it.
+  ownerShown?: boolean;
+  // Where the chat opens: on Chats unless a page shows its history itself.
+  href?: string;
 }) {
   const { transcript, owner } = chat;
   const tool = toolText(chat);
@@ -535,7 +549,7 @@ function ChatListItem({
     <li className={current ? "selected" : undefined}>
       <a
         className="chat-link"
-        href={"#chats/" + chat.id}
+        href={href}
         aria-current={current ? "true" : undefined}
       >
         <StateDot state={transcript.found ? transcript.state : "missing"} />
@@ -548,10 +562,10 @@ function ChatListItem({
           </small>
         </span>
       </a>
-      {(tool || !grouped) && (
+      {(tool || !ownerShown) && (
         <div className="chat-row chat-meta">
           {tool && <span className="person-badge">{tool}</span>}
-          {!grouped && (
+          {!ownerShown && (
             <small>
               {owner.type === "roadmap" ? "Roadmap" : "Work item"}{" "}
               <a href={ownerHref}>{owner.title || "Untitled"}</a>
@@ -577,7 +591,14 @@ function ChatListItem({
   );
 }
 
-function ChatHistory({ chat }: { chat: ChatOverview }) {
+export function ChatHistory({
+  chat,
+  actions,
+}: {
+  chat: ChatOverview;
+  // What the page lets you do to the chat, under its title.
+  actions?: ReactNode;
+}) {
   const [thread, setThread] = useState<string | null>(null);
   const [limit, setLimit] = useState(PAGE);
   const transcript = useData<Transcript>(
@@ -601,6 +622,7 @@ function ChatHistory({ chat }: { chat: ChatOverview }) {
             </small>
           )}
         </div>
+        {actions}
         <ChatAgents chat={chat} />
         {threads.length > 1 && (
           <div
