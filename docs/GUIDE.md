@@ -216,7 +216,7 @@ A ticket filed from the browser starts open. An agent can file a past incident a
    - move it up or down
    - "Retire step"
 3. Add a "Version note" and press "Save new version". Each saved version is kept for good under "Immutable versions" in the roadmap's "History", where "Restore as new version" brings an old one back.
-4. Set progress on leaf steps (Open, Doing, Blocked or Done) in "Plan & progress", the roadmap's "Outline". A parent step follows its children: Done when all are done, Blocked if any is blocked, otherwise Doing once any has started. The bar at the top counts finished steps, and the roadmap's "Status" shows where each phase stands.
+4. Set progress on leaf steps (Open, Doing, Blocked or Done) in "Plan & progress", the roadmap's "Outline". A parent step follows its children: Done when all are done, Blocked if any is blocked, otherwise Doing once any has started. The bar at the top fills in status colours, with how many steps are done, in progress, blocked and open beside it, and the roadmap's "Status" shows where each phase stands.
 5. To change one step's title, outcome or description, open the step, press "Edit step", then "Save step". It saves that step alone, without a new version, so agents working on other steps carry on undisturbed. Agents propose the same change for one step.
 6. To nest a roadmap under another, use "Add sub-roadmap" at the top of the parent's page, or choose its parent in "Nested under" beside it.
 

@@ -71,11 +71,44 @@
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
-.roadmap-progress progress {
+/* Steps by status in one bar, in status colours: done, then in progress, then blocked; open
+   steps are the empty track. The roadmap's header and each phase on its board have one. */
+.status-bar {
+  display: flex;
+  height: 5px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--line);
+}
+.status-bar > .done {
+  background: var(--status-done-border);
+}
+.status-bar > .doing {
+  background: var(--status-doing-border);
+}
+.status-bar > .blocked {
+  background: var(--status-blocked-border);
+}
+/* The roadmap's steps by status: the bar, how many steps, then a count per status. */
+.roadmap-progress > .status-bar {
   flex: 1 1 200px;
 }
-.roadmap-progress span {
+.roadmap-progress > span {
   white-space: nowrap;
+}
+.status-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.status-counts li {
+  white-space: nowrap;
+}
+.status-counts .status-dot {
+  margin: -2px 6px 0 0;
 }
 /* Where the roadmap sits among the others, until a step opens into its own roadmap (2.1). */
 .roadmap-family {
@@ -189,22 +222,6 @@
 }
 .phase-table td.none {
   color: var(--muted);
-}
-.phase-bar {
-  display: flex;
-  height: 5px;
-  border-radius: 3px;
-  overflow: hidden;
-  background: var(--line);
-}
-.phase-bar > .done {
-  background: var(--status-done-border);
-}
-.phase-bar > .doing {
-  background: var(--status-doing-border);
-}
-.phase-bar > .blocked {
-  background: var(--status-blocked-border);
 }
 /* Narrower, the titles keep their room: each column's dot names its status (its label still
    read out, and shown on hover), and then the bar goes, the counts saying the same. */
