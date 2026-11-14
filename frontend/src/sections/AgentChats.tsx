@@ -19,7 +19,7 @@ type ChatFields = {
 function agentName(chat: AgentChat) {
   return [chat.provider, chat.model].filter(Boolean).join(" · ");
 }
-function ChatForm({
+export function ChatForm({
   label,
   submit,
   chats,
@@ -157,24 +157,22 @@ function ChatForm({
     </form>
   );
 }
-/** Who a chat is: its title, provider and model, chat ID, repositories, and the steps it works on, with a link to its messages. */
+/** Who a chat is: its title, provider and model, chat ID and repositories, with a link to its messages. */
 function ChatSummary({
   chat,
-  steps = [],
-  roadmapId,
+  messages = "#chats/" + chat.id,
 }: {
   chat: AgentChat;
-  steps?: Step[];
-  roadmapId?: string;
+  // Where its messages open: on Chats, or on its roadmap's own "Chats".
+  messages?: string;
 }) {
   const agent = agentName(chat);
-  const working = steps.filter((s) => chat.stepIds.includes(s.id));
   return (
     <div className="chat-summary">
       <div className="chat-row">
         <strong>{chat.title}</strong>
         {agent && <span className="person-badge">{agent}</span>}
-        <a href={"#chats/" + chat.id} aria-label={"Messages of " + chat.title}>
+        <a href={messages} aria-label={"Messages of " + chat.title}>
           Messages
         </a>
       </div>
@@ -183,20 +181,10 @@ function ChatSummary({
         <RepositoryBadges ids={chat.repositoryIds} legacy={chat.repos} />
         <small>Created {chat.createdDate}</small>
       </div>
-      {working.length > 0 && (
-        <div className="chat-row">
-          <small>Working on</small>
-          {working.map((s) => (
-            <a key={s.id} href={`#roadmaps/${roadmapId}/${s.id}`}>
-              {s.title}
-            </a>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
-function CopyChatId({ chat }: { chat: AgentChat }) {
+export function CopyChatId({ chat }: { chat: AgentChat }) {
   return (
     <button
       type="button"
@@ -207,18 +195,89 @@ function CopyChatId({ chat }: { chat: AgentChat }) {
     </button>
   );
 }
+/** What can be done to a chat where it is tracked, beside its history: copy its ID, edit it in place, archive it. */
+export function TrackedChatActions({
+  chat,
+  chats,
+  disabled = false,
+  onArchived,
+}: {
+  chat: AgentChat;
+  // The chats beside it, whose providers and models the form suggests.
+  chats: AgentChat[];
+  disabled?: boolean;
+  onArchived?: () => void;
+}) {
+  const action = useWrites();
+  const [editing, setEditing] = useState(false);
+  return (
+    <>
+      {editing && !disabled ? (
+        <ChatForm
+          label="Edited chat"
+          submit="Save chat"
+          chats={chats}
+          initial={chat}
+          onSave={(fields) =>
+            action
+              .mutateAsync(() =>
+                commands.updateChat(chat.id, {
+                  revision: chat.revision,
+                  ...fields,
+                }),
+              )
+              .then(() => setEditing(false))
+          }
+          onCancel={() => setEditing(false)}
+        />
+      ) : (
+        <div className="toolbar compact">
+          <CopyChatId chat={chat} />
+          {!disabled && (
+            <>
+              <button
+                type="button"
+                className="quiet"
+                aria-label={"Edit chat " + chat.title}
+                onClick={() => setEditing(true)}
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                className="quiet"
+                aria-label={"Archive chat " + chat.title}
+                disabled={action.isPending}
+                onClick={() =>
+                  action
+                    .mutateAsync(() =>
+                      commands.setArchived("chats", chat.id, true, {
+                        revision: chat.revision,
+                      }),
+                    )
+                    .then(() => onArchived?.())
+                    .catch(() => undefined)
+                }
+              >
+                Archive
+              </button>
+            </>
+          )}
+        </div>
+      )}
+      <ErrorMessage error={action.error} />
+    </>
+  );
+}
 export function AgentChatsSection({
   ownerType,
   ownerId,
   chats = [],
-  steps,
   disabled = false,
 }: {
   ownerType: "item" | "roadmap";
   ownerId: string;
   chats?: AgentChat[];
-  // A roadmap's active steps, to show what each chat is working on.
-  steps?: Step[];
   disabled?: boolean;
 }) {
   const action = useWrites();
@@ -252,7 +311,7 @@ export function AgentChatsSection({
           </div>
         ) : (
           <div className="line chat-line" key={c.id}>
-            <ChatSummary chat={c} steps={steps} roadmapId={ownerId} />
+            <ChatSummary chat={c} />
             <CopyChatId chat={c} />
             {!disabled && (
               <>
@@ -341,7 +400,10 @@ export function StepAgentChats({
       </h3>
       {assigned.map((c) => (
         <div className="line chat-line" key={c.id}>
-          <ChatSummary chat={c} />
+          <ChatSummary
+            chat={c}
+            messages={`#roadmaps/${roadmapId}/chats/${c.id}`}
+          />
           <CopyChatId chat={c} />
           {!disabled && (
             <button

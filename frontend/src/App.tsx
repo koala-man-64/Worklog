@@ -62,7 +62,7 @@ export default function App() {
     setSearch("");
     window.scrollTo(0, 0);
   };
-  const [page, id, sub] = route.split("/");
+  const [page, id, sub, part] = route.split("/");
   // The agent guide is the Guide page's other view, so the sidebar marks Guide for it too.
   const destination = guideRoutes.includes(page) ? "guide" : page;
   const dataId = session.data?.dataId;
@@ -234,7 +234,7 @@ export default function App() {
           ) : page === "tickets" ? (
             <Tickets key={id ?? "list"} selected={id} />
           ) : page === "roadmaps" ? (
-            <Roadmaps key={id ?? "list"} selected={id} step={sub} />
+            <Roadmaps key={id ?? "list"} selected={id} step={sub} chat={part} />
           ) : page === "repositories" ? (
             <Repositories key={id ?? "list"} selected={id} />
           ) : page === "people" ? (

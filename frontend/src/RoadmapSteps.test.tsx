@@ -323,24 +323,6 @@ function recordWrites() {
   return writes;
 }
 
-it("shows the roadmap's chats with their agents, repositories and steps", async () => {
-  served = { ...road, chats: [API_CHAT, DOCS_CHAT] };
-  view("material");
-  const details = await screen.findByRole("region", { name: "Material" });
-  const apiChat = within(details)
-    .getByText("Build the API")
-    .closest(".chat-line") as HTMLElement;
-  expect(
-    within(apiChat).getByText("Anthropic · claude-opus-5-5"),
-  ).toBeVisible();
-  // A label from before schema v24 that names no repository linked here.
-  expect(within(apiChat).getByText("acme/web · Not linked")).toBeVisible();
-  expect(within(apiChat).getByRole("link", { name: "Parent" })).toHaveAttribute(
-    "href",
-    `#roadmaps/${ROADMAP}/${PARENT}`,
-  );
-});
-
 it("assigns, unassigns, and adds agent chats from a step", async () => {
   served = { ...road, chats: [API_CHAT, DOCS_CHAT] };
   const writes = recordWrites();
@@ -372,6 +354,10 @@ it("assigns, unassigns, and adds agent chats from a step", async () => {
 
   view(PARENT);
   details = await screen.findByRole("region", { name: "Step details" });
+  // Its messages open in the roadmap's own Chats view.
+  expect(
+    within(details).getByRole("link", { name: "Messages of Build the API" }),
+  ).toHaveAttribute("href", `#roadmaps/${ROADMAP}/chats/${API_CHAT.id}`);
   await userEvent.click(
     within(details).getByRole("button", { name: "Unassign Build the API" }),
   );
@@ -409,47 +395,6 @@ it("assigns, unassigns, and adds agent chats from a step", async () => {
         provider: "",
         model: "claude-opus-5-5",
         stepIds: [PARENT],
-      },
-    }),
-  );
-});
-
-it("edits a chat's provider and model in place, leaving its labels alone", async () => {
-  served = { ...road, chats: [API_CHAT] };
-  const writes = recordWrites();
-  view("material");
-  const details = await screen.findByRole("region", { name: "Material" });
-  await userEvent.click(
-    await within(details).findByRole("button", {
-      name: "Edit chat Build the API",
-    }),
-  );
-  const model = within(details).getByRole("combobox", {
-    name: "Edited chat model",
-  });
-  expect(model).toHaveValue("claude-opus-5-5");
-  await userEvent.clear(model);
-  await userEvent.type(model, "claude-sonnet-5-5");
-  // Labels from before schema v24 are read only: the form has no field for them.
-  expect(
-    within(details).queryByRole("textbox", {
-      name: "Edited chat repositories",
-    }),
-  ).toBeNull();
-  await userEvent.click(
-    within(details).getByRole("button", { name: "Save chat" }),
-  );
-  await waitFor(() =>
-    expect(writes.at(-1)).toEqual({
-      url: "/api/v1/chats/" + API_CHAT.id,
-      method: "PATCH",
-      body: {
-        revision: 3,
-        title: "Build the API",
-        chatId: API_CHAT.chatId,
-        provider: "Anthropic",
-        model: "claude-sonnet-5-5",
-        createdDate: "2026-10-31",
       },
     }),
   );

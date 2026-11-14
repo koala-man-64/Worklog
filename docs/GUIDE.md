@@ -330,7 +330,7 @@ To stop reviewing, clear "Require my approval for agent proposals" in Settings. 
    - Worklog finds these sessions in the record Claude Code keeps of each one it runs, and checks that its process is still running. It never changes them or the session.
 3. **Assign a roadmap's chat to steps.** On the step's pane, choose it in "Agent chat to assign" and press "Assign chat".
 4. **Watch it on Chats.**
-   - Every tracked chat appears on **Chats**, shown as working while its transcript has a turn in progress within the last 15 minutes, otherwise as idle.
+   - Every tracked chat appears on **Chats**, shown as working while its transcript has a turn in progress within the last 15 minutes, otherwise as idle. A roadmap's "Chats" shows the ones within that roadmap the same way.
    - "Show activity by" groups the list by chat, work item or roadmap.
    - Under an open chat's title, "Agents" names the agents tied to it under its chat ID: first those registered with it, then those whose open runs report it. Agents choose their own names, so two agents under one name also show their IDs.
 5. **Read the transcript.** Open a chat to read the transcript Claude Code or Codex keeps for it.
@@ -423,7 +423,7 @@ Plans broken into steps, with every saved version kept.
     - "Edit structure", and "Archive" or "Recover".
     - The progress bar.
     - "Nested under", the sub-roadmaps and "Add sub-roadmap".
-    - Its views, each at its own address: "Status", "Outline", "Questions and decisions" with how many are open, "Material" and "History".
+    - Its views, each at its own address: "Status", "Outline", "Questions and decisions" with how many are open, "Chats", "Material" and "History".
   - **"Status"**, which the roadmap opens on:
     - "Phases": each step at the top of the outline, with how many of the steps under it are done, in progress, blocked and open, and a bar filled in those colours.
     - "Now": the steps in progress, each with its phase and the agents working on it.
@@ -439,11 +439,15 @@ Plans broken into steps, with every saved version kept.
     - "Edit structure" opens the editor beside it. Otherwise it has the step chosen in the outline:
       - Its description, with "Edit step" for its title and description.
       - Its work items, each with its status and "Unlink". "Add work item" creates one on this step, and "Attach work item" puts existing work, found with "Find existing work", on it, moving it from another step.
-      - Its agent chats, with "Assign chat", "Add chat to step" and "Unassign".
+      - Its agent chats, with "Assign chat", "Add chat to step" and "Unassign". "Messages" opens a chat on the roadmap's "Chats".
       - "Agents": the agents whose work ties them to the step or to the steps under it, as "Status" lists them.
       - Its notes and files, and "Activity history".
   - **"Questions and decisions"**: "Questions" and "Decisions", with archived ones under "Archived supporting records".
-  - **"Material"**: "Work items", the work on the roadmap, each with a link to the step it is on; add and attach work on a step's page. Then notes, links, agent chats, GitHub references and files, with archived ones under "Archived supporting records".
+  - **"Chats"**: **Chats** for this roadmap alone.
+    - "Agent chats" lists the chats tracked on the roadmap, on its work items and on its sub-roadmaps, working ones first. Each shows its steps, and a chat tracked on a work item or sub-roadmap names it.
+    - "Track a chat" tracks a new one on the roadmap and opens it. The roadmap's archived chats are under "Archived supporting records".
+    - "Chat history" shows the chosen chat's "Agents" and transcript, the most recently active chat first. A chat tracked on the roadmap itself also has "Copy ID", "Edit" and "Archive" there; a work item's or sub-roadmap's chat is changed on that record's page.
+  - **"Material"**: "Work items", the work on the roadmap, each with a link to the step it is on; add and attach work on a step's page. Then notes, links, GitHub references and files, with archived ones under "Archived supporting records".
   - **"History"**: "Immutable versions", each with its note and "Restore as new version", then "Applied proposals" and "Activity history".
 
 ### Repositories
