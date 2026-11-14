@@ -91,6 +91,8 @@ Claude prepares with tools disabled. Codex prepares in its read-only sandbox wit
 search, apps and plugins disabled for this invocation; it can still load workspace context.
 Codex preparation skips the optional user configuration but keeps the saved login. Both launchers pass
 only OS essentials and the selected provider's profile path, excluding unrelated service credentials.
+Trusted project and managed configuration still apply; project settings may supply other Codex tools.
+Codex preparation asks the model to wait, rather than enforcing a general tool-free mode.
 Neither launcher changes the provider's saved configuration or bypasses its approval controls.
 
 Both desktop apps and their CLIs must already be installed and signed in on Windows. Worklog reports

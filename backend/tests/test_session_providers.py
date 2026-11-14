@@ -60,7 +60,8 @@ def test_claude_handoff_has_real_console_and_uses_subscription_without_changing_
     monkeypatch.setenv("ANTHROPIC_BASE_URL", "https://example.invalid")
     monkeypatch.setenv("WORKLOG_UNRELATED_SETTING", "kept")
     monkeypatch.setenv("AZURE_DEVOPS_EXT_PAT", "test-only-token")
-    monkeypatch.setenv("WORKLOG_TOKEN", "test-only-worklog-token")
+    monkeypatch.setenv("WORKLOG_AGENT_TOKEN", "test-only-worklog-token")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-only-openai-key")
     monkeypatch.setenv("CLAUDE_CONFIG_DIR", "C:\\ClaudeProfile")
     monkeypatch.setenv("CODEX_HOME", "C:\\CodexProfile")
     monkeypatch.setattr(sessions, "_cli_executable", lambda name: "claude.exe")
@@ -80,7 +81,8 @@ def test_claude_handoff_has_real_console_and_uses_subscription_without_changing_
     assert "ANTHROPIC_BASE_URL" not in options["env"]
     assert "WORKLOG_UNRELATED_SETTING" not in options["env"]
     assert "AZURE_DEVOPS_EXT_PAT" not in options["env"]
-    assert "WORKLOG_TOKEN" not in options["env"]
+    assert "WORKLOG_AGENT_TOKEN" not in options["env"]
+    assert "OPENAI_API_KEY" not in options["env"]
     assert "CODEX_HOME" not in options["env"]
     assert options["env"]["CLAUDE_CONFIG_DIR"] == "C:\\ClaudeProfile"
     codex_env = sessions._child_environment("codex")
@@ -88,6 +90,8 @@ def test_claude_handoff_has_real_console_and_uses_subscription_without_changing_
     assert "CLAUDE_CONFIG_DIR" not in codex_env
     assert "AZURE_DEVOPS_EXT_PAT" not in codex_env
     assert "ANTHROPIC_API_KEY" not in codex_env
+    assert "WORKLOG_AGENT_TOKEN" not in codex_env
+    assert "OPENAI_API_KEY" not in codex_env
     assert codex_env["PATH"] == sessions.os.environ["PATH"]
     assert sessions.os.environ["ANTHROPIC_API_KEY"] == "test-only-key"
 

@@ -263,7 +263,7 @@ export function StartSession({
         <p className="muted">
           Preparation sends your prompt to the selected provider.{" "}
           {provider === "codex"
-            ? "Codex preparation is read-only; shell tools, web search, apps, and plugins are disabled. User config is skipped, but workspace context may still load."
+            ? "Codex preparation is read-only; shell tools, web search, apps, and plugins are disabled. User config is skipped, but workspace context may still load. Trusted project settings may supply other tools."
             : "Claude tools are disabled during preparation."}{" "}
           Send Continue in the desktop app to begin work.
         </p>
