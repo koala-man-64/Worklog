@@ -58,10 +58,30 @@ const DETAIL_MIN = 300;
 const HANDLE_WIDTH = 24;
 // Agents report as they work, so who works where refreshes as on the Agents page.
 const AGENTS_REFRESH = 30_000;
-// The board's Phases columns, in the order a phase's bar fills: done first, then in progress,
-// then blocked. Open steps are the bar's empty track.
-const PHASE_FILLED: readonly Status[] = ["done", "doing", "blocked"];
-const PHASE_COLUMNS: readonly Status[] = [...PHASE_FILLED, "open"];
+// Steps by status, in the order a status bar fills: done first, then in progress, then blocked.
+// Open steps are the bar's empty track. The roadmap's counts and the Phases columns follow it.
+const BAR_STATUSES: readonly Status[] = ["done", "doing", "blocked"];
+const COUNTED_STATUSES: readonly Status[] = [...BAR_STATUSES, "open"];
+/** Steps by status in one bar; the counts beside it say the same in numbers. */
+function StatusBar({ steps }: { steps: Step[] }) {
+  return (
+    <span className="status-bar" aria-hidden="true">
+      {BAR_STATUSES.map((status) => {
+        const share =
+          steps.filter((s) => s.status === status).length / (steps.length || 1);
+        return (
+          share > 0 && (
+            <span
+              key={status}
+              className={status}
+              style={{ width: `${share * 100}%` }}
+            />
+          )
+        );
+      })}
+    </span>
+  );
+}
 export function Roadmaps({
   selected,
   step,
@@ -314,7 +334,6 @@ export function RoadmapDetail({
   const doneParents = parentSteps
     .filter((s) => s.status === "done")
     .map((s) => s.id);
-  const completed = leaves.filter((s) => s.status === "done").length;
   const roadWorkItems = road.workItems ?? [];
   const roadChats = road.chats ?? [];
   // Opening another roadmap keeps the last one's answer as a placeholder: its agents aren't this one's.
@@ -809,14 +828,18 @@ export function RoadmapDetail({
           </div>
         </div>
         <div className="roadmap-progress">
-          <progress
-            max={leaves.length || 1}
-            value={completed}
-            aria-label="Roadmap completion"
-          />
+          <StatusBar steps={leaves} />
           <span>
-            {completed} / {leaves.length} steps complete
+            {leaves.length} step{leaves.length === 1 ? "" : "s"}
           </span>
+          <ul className="status-counts" aria-label="Steps by status">
+            {COUNTED_STATUSES.map((status) => (
+              <li key={status}>
+                <span className={"status-dot " + status} aria-hidden="true" />
+                {leaves.filter((s) => s.status === status).length} {status}
+              </li>
+            ))}
+          </ul>
         </div>
         {/* Where the roadmap sits among the others, until a step opens into its own roadmap (2.1). */}
         <div className="roadmap-family">
@@ -1159,7 +1182,7 @@ function StatusBoard({
                 <th scope="col">
                   <span className="visually-hidden">Progress</span>
                 </th>
-                {PHASE_COLUMNS.map((status) => (
+                {COUNTED_STATUSES.map((status) => (
                   <th scope="col" key={status} title={statusLabel(status)}>
                     <span className={"status-dot " + status} aria-hidden="true" />
                     <span className="phase-label">{statusLabel(status)}</span>
@@ -1185,23 +1208,9 @@ function StatusBoard({
                       </a>
                     </th>
                     <td>
-                      {/* The columns beside it say the same in numbers. */}
-                      <span className="phase-bar" aria-hidden="true">
-                        {PHASE_FILLED.map((status) => {
-                          const share = count(status) / (under.length || 1);
-                          return (
-                            share > 0 && (
-                              <span
-                                key={status}
-                                className={status}
-                                style={{ width: `${share * 100}%` }}
-                              />
-                            )
-                          );
-                        })}
-                      </span>
+                      <StatusBar steps={under} />
                     </td>
-                    {PHASE_COLUMNS.map((status) => {
+                    {COUNTED_STATUSES.map((status) => {
                       const n = count(status);
                       return (
                         <td key={status} className={n ? undefined : "none"}>

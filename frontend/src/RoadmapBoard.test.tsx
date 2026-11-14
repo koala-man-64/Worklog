@@ -156,7 +156,7 @@ it("shows where each phase stands, the steps in progress with their agents, and 
   // The bar fills in the same order, each part its share of the phase; open steps are its track.
   expect(
     rows.map((row) =>
-      Array.from(row.querySelectorAll<HTMLElement>(".phase-bar > span")).map(
+      Array.from(row.querySelectorAll<HTMLElement>(".status-bar > span")).map(
         (part) => [part.className, part.style.width],
       ),
     ),
@@ -184,6 +184,30 @@ it("shows where each phase stands, the steps in progress with their agents, and 
   expect(
     within(await section("Next")).getByRole("link", { name: "Emit" }),
   ).toHaveAttribute("href", `#roadmaps/${ROADMAP}/${id(4)}`);
+});
+
+it("shows the roadmap's steps by status beside the bar at the top", async () => {
+  render(page());
+  const counts = await screen.findByRole("list", { name: "Steps by status" });
+  const progress = counts.parentElement as HTMLElement;
+  // Its six leaves; the parents' derived statuses don't count.
+  expect(progress).toHaveTextContent(/^6 steps/);
+  expect(
+    within(counts)
+      .getAllByRole("listitem")
+      .map((li) => li.textContent),
+  ).toEqual(["1 done", "1 doing", "1 blocked", "3 open"]);
+  // Filled done, then in progress, then blocked, each its share; open steps are the track.
+  const parts = Array.from(
+    progress.querySelectorAll<HTMLElement>(".status-bar > span"),
+  );
+  expect(parts.map((part) => part.className)).toEqual([
+    "done",
+    "doing",
+    "blocked",
+  ]);
+  for (const part of parts)
+    expect(parseFloat(part.style.width)).toBeCloseTo(100 / 6);
 });
 
 it("lists what waits on the person: open questions, blocked steps and proposals", async () => {
