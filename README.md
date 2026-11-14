@@ -87,14 +87,16 @@ links the saved chat to the item, and requests that the desktop app open it. Sen
 desktop app to begin the task. Preparation uses the installed CLI and your local provider profile;
 Claude uses its desktop subscription login. The prompt is sent to that provider during preparation.
 The CLI exits before the desktop handoff, so it does not keep working in the background.
-Claude prepares with tools disabled. Codex prepares in its read-only sandbox with an instruction to
-wait; its CLI has no enforced no-tools mode, so it can still read workspace context during preparation.
+Claude prepares with tools disabled. Codex prepares in its read-only sandbox with shell tools, web
+search, apps and plugins disabled for this invocation; it can still load workspace context.
+Codex preparation skips the optional user configuration but keeps the saved login. Both launchers pass
+only OS essentials and the selected provider's profile path, excluding unrelated service credentials.
 Neither launcher changes the provider's saved configuration or bypasses its approval controls.
 
 Both desktop apps and their CLIs must already be installed and signed in on Windows. Worklog reports
 preparation failures and keeps a successfully linked chat if opening the app fails; **Open in app**
 retries that handoff without creating another session. Launch status and retry receipts last 14 days;
-the tracked chat remains with the work item. After an interrupted preparation, inspect provider history
+the tracked chat remains with the work item. After an interrupted preparation or expired receipt, inspect provider history
 before starting another session. An accepted handoff means the operating system or CLI accepted the
 open request; it does not prove that the desktop window has finished loading.
 

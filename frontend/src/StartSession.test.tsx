@@ -77,7 +77,9 @@ describe("StartSession", () => {
       ),
     ).toBeTruthy();
     expect(
-      screen.getByText(/Codex runs read-only during preparation/),
+      screen.getByText(
+        /Codex preparation is read-only.*workspace context may still load/,
+      ),
     ).toBeTruthy();
     expect(screen.getByRole("textbox", { name: "Task prompt" })).toHaveValue(
       "Release checks\n\nConfirm the gates.",
@@ -457,14 +459,19 @@ describe("StartSession", () => {
     second.unmount();
   });
 
-  it("stops polling on a status read error and retries the same launch", async () => {
+  it("stops polling on a transient status error and retries the same launch", async () => {
     const fetch = vi.spyOn(globalThis, "fetch");
     fetch
       .mockResolvedValueOnce(
         response(launch({ status: "starting", chat: null })),
       )
       .mockResolvedValueOnce(
-        response({ error: { message: "The launch receipt expired." } }, 404),
+        response(
+          {
+            error: { message: "The launch status is temporarily unavailable." },
+          },
+          500,
+        ),
       )
       .mockResolvedValueOnce(response(launch()));
     mount();
@@ -477,7 +484,12 @@ describe("StartSession", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: "Start" }));
 
-    expect(await screen.findByText("The launch receipt expired.")).toBeTruthy();
+    expect(
+      await screen.findByText("The launch status is temporarily unavailable."),
+    ).toBeTruthy();
+    expect(
+      screen.queryByText(/launch receipt is no longer available/),
+    ).toBeNull();
     expect(
       screen.getByRole("button", { name: "Retry status check" }),
     ).toBeTruthy();
@@ -491,5 +503,121 @@ describe("StartSession", () => {
     expect(fetch.mock.calls[2][0]).toBe(
       `/api/v1/session-launches/${LAUNCH_ID}`,
     );
+  });
+
+  it("persists an expired status receipt and requires explicit clearing", async () => {
+    const fetch = vi.spyOn(globalThis, "fetch");
+    fetch
+      .mockResolvedValueOnce(
+        response(launch({ status: "starting", chat: null })),
+      )
+      .mockResolvedValueOnce(
+        response({ error: { message: "The launch receipt expired." } }, 404),
+      );
+    const first = mount();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Start session" }),
+    );
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "Working folder" }),
+      "C:\\Projects\\repo",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Start" }));
+
+    expect(
+      await screen.findByText(/launch receipt is no longer available/),
+    ).toBeTruthy();
+    expect(screen.getByText(/Check Codex history first/)).toBeTruthy();
+    expect(
+      screen.getByRole("button", {
+        name: "Clear expired launch to prepare another",
+      }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Retry status check" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Start another session" }),
+    ).toBeNull();
+
+    const receiptKey = contextStorageKey("session-launch", ITEM_ID);
+    const expiredKey = contextStorageKey("session-launch-expired", ITEM_ID);
+    expect(JSON.parse(sessionStore.read(receiptKey).value ?? "null")).toEqual(
+      expect.objectContaining({ id: LAUNCH_ID, status: "starting" }),
+    );
+    expect(sessionStore.read(expiredKey).value).toBe("true");
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+    expect(fetch).toHaveBeenCalledTimes(2);
+
+    first.unmount();
+    mount();
+    expect(
+      await screen.findByText(/launch receipt is no longer available/),
+    ).toBeTruthy();
+    expect(fetch).toHaveBeenCalledTimes(2);
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "Clear expired launch to prepare another",
+      }),
+    );
+    expect(sessionStore.read(receiptKey).value).toBeNull();
+    expect(sessionStore.read(expiredKey).value).toBeNull();
+    expect(screen.getByRole("button", { name: "Start" })).toBeTruthy();
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps a tracked chat visible when opening an expired receipt returns 404", async () => {
+    const fetch = vi.spyOn(globalThis, "fetch");
+    fetch
+      .mockResolvedValueOnce(response(launch()))
+      .mockResolvedValueOnce(
+        response({ error: { message: "The launch receipt expired." } }, 404),
+      );
+    const first = mount();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Start session" }),
+    );
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "Working folder" }),
+      "C:\\Projects\\repo",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Start" }));
+    expect(
+      await screen.findByText(/Chat prepared and linked\. Open request sent\./),
+    ).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Open in app" }));
+
+    expect(
+      await screen.findByText(/launch receipt is no longer available/),
+    ).toBeTruthy();
+    expect(screen.getByText("Release checks")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Open in app" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Start another session" }),
+    ).toBeNull();
+    expect(
+      sessionStore.read(contextStorageKey("session-launch-expired", ITEM_ID))
+        .value,
+    ).toBe("true");
+    expect(
+      JSON.parse(
+        sessionStore.read(contextStorageKey("session-launch", ITEM_ID)).value ??
+          "null",
+      ).chat.id,
+    ).toBe(CHAT.id);
+    expect(fetch.mock.calls[1][0]).toBe(
+      `/api/v1/session-launches/${LAUNCH_ID}/open`,
+    );
+    expect(fetch.mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(
+      false,
+    );
+
+    first.unmount();
+    mount();
+    expect(
+      await screen.findByText(/launch receipt is no longer available/),
+    ).toBeTruthy();
+    expect(screen.getByText("Release checks")).toBeTruthy();
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });

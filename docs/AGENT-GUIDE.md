@@ -714,6 +714,8 @@ worklog check
 | `authentication` | 401 | The credential is missing, invalid or revoked | Stop and tell the person (rule 9) |
 | `idempotency` | 428 or 422 | A required request ID is missing (428), or not 8-200 characters (422) | Give a valid `--request-id` |
 | `idempotency_conflict` | 409 | This request ID was used for a different request | Use a new ID for a new operation |
+| `session_launch` | 409 | No saved provider session is available to reopen | The person checks provider history before starting another session |
+| `session_limit` | 429 | Two desktop chats are already being prepared | Wait for a preparation to finish |
 | `database_busy` | 503 | The database was briefly locked | Retry the same command with the same request ID after a second |
 | `database_error` | 503 | A database operation failed; nothing was committed | Retry once with the same request ID, then tell the person |
 | `storage_error` | 503 | Disk or folder trouble on the person's machine | Tell the person |
@@ -791,7 +793,7 @@ Invoke-RestMethod -Uri 'http://127.0.0.1:8877/api/v1/work-items/ITEM_ID' -Header
 
 History older than 90 days may be thinned. When the person runs `worklog compact`, the older changes to work items, the day's plan, notes, links, GitHub and file references, questions, decisions, attachments, roadmaps, steps, progress, and the plan imports, day reflections and checklist tasks of older versions keep only each record's `id`, `title`, `status` and `_statusChanged`, so a record with none of them reads `{}`, and a payload that is not a record, such as the day's order or an old reflection's text, reads `null`. Every change stays listed, and changes of every other kind keep everything. Compaction also keeps each roadmap's 20 newest versions.
 
-- **Readable routes.** Worklog's route table (`policy.ROUTES`) lists each read an agent credential may make, in the scope `agent:read`: every GET under `/api/v1` but the person's. The person's are `/settings`, `/export`, `/openapi.json`, the usage counts `/usage`, the chat list `/chats` with a chat's `/chats/ID/transcript`, the running sessions `/claude-sessions`, the agents `/agents`, `/agents/ID`, `/agents/ID/activity` and `/agents/ID/proposals`, and a roadmap's `/roadmaps/ID/agents` and status board `/roadmaps/ID/board`. Those return `403 agent_scope`. A route the table does not open to agents is the person's, so a new route starts closed to you.
+- **Readable routes.** Worklog's route table (`policy.ROUTES`) lists each read an agent credential may make, in the scope `agent:read`: every GET under `/api/v1` but the person's. The person's are `/settings`, `/export`, `/openapi.json`, the usage counts `/usage`, the chat list `/chats` with a chat's `/chats/ID/transcript`, the running sessions `/claude-sessions`, desktop launch status `/session-launches/ID`, the agents `/agents`, `/agents/ID`, `/agents/ID/activity` and `/agents/ID/proposals`, and a roadmap's `/roadmaps/ID/agents` and status board `/roadmaps/ID/board`. Those return `403 agent_scope`. A route the table does not open to agents is the person's, so a new route starts closed to you.
 - **Host header.** It must be `127.0.0.1:PORT`.
 - **Writes.** Make them only through the command line with `--as NAME`. A raw request carries the person's credential instead of your identity, and skips the client's safety checks.
 - **Contract.** `docs/API.md` describes the routes; `docs/openapi.json` is the generated schema.

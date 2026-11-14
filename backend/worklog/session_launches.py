@@ -33,14 +33,12 @@ from .services import WorkService
 RECEIPT_PREFIX = "session-launch:"
 PREPARE_TIMEOUT_SECONDS = 90
 OPEN_TIMEOUT_SECONDS = 30
-CLAUDE_AUTH_OVERRIDES = (
-    "ANTHROPIC_API_KEY",
-    "ANTHROPIC_AUTH_TOKEN",
-    "ANTHROPIC_BASE_URL",
-    "CLAUDE_CODE_USE_BEDROCK",
-    "CLAUDE_CODE_USE_VERTEX",
-    "CLAUDE_CODE_USE_FOUNDRY",
-)
+CHILD_ENVIRONMENT = frozenset({
+    "SYSTEMROOT", "WINDIR", "COMSPEC", "PATH", "PATHEXT", "TEMP", "TMP",
+    "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "APPDATA", "LOCALAPPDATA", "PROGRAMDATA",
+    "PROGRAMFILES", "PROGRAMFILES(X86)", "PROGRAMW6432", "SYSTEMDRIVE", "USERNAME",
+    "OS", "PROCESSOR_ARCHITECTURE", "PROCESSOR_ARCHITEW6432", "NUMBER_OF_PROCESSORS",
+})
 logger = logging.getLogger("worklog")
 _SESSION_ID = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 
@@ -119,11 +117,11 @@ def _codex_executable() -> list[str]:
 
 
 def _child_environment(provider: str) -> dict[str, str]:
-    env = os.environ.copy()
-    if provider == "claude":
-        for name in CLAUDE_AUTH_OVERRIDES:
-            env.pop(name, None)
-    return env
+    # Use the desktop subscription's saved profile, never unrelated service credentials or
+    # alternate API/cloud authentication inherited by the Worklog server.
+    profile = "CODEX_HOME" if provider == "codex" else "CLAUDE_CONFIG_DIR"
+    allowed = CHILD_ENVIRONMENT | {profile}
+    return {name: value for name, value in os.environ.items() if name.upper() in allowed}
 
 
 def _initialization_prompt(item_id: str, title: str, task_prompt: str) -> str:
@@ -255,7 +253,12 @@ def _run_cli(
 def _prepare_session(provider: str, cwd: str, prompt: str) -> tuple[str, str]:
     """Create one completed, ready-only provider turn and return its durable session ID and model."""
     if provider == "codex":
-        command = [*_codex_executable(), "exec", "--json", "--sandbox", "read-only", "-"]
+        command = [
+            *_codex_executable(), "exec", "--json", "--sandbox", "read-only",
+            "--ignore-user-config", "--disable", "shell_tool", "--disable", "apps",
+            "--disable", "plugins", "--disable", "skill_mcp_dependency_install",
+            "-c", 'web_search="disabled"', "-",
+        ]
         completed = _run_cli(
             command,
             cwd=cwd,

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { contextStorageKey, getDataContext, request } from "./api";
+import { ApiError, contextStorageKey, getDataContext, request } from "./api";
 import type { Schema } from "./apiTypes";
 import { sessionStore } from "./storage";
 import { ErrorMessage } from "./ui/Messages";
@@ -68,6 +68,26 @@ function clearLaunch(itemId: string) {
   sessionStore.remove(contextStorageKey("session-launch", itemId));
 }
 
+function expiredLaunchKey(itemId: string) {
+  return contextStorageKey("session-launch-expired", itemId);
+}
+
+function storedExpired(itemId: string) {
+  return sessionStore.read(expiredLaunchKey(itemId)).value === "true";
+}
+
+function markExpired(itemId: string) {
+  sessionStore.write(expiredLaunchKey(itemId), "true");
+}
+
+function clearExpired(itemId: string) {
+  sessionStore.remove(expiredLaunchKey(itemId));
+}
+
+function isExpiredLaunchError(error: unknown) {
+  return error instanceof ApiError && error.status === 404;
+}
+
 export function StartSession({
   itemId,
   title,
@@ -94,6 +114,7 @@ export function StartSession({
   const [launch, setLaunch] = useState<SessionLaunch | null>(() =>
     storedLaunch(itemId),
   );
+  const [expiredSaved, setExpiredSaved] = useState(() => storedExpired(itemId));
   const submissionInFlight = useRef(false);
   const openingInFlight = useRef(false);
   const lastRefresh = useRef("");
@@ -104,17 +125,32 @@ export function StartSession({
   const status = useQuery<SessionLaunch>({
     queryKey: [getDataContext(), launchPath],
     queryFn: async () => {
-      const latest = await request<SessionLaunch>(launchPath);
-      saveLaunch(itemId, latest);
-      return latest;
+      try {
+        const latest = await request<SessionLaunch>(launchPath);
+        saveLaunch(itemId, latest);
+        return latest;
+      } catch (error) {
+        if (isExpiredLaunchError(error)) {
+          markExpired(itemId);
+          setExpiredSaved(true);
+        }
+        throw error;
+      }
     },
-    enabled: launch?.status === "starting",
+    enabled: !expiredSaved && launch?.status === "starting",
     refetchInterval: (query) =>
-      !query.state.error && (query.state.data ?? launch)?.status === "starting"
+      !expiredSaved &&
+      !query.state.error &&
+      (query.state.data ?? launch)?.status === "starting"
         ? 1000
         : false,
   });
   const current = status.data ?? launch;
+  const expired =
+    expiredSaved ||
+    isExpiredLaunchError(status.error) ||
+    isExpiredLaunchError(openError);
+  const displayedError = expired ? null : status.error || openError;
 
   useEffect(() => {
     if (promptEdited) return;
@@ -179,6 +215,8 @@ export function StartSession({
         "POST",
         body,
       );
+      clearExpired(itemId);
+      setExpiredSaved(false);
       saveLaunch(itemId, next);
       setLaunch(next);
       setFormOpen(false);
@@ -207,6 +245,10 @@ export function StartSession({
       );
       setLaunch(next);
     } catch (error) {
+      if (isExpiredLaunchError(error)) {
+        markExpired(itemId);
+        setExpiredSaved(true);
+      }
       setOpenError(error);
     } finally {
       openingInFlight.current = false;
@@ -217,16 +259,16 @@ export function StartSession({
   return (
     <section className="session-launch">
       <h3>Start a session</h3>
-      {!current && (
+      {!current && !expired && (
         <p className="muted">
           Preparation sends your prompt to the selected provider.{" "}
           {provider === "codex"
-            ? "Codex runs read-only during preparation, but may read workspace context."
+            ? "Codex preparation is read-only; shell tools, web search, apps, and plugins are disabled. User config is skipped, but workspace context may still load."
             : "Claude tools are disabled during preparation."}{" "}
           Send Continue in the desktop app to begin work.
         </p>
       )}
-      {!formOpen && !current && (
+      {!formOpen && !current && !expired && (
         <button
           type="button"
           className="primary"
@@ -239,7 +281,7 @@ export function StartSession({
           Start session
         </button>
       )}
-      {formOpen && !current && (
+      {formOpen && !current && !expired && (
         <form className="session-launch-form" onSubmit={submit}>
           <div className="session-launch-fields">
             <label htmlFor={`session-provider-${itemId}`}>
@@ -327,32 +369,56 @@ export function StartSession({
           <ErrorMessage error={formError} />
         </form>
       )}
-      {current && (
+      {(current || expired) && (
         <div className="session-launch-status" aria-live="polite">
-          {current.status === "starting" && <p>Preparing a linked chat…</p>}
-          {current.status === "ready" && (
+          {expired ? (
             <p>
-              Chat prepared and linked. Open request sent. Send Continue in the
-              desktop app to begin work.
+              This saved launch receipt is no longer available. Check{" "}
+              {current
+                ? current.provider === "codex"
+                  ? "Codex"
+                  : "Claude"
+                : "provider"}{" "}
+              history first; the provider session may still exist.
+              {current?.sessionId && (
+                <>
+                  {" "}
+                  Provider session ID: <code>{current.sessionId}</code>.
+                </>
+              )}{" "}
+              Clearing this saved launch will not remove any tracked Worklog
+              chat.
             </p>
+          ) : (
+            <>
+              {current?.status === "starting" && (
+                <p>Preparing a linked chat…</p>
+              )}
+              {current?.status === "ready" && (
+                <p>
+                  Chat prepared and linked. Open request sent. Send Continue in
+                  the desktop app to begin work.
+                </p>
+              )}
+              {current?.status === "failed" && (
+                <p>{current.message || "The session could not be prepared."}</p>
+              )}
+              {current?.status === "failed" &&
+                !current.chat &&
+                providerSessionId(current) && (
+                  <p>
+                    Provider session exists; the Worklog chat link is pending.
+                    ID: <code>{providerSessionId(current)}</code>
+                  </p>
+                )}
+            </>
           )}
-          {current.status === "failed" && (
-            <p>{current.message || "The session could not be prepared."}</p>
-          )}
-          {current.status === "failed" &&
-            !current.chat &&
-            providerSessionId(current) && (
-              <p>
-                Provider session exists; the Worklog chat link is pending. ID:{" "}
-                <code>{providerSessionId(current)}</code>
-              </p>
-            )}
-          {current.chat && (
+          {current?.chat && (
             <p>
               Linked chat: <strong>{current.chat.title}</strong>
             </p>
           )}
-          {current.chat && (
+          {!expired && current?.chat && (
             <button
               type="button"
               disabled={opening}
@@ -361,7 +427,7 @@ export function StartSession({
               {opening ? "Opening…" : "Open in app"}
             </button>
           )}
-          {current.status === "starting" && status.error && (
+          {!expired && current?.status === "starting" && status.error && (
             <button
               type="button"
               disabled={status.isFetching}
@@ -372,7 +438,8 @@ export function StartSession({
               {status.isFetching ? "Checking…" : "Retry status check"}
             </button>
           )}
-          {current.status === "failed" &&
+          {!expired &&
+            current?.status === "failed" &&
             !current.chat &&
             providerSessionId(current) && (
               <button
@@ -383,25 +450,43 @@ export function StartSession({
                 {opening ? "Retrying…" : "Retry linking and opening"}
               </button>
             )}
-          {(current.status === "ready" ||
-            (current.status === "failed" &&
-              (current.chat || !providerSessionId(current)))) && (
+          {expired && (
             <button
               type="button"
               className="quiet"
-              disabled={archived}
               onClick={() => {
                 clearLaunch(itemId);
+                clearExpired(itemId);
+                setExpiredSaved(false);
                 setLaunch(null);
                 setOpenError(null);
                 setFormError(null);
-                setFormOpen(true);
+                setFormOpen(!archived);
               }}
             >
-              Start another session
+              Clear expired launch to prepare another
             </button>
           )}
-          <ErrorMessage error={status.error || openError} />
+          {!expired &&
+            (current?.status === "ready" ||
+              (current?.status === "failed" &&
+                (current.chat || !providerSessionId(current)))) && (
+              <button
+                type="button"
+                className="quiet"
+                disabled={archived}
+                onClick={() => {
+                  clearLaunch(itemId);
+                  setLaunch(null);
+                  setOpenError(null);
+                  setFormError(null);
+                  setFormOpen(true);
+                }}
+              >
+                Start another session
+              </button>
+            )}
+          <ErrorMessage error={displayedError} />
         </div>
       )}
     </section>
