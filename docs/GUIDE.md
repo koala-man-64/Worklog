@@ -211,16 +211,16 @@ A ticket filed from the browser starts open. An agent can file a past incident a
 
 1. Open **Roadmaps**, type into "Roadmap title" and press "Create roadmap".
 2. Press "Edit structure". Write the "Title" and "Overview (Markdown)", then add steps with "Add step". For each step you can:
-   - give it a title and description
+   - give it a title, an outcome and a description: the outcome is what the step produces, the result that says it is done
    - nest it under another step by choosing its parent
    - move it up or down
    - "Retire step"
 3. Add a "Version note" and press "Save new version". Each saved version is kept for good under "Immutable versions" in the roadmap's "History", where "Restore as new version" brings an old one back.
 4. Set progress on leaf steps (Open, Doing, Blocked or Done) in "Plan & progress", the roadmap's "Outline". A parent step follows its children: Done when all are done, Blocked if any is blocked, otherwise Doing once any has started. The bar at the top counts finished steps, and the roadmap's "Status" shows where each phase stands.
-5. To change one step's title or description, open the step, press "Edit step", then "Save step". It saves that step alone, without a new version, so agents working on other steps carry on undisturbed. Agents propose the same change for one step.
+5. To change one step's title, outcome or description, open the step, press "Edit step", then "Save step". It saves that step alone, without a new version, so agents working on other steps carry on undisturbed. Agents propose the same change for one step.
 6. To nest a roadmap under another, use "Add sub-roadmap" at the top of the parent's page, or choose its parent in "Nested under" beside it.
 
-The editor opens beside the outline, and keeps your unsaved structure as a browser draft. If the roadmap changed in the meantime, choose "Rebase onto current" to keep your edits on the newest version: a title, description or parent you didn't change takes the newest one, so a step edited elsewhere keeps its new text, and a step retired elsewhere stays retired unless you changed it. Or choose "Discard draft". A save changes only the steps you changed: adding or retiring a step leaves the others as they were. Retired steps keep their history; "Show retired steps" shows them in the outline, where they were.
+The editor opens beside the outline, and keeps your unsaved structure as a browser draft. If the roadmap changed in the meantime, choose "Rebase onto current" to keep your edits on the newest version: a title, outcome, description or parent you didn't change takes the newest one, so a step edited elsewhere keeps its new text, and a step retired elsewhere stays retired unless you changed it. Or choose "Discard draft". A save changes only the steps you changed: adding or retiring a step leaves the others as they were. Retired steps keep their history; "Show retired steps" shows them in the outline, where they were.
 
 ### Record questions and decisions
 
@@ -437,7 +437,7 @@ Plans broken into steps, with every saved version kept.
     - "Agents working here", and each step's progress, work-item count and agents.
     - Drag the outline's edge to resize it.
     - "Edit structure" opens the editor beside it. Otherwise it has the step chosen in the outline:
-      - Its description, with "Edit step" for its title and description.
+      - Its "Outcome" first, in a panel larger than anything else under its title, or "No outcome yet" when it has none. Then its description, with "Edit step" for its title, outcome and description.
       - Its work items, each with its status and "Unlink". "Add work item" creates one on this step, and "Attach work item" puts existing work, found with "Find existing work", on it, moving it from another step.
       - Its agent chats, with "Assign chat", "Add chat to step" and "Unassign".
       - "Agents": the agents whose work ties them to the step or to the steps under it, as "Status" lists them.
@@ -583,7 +583,7 @@ This guide, and the one your agents read:
 | Backlog | Work that is not done and not planned for today or later |
 | Scratchpad | A work item's one running Markdown note |
 | Roadmap | A plan of nested steps, saved as immutable versions |
-| Step | One part of a roadmap; leaf steps carry progress |
+| Step | One part of a roadmap, with the outcome its work produces; leaf steps carry progress |
 | Ticket | An issue with a key such as T-12, closed with a resolution |
 | Resource | A reference page you write for yourself and your agents: a title, a summary and Markdown text |
 | Revision | A record's change counter; it lets Worklog refuse a stale save instead of overwriting |

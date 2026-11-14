@@ -12,7 +12,6 @@ import sqlite3
 import uuid
 import zipfile
 from contextlib import closing
-from pathlib import Path
 
 import pytest
 import sealed
@@ -22,8 +21,9 @@ from worklog import cli, migrations, recovery
 from worklog.db import Database
 from worklog.doctor import doctor_database
 
-# docs/UPGRADING.md: from version 30 to version 29, with Worklog stopped and after a manual backup.
-# The tables and their indexes as version 29 had them.
+# From version 30 to version 29, with Worklog stopped and after a manual backup: the tables and their
+# indexes as version 29 had them. docs/UPGRADING.md gave this way back while version 30 was the latest;
+# older upgrade tests now build their databases with it.
 WAY_BACK = """\
 CREATE TABLE chat_messages(id TEXT PRIMARY KEY,chat_id TEXT NOT NULL REFERENCES agent_chats(id),text TEXT NOT NULL,author_id TEXT NOT NULL,author_label TEXT NOT NULL,created_at TEXT NOT NULL);
 CREATE INDEX chat_messages_chat ON chat_messages(chat_id,created_at,id);
@@ -39,7 +39,10 @@ STAMP = "2026-11-01T00:00:00+00:00"
 
 
 def to_v29(path):
-    """Take a current database back to v29 the documented way."""
+    """Take a current database back to v29 the documented way: to version 30 first."""
+    from test_step_outcomes import to_v30
+
+    to_v30(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK)
 
@@ -115,8 +118,6 @@ def test_the_way_back_gives_v29s_exact_shape_and_upgrades_again(tmp_path):
     with closing(sqlite3.connect(database)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
         assert recovery._schema_signature(conn) == sealed.current()
-    # The SQL tested here is the SQL docs/UPGRADING.md gives the person.
-    assert "```sql\n" + WAY_BACK + "```" in (Path(__file__).resolve().parents[2] / "docs" / "UPGRADING.md").read_text(encoding="utf-8")
 
 
 def test_the_routes_are_gone_and_a_chat_names_its_agents_by_their_runs(tmp_path):

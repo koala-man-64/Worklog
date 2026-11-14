@@ -236,6 +236,9 @@ def test_populated_current_main_upgrades_without_losing_records(tmp_path, operat
     after["discussions"] = before["discussions"]
     assert after["discussion_contexts"] == [(*row, 0, "credential", "agent", STAMP) for row in before["discussion_contexts"]]
     after["discussion_contexts"] = before["discussion_contexts"]
+    # v31 gives each step an outcome, empty.
+    assert after["steps"] == [(*row, "") for row in before["steps"]]
+    after["steps"] = before["steps"]
     assert after == before
     recovery.validate_database(target)
     with Database(target).read() as conn:

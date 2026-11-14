@@ -299,12 +299,14 @@ class StepUpdate(Expected):
     """revision is the step's own. A field given replaces the step's text; one left out keeps it."""
     title: str | None = None
     description: str | None = None
+    # What the step's work produces: the goal it is done for.
+    outcome: str | None = None
 
     @model_validator(mode="after")
     def _gives_text(self):
         # Checked by the model, a change with no text is refused at submit, not only at approve.
-        if self.title is None and self.description is None:
-            raise ValueError("Give the step's title, its description or both")
+        if self.title is None and self.description is None and self.outcome is None:
+            raise ValueError("Give the step's title, description or outcome")
         return self
 
 

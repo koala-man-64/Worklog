@@ -5262,6 +5262,8 @@ export interface components {
             title: string;
             /** Description */
             description: string;
+            /** Outcome */
+            outcome: string;
             /** Parentid */
             parentId: string | null;
             /** Position */
@@ -6124,6 +6126,8 @@ export interface components {
             title: string;
             /** Description */
             description: string;
+            /** Outcome */
+            outcome: string;
             /** Parentid */
             parentId: string | null;
             /** Position */
@@ -6404,6 +6408,8 @@ export interface components {
             title: string;
             /** Description */
             description: string;
+            /** Outcome */
+            outcome: string;
             /** Parentid */
             parentId: string | null;
             /** Position */
@@ -6571,6 +6577,8 @@ export interface components {
             title: string;
             /** Description */
             description: string;
+            /** Outcome */
+            outcome: string;
             /** Parentid */
             parentId: string | null;
             /** Position */
@@ -6633,6 +6641,8 @@ export interface components {
             title?: string | null;
             /** Description */
             description?: string | null;
+            /** Outcome */
+            outcome?: string | null;
         };
         /** Storage */
         Storage: {

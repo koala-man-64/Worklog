@@ -49,7 +49,8 @@ class WorkService:
             result = self.plans.apply(c, actor, action, p)
             if action == "step.update":
                 # One step's text: index that step alone. Only an active step of an active roadmap changes.
-                search.put(c, result["id"], "step", result["title"], result["description"], result["roadmapId"])
+                search.put(c, result["id"], "step", result["title"], search.step_body(result["description"], result["outcome"]),
+                           result["roadmapId"])
             # Moving changes no indexed text or archive state.
             elif action not in {"progress.set", "roadmap.move"}:
                 search.index_plans(c, result["id"])

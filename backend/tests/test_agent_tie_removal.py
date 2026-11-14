@@ -79,7 +79,10 @@ def test_the_upgrade_drops_every_tie_and_changes_no_other_record(tmp_path):
     # v30, which the upgrade also runs, drops the chat message and confirmation tables, empty here.
     dropped = ("agent_links", "chat_messages", "chat_message_deliveries", "chat_confirmations")
     assert [before[table] for table in dropped[1:]] == [[], [], []]
-    assert after == {table: rows for table, rows in before.items() if table not in dropped}
+    # v31 gives each step an outcome, empty.
+    assert after["steps"] == [(*row, "") for row in before["steps"]]
+    after["steps"] = before["steps"]
+    assert after =={table: rows for table, rows in before.items() if table not in dropped}
     assert sorted(row[2] for row in after["events"] if row[2] == "agent.link") == ["agent.link", "agent.link"]
     # Nothing is left for the doctor to find, and an export holds no ties.
     assert doctor_database(database)["ok"] is True

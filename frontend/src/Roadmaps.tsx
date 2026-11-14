@@ -552,6 +552,9 @@ export function RoadmapDetail({
           <a href={`#roadmaps/${id}/${parentStep.id}`}>{parentStep.title}</a>
         </p>
       )}
+      {editingStep === selected.id && !road.archived ? null : (
+        <StepOutcome outcome={selected.outcome} />
+      )}
       {editingStep === selected.id &&
       !road.archived ? null : selected.description ? (
         <Markdown text={selected.description} />
@@ -1447,24 +1450,51 @@ function StepWorkForms({
   );
 }
 /**
- * One step's title and description, saved alone with the step's own revision (PATCH /steps/ID),
- * so the rest of the plan, and other agents' changes to it, stay as they are.
+ * What a step's work produces, the goal it is done for: shown first on the step's page, and larger
+ * than anything else under its title. A step without one says so just as prominently.
+ */
+export function StepOutcome({ outcome }: { outcome: string }) {
+  return (
+    <section
+      className={"step-outcome" + (outcome ? "" : " missing")}
+      aria-labelledby="step-outcome-heading"
+    >
+      <h3 id="step-outcome-heading">Outcome</h3>
+      {outcome ? (
+        <p className="step-outcome-text">{outcome}</p>
+      ) : (
+        <p className="step-outcome-text">
+          No outcome yet. What does this step produce? Add it with Edit step.
+        </p>
+      )}
+    </section>
+  );
+}
+/**
+ * One step's title, outcome and description, saved alone with the step's own revision
+ * (PATCH /steps/ID), so the rest of the plan, and other agents' changes to it, stay as they are.
  */
 function StepTextForm({ step, onDone }: { step: Step; onDone: () => void }) {
   const action = useWrites();
   const client = useQueryClient();
   const [title, setTitle] = useState(step.title);
+  const [outcome, setOutcome] = useState(step.outcome);
   const [description, setDescription] = useState(step.description);
   // The text this edit started from. Progress set meanwhile changes the step's revision but not
   // its text, so only new text elsewhere asks before it is replaced.
   const [opened] = useState({
     title: step.title,
+    outcome: step.outcome,
     description: step.description,
   });
   const replaced =
-    step.title !== opened.title || step.description !== opened.description;
+    step.title !== opened.title ||
+    step.outcome !== opened.outcome ||
+    step.description !== opened.description;
   const changed =
-    title.trim() !== step.title || description !== step.description;
+    title.trim() !== step.title ||
+    outcome !== step.outcome ||
+    description !== step.description;
   return (
     <form
       className="roadmap-record-form"
@@ -1477,6 +1507,7 @@ function StepTextForm({ step, onDone }: { step: Step; onDone: () => void }) {
             commands.updateStep(step.id, {
               revision: step.revision,
               title: title.trim(),
+              outcome,
               description,
             }),
           )
@@ -1498,6 +1529,15 @@ function StepTextForm({ step, onDone }: { step: Step; onDone: () => void }) {
           autoFocus
         />
       </label>
+      <label className="step-outcome-field">
+        Outcome: what this step produces
+        <textarea
+          value={outcome}
+          onChange={(e) => setOutcome(e.target.value)}
+          placeholder="The result that says this step is done"
+          rows={2}
+        />
+      </label>
       <label>
         Description (Markdown)
         <textarea
@@ -1512,6 +1552,7 @@ function StepTextForm({ step, onDone }: { step: Step; onDone: () => void }) {
             with yours. It now reads:
           </p>
           <strong>{step.title}</strong>
+          {step.outcome && <p>Outcome: {step.outcome}</p>}
           {step.description && <Markdown text={step.description} />}
         </div>
       )}
@@ -1539,7 +1580,13 @@ function StepTextForm({ step, onDone }: { step: Step; onDone: () => void }) {
 type DraftBase = {
   title: string;
   overview: string;
-  steps: Record<string, Pick<PlanStep, "title" | "description" | "parentId">>;
+  steps: Record<
+    string,
+    Pick<PlanStep, "title" | "description" | "parentId"> & {
+      // Missing on drafts saved before steps had outcomes.
+      outcome?: string;
+    }
+  >;
 };
 function draftBase(roadmap: Roadmap): DraftBase {
   return {
@@ -1550,11 +1597,19 @@ function draftBase(roadmap: Roadmap): DraftBase {
         .filter((s) => !s.retired)
         .map((s) => [
           s.id,
-          { title: s.title, description: s.description, parentId: s.parentId },
+          {
+            title: s.title,
+            outcome: s.outcome,
+            description: s.description,
+            parentId: s.parentId,
+          },
         ]),
     ),
   };
 }
+// A draft saved before steps had outcomes holds none for its steps or its base: none counts as empty.
+const sameOutcome = (step: { outcome?: string }, was: { outcome?: string }) =>
+  (step.outcome ?? "") === (was.outcome ?? "");
 export function StructureEditor({
   roadmap,
   onDone,
@@ -1665,6 +1720,7 @@ export function StructureEditor({
       return (
         !!was &&
         s.title === was.title &&
+        sameOutcome(s, was) &&
         s.description === was.description &&
         s.parentId === was.parentId
       );
@@ -1678,6 +1734,7 @@ export function StructureEditor({
       return {
         ...s,
         title: s.title === was.title ? now.title : s.title,
+        outcome: sameOutcome(s, was) ? now.outcome : s.outcome,
         description:
           s.description === was.description ? now.description : s.description,
         parentId: s.parentId === was.parentId ? now.parentId : s.parentId,
@@ -1725,6 +1782,8 @@ export function StructureEditor({
               steps: steps.map((s, index) => ({
                 id: s.id,
                 title: s.title,
+                // Left out when a draft saved before steps had outcomes has none: the step keeps its own.
+                outcome: s.outcome,
                 description: s.description,
                 parentId: s.parentId,
                 position: index,
@@ -1760,7 +1819,7 @@ export function StructureEditor({
             This draft is based on revision {revision}, but the roadmap is now
             at revision {roadmap.revision}, so saving it would be rejected.{" "}
             {base
-              ? "Rebase moves your edits onto the current revision: a title, description or parent you didn't change takes its current one, and a step retired since stays retired unless you changed it. Discard drops your edits."
+              ? "Rebase moves your edits onto the current revision: a title, outcome, description or parent you didn't change takes its current one, and a step retired since stays retired unless you changed it. Discard drops your edits."
               : "Rebase keeps your draft's version of every step on the current revision; discard drops your edits."}
           </p>
           {!baseStepIds && serverOnly.length > 0 && (
@@ -1832,6 +1891,14 @@ export function StructureEditor({
             required
           />
           <textarea
+            className="step-outcome-input"
+            aria-label={"Step " + (i + 1) + " outcome"}
+            placeholder="Outcome: what this step produces"
+            rows={2}
+            value={s.outcome ?? ""}
+            onChange={(e) => update(s.id, { outcome: e.target.value })}
+          />
+          <textarea
             aria-label={"Step " + (i + 1) + " description"}
             value={s.description}
             onChange={(e) => update(s.id, { description: e.target.value })}
@@ -1901,6 +1968,7 @@ export function StructureEditor({
             {
               id: crypto.randomUUID(),
               title: "New step",
+              outcome: "",
               description: "",
               parentId: null,
               position: steps.length,
