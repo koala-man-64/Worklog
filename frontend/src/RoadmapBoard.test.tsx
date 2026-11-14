@@ -133,22 +133,40 @@ it("shows where each phase stands, the steps in progress with their agents, and 
   ];
   render(page());
   const board = await screen.findByRole("region", { name: "Status" });
-  const phases = await within(board).findByRole("heading", { name: "Phases" });
-  const rows = Array.from(
-    (phases.parentElement as HTMLElement).querySelectorAll(".phase-row"),
-  ).map((row) => [
-    row.querySelector("a")?.textContent,
-    row.querySelector("progress")?.getAttribute("value"),
-    row.querySelector("small")?.textContent,
-  ]);
-  // A phase counts its leaves; the parent's own derived status doesn't count.
-  expect(rows).toEqual([
-    ["Build", "1", "1 of 4 done"],
-    ["Ship", "0", "0 of 2 done"],
-  ]);
+  const phases = await within(board).findByRole("table", { name: "Phases" });
   expect(
-    within(board).getByRole("progressbar", { name: "Progress of Build" }),
-  ).toHaveAttribute("max", "4");
+    within(phases)
+      .getAllByRole("columnheader")
+      .map((h) => h.textContent),
+  ).toEqual(["Phase", "Progress", "Done", "Doing", "Blocked", "Open"]);
+  const [, ...rows] = within(phases).getAllByRole("row");
+  // A phase counts its leaves by status; the parent's own derived status doesn't count.
+  expect(
+    rows.map((row) => [
+      within(row).getByRole("rowheader").textContent,
+      ...within(row)
+        .getAllByRole("cell")
+        .slice(1)
+        .map((c) => c.textContent),
+    ]),
+  ).toEqual([
+    ["Build", "1", "1", "0", "2"],
+    ["Ship", "0", "0", "1", "1"],
+  ]);
+  // The bar fills in the same order, each part its share of the phase; open steps are its track.
+  expect(
+    rows.map((row) =>
+      Array.from(row.querySelectorAll<HTMLElement>(".phase-bar > span")).map(
+        (part) => [part.className, part.style.width],
+      ),
+    ),
+  ).toEqual([
+    [
+      ["done", "25%"],
+      ["doing", "25%"],
+    ],
+    [["blocked", "50%"]],
+  ]);
   expect(within(board).getByRole("link", { name: "Build" })).toHaveAttribute(
     "href",
     `#roadmaps/${ROADMAP}/${id(1)}`,

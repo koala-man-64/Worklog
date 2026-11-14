@@ -47,6 +47,7 @@ import type {
   RoadmapListed,
   RoadmapWorker,
   RoadmapWorkItem,
+  Status,
   Step,
 } from "./apiTypes";
 import { Icon } from "./icons";
@@ -57,6 +58,10 @@ const DETAIL_MIN = 300;
 const HANDLE_WIDTH = 24;
 // Agents report as they work, so who works where refreshes as on the Agents page.
 const AGENTS_REFRESH = 30_000;
+// The board's Phases columns, in the order a phase's bar fills: done first, then in progress,
+// then blocked. Open steps are the bar's empty track.
+const PHASE_FILLED: readonly Status[] = ["done", "doing", "blocked"];
+const PHASE_COLUMNS: readonly Status[] = [...PHASE_FILLED, "open"];
 export function Roadmaps({
   selected,
   step,
@@ -1083,6 +1088,7 @@ function StatusBoard({
     AGENTS_REFRESH,
   );
   const read = board.isPlaceholderData ? undefined : board.data;
+  const phasesHeading = useId();
   const phases = tree.get(null) ?? [];
   // Each step's phase: the step at the top of the outline above it.
   const phaseOf = new Map<string, Step>();
@@ -1143,32 +1149,71 @@ function StatusBoard({
       {/* A plan without phases has nothing here the progress bar above doesn't say. */}
       {phases.some((p) => tree.has(p.id)) && (
         <section className="board-phases">
-          <h3>Phases</h3>
-          <ul className="board-list">
-            {phases.map((phase) => {
-              const under = leaves.filter((s) => phaseOf.get(s.id) === phase);
-              const finished = under.filter((s) => s.status === "done").length;
-              return (
-                <li className="phase-row" key={phase.id}>
-                  <a
-                    className="item-title"
-                    href={`#roadmaps/${id}/${phase.id}`}
-                    title={phase.title}
-                  >
-                    {phase.title}
-                  </a>
-                  <progress
-                    max={under.length || 1}
-                    value={finished}
-                    aria-label={"Progress of " + phase.title}
-                  />
-                  <small>
-                    {finished} of {under.length} done
-                  </small>
-                </li>
-              );
-            })}
-          </ul>
+          <h3 id={phasesHeading}>Phases</h3>
+          <table className="phase-table" aria-labelledby={phasesHeading}>
+            <thead>
+              <tr>
+                <th scope="col">
+                  <span className="visually-hidden">Phase</span>
+                </th>
+                <th scope="col">
+                  <span className="visually-hidden">Progress</span>
+                </th>
+                {PHASE_COLUMNS.map((status) => (
+                  <th scope="col" key={status} title={statusLabel(status)}>
+                    <span className={"status-dot " + status} aria-hidden="true" />
+                    <span className="phase-label">{statusLabel(status)}</span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {phases.map((phase) => {
+                // A phase counts its leaves; a parent's own status is derived from them.
+                const under = leaves.filter((s) => phaseOf.get(s.id) === phase);
+                const count = (status: Status) =>
+                  under.filter((s) => s.status === status).length;
+                return (
+                  <tr key={phase.id}>
+                    <th scope="row">
+                      <a
+                        className="item-title"
+                        href={`#roadmaps/${id}/${phase.id}`}
+                        title={phase.title}
+                      >
+                        {phase.title}
+                      </a>
+                    </th>
+                    <td>
+                      {/* The columns beside it say the same in numbers. */}
+                      <span className="phase-bar" aria-hidden="true">
+                        {PHASE_FILLED.map((status) => {
+                          const share = count(status) / (under.length || 1);
+                          return (
+                            share > 0 && (
+                              <span
+                                key={status}
+                                className={status}
+                                style={{ width: `${share * 100}%` }}
+                              />
+                            )
+                          );
+                        })}
+                      </span>
+                    </td>
+                    {PHASE_COLUMNS.map((status) => {
+                      const n = count(status);
+                      return (
+                        <td key={status} className={n ? undefined : "none"}>
+                          {n}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </section>
       )}
       <section>

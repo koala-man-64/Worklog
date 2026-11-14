@@ -425,7 +425,7 @@ Plans broken into steps, with every saved version kept.
     - "Nested under", the sub-roadmaps and "Add sub-roadmap".
     - Its views, each at its own address: "Status", "Outline", "Questions and decisions" with how many are open, "Material" and "History".
   - **"Status"**, which the roadmap opens on:
-    - "Phases": each step at the top of the outline, with how many of the steps under it are done.
+    - "Phases": each step at the top of the outline, with how many of the steps under it are done, in progress, blocked and open, and a bar filled in those colours.
     - "Now": the steps in progress, each with its phase and the agents working on it.
     - "Next": the open steps, in outline order.
     - "Needs you": the open questions, the blocked steps, and the proposals waiting on Review that would change the roadmap.
