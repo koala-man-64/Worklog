@@ -19,7 +19,7 @@ import {
   useStoredWidth,
   useWrites,
 } from "./hooks";
-import { AgentChatsSection, StepAgentChats } from "./sections/AgentChats";
+import { StepAgentChats } from "./sections/AgentChats";
 import { Files } from "./sections/Files";
 import { GithubRefsSection } from "./sections/GithubRefs";
 import { ChangeHistory, History } from "./sections/History";
@@ -39,6 +39,7 @@ import {
 import { DecisionsSection, QuestionsSection } from "./QuestionsDecisions";
 import { AgentChips, AgentRoster, rosterOn, workersOn } from "./RoadmapAgents";
 import { AppliedProposals } from "./ProposalHistory";
+import { RoadmapChats } from "./RoadmapChats";
 import type {
   Answer,
   PlanStep,
@@ -65,9 +66,11 @@ const PHASE_COLUMNS: readonly Status[] = [...PHASE_FILLED, "open"];
 export function Roadmaps({
   selected,
   step,
+  chat,
 }: {
   selected?: string;
   step?: string;
+  chat?: string;
 }) {
   const [archive, setArchive] = useState(false);
   const roads = useData<Answer<"/api/v1/roadmaps">>("/roadmaps?archived=false");
@@ -77,7 +80,7 @@ export function Roadmaps({
   const { collapsed, toggle } = useCollapsed(
     contextStorageKey("roadmaps-collapsed", "list"),
   );
-  if (selected) return <RoadmapDetail id={selected} step={step} />;
+  if (selected) return <RoadmapDetail id={selected} step={step} chat={chat} />;
   const shown = (archive ? old : roads).data?.items ?? [];
   const tree = roadmapChildren(shown);
   // Rows keep one toggle column only when some roadmap has sub-roadmaps.
@@ -198,6 +201,7 @@ const VIEWS = [
   { id: "status", label: "Status" },
   { id: "outline", label: "Outline" },
   { id: "questions", label: "Questions and decisions" },
+  { id: "chats", label: "Chats" },
   { id: "material", label: "Material" },
   { id: "history", label: "History" },
 ] as const;
@@ -244,10 +248,13 @@ function outlineOrder(tree: Tree): Step[] {
 export function RoadmapDetail({
   id,
   step: sub,
+  chat,
 }: {
   id: string;
   // After the roadmap, the address names a view or a step.
   step?: string;
+  // After the Chats view, the chat it opens.
+  chat?: string;
 }) {
   const named = VIEWS.find((v) => v.id === sub)?.id;
   const step = named ? undefined : sub;
@@ -703,13 +710,6 @@ export function RoadmapDetail({
         links={road.links}
         disabled={road.archived}
       />
-      <AgentChatsSection
-        ownerType="roadmap"
-        ownerId={id}
-        chats={roadChats}
-        steps={active}
-        disabled={road.archived}
-      />
       <GithubRefsSection
         ownerType="roadmap"
         ownerId={id}
@@ -723,11 +723,6 @@ export function RoadmapDetail({
           { label: "Notes", path: "notes", records: road.notes },
           { label: "Files", path: "attachments", records: road.attachments },
           { label: "Links", path: "links", records: road.links ?? [] },
-          {
-            label: "Agent chats",
-            path: "chats",
-            records: road.chats ?? [],
-          },
           {
             label: "GitHub",
             path: "github",
@@ -1044,6 +1039,8 @@ export function RoadmapDetail({
             )}
           </div>
         </div>
+      ) : view === "chats" ? (
+        <RoadmapChats road={road} chat={chat} />
       ) : (
         <div
           className="pane roadmap-view"
