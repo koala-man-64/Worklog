@@ -13,6 +13,54 @@
   padding: 8px;
   margin-bottom: 12px;
 }
+.session-launch-form {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+.session-launch-fields {
+  display: grid;
+  grid-template-columns: minmax(10rem, 1fr) minmax(16rem, 2fr);
+  gap: 10px;
+}
+.session-launch-form label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.session-launch-form input,
+.session-launch-form select,
+.session-launch-form textarea {
+  width: 100%;
+  min-width: 0;
+}
+.session-launch-form textarea {
+  min-height: 9rem;
+  resize: vertical;
+}
+.session-launch-form .toolbar {
+  margin: 0;
+}
+.session-launch-status {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--paper);
+}
+.session-launch-status > :first-child {
+  margin-top: 0;
+}
+.session-launch-status > :last-child {
+  margin-bottom: 0;
+}
+@media (max-width: 650px) {
+  .session-launch-fields {
+    grid-template-columns: 1fr;
+  }
+}
 .work-grid {
   container-type: inline-size;
   display: flex;

@@ -2,7 +2,7 @@
 
 Worklog is a personal workbench that runs entirely on your own machine. It keeps your daily plan and what you actually did, a backlog of work with its notes and files, structured roadmaps, and the people involved. It is also where you coordinate the AI coding agents you work with: they report what they are doing, talk with you and each other, and propose changes that you approve before anything in your records changes, unless you turn approval off.
 
-Worklog runs at **http://127.0.0.1:8877** from one local SQLite database. No hosted service or internet connection is needed once it is installed.
+Worklog runs at **http://127.0.0.1:8877** from one local SQLite database. Its workbench works offline once installed. Optional desktop-session preparation uses the installed provider CLI and needs that provider's connection.
 
 ## What Worklog does
 
@@ -18,7 +18,7 @@ Worklog runs at **http://127.0.0.1:8877** from one local SQLite database. No hos
 
 ## How it works
 
-- **One local process.** `start` launches one hidden server (Python with FastAPI and Uvicorn) bound to 127.0.0.1. It serves the built React interface and the JSON API under `/api/v1` from the same address. Nothing listens beyond this machine, no Node process runs, and nothing is fetched from the internet at runtime.
+- **One local server.** `start` launches one hidden server (Python with FastAPI and Uvicorn) bound to 127.0.0.1. It serves the built React interface and the JSON API under `/api/v1` from the same address. Nothing listens beyond this machine. Start session briefly runs the selected provider's installed CLI to prepare a saved chat before handing it to the desktop app.
 - **One database.** Every record and attachment lives in one SQLite file, `worklog.sqlite3`, in the data directory, so a backup holds everything at once. Schema upgrades run at startup, after a snapshot.
 - **You and your agents.** Your browser holds a local session and can change anything. Agents use credentials you issue in Settings, or identities they register for themselves from one, through the `worklog agent` command line. They read your context, report their own runs and activity, talk in Discussions, file and work tickets, and propose changes for you to approve. They never write your work directly: tickets, like discussions, are shared records agents write themselves, while work items, days, roadmaps, people, repositories and resources, your reference pages, change only through proposals you approve. One proposal can create several records and connect them, such as a person, the repository they own and a ticket against it, by naming each new record for the changes after it.
 - **No silent overwrites.** Every record has a revision. A save based on an older revision is refused as a conflict, and your draft is kept until you decide. Each change is recorded in the record's history with who made it, including changes applied from an agent's proposal. Each work item and roadmap also lists the proposals applied to it, numbered in the order they were applied, and each agent's page the proposals it made.
@@ -81,6 +81,26 @@ Only one managed server or offline restore can own a data directory. OS locks re
 - **[docs/API.md](docs/API.md)** is the HTTP contract, and `docs/openapi.json` its generated schema.
 
 ## Working with agents
+
+On a work item, **Start session** prepares a Codex or Claude chat in an existing local working folder,
+links the saved chat to the item, and requests that the desktop app open it. Send **Continue** in the
+desktop app to begin the task. Preparation uses the installed CLI and your local provider profile;
+Claude uses its desktop subscription login. The prompt is sent to that provider during preparation.
+The CLI exits before the desktop handoff, so it does not keep working in the background.
+Claude prepares with tools disabled. Codex prepares in its read-only sandbox with shell tools, web
+search, apps and plugins disabled for this invocation; it can still load workspace context.
+Codex preparation skips the optional user configuration but keeps the saved login. Both launchers pass
+only OS essentials and the selected provider's profile path, excluding unrelated service credentials.
+Trusted project and managed configuration still apply; project settings may supply other Codex tools.
+Codex preparation asks the model to wait, rather than enforcing a general tool-free mode.
+Neither launcher changes the provider's saved configuration or bypasses its approval controls.
+
+Both desktop apps and their CLIs must already be installed and signed in on Windows. Worklog reports
+preparation failures and keeps a successfully linked chat if opening the app fails; **Open in app**
+retries that handoff without creating another session. Launch status and retry receipts last 14 days;
+the tracked chat remains with the work item. After an interrupted preparation or expired receipt, inspect provider history
+before starting another session. An accepted handoff means the operating system or CLI accepted the
+open request; it does not prove that the desktop window has finished loading.
 
 Create a labeled credential in Settings and give its one-time token to your agents through the `WORKLOG_AGENT_TOKEN` environment variable, never in a command argument, file, log or shell history. Then tell each agent to run `worklog agent guide` before it uses Worklog. Agents register an identity of their own for each chat, report their runs and repository activity, put their own chat on the work they do, write tickets and discussions, and change your work, days, roadmaps, people, repositories and resources only through proposals you approve on Review, unless you turn approval off. When a chat ends before its work does, the agent's next chat continues the same identity, keeping its roles and taking over the old chat's place on the work and its steps. The guide's *Bring an AI agent in* walks through it. Revoke a credential in Settings when its agents no longer need access.
 

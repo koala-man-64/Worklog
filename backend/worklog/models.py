@@ -118,6 +118,12 @@ class ChatCreate(Command):
     stepIds: list[str] = Field(default_factory=list)
 
 
+class SessionStart(Command):
+    provider: Literal["codex", "claude"]
+    cwd: str = Field(min_length=1, max_length=2000)
+    prompt: str = Field(min_length=1, max_length=12000)
+
+
 class ChatUpdate(Expected):
     repositoryIds: list[str] = Field(default_factory=list, max_length=100)
     chatId: str | None = None

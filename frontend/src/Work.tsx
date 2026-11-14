@@ -32,6 +32,7 @@ import { AppliedProposals } from "./ProposalHistory";
 import { TicketsSection } from "./Tickets";
 import { Icon } from "./icons";
 import { RankButton, RankPicker, useRank } from "./StackRank";
+import { StartSession } from "./StartSession";
 export function CreateItem({ day }: { day?: string }) {
   const [title, setTitle] = useState("");
   const [repositoryIds, setRepositoryIds] = useState<string[]>([]);
@@ -605,6 +606,13 @@ export function ItemDetail({ id }: { id: string }) {
       <Scratchpad itemId={id} notes={item.notes} />
       <PeopleLinks targetType="item" targetId={id} people={item.people} />
       <LinksSection ownerType="item" ownerId={id} links={item.links} />
+      <StartSession
+        key={id}
+        itemId={id}
+        title={item.title}
+        description={item.description}
+        archived={!!item.archived}
+      />
       <AgentChatsSection ownerType="item" ownerId={id} chats={item.chats} />
       <GithubRefsSection
         ownerType="item"

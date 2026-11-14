@@ -30,11 +30,11 @@ ORDER = [
     # Schema history, proposals, then backup and restore, offline compaction and the read-only doctor.
     "migrations", "proposals", "recovery", "compaction", "doctor",
     # Work: the shapes the domains share, supporting records, work items, people, and the router.
-    "records", "support", "items", "people", "services",
+    "records", "support", "items", "people", "services", "session_launches",
     # HTTP: the routes of each domain, the request guard in front of them all, the usage counts kept
     # inside it, and the app.
     "coordination_api", "discussion_api", "registry_api",
-    "resource_api", "ticket_api", "guard", "usage", "app",
+    "resource_api", "ticket_api", "session_api", "guard", "usage", "app",
     # The command line.
     "cli",
 ]

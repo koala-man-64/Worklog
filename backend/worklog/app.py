@@ -66,6 +66,8 @@ from .resource_api import install_resource_routes
 from .resources import ResourceService
 from .search import SearchType, global_search
 from .services import WorkService
+from .session_api import install_session_routes
+from .session_launches import SessionLauncher
 from .ticket_api import install_ticket_routes
 from .tickets import TicketService
 from .transcripts import MESSAGE_LIMIT, TranscriptReader, TranscriptRoots
@@ -146,6 +148,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                   openapi_url="/api/v1/openapi.json")
     app.state.db, app.state.work, app.state.plans, app.state.proposals = db, work, plans, proposals
     app.state.transcripts = transcripts
+    app.state.session_launcher = SessionLauncher(db, work)
     app.state.sessions = {}
     app.state.instance_id = os.environ.get("WORKLOG_INSTANCE_ID", uid())
     app.state.backup_error = None
@@ -203,6 +206,8 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     # Host, origin, the caller and the route policy, a bounded JSON body, and the security headers on
     # every response (guard.py).
     app.add_middleware(RequestGuard, owner=app, db=db, hosts=allowed_hosts, origins=allowed_origins)
+    # Install the concrete /work-items/{identity}/sessions path before the archive/recover verb route.
+    install_session_routes(app, app.state.session_launcher)
 
     def mutate(request: Request, payload: Any, fn: Callable, *, required_key: bool = False,
                redact: tuple[str, ...] = (), communication: bool = False) -> dict:
