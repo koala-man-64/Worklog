@@ -41,9 +41,10 @@ Keep the previous version and its manual backup until verification succeeds. To 
 
 ## The way back from version 31
 
-From version 31 to version 30, a way back keeps every record but the steps' outcomes, which version 30 has no place for: the pre-upgrade backup doesn't have them either, so copy aside any you still need first. With Worklog stopped and after a manual backup, run this on the database, then start the version 30 checkout:
+From version 31 to version 30, a way back keeps every record but the steps' outcomes, which version 30 has no place for: the pre-upgrade backup doesn't have them either, so copy aside any you still need first. The outcomes go from the roadmap versions saved since the upgrade too, which version 30 couldn't open with them. With Worklog stopped and after a manual backup, run this on the database, then start the version 30 checkout:
 
 ```sql
+UPDATE roadmap_versions SET snapshot=json_set(snapshot,'$.steps',json((SELECT json_group_array(json(json_remove(value,'$.outcome'))) FROM json_each(snapshot,'$.steps')))) WHERE snapshot LIKE '%"outcome"%';
 ALTER TABLE steps DROP COLUMN outcome;
 PRAGMA user_version=30;
 ```

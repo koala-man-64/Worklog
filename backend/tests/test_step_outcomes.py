@@ -21,7 +21,9 @@ from worklog import migrations, recovery
 from worklog.db import Database
 
 # docs/UPGRADING.md: from version 31 to version 30, with Worklog stopped and after a manual backup.
+# Versions saved at v31 hold each step's outcome, which v30 refuses to read, so it goes from them too.
 WAY_BACK = """\
+UPDATE roadmap_versions SET snapshot=json_set(snapshot,'$.steps',json((SELECT json_group_array(json(json_remove(value,'$.outcome'))) FROM json_each(snapshot,'$.steps')))) WHERE snapshot LIKE '%"outcome"%';
 ALTER TABLE steps DROP COLUMN outcome;
 PRAGMA user_version=30;
 """
@@ -172,3 +174,46 @@ def test_the_way_back_gives_v30s_exact_shape_and_upgrades_again(tmp_path):
         assert recovery._schema_signature(conn) == sealed.current()
     # The SQL tested here is the SQL docs/UPGRADING.md gives the person.
     assert "```sql\n" + WAY_BACK + "```" in (Path(__file__).resolve().parents[2] / "docs" / "UPGRADING.md").read_text(encoding="utf-8")
+
+
+# The keys v30's response model takes for a step in a saved version, and refuses any other.
+V30_STEP_KEYS = {"id", "title", "description", "parentId", "position", "status", "revision", "retired"}
+
+
+def test_the_way_back_leaves_every_version_saved_at_v31_readable_by_v30(tmp_path):
+    from test_chat_label_links import call, session
+
+    data = tmp_path / "data"
+    client = session(data)  # noqa: F811
+    try:
+        roadmap = call(client, "POST", "/roadmaps", {"title": "Parser", "steps": [
+            {"title": "Cut the branch", "outcome": "A branch"}, {"title": "Merge it"}]})
+        call(client, "POST", f"/roadmaps/{roadmap['id']}/revisions", {
+            "revision": roadmap["revision"], "title": "Parser",
+            "steps": [{**s, "outcome": "Merged"} if s["title"] == "Merge it" else s for s in roadmap["steps"]]})
+        call(client, "POST", "/roadmaps", {"title": "Empty"})
+    finally:
+        client.__exit__(None, None, None)
+    database = data / "worklog.sqlite3"
+    with closing(sqlite3.connect(database)) as conn:
+        before = [json.loads(row[0]) for row in conn.execute("SELECT snapshot FROM roadmap_versions ORDER BY rowid")]
+    to_v30(database)
+    with closing(sqlite3.connect(database)) as conn:
+        after = [json.loads(row[0]) for row in conn.execute("SELECT snapshot FROM roadmap_versions ORDER BY rowid")]
+    assert len(after) == 3 and all(set(step) == V30_STEP_KEYS for snapshot in after for step in snapshot["steps"])
+    # Nothing but the outcomes goes.
+    for snapshot in before:
+        for step in snapshot["steps"]:
+            del step["outcome"]
+    assert after == before
+
+
+def without_outcomes(rows):
+    """roadmap_versions rows, snapshot last, with each snapshot parsed and its steps' outcomes left out:
+    what an older upgrade test compares across the way back, which writes the snapshots afresh."""
+    def parsed(snapshot):
+        content = json.loads(snapshot)
+        for step in content.get("steps", []):
+            step.pop("outcome", None)
+        return content
+    return [(*row[:-1], parsed(row[-1])) for row in rows]

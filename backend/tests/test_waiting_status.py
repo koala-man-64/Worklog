@@ -10,6 +10,7 @@ from contextlib import closing, contextmanager
 import pytest
 import sealed
 from fastapi.testclient import TestClient
+from test_step_outcomes import without_outcomes
 from worklog import migrations, operations, recovery
 from worklog.app import create_app
 from worklog.common import AppError, today
@@ -413,7 +414,11 @@ def test_the_way_back_to_v14_gives_its_exact_shape_and_upgrades_again(tmp_path):
         status = [column[1] for column in conn.execute("PRAGMA table_info(work_items)")].index("status") + 1
         before["work_items"] = sorted((row[:status] + ("blocked",) + row[status + 1:] if row[1] == waiting["id"] else row
                                        for row in before["work_items"]), key=repr)
-        assert contents(conn) == before
+        # The way back to v30 also writes afresh each version that held outcomes, keeping all else.
+        after = contents(conn)
+        after["roadmap_versions"], before["roadmap_versions"] = (without_outcomes(rows["roadmap_versions"])
+                                                                 for rows in (after, before))
+        assert after == before
         assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
     Database(path).initialize()
     with closing(sqlite3.connect(path)) as conn:
