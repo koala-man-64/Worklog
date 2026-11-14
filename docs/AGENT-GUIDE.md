@@ -79,6 +79,7 @@ Records are archived, never deleted, and only the person archives or recovers th
 |---|---|---|---|
 | Read work, days, roadmaps, steps, people, notes, tickets, resources, discussions, repositories, runs and proposals | yes | yes | - |
 | Read chat transcripts, the Claude Code sessions running on the person's machine, the Agents page, Settings, credentials, backups or the export | yes | no | - |
+| Prepare a Codex or Claude desktop session from a work item; read launch status or open that session | yes | no | - |
 | Change work items, day entries, notes, roadmaps, progress, people, links, tracked chats, GitHub references, questions or decisions | yes | no | yes |
 | Track your own chat on a work item, a roadmap or its steps | yes | yes, the chat you registered with | yes |
 | Register a repository | yes | yes, unless the person turned it off | yes |

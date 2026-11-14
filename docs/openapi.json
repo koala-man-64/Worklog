@@ -5,6 +5,133 @@
     "version": "1.0.0"
   },
   "paths": {
+    "/api/v1/work-items/{identity}/sessions": {
+      "post": {
+        "summary": "Start Session",
+        "operationId": "start_session_api_v1_work_items__identity__sessions_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionStart"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionLaunch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/session-launches/{identity}": {
+      "get": {
+        "summary": "Session Launch",
+        "operationId": "session_launch_api_v1_session_launches__identity__get",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionLaunch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/session-launches/{identity}/open": {
+      "post": {
+        "summary": "Open Session",
+        "operationId": "open_session_api_v1_session_launches__identity__open_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionLaunch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health",
@@ -19970,6 +20097,98 @@
         ],
         "title": "SessionChat",
         "description": "A tracked chat that follows a running session."
+      },
+      "SessionLaunch": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "codex",
+              "claude"
+            ],
+            "title": "Provider"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "starting",
+              "ready",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "chat": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TrackedChat"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "sessionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sessionid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "provider",
+          "status",
+          "chat",
+          "message"
+        ],
+        "title": "SessionLaunch"
+      },
+      "SessionStart": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "codex",
+              "claude"
+            ],
+            "title": "Provider"
+          },
+          "cwd": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Cwd"
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 12000,
+            "minLength": 1,
+            "title": "Prompt"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "provider",
+          "cwd",
+          "prompt"
+        ],
+        "title": "SessionStart"
       },
       "Settings": {
         "properties": {

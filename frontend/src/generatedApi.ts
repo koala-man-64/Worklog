@@ -4,6 +4,57 @@
  */
 
 export interface paths {
+    "/api/v1/work-items/{identity}/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start Session */
+        post: operations["start_session_api_v1_work_items__identity__sessions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/session-launches/{identity}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Session Launch */
+        get: operations["session_launch_api_v1_session_launches__identity__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/session-launches/{identity}/open": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Open Session */
+        post: operations["open_session_api_v1_session_launches__identity__open_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -6474,6 +6525,38 @@ export interface components {
             /** Ownertitle */
             ownerTitle: string;
         };
+        /** SessionLaunch */
+        SessionLaunch: {
+            /** Id */
+            id: string;
+            /**
+             * Provider
+             * @enum {string}
+             */
+            provider: "codex" | "claude";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "starting" | "ready" | "failed";
+            chat: components["schemas"]["TrackedChat"] | null;
+            /** Message */
+            message: string;
+            /** Sessionid */
+            sessionId?: string | null;
+        };
+        /** SessionStart */
+        SessionStart: {
+            /**
+             * Provider
+             * @enum {string}
+             */
+            provider: "codex" | "claude";
+            /** Cwd */
+            cwd: string;
+            /** Prompt */
+            prompt: string;
+        };
         /** Settings */
         Settings: {
             /** Timezone */
@@ -7565,6 +7648,103 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    start_session_api_v1_work_items__identity__sessions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionStart"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionLaunch"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    session_launch_api_v1_session_launches__identity__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionLaunch"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    open_session_api_v1_session_launches__identity__open_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionLaunch"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     health_health_get: {
         parameters: {
             query?: never;

@@ -72,6 +72,16 @@ class TrackedChat(Answer):
     repositoryIds: list[str]
 
 
+class SessionLaunch(Answer):
+    id: str
+    provider: Literal["codex", "claude"]
+    status: Literal["starting", "ready", "failed"]
+    chat: TrackedChat | None
+    message: str
+    # A provider chat can exist before a failed local link is repaired.
+    sessionId: str | None = None
+
+
 class GithubReference(Answer):
     id: str
     ownerType: Literal["item", "roadmap"]

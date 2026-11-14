@@ -83,6 +83,10 @@ ROUTES: dict[str, dict[str, str | Only]] = {
 
     "/claude-sessions": {"GET": HUMAN},
 
+    "/work-items/{identity}/sessions": {"POST": HUMAN},
+    "/session-launches/{identity}": {"GET": HUMAN},
+    "/session-launches/{identity}/open": {"POST": HUMAN},
+
     "/context": {"GET": READ},
 
     "/coordination-overlaps": {"GET": READ},

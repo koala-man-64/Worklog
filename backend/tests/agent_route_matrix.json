@@ -52,6 +52,7 @@
   "GET /api/v1/roadmaps/{identity}/proposals": "reaches handler",
   "GET /api/v1/roadmaps/{identity}/revisions/{number}": "reaches handler",
   "GET /api/v1/search": "reaches handler",
+  "GET /api/v1/session-launches/{identity}": "refused",
   "GET /api/v1/settings": "refused",
   "GET /api/v1/steps/{identity}": "reaches handler",
   "GET /api/v1/steps/{identity}/history": "reaches handler",
@@ -157,6 +158,7 @@
   "POST /api/v1/roadmaps/{identity}/restore": "refused",
   "POST /api/v1/roadmaps/{identity}/revisions": "refused",
   "POST /api/v1/roadmaps/{identity}/{verb}": "refused",
+  "POST /api/v1/session-launches/{identity}/open": "refused",
   "POST /api/v1/session/bootstrap": "refused by handler: bootstrap",
   "POST /api/v1/tickets": "reaches handler",
   "POST /api/v1/tickets/{ref}/comments": "reaches handler",
@@ -165,6 +167,7 @@
   "POST /api/v1/work-items/reorder": "refused",
   "POST /api/v1/work-items/{identity}/move": "refused",
   "POST /api/v1/work-items/{identity}/rank": "refused",
+  "POST /api/v1/work-items/{identity}/sessions": "refused",
   "POST /api/v1/work-items/{identity}/{verb}": "refused",
   "PUT /api/v1/days/{date}/entries/{item_id}": "refused"
 }
