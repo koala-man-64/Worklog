@@ -10,6 +10,7 @@ from contextlib import closing, contextmanager
 import pytest
 import sealed
 from fastapi.testclient import TestClient
+from test_step_outcomes import without_outcomes
 from worklog import migrations, operations, recovery
 from worklog.app import create_app
 from worklog.common import AppError, today
@@ -287,6 +288,9 @@ def test_the_v15_upgrade_keeps_every_work_item_and_every_reference_to_one(tmp_pa
         upgraded["communication_credentials"] = [row[:-1] for row in upgraded["communication_credentials"]]
         assert upgraded["days"] and all(row[-1] == row[-2] for row in upgraded["days"])
         upgraded["days"] = [row[:-1] for row in upgraded["days"]]
+        # v31 gives each step an outcome, empty.
+        assert upgraded["steps"] and {row[-1] for row in upgraded["steps"]} == {""}
+        upgraded["steps"] = [row[:-1] for row in upgraded["steps"]]
         # v22 gives each discussion a pin, none here, and gives the repository back the discussion it
         # opened under v22 before the way back, rather than opening another.
         assert {row[-1] for row in upgraded["discussions"]} == {None}
@@ -398,6 +402,9 @@ def test_the_way_back_to_v14_gives_its_exact_shape_and_upgrades_again(tmp_path):
     # drop the reminders, releases and ties again.
     for table in ("tasks", "plan_imports", "chat_messages", "chat_message_deliveries", "chat_confirmations"):
         before[table] = []
+    # The way back to v30 drops the steps' outcomes, empty here.
+    assert {row[-1] for row in before["steps"]} == {""}
+    before["steps"] = [row[:-1] for row in before["steps"]]
     to_v14(path)
     recovery.validate_database(path)
     with closing(sqlite3.connect(path)) as conn:
@@ -407,7 +414,11 @@ def test_the_way_back_to_v14_gives_its_exact_shape_and_upgrades_again(tmp_path):
         status = [column[1] for column in conn.execute("PRAGMA table_info(work_items)")].index("status") + 1
         before["work_items"] = sorted((row[:status] + ("blocked",) + row[status + 1:] if row[1] == waiting["id"] else row
                                        for row in before["work_items"]), key=repr)
-        assert contents(conn) == before
+        # The way back to v30 also writes afresh each version that held outcomes, keeping all else.
+        after = contents(conn)
+        after["roadmap_versions"], before["roadmap_versions"] = (without_outcomes(rows["roadmap_versions"])
+                                                                 for rows in (after, before))
+        assert after == before
         assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
     Database(path).initialize()
     with closing(sqlite3.connect(path)) as conn:

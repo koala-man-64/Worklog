@@ -182,6 +182,34 @@ it("shows the selected step's details beside the outline", async () => {
   ).not.toHaveAttribute("aria-current");
 });
 
+it("leads a step's details with its outcome, above the description", async () => {
+  served = aRoadmap({
+    ...road,
+    steps: road.steps.map((s) =>
+      s.id === CHILD
+        ? { ...s, outcome: "Every fixture parses", description: "The how" }
+        : s,
+    ),
+  });
+  view(CHILD);
+  const details = await screen.findByRole("region", { name: "Step details" });
+  const outcome = within(details).getByRole("region", { name: "Outcome" });
+  expect(within(outcome).getByText("Every fixture parses")).toBeVisible();
+  const how = within(details).getByText("The how");
+  // The outcome comes before the description.
+  expect(
+    outcome.compareDocumentPosition(how) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+});
+
+it("asks for an outcome on a step that has none", async () => {
+  view(SOLO);
+  const details = await screen.findByRole("region", { name: "Step details" });
+  const outcome = within(details).getByRole("region", { name: "Outcome" });
+  expect(outcome).toHaveClass("missing");
+  expect(within(outcome).getByText(/No outcome yet/)).toBeVisible();
+});
+
 it("says beside the outline when a step is not in the plan", async () => {
   view("bbbbbbbb-0000-4000-8000-000000000009");
   const details = await screen.findByRole("region", { name: "Step details" });

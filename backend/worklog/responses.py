@@ -397,6 +397,8 @@ class PlanStep(Answer):
     id: str
     title: str
     description: str
+    # What the step's work produces. A revision saved before steps had outcomes gives none.
+    outcome: str
     parentId: str | None
     position: int
     # steps.status has no CHECK.

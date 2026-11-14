@@ -49,7 +49,7 @@ CREATE INDEX chat_steps_step ON chat_steps(step_id);
 
 -- Roadmaps: their steps, saved versions, questions and decisions.
 CREATE TABLE roadmaps ( id TEXT PRIMARY KEY, title TEXT NOT NULL, overview TEXT NOT NULL, revision INTEGER NOT NULL, archived INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL , parent_id TEXT REFERENCES roadmaps(id));
-CREATE TABLE steps ( id TEXT PRIMARY KEY, roadmap_id TEXT NOT NULL REFERENCES roadmaps(id), title TEXT NOT NULL, description TEXT NOT NULL, parent_id TEXT, position INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'open', revision INTEGER NOT NULL, retired INTEGER NOT NULL DEFAULT 0 );
+CREATE TABLE steps ( id TEXT PRIMARY KEY, roadmap_id TEXT NOT NULL REFERENCES roadmaps(id), title TEXT NOT NULL, description TEXT NOT NULL, parent_id TEXT, position INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'open', revision INTEGER NOT NULL, retired INTEGER NOT NULL DEFAULT 0 , outcome TEXT NOT NULL DEFAULT '');
 CREATE INDEX steps_parent ON steps(parent_id);
 CREATE INDEX steps_roadmap ON steps(roadmap_id);
 CREATE TABLE roadmap_versions ( roadmap_id TEXT NOT NULL REFERENCES roadmaps(id), number INTEGER NOT NULL, created_at TEXT NOT NULL, note TEXT NOT NULL, snapshot TEXT NOT NULL, PRIMARY KEY(roadmap_id,number) );

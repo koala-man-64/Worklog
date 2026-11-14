@@ -9,6 +9,9 @@ from bisect import bisect_left
 from .common import AppError, event, now, read_events, require_revision, uid
 
 STATUSES = {"open", "doing", "blocked", "done"}
+# A step's text: what a save, a step.update or a restore writes, and what counts as changing it.
+TEXT = ("title", "description", "outcome")
+OUTCOME_LIMIT = 100_000
 
 
 def _text(value, field, default=None, maximum=1_000_000):
@@ -62,7 +65,7 @@ def _parent(conn, identifier, parent):
 
 def _step(row):
     return {"id": row["id"], "title": row["title"], "description": row["description"],
-            "parentId": row["parent_id"], "position": row["position"],
+            "outcome": row["outcome"], "parentId": row["parent_id"], "position": row["position"],
             "status": row["status"], "revision": row["revision"],
             "retired": bool(row["retired"])}
 
@@ -115,9 +118,20 @@ def _moved(rows, steps):
     return moved
 
 
+def keep_outcomes(rows, steps):
+    """Give each step of a save that names no outcome the one stored for it, or none for a new step,
+    so a save drafted without outcomes, such as a proposal from before steps had them or a version
+    saved before then, leaves each step's outcome as it is. Returns the steps."""
+    stored = {row["id"]: row for row in rows}
+    for step in steps:
+        if step["outcome"] is None:
+            step["outcome"] = stored[step["id"]]["outcome"] if step["id"] in stored else ""
+    return steps
+
+
 def changed_by(rows, steps):
     """The stored steps a save with these steps changes (K4): each it retires or restores, gives a
-    new title or description, or moves (_moved). Every other step keeps its revision and gets no
+    new title, description or outcome, or moves (_moved). Every other step keeps its revision and gets no
     event, whatever its position number becomes: the roadmap's revision guards the order."""
     wanted = {step["id"]: step for step in steps}
     changed = _moved(rows, steps)
@@ -126,7 +140,7 @@ def changed_by(rows, steps):
         if step is None:
             if not row["retired"]:
                 changed.add(row["id"])
-        elif row["retired"] or (row["title"], row["description"]) != (step["title"], step["description"]):
+        elif row["retired"] or any(row[key] != step[key] for key in TEXT):
             changed.add(row["id"])
     return changed
 
@@ -179,7 +193,7 @@ class Forecast:
         rows = self._rows(roadmap["id"])
         try:
             title, overview = _title(payload.get("title")), _text(payload.get("overview"), "overview", "")
-            steps = PlanService.validate_steps(self.conn, roadmap["id"], payload.get("steps"))
+            steps = keep_outcomes(rows.values(), PlanService.validate_steps(self.conn, roadmap["id"], payload.get("steps")))
         except AppError:
             return
         changed = changed_by(list(rows.values()), steps)
@@ -192,11 +206,13 @@ class Forecast:
             row = rows.get(step["id"])
             if row is None:
                 rows[step["id"]] = {"id": step["id"], "roadmap_id": roadmap["id"], "title": step["title"],
-                                    "description": step["description"], "parent_id": step["parentId"],
+                                    "description": step["description"], "outcome": step["outcome"],
+                                    "parent_id": step["parentId"],
                                     "position": step["position"], "status": "open", "revision": 1, "retired": 0}
                 added = True
             elif step["id"] in changed:
-                row.update(title=step["title"], description=step["description"], parent_id=step["parentId"],
+                row.update(title=step["title"], description=step["description"], outcome=step["outcome"],
+                           parent_id=step["parentId"],
                            position=step["position"], retired=0, revision=row["revision"] + 1)
             else:
                 row["position"] = step["position"]
@@ -209,12 +225,11 @@ class Forecast:
         if step["retired"] or not self._open(roadmap):
             return
         try:
-            title = step["title"] if payload.get("title") is None else _title(payload["title"])
-            description = step["description"] if payload.get("description") is None else _text(payload["description"], "description")
+            text = step_text(step, payload)
         except AppError:
             return
-        if rewrites(step, {"title": title, "description": description}):
-            step.update(title=title, description=description, revision=step["revision"] + 1)
+        if rewrites(step, text):
+            step.update(**text, revision=step["revision"] + 1)
             roadmap["revision"] += 1
 
     def set_progress(self, step):
@@ -234,15 +249,24 @@ class Forecast:
             roadmap["archived"] = int(action == "roadmap.archive")
 
 
+def step_text(row, payload):
+    """The text a step.update leaves the step: each of its title, description and outcome the payload
+    gives, checked, and the stored one for each it leaves out."""
+    return {"title": row["title"] if payload.get("title") is None else _title(payload["title"]),
+            "description": row["description"] if payload.get("description") is None
+            else _text(payload["description"], "description"),
+            "outcome": row["outcome"] if payload.get("outcome") is None
+            else _text(payload["outcome"], "outcome", maximum=OUTCOME_LIMIT)}
+
+
 def rewrites(row, payload):
-    """Whether a step.update with this payload changes the stored step's text: a title or description
-    it gives that differs from the step's (a title counts as trimmed). One that changes nothing
-    records nothing (K4)."""
-    title, description = payload.get("title"), payload.get("description")
-    if isinstance(title, str):
-        title = title.strip()
-    return ((row["title"] if title is None else title, row["description"] if description is None else description)
-            != (row["title"], row["description"]))
+    """Whether a step.update with this payload changes the stored step's text: a title, description
+    or outcome it gives that differs from the step's (a title counts as trimmed). One that changes
+    nothing records nothing (K4)."""
+    given = {key: payload.get(key) for key in TEXT}
+    if isinstance(given["title"], str):
+        given["title"] = given["title"].strip()
+    return any(value is not None and value != row[key] for key, value in given.items())
 
 
 def _steps(conn, identifier, retired=False):
@@ -388,8 +412,11 @@ class PlanService:
                                (identifier, number)).fetchone()
             if row is None:
                 raise AppError(404, "not_found", "Roadmap revision not found")
+            snapshot = json.loads(row["snapshot"])
+            for step in snapshot.get("steps", []):
+                step.setdefault("outcome", "")  # saved before steps had outcomes (v31)
             return {"number": row["number"], "createdAt": row["created_at"],
-                    "note": row["note"], **json.loads(row["snapshot"])}
+                    "note": row["note"], **snapshot}
 
     @staticmethod
     def get_step(conn, identifier):
@@ -406,8 +433,9 @@ class PlanService:
 
     @staticmethod
     def validate_steps(conn, identifier, steps):
-        """A step list as a save takes it: each step's ID, title, description, parent and position,
-        checked, with a new step given an ID. A step marked "retired": true, as `roadmap show` marks
+        """A step list as a save takes it: each step's ID, title, description, outcome, parent and
+        position, checked, with a new step given an ID. A step that names no outcome has None for
+        it, which keep_outcomes fills in. A step marked "retired": true, as `roadmap show` marks
         one, stays out of the plan as a step left out does. Refuses a list that is not one tree of
         this roadmap's."""
         if not isinstance(steps, list) or len(steps) > 5000:
@@ -442,6 +470,8 @@ class PlanService:
                 raise AppError(422, "validation", "Step parentId must be a step id or null")
             normalized.append({"id": sid, "title": _title(data.get("title")),
                                "description": _text(data.get("description"), "description", ""),
+                               "outcome": None if data.get("outcome") is None
+                               else _text(data["outcome"], "outcome", maximum=OUTCOME_LIMIT),
                                "parentId": parent, "position": position})
         parents = {s["id"]: s["parentId"] for s in normalized}
         for sid, parent in parents.items():
@@ -473,6 +503,7 @@ class PlanService:
         gets no event. Returns the IDs of the steps changed."""
         rows = conn.execute("SELECT * FROM steps WHERE roadmap_id=?", (identifier,)).fetchall()
         stored = {row["id"]: row for row in rows}
+        keep_outcomes(rows, steps)
         changes = changed_by(rows, steps)
         wanted = {s["id"] for s in steps}
         changed = []
@@ -488,19 +519,21 @@ class PlanService:
                     conn.execute("UPDATE steps SET position=? WHERE id=?", (step["position"], step["id"]))
                 continue
             if old:
-                conn.execute("UPDATE steps SET title=?,description=?,parent_id=?,position=?,retired=0,revision=revision+1 WHERE id=?",
-                             (step["title"], step["description"], step["parentId"], step["position"], step["id"]))
+                conn.execute("UPDATE steps SET title=?,description=?,outcome=?,parent_id=?,position=?,retired=0,"
+                             "revision=revision+1 WHERE id=?",
+                             (step["title"], step["description"], step["outcome"], step["parentId"], step["position"], step["id"]))
             else:
-                conn.execute("INSERT INTO steps(id,roadmap_id,title,description,parent_id,position,status,revision,retired) "
-                             "VALUES(?,?,?,?,?,?,?,?,?)",
-                             (step["id"], identifier, step["title"], step["description"], step["parentId"], step["position"], "open", 1, 0))
+                conn.execute("INSERT INTO steps(id,roadmap_id,title,description,outcome,parent_id,position,status,revision,retired) "
+                             "VALUES(?,?,?,?,?,?,?,?,?,?)",
+                             (step["id"], identifier, step["title"], step["description"], step["outcome"], step["parentId"],
+                              step["position"], "open", 1, 0))
             event(conn, actor, "step.restore" if old and old["retired"] else "step.revise" if old else "step.create",
                   step["id"], _step(old) if old else None, _step(self.get_step(conn, step["id"])))
             changed.append(step["id"])
         return changed
 
     def _update_step(self, conn, actor, payload):
-        """One step's own title and description, checked against the step's revision, touching no
+        """One step's own title, description and outcome, checked against the step's revision, touching no
         other step and recording no version. The roadmap's revision guards its title, overview and
         step tree, step text included, so it rises as well: a structure save drafted before this
         change would otherwise write the old text back. Returns the step with its roadmap's ID."""
@@ -509,13 +542,12 @@ class PlanService:
         require_revision(row, payload.get("revision"))
         if row["retired"] or _row(conn, row["roadmap_id"])["archived"]:
             raise AppError(409, "conflict", "Retired or archived steps cannot change")
-        if payload.get("title") is None and payload.get("description") is None:
-            raise AppError(422, "validation", "Give the step's title, its description or both")
-        title = row["title"] if payload.get("title") is None else _title(payload["title"])
-        description = row["description"] if payload.get("description") is None else _text(payload["description"], "description")
-        if rewrites(row, {"title": title, "description": description}):
-            conn.execute("UPDATE steps SET title=?,description=?,revision=revision+1 WHERE id=?",
-                         (title, description, identifier))
+        if all(payload.get(key) is None for key in TEXT):
+            raise AppError(422, "validation", "Give the step's title, description or outcome")
+        text = step_text(row, payload)
+        if rewrites(row, text):
+            conn.execute("UPDATE steps SET title=?,description=?,outcome=?,revision=revision+1 WHERE id=?",
+                         (text["title"], text["description"], text["outcome"], identifier))
             conn.execute("UPDATE roadmaps SET revision=revision+1,updated_at=? WHERE id=?", (now(), row["roadmap_id"]))
             event(conn, actor, "step.update", identifier, _step(row), _step(self.get_step(conn, identifier)))
         return {**_step(self.get_step(conn, identifier)), "roadmapId": row["roadmap_id"]}
