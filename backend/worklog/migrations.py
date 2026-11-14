@@ -14,10 +14,10 @@ import sqlite3
 
 from .common import now, setting, today, uid
 
-SCHEMA_VERSION = 30
+SCHEMA_VERSION = 31
 # Older versions that startup and offline restore upgrade in one transaction.
 UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
-                                 24, 25, 26, 27, 28, 29})
+                                 24, 25, 26, 27, 28, 29, 30})
 
 # v1 grew in place before versions were counted: _upgrade_v1 adds whichever of these a v1 database
 # lacks. People as v1 had them; v10 renames role to team, adds person details and lets links name
@@ -907,6 +907,12 @@ def drop_chat_messages(conn: sqlite3.Connection) -> None:
         conn.execute(f"DROP TABLE IF EXISTS {table}")  # and its index
 
 
+def add_step_outcomes(conn: sqlite3.Connection) -> None:
+    """Give each roadmap step an outcome (v31): what the step's work produces, the goal it is done
+    for. Every step starts with none, so no record changes."""
+    conn.execute("ALTER TABLE steps ADD COLUMN outcome TEXT NOT NULL DEFAULT ''")
+
+
 def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
     """Unlike executescript, preserve the caller's transaction and rollback boundary."""
     for statement in filter(str.strip, schema.split(";")):
@@ -939,6 +945,7 @@ def upgrade(conn: sqlite3.Connection) -> None:
     every release and check with their search rows, and every discussion tag of a release, and
     changes no other record. v29 drops agent ties, every tie with them, and changes no other record.
     v30 drops chat messages, their deliveries and chat confirmations, and changes no other record.
+    v31 gives each roadmap step an outcome, empty to start, and changes no record.
     """
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version == SCHEMA_VERSION:
@@ -1008,6 +1015,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
         drop_agent_links(conn)
     if version < 30:
         drop_chat_messages(conn)
+    if version < 31:
+        add_step_outcomes(conn)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 

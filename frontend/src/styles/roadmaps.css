@@ -544,3 +544,54 @@ button.agent-chip.more {
     flex: 1;
   }
 }
+/* A step's outcome is the goal its work is done for: it leads the step's page, larger than the
+   description, in a panel of its own. A step without one says so as loudly. */
+.step-outcome {
+  margin: 4px 0 24px;
+  padding: 14px 18px 16px;
+  border: 1px solid var(--teal);
+  border-left-width: 5px;
+  background: var(--teal-wash);
+}
+section.step-outcome > h3 {
+  margin: 0 0 6px;
+  color: var(--teal);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.step-outcome-text {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 21px;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.step-outcome.missing {
+  border-style: dashed;
+  border-left-style: solid;
+  background: transparent;
+}
+.step-outcome.missing .step-outcome-text {
+  color: var(--muted);
+  font-size: 18px;
+}
+.step-outcome-field textarea,
+.structure-editor textarea.step-outcome-input {
+  border: 1px solid var(--teal);
+  border-left-width: 4px;
+  background: var(--teal-wash);
+  font-family: var(--font-display);
+  font-size: 18px;
+  line-height: 1.35;
+}
+.step-outcome-field {
+  color: var(--teal);
+  font-weight: 650;
+}
+.structure-editor textarea.step-outcome-input {
+  width: 100%;
+  margin-bottom: 10px;
+}

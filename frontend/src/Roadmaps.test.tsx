@@ -124,14 +124,21 @@ it("rebases keeping the current text of what the draft left as it found it", asy
     view({
       ...roadmap(5, [
         { ...A, title: "Alpha from elsewhere", revision: 2 },
-        { ...B, description: "AB#1559 is the predecessor", revision: 2 },
+        {
+          ...B,
+          description: "AB#1559 is the predecessor",
+          outcome: "Releases ship with notes",
+          revision: 2,
+        },
         { ...C, parentId: A.id },
       ]),
       title: "Plan, retitled",
     }),
   );
   expect(
-    screen.getByText(/a title, description or parent you didn't change/),
+    screen.getByText(
+      /a title, outcome, description or parent you didn't change/,
+    ),
   ).toBeInTheDocument();
   await userEvent.click(
     screen.getByRole("button", { name: "Rebase onto current" }),
@@ -140,6 +147,10 @@ it("rebases keeping the current text of what the draft left as it found it", asy
   expect(
     screen.getByRole("textbox", { name: "Step 2 description" }),
   ).toHaveValue("AB#1559 is the predecessor");
+  // The draft was saved before steps had outcomes, so Beta takes the one given since.
+  expect(screen.getByRole("textbox", { name: "Step 2 outcome" })).toHaveValue(
+    "Releases ship with notes",
+  );
   expect(screen.getByRole("textbox", { name: "Title" })).toHaveValue(
     "Plan, retitled",
   );
@@ -156,6 +167,11 @@ it("rebases keeping the current text of what the draft left as it found it", asy
     ["Alpha edited", "", null],
     ["Beta", "AB#1559 is the predecessor", null],
     ["Gamma", "", A.id],
+  ]);
+  expect(body.steps.map((s: Step) => s.outcome)).toEqual([
+    "",
+    "Releases ship with notes",
+    "",
   ]);
 });
 it("rebases leaving a step retired elsewhere retired, unless the draft changed it", async () => {
@@ -181,9 +197,7 @@ it("rebases leaving a step retired elsewhere retired, unless the draft changed i
     },
   });
   render(
-    view(
-      roadmap(4, [A, { ...B, retired: true }, { ...C, retired: true }]),
-    ),
+    view(roadmap(4, [A, { ...B, retired: true }, { ...C, retired: true }])),
   );
   await userEvent.click(
     screen.getByRole("button", { name: "Rebase onto current" }),
@@ -196,7 +210,13 @@ it("rebases leaving a step retired elsewhere retired, unless the draft changed i
   expect(body.steps.map((s: Step) => s.title)).toEqual(["Alpha", "Gamma kept"]);
 });
 it("keeps a legacy draft's own text, and says so", () => {
-  storeDraft({ title: "Plan", overview: "", steps: [A], revision: 3, baseStepIds: [A.id] });
+  storeDraft({
+    title: "Plan",
+    overview: "",
+    steps: [A],
+    revision: 3,
+    baseStepIds: [A.id],
+  });
   render(view(roadmap(4, [{ ...A, description: "From elsewhere" }])));
   expect(
     screen.getByText(/Rebase keeps your draft's version of every step/),
@@ -223,9 +243,34 @@ it("records the base revision and step ids with a new draft", async () => {
   expect(stored.base.title).toBe("Plan");
   expect(stored.base.steps[A.id]).toEqual({
     title: "Alpha",
+    outcome: "",
     description: "",
     parentId: null,
   });
+});
+it("saves each step's outcome with the structure", async () => {
+  const network = vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(async () => new Response("{}", { status: 200 }));
+  render(view(roadmap(4, [{ ...A, outcome: "Alpha's goal" }, B])));
+  expect(screen.getByRole("textbox", { name: "Step 1 outcome" })).toHaveValue(
+    "Alpha's goal",
+  );
+  await userEvent.type(
+    screen.getByRole("textbox", { name: "Step 2 outcome" }),
+    "Beta's goal",
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Add step" }));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Save new version" }),
+  );
+  await waitFor(() => expect(network).toHaveBeenCalled());
+  const body = JSON.parse(String(network.mock.calls.at(-1)?.[1]?.body));
+  expect(body.steps.map((s: Step) => [s.title, s.outcome])).toEqual([
+    ["Alpha", "Alpha's goal"],
+    ["Beta", "Beta's goal"],
+    ["New step", ""],
+  ]);
 });
 it("edits one step's text alone, with the step's own revision", async () => {
   const calls: { url: string; method: string; body: unknown }[] = [];
@@ -236,7 +281,12 @@ it("edits one step's text alone, with the step's own revision", async () => {
       new Response(JSON.stringify(data), { status: 200 });
     if (method !== "GET") {
       calls.push({ url, method, body: JSON.parse(String(init?.body)) });
-      return json({ ...B, title: "Beta, renamed", revision: 3, roadmapId: ROADMAP });
+      return json({
+        ...B,
+        title: "Beta, renamed",
+        revision: 3,
+        roadmapId: ROADMAP,
+      });
     }
     if (url.includes(`/roadmaps/${ROADMAP}`))
       return json(roadmap(4, [A, { ...B, revision: 2 }, C]));
@@ -253,6 +303,12 @@ it("edits one step's text alone, with the step's own revision", async () => {
   await userEvent.clear(title);
   await userEvent.type(title, "Beta, renamed ");
   await userEvent.type(
+    within(form).getByRole("textbox", {
+      name: "Outcome: what this step produces",
+    }),
+    "The parser handles every fixture",
+  );
+  await userEvent.type(
     within(form).getByRole("textbox", { name: "Description (Markdown)" }),
     "AB#1559",
   );
@@ -263,6 +319,7 @@ it("edits one step's text alone, with the step's own revision", async () => {
   expect(calls[0].body).toEqual({
     revision: 2,
     title: "Beta, renamed",
+    outcome: "The parser handles every fixture",
     description: "AB#1559",
   });
   // Saved, the form gives way to the step's heading: one or the other, never both.
@@ -319,8 +376,8 @@ it("shows the step's new text before replacing it, when it changed meanwhile", a
   await userEvent.click(screen.getByRole("button", { name: "Save step" }));
   await waitFor(() => expect(patches).toHaveLength(2));
   expect(patches).toEqual([
-    { revision: 2, title: "Beta", description: "Mine" },
-    { revision: 3, title: "Beta", description: "Mine" },
+    { revision: 2, title: "Beta", outcome: "", description: "Mine" },
+    { revision: 3, title: "Beta", outcome: "", description: "Mine" },
   ]);
 });
 it("offers a rebase, keeping the draft and note, when a save conflicts", async () => {

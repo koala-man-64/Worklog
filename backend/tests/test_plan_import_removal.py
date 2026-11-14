@@ -69,6 +69,9 @@ def test_the_upgrade_drops_the_imports_and_changes_no_other_record(tmp_path):
     # chat message tables, empty here.
     dropped = ("plan_imports", "tasks", "reminders", "releases", "release_contents", "release_checks", "agent_links",
                "chat_messages", "chat_message_deliveries", "chat_confirmations")
+    # v31 gives each step an outcome, empty.
+    assert after["steps"] == [(*row, "") for row in before["steps"]]
+    after["steps"] = before["steps"]
     assert after == {table: rows for table, rows in before.items() if table not in dropped}
     assert [row[0] for row in after["roadmaps"]] == [roadmap]
     assert [row[2] for row in after["events"] if row[0] == "import-event"] == ["import.reference"]
