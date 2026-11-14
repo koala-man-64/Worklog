@@ -16484,6 +16484,10 @@
             "type": "string",
             "title": "Description"
           },
+          "outcome": {
+            "type": "string",
+            "title": "Outcome"
+          },
           "parentId": {
             "anyOf": [
               {
@@ -16518,6 +16522,7 @@
           "id",
           "title",
           "description",
+          "outcome",
           "parentId",
           "position",
           "status",
@@ -18910,6 +18915,10 @@
             "type": "string",
             "title": "Description"
           },
+          "outcome": {
+            "type": "string",
+            "title": "Outcome"
+          },
           "parentId": {
             "anyOf": [
               {
@@ -18958,6 +18967,7 @@
           "id",
           "title",
           "description",
+          "outcome",
           "parentId",
           "position",
           "status",
@@ -19764,6 +19774,10 @@
             "type": "string",
             "title": "Description"
           },
+          "outcome": {
+            "type": "string",
+            "title": "Outcome"
+          },
           "parentId": {
             "anyOf": [
               {
@@ -19802,6 +19816,7 @@
           "id",
           "title",
           "description",
+          "outcome",
           "parentId",
           "position",
           "status",
@@ -20282,6 +20297,10 @@
             "type": "string",
             "title": "Description"
           },
+          "outcome": {
+            "type": "string",
+            "title": "Outcome"
+          },
           "parentId": {
             "anyOf": [
               {
@@ -20355,6 +20374,7 @@
           "id",
           "title",
           "description",
+          "outcome",
           "parentId",
           "position",
           "status",
@@ -20489,6 +20509,17 @@
               }
             ],
             "title": "Description"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
           }
         },
         "additionalProperties": false,

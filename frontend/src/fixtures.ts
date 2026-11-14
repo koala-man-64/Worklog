@@ -44,6 +44,7 @@ export const aRoadmap = (fields: Fields<Roadmap>): Roadmap => ({
 export const aStep = (fields: Fields<Step>): Step => ({
   title: "",
   description: "",
+  outcome: "",
   parentId: null,
   position: 0,
   status: "open",

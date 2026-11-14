@@ -49,6 +49,11 @@ def put(c: sqlite3.Connection, identity: str, kind: str, title: str, body: str,
     c.execute("INSERT INTO search_keys(entity_id,doc,type,owner_id) VALUES(?,?,?,?)", (identity, doc, kind, owner))
 
 
+def step_body(description: str, outcome: str) -> str:
+    """What search finds a step by besides its title: its outcome, then its description."""
+    return "\n\n".join(part for part in (outcome, description) if part)
+
+
 def integrity_problem(c: sqlite3.Connection) -> str | None:
     """FTS5's own check that the index matches its content: None, or what it found. It is written as
     an INSERT and needs a writable connection, though it writes nothing; the doctor runs it on a copy."""
@@ -105,7 +110,7 @@ def index_plans(c: sqlite3.Connection, roadmap_id: str | None = None) -> None:
     for r in c.execute("SELECT * FROM steps" + (" WHERE roadmap_id=?" if roadmap_id else ""), args).fetchall():
         keys = set(r.keys())
         parent = c.execute("SELECT archived FROM roadmaps WHERE id=?", (r["roadmap_id"],)).fetchone()
-        put(c, r["id"], "step", r["title"], r["description"], r["roadmap_id"], bool(parent[0] or (r["retired"] if "retired" in keys else False)),
+        put(c, r["id"], "step", r["title"], step_body(r["description"], r["outcome"] if "outcome" in keys else ""), r["roadmap_id"], bool(parent[0] or (r["retired"] if "retired" in keys else False)),
             replace=False)
 
 

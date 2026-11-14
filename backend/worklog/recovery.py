@@ -77,6 +77,7 @@ SEALED_SCHEMAS: dict[int, frozenset[str]] = {
     28: frozenset({"daf3bd059ebdc84494b049c1537a5e1f03436996ba73e4dac48c22a31fce6fbe"}),  # Releases dropped (R1, R6)
     29: frozenset({"5986bce1ad590259f90ecab998b88bda26365c9e6c5b231639f915e8c2480e0d"}),  # agent ties dropped (R1)
     30: frozenset({"1ba8cb90ba93dd581a1def91d656f55b1ebc986b0cf6aff3ac3146ca621629e2"}),  # chat messaging dropped (R1)
+    31: frozenset({"91d565c5e02dd26ae4d6072da69d9b67fd869533a46152f9d582feb26618036a"}),  # roadmap steps take an outcome
 }
 
 

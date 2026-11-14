@@ -54,7 +54,7 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 | Scratchpad | note UUID | the one Markdown note of a work item | proposal (`note.create` adds a section) |
 | Note on a roadmap or step | UUID | `title`, `text` | proposal (`note.*`) |
 | Roadmap | UUID | `title`, `overview`, `parentId` for nesting, immutable versions, of which compaction keeps the 20 newest | proposal (`roadmap.*`) |
-| Step | UUID, stable across versions | `title`, `description`; progress open, doing, blocked or done on leaf steps (a parent's follows its children); `retired` | proposal (`step.update` for one step's text, `progress.set`, `roadmap.revise` for the tree) |
+| Step | UUID, stable across versions | `title`, `outcome`, `description`; progress open, doing, blocked or done on leaf steps (a parent's follows its children); `retired` | proposal (`step.update` for one step's text, `progress.set`, `roadmap.revise` for the tree) |
 | Question, decision | UUID | a question is open or answered | proposal |
 | Person | UUID | `name`, `title`, `team`, `description`, contact details (`email`, `phone`, `chat`, `location`), `notes` (Markdown); tied to work items, roadmaps and repositories, each with a `relationship` (their role there) | proposal (`person.*`) |
 | Link, GitHub reference | UUID | `url`; a GitHub reference's `kind` is commit or pr | proposal |
@@ -516,7 +516,7 @@ A proposal is a JSON file with a title (up to 1,000 bytes), a rationale for the 
 | `roadmap.revise` | `id`, `revision`, `title`, `steps` | `overview`, `note` |
 | `roadmap.move` | `id`, `revision`, `parentId` | - |
 | `progress.set` | `id`, `revision`, `status` | - |
-| `step.update` | `id`, `revision` | `title`, `description` |
+| `step.update` | `id`, `revision` | `title`, `description`, `outcome` |
 | `person.create` | `name` | `id`, `title`, `team`, `description`, `email`, `phone`, `chat`, `location`, `notes` |
 | `person.update` | `id`, `revision` | `name`, `title`, `team`, `description`, `email`, `phone`, `chat`, `location`, `notes` |
 | `person.archive` | `id`, `revision` | - |
@@ -573,11 +573,12 @@ Any other field is refused. On a create, `id` is not an ID but a name for the ne
 - **New work items.** On `item.create`, `day` (`YYYY-MM-DD`) plans the item on that day, and `worked: true` records it as worked.
 - **Scratchpads.** A work item has one scratchpad. `note.create` on an item adds its text to the scratchpad as a `## title` section, or starts it.
 - **Roadmap steps.**
-  - `steps` is a list of `{id, title, description, parentId, position}`; leave out `id` for a new step. At most 5,000 steps, nested at most 100 levels.
+  - `steps` is a list of `{id, title, description, outcome, parentId, position}`; leave out `id` for a new step. At most 5,000 steps, nested at most 100 levels.
+  - A step's `outcome` is what its work produces: the result that says the step is done, in a sentence or two (at most 100,000 bytes). The person's step page shows it first, above the description, so give every step you create one, and keep it about the result, not the activity: *Releases ship with generated notes*, not *Work on release notes*.
   - Keep a step's title under about 60 characters: a short name for the step, with the detail in its description. The person's outline and status board show each title on one line, cut short, in full only on hover.
-  - To change one step's title or description, propose `step.update` with the step's own `revision`, not a revise. It writes that step alone, so other agents' changes to other steps stay current. It raises the step's revision and the roadmap's, so a revise drafted before it is refused rather than writing the old text back. It records no version. A retired step, or one on an archived roadmap, can't change (`409 conflict`). Give `title`, `description` or both: each one you leave out keeps its text.
-  - `roadmap.revise` replaces the whole step list, for adding, retiring, nesting or ordering steps. It retires each step it leaves out or marks `"retired": true`, restores each retired step it includes unmarked, and keeps exactly the descriptions it carries. Build it from `roadmap show`: its list, sent back with only your changes, keeps every other step as it is.
-  - A revise raises a step's revision only when it changes that step: its title or description, its parent, or its place among its siblings, or when it retires or restores it. Numbering the positions afresh, or adding or retiring another step, changes no other step's place. When steps under one parent take a new order, the fewest steps that account for it count as moved: of two neighbouring steps swapped, the one that now comes first.
+  - To change one step's title, description or outcome, propose `step.update` with the step's own `revision`, not a revise. It writes that step alone, so other agents' changes to other steps stay current. It raises the step's revision and the roadmap's, so a revise drafted before it is refused rather than writing the old text back. It records no version. A retired step, or one on an archived roadmap, can't change (`409 conflict`). Give any of `title`, `description` and `outcome`: each one you leave out keeps its text.
+  - `roadmap.revise` replaces the whole step list, for adding, retiring, nesting or ordering steps. It retires each step it leaves out or marks `"retired": true`, restores each retired step it includes unmarked, and keeps exactly the descriptions it carries. A step that names no `outcome` keeps the one it has, and a new one starts with none. Build it from `roadmap show`: its list, sent back with only your changes, keeps every other step as it is.
+  - A revise raises a step's revision only when it changes that step: its title, description or outcome, its parent, or its place among its siblings, or when it retires or restores it. Numbering the positions afresh, or adding or retiring another step, changes no other step's place. When steps under one parent take a new order, the fewest steps that account for it count as moved: of two neighbouring steps swapped, the one that now comes first.
   - A later `progress.set` or `step.update` in the same proposal carries the step's revision as the earlier changes leave it: one higher for each change to that step (a revise that changes it, a `progress.set`, a `step.update` that changes its text), the same otherwise. Progress changes no roadmap's revision. A revise that changes nothing, or a `step.update` that changes no text, leaves the roadmap's revision as it was, so a later roadmap change in the same proposal carries that same revision; one that changes something makes it one higher.
   - `roadmap.move` changes only the nesting; `parentId` is null for the top level.
 - **Tracked chats.**

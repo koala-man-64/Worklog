@@ -4,6 +4,7 @@
     "id": "<id1>",
     "title": "Child",
     "description": "",
+    "outcome": "",
     "parentId": "<id2>",
     "position": 1,
     "status": "open",

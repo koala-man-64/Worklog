@@ -16,6 +16,7 @@
           "id": "<id2>",
           "title": "Child",
           "description": "",
+          "outcome": "",
           "parentId": "<id3>",
           "position": 1,
           "status": "open",

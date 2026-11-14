@@ -6,12 +6,13 @@ restores.
 
 ## Upgrade
 
-For an upgrade, stop Worklog, make a manual backup with the installed version, update the checkout, run `Setup.ps1`, then start and check the application. Use the same data directory and port throughout. The first startup snapshots a supported version 1 to 29 database and upgrades it to version 30 in one transaction.
+For an upgrade, stop Worklog, make a manual backup with the installed version, update the checkout, run `Setup.ps1`, then start and check the application. Use the same data directory and port throughout. The first startup snapshots a supported version 1 to 30 database and upgrades it to version 31 in one transaction.
 
 `./scripts/Run.ps1` does the stop, backup, setup and start in one step after you update the checkout, passing the same `-DataDir` and `-Port` to each. Its backup is taken before the new version first starts, so it is the pre-upgrade backup; if the stop or backup fails, it ends before setup. It runs Setup's shared-folder check first, so a refusal leaves Worklog running.
 
 ## What each version changes
 
+- **Version 31** gives each roadmap step an outcome: what the step's work produces, the goal it is done for, shown first on the step's page. Every step starts with none, and the upgrade changes no record.
 - **Version 30** removes messaging agents from a chat. The upgrade drops the tables that held the messages you wrote into tracked chats, their deliveries to each agent's run, and the agents you confirmed in each chat, every row with them. The tracked chats, the agents registered with them and their runs stay as they are, and so does what those messages and confirmations wrote into history; no other record changes. The retry receipts of those calls age out after 14 days, as every receipt does. The pre-migration backup keeps the tables, but only the three newest pre-migration backups are kept: copy it aside if you still need a message.
 - **Version 29** removes agent ties. The upgrade drops the table that held which records each agent was tied to, every tie with it. The agents and the records they were tied to stay as they are, and so does the history each tie wrote; no other record changes. The pre-migration backup keeps the table, but only the three newest pre-migration backups are kept: copy it aside if you still need a tie.
 - **Version 28** removes Releases. The upgrade drops the tables that held releases, what each held and their checks, every row with them, their entries in search, and every discussion tag of a release. The work items, roadmaps, steps and GitHub references a release held stay as they are, and no other record changes. The pre-migration backup keeps the tables, but only the three newest pre-migration backups are kept: copy it aside if you still need a release.
@@ -38,20 +39,16 @@ For an upgrade, stop Worklog, make a manual backup with the installed version, u
 
 Keep the previous version and its manual backup until verification succeeds. To roll back, stop Worklog, switch to the previous version and run its setup, then use that version’s `restore` command with the pre-upgrade backup. Start and check Worklog again. Restoring returns the data to the time of the snapshot, creates a new data identity, and revokes the restored credentials.
 
-## The way back from version 30
+## The way back from version 31
 
-From version 30 to version 29, a way back keeps every record. The chat messages, their deliveries and the agents you confirmed in each chat, which version 30's upgrade dropped, don't come back with it; the pre-upgrade backup has them. With Worklog stopped and after a manual backup, run this on the database, then start the version 29 checkout:
+From version 31 to version 30, a way back keeps every record but the steps' outcomes, which version 30 has no place for: the pre-upgrade backup doesn't have them either, so copy aside any you still need first. With Worklog stopped and after a manual backup, run this on the database, then start the version 30 checkout:
 
 ```sql
-CREATE TABLE chat_messages(id TEXT PRIMARY KEY,chat_id TEXT NOT NULL REFERENCES agent_chats(id),text TEXT NOT NULL,author_id TEXT NOT NULL,author_label TEXT NOT NULL,created_at TEXT NOT NULL);
-CREATE INDEX chat_messages_chat ON chat_messages(chat_id,created_at,id);
-CREATE TABLE chat_message_deliveries(message_id TEXT NOT NULL REFERENCES chat_messages(id),run_id TEXT NOT NULL REFERENCES agent_runs(id),status TEXT NOT NULL CHECK(status IN('pending','delivered','expired')),expires_at TEXT NOT NULL,delivered_at TEXT,expired_at TEXT,expire_reason TEXT,PRIMARY KEY(message_id,run_id));
-CREATE INDEX chat_message_deliveries_run ON chat_message_deliveries(run_id,status);
-CREATE TABLE chat_confirmations(chat_id TEXT NOT NULL,agent_id TEXT NOT NULL REFERENCES communication_agents(id),confirmed_by TEXT NOT NULL,confirmed_by_label TEXT NOT NULL,created_at TEXT NOT NULL,PRIMARY KEY(chat_id,agent_id));
-PRAGMA user_version=29;
+ALTER TABLE steps DROP COLUMN outcome;
+PRAGMA user_version=30;
 ```
 
-Upgrading again drops the tables again, with any message sent or agent confirmed at version 29.
+Upgrading again gives every step an empty outcome.
 
 Only the latest version's way back is kept here. Each older one was given while its version was
 the latest: the history of this file in the repository has them, and before this file, the
