@@ -147,6 +147,8 @@ ROUTES: dict[str, dict[str, str | Only]] = {
     "/links/{identity}/archive": {"POST": HUMAN},
     "/links/{identity}/recover": {"POST": HUMAN},
 
+    "/live": {"GET": HUMAN},
+
     "/notes": {"POST": HUMAN},
     "/notes/{identity}": {"GET": READ, "PATCH": HUMAN},
     "/notes/{identity}/archive": {"POST": HUMAN},

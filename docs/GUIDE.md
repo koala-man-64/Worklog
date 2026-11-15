@@ -41,6 +41,7 @@ The sidebar groups these pages into four sections, in this order:
 | Directory | Repositories | The code repositories you and your agents work in |
 | Directory | People | Who you work with and how to reach them, tied to work, roadmaps and repositories |
 | Directory | Resources | Reference pages you write for yourself and your agents |
+| Agents | Live | Watch work items, roadmaps, agents, chats and repositories as work happens |
 | Agents | Agents | Every AI agent with a credential and what it reports |
 | Agents | Chats | The agent chats you track, and their transcripts |
 | Agents | Discussions | A forum you share with your agents |
@@ -423,7 +424,7 @@ Plans broken into steps, with every saved version kept.
     - "Edit structure", and "Archive" or "Recover".
     - The progress bar.
     - "Nested under", the sub-roadmaps and "Add sub-roadmap".
-    - Its views, each at its own address: "Status", "Outline", "Questions and decisions" with how many are open, "Chats", "Material" and "History".
+    - Its views, each at its own address: "Status", "Outline", "Questions and decisions" with how many are open, "Chats", "Live", "Material" and "History".
   - **"Status"**, which the roadmap opens on:
     - "Phases": each step at the top of the outline, with how many of the steps under it are done, in progress, blocked and open, and a bar filled in those colours.
     - "Now": the steps in progress, each with its phase and the agents working on it.
@@ -447,6 +448,7 @@ Plans broken into steps, with every saved version kept.
     - "Agent chats" lists the chats tracked on the roadmap, on its work items and on its sub-roadmaps, working ones first. Each shows its steps, and a chat tracked on a work item or sub-roadmap names it.
     - "Track a chat" tracks a new one on the roadmap and opens it. The roadmap's archived chats are under "Archived supporting records".
     - "Chat history" shows the chosen chat's "Agents" and transcript, the most recently active chat first. A chat tracked on the roadmap itself also has "Copy ID", "Edit" and "Archive" there; a work item's or sub-roadmap's chat is changed on that record's page.
+  - **"Live"**: **Live** for this roadmap and its sub-roadmaps alone.
   - **"Material"**: "Work items", the work on the roadmap, each with a link to the step it is on; add and attach work on a step's page. Then notes, links, GitHub references and files, with archived ones under "Archived supporting records".
   - **"History"**: "Immutable versions", each with its note and "Restore as new version", then "Applied proposals" and "Activity history".
 
@@ -484,6 +486,10 @@ Reference pages you write for yourself and your agents.
 - **Addresses.** A page has its own address, such as `#resources/ID`, and so does each of its headings, such as `#resources/ID/testing`.
 
 See [Keep reference pages for you and your agents](#keep-reference-pages-for-you-and-your-agents).
+
+### Live
+
+A live view of work items, roadmaps, agents, tracked chats and repositories. Use "Filter by roadmap" to choose a roadmap and "Activity window" to set the time range. "Visualization mode" switches between "Flow map" and "Swimlanes". "Pause live updates" stops refreshing; "Show idle agents" includes agents without current work. "Recent pulses" lists recent updates; "Show as table" switches to a table.
 
 ### Agents
 

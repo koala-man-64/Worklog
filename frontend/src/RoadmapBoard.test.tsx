@@ -346,6 +346,7 @@ it("links each view at its own address and marks the one shown", async () => {
     // Beside it, how many questions are open, which its name says in words.
     ["Questions and decisions1", `#roadmaps/${ROADMAP}/questions`],
     ["Chats", `#roadmaps/${ROADMAP}/chats`],
+    ["Live", `#roadmaps/${ROADMAP}/live`],
     ["Material", `#roadmaps/${ROADMAP}/material`],
     ["History", `#roadmaps/${ROADMAP}/history`],
   ]);

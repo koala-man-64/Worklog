@@ -40,6 +40,7 @@ import { DecisionsSection, QuestionsSection } from "./QuestionsDecisions";
 import { AgentChips, AgentRoster, rosterOn, workersOn } from "./RoadmapAgents";
 import { AppliedProposals } from "./ProposalHistory";
 import { RoadmapChats } from "./RoadmapChats";
+import { Live } from "./Live";
 import type {
   Answer,
   PlanStep,
@@ -222,6 +223,7 @@ const VIEWS = [
   { id: "outline", label: "Outline" },
   { id: "questions", label: "Questions and decisions" },
   { id: "chats", label: "Chats" },
+  { id: "live", label: "Live" },
   { id: "material", label: "Material" },
   { id: "history", label: "History" },
 ] as const;
@@ -1064,6 +1066,8 @@ export function RoadmapDetail({
         </div>
       ) : view === "chats" ? (
         <RoadmapChats road={road} chat={chat} />
+      ) : view === "live" ? (
+        <Live roadmapId={id} embedded />
       ) : (
         <div
           className="pane roadmap-view"

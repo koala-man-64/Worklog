@@ -8522,6 +8522,75 @@
         }
       }
     },
+    "/api/v1/live": {
+      "get": {
+        "summary": "Live",
+        "operationId": "live_api_v1_live_get",
+        "parameters": [
+          {
+            "name": "roadmapId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Roadmapid"
+            }
+          },
+          {
+            "name": "windowMinutes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1440,
+              "minimum": 5,
+              "default": 60,
+              "title": "Windowminutes"
+            }
+          },
+          {
+            "name": "includeIdle",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Includeidle"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveSnapshot"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/": {
       "get": {
         "summary": "Frontend",
@@ -14417,6 +14486,1272 @@
         "title": "ListedGithubReference",
         "description": "A GitHub reference as its owner lists it, with the title of the chat that made it."
       },
+      "LiveAgentChat": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "chatId": {
+            "type": "string",
+            "title": "Chatid"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "working": {
+            "type": "boolean",
+            "title": "Working"
+          },
+          "lastAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastat"
+          },
+          "href": {
+            "type": "string",
+            "title": "Href"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "chatId",
+          "title",
+          "provider",
+          "model",
+          "working",
+          "lastAt",
+          "href"
+        ],
+        "title": "LiveAgentChat"
+      },
+      "LiveAgentNode": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "working",
+              "waiting",
+              "reporting",
+              "stale",
+              "idle",
+              "revoked"
+            ],
+            "title": "State"
+          },
+          "declaredState": {
+            "type": "string",
+            "enum": [
+              "reporting",
+              "stale",
+              "none",
+              "revoked"
+            ],
+            "title": "Declaredstate"
+          },
+          "sessionState": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "working",
+                  "waiting",
+                  "idle"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sessionstate"
+          },
+          "providers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Providers"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "registeredById": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registeredbyid"
+          },
+          "registeredByLabel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registeredbylabel"
+          },
+          "openRuns": {
+            "type": "integer",
+            "title": "Openruns"
+          },
+          "openParticipations": {
+            "type": "integer",
+            "title": "Openparticipations"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Roles"
+          },
+          "chats": {
+            "items": {
+              "$ref": "#/components/schemas/LiveAgentChat"
+            },
+            "type": "array",
+            "title": "Chats"
+          },
+          "lastAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastat"
+          },
+          "latestNote": {
+            "type": "string",
+            "title": "Latestnote"
+          },
+          "href": {
+            "type": "string",
+            "title": "Href"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "avatar",
+          "active",
+          "state",
+          "declaredState",
+          "sessionState",
+          "providers",
+          "model",
+          "registeredById",
+          "registeredByLabel",
+          "openRuns",
+          "openParticipations",
+          "roles",
+          "chats",
+          "lastAt",
+          "latestNote",
+          "href"
+        ],
+        "title": "LiveAgentNode"
+      },
+      "LiveCommEdge": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "fromKind": {
+            "type": "string",
+            "enum": [
+              "agent",
+              "person"
+            ],
+            "title": "Fromkind"
+          },
+          "fromId": {
+            "type": "string",
+            "title": "Fromid"
+          },
+          "fromLabel": {
+            "type": "string",
+            "title": "Fromlabel"
+          },
+          "toKind": {
+            "type": "string",
+            "enum": [
+              "agent",
+              "person"
+            ],
+            "title": "Tokind"
+          },
+          "toId": {
+            "type": "string",
+            "title": "Toid"
+          },
+          "toLabel": {
+            "type": "string",
+            "title": "Tolabel"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "ack_request",
+              "role_offer",
+              "shared_thread",
+              "sponsorship"
+            ],
+            "title": "Kind"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "satisfied",
+              "active"
+            ],
+            "title": "Status"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "discussionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discussionid"
+          },
+          "messageId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Messageid"
+          },
+          "lastAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastat"
+          },
+          "href": {
+            "type": "string",
+            "title": "Href"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "fromKind",
+          "fromId",
+          "fromLabel",
+          "toKind",
+          "toId",
+          "toLabel",
+          "kind",
+          "status",
+          "label",
+          "discussionId",
+          "messageId",
+          "lastAt",
+          "href"
+        ],
+        "title": "LiveCommEdge"
+      },
+      "LivePulse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "update",
+              "blocker",
+              "message",
+              "ack_requested",
+              "ack_satisfied",
+              "role_handoff",
+              "proposal_submitted",
+              "proposal_approved",
+              "participation_started",
+              "run_started"
+            ],
+            "title": "Kind"
+          },
+          "at": {
+            "type": "string",
+            "title": "At"
+          },
+          "actorKind": {
+            "type": "string",
+            "enum": [
+              "agent",
+              "person"
+            ],
+            "title": "Actorkind"
+          },
+          "actorId": {
+            "type": "string",
+            "title": "Actorid"
+          },
+          "actorLabel": {
+            "type": "string",
+            "title": "Actorlabel"
+          },
+          "targetActorId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Targetactorid"
+          },
+          "targetActorLabel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Targetactorlabel"
+          },
+          "workId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workid"
+          },
+          "workTitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worktitle"
+          },
+          "repositoryId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repositoryid"
+          },
+          "repositoryName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repositoryname"
+          },
+          "discussionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discussionid"
+          },
+          "proposalId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposalid"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "href": {
+            "type": "string",
+            "title": "Href"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "at",
+          "actorKind",
+          "actorId",
+          "actorLabel",
+          "targetActorId",
+          "targetActorLabel",
+          "workId",
+          "workTitle",
+          "repositoryId",
+          "repositoryName",
+          "discussionId",
+          "proposalId",
+          "summary",
+          "href"
+        ],
+        "title": "LivePulse"
+      },
+      "LiveRepoEdge": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "agentId": {
+            "type": "string",
+            "title": "Agentid"
+          },
+          "repositoryId": {
+            "type": "string",
+            "title": "Repositoryid"
+          },
+          "via": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "participation",
+                "chat",
+                "update"
+              ]
+            },
+            "type": "array",
+            "title": "Via"
+          },
+          "branch": {
+            "type": "string",
+            "title": "Branch"
+          },
+          "worktreePath": {
+            "type": "string",
+            "title": "Worktreepath"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale"
+          },
+          "lastAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "agentId",
+          "repositoryId",
+          "via",
+          "branch",
+          "worktreePath",
+          "active",
+          "stale",
+          "lastAt"
+        ],
+        "title": "LiveRepoEdge"
+      },
+      "LiveRepoNode": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "unreviewed": {
+            "type": "boolean",
+            "title": "Unreviewed"
+          },
+          "discussionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discussionid"
+          },
+          "branches": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Branches"
+          },
+          "agentCount": {
+            "type": "integer",
+            "title": "Agentcount"
+          },
+          "overlapCount": {
+            "type": "integer",
+            "title": "Overlapcount"
+          },
+          "lastAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastat"
+          },
+          "href": {
+            "type": "string",
+            "title": "Href"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "url",
+          "unreviewed",
+          "discussionId",
+          "branches",
+          "agentCount",
+          "overlapCount",
+          "lastAt",
+          "href"
+        ],
+        "title": "LiveRepoNode"
+      },
+      "LiveRoadmapOption": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "parentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parentid"
+          },
+          "openQuestions": {
+            "type": "integer",
+            "title": "Openquestions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "parentId",
+          "openQuestions"
+        ],
+        "title": "LiveRoadmapOption"
+      },
+      "LiveSnapshot": {
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "title": "Generatedat"
+          },
+          "windowMinutes": {
+            "type": "integer",
+            "title": "Windowminutes"
+          },
+          "roadmapId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roadmapid"
+          },
+          "roadmapTitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roadmaptitle"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/LiveSummary"
+          },
+          "roadmaps": {
+            "items": {
+              "$ref": "#/components/schemas/LiveRoadmapOption"
+            },
+            "type": "array",
+            "title": "Roadmaps"
+          },
+          "work": {
+            "items": {
+              "$ref": "#/components/schemas/LiveWorkNode"
+            },
+            "type": "array",
+            "title": "Work"
+          },
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/LiveAgentNode"
+            },
+            "type": "array",
+            "title": "Agents"
+          },
+          "untrackedSessions": {
+            "items": {
+              "$ref": "#/components/schemas/LiveUntrackedSession"
+            },
+            "type": "array",
+            "title": "Untrackedsessions"
+          },
+          "repositories": {
+            "items": {
+              "$ref": "#/components/schemas/LiveRepoNode"
+            },
+            "type": "array",
+            "title": "Repositories"
+          },
+          "workEdges": {
+            "items": {
+              "$ref": "#/components/schemas/LiveWorkEdge"
+            },
+            "type": "array",
+            "title": "Workedges"
+          },
+          "repoEdges": {
+            "items": {
+              "$ref": "#/components/schemas/LiveRepoEdge"
+            },
+            "type": "array",
+            "title": "Repoedges"
+          },
+          "commEdges": {
+            "items": {
+              "$ref": "#/components/schemas/LiveCommEdge"
+            },
+            "type": "array",
+            "title": "Commedges"
+          },
+          "lanes": {
+            "items": {
+              "$ref": "#/components/schemas/LiveSwimlaneSpan"
+            },
+            "type": "array",
+            "title": "Lanes"
+          },
+          "pulses": {
+            "items": {
+              "$ref": "#/components/schemas/LivePulse"
+            },
+            "type": "array",
+            "title": "Pulses"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "generatedAt",
+          "windowMinutes",
+          "roadmapId",
+          "roadmapTitle",
+          "summary",
+          "roadmaps",
+          "work",
+          "agents",
+          "untrackedSessions",
+          "repositories",
+          "workEdges",
+          "repoEdges",
+          "commEdges",
+          "lanes",
+          "pulses"
+        ],
+        "title": "LiveSnapshot",
+        "description": "Everything in motion now across plans, agents, chats, discussions and repositories."
+      },
+      "LiveSummary": {
+        "properties": {
+          "activeAgents": {
+            "type": "integer",
+            "title": "Activeagents"
+          },
+          "workingChats": {
+            "type": "integer",
+            "title": "Workingchats"
+          },
+          "activeWorkItems": {
+            "type": "integer",
+            "title": "Activeworkitems"
+          },
+          "activeSteps": {
+            "type": "integer",
+            "title": "Activesteps"
+          },
+          "activeRepos": {
+            "type": "integer",
+            "title": "Activerepos"
+          },
+          "repoOverlaps": {
+            "type": "integer",
+            "title": "Repooverlaps"
+          },
+          "pendingRequests": {
+            "type": "integer",
+            "title": "Pendingrequests"
+          },
+          "waitingProposals": {
+            "type": "integer",
+            "title": "Waitingproposals"
+          },
+          "openQuestions": {
+            "type": "integer",
+            "title": "Openquestions"
+          },
+          "needsYou": {
+            "type": "integer",
+            "title": "Needsyou"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "activeAgents",
+          "workingChats",
+          "activeWorkItems",
+          "activeSteps",
+          "activeRepos",
+          "repoOverlaps",
+          "pendingRequests",
+          "waitingProposals",
+          "openQuestions",
+          "needsYou"
+        ],
+        "title": "LiveSummary"
+      },
+      "LiveSwimlaneSpan": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "agentId": {
+            "type": "string",
+            "title": "Agentid"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "workId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workid"
+          },
+          "workKind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "roadmap",
+                  "step",
+                  "item"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workkind"
+          },
+          "repositoryId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repositoryid"
+          },
+          "repositoryName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repositoryname"
+          },
+          "branch": {
+            "type": "string",
+            "title": "Branch"
+          },
+          "startedAt": {
+            "type": "string",
+            "title": "Startedat"
+          },
+          "endedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endedat"
+          },
+          "lastSeenAt": {
+            "type": "string",
+            "title": "Lastseenat"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale"
+          },
+          "href": {
+            "type": "string",
+            "title": "Href"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "agentId",
+          "label",
+          "workId",
+          "workKind",
+          "repositoryId",
+          "repositoryName",
+          "branch",
+          "startedAt",
+          "endedAt",
+          "lastSeenAt",
+          "stale",
+          "href"
+        ],
+        "title": "LiveSwimlaneSpan"
+      },
+      "LiveUntrackedSession": {
+        "properties": {
+          "pid": {
+            "type": "integer",
+            "title": "Pid"
+          },
+          "sessionId": {
+            "type": "string",
+            "title": "Sessionid"
+          },
+          "hostSessionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hostsessionid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "working",
+              "waiting",
+              "idle"
+            ],
+            "title": "State"
+          },
+          "entrypoint": {
+            "type": "string",
+            "title": "Entrypoint"
+          },
+          "cwd": {
+            "type": "string",
+            "title": "Cwd"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "startedAt": {
+            "type": "string",
+            "title": "Startedat"
+          },
+          "agentIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Agentids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "pid",
+          "sessionId",
+          "hostSessionId",
+          "name",
+          "state",
+          "entrypoint",
+          "cwd",
+          "model",
+          "startedAt",
+          "agentIds"
+        ],
+        "title": "LiveUntrackedSession"
+      },
+      "LiveWorkEdge": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "agentId": {
+            "type": "string",
+            "title": "Agentid"
+          },
+          "workId": {
+            "type": "string",
+            "title": "Workid"
+          },
+          "workKind": {
+            "type": "string",
+            "enum": [
+              "roadmap",
+              "step",
+              "item"
+            ],
+            "title": "Workkind"
+          },
+          "via": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "participation",
+                "role",
+                "chat",
+                "proposal",
+                "discussion"
+              ]
+            },
+            "type": "array",
+            "title": "Via"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale"
+          },
+          "lastAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "agentId",
+          "workId",
+          "workKind",
+          "via",
+          "active",
+          "stale",
+          "lastAt"
+        ],
+        "title": "LiveWorkEdge"
+      },
+      "LiveWorkNode": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "roadmap",
+              "step",
+              "item"
+            ],
+            "title": "Kind"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "doing",
+              "waiting",
+              "blocked",
+              "done"
+            ],
+            "title": "Status"
+          },
+          "roadmapId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roadmapid"
+          },
+          "roadmapTitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roadmaptitle"
+          },
+          "parentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parentid"
+          },
+          "stepTitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Steptitle"
+          },
+          "rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank"
+          },
+          "openQuestions": {
+            "type": "integer",
+            "title": "Openquestions"
+          },
+          "waitingProposals": {
+            "type": "integer",
+            "title": "Waitingproposals"
+          },
+          "waitingProposalIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Waitingproposalids"
+          },
+          "agentCount": {
+            "type": "integer",
+            "title": "Agentcount"
+          },
+          "needsYou": {
+            "type": "boolean",
+            "title": "Needsyou"
+          },
+          "href": {
+            "type": "string",
+            "title": "Href"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "status",
+          "roadmapId",
+          "roadmapTitle",
+          "parentId",
+          "stepTitle",
+          "rank",
+          "openQuestions",
+          "waitingProposals",
+          "waitingProposalIds",
+          "agentCount",
+          "needsYou",
+          "href"
+        ],
+        "title": "LiveWorkNode"
+      },
       "MessageActivity": {
         "properties": {
           "kind": {
@@ -15347,6 +16682,7 @@
               "repositories",
               "people",
               "resources",
+              "live",
               "agents",
               "chats",
               "discussions",

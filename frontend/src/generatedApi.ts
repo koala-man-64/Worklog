@@ -2467,6 +2467,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/live": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Live */
+        get: operations["live_api_v1_live_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/": {
         parameters: {
             query?: never;
@@ -4491,6 +4508,383 @@ export interface components {
             /** Chattitle */
             chatTitle: string | null;
         };
+        /** LiveAgentChat */
+        LiveAgentChat: {
+            /** Id */
+            id: string;
+            /** Chatid */
+            chatId: string;
+            /** Title */
+            title: string;
+            /** Provider */
+            provider: string;
+            /** Model */
+            model: string;
+            /** Working */
+            working: boolean;
+            /** Lastat */
+            lastAt: string | null;
+            /** Href */
+            href: string;
+        };
+        /** LiveAgentNode */
+        LiveAgentNode: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Avatar */
+            avatar: string | null;
+            /** Active */
+            active: boolean;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "working" | "waiting" | "reporting" | "stale" | "idle" | "revoked";
+            /**
+             * Declaredstate
+             * @enum {string}
+             */
+            declaredState: "reporting" | "stale" | "none" | "revoked";
+            /** Sessionstate */
+            sessionState: ("working" | "waiting" | "idle") | null;
+            /** Providers */
+            providers: string[];
+            /** Model */
+            model: string;
+            /** Registeredbyid */
+            registeredById: string | null;
+            /** Registeredbylabel */
+            registeredByLabel: string | null;
+            /** Openruns */
+            openRuns: number;
+            /** Openparticipations */
+            openParticipations: number;
+            /** Roles */
+            roles: string[];
+            /** Chats */
+            chats: components["schemas"]["LiveAgentChat"][];
+            /** Lastat */
+            lastAt: string | null;
+            /** Latestnote */
+            latestNote: string;
+            /** Href */
+            href: string;
+        };
+        /** LiveCommEdge */
+        LiveCommEdge: {
+            /** Id */
+            id: string;
+            /**
+             * Fromkind
+             * @enum {string}
+             */
+            fromKind: "agent" | "person";
+            /** Fromid */
+            fromId: string;
+            /** Fromlabel */
+            fromLabel: string;
+            /**
+             * Tokind
+             * @enum {string}
+             */
+            toKind: "agent" | "person";
+            /** Toid */
+            toId: string;
+            /** Tolabel */
+            toLabel: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "ack_request" | "role_offer" | "shared_thread" | "sponsorship";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "satisfied" | "active";
+            /** Label */
+            label: string;
+            /** Discussionid */
+            discussionId: string | null;
+            /** Messageid */
+            messageId: string | null;
+            /** Lastat */
+            lastAt: string | null;
+            /** Href */
+            href: string;
+        };
+        /** LivePulse */
+        LivePulse: {
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "update" | "blocker" | "message" | "ack_requested" | "ack_satisfied" | "role_handoff" | "proposal_submitted" | "proposal_approved" | "participation_started" | "run_started";
+            /** At */
+            at: string;
+            /**
+             * Actorkind
+             * @enum {string}
+             */
+            actorKind: "agent" | "person";
+            /** Actorid */
+            actorId: string;
+            /** Actorlabel */
+            actorLabel: string;
+            /** Targetactorid */
+            targetActorId: string | null;
+            /** Targetactorlabel */
+            targetActorLabel: string | null;
+            /** Workid */
+            workId: string | null;
+            /** Worktitle */
+            workTitle: string | null;
+            /** Repositoryid */
+            repositoryId: string | null;
+            /** Repositoryname */
+            repositoryName: string | null;
+            /** Discussionid */
+            discussionId: string | null;
+            /** Proposalid */
+            proposalId: string | null;
+            /** Summary */
+            summary: string;
+            /** Href */
+            href: string;
+        };
+        /** LiveRepoEdge */
+        LiveRepoEdge: {
+            /** Id */
+            id: string;
+            /** Agentid */
+            agentId: string;
+            /** Repositoryid */
+            repositoryId: string;
+            /** Via */
+            via: ("participation" | "chat" | "update")[];
+            /** Branch */
+            branch: string;
+            /** Worktreepath */
+            worktreePath: string;
+            /** Active */
+            active: boolean;
+            /** Stale */
+            stale: boolean;
+            /** Lastat */
+            lastAt: string | null;
+        };
+        /** LiveRepoNode */
+        LiveRepoNode: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Url */
+            url: string | null;
+            /** Unreviewed */
+            unreviewed: boolean;
+            /** Discussionid */
+            discussionId: string | null;
+            /** Branches */
+            branches: string[];
+            /** Agentcount */
+            agentCount: number;
+            /** Overlapcount */
+            overlapCount: number;
+            /** Lastat */
+            lastAt: string | null;
+            /** Href */
+            href: string;
+        };
+        /** LiveRoadmapOption */
+        LiveRoadmapOption: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Parentid */
+            parentId: string | null;
+            /** Openquestions */
+            openQuestions: number;
+        };
+        /**
+         * LiveSnapshot
+         * @description Everything in motion now across plans, agents, chats, discussions and repositories.
+         */
+        LiveSnapshot: {
+            /** Generatedat */
+            generatedAt: string;
+            /** Windowminutes */
+            windowMinutes: number;
+            /** Roadmapid */
+            roadmapId: string | null;
+            /** Roadmaptitle */
+            roadmapTitle: string | null;
+            summary: components["schemas"]["LiveSummary"];
+            /** Roadmaps */
+            roadmaps: components["schemas"]["LiveRoadmapOption"][];
+            /** Work */
+            work: components["schemas"]["LiveWorkNode"][];
+            /** Agents */
+            agents: components["schemas"]["LiveAgentNode"][];
+            /** Untrackedsessions */
+            untrackedSessions: components["schemas"]["LiveUntrackedSession"][];
+            /** Repositories */
+            repositories: components["schemas"]["LiveRepoNode"][];
+            /** Workedges */
+            workEdges: components["schemas"]["LiveWorkEdge"][];
+            /** Repoedges */
+            repoEdges: components["schemas"]["LiveRepoEdge"][];
+            /** Commedges */
+            commEdges: components["schemas"]["LiveCommEdge"][];
+            /** Lanes */
+            lanes: components["schemas"]["LiveSwimlaneSpan"][];
+            /** Pulses */
+            pulses: components["schemas"]["LivePulse"][];
+        };
+        /** LiveSummary */
+        LiveSummary: {
+            /** Activeagents */
+            activeAgents: number;
+            /** Workingchats */
+            workingChats: number;
+            /** Activeworkitems */
+            activeWorkItems: number;
+            /** Activesteps */
+            activeSteps: number;
+            /** Activerepos */
+            activeRepos: number;
+            /** Repooverlaps */
+            repoOverlaps: number;
+            /** Pendingrequests */
+            pendingRequests: number;
+            /** Waitingproposals */
+            waitingProposals: number;
+            /** Openquestions */
+            openQuestions: number;
+            /** Needsyou */
+            needsYou: number;
+        };
+        /** LiveSwimlaneSpan */
+        LiveSwimlaneSpan: {
+            /** Id */
+            id: string;
+            /** Agentid */
+            agentId: string;
+            /** Label */
+            label: string;
+            /** Workid */
+            workId: string | null;
+            /** Workkind */
+            workKind: ("roadmap" | "step" | "item") | null;
+            /** Repositoryid */
+            repositoryId: string | null;
+            /** Repositoryname */
+            repositoryName: string | null;
+            /** Branch */
+            branch: string;
+            /** Startedat */
+            startedAt: string;
+            /** Endedat */
+            endedAt: string | null;
+            /** Lastseenat */
+            lastSeenAt: string;
+            /** Stale */
+            stale: boolean;
+            /** Href */
+            href: string;
+        };
+        /** LiveUntrackedSession */
+        LiveUntrackedSession: {
+            /** Pid */
+            pid: number;
+            /** Sessionid */
+            sessionId: string;
+            /** Hostsessionid */
+            hostSessionId: string | null;
+            /** Name */
+            name: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "working" | "waiting" | "idle";
+            /** Entrypoint */
+            entrypoint: string;
+            /** Cwd */
+            cwd: string;
+            /** Model */
+            model: string;
+            /** Startedat */
+            startedAt: string;
+            /** Agentids */
+            agentIds: string[];
+        };
+        /** LiveWorkEdge */
+        LiveWorkEdge: {
+            /** Id */
+            id: string;
+            /** Agentid */
+            agentId: string;
+            /** Workid */
+            workId: string;
+            /**
+             * Workkind
+             * @enum {string}
+             */
+            workKind: "roadmap" | "step" | "item";
+            /** Via */
+            via: ("participation" | "role" | "chat" | "proposal" | "discussion")[];
+            /** Active */
+            active: boolean;
+            /** Stale */
+            stale: boolean;
+            /** Lastat */
+            lastAt: string | null;
+        };
+        /** LiveWorkNode */
+        LiveWorkNode: {
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "roadmap" | "step" | "item";
+            /** Title */
+            title: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "doing" | "waiting" | "blocked" | "done";
+            /** Roadmapid */
+            roadmapId: string | null;
+            /** Roadmaptitle */
+            roadmapTitle: string | null;
+            /** Parentid */
+            parentId: string | null;
+            /** Steptitle */
+            stepTitle: string | null;
+            /** Rank */
+            rank: number | null;
+            /** Openquestions */
+            openQuestions: number;
+            /** Waitingproposals */
+            waitingProposals: number;
+            /** Waitingproposalids */
+            waitingProposalIds: string[];
+            /** Agentcount */
+            agentCount: number;
+            /** Needsyou */
+            needsYou: boolean;
+            /** Href */
+            href: string;
+        };
         /**
          * MessageActivity
          * @description A discussion message the agent posted.
@@ -4814,7 +5208,7 @@ export interface components {
              * Page
              * @enum {string}
              */
-            page: "today" | "work" | "tickets" | "roadmaps" | "repositories" | "people" | "resources" | "agents" | "chats" | "discussions" | "review" | "settings" | "usage" | "guide" | "agent-guide";
+            page: "today" | "work" | "tickets" | "roadmaps" | "repositories" | "people" | "resources" | "live" | "agents" | "chats" | "discussions" | "review" | "settings" | "usage" | "guide" | "agent-guide";
         };
         /**
          * Participant
@@ -13285,6 +13679,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RoadmapAgents"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    live_api_v1_live_get: {
+        parameters: {
+            query?: {
+                roadmapId?: string | null;
+                windowMinutes?: number;
+                includeIdle?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiveSnapshot"];
                 };
             };
             /** @description Validation Error */

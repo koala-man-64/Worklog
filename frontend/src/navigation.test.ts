@@ -16,6 +16,7 @@ it("groups every page once, in K7's sections and sidebar order", () => {
     "repositories",
     "people",
     "resources",
+    "live",
     "agents",
     "chats",
     "discussions",

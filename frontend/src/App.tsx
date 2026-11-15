@@ -21,6 +21,7 @@ import { Tickets } from "./Tickets";
 import { People } from "./People";
 import { Resources } from "./Resources";
 import { Agents } from "./Agents";
+import { Live } from "./Live";
 import { Chats } from "./Chats";
 import { Discussions } from "./Discussions";
 import { Review } from "./Review";
@@ -243,6 +244,8 @@ export default function App() {
             <Resources selected={id} section={sub} />
           ) : page === "agents" ? (
             <Agents key={id ?? "list"} selected={id} />
+          ) : page === "live" ? (
+            <Live />
           ) : page === "chats" ? (
             <Chats selected={id} />
           ) : page === "discussions" ? (
