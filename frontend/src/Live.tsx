@@ -45,6 +45,17 @@ const SESSION: Record<NonNullable<LiveAgentNode["sessionState"]>, string> = {
   waiting: "waiting",
   idle: "idle",
 };
+const CLAUDE = /claude|anthropic/i;
+
+// Worklog finds only the Claude sessions running on this machine. For an agent of another
+// provider, no session found says nothing about whether it runs.
+function sessionText(agent: LiveAgentNode) {
+  if (agent.sessionState) return SESSION[agent.sessionState];
+  const providers = [...agent.providers, ...agent.chats.map((chat) => chat.provider)].filter(Boolean);
+  return providers.length > 0 && !providers.some((provider) => CLAUDE.test(provider))
+    ? "not observable"
+    : "no local session";
+}
 
 function activate(event: KeyboardEvent, action: () => void) {
   if (event.target !== event.currentTarget) return;
@@ -241,7 +252,7 @@ export function Live({
             checked={includeIdle}
             onChange={(event) => setIncludeIdle(event.target.checked)}
           />
-          Show idle agents
+          Show idle, stale and revoked agents
         </label>
       </div>
 
@@ -256,7 +267,7 @@ export function Live({
           snapshot.untrackedSessions.length === 0 ? (
             <Empty>
               <strong>Nothing is active in this window.</strong>
-              <span> Widen the Activity window or tick Show idle agents.</span>
+              <span> Widen the Activity window or tick Show idle, stale and revoked agents.</span>
             </Empty>
           ) : (
             <>
@@ -289,6 +300,7 @@ function Summary({ snapshot }: { snapshot: LiveSnapshot }) {
     ["Repositories", snapshot.summary.activeRepos],
     ["Overlaps", snapshot.summary.repoOverlaps],
     ["Needs you", snapshot.summary.needsYou],
+    ["Waiting on agents", snapshot.summary.waitingOnAgents],
   ];
   return (
     <dl className="live-summary">
@@ -436,7 +448,8 @@ function FlowMap({
           const toKind = edge.toKind === "person" ? "person" : "agent";
           const from = anchor(fromKind, edge.fromId, index % 2 ? "left" : "right");
           const to = anchor(toKind, edge.toId, index % 2 ? "left" : "right");
-          const bow = 34 + index * 9;
+          // Nine depths, then over again: a bow that grew with every line would leave the canvas.
+          const bow = 34 + (index % 9) * 9;
           const direction = index % 2 ? -1 : 1;
           const d = `M ${from.x.toFixed(1)} ${from.y.toFixed(1)} Q ${(from.x + direction * bow).toFixed(1)} ${((from.y + to.y) / 2).toFixed(1)} ${to.x.toFixed(1)} ${to.y.toFixed(1)}`;
           return (
@@ -506,7 +519,7 @@ function FlowMap({
               <p className="live-provenance">
                 Declared: <strong>{DECLARED[agent.declaredState]}</strong>
                 <span aria-hidden="true"> / </span>
-                Session: <strong>{agent.sessionState ? SESSION[agent.sessionState] : "no local session"}</strong>
+                Session: <strong>{sessionText(agent)}</strong>
               </p>
               {agent.roles.length > 0 && <div className="live-chips">{agent.roles.map((role) => <span key={role}>{role}</span>)}</div>}
               {agent.chats.length > 0 && <div className="live-chat-links">{agent.chats.map((chat) => <a key={chat.id} href={chat.href} onClick={(event) => event.stopPropagation()}>{chat.title}</a>)}</div>}

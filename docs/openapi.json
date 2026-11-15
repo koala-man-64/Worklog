@@ -15330,6 +15330,10 @@
             "type": "integer",
             "title": "Pendingrequests"
           },
+          "waitingOnAgents": {
+            "type": "integer",
+            "title": "Waitingonagents"
+          },
           "waitingProposals": {
             "type": "integer",
             "title": "Waitingproposals"
@@ -15353,6 +15357,7 @@
           "activeRepos",
           "repoOverlaps",
           "pendingRequests",
+          "waitingOnAgents",
           "waitingProposals",
           "openQuestions",
           "needsYou"
@@ -15522,13 +15527,6 @@
           "startedAt": {
             "type": "string",
             "title": "Startedat"
-          },
-          "agentIds": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Agentids"
           }
         },
         "additionalProperties": false,
@@ -15542,8 +15540,7 @@
           "entrypoint",
           "cwd",
           "model",
-          "startedAt",
-          "agentIds"
+          "startedAt"
         ],
         "title": "LiveUntrackedSession"
       },
