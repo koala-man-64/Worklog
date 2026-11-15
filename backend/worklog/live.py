@@ -377,17 +377,19 @@ class LiveService:
         ]
         roles_by_id = {role["id"]: role for role in roles}
 
-        included_discussions: set[str] = (
-            {did for did, discussion in discussions.items() if not discussion["archived"]}
-            if scoped is None
-            else set()
-        )
-        for did, held in discussion_contexts.items():
-            if scoped is not None and any(
-                kind in {"item", "roadmap", "step"} and in_scope(kind, identity)
-                for kind, identity in held
-            ):
-                included_discussions.add(did)
+        # An archived discussion counts nowhere, so a chosen roadmap can only narrow what is counted.
+        included_discussions: set[str] = {
+            did
+            for did, discussion in discussions.items()
+            if not discussion["archived"]
+            and (
+                scoped is None
+                or any(
+                    kind in {"item", "roadmap", "step"} and in_scope(kind, identity)
+                    for kind, identity in discussion_contexts.get(did, [])
+                )
+            )
+        }
 
         # What waits, and on whom. A request waits on the person only where one of its targets is
         # the person; where it names an agent or a role it waits on that agent, whoever asked. Each
@@ -577,12 +579,13 @@ class LiveService:
             sponsors.setdefault(row["agent_id"], (row["registered_by"], row["registered_by_label"]))
 
         # The agents tied to the work gathered above. With a roadmap chosen that is the work in it,
-        # and only these agents can show.
+        # and only these agents can show: the ones whose tie may still hold, or, when every agent
+        # is asked for, any that was ever tied to it, by participation it has since released too.
         scope_tied = {
             agent_id
             for (agent_id, identity), edge in work_reasons.items()
             if identity in included_work_ids
-            and (edge["active"] or edge["chats"] or recent(edge["lastAt"]))
+            and (include_idle or edge["active"] or edge["chats"] or recent(edge["lastAt"]))
         }
 
         agent_nodes: list[dict] = []
@@ -1792,7 +1795,10 @@ class LiveService:
             or option["id"] in {work["roadmapId"] for work in draft["work"]}
         )
         draft["summary"] = {
-            "activeAgents": int(sum(agent["state"] not in {"idle", "revoked"} for agent in chosen)),
+            # A report nobody has renewed is not an agent at work.
+            "activeAgents": int(
+                sum(agent["state"] in {"working", "waiting", "reporting"} for agent in chosen)
+            ),
             "workingChats": int(
                 len({chat["id"] for agent in chosen for chat in agent["chats"] if chat["working"]})
             ),
