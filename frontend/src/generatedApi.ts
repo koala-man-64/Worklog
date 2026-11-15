@@ -4762,6 +4762,8 @@ export interface components {
             repoOverlaps: number;
             /** Pendingrequests */
             pendingRequests: number;
+            /** Waitingonagents */
+            waitingOnAgents: number;
             /** Waitingproposals */
             waitingProposals: number;
             /** Openquestions */
@@ -4821,8 +4823,6 @@ export interface components {
             model: string;
             /** Startedat */
             startedAt: string;
-            /** Agentids */
-            agentIds: string[];
         };
         /** LiveWorkEdge */
         LiveWorkEdge: {

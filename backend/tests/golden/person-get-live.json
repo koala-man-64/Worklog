@@ -12,10 +12,11 @@
       "activeSteps": 0,
       "activeRepos": 1,
       "repoOverlaps": 0,
-      "pendingRequests": 1,
+      "pendingRequests": 0,
+      "waitingOnAgents": 1,
       "waitingProposals": 0,
       "openQuestions": 2,
-      "needsYou": 3
+      "needsYou": 2
     },
     "roadmaps": [
       {

@@ -2203,6 +2203,7 @@ class LiveSummary(Answer):
     activeRepos: int
     repoOverlaps: int
     pendingRequests: int
+    waitingOnAgents: int
     waitingProposals: int
     openQuestions: int
     needsYou: int
@@ -2268,7 +2269,6 @@ class LiveUntrackedSession(Answer):
     cwd: str
     model: str
     startedAt: str
-    agentIds: list[str]
 
 
 class LiveRepoNode(Answer):

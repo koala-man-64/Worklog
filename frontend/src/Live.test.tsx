@@ -20,9 +20,10 @@ const snapshot: LiveSnapshot = {
     activeRepos: 1,
     repoOverlaps: 1,
     pendingRequests: 1,
+    waitingOnAgents: 3,
     waitingProposals: 1,
     openQuestions: 2,
-    needsYou: 1,
+    needsYou: 4,
   },
   roadmaps: [{ id: "road-1", title: "Ship Worklog", parentId: null, openQuestions: 2 }],
   work: [
@@ -125,7 +126,6 @@ const snapshot: LiveSnapshot = {
       cwd: "C:/Worklog",
       model: "opus",
       startedAt: "2026-11-14T11:30:00Z",
-      agentIds: [],
     },
   ],
   repositories: [
@@ -365,7 +365,7 @@ describe("Live", () => {
       5_000,
       { keepPrevious: true },
     );
-    await user.click(screen.getByRole("checkbox", { name: "Show idle agents" }));
+    await user.click(screen.getByRole("checkbox", { name: "Show idle, stale and revoked agents" }));
     expect(mocks.useData.mock.calls.at(-1)?.[0]).toContain("includeIdle=true");
     await user.click(screen.getByRole("button", { name: "Pause live updates" }));
     expect(mocks.useData.mock.calls.at(-1)?.[1]).toBeUndefined();
@@ -391,5 +391,59 @@ describe("Live", () => {
     expect(within(detail).getByRole("columnheader", { name: "Connection" })).toBeInTheDocument();
     expect(within(detail).getByRole("heading", { name: "Recent pulses" })).toBeInTheDocument();
     expect(within(detail).getAllByRole("link", { name: "Open record" })).toHaveLength(2);
+  });
+
+  it("keeps what waits on the person apart from what waits on agents", () => {
+    const { container } = render(<Live />);
+    const tiles = Object.fromEntries(
+      [...container.querySelectorAll(".live-summary > div")].map((tile) => [
+        tile.querySelector("dt")?.textContent,
+        tile.querySelector("dd")?.textContent,
+      ]),
+    );
+    expect(tiles["Needs you"]).toBe("4");
+    expect(tiles["Waiting on agents"]).toBe("3");
+  });
+
+  it("says a session is not observable only for an agent Worklog cannot find sessions for", () => {
+    mocks.useData.mockReturnValue({
+      data: {
+        ...snapshot,
+        agents: [
+          { ...snapshot.agents[0], sessionState: null, state: "reporting" },
+          { ...snapshot.agents[1], sessionState: null, state: "idle" },
+          { ...snapshot.agents[1], id: "agent-3", label: "Unknown", providers: [], sessionState: null, state: "idle" },
+        ],
+      },
+      error: null,
+      isPending: false,
+    });
+    const { container } = render(<Live />);
+    const session = (id: string) =>
+      container.querySelector(`[data-node-key="agent:${id}"] .live-provenance`)?.textContent;
+    expect(session("agent-1")).toContain("Session: not observable");
+    expect(session("agent-2")).toContain("Session: no local session");
+    expect(session("agent-3")).toContain("Session: no local session");
+  });
+
+  it("keeps the bow of communication lines bounded however many there are", () => {
+    mocks.useData.mockReturnValue({
+      data: {
+        ...snapshot,
+        commEdges: Array.from({ length: 30 }, (_, index) => ({
+          ...snapshot.commEdges[1],
+          id: `comm-many-${index}`,
+        })),
+      },
+      error: null,
+      isPending: false,
+    });
+    const { container } = render(<Live />);
+    const bows = [...container.querySelectorAll(".comm-edge path")].map((path) => {
+      const [fromX, , controlX] = path.getAttribute("d")!.match(/-?\d+(\.\d+)?/g)!.map(Number);
+      return Math.abs(controlX - fromX);
+    });
+    expect(bows).toHaveLength(30);
+    expect(Math.max(...bows)).toBeLessThanOrEqual(106);
   });
 });

@@ -173,7 +173,13 @@ class LiveService:
 
         proposals: list[dict] = []
         proposal_ties: dict[str, set[tuple[str, str]]] = {}
-        for row in c.execute("SELECT rowid AS _rowid,* FROM proposals"):
+        # Only a draft, a waiting proposal or one that changed inside the window can show, and a
+        # proposal's operations run to megabytes, so the rest are never read. The day's margin keeps
+        # this text comparison loose; recent() below decides exactly.
+        for row in c.execute(
+            "SELECT rowid AS _rowid,* FROM proposals WHERE status IN ('draft','submitted') OR updated_at>=?",
+            ((cutoff_dt - timedelta(days=1)).isoformat(),),
+        ):
             proposal = dict(row)
             try:
                 operations = json.loads(proposal["operations"])
@@ -221,19 +227,32 @@ class LiveService:
             at: str | None,
             active: bool = False,
             stale: bool = False,
+            chat: str | None = None,
         ) -> None:
+            """`active` is a tie that stands until someone ends it: open participation, a role, a
+            waiting proposal. A chat ties only while it runs, which its transcript says, so `chat`
+            names the transcript for enrich to ask."""
             if not identity or identity not in (
                 {"roadmap": roadmaps, "step": steps, "item": items}.get(kind) or {}
             ):
                 return
             edge = work_reasons.setdefault(
                 (agent, identity),
-                {"kind": kind, "via": set(), "active": False, "stale": True, "lastAt": None},
+                {
+                    "kind": kind,
+                    "via": set(),
+                    "active": False,
+                    "stale": True,
+                    "lastAt": None,
+                    "chats": set(),
+                },
             )
             edge["via"].add(via)
             edge["active"] = bool(edge["active"] or active)
             edge["stale"] = bool(edge["stale"] and stale)
             edge["lastAt"] = _latest(edge["lastAt"], at)
+            if chat:
+                edge["chats"].add(chat)
 
         for participation in participations:
             item_id = participation["item_id"]
@@ -243,12 +262,14 @@ class LiveService:
                 if _parse(participation["last_seen_at"])
                 else True
             )
+            # Releasing is the last thing an agent does on its participation, so it dates the tie too.
+            touched = _latest(participation["last_seen_at"], participation["released_at"])
             add_work(
                 participation["agent_id"],
                 "item",
                 item_id,
                 "participation",
-                participation["last_seen_at"],
+                touched,
                 active,
                 stale,
             )
@@ -259,7 +280,7 @@ class LiveService:
                     "step",
                     item["step_id"],
                     "participation",
-                    participation["last_seen_at"],
+                    touched,
                     active,
                     stale,
                 )
@@ -268,7 +289,7 @@ class LiveService:
                     "roadmap",
                     _work_roadmap(item, steps),
                     "participation",
-                    participation["last_seen_at"],
+                    touched,
                     active,
                     stale,
                 )
@@ -291,7 +312,9 @@ class LiveService:
             targets += [("roadmap", r["id"]) for r in chat["roadmaps"]]
             for agent in chat["agents"]:
                 for kind, identity in targets:
-                    add_work(agent["id"], kind, identity, "chat", chat["updatedAt"], True)
+                    add_work(
+                        agent["id"], kind, identity, "chat", chat["updatedAt"], chat=chat["chatId"]
+                    )
         for proposal in proposals:
             if proposal["actor_kind"] == "agent":
                 for kind, identity in proposal_ties[proposal["id"]]:
@@ -327,76 +350,139 @@ class LiveService:
                         message["created_at"],
                     )
 
-        active_item_ids = {
-            p["item_id"]
-            for p in participations
-            if p["item_id"]
-            and (p["released_at"] is None or recent(p["last_seen_at"]) or recent(p["released_at"]))
-        }
-        role_targets = {(r["context_type"], r["context_id"]) for r in roles if r["owner_id"]}
-        chat_item_ids = {ch["ownerId"] for ch in chats if ch["ownerType"] == "item"}
-        chat_step_ids = {step["id"] for ch in chats for step in ch["steps"]}
-        discussion_targets = {
-            (kind, identity)
-            for m in messages
-            if recent(m["created_at"])
-            for kind, identity in discussion_contexts.get(m["discussion_id"], [])
-        }
+        request_rows = [
+            dict(r)
+            for r in c.execute(
+                "SELECT dr.rowid AS _rowid,dr.*,dm.discussion_id,dm.author_id,dm.author_label,dm.author_kind,dm.created_at "
+                "FROM discussion_requests dr JOIN discussion_messages dm ON dm.id=dr.message_id"
+            )
+        ]
+        target_rows = [
+            dict(r)
+            for r in c.execute(
+                "SELECT dt.rowid AS _rowid,dt.*,da.created_at AS acknowledged_at,da.actor_id AS acknowledged_by,"
+                "da.actor_label AS acknowledged_by_label,da.actor_kind AS acknowledged_by_kind "
+                "FROM discussion_targets dt LEFT JOIN discussion_acknowledgements da ON da.target_id=dt.id"
+            )
+        ]
+        targets_by_message: dict[str, list[dict]] = defaultdict(list)
+        for target in target_rows:
+            targets_by_message[target["message_id"]].append(target)
+        offers = [
+            dict(r)
+            for r in c.execute(
+                "SELECT o.rowid AS _rowid,o.*,r.label AS role_label,r.context_type,r.context_id "
+                "FROM discussion_role_offers o JOIN discussion_roles r ON r.id=o.role_id"
+            )
+        ]
+        roles_by_id = {role["id"]: role for role in roles}
+
+        included_discussions: set[str] = (
+            {did for did, discussion in discussions.items() if not discussion["archived"]}
+            if scoped is None
+            else set()
+        )
+        for did, held in discussion_contexts.items():
+            if scoped is not None and any(
+                kind in {"item", "roadmap", "step"} and in_scope(kind, identity)
+                for kind, identity in held
+            ):
+                included_discussions.add(did)
+
+        # What waits, and on whom. A request waits on the person only where one of its targets is
+        # the person; where it names an agent or a role it waits on that agent, whoever asked. Each
+        # request counts once on each side, by its message, and neither count depends on the window.
+        pending_for: set[str] = set()  # agents something waits on
+        asking_person: set[str] = set()  # agents waiting on the person
+        person_requests: set[str] = set()
+        agent_requests: set[str] = set()
+        person_request_work: set[tuple[str, str]] = set()
+        for request in request_rows:
+            if request["state"] != "pending":
+                continue
+            counted = request["discussion_id"] in included_discussions
+            for target in targets_by_message[request["message_id"]]:
+                if target["acknowledged_at"] is not None:
+                    continue
+                if target["kind"] == "human":
+                    if request["author_kind"] == "agent":
+                        asking_person.add(request["author_id"])
+                    if counted:
+                        person_requests.add(request["message_id"])
+                        person_request_work.update(
+                            discussion_contexts.get(request["discussion_id"], [])
+                        )
+                    continue
+                if target["kind"] == "agent":
+                    waited = target["recipient_id"]
+                elif target["kind"] == "role":
+                    role = roles_by_id.get(target["recipient_id"])
+                    waited = role["owner_id"] if role else None
+                else:
+                    waited = None
+                if waited:
+                    pending_for.add(waited)
+                    if counted:
+                        agent_requests.add(request["message_id"])
+        pending_offers = [offer for offer in offers if offer["state"] == "pending"]
+        pending_for.update(offer["to_id"] for offer in pending_offers)
+        waiting_on_agents = len(agent_requests) + sum(
+            scoped is None or in_scope(offer["context_type"], offer["context_id"])
+            for offer in pending_offers
+        )
+        waiting_proposals = [
+            proposal["id"]
+            for proposal in proposals
+            if proposal["status"] == "submitted"
+            and (
+                scoped is None
+                or any(in_scope(kind, identity) for kind, identity in proposal_ties[proposal["id"]])
+            )
+        ]
+
+        # Work shows for one of two reasons. Its own: something on it waits on the person or
+        # changed inside the window, whoever did it. Or an agent's: a tie from an agent the map
+        # shows, which enrich settles once it knows which agents those are. So every record with a
+        # reason of its own or any tie is gathered here, and status alone brings nothing in: the
+        # roadmap's own board shows what is in progress.
+        own: set[tuple[str, str]] = set(submitted_by_target) | person_request_work
+        own.update(
+            target
+            for message in messages
+            if recent(message["created_at"])
+            for target in discussion_contexts.get(message["discussion_id"], [])
+        )
+        for proposal in proposals:
+            if proposal["status"] == "approved" and recent(proposal["updated_at"]):
+                own.update(proposal_ties[proposal["id"]])
+        for offer in offers:
+            if offer["state"] == "pending" or recent(offer["ended_at"] or offer["created_at"]):
+                own.add((offer["context_type"], offer["context_id"]))
+        tied = {identity for _, identity in work_reasons}
 
         include_items: set[str] = set()
         for item in items_list:
             if item["archived"] or not in_scope("item", item["id"]):
                 continue
-            connected = (
-                item["id"] in active_item_ids
-                or ("item", item["id"]) in role_targets
-                or item["id"] in chat_item_ids
-                or ("item", item["id"]) in submitted_by_target
-                or ("item", item["id"]) in discussion_targets
-            )
-            if item["status"] in {"doing", "waiting", "blocked"} or connected:
+            if item["id"] in tied or ("item", item["id"]) in own:
                 include_items.add(item["id"])
 
+        item_steps = {items[identity]["step_id"] for identity in include_items}
         include_steps: set[str] = set()
         for step in steps_list:
             if step["retired"] or not in_scope("step", step["id"]):
                 continue
-            connected = (
-                any(items[i]["step_id"] == step["id"] for i in include_items)
-                or ("step", step["id"]) in role_targets
-                or step["id"] in chat_step_ids
-                or ("step", step["id"]) in discussion_targets
-            )
-            if step["status"] in {"doing", "blocked"} or connected:
+            if step["id"] in tied or ("step", step["id"]) in own or step["id"] in item_steps:
                 include_steps.add(step["id"])
 
         include_roadmaps: set[str] = set()
-        directly_connected_roadmaps = {
-            role["context_id"]
-            for role in roles
-            if role["owner_id"] and role["context_type"] == "roadmap"
-        }
-        directly_connected_roadmaps.update(
-            roadmap["id"]
-            for chat in chats
-            if recent(chat["updatedAt"])
-            for roadmap in chat["roadmaps"]
-        )
         for roadmap in roadmaps_list:
             if scoped is not None:
                 if roadmap["id"] in scoped and (
                     not roadmap["archived"] or roadmap["id"] == roadmap_id
                 ):
                     include_roadmaps.add(roadmap["id"])
-                continue
-            connected = (
-                any(steps[s]["roadmap_id"] == roadmap["id"] for s in include_steps)
-                or any(_work_roadmap(items[i], steps) == roadmap["id"] for i in include_items)
-                or question_counts.get(roadmap["id"], 0) > 0
-                or ("roadmap", roadmap["id"]) in submitted_by_target
-                or roadmap["id"] in directly_connected_roadmaps
-            )
-            if not roadmap["archived"] and connected:
+            elif not roadmap["archived"]:
                 include_roadmaps.add(roadmap["id"])
 
         roadmap_order = sorted(
@@ -445,45 +531,6 @@ class LiveService:
         )
         included_work_ids = {identity for _, identity in included_work_order}
 
-        request_rows = [
-            dict(r)
-            for r in c.execute(
-                "SELECT dr.rowid AS _rowid,dr.*,dm.discussion_id,dm.author_id,dm.author_label,dm.author_kind,dm.created_at "
-                "FROM discussion_requests dr JOIN discussion_messages dm ON dm.id=dr.message_id"
-            )
-        ]
-        target_rows = [
-            dict(r)
-            for r in c.execute(
-                "SELECT dt.rowid AS _rowid,dt.*,da.created_at AS acknowledged_at,da.actor_id AS acknowledged_by,"
-                "da.actor_label AS acknowledged_by_label,da.actor_kind AS acknowledged_by_kind "
-                "FROM discussion_targets dt LEFT JOIN discussion_acknowledgements da ON da.target_id=dt.id"
-            )
-        ]
-        targets_by_message: dict[str, list[dict]] = defaultdict(list)
-        for target in target_rows:
-            targets_by_message[target["message_id"]].append(target)
-        offers = [
-            dict(r)
-            for r in c.execute(
-                "SELECT o.rowid AS _rowid,o.*,r.label AS role_label,r.context_type,r.context_id "
-                "FROM discussion_role_offers o JOIN discussion_roles r ON r.id=o.role_id"
-            )
-        ]
-
-        pending_for: set[str] = set()
-        for request in request_rows:
-            if request["state"] != "pending":
-                continue
-            for target in targets_by_message[request["message_id"]]:
-                if target["kind"] == "agent":
-                    pending_for.add(target["recipient_id"])
-                elif target["kind"] == "role":
-                    role = next((r for r in roles if r["id"] == target["recipient_id"]), None)
-                    if role and role["owner_id"]:
-                        pending_for.add(role["owner_id"])
-        pending_for.update(o["to_id"] for o in offers if o["state"] == "pending")
-
         agent_rows = [
             dict(r)
             for r in c.execute(
@@ -528,6 +575,15 @@ class LiveService:
             "ORDER BY cc.agent_id,cr.revoked,cr.created_at DESC,cr.rowid DESC"
         ):
             sponsors.setdefault(row["agent_id"], (row["registered_by"], row["registered_by_label"]))
+
+        # The agents tied to the work gathered above. With a roadmap chosen that is the work in it,
+        # and only these agents can show.
+        scope_tied = {
+            agent_id
+            for (agent_id, identity), edge in work_reasons.items()
+            if identity in included_work_ids
+            and (edge["active"] or edge["chats"] or recent(edge["lastAt"]))
+        }
 
         agent_nodes: list[dict] = []
         for agent in agent_rows:
@@ -628,19 +684,23 @@ class LiveService:
                 *[ch["updatedAt"] for ch in visible_chats],
             )
             sponsor = sponsors.get(aid)
-            tied_in_scope = any(
-                agent_id == aid
-                and identity in included_work_ids
-                and (edge["active"] or recent(edge["lastAt"]))
-                for (agent_id, identity), edge in work_reasons.items()
-            )
-            base_keep = bool(
-                include_idle
-                or state in {"working", "waiting", "reporting", "stale"}
-                or roles_by_agent[aid]
-                or aid in pending_for
-                or any(p["status"] == "submitted" for p in proposals_by_agent[aid])
+            live = bool(agent["active"])
+            # Without "Show idle, stale and revoked agents" the map shows who is at work or acted
+            # inside the window, and a live agent an open exchange still names. A revoked
+            # credential, and a report nobody has renewed, show only for what they did inside the
+            # window: neither can answer, so a request that waits on one does not keep it here.
+            keep = bool(
+                state in {"working", "waiting", "reporting"}
                 or recent(last_at)
+                or (
+                    live
+                    and (
+                        aid in pending_for
+                        or aid in asking_person
+                        or any(p["status"] == "submitted" for p in proposals_by_agent[aid])
+                    )
+                )
+                or (live and declared != "stale" and roles_by_agent[aid])
             )
             node_chats = [
                 {
@@ -685,14 +745,17 @@ class LiveService:
                     "latestNote": latest_note_row["text"] if latest_note_row else "",
                     "href": _href("agents", aid),
                     "_rowid": int(agent["_rowid"]),
-                    "_keepBase": bool(tied_in_scope if scoped is not None else base_keep),
-                    "_scope": bool(tied_in_scope),
+                    "_keep": keep,
+                    "_scope": bool(scoped is None or aid in scope_tied),
                 }
             )
-        # Agents tied to a tracked chat are retained until transcript enrichment can decide whether
-        # that chat is actively working; all other inclusion decisions are already final.
+        # An agent tied to a tracked chat stays a candidate until enrich has read the transcript,
+        # which alone says whether that chat is at work or was inside the window. A chosen roadmap
+        # narrows the candidates to the agents tied to it; it never widens them.
         candidate_agent_ids = {
-            a["id"] for a in agent_nodes if a["_keepBase"] or (scoped is None and a["chats"])
+            a["id"]
+            for a in agent_nodes
+            if a["_scope"] and (include_idle or a["_keep"] or a["chats"])
         }
 
         work_edges: list[dict] = []
@@ -710,6 +773,7 @@ class LiveService:
                     "active": bool(edge["active"]),
                     "stale": bool(edge["stale"]),
                     "lastAt": edge["lastAt"],
+                    "_chats": sorted(edge["chats"]),
                 }
             )
 
@@ -725,6 +789,7 @@ class LiveService:
             stale: bool = False,
             branch: str = "",
             worktree: str = "",
+            chat: str | None = None,
         ) -> None:
             if not repository or repository not in repos:
                 return
@@ -737,12 +802,15 @@ class LiveService:
                     "lastAt": None,
                     "branch": "",
                     "worktree": "",
+                    "chats": set(),
                 },
             )
             edge["via"].add(via)
             edge["active"] = bool(edge["active"] or active)
             edge["stale"] = bool(edge["stale"] and stale)
             edge["lastAt"] = _latest(edge["lastAt"], at)
+            if chat:
+                edge["chats"].add(chat)
             if active or not edge["branch"]:
                 edge["branch"], edge["worktree"] = branch, worktree
 
@@ -759,7 +827,7 @@ class LiveService:
                     participation["agent_id"],
                     context["repository_id"],
                     "participation",
-                    participation["last_seen_at"],
+                    _latest(participation["last_seen_at"], participation["released_at"]),
                     participation["released_at"] is None,
                     stale,
                     context["branch"],
@@ -770,7 +838,9 @@ class LiveService:
                 continue
             for agent in chat["agents"]:
                 for repository in chat["repositoryIds"]:
-                    add_repo(agent["id"], repository, "chat", chat["updatedAt"], True)
+                    add_repo(
+                        agent["id"], repository, "chat", chat["updatedAt"], chat=chat["chatId"]
+                    )
         for update in updates:
             if scoped is not None and update["item_id"] not in included_work_ids:
                 continue
@@ -782,16 +852,18 @@ class LiveService:
                 recent(update["created_at"]),
             )
 
-        include_repo_ids: set[str] = set()
-        linked_item_repos = {
-            r["repository_id"]
-            for r in c.execute("SELECT * FROM item_repositories")
-            if r["item_id"] in include_items
-        }
+        # As with work, enrich settles which repositories show: one a shown agent is tied to, or
+        # one linked to a work item that shows.
+        repo_items: dict[str, set[str]] = defaultdict(set)
+        for row in c.execute("SELECT item_id,repository_id FROM item_repositories"):
+            if row["item_id"] in include_items and row["repository_id"] in repos:
+                repo_items[row["repository_id"]].add(row["item_id"])
+        include_repo_ids: set[str] = set(repo_items)
         for (aid, rid), edge in repo_reasons.items():
-            if aid in candidate_agent_ids and (edge["active"] or recent(edge["lastAt"])):
+            if aid in candidate_agent_ids and (
+                edge["active"] or edge["chats"] or recent(edge["lastAt"])
+            ):
                 include_repo_ids.add(rid)
-        include_repo_ids.update(rid for rid in linked_item_repos if rid in repos)
         repo_edges = [
             {
                 "id": f"repo:{aid}:{rid}",
@@ -803,6 +875,7 @@ class LiveService:
                 "active": bool(edge["active"]),
                 "stale": bool(edge["stale"]),
                 "lastAt": edge["lastAt"],
+                "_chats": sorted(edge["chats"]),
             }
             for (aid, rid), edge in repo_reasons.items()
             if aid in candidate_agent_ids and rid in include_repo_ids
@@ -846,6 +919,7 @@ class LiveService:
                     "_rowid": int(repository["_rowid"]),
                     "_branches": set(branches),
                     "_overlapAgents": set(overlap_agents),
+                    "_items": set(repo_items.get(rid, ())),
                 }
             )
         repo_nodes.sort(
@@ -882,8 +956,15 @@ class LiveService:
                         "waitingProposals": int(len(proposal_ids)),
                         "waitingProposalIds": list(proposal_ids),
                         "agentCount": int(work_agent_counts.get(identity, 0)),
-                        "needsYou": bool(questions or proposal_ids),
+                        "needsYou": bool(
+                            questions
+                            or proposal_ids
+                            or ("roadmap", identity) in person_request_work
+                        ),
                         "href": _href("roadmaps", identity),
+                        "_own": bool(
+                            questions or ("roadmap", identity) in own or identity == roadmap_id
+                        ),
                     }
                 )
             elif kind == "step":
@@ -905,8 +986,9 @@ class LiveService:
                         "waitingProposals": int(len(proposal_ids)),
                         "waitingProposalIds": list(proposal_ids),
                         "agentCount": int(work_agent_counts.get(identity, 0)),
-                        "needsYou": bool(row["status"] == "blocked" or proposal_ids),
+                        "needsYou": bool(proposal_ids or ("step", identity) in person_request_work),
                         "href": _href("step", identity, row["roadmap_id"]),
+                        "_own": ("step", identity) in own,
                     }
                 )
             else:
@@ -932,8 +1014,9 @@ class LiveService:
                         "waitingProposals": int(len(proposal_ids)),
                         "waitingProposalIds": list(proposal_ids),
                         "agentCount": int(work_agent_counts.get(identity, 0)),
-                        "needsYou": bool(row["status"] in {"waiting", "blocked"} or proposal_ids),
+                        "needsYou": bool(proposal_ids or ("item", identity) in person_request_work),
                         "href": _href("work", identity),
+                        "_own": ("item", identity) in own,
                     }
                 )
 
@@ -941,18 +1024,6 @@ class LiveService:
             if kind in {"human", "person"}:
                 return "person", "local-user", "You"
             return "agent", identity, label or agent_labels.get(identity, identity)
-
-        included_discussions: set[str] = (
-            {did for did, discussion in discussions.items() if not discussion["archived"]}
-            if scoped is None
-            else set()
-        )
-        for did, held in discussion_contexts.items():
-            if scoped is not None and any(
-                kind in {"item", "roadmap", "step"} and in_scope(kind, identity)
-                for kind, identity in held
-            ):
-                included_discussions.add(did)
 
         comm_edges: list[dict] = []
         ack_discussions: set[str] = set()
@@ -979,7 +1050,7 @@ class LiveService:
                 elif target["kind"] == "human":
                     to_kind, to_id, to_label = "person", "local-user", "You"
                 elif target["kind"] == "role":
-                    role = next((r for r in roles if r["id"] == target["recipient_id"]), None)
+                    role = roles_by_id.get(target["recipient_id"])
                     if role is None or not role["owner_id"]:
                         continue
                     to_kind, to_id, to_label = (
@@ -1106,9 +1177,17 @@ class LiveService:
                         "_seq": comm_seq,
                     }
                 )
+        # A line from the identity that registered an agent says "its subagent" only where that
+        # identity is an agent's own: one that was registered in its turn. Agents that register
+        # themselves all do it with one credential issued in Settings, which no one registered, and
+        # a line from it to each of them would say nothing.
         for agent in agent_nodes:
             sponsor_id = agent["registeredById"]
-            if agent["id"] in candidate_agent_ids and sponsor_id in candidate_agent_ids:
+            if (
+                agent["id"] in candidate_agent_ids
+                and sponsor_id in candidate_agent_ids
+                and sponsor_id in sponsors
+            ):
                 comm_seq += 1
                 comm_edges.append(
                     {
@@ -1480,7 +1559,7 @@ class LiveService:
             "summary": {},
             "roadmaps": list(roadmap_options),
             "work": list(work_nodes),
-            "agents": list(agent_nodes),
+            "agents": [agent for agent in agent_nodes if agent["id"] in candidate_agent_ids],
             "untrackedSessions": list(untracked),
             "repositories": list(repo_nodes),
             "workEdges": list(work_edges),
@@ -1492,18 +1571,34 @@ class LiveService:
             "_includeIdle": bool(include_idle),
             "_cutoff": cutoff,
             "_workIndex": work_index,
+            "_pendingRequests": int(len(person_requests)),
+            "_waitingOnAgents": int(waiting_on_agents),
+            "_waitingProposals": int(len(waiting_proposals)),
         }
 
     def enrich(self, draft: dict) -> dict:
-        """Read transcripts after the database snapshot and return the exact typed response shape."""
+        """Read transcripts after the database snapshot, settle what shows, and return the exact
+        typed response shape.
+
+        Only a transcript says whether a chat is at work or was inside the window, so which agents
+        show is decided here, and after it the work and repositories those agents are tied to."""
+        cutoff = _parse(draft["_cutoff"]) or datetime.min.replace(tzinfo=UTC)
+
+        def recent(value: str | None) -> bool:
+            parsed = _parse(value)
+            return parsed is not None and parsed >= cutoff
+
         summaries: dict[str, dict] = {}
+        running: set[str] = set()  # chats at work, or active inside the window, by transcript ID
         for agent in draft["agents"]:
             for chat in agent["chats"]:
-                summary = summaries.setdefault(
-                    chat["chatId"], self.transcripts.summary(chat["chatId"])
-                )
+                if chat["chatId"] not in summaries:
+                    summaries[chat["chatId"]] = self.transcripts.summary(chat["chatId"])
+                summary = summaries[chat["chatId"]]
                 chat["working"] = bool(summary.get("state") == "working")
                 chat["lastAt"] = _latest(chat["lastAt"], summary.get("lastActivityAt"))
+                if chat["working"] or recent(chat["lastAt"]):
+                    running.add(chat["chatId"])
             if not agent["active"]:
                 agent["state"] = "revoked"
             elif agent["sessionState"] == "waiting":
@@ -1521,15 +1616,26 @@ class LiveService:
                 agent["state"] = "idle"
             agent["lastAt"] = _latest(agent["lastAt"], *[chat["lastAt"] for chat in agent["chats"]])
 
-        chosen = (
-            [agent for agent in draft["agents"] if agent["_scope"]]
-            if draft["_scoped"]
-            else [
-                agent
-                for agent in draft["agents"]
-                if draft["_includeIdle"] or agent["_keepBase"] or agent["state"] == "working"
-            ]
-        )
+        def tied(edge: dict) -> bool:
+            """Whether an agent's tie still holds: it stands, the agent acted on it inside the
+            window, or one of its chats runs. A chat's tie counts as active only while it runs."""
+            edge["active"] = bool(edge["active"] or any(chat in running for chat in edge["_chats"]))
+            return bool(edge["active"] or recent(edge["lastAt"]))
+
+        # The draft holds only candidates, already narrowed to a chosen roadmap's agents.
+        chosen = [
+            agent
+            for agent in draft["agents"]
+            if draft["_includeIdle"]
+            or agent["_keep"]
+            or agent["state"] == "working"
+            or recent(agent["lastAt"])
+        ]
+        if draft["_scoped"] and not draft["_includeIdle"]:
+            # With a roadmap chosen, an agent shows for a tie to that roadmap's work that still
+            # holds: being at work elsewhere, with only a finished chat here, is not one.
+            holding = {edge["agentId"] for edge in draft["workEdges"] if tied(edge)}
+            chosen = [agent for agent in chosen if agent["id"] in holding]
         chosen.sort(
             key=lambda a: (
                 not a["active"],
@@ -1541,7 +1647,19 @@ class LiveService:
         agent_ids = {agent["id"] for agent in chosen}
         agent_index = {agent["id"]: index for index, agent in enumerate(chosen)}
 
-        draft["workEdges"] = [edge for edge in draft["workEdges"] if edge["agentId"] in agent_ids]
+        work_edges = [edge for edge in draft["workEdges"] if edge["agentId"] in agent_ids]
+        shown = {work["id"] for work in draft["work"] if work["_own"]}
+        shown.update(edge["workId"] for edge in work_edges if tied(edge))
+        gathered = {work["id"] for work in draft["work"]}
+        # What shows brings what it sits in: a work item its step, and both their roadmap.
+        for work in draft["work"]:
+            if work["kind"] == "item" and work["id"] in shown and work["parentId"] in gathered:
+                shown.add(work["parentId"])
+        for work in draft["work"]:
+            if work["kind"] != "roadmap" and work["id"] in shown and work["roadmapId"] in gathered:
+                shown.add(work["roadmapId"])
+        draft["work"] = [work for work in draft["work"] if work["id"] in shown]
+        draft["workEdges"] = [edge for edge in work_edges if edge["workId"] in shown]
         draft["workEdges"].sort(
             key=lambda edge: (agent_index[edge["agentId"]], draft["_workIndex"][edge["workId"]])
         )
@@ -1552,7 +1670,18 @@ class LiveService:
                 )
             )
 
-        draft["repoEdges"] = [edge for edge in draft["repoEdges"] if edge["agentId"] in agent_ids]
+        repo_edges = [edge for edge in draft["repoEdges"] if edge["agentId"] in agent_ids]
+        shown_items = {work["id"] for work in draft["work"] if work["kind"] == "item"}
+        shown_repos = {edge["repositoryId"] for edge in repo_edges if tied(edge)}
+        shown_repos.update(
+            repository["id"]
+            for repository in draft["repositories"]
+            if repository["_items"] & shown_items
+        )
+        draft["repositories"] = [
+            repository for repository in draft["repositories"] if repository["id"] in shown_repos
+        ]
+        draft["repoEdges"] = [edge for edge in repo_edges if edge["repositoryId"] in shown_repos]
         for repository in draft["repositories"]:
             edges = [
                 edge for edge in draft["repoEdges"] if edge["repositoryId"] == repository["id"]
@@ -1618,6 +1747,9 @@ class LiveService:
 
         untracked: list[dict] = []
         for session in draft["untrackedSessions"]:
+            # A session whose agent shows is that agent's card, with the session's state on it.
+            if any(tied_agent["id"] in agent_ids for tied_agent in session["agents"]):
+                continue
             title, model = self.transcripts.headline(session["chatId"])
             state = {
                 "busy": "working",
@@ -1639,12 +1771,6 @@ class LiveService:
                     "cwd": session.get("cwd") or "",
                     "model": model,
                     "startedAt": session.get("startedAt") or draft["generatedAt"],
-                    "agentIds": list(
-                        sorted(
-                            (a["id"] for a in session["agents"] if a["id"] in agent_ids),
-                            key=lambda aid: agent_index[aid],
-                        )
-                    ),
                 }
             )
         untracked.sort(
@@ -1655,15 +1781,10 @@ class LiveService:
             )
         )
 
-        pending_keys = {
-            (edge["kind"], edge["messageId"] or edge["id"])
-            for edge in draft["commEdges"]
-            if edge["status"] == "pending"
-        }
-        pending = len(pending_keys)
-        waiting_proposals = len(
-            {proposal_id for work in draft["work"] for proposal_id in work["waitingProposalIds"]}
-        )
+        # What waits on the person was counted from the records themselves, so it is the same in
+        # any window and whichever agents show; what waits on agents is kept apart from it.
+        pending = draft["_pendingRequests"]
+        waiting_proposals = draft["_waitingProposals"]
         open_questions = sum(
             option["openQuestions"]
             for option in draft["roadmaps"]
@@ -1692,6 +1813,7 @@ class LiveService:
                 sum(repository["overlapCount"] > 1 for repository in draft["repositories"])
             ),
             "pendingRequests": int(pending),
+            "waitingOnAgents": int(draft["_waitingOnAgents"]),
             "waitingProposals": int(waiting_proposals),
             "openQuestions": int(open_questions),
             "needsYou": int(pending + waiting_proposals + open_questions),
@@ -1711,8 +1833,8 @@ class LiveService:
             "agents": [clean(agent) for agent in chosen],
             "untrackedSessions": list(untracked),
             "repositories": [clean(repository) for repository in draft["repositories"]],
-            "workEdges": list(draft["workEdges"]),
-            "repoEdges": list(draft["repoEdges"]),
+            "workEdges": [clean(edge) for edge in draft["workEdges"]],
+            "repoEdges": [clean(edge) for edge in draft["repoEdges"]],
             "commEdges": [clean(edge) for edge in draft["commEdges"]],
             "lanes": [clean(lane) for lane in draft["lanes"]],
             "pulses": [clean(pulse) for pulse in draft["pulses"]],

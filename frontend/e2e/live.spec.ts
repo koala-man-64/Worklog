@@ -43,6 +43,18 @@ test("live shows agents taking work, overlapping on repositories and communicati
     roadmapId: roadmap.id,
     stepId,
   });
+  // In progress, with nobody on it: the roadmap's board shows that, Live does not.
+  const quietTitle = "Quiet work " + suffix;
+  const quiet = await write("/work-items", {
+    title: quietTitle,
+    roadmapId: roadmap.id,
+    stepId,
+  });
+  const started = await page.request.patch("/api/v1/work-items/" + quiet.id, {
+    headers: { Origin: origin, "X-CSRF-Token": csrfToken },
+    data: { revision: quiet.revision, status: "doing" },
+  });
+  expect(started.ok(), await started.text()).toBeTruthy();
   const repoName = "Live repo " + suffix;
   const repository = await write("/repositories", { name: repoName });
   const builder = await write("/credentials", { label: builderLabel });
@@ -142,6 +154,12 @@ test("live shows agents taking work, overlapping on repositories and communicati
   await expect(flow.locator("h3", { hasText: repoName })).toBeVisible();
   await expect(flow.getByText("Overlap: 2 agents")).toBeVisible();
   await expect(flow.getByText("codex/live-ui")).toBeVisible();
+  await expect(flow.locator("h3", { hasText: quietTitle })).toHaveCount(0);
+  // The proposal waits on the person; the builder's request waits on the reviewer.
+  const tile = (label: string) =>
+    page.locator(".live-summary > div", { hasText: label }).locator("dd");
+  await expect(tile("Needs you")).toHaveText("1");
+  await expect(tile("Waiting on agents")).toHaveText("1");
 
   await page.getByRole("button", { name: "Swimlanes", exact: true }).click();
   await expect(
