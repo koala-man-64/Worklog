@@ -17,6 +17,7 @@ import { Work } from "./Work";
 import { Roadmaps } from "./Roadmaps";
 import { RoadmapNav, RoadmapsLink } from "./RoadmapNav";
 import { Repositories } from "./Repositories";
+import { PullRequests } from "./PullRequests";
 import { Tickets } from "./Tickets";
 import { People } from "./People";
 import { Resources } from "./Resources";
@@ -238,6 +239,8 @@ export default function App() {
             <Roadmaps key={id ?? "list"} selected={id} step={sub} chat={part} />
           ) : page === "repositories" ? (
             <Repositories key={id ?? "list"} selected={id} />
+          ) : page === "pull-requests" ? (
+            <PullRequests />
           ) : page === "people" ? (
             <People key={id ?? "list"} selected={id} />
           ) : page === "resources" ? (

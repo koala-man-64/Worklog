@@ -31,7 +31,8 @@ def support_record(r: Any) -> dict:
     keys = {"owner_type": "ownerType", "owner_id": "ownerId", "item_id": "itemId",
             "chat_id": "chatId", "created_date": "createdDate", "chat_title": "chatTitle",
             "roadmap_id": "roadmapId", "decided_date": "decidedDate",
-            "created_at": "createdAt", "updated_at": "updatedAt"}
+            "created_at": "createdAt", "updated_at": "updatedAt", "submitted_by": "submittedBy",
+            "owner_title": "ownerTitle"}
     # A file's bytes are read on their own.
     record = {keys.get(k, k): bool(v) if k == "archived" else v
               for k, v in dict(r).items() if k != "content"}

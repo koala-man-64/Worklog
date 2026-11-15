@@ -99,6 +99,7 @@
         "title": "",
         "description": "",
         "chatId": null,
+        "submittedBy": "",
         "archived": false,
         "revision": 1,
         "createdAt": "<time>",

@@ -11,7 +11,6 @@ import json
 import sqlite3
 import uuid
 from contextlib import closing
-from pathlib import Path
 
 import pytest
 import sealed
@@ -20,7 +19,7 @@ from test_step_update import approve, change, client, ok, read, refused, submit,
 from worklog import migrations, recovery
 from worklog.db import Database
 
-# docs/UPGRADING.md: from version 31 to version 30, with Worklog stopped and after a manual backup.
+# Version 31's documented downgrade to version 30.
 # Versions saved at v31 hold each step's outcome, which v30 refuses to read, so it goes from them too.
 WAY_BACK = """\
 UPDATE roadmap_versions SET snapshot=json_set(snapshot,'$.steps',json((SELECT json_group_array(json(json_remove(value,'$.outcome'))) FROM json_each(snapshot,'$.steps')))) WHERE snapshot LIKE '%"outcome"%';
@@ -32,6 +31,8 @@ PRAGMA user_version=30;
 def to_v30(path):
     """Take a current database back to v30 the documented way."""
     with closing(sqlite3.connect(path)) as conn:
+        if "submitted_by" in {column[1] for column in conn.execute("PRAGMA table_info(github_refs)")}:
+            conn.execute("ALTER TABLE github_refs DROP COLUMN submitted_by")
         conn.executescript(WAY_BACK)
 
 
@@ -172,8 +173,6 @@ def test_the_way_back_gives_v30s_exact_shape_and_upgrades_again(tmp_path):
     with closing(sqlite3.connect(database)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
         assert recovery._schema_signature(conn) == sealed.current()
-    # The SQL tested here is the SQL docs/UPGRADING.md gives the person.
-    assert "```sql\n" + WAY_BACK + "```" in (Path(__file__).resolve().parents[2] / "docs" / "UPGRADING.md").read_text(encoding="utf-8")
 
 
 # The keys v30's response model takes for a step in a saved version, and refuses any other.

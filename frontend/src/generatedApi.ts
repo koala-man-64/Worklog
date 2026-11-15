@@ -329,6 +329,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/pull-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pull Requests */
+        get: operations["pull_requests_api_v1_pull_requests_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/decisions/{identity}": {
         parameters: {
             query?: never;
@@ -4264,6 +4281,11 @@ export interface components {
             description: string;
             /** Chatid */
             chatId?: string | null;
+            /**
+             * Submittedby
+             * @default
+             */
+            submittedBy: string;
         };
         /** GithubRefUpdate */
         GithubRefUpdate: {
@@ -4281,6 +4303,8 @@ export interface components {
             description?: string | null;
             /** Chatid */
             chatId?: string | null;
+            /** Submittedby */
+            submittedBy?: string | null;
         };
         /** GithubReference */
         GithubReference: {
@@ -4308,6 +4332,8 @@ export interface components {
             description: string;
             /** Chatid */
             chatId: string | null;
+            /** Submittedby */
+            submittedBy: string;
             /** Archived */
             archived: boolean;
             /** Revision */
@@ -4497,6 +4523,8 @@ export interface components {
             description: string;
             /** Chatid */
             chatId: string | null;
+            /** Submittedby */
+            submittedBy: string;
             /** Archived */
             archived: boolean;
             /** Revision */
@@ -5208,7 +5236,7 @@ export interface components {
              * Page
              * @enum {string}
              */
-            page: "today" | "work" | "tickets" | "roadmaps" | "repositories" | "people" | "resources" | "live" | "agents" | "chats" | "discussions" | "review" | "settings" | "usage" | "guide" | "agent-guide";
+            page: "today" | "work" | "tickets" | "roadmaps" | "repositories" | "pull-requests" | "people" | "resources" | "live" | "agents" | "chats" | "discussions" | "review" | "settings" | "usage" | "guide" | "agent-guide";
         };
         /**
          * Participant
@@ -5874,6 +5902,58 @@ export interface components {
             items: components["schemas"]["ProposalListed"][];
             /** Total */
             total: number;
+        };
+        /** PullRequest */
+        PullRequest: {
+            /** Id */
+            id: string;
+            /**
+             * Ownertype
+             * @enum {string}
+             */
+            ownerType: "item" | "roadmap";
+            /** Ownerid */
+            ownerId: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "commit" | "pr";
+            /** Url */
+            url: string;
+            /** Reference */
+            reference: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /** Chatid */
+            chatId: string | null;
+            /** Submittedby */
+            submittedBy: string;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Chattitle */
+            chatTitle: string | null;
+            /** Ownertitle */
+            ownerTitle: string;
+        };
+        /** PullRequests */
+        PullRequests: {
+            /** Items */
+            items: components["schemas"]["PullRequest"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
         };
         /** Question */
         Question: {
@@ -8716,6 +8796,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RecordHistory"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pull_requests_api_v1_pull_requests_get: {
+        parameters: {
+            query?: {
+                submittedBy?: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PullRequests"];
                 };
             };
             /** @description Validation Error */

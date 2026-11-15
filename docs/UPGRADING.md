@@ -6,12 +6,13 @@ restores.
 
 ## Upgrade
 
-For an upgrade, stop Worklog, make a manual backup with the installed version, update the checkout, run `Setup.ps1`, then start and check the application. Use the same data directory and port throughout. The first startup snapshots a supported version 1 to 30 database and upgrades it to version 31 in one transaction.
+For an upgrade, stop Worklog, make a manual backup with the installed version, update the checkout, run `Setup.ps1`, then start and check the application. Use the same data directory and port throughout. The first startup snapshots a supported version 1 to 31 database and upgrades it to version 32 in one transaction.
 
 `./scripts/Run.ps1` does the stop, backup, setup and start in one step after you update the checkout, passing the same `-DataDir` and `-Port` to each. Its backup is taken before the new version first starts, so it is the pre-upgrade backup; if the stop or backup fails, it ends before setup. It runs Setup's shared-folder check first, so a refusal leaves Worklog running.
 
 ## What each version changes
 
+- **Version 32** adds a submitter field to pull requests. Existing references keep their links, titles and associated chats, with the submitter left blank.
 - **Version 31** gives each roadmap step an outcome: what the step's work produces, the goal it is done for, shown first on the step's page. Every step starts with none, and the upgrade changes no record.
 - **Version 30** removes messaging agents from a chat. The upgrade drops the tables that held the messages you wrote into tracked chats, their deliveries to each agent's run, and the agents you confirmed in each chat, every row with them. The tracked chats, the agents registered with them and their runs stay as they are, and so does what those messages and confirmations wrote into history; no other record changes. The retry receipts of those calls age out after 14 days, as every receipt does. The pre-migration backup keeps the tables, but only the three newest pre-migration backups are kept: copy it aside if you still need a message.
 - **Version 29** removes agent ties. The upgrade drops the table that held which records each agent was tied to, every tie with it. The agents and the records they were tied to stay as they are, and so does the history each tie wrote; no other record changes. The pre-migration backup keeps the table, but only the three newest pre-migration backups are kept: copy it aside if you still need a tie.
@@ -39,19 +40,4 @@ For an upgrade, stop Worklog, make a manual backup with the installed version, u
 
 Keep the previous version and its manual backup until verification succeeds. To roll back, stop Worklog, switch to the previous version and run its setup, then use that version’s `restore` command with the pre-upgrade backup. Start and check Worklog again. Restoring returns the data to the time of the snapshot, creates a new data identity, and revokes the restored credentials.
 
-## The way back from version 31
-
-From version 31 to version 30, a way back keeps every record but the steps' outcomes, which version 30 has no place for: the pre-upgrade backup doesn't have them either, so copy aside any you still need first. The outcomes go from the roadmap versions saved since the upgrade too, which version 30 couldn't open with them. With Worklog stopped and after a manual backup, run this on the database, then start the version 30 checkout:
-
-```sql
-UPDATE roadmap_versions SET snapshot=json_set(snapshot,'$.steps',json((SELECT json_group_array(json(json_remove(value,'$.outcome'))) FROM json_each(snapshot,'$.steps')))) WHERE snapshot LIKE '%"outcome"%';
-ALTER TABLE steps DROP COLUMN outcome;
-PRAGMA user_version=30;
-```
-
-Upgrading again gives every step an empty outcome.
-
-Only the latest version's way back is kept here. Each older one was given while its version was
-the latest: the history of this file in the repository has them, and before this file, the
-history of `README.md`. Restoring the pre-upgrade
-backup with the earlier version, as *Roll back* says, works from any version.
+To return from version 32 to version 31, restore the pre-upgrade backup using version 31.

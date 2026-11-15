@@ -165,7 +165,7 @@ def test_the_upgrade_from_v18_snapshots_first_and_changes_no_record(tmp_path):
     Database(path).initialize()
     assert state(path) == (migrations.SCHEMA_VERSION, sealed.current())
     assert set(tables(path)) == set(names)
-    assert rows(path, names) == before
+    assert rows(path, names) == {**before, "github_refs": [(*ref, "") for ref in before["github_refs"]]}
     assert search_rows(path, "1") == search
     snapshots = sorted((path.parent / "backups").glob("worklog-pre-migration-*.sqlite3"))
     assert snapshots

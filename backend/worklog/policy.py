@@ -139,6 +139,7 @@ ROUTES: dict[str, dict[str, str | Only]] = {
     "/github/{identity}": {"GET": READ, "PATCH": HUMAN},
     "/github/{identity}/archive": {"POST": HUMAN},
     "/github/{identity}/recover": {"POST": HUMAN},
+    "/pull-requests": {"GET": HUMAN},
 
     "/history": {"GET": READ},
 
