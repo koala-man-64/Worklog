@@ -742,6 +742,10 @@ it("adds and renders web links, agent chats, and GitHub commits/PRs", async () =
     screen.getByRole("textbox", { name: "GitHub title" }),
     "Add retry policy",
   );
+  await userEvent.type(
+    screen.getByRole("textbox", { name: "Submitted by" }),
+    "Rudy",
+  );
   await userEvent.selectOptions(
     screen.getByRole("combobox", { name: "Associated agent chat" }),
     existingChat.id,
@@ -761,6 +765,7 @@ it("adds and renders web links, agent chats, and GitHub commits/PRs", async () =
         reference: "",
         description: "",
         chatId: existingChat.id,
+        submittedBy: "Rudy",
       },
     }),
   );

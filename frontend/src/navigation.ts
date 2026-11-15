@@ -21,6 +21,7 @@ export const sections: Section[] = [
     label: "Directory",
     destinations: [
       { route: "repositories", icon: "work", label: "Repositories" },
+      { route: "pull-requests", icon: "review", label: "Pull requests" },
       { route: "people", icon: "people", label: "People" },
       { route: "resources", icon: "resources", label: "Resources" },
     ],

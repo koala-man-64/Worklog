@@ -244,7 +244,10 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         return mutate(request, payload, fn, required_key=True, communication=True)
 
     def apply(request: Request, action: str, payload: dict, *, create: bool = False) -> dict:
-        return mutate(request, payload, lambda c, a: work.apply(c, a, action, payload), required_key=create)
+        result = mutate(request, payload, lambda c, a: work.apply(c, a, action, payload), required_key=create)
+        if action.startswith("github."):
+            result.setdefault("submittedBy", "")  # Receipts from v31 and earlier omit this field.
+        return result
 
     @app.get("/health", response_model=out.Health)
     def health() -> dict:
@@ -372,6 +375,11 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             authorize_history(c, entityId, request.state.actor)
             return {"items": visible_history(c, entityId, limit, request.state.actor)}
 
+    @app.get("/api/v1/pull-requests", response_model=out.PullRequests)
+    def pull_requests(submittedBy: str = Query("", max_length=200),
+                      limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
+        return db.snapshot(lambda c: support.pull_requests(c, submittedBy, limit, offset))
+
     @app.get("/api/v1/notes/{identity}", response_model=out.Note)
     @app.get("/api/v1/references/{identity}", response_model=out.FileReference)
     @app.get("/api/v1/links/{identity}", response_model=out.WebLink)
@@ -458,7 +466,10 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
 
     @app.post("/api/v1/github", response_model=out.ListedGithubReference)
     def create_github_ref(request: Request, body: m.GithubRefCreate) -> dict:
-        return apply(request, "github.create", body.model_dump(), create=True)
+        payload = body.model_dump()
+        if not body.submittedBy:
+            payload.pop("submittedBy")  # Keep the request hash for pre-v32 retries.
+        return apply(request, "github.create", payload, create=True)
 
     @app.patch("/api/v1/github/{identity}", response_model=out.ListedGithubReference)
     def update_github_ref(identity: str, request: Request, body: m.GithubRefUpdate) -> dict:

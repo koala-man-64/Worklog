@@ -183,7 +183,7 @@ Open the item from **Work**. Its page holds, from top to bottom:
 - **"People"**: choose someone in "Choose person" ("+ New person…" adds one), give a "Relationship or role", and press "Tie person".
 - **"Links"**: a "Link title", "Link URL" and "Link description", then "Add link".
 - **"Agent chats"**: chats an agent works in for this item ([Follow a chat and its agents](#follow-a-chat-and-its-agents)).
-- **"GitHub commits & PRs"**: choose a "GitHub reference type", enter the address, and press "Add GitHub ref".
+- **"GitHub commits & PRs"** displays the commits and pull requests linked to the work. For a PR, you can enter the submitter's name or handle in "Submitted by". Use "Add GitHub ref" to save the link.
 - **"Tickets"**: "File ticket" files a ticket tied to this item.
 - **"Files"**: under "How to add a file", either:
   - "Attach a copy" stores the file in Worklog, up to 25 MB.
@@ -467,6 +467,12 @@ The repositories you and your agents work in.
   - "Files" ("Attach a file"), with archived files under "Archived supporting records".
   - "Participants" and "Recent updates": who works there, on which branch, checkout or worktree, and what they reported.
 - **Reports are advisory.** They reserve nothing, and show "Stale report" after two hours without news.
+
+### Pull requests
+
+See the pull requests saved on work items and roadmaps in one list. Each entry links to its PR and its Worklog record. Use "Filter by submitter" to find requests by a name or handle. Requests without a recorded submitter show as unknown, and you can enter or correct the submitter on the row.
+
+Use "Add pull request" to save a PR link from GitHub or Azure DevOps. Choose its work item or roadmap and give the submitter's name or handle when you know it.
 
 ### People
 

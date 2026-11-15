@@ -14,10 +14,10 @@ import sqlite3
 
 from .common import now, setting, today, uid
 
-SCHEMA_VERSION = 31
+SCHEMA_VERSION = 32
 # Older versions that startup and offline restore upgrade in one transaction.
 UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
-                                 24, 25, 26, 27, 28, 29, 30})
+                                 24, 25, 26, 27, 28, 29, 30, 31})
 
 # v1 grew in place before versions were counted: _upgrade_v1 adds whichever of these a v1 database
 # lacks. People as v1 had them; v10 renames role to team, adds person details and lets links name
@@ -946,6 +946,7 @@ def upgrade(conn: sqlite3.Connection) -> None:
     changes no other record. v29 drops agent ties, every tie with them, and changes no other record.
     v30 drops chat messages, their deliveries and chat confirmations, and changes no other record.
     v31 gives each roadmap step an outcome, empty to start, and changes no record.
+    v32 gives pull requests a submitter, unknown for existing references.
     """
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version == SCHEMA_VERSION:
@@ -1017,6 +1018,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
         drop_chat_messages(conn)
     if version < 31:
         add_step_outcomes(conn)
+    if version < 32:
+        conn.execute("ALTER TABLE github_refs ADD COLUMN submitted_by TEXT NOT NULL DEFAULT ''")
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 

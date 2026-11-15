@@ -417,6 +417,7 @@
       "ownerId",
       "ownerType",
       "reference",
+      "submittedBy",
       "title",
       "url"
     ]
@@ -433,6 +434,7 @@
       "kind",
       "reference",
       "revision",
+      "submittedBy",
       "title",
       "url"
     ]

@@ -144,6 +144,7 @@ class GithubRefCreate(Command):
     title: str = ""
     description: str = ""
     chatId: str | None = None
+    submittedBy: str = Field(default="", max_length=200)
 
 
 class GithubRefUpdate(Expected):
@@ -153,6 +154,7 @@ class GithubRefUpdate(Expected):
     title: str | None = None
     description: str | None = None
     chatId: str | None = None
+    submittedBy: str | None = Field(default=None, max_length=200)
 
 
 class QuestionCreate(Command):
@@ -367,7 +369,7 @@ class SettingsUpdate(Command):
 # The pages the browser counts as the person opens them (usage.py): the sidebar's
 # (frontend/src/navigation.ts), then the Guide page's view for agents (frontend/src/Guide.tsx);
 # test_usage.py keeps the lists equal.
-Page = Literal["today", "work", "tickets", "roadmaps", "repositories", "people",
+Page = Literal["today", "work", "tickets", "roadmaps", "repositories", "pull-requests", "people",
                "resources", "live", "agents", "chats", "discussions", "review", "settings", "usage", "guide",
                "agent-guide"]
 # Who made a use the usage counts keep (usage.py): the person or an agent. GET /usage reports

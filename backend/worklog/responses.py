@@ -92,6 +92,7 @@ class GithubReference(Answer):
     title: str
     description: str
     chatId: str | None
+    submittedBy: str
     archived: bool
     revision: int
     createdAt: str
@@ -241,6 +242,17 @@ class ListedGithubReference(GithubReference):
     """A GitHub reference as its owner lists it, with the title of the chat that made it."""
 
     chatTitle: str | None
+
+
+class PullRequest(ListedGithubReference):
+    ownerTitle: str
+
+
+class PullRequests(Answer):
+    items: list[PullRequest]
+    total: int
+    limit: int
+    offset: int
 
 
 class WorkItem(Answer):

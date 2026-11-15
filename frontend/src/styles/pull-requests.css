@@ -1,0 +1,25 @@
+.pull-request-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: 14px;
+}
+.pull-request-form input {
+  min-width: 0;
+}
+.pull-request-owner,
+.pull-request-form > .primary,
+.pull-request-form > .error {
+  grid-column: 1 / -1;
+}
+.pull-request-owner span {
+  overflow-wrap: anywhere;
+}
+.pull-request-form > .primary {
+  justify-self: start;
+}
+.pull-request-row > code {
+  flex: 0 1 auto;
+}
+.pull-request-row > form {
+  flex-basis: 100%;
+}

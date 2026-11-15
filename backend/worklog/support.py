@@ -189,6 +189,28 @@ def session_ties(c: sqlite3.Connection, sessions: builtins.list[dict]) -> builti
     return result
 
 
+def pull_requests(c: sqlite3.Connection, submitted_by: str, limit: int, offset: int) -> dict:
+    where = "kind='pr' AND archived=0"
+    params: tuple[str, ...] = ()
+    if submitter := submitted_by.strip().casefold():
+        # SQLite's built-in lower() handles only ASCII. Treat every character as literal text.
+        c.create_function("casefold", 1, str.casefold, deterministic=True)
+        where += " AND instr(casefold(submitted_by), ?) > 0"
+        params = (submitter,)
+    total = c.execute(f"SELECT COUNT(*) FROM github_refs WHERE {where}", params).fetchone()[0]
+    rows = c.execute(
+        f"""SELECT g.*, ac.title AS chat_title, COALESCE(w.title, r.title, '') AS owner_title
+            FROM (SELECT * FROM github_refs WHERE {where}
+                  ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?) AS g
+            LEFT JOIN agent_chats ac ON ac.id=g.chat_id
+            LEFT JOIN work_items w ON g.owner_type='item' AND w.id=g.owner_id
+            LEFT JOIN roadmaps r ON g.owner_type='roadmap' AND r.id=g.owner_id
+            ORDER BY g.created_at DESC, g.id DESC""",
+        (*params, limit, offset),
+    )
+    return {"items": [support_record(row) for row in rows], "total": total, "limit": limit, "offset": offset}
+
+
 def for_owner(c: sqlite3.Connection, owner_type: str, owner_id: str) -> dict:
     result = {"notes": [support_record(r) for r in c.execute("SELECT * FROM notes WHERE owner_type=? AND owner_id=? ORDER BY created_at", (owner_type, owner_id))],
               "attachments": [support_record(r) for r in c.execute("SELECT id,owner_type,owner_id,name,mime,size,sha256,archived,revision,created_at FROM attachments WHERE owner_type=? AND owner_id=? ORDER BY created_at", (owner_type, owner_id))]}
@@ -309,11 +331,11 @@ def apply(c: sqlite3.Connection, actor: dict, action: str, p: dict, *, moved_to:
         _assign_steps(c, actor, val, previous, assigned, moved_to)
         p = {**p, "id": val["id"]}
     elif kind == "github" and verb in {"create", "update"}:
-        val = before.copy() if before else {"id": uid(), "ownerType": p.get("ownerType"), "ownerId": p.get("ownerId"), "kind": "pr", "url": "", "reference": "", "title": "", "description": "", "chatId": None, "createdAt": now(), "revision": 0}
+        val = before.copy() if before else {"id": uid(), "ownerType": p.get("ownerType"), "ownerId": p.get("ownerId"), "kind": "pr", "url": "", "reference": "", "title": "", "description": "", "chatId": None, "submittedBy": "", "createdAt": now(), "revision": 0}
         if val["ownerType"] not in {"item", "roadmap"}:
             raise AppError(422, "validation", "GitHub references must belong to a work item or roadmap")
         check_owner(c, val["ownerType"], val["ownerId"])
-        for k in ("kind", "url", "reference", "title", "description", "chatId"):
+        for k in ("kind", "url", "reference", "title", "description", "chatId", "submittedBy"):
             if k in p and (k == "chatId" or p[k] is not None):
                 val[k] = p[k]
         if val["kind"] not in {"commit", "pr"}:
@@ -322,6 +344,7 @@ def apply(c: sqlite3.Connection, actor: dict, action: str, p: dict, *, moved_to:
         val["reference"] = text(val["reference"], "reference", limit=300).strip() or infer_github_reference(val["kind"], val["url"])
         val["title"] = text(val["title"], "title", limit=1000).strip()
         val["description"] = text(val["description"], "description", limit=100_000).strip()
+        val["submittedBy"] = text(val["submittedBy"], "submittedBy", limit=800).strip() if val["kind"] == "pr" else ""
         if val["chatId"]:
             if not isinstance(val["chatId"], str):
                 raise AppError(422, "validation", "Invalid chatId")
@@ -329,8 +352,14 @@ def apply(c: sqlite3.Connection, actor: dict, action: str, p: dict, *, moved_to:
         else:
             val["chatId"] = None
         c.execute(
-            "INSERT INTO github_refs(id,owner_type,owner_id,kind,url,reference,title,description,chat_id,archived,revision,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET kind=excluded.kind,url=excluded.url,reference=excluded.reference,title=excluded.title,description=excluded.description,chat_id=excluded.chat_id,revision=excluded.revision,updated_at=excluded.updated_at",
-            (val["id"], val["ownerType"], val["ownerId"], val["kind"], val["url"], val["reference"], val["title"], val["description"], val["chatId"], 0, val["revision"] + 1, val["createdAt"], now()),
+            """INSERT INTO github_refs(id,owner_type,owner_id,kind,url,reference,title,description,
+                                       chat_id,archived,revision,created_at,updated_at,submitted_by)
+               VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+               ON CONFLICT(id) DO UPDATE SET kind=excluded.kind,url=excluded.url,reference=excluded.reference,
+                   title=excluded.title,description=excluded.description,chat_id=excluded.chat_id,
+                   revision=excluded.revision,updated_at=excluded.updated_at,submitted_by=excluded.submitted_by""",
+            (val["id"], val["ownerType"], val["ownerId"], val["kind"], val["url"], val["reference"], val["title"],
+             val["description"], val["chatId"], 0, val["revision"] + 1, val["createdAt"], now(), val["submittedBy"]),
         )
         p = {**p, "id": val["id"]}
     elif kind == "question" and verb in {"create", "update"}:

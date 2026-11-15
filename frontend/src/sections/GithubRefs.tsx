@@ -23,6 +23,7 @@ export function GithubRefsSection({
   const [reference, setReference] = useState("");
   const [description, setDescription] = useState("");
   const [chatId, setChatId] = useState("");
+  const [submittedBy, setSubmittedBy] = useState("");
   const active = github.filter((g) => !g.archived);
   const activeChats = chats.filter((c) => !c.archived);
   return (
@@ -39,6 +40,9 @@ export function GithubRefsSection({
             {g.title || g.reference || g.url} ↗
           </a>
           {g.reference && <code>{g.reference}</code>}
+          {g.kind === "pr" && g.submittedBy && (
+            <small>Submitted by: {g.submittedBy}</small>
+          )}
           {g.chatTitle && <small>Chat: {g.chatTitle}</small>}
           {g.description && <small>{g.description}</small>}
           {!disabled && (
@@ -76,6 +80,7 @@ export function GithubRefsSection({
                   reference: reference.trim(),
                   description: description.trim(),
                   chatId: chatId || null,
+                  submittedBy: kind === "pr" ? submittedBy.trim() : "",
                 }),
               )
               .then(() => {
@@ -84,6 +89,7 @@ export function GithubRefsSection({
                 setReference("");
                 setDescription("");
                 setChatId("");
+                setSubmittedBy("");
               })
               .catch(() => undefined);
           }}
@@ -121,6 +127,15 @@ export function GithubRefsSection({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
+          {kind === "pr" && (
+            <input
+              aria-label="Submitted by"
+              placeholder="Submitted by (optional)…"
+              maxLength={200}
+              value={submittedBy}
+              onChange={(e) => setSubmittedBy(e.target.value)}
+            />
+          )}
           <select
             aria-label="Associated agent chat"
             value={chatId}

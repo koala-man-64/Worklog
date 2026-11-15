@@ -153,6 +153,8 @@ export type WebLink = Schema["WebLink"];
 export type AgentChat = Schema["TrackedChat"];
 /** A GitHub reference as its owner lists it, with the title of the chat that made it. */
 export type GithubRef = Schema["ListedGithubReference"];
+/** A pull request as the registry lists it, with its Worklog owner's title. */
+export type PullRequest = Schema["PullRequest"];
 
 // Roadmaps.
 export type Roadmap = Schema["Roadmap"];
