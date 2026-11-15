@@ -45,6 +45,7 @@ from .db import Database
 from .discussion_api import install_discussion_routes
 from .discussions import bind_credential, communication_actor, registered_by, registered_chats
 from .guard import RequestGuard, error_response, read_body
+from .live_api import install_live_routes
 from .maintenance import prune_receipts
 from .plans import PlanService, recently_done, step_place
 from .proposals import (
@@ -857,6 +858,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     install_discussion_routes(app, db, discussion_mutate)
     install_registration_routes(app, db, support.continue_chats)
     install_registry_routes(app, db, transcripts)
+    install_live_routes(app, db, transcripts)
     dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
     if (dist / "assets").is_dir():
         app.mount("/assets", StaticFiles(directory=dist / "assets", follow_symlink=False), name="assets")

@@ -194,6 +194,21 @@ export type Transcript = Omit<Schema["Transcript"], "messages"> & {
   messages: ChatMessage[];
 };
 
+// Live coordination view.
+export type LiveAgentChat = Schema["LiveAgentChat"];
+export type LiveAgentNode = Schema["LiveAgentNode"];
+export type LiveCommEdge = Schema["LiveCommEdge"];
+export type LivePulse = Schema["LivePulse"];
+export type LiveRepoEdge = Schema["LiveRepoEdge"];
+export type LiveRepoNode = Schema["LiveRepoNode"];
+export type LiveRoadmapOption = Schema["LiveRoadmapOption"];
+export type LiveSnapshot = Schema["LiveSnapshot"];
+export type LiveSummary = Schema["LiveSummary"];
+export type LiveSwimlaneSpan = Schema["LiveSwimlaneSpan"];
+export type LiveUntrackedSession = Schema["LiveUntrackedSession"];
+export type LiveWorkEdge = Schema["LiveWorkEdge"];
+export type LiveWorkNode = Schema["LiveWorkNode"];
+
 // Proposals and Settings.
 export type Operation = Schema["ProposalOperation"];
 /** A proposal as the review list shows it. */

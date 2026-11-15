@@ -53,6 +53,14 @@ const shapes = {
       <path d="M8 8.5h8M8 11.5h5" />
     </>
   ),
+  live: (
+    <>
+      <circle cx="5" cy="12" r="2.25" />
+      <circle cx="12" cy="12" r="2.75" />
+      <circle cx="19" cy="12" r="2.25" />
+      <path d="M7.25 12h1.5l1.35-2.8 2.7 5.6 1.3-2.8h2.65" />
+    </>
+  ),
   review: (
     <>
       <circle cx="12" cy="12" r="8.5" />

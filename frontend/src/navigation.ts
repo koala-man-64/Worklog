@@ -28,6 +28,7 @@ export const sections: Section[] = [
   {
     label: "Agents",
     destinations: [
+      { route: "live", icon: "live", label: "Live" },
       { route: "agents", icon: "agents", label: "Agents" },
       { route: "chats", icon: "chats", label: "Chats" },
       { route: "discussions", icon: "chats", label: "Discussions" },

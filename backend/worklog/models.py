@@ -368,7 +368,7 @@ class SettingsUpdate(Command):
 # (frontend/src/navigation.ts), then the Guide page's view for agents (frontend/src/Guide.tsx);
 # test_usage.py keeps the lists equal.
 Page = Literal["today", "work", "tickets", "roadmaps", "repositories", "people",
-               "resources", "agents", "chats", "discussions", "review", "settings", "usage", "guide",
+               "resources", "live", "agents", "chats", "discussions", "review", "settings", "usage", "guide",
                "agent-guide"]
 # Who made a use the usage counts keep (usage.py): the person or an agent. GET /usage reports
 # either alone on asking.

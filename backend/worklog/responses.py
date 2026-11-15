@@ -2186,3 +2186,205 @@ class UsageReport(Answer):
     daily: list[UsageDay]
     pages: UsedPages
     calls: UsedCalls
+
+
+class LiveRoadmapOption(Answer):
+    id: str
+    title: str
+    parentId: str | None
+    openQuestions: int
+
+
+class LiveSummary(Answer):
+    activeAgents: int
+    workingChats: int
+    activeWorkItems: int
+    activeSteps: int
+    activeRepos: int
+    repoOverlaps: int
+    pendingRequests: int
+    waitingProposals: int
+    openQuestions: int
+    needsYou: int
+
+
+class LiveWorkNode(Answer):
+    id: str
+    kind: Literal["roadmap", "step", "item"]
+    title: str
+    status: Literal["open", "doing", "waiting", "blocked", "done"]
+    roadmapId: str | None
+    roadmapTitle: str | None
+    parentId: str | None
+    stepTitle: str | None
+    rank: int | None
+    openQuestions: int
+    waitingProposals: int
+    waitingProposalIds: list[str]
+    agentCount: int
+    needsYou: bool
+    href: str
+
+
+class LiveAgentChat(Answer):
+    id: str
+    chatId: str
+    title: str
+    provider: str
+    model: str
+    working: bool
+    lastAt: str | None
+    href: str
+
+
+class LiveAgentNode(Answer):
+    id: str
+    label: str
+    avatar: str | None
+    active: bool
+    state: Literal["working", "waiting", "reporting", "stale", "idle", "revoked"]
+    declaredState: Literal["reporting", "stale", "none", "revoked"]
+    sessionState: Literal["working", "waiting", "idle"] | None
+    providers: list[str]
+    model: str
+    registeredById: str | None
+    registeredByLabel: str | None
+    openRuns: int
+    openParticipations: int
+    roles: list[str]
+    chats: list[LiveAgentChat]
+    lastAt: str | None
+    latestNote: str
+    href: str
+
+
+class LiveUntrackedSession(Answer):
+    pid: int
+    sessionId: str
+    hostSessionId: str | None
+    name: str
+    state: Literal["working", "waiting", "idle"]
+    entrypoint: str
+    cwd: str
+    model: str
+    startedAt: str
+    agentIds: list[str]
+
+
+class LiveRepoNode(Answer):
+    id: str
+    name: str
+    url: str | None
+    unreviewed: bool
+    discussionId: str | None
+    branches: list[str]
+    agentCount: int
+    overlapCount: int
+    lastAt: str | None
+    href: str
+
+
+class LiveWorkEdge(Answer):
+    id: str
+    agentId: str
+    workId: str
+    workKind: Literal["roadmap", "step", "item"]
+    via: list[Literal["participation", "role", "chat", "proposal", "discussion"]]
+    active: bool
+    stale: bool
+    lastAt: str | None
+
+
+class LiveRepoEdge(Answer):
+    id: str
+    agentId: str
+    repositoryId: str
+    via: list[Literal["participation", "chat", "update"]]
+    branch: str
+    worktreePath: str
+    active: bool
+    stale: bool
+    lastAt: str | None
+
+
+class LiveCommEdge(Answer):
+    id: str
+    fromKind: Literal["agent", "person"]
+    fromId: str
+    fromLabel: str
+    toKind: Literal["agent", "person"]
+    toId: str
+    toLabel: str
+    kind: Literal["ack_request", "role_offer", "shared_thread", "sponsorship"]
+    status: Literal["pending", "satisfied", "active"]
+    label: str
+    discussionId: str | None
+    messageId: str | None
+    lastAt: str | None
+    href: str
+
+
+class LiveSwimlaneSpan(Answer):
+    id: str
+    agentId: str
+    label: str
+    workId: str | None
+    workKind: Literal["roadmap", "step", "item"] | None
+    repositoryId: str | None
+    repositoryName: str | None
+    branch: str
+    startedAt: str
+    endedAt: str | None
+    lastSeenAt: str
+    stale: bool
+    href: str
+
+
+class LivePulse(Answer):
+    id: str
+    kind: Literal[
+        "update",
+        "blocker",
+        "message",
+        "ack_requested",
+        "ack_satisfied",
+        "role_handoff",
+        "proposal_submitted",
+        "proposal_approved",
+        "participation_started",
+        "run_started",
+    ]
+    at: str
+    actorKind: Literal["agent", "person"]
+    actorId: str
+    actorLabel: str
+    targetActorId: str | None
+    targetActorLabel: str | None
+    workId: str | None
+    workTitle: str | None
+    repositoryId: str | None
+    repositoryName: str | None
+    discussionId: str | None
+    proposalId: str | None
+    summary: str
+    href: str
+
+
+class LiveSnapshot(Answer):
+    """Everything in motion now across plans, agents, chats, discussions and repositories."""
+
+    generatedAt: str
+    windowMinutes: int
+    roadmapId: str | None
+    roadmapTitle: str | None
+    summary: LiveSummary
+    roadmaps: list[LiveRoadmapOption]
+    work: list[LiveWorkNode]
+    agents: list[LiveAgentNode]
+    untrackedSessions: list[LiveUntrackedSession]
+    repositories: list[LiveRepoNode]
+    workEdges: list[LiveWorkEdge]
+    repoEdges: list[LiveRepoEdge]
+    commEdges: list[LiveCommEdge]
+    lanes: list[LiveSwimlaneSpan]
+    pulses: list[LivePulse]

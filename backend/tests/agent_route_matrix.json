@@ -30,6 +30,7 @@
   "GET /api/v1/github/{identity}": "reaches handler",
   "GET /api/v1/history": "reaches handler",
   "GET /api/v1/links/{identity}": "reaches handler",
+  "GET /api/v1/live": "refused",
   "GET /api/v1/notes/{identity}": "reaches handler",
   "GET /api/v1/participations": "reaches handler",
   "GET /api/v1/participations/{identity}": "reaches handler",

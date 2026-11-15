@@ -1,0 +1,416 @@
+{
+  "status": 200,
+  "body": {
+    "generatedAt": "<time>",
+    "windowMinutes": 60,
+    "roadmapId": null,
+    "roadmapTitle": null,
+    "summary": {
+      "activeAgents": 1,
+      "workingChats": 0,
+      "activeWorkItems": 1,
+      "activeSteps": 0,
+      "activeRepos": 1,
+      "repoOverlaps": 0,
+      "pendingRequests": 1,
+      "waitingProposals": 0,
+      "openQuestions": 2,
+      "needsYou": 3
+    },
+    "roadmaps": [
+      {
+        "id": "<id1>",
+        "title": "Plan 2",
+        "parentId": null,
+        "openQuestions": 2
+      },
+      {
+        "id": "<id2>",
+        "title": "Sub-plan",
+        "parentId": "<id1>",
+        "openQuestions": 0
+      }
+    ],
+    "work": [
+      {
+        "id": "<id1>",
+        "kind": "roadmap",
+        "title": "Plan 2",
+        "status": "open",
+        "roadmapId": "<id1>",
+        "roadmapTitle": "Plan 2",
+        "parentId": null,
+        "stepTitle": null,
+        "rank": null,
+        "openQuestions": 2,
+        "waitingProposals": 0,
+        "waitingProposalIds": [],
+        "agentCount": 1,
+        "needsYou": true,
+        "href": "#roadmaps/<id1>"
+      },
+      {
+        "id": "<id3>",
+        "kind": "step",
+        "title": "Child",
+        "status": "open",
+        "roadmapId": "<id1>",
+        "roadmapTitle": "Plan 2",
+        "parentId": "<id4>",
+        "stepTitle": "Child",
+        "rank": 1,
+        "openQuestions": 0,
+        "waitingProposals": 0,
+        "waitingProposalIds": [],
+        "agentCount": 1,
+        "needsYou": false,
+        "href": "#roadmaps/<id1>/<id3>"
+      },
+      {
+        "id": "<id5>",
+        "kind": "item",
+        "title": "Parser",
+        "status": "doing",
+        "roadmapId": "<id1>",
+        "roadmapTitle": "Plan 2",
+        "parentId": "<id3>",
+        "stepTitle": "Child",
+        "rank": 1,
+        "openQuestions": 0,
+        "waitingProposals": 0,
+        "waitingProposalIds": [],
+        "agentCount": 1,
+        "needsYou": false,
+        "href": "#work/<id5>"
+      }
+    ],
+    "agents": [
+      {
+        "id": "<id6>",
+        "label": "Builder",
+        "avatar": "red-dots-antenna",
+        "active": true,
+        "state": "reporting",
+        "declaredState": "reporting",
+        "sessionState": null,
+        "providers": [],
+        "model": "",
+        "registeredById": null,
+        "registeredByLabel": null,
+        "openRuns": 1,
+        "openParticipations": 1,
+        "roles": [
+          "Parser owner"
+        ],
+        "chats": [
+          {
+            "id": "<id7>",
+            "chatId": "chat-1",
+            "title": "Build",
+            "provider": "",
+            "model": "",
+            "working": false,
+            "lastAt": "<time>",
+            "href": "#chats/<id7>"
+          }
+        ],
+        "lastAt": "<time>",
+        "latestNote": "Parser half done",
+        "href": "#agents/<id6>"
+      }
+    ],
+    "untrackedSessions": [],
+    "repositories": [
+      {
+        "id": "<id8>",
+        "name": "worklog",
+        "url": "https://github.com/example/worklog",
+        "unreviewed": false,
+        "discussionId": "<id9>",
+        "branches": [],
+        "agentCount": 1,
+        "overlapCount": 1,
+        "lastAt": "<time>",
+        "href": "#repositories/<id8>"
+      }
+    ],
+    "workEdges": [
+      {
+        "id": "work:<id6>:<id1>",
+        "agentId": "<id6>",
+        "workId": "<id1>",
+        "workKind": "roadmap",
+        "via": [
+          "participation",
+          "role",
+          "chat",
+          "proposal",
+          "discussion"
+        ],
+        "active": true,
+        "stale": false,
+        "lastAt": "<time>"
+      },
+      {
+        "id": "work:<id6>:<id3>",
+        "agentId": "<id6>",
+        "workId": "<id3>",
+        "workKind": "step",
+        "via": [
+          "participation",
+          "discussion"
+        ],
+        "active": true,
+        "stale": false,
+        "lastAt": "<time>"
+      },
+      {
+        "id": "work:<id6>:<id5>",
+        "agentId": "<id6>",
+        "workId": "<id5>",
+        "workKind": "item",
+        "via": [
+          "participation",
+          "role",
+          "chat",
+          "proposal",
+          "discussion"
+        ],
+        "active": true,
+        "stale": false,
+        "lastAt": "<time>"
+      }
+    ],
+    "repoEdges": [
+      {
+        "id": "repo:<id6>:<id8>",
+        "agentId": "<id6>",
+        "repositoryId": "<id8>",
+        "via": [
+          "participation",
+          "update"
+        ],
+        "branch": "",
+        "worktreePath": "",
+        "active": true,
+        "stale": false,
+        "lastAt": "<time>"
+      }
+    ],
+    "commEdges": [
+      {
+        "id": "ack:<id10>:2",
+        "fromKind": "person",
+        "fromId": "local-user",
+        "fromLabel": "You",
+        "toKind": "agent",
+        "toId": "<id6>",
+        "toLabel": "Builder",
+        "kind": "ack_request",
+        "status": "pending",
+        "label": "Ack (Parser owner)",
+        "discussionId": "<id11>",
+        "messageId": "<id10>",
+        "lastAt": "<time>",
+        "href": "#discussions/<id11>"
+      },
+      {
+        "id": "ack:<id12>:1",
+        "fromKind": "person",
+        "fromId": "local-user",
+        "fromLabel": "You",
+        "toKind": "agent",
+        "toId": "<id6>",
+        "toLabel": "Builder",
+        "kind": "ack_request",
+        "status": "satisfied",
+        "label": "Acknowledgement",
+        "discussionId": "<id11>",
+        "messageId": "<id12>",
+        "lastAt": "<time>",
+        "href": "#discussions/<id11>"
+      }
+    ],
+    "lanes": [
+      {
+        "id": "participation:<id13>:0",
+        "agentId": "<id6>",
+        "label": "Builder",
+        "workId": "<id5>",
+        "workKind": "item",
+        "repositoryId": "<id8>",
+        "repositoryName": "worklog",
+        "branch": "",
+        "startedAt": "<time>",
+        "endedAt": null,
+        "lastSeenAt": "<time>",
+        "stale": false,
+        "href": "#work/<id5>"
+      }
+    ],
+    "pulses": [
+      {
+        "id": "message:<id10>",
+        "kind": "ack_requested",
+        "at": "<time>",
+        "actorKind": "person",
+        "actorId": "local-user",
+        "actorLabel": "You",
+        "targetActorId": null,
+        "targetActorLabel": null,
+        "workId": "<id5>",
+        "workTitle": "Parser",
+        "repositoryId": null,
+        "repositoryName": null,
+        "discussionId": "<id11>",
+        "proposalId": null,
+        "summary": "Who reviews the parser?",
+        "href": "#discussions/<id11>"
+      },
+      {
+        "id": "ack:<id14>",
+        "kind": "ack_satisfied",
+        "at": "<time>",
+        "actorKind": "agent",
+        "actorId": "<id6>",
+        "actorLabel": "Builder",
+        "targetActorId": "local-user",
+        "targetActorLabel": "You",
+        "workId": null,
+        "workTitle": null,
+        "repositoryId": null,
+        "repositoryName": null,
+        "discussionId": "<id11>",
+        "proposalId": null,
+        "summary": "Acknowledgement received",
+        "href": "#discussions/<id11>"
+      },
+      {
+        "id": "message:<id12>",
+        "kind": "ack_requested",
+        "at": "<time>",
+        "actorKind": "person",
+        "actorId": "local-user",
+        "actorLabel": "You",
+        "targetActorId": null,
+        "targetActorLabel": null,
+        "workId": "<id5>",
+        "workTitle": "Parser",
+        "repositoryId": null,
+        "repositoryName": null,
+        "discussionId": "<id11>",
+        "proposalId": null,
+        "summary": "Confirm the table plan",
+        "href": "#discussions/<id11>"
+      },
+      {
+        "id": "message:<id15>",
+        "kind": "message",
+        "at": "<time>",
+        "actorKind": "agent",
+        "actorId": "<id6>",
+        "actorLabel": "Builder",
+        "targetActorId": null,
+        "targetActorLabel": null,
+        "workId": "<id5>",
+        "workTitle": "Parser",
+        "repositoryId": null,
+        "repositoryName": null,
+        "discussionId": "<id11>",
+        "proposalId": null,
+        "summary": "Starting with the tables",
+        "href": "#discussions/<id11>"
+      },
+      {
+        "id": "update:<id16>",
+        "kind": "update",
+        "at": "<time>",
+        "actorKind": "agent",
+        "actorId": "<id6>",
+        "actorLabel": "Builder",
+        "targetActorId": null,
+        "targetActorLabel": null,
+        "workId": "<id5>",
+        "workTitle": "Parser",
+        "repositoryId": "<id8>",
+        "repositoryName": "worklog",
+        "discussionId": null,
+        "proposalId": null,
+        "summary": "Parser half done",
+        "href": "#work/<id5>"
+      },
+      {
+        "id": "proposal:<id17>:proposal_approved",
+        "kind": "proposal_approved",
+        "at": "<time>",
+        "actorKind": "agent",
+        "actorId": "<id6>",
+        "actorLabel": "Builder",
+        "targetActorId": null,
+        "targetActorLabel": null,
+        "workId": "<id1>",
+        "workTitle": "Plan 2",
+        "repositoryId": null,
+        "repositoryName": null,
+        "discussionId": null,
+        "proposalId": "<id17>",
+        "summary": "Track the spec",
+        "href": "#review/<id17>"
+      },
+      {
+        "id": "participation:<id13>",
+        "kind": "participation_started",
+        "at": "<time>",
+        "actorKind": "agent",
+        "actorId": "<id6>",
+        "actorLabel": "Builder",
+        "targetActorId": null,
+        "targetActorLabel": null,
+        "workId": "<id5>",
+        "workTitle": "Parser",
+        "repositoryId": null,
+        "repositoryName": null,
+        "discussionId": null,
+        "proposalId": null,
+        "summary": "Participation started",
+        "href": "#work/<id5>"
+      },
+      {
+        "id": "message:<id18>",
+        "kind": "message",
+        "at": "<time>",
+        "actorKind": "person",
+        "actorId": "local-user",
+        "actorLabel": "You",
+        "targetActorId": null,
+        "targetActorLabel": null,
+        "workId": "<id5>",
+        "workTitle": "Parser",
+        "repositoryId": null,
+        "repositoryName": null,
+        "discussionId": "<id11>",
+        "proposalId": null,
+        "summary": "Where do we start?",
+        "href": "#discussions/<id11>"
+      },
+      {
+        "id": "message:<id19>",
+        "kind": "message",
+        "at": "<time>",
+        "actorKind": "person",
+        "actorId": "local-user",
+        "actorLabel": "You",
+        "targetActorId": null,
+        "targetActorLabel": null,
+        "workId": null,
+        "workTitle": null,
+        "repositoryId": null,
+        "repositoryName": null,
+        "discussionId": "<id9>",
+        "proposalId": null,
+        "summary": "Worklog opened this discussion for the repository **worklog** (`<id8>`).",
+        "href": "#discussions/<id9>"
+      }
+    ]
+  }
+}
