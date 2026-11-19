@@ -155,6 +155,12 @@ export type AgentChat = Schema["TrackedChat"];
 export type GithubRef = Schema["ListedGithubReference"];
 /** A pull request as the registry lists it, with its Worklog owner's title. */
 export type PullRequest = Schema["PullRequest"];
+/** What reached each repository's default branch in a window, counted from local checkouts. */
+export type PullRequestActivity = Schema["PullRequestActivity"];
+export type ActivityDay = Schema["ActivityDay"];
+export type ActivityRepository = Schema["ActivityRepository"];
+/** A registered pull request's merge on its default branch, if one is found. */
+export type ActivityPullRequest = Schema["ActivityPullRequest"];
 
 // Roadmaps.
 export type Roadmap = Schema["Roadmap"];

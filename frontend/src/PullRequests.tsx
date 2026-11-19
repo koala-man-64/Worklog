@@ -2,7 +2,15 @@ import { useState } from "react";
 import { commands } from "./commands";
 import { LinkPicker } from "./LinkPicker";
 import { useData, useWrites } from "./hooks";
-import type { Answer, Item, PullRequest, RoadmapListed } from "./apiTypes";
+import type {
+  ActivityPullRequest,
+  Answer,
+  Item,
+  PullRequest,
+  PullRequestActivity,
+  RoadmapListed,
+} from "./apiTypes";
+import { Activity, activityRefresh, mergeText } from "./PullRequestActivity";
 import { Empty, ErrorMessage } from "./ui/Messages";
 import { Pager } from "./ui/Pager";
 import { statusLabel } from "./ui/Status";
@@ -27,12 +35,28 @@ export function PullRequests() {
     filter ? `&submittedBy=${encodeURIComponent(filter)}` : ""
   }`;
   const list = useData<Answer<"/api/v1/pull-requests">>(query);
+  const [days, setDays] = useState(30);
+  const activity = useData<PullRequestActivity>(
+    `/pull-requests/activity?days=${days}`,
+    activityRefresh,
+  );
+  const merges = new Map(
+    (activity.data?.pullRequests ?? []).map((merge) => [merge.id, merge]),
+  );
 
   return (
     <>
       <header>
         <h1>Pull requests</h1>
       </header>
+
+      <ErrorMessage error={activity.error} />
+      <Activity
+        report={activity.data}
+        days={days}
+        onDays={setDays}
+        stale={activity.isPlaceholderData}
+      />
 
       <h2>Add pull request</h2>
       <form
@@ -214,6 +238,7 @@ export function PullRequests() {
         <PullRequestRow
           key={pullRequest.id}
           pullRequest={pullRequest}
+          merge={merges.get(pullRequest.id)}
           onSaved={() => setOffset(0)}
         />
       ))}
@@ -230,12 +255,15 @@ export function PullRequests() {
 
 function PullRequestRow({
   pullRequest,
+  merge,
   onSaved,
 }: {
   pullRequest: PullRequest;
+  merge: ActivityPullRequest | undefined;
   onSaved: () => void;
 }) {
   const title = pullRequest.title || pullRequest.reference || pullRequest.url;
+  const merged = mergeText(merge);
   const ownerHref =
     pullRequest.ownerType === "item"
       ? `#work/${pullRequest.ownerId}`
@@ -253,6 +281,7 @@ function PullRequestRow({
         {pullRequest.ownerType === "item" ? "Work item" : "Roadmap"}: {" "}
         <a href={ownerHref}>{pullRequest.ownerTitle}</a>
       </span>
+      {merged && <small className="pull-request-merge">{merged}</small>}
       {pullRequest.chatTitle && <small>Chat: {pullRequest.chatTitle}</small>}
       <SubmitterEditor
         pullRequest={pullRequest}

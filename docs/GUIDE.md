@@ -474,6 +474,15 @@ See the pull requests saved on work items and roadmaps in one list. Each entry l
 
 Use "Add pull request" to save a PR link from GitHub or Azure DevOps. Choose its work item or roadmap and give the submitter's name or handle when you know it.
 
+"Activity", at the top of the page, shows what reached your repositories' main branches in the last 7, 30, 90 or 365 days:
+
+- **Totals**: "Commits", "Lines added", "Lines removed" and "Pull requests merged".
+- **Charts**: commits per day, and lines added above the line and removed below it. A year is shown by the week. "Show as table" lists each day's numbers.
+- **Repositories**: each with its commits, lines and merges, the registered pull requests in it, and where its counts come from. A repository that can't be counted says why, for example when no agent has reported a checkout of it.
+- **Each pull request's row** gives its size and the day it merged, or says no merge was found on main.
+
+Worklog counts from the checkouts your agents report, every ten minutes in the background, and never fetches. The counts are as fresh as each checkout's last fetch, which the repository's row shows. A commit is counted on the day it was committed, in Worklog's timezone, and merge commits are left out. A merge counts as a pull request when its message says so, as Azure DevOps and GitHub word it: `Merged PR 123:` or `Merge pull request 123 from` at the start, or `(PR 123)` or `(#123)` at the end. The counts are kept in `git-activity.sqlite3` next to Worklog's database. Backups leave it out, and deleting it only makes Worklog count again.
+
 ### People
 
 The people involved in your work.

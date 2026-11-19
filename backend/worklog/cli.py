@@ -429,11 +429,14 @@ def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
 
         watcher = threading.Thread(target=watch, daemon=True)
         watcher.start()
+        # Counts commits on each repository's default branch in the background (git_activity.py).
+        app.state.git_activity.start()
         try:
             server.run()
         finally:
             finished.set()
             watcher.join(timeout=1)
+            app.state.git_activity.stop()
             # The counts since the watcher's last write, without reading the timezone: none come after.
             app.state.usage.flush(refresh_zone=False)
             marker.unlink(missing_ok=True)

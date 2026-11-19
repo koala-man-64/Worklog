@@ -23,3 +23,19 @@
 .pull-request-row > form {
   flex-basis: 100%;
 }
+.pull-request-merge {
+  font-variant-numeric: tabular-nums;
+}
+/* Repositories: a thin bar of commits beside the count, so the busiest stand out down the column. */
+.pull-request-commits {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.pull-request-commits .meter {
+  width: 6rem;
+}
+.pull-request-repositories {
+  margin-top: 16px;
+}

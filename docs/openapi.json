@@ -1106,6 +1106,48 @@
         }
       }
     },
+    "/api/v1/pull-requests/activity": {
+      "get": {
+        "summary": "Pull Request Activity",
+        "operationId": "pull_request_activity_api_v1_pull_requests_activity_get",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "How many days to today it covers: 7, 30, 90 or 365",
+              "default": 30,
+              "title": "Days"
+            },
+            "description": "How many days to today it covers: 7, 30, 90 or 365"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PullRequestActivity"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/decisions/{identity}": {
       "get": {
         "summary": "Supporting Detail",
@@ -9042,6 +9084,264 @@
         ],
         "title": "AcknowledgementTarget",
         "description": "One slot of an acknowledgement request: a named participant, a role, or any agent or anyone."
+      },
+      "ActivityDay": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "title": "Day"
+          },
+          "commits": {
+            "type": "integer",
+            "title": "Commits"
+          },
+          "additions": {
+            "type": "integer",
+            "title": "Additions"
+          },
+          "deletions": {
+            "type": "integer",
+            "title": "Deletions"
+          },
+          "merged": {
+            "type": "integer",
+            "title": "Merged"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "day",
+          "commits",
+          "additions",
+          "deletions",
+          "merged"
+        ],
+        "title": "ActivityDay",
+        "description": "One day on the default branches: commits (merge commits left out), the lines they added and\nremoved, and the pull request merges among the branches' own commits."
+      },
+      "ActivityPullRequest": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "repositoryId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repositoryid"
+          },
+          "number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number"
+          },
+          "mergedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mergedat"
+          },
+          "sha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha"
+          },
+          "additions": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Additions"
+          },
+          "deletions": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deletions"
+          },
+          "files": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Files"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "repositoryId",
+          "number",
+          "mergedAt",
+          "sha",
+          "additions",
+          "deletions",
+          "files"
+        ],
+        "title": "ActivityPullRequest",
+        "description": "A registered pull request's merge on its repository's default branch; nulls while none is found.\nA merge commit's size waits for the next count after it is registered."
+      },
+      "ActivityRepository": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "branch": {
+            "type": "string",
+            "title": "Branch"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "scanning",
+              "ready",
+              "no_checkout",
+              "checkout_mismatch",
+              "no_default_branch",
+              "failed",
+              "timed_out"
+            ],
+            "title": "State"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "fetchedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fetchedat"
+          },
+          "scannedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scannedat"
+          },
+          "commits": {
+            "type": "integer",
+            "title": "Commits"
+          },
+          "additions": {
+            "type": "integer",
+            "title": "Additions"
+          },
+          "deletions": {
+            "type": "integer",
+            "title": "Deletions"
+          },
+          "merged": {
+            "type": "integer",
+            "title": "Merged"
+          },
+          "registered": {
+            "type": "integer",
+            "title": "Registered"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "branch",
+          "state",
+          "detail",
+          "fetchedAt",
+          "scannedAt",
+          "commits",
+          "additions",
+          "deletions",
+          "merged",
+          "registered"
+        ],
+        "title": "ActivityRepository",
+        "description": "A repository's totals in the window, and how its last count went (git_activity.py)."
+      },
+      "ActivityWindow": {
+        "properties": {
+          "days": {
+            "type": "integer",
+            "title": "Days"
+          },
+          "from": {
+            "type": "string",
+            "title": "From"
+          },
+          "to": {
+            "type": "string",
+            "title": "To"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "days",
+          "from",
+          "to",
+          "timezone"
+        ],
+        "title": "ActivityWindow",
+        "description": "The days the activity covers, both ends included, in Worklog's timezone."
       },
       "Actor": {
         "properties": {
@@ -18675,6 +18975,59 @@
           "ownerTitle"
         ],
         "title": "PullRequest"
+      },
+      "PullRequestActivity": {
+        "properties": {
+          "window": {
+            "$ref": "#/components/schemas/ActivityWindow"
+          },
+          "daily": {
+            "items": {
+              "$ref": "#/components/schemas/ActivityDay"
+            },
+            "type": "array",
+            "title": "Daily"
+          },
+          "repositories": {
+            "items": {
+              "$ref": "#/components/schemas/ActivityRepository"
+            },
+            "type": "array",
+            "title": "Repositories"
+          },
+          "pullRequests": {
+            "items": {
+              "$ref": "#/components/schemas/ActivityPullRequest"
+            },
+            "type": "array",
+            "title": "Pullrequests"
+          },
+          "scanning": {
+            "type": "boolean",
+            "title": "Scanning"
+          },
+          "scanned": {
+            "type": "integer",
+            "title": "Scanned"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "window",
+          "daily",
+          "repositories",
+          "pullRequests",
+          "scanning",
+          "scanned",
+          "total"
+        ],
+        "title": "PullRequestActivity",
+        "description": "GET /pull-requests/activity: what reached each repository's default branch, read from its local\ncheckout without fetching."
       },
       "PullRequests": {
         "properties": {

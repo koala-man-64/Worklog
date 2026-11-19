@@ -346,6 +346,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/pull-requests/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pull Request Activity */
+        get: operations["pull_request_activity_api_v1_pull_requests_activity_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/decisions/{identity}": {
         parameters: {
             query?: never;
@@ -2630,6 +2647,93 @@ export interface components {
             acknowledged: boolean;
             /** Acknowledgedby */
             acknowledgedBy: string | null;
+        };
+        /**
+         * ActivityDay
+         * @description One day on the default branches: commits (merge commits left out), the lines they added and
+         *     removed, and the pull request merges among the branches' own commits.
+         */
+        ActivityDay: {
+            /** Day */
+            day: string;
+            /** Commits */
+            commits: number;
+            /** Additions */
+            additions: number;
+            /** Deletions */
+            deletions: number;
+            /** Merged */
+            merged: number;
+        };
+        /**
+         * ActivityPullRequest
+         * @description A registered pull request's merge on its repository's default branch; nulls while none is found.
+         *     A merge commit's size waits for the next count after it is registered.
+         */
+        ActivityPullRequest: {
+            /** Id */
+            id: string;
+            /** Repositoryid */
+            repositoryId: string | null;
+            /** Number */
+            number: number | null;
+            /** Mergedat */
+            mergedAt: string | null;
+            /** Sha */
+            sha: string | null;
+            /** Additions */
+            additions: number | null;
+            /** Deletions */
+            deletions: number | null;
+            /** Files */
+            files: number | null;
+        };
+        /**
+         * ActivityRepository
+         * @description A repository's totals in the window, and how its last count went (git_activity.py).
+         */
+        ActivityRepository: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Branch */
+            branch: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "pending" | "scanning" | "ready" | "no_checkout" | "checkout_mismatch" | "no_default_branch" | "failed" | "timed_out";
+            /** Detail */
+            detail: string;
+            /** Fetchedat */
+            fetchedAt: string | null;
+            /** Scannedat */
+            scannedAt: string | null;
+            /** Commits */
+            commits: number;
+            /** Additions */
+            additions: number;
+            /** Deletions */
+            deletions: number;
+            /** Merged */
+            merged: number;
+            /** Registered */
+            registered: number;
+        };
+        /**
+         * ActivityWindow
+         * @description The days the activity covers, both ends included, in Worklog's timezone.
+         */
+        ActivityWindow: {
+            /** Days */
+            days: number;
+            /** From */
+            from: string;
+            /** To */
+            to: string;
+            /** Timezone */
+            timezone: string;
         };
         /**
          * Actor
@@ -5944,6 +6048,26 @@ export interface components {
             /** Ownertitle */
             ownerTitle: string;
         };
+        /**
+         * PullRequestActivity
+         * @description GET /pull-requests/activity: what reached each repository's default branch, read from its local
+         *     checkout without fetching.
+         */
+        PullRequestActivity: {
+            window: components["schemas"]["ActivityWindow"];
+            /** Daily */
+            daily: components["schemas"]["ActivityDay"][];
+            /** Repositories */
+            repositories: components["schemas"]["ActivityRepository"][];
+            /** Pullrequests */
+            pullRequests: components["schemas"]["ActivityPullRequest"][];
+            /** Scanning */
+            scanning: boolean;
+            /** Scanned */
+            scanned: number;
+            /** Total */
+            total: number;
+        };
         /** PullRequests */
         PullRequests: {
             /** Items */
@@ -8829,6 +8953,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PullRequests"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pull_request_activity_api_v1_pull_requests_activity_get: {
+        parameters: {
+            query?: {
+                /** @description How many days to today it covers: 7, 30, 90 or 365 */
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PullRequestActivity"];
                 };
             };
             /** @description Validation Error */
