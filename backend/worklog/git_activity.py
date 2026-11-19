@@ -26,6 +26,7 @@ from contextlib import closing
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from .coordination import repository_identity
@@ -358,7 +359,8 @@ class Scanner:
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
-        self._progress = {"running": False, "done": 0, "total": 0, "current": None}
+        # Whether a pass runs, how many repositories it has done of how many, and the one it counts now.
+        self._progress: dict[str, Any] = {"running": False, "done": 0, "total": 0, "current": None}
 
     def progress(self) -> dict:
         with self._lock:
@@ -575,7 +577,7 @@ def report(cache: Cache, progress: dict, *, days: int, today: date, timezone: st
     pulls = []
     for reference_id, repository_id, number in prs:
         sha, stamp, additions, deletions, files = sizes.get((repository_id, number), (None,) * 5) \
-            if repository_id else (None,) * 5
+            if repository_id and number is not None else (None,) * 5
         pulls.append({"id": reference_id, "repositoryId": repository_id, "number": number, "mergedAt": stamp,
                       "sha": sha, "additions": additions, "deletions": deletions, "files": files})
     running = bool(progress.get("running"))
