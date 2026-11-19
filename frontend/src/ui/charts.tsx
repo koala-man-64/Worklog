@@ -1,8 +1,11 @@
 import { useState, type CSSProperties, type PointerEvent } from "react";
 import { formatCount } from "./format";
 
-/** A series' colour: the person's or agents'. Each keeps its colour wherever it shows. */
-export type Tone = "you" | "agents";
+/**
+ * A series' colour: the person's or agents', or lines added and removed. Each keeps its colour
+ * wherever it shows.
+ */
+export type Tone = "you" | "agents" | "added" | "removed";
 export type Series = { label: string; tone: Tone };
 /** One column: its label, such as "Nov 6", and a value for each series, in the series' order. */
 export type Column = { key: string; label: string; values: number[] };
@@ -18,7 +21,8 @@ export function niceTop(max: number) {
 }
 
 /**
- * Columns over time, each stacking its series from the base up. Pointing at the plot reads out the
+ * Columns over time, each stacking its series from the base up, or, `mirror`ed, its first series
+ * above a baseline and its second below it, on one scale. Pointing at the plot reads out the
  * nearest column's values; "Show as table" lists them all, which is also how a keyboard or a screen
  * reader reaches them, so the readout only adds to what the table says.
  */
@@ -29,6 +33,7 @@ export function ColumnChart({
   columns,
   note,
   className,
+  mirror = false,
 }: {
   title: string;
   /** What a column is, such as "Day" or "Week": the table's first heading. */
@@ -38,13 +43,27 @@ export function ColumnChart({
   note?: string;
   /** Added to the figure's own, for the page to place the chart. */
   className?: string;
+  /** Two series, such as lines added and removed: the first up from the baseline, the second down. */
+  mirror?: boolean;
 }) {
   const [pointed, setPointed] = useState<number | null>(null);
   const totals = columns.map((column) =>
     column.values.reduce((a, b) => a + b, 0),
   );
-  const top = niceTop(Math.max(0, ...totals));
-  const ticks = top > 1 && top % 2 === 0 ? [top, top / 2, 0] : [top, 0];
+  const ups = mirror ? columns.map((column) => column.values[0]) : totals;
+  const downs = columns.map((column) => (mirror ? column.values[1] : 0));
+  const top = niceTop(Math.max(0, ...ups));
+  // Below the baseline, mirrored: its own clean end, on the same scale as above.
+  const bottom = mirror ? niceTop(Math.max(0, ...downs)) : 0;
+  const range = top + bottom;
+  const ticks = mirror
+    ? [top, 0, -bottom]
+    : top > 1 && top % 2 === 0
+      ? [top, top / 2, 0]
+      : [top, 0];
+  /** How far up the plot a value sits, in percent; the baseline is at 0. */
+  const place = (value: number) => ((value + bottom) / range) * 100;
+  const base = place(0);
   const bySeries = series.map((_, index) =>
     columns.reduce((total, column) => total + column.values[index], 0),
   );
@@ -55,15 +74,23 @@ export function ColumnChart({
       : (columns[0]?.label ?? "");
   const summary =
     `${title}, ${span}: ` +
-    (totals[peak] > 0
-      ? series
-          .map((one, index) =>
-            series.length > 1
-              ? `${one.label.toLowerCase()} ${bySeries[index]}`
-              : `${bySeries[index]} in all`,
-          )
-          .join(", ") + `; the most, ${totals[peak]}, ${columns[peak].label}`
-      : "none");
+    (mirror
+      ? totals[peak] > 0
+        ? series
+            .map(
+              (one, index) => `${one.label.toLowerCase()} ${bySeries[index]}`,
+            )
+            .join(", ")
+        : "none"
+      : totals[peak] > 0
+        ? series
+            .map((one, index) =>
+              series.length > 1
+                ? `${one.label.toLowerCase()} ${bySeries[index]}`
+                : `${bySeries[index]} in all`,
+            )
+            .join(", ") + `; the most, ${totals[peak]}, ${columns[peak].label}`
+        : "none");
   const point = (event: PointerEvent<HTMLDivElement>) => {
     const box = event.currentTarget.getBoundingClientRect();
     if (!box.width || !columns.length) return;
@@ -98,11 +125,22 @@ export function ColumnChart({
       </figcaption>
       <div className="chart-body">
         {/* Evenly spaced from the top down, as the ticks are, each label centred on its line. */}
-        <div className="chart-ticks" aria-hidden="true">
-          {ticks.map((tick) => (
-            <span key={tick}>{formatCount(tick)}</span>
-          ))}
-        </div>
+        {mirror ? (
+          // Mirrored, the ticks need not be evenly spaced: each sits at its own height.
+          <div className="chart-ticks placed" aria-hidden="true">
+            {ticks.map((tick) => (
+              <span key={tick} style={{ bottom: `${place(tick)}%` }}>
+                {formatCount(Math.abs(tick))}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <div className="chart-ticks" aria-hidden="true">
+            {ticks.map((tick) => (
+              <span key={tick}>{formatCount(tick)}</span>
+            ))}
+          </div>
+        )}
         <div
           className="chart-plot"
           role="img"
@@ -115,7 +153,7 @@ export function ColumnChart({
             <span
               key={tick}
               className="chart-grid"
-              style={{ bottom: `${(tick / top) * 100}%` }}
+              style={{ bottom: `${place(tick)}%` }}
             />
           ))}
           <div
@@ -126,10 +164,30 @@ export function ColumnChart({
               <div
                 key={column.key}
                 className={
-                  "chart-column" + (index === pointed ? " pointed" : "")
+                  "chart-column" +
+                  (mirror ? " mirrored" : "") +
+                  (index === pointed ? " pointed" : "")
                 }
               >
-                {totals[index] > 0 && (
+                {mirror && ups[index] > 0 && (
+                  <span
+                    className={"chart-bar up " + series[0].tone}
+                    style={{
+                      bottom: `calc(${base}% + 1px)`,
+                      height: `${(ups[index] / range) * 100}%`,
+                    }}
+                  />
+                )}
+                {mirror && downs[index] > 0 && (
+                  <span
+                    className={"chart-bar down " + series[1].tone}
+                    style={{
+                      top: `calc(${100 - base}% + 1px)`,
+                      height: `${(downs[index] / range) * 100}%`,
+                    }}
+                  />
+                )}
+                {!mirror && totals[index] > 0 && (
                   <div
                     className="chart-stack"
                     style={{ height: `${(totals[index] / top) * 100}%` }}

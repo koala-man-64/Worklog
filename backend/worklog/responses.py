@@ -255,6 +255,76 @@ class PullRequests(Answer):
     offset: int
 
 
+class ActivityWindow(Answer):
+    """The days the activity covers, both ends included, in Worklog's timezone."""
+
+    days: int
+    # Answered as `from`, which Python keeps for itself.
+    from_: str = Field(alias="from")
+    to: str
+    timezone: str
+
+
+class ActivityDay(Answer):
+    """One day on the default branches: commits (merge commits left out), the lines they added and
+    removed, and the pull request merges among the branches' own commits."""
+
+    day: str
+    commits: int
+    additions: int
+    deletions: int
+    merged: int
+
+
+class ActivityRepository(Answer):
+    """A repository's totals in the window, and how its last count went (git_activity.py)."""
+
+    id: str
+    name: str
+    # The default branch counted, `main` or `master`; empty until a count reaches one.
+    branch: str
+    state: Literal["pending", "scanning", "ready", "no_checkout", "checkout_mismatch", "no_default_branch",
+                   "failed", "timed_out"]
+    detail: str
+    # When the checkout last fetched (FETCH_HEAD), and when Worklog last counted it.
+    fetchedAt: str | None
+    scannedAt: str | None
+    commits: int
+    additions: int
+    deletions: int
+    merged: int
+    # Registered pull requests in this repository, merged or not.
+    registered: int
+
+
+class ActivityPullRequest(Answer):
+    """A registered pull request's merge on its repository's default branch; nulls while none is found.
+    A merge commit's size waits for the next count after it is registered."""
+
+    id: str
+    repositoryId: str | None
+    number: int | None
+    mergedAt: str | None
+    sha: str | None
+    additions: int | None
+    deletions: int | None
+    files: int | None
+
+
+class PullRequestActivity(Answer):
+    """GET /pull-requests/activity: what reached each repository's default branch, read from its local
+    checkout without fetching."""
+
+    window: ActivityWindow
+    daily: list[ActivityDay]
+    repositories: list[ActivityRepository]
+    pullRequests: list[ActivityPullRequest]
+    # A count is under way: `scanned` of `total` repositories are done.
+    scanning: bool
+    scanned: int
+    total: int
+
+
 class WorkItem(Answer):
     """A work item with everything its page shows."""
 

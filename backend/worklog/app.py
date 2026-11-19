@@ -24,7 +24,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import __version__, operations, policy, support
+from . import __version__, git_activity, operations, policy, support
 from . import models as m
 from . import responses as out
 from .active_sessions import running_sessions
@@ -204,6 +204,10 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     # the serve process does, every minute and when it stops.
     app.state.usage = Usage(directory / USAGE_FILE, worklog_timezone)
     app.add_middleware(UsageMiddleware, usage=app.state.usage)
+    # Commits and lines on each repository's default branch, counted from local checkouts into a side
+    # file (git_activity.py). The serve process starts the count; tests run it themselves.
+    app.state.git_activity = git_activity.Scanner(git_activity.Cache(directory / git_activity.FILE),
+                                                  lambda: db.snapshot(git_activity.targets))
     # Host, origin, the caller and the route policy, a bounded JSON body, and the security headers on
     # every response (guard.py).
     app.add_middleware(RequestGuard, owner=app, db=db, hosts=allowed_hosts, origins=allowed_origins)
@@ -379,6 +383,16 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def pull_requests(submittedBy: str = Query("", max_length=200),
                       limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
         return db.snapshot(lambda c: support.pull_requests(c, submittedBy, limit, offset))
+
+    @app.get("/api/v1/pull-requests/activity", response_model=out.PullRequestActivity)
+    def pull_request_activity(days: int = Query(30, description="How many days to today it covers: 7, 30, 90 or 365")) -> dict:
+        # What the background count (git_activity.py) has found so far; no request runs git.
+        if days not in git_activity.WINDOWS:
+            raise AppError(422, "validation", "Choose 7, 30, 90 or 365 days", [{"field": "days", "message": "unsupported"}])
+        zone, repos, prs = db.snapshot(lambda c: (setting(c, "timezone", "America/Chicago"),
+                                                  git_activity.repositories(c), git_activity.registered(c)))
+        return git_activity.report(app.state.git_activity.cache, app.state.git_activity.progress(), days=days,
+                                   today=date.fromisoformat(today(zone)), timezone=zone, repos=repos, prs=prs)
 
     @app.get("/api/v1/notes/{identity}", response_model=out.Note)
     @app.get("/api/v1/references/{identity}", response_model=out.FileReference)

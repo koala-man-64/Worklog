@@ -206,3 +206,51 @@ test("pull request registry records a submitter, filters and edits it", async ({
     });
   }
 });
+
+test("pull request activity shows the background count and switches windows", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(message.text());
+  });
+  const asked = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === "/api/v1/pull-requests/activity",
+  );
+  await page.goto("/");
+  await page
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("link", { name: "Pull requests", exact: true })
+    .click();
+  const answer = await (await asked).json();
+  expect(answer.window.days).toBe(30);
+  expect(answer.daily).toHaveLength(30);
+
+  const activity = page.getByRole("region", { name: "Activity" });
+  await expect(activity.locator("dt", { hasText: /^Commits$/ })).toBeVisible();
+  await expect(
+    activity.getByRole("img", { name: /^Commits per day/ }),
+  ).toBeVisible();
+  await expect(
+    activity.getByRole("img", { name: /^Lines added and removed per day/ }),
+  ).toBeVisible();
+  await expect(
+    activity.getByRole("table", { name: "Repositories, most commits first" }),
+  ).toBeAttached();
+
+  const year = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === "/api/v1/pull-requests/activity" &&
+      new URL(response.url()).searchParams.get("days") === "365",
+  );
+  await activity.getByRole("button", { name: "365 days", exact: true }).click();
+  expect((await year).ok()).toBeTruthy();
+  await expect(
+    activity.getByRole("img", { name: /^Commits per week/ }),
+  ).toBeVisible();
+  await expect(
+    activity.getByRole("button", { name: "365 days", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  expect(errors).toEqual([]);
+});

@@ -39,12 +39,16 @@ export function dataQuery<T>(path: string) {
  */
 export function useData<T>(
   path: string,
-  refreshMs?: number,
+  /** How often to read again, in ms; or, from the latest answer, how often until the next. */
+  refreshMs?: number | ((data: T | undefined) => number),
   { keepPrevious = false }: { keepPrevious?: boolean } = {},
 ) {
   return useQuery({
     ...dataQuery<T>(path),
-    refetchInterval: refreshMs,
+    refetchInterval:
+      typeof refreshMs === "function"
+        ? (query) => refreshMs(query.state.data as T | undefined)
+        : refreshMs,
     placeholderData: refreshMs || keepPrevious ? keepPreviousData : undefined,
   });
 }

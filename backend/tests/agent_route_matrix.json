@@ -39,6 +39,7 @@
   "GET /api/v1/proposals": "reaches handler",
   "GET /api/v1/proposals/{identity}": "reaches handler",
   "GET /api/v1/pull-requests": "refused",
+  "GET /api/v1/pull-requests/activity": "refused",
   "GET /api/v1/questions/{identity}": "reaches handler",
   "GET /api/v1/references/{identity}": "reaches handler",
   "GET /api/v1/repositories": "reaches handler",

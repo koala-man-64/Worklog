@@ -45,6 +45,9 @@ NOT_JSON = {"/export"}
 # Reads whose answer counts the golden world's own calls, by date: every new route or call, and every
 # new day, would change it. test_usage.py pins it, and agent_route_matrix.json pins the agent's refusal.
 COUNTED = {"/usage"}
+# Reads that list every day of a window ending today, each by its date: every new day would change
+# them. test_git_activity.py pins it, and agent_route_matrix.json pins the agent's refusal.
+DATED = {"/pull-requests/activity"}
 
 
 class World:
@@ -242,7 +245,7 @@ def answers(world: World) -> dict[str, dict]:
                                for key, body in world.writes.items()}
     for template, operations in sorted(world.app.openapi()["paths"].items()):
         route = template.removeprefix("/api/v1")
-        if "get" not in operations or not template.startswith("/api/v1") or route in NOT_JSON | COUNTED:
+        if "get" not in operations or not template.startswith("/api/v1") or route in NOT_JSON | COUNTED | DATED:
             continue
         for actor, client in (("person", world.person), ("agent", world.agent)):
             response = client.get("/api/v1" + concrete(route, world.ids, world.today))

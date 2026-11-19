@@ -2,18 +2,26 @@
 /* A colour for each series, the person's and agents'. --teal reads as grey in a chart (OKLCH chroma
    0.067), so these are their own, checked with the dataviz palette validator against --bg and
    --paper in both themes: the pair apart by CVD ΔE 10.6 light and 12.3 dark, each at least 3:1. */
+/* Lines added and removed, a diverging pair (blue up, red down), checked the same way against
+   --bg and --paper: apart by CVD ΔE 21.6 light and 19.2 dark, each at least 3:1. */
 :root {
   --chart-you: #008a72;
   --chart-agents: #d4561f;
+  --chart-added: #2a78d6;
+  --chart-removed: #e34948;
 }
 :root[data-theme="dark"] {
   --chart-you: #1f9e86;
   --chart-agents: #d95926;
+  --chart-added: #3987e5;
+  --chart-removed: #e66767;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --chart-you: #1f9e86;
     --chart-agents: #d95926;
+    --chart-added: #3987e5;
+    --chart-removed: #e66767;
   }
 }
 /* While another window loads, the last one stays, quieter, so nothing jumps. */
@@ -129,6 +137,16 @@
 .chart-line-key.agents {
   background: var(--chart-agents);
 }
+.chart-swatch.added,
+.chart-bar.added,
+.chart-line-key.added {
+  background: var(--chart-added);
+}
+.chart-swatch.removed,
+.chart-bar.removed,
+.chart-line-key.removed {
+  background: var(--chart-removed);
+}
 .chart-body {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -148,6 +166,18 @@
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   text-align: right;
+}
+/* Mirrored, each label at its own height, centred on its gridline. */
+.chart-ticks.placed {
+  position: relative;
+  display: block;
+  height: 140px;
+  margin: 0;
+}
+.chart-ticks.placed span {
+  position: absolute;
+  right: 0;
+  transform: translateY(50%);
 }
 .chart-plot {
   position: relative;
@@ -193,6 +223,23 @@
 }
 .chart-stack > :last-child {
   border-radius: 4px 4px 0 0;
+}
+/* Mirrored: one bar up from the baseline and one down, 2px apart, each rounded at its far end. */
+.chart-column.mirrored {
+  position: relative;
+}
+.chart-bar {
+  position: absolute;
+  left: 50%;
+  width: min(100%, 24px);
+  min-height: 2px;
+  transform: translateX(-50%);
+}
+.chart-bar.up {
+  border-radius: 4px 4px 0 0;
+}
+.chart-bar.down {
+  border-radius: 0 0 4px 4px;
 }
 .chart-readout {
   position: absolute;
@@ -408,11 +455,22 @@
    highlight for agents. */
 @media (forced-colors: active) {
   .chart-segment,
+  .chart-bar,
   .chart-swatch,
   .chart-line-key,
   .meter,
   .page-bar {
     forced-color-adjust: none;
+  }
+  .chart-bar.added,
+  .chart-swatch.added,
+  .chart-line-key.added {
+    background: CanvasText;
+  }
+  .chart-bar.removed,
+  .chart-swatch.removed,
+  .chart-line-key.removed {
+    background: Highlight;
   }
   .chart-segment.you,
   .chart-swatch.you,
