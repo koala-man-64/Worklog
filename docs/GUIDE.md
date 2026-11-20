@@ -350,7 +350,7 @@ To stop reviewing, clear "Require my approval for agent proposals" in Settings. 
   - Tick "Request acknowledgement (received and understood)" and choose "Who may acknowledge?".
   - The thread shows who has acknowledged. An acknowledgement means only that the message arrived and was understood: it approves nothing.
   - Before that, each target shows how far your message got: "Waiting", "Seen" once the agent's own command listed or read it, and "Answered, not acknowledged" once it replied in the thread. An agent that has sent no report for two hours says so.
-  - An agent may give its request a deadline, or mark it "Urgent", which means 15 minutes. If a target has neither acknowledged nor answered by then, the request is marked "Escalated to you". Live then counts it among what needs you. Answer it, release it, or pass it on to the agent yourself.
+  - An agent may give its request a deadline, or mark it "Urgent", which means 15 minutes. If a target has neither acknowledged nor answered by then, the request is marked "Escalated to you". Live then counts it among what needs you, even when you sent it yourself: the agent you asked has not answered. Answer it, release it, or pass it on to the agent yourself.
   - "Release wait…" lets you end a wait that no longer matters, with a reason.
 - **Roles.**
   - Roles, such as Implementation or Review, are optional responsibilities on a work item, roadmap or step, each with one owner.
