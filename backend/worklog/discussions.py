@@ -10,6 +10,7 @@ import base64
 import binascii
 import builtins
 import json
+import logging
 import re
 import sqlite3
 from collections.abc import Iterable
@@ -33,6 +34,8 @@ from .tickets import TicketService
 
 # What a discussion can be tagged with (v22), in the order its tags list them. The first three are
 # v1's work contexts, which roles keep to.
+logger = logging.getLogger("worklog")
+
 TAG_KINDS = ("item", "roadmap", "step", "repository", "ticket", "person", "resource", "question", "decision")
 ROLE_KINDS = ("item", "roadmap", "step")
 TAG_LIMIT = 30
@@ -57,6 +60,19 @@ REQUEST_CHANGES = ("discussion.acknowledge", "discussion.request.cancel", "discu
 INBOX_LIMIT = 50
 # How often, in seconds, the serve watcher escalates requests whose deadline passed.
 ESCALATION_SWEEP = 15
+# A slot of request message m with neither an acknowledgement nor an answer, as _delivery counts an
+# answer: what keeps an overdue request escalating, in SQL, so the watcher's check stays one query.
+UNSETTLED = """EXISTS(SELECT 1 FROM discussion_targets t LEFT JOIN discussion_roles tr ON t.kind='role' AND tr.id=t.recipient_id
+    WHERE t.message_id=m.id AND NOT EXISTS(SELECT 1 FROM discussion_acknowledgements a WHERE a.target_id=t.id)
+    AND NOT EXISTS(SELECT 1 FROM discussion_messages x WHERE x.discussion_id=m.discussion_id AND x.created_at>m.created_at AND (
+        (t.kind='agent' AND x.author_kind='agent' AND x.author_id=t.recipient_id) OR (t.kind='human' AND x.author_kind='human')
+        OR (t.kind='role' AND (x.on_behalf_of_role_id=t.recipient_id OR (x.author_kind='agent' AND x.author_id=tr.owner_id)))
+        OR (t.kind='open_agent' AND x.author_kind='agent' AND x.author_id<>m.author_id)
+        OR (t.kind='open_any' AND x.author_id<>m.author_id))))"""
+# Requests past their deadline, not escalated, with a slot still unsettled.
+DUE = ("SELECT r.message_id,r.deadline_at,m.author_id,m.author_label,m.author_kind,m.discussion_id FROM discussion_requests r "
+       "JOIN discussion_messages m ON m.id=r.message_id WHERE r.state='pending' AND r.deadline_at IS NOT NULL "
+       "AND r.escalated_at IS NULL AND " + UNSETTLED + " ORDER BY r.deadline_at")
 
 
 def avatars_in_use(conn: sqlite3.Connection, *, exclude: str | None = None) -> list[str]:
@@ -673,24 +689,27 @@ class DiscussionService:
         discussions feed's (`changes`), so either reads on from the other."""
         seq = self._decode_cursor(c, since, None) if since is not None else None
         head = c.execute("SELECT COALESCE(max(seq),0) FROM discussion_changes").fetchone()[0]
-        clause, args = self._received(actor)
-        pending = [row[0] for row in c.execute("SELECT m.id FROM discussion_messages m JOIN discussion_requests r ON r.message_id=m.id "
-                                               f"WHERE r.state='pending' AND {clause} ORDER BY m.created_at DESC,m.id DESC", args)]
-        received: builtins.list[dict] = []
-        unseen = 0
-        for item in self._listed(c, actor, pending):
-            mine = item["message"]["request"]["actionableTargetIds"]
-            if not mine:
-                continue
-            if len(received) < INBOX_LIMIT:
-                received.append(item)
-            if not any(c.execute("SELECT 1 FROM discussion_seen WHERE target_id=? AND actor_id=?", (slot, actor["id"])).fetchone()
-                       for slot in mine):
-                unseen += 1
+        # The slots of pending requests the caller may acknowledge now, as _target decides, in SQL: the
+        # inbox reads only the newest INBOX_LIMIT whole, however many wait.
+        if actor["kind"] == "human":
+            mine, mine_args = "t.kind IN('human','open_any')", []
+        else:
+            mine, mine_args = ("((t.kind='agent' AND t.recipient_id=?) OR (t.kind='role' AND tr.owner_id=?) "
+                               "OR t.kind IN('open_agent','open_any'))"), [actor["id"], actor["id"]]
+        slots = ("FROM discussion_targets t JOIN discussion_requests r ON r.message_id=t.message_id "
+                 "JOIN discussion_messages m ON m.id=t.message_id LEFT JOIN discussion_roles tr ON t.kind='role' AND tr.id=t.recipient_id "
+                 "WHERE r.state='pending' AND m.author_id<>? AND NOT EXISTS(SELECT 1 FROM discussion_acknowledgements a "
+                 f"WHERE a.target_id=t.id) AND {mine}")
+        slot_args = [actor["id"], *mine_args]
+        pending = [row[0] for row in c.execute(f"SELECT m.id {slots} GROUP BY m.id ORDER BY max(m.created_at) DESC,m.id DESC LIMIT ?",
+                                               [*slot_args, INBOX_LIMIT])]
+        unseen = c.execute(f"SELECT count(*) FROM (SELECT m.id,max(EXISTS(SELECT 1 FROM discussion_seen s WHERE s.target_id=t.id "
+                           f"AND s.actor_id=?)) AS seen {slots} GROUP BY m.id) WHERE seen=0", [actor["id"], *slot_args]).fetchone()[0]
+        received = self._listed(c, actor, pending)
         managed, managed_args = self._managed(actor, "sm")
-        earlier = ("EXISTS(SELECT 1 FROM discussion_messages sm JOIN discussion_requests sr ON sr.message_id=sm.id WHERE "
+        earlier = ("EXISTS(SELECT 1 FROM discussion_messages sm JOIN discussion_requests er ON er.message_id=sm.id WHERE "
                    f"sm.discussion_id=m.discussion_id AND sm.created_at<m.created_at AND {managed}"
-                   + (")" if seq is not None else " AND sr.state='pending')"))
+                   + (")" if seq is not None else " AND er.state='pending')"))
         if seq is not None:
             answers = [row[0] for row in c.execute(
                 "SELECT m.id FROM discussion_changes ch JOIN discussion_messages m ON m.id=ch.message_id WHERE ch.seq>? "
@@ -717,8 +736,7 @@ class DiscussionService:
         """Whether a pending request's deadline has passed without it escalating: read first, so the
         watcher takes the write lock only when there may be something to escalate."""
         moment = at or datetime.now(UTC)
-        return any(datetime.fromisoformat(row[0]) <= moment for row in c.execute(
-            "SELECT deadline_at FROM discussion_requests WHERE state='pending' AND deadline_at IS NOT NULL AND escalated_at IS NULL"))
+        return any(datetime.fromisoformat(row["deadline_at"]) <= moment for row in c.execute(DUE))
 
     def escalate_overdue(self, c: sqlite3.Connection, at: datetime | None = None) -> builtins.list[str]:
         """Escalate every pending request whose deadline has passed while some slot has neither
@@ -728,20 +746,25 @@ class DiscussionService:
         watcher calls it every ESCALATION_SWEEP seconds, when `overdue` finds one due."""
         moment = at or datetime.now(UTC)
         escalated = []
-        for row in c.execute("SELECT r.message_id,r.deadline_at,m.author_id,m.author_label,m.author_kind,m.discussion_id FROM "
-                             "discussion_requests r JOIN discussion_messages m ON m.id=r.message_id WHERE r.state='pending' "
-                             "AND r.deadline_at IS NOT NULL AND r.escalated_at IS NULL ORDER BY r.deadline_at").fetchall():
+        for row in c.execute(DUE).fetchall():
             if datetime.fromisoformat(row["deadline_at"]) > moment:
                 continue
             sender = {"id": row["author_id"], "label": row["author_label"], "kind": row["author_kind"]}
-            before = self.message(c, row["message_id"], sender)
-            if all(target["delivery"] in {"acknowledged", "answered"} for target in before["request"]["targets"]):
+            # Each request escalates on its own: one that fails is logged and left for the next sweep.
+            c.execute("SAVEPOINT escalation")
+            try:
+                before = self.message(c, row["message_id"], sender)
+                c.execute("UPDATE discussion_requests SET escalated_at=? WHERE message_id=? AND escalated_at IS NULL",
+                          (moment.isoformat(), row["message_id"]))
+                self._touch(c, row["discussion_id"])
+                self._emit(c, sender, "discussion.request.escalate", row["message_id"], before,
+                           self.message(c, row["message_id"], sender), discussion_id=row["discussion_id"], message_id=row["message_id"])
+            except (AppError, sqlite3.Error, ValueError, KeyError) as exc:
+                c.execute("ROLLBACK TO escalation")
+                c.execute("RELEASE escalation")
+                logger.warning("Escalating request %s failed (%s); the next sweep tries again", row["message_id"], type(exc).__name__)
                 continue
-            c.execute("UPDATE discussion_requests SET escalated_at=? WHERE message_id=? AND escalated_at IS NULL",
-                      (moment.isoformat(), row["message_id"]))
-            self._touch(c, row["discussion_id"])
-            self._emit(c, sender, "discussion.request.escalate", row["message_id"], before, self.message(c, row["message_id"], sender),
-                       discussion_id=row["discussion_id"], message_id=row["message_id"])
+            c.execute("RELEASE escalation")
             escalated.append(row["message_id"])
         return escalated
 

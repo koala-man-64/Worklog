@@ -686,14 +686,31 @@ class CoordinationService:
                            {"repositoryId": repository_id})
         if not p.get("pullRequests") and not p.get("commits"):
             raise AppError(422, "validation", "Name a pull request or a commit", {"pullRequests": "required"})
-        values = [("pr", *pull_request(value)[:2]) for value in p.get("pullRequests", [])]
+        values = []
+        for value in p.get("pullRequests", []):
+            number, url, remote = pull_request(value)
+            # An address that names a registered repository must name the one the output goes in.
+            named = repository_holder(c, remote) if remote else None
+            if named is not None and named["id"] != repository_id:
+                raise AppError(422, "validation", f"That pull request belongs to {named['name']}; report it there",
+                               {"pullRequests": value[:200], "repositoryId": named["id"]})
+            values.append(("pr", number, url))
         values += [("commit", commit_sha(value), "") for value in p.get("commits", [])]
         stamp = now()
         before = self.participation_record(c, row)
         added = 0
         for kind, reference, url in dict.fromkeys(values):
-            added += c.execute("INSERT OR IGNORE INTO participation_outputs(id,participation_id,repository_id,kind,reference,url,created_at) "
-                               "VALUES(?,?,?,?,?,?,?)", (uid(), identity, repository_id, kind, reference, url, stamp)).rowcount
+            key = (identity, repository_id, kind, reference)
+            held = c.execute("SELECT url FROM participation_outputs WHERE participation_id=? AND repository_id=? AND kind=? "
+                             "AND reference=?", key).fetchone()
+            if held is None:
+                c.execute("INSERT INTO participation_outputs(id,participation_id,repository_id,kind,reference,url,created_at) "
+                          "VALUES(?,?,?,?,?,?,?)", (uid(), *key, url, stamp))
+                added += 1
+            elif url and not held["url"]:
+                # A pull request first reported by its number takes its address when one comes.
+                c.execute("UPDATE participation_outputs SET url=? WHERE participation_id=? AND repository_id=? AND kind=? "
+                          "AND reference=?", (url, *key))
         c.execute("UPDATE participations SET last_seen_at=?,updated_at=?,revision=revision+1 WHERE id=?", (stamp, stamp, identity))
         result = {"participation": self.participation_record(c, _get(c, "participations", identity)),
                   "outputs": self.outputs(c, [identity]), "added": added}

@@ -79,7 +79,7 @@ SEALED_SCHEMAS: dict[int, frozenset[str]] = {
     30: frozenset({"1ba8cb90ba93dd581a1def91d656f55b1ebc986b0cf6aff3ac3146ca621629e2"}),  # chat messaging dropped (R1)
     31: frozenset({"91d565c5e02dd26ae4d6072da69d9b67fd869533a46152f9d582feb26618036a"}),  # roadmap steps take an outcome
     32: frozenset({"a4bc857d6a3507c895a00d363f9faa16bf11a16d31d6d6b8dae7d44e1c082064"}),  # pull requests take a submitter
-    33: frozenset({"28ee56b54aa3223780c0f2fe529ab31f67abb4345fab9ee0e6672c102995e87a"}),  # agent outputs, request seen marks and deadlines
+    33: frozenset({"05ffe67df83a40fa3817bdb5376e98658ffd8a253dfe9b2a4b347785ff7d0afc"}),  # agent outputs, request seen marks and deadlines
 }
 
 

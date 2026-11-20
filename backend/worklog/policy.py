@@ -14,9 +14,10 @@ and the API document, the agent registry, the list of tracked chats, each chat's
 Claude Code sessions running on the person's machine. A transcript holds a whole conversation, tool
 output included. The agent registry joins tracked chats into every agent's record, as a
 roadmap's view of its agents does. One participant's profile, the owners lookup and the overlap check
-leave tracked chat records, transcripts and credentials out, and agents read all three; since v33 a
-profile names the chat ID its identity works in, its open runs' chat IDs and the directory it registered
-from, so an agent can say where to reach another (decision R11 in docs/ROADMAPS-RETHINK.md).
+leave transcripts and credentials out, and agents read all three; the owners lookup names a tracked
+chat only by its ID and title, as a work item's own read does. Since v33 a profile names the chat ID
+its identity works in, its open runs' chat IDs and the directory it registered from, so an agent can
+say where to reach another (decision R11 in docs/ROADMAPS-RETHINK.md).
 """
 
 from __future__ import annotations

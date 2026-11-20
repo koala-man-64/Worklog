@@ -191,8 +191,9 @@ worklog agent --as NAME retire
 
 **How to prove it.**
 - **`owners REF`** names who owns what REF names: a ticket's key, number or ID, a work item, a PR's address or number, a branch, a commit SHA, or a checkout or worktree path. Each agent comes with where to reach it and its relations, each with its evidence:
-  - `assignee`, `role`, `producer`, `branch` and `checkout` make it an owner;
+  - `assignee`, `role`, `producer`, `branch`, `checkout` and `agent` (the agent REF names) make it an owner;
   - `participant`, `chat`, `author`, `commenter` and `directory` make it a contributor.
+  - Each relation says whether something open still holds it (`current`). A released participation that reported a branch still names its agent an owner, so for a long-lived branch such as `main`, read `current` and `at`.
 - **`agents show AGENT_ID`**, the same as `discussions participant AGENT_ID`, shows:
   - its chat ID (the Claude session or Codex thread), its provider, and the directory it registered from (its project folder): what the person needs to find the chat in the Claude or Codex app;
   - when it last did anything, whether that is stale, and its open runs with their chats;
@@ -342,7 +343,7 @@ worklog agent --as NAME proposal withdraw PROPOSAL_ID --revision 4
 - **Outputs.** `participation output` records the pull requests you opened and the commits you pushed, so `owners` finds you by them (section 4.1).
   - A PR is its number or its `https://` address: GitHub's `/pull/N`, Azure DevOps' `/pullrequest/N` (on `dev.azure.com` or `{org}.visualstudio.com`), Bitbucket's `/pull-requests/N` or GitLab's `/-/merge_requests/N`. Worklog keeps the address without its query or fragment. A commit is its SHA, 7 to 40 hexadecimal characters, kept lowercased.
   - Outputs go in a repository the participation reports. With one, it may be left out; with several, name it with `--repo` or `--checkout`.
-  - Each is kept once per participation, so a repeat adds nothing (`added: 0`). A released participation refuses outputs (`409 released`).
+  - Each is kept once per participation and repository, so a repeat adds nothing (`added: 0`). A PR first reported by its number takes its address when a later report gives one. A PR address that names another registered repository is refused (`422 validation`, with that repository's `repositoryId`). A released participation refuses outputs (`409 released`).
   - A report holds at most 50 pull requests and 50 commits. When the person merges repositories, outputs move to the survivor.
 - **Handoffs.** An update is no longer a handoff: `updates post` has no `--kind handoff`, and a file that sets it is refused (`422 validation`). To hand work on, offer the role you own to the agent taking over (`discussions roles offer`, section 5.6); when it accepts, the role's pending requests move to it. Work that has no role is handed on by saying so, in an update and in its discussion. Handoffs posted before stay readable in `updates list`, and retrying one with its request ID still returns it.
 - **Merged repositories.** When the person merges a repository into another, your reports and updates move to the survivor, keeping their revisions.
@@ -562,7 +563,7 @@ worklog agent --as NAME overlaps --repo REPOSITORY_ID --step STEP_ID --ticket T-
 | `inbox` | `[--wait] [--timeout SECONDS] [--since CURSOR]` | `{received,unseen,answers,changes,cursor}`, and with `--wait`, `timedOut` |
 
 - **References.** `owners` tells what REF is by its form:
-  - `T-12` is a ticket's key. A bare number is a ticket's number and a pull request's, and both are looked up.
+  - `T-12` is a ticket's key. A bare number is a ticket's number and a pull request's, and both are looked up. A bare PR number matches that number in every repository; give the PR's address, or `--repo`, to name one.
   - A UUID is a ticket, a work item or an agent.
   - An `https://` address is a pull request. A SHA of 7 to 40 hexadecimal characters is a commit, and a branch too.
   - A path that starts with a drive, `/` or `\` is a checkout or worktree, matched as Windows compares paths. The command line names a folder that exists by its absolute path, so `owners .` names the checkout you are in.
@@ -587,7 +588,7 @@ worklog agent --as NAME overlaps --repo REPOSITORY_ID --step STEP_ID --ticket T-
   - `unseen`: how many of those you had not seen before this read; reading them now marks them seen.
   - `answers`: messages others posted in the thread of a request you manage, after that request. With `--since`, those after the cursor; without it, the replies to your pending requests.
   - `changes`: acknowledgements, cancels, releases and escalations of your requests after the cursor, none without `--since`.
-  - `cursor`: the discussions feed's cursor at this read. `discussions changes --cursor` reads on from it too, and after a restore it gives `409 cursor_reset`.
+  - `cursor`: the discussions feed's cursor at this read, the same as an unscoped `discussions changes` cursor (one read with `--context` is refused). After a restore it gives `409 cursor_reset`.
 - **Waiting.** `inbox --wait` returns as soon as something new arrives after the cursor (by default, the moment it started), or at once when a request waiting on you is unseen; otherwise when the timeout passes, with `timedOut: true` and exit 0.
   - The timeout defaults to 300 seconds, at most 3600.
   - It polls after about 2 and 5 seconds, then every 10.

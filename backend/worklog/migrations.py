@@ -916,7 +916,7 @@ def add_step_outcomes(conn: sqlite3.Connection) -> None:
 # v33: what agents report they produced on their participation, when a request's target first saw
 # it, and a request's deadline and escalation to the person.
 REACHABILITY_SCHEMA = """
-CREATE TABLE participation_outputs(id TEXT PRIMARY KEY,participation_id TEXT NOT NULL REFERENCES participations(id),repository_id TEXT NOT NULL REFERENCES repositories(id),kind TEXT NOT NULL CHECK(kind IN('pr','commit')),reference TEXT NOT NULL,url TEXT NOT NULL DEFAULT '',created_at TEXT NOT NULL,UNIQUE(participation_id,kind,reference));
+CREATE TABLE participation_outputs(id TEXT PRIMARY KEY,participation_id TEXT NOT NULL REFERENCES participations(id),repository_id TEXT NOT NULL REFERENCES repositories(id),kind TEXT NOT NULL CHECK(kind IN('pr','commit')),reference TEXT NOT NULL,url TEXT NOT NULL DEFAULT '',created_at TEXT NOT NULL,UNIQUE(participation_id,repository_id,kind,reference));
 CREATE INDEX participation_outputs_reference ON participation_outputs(kind,reference);
 CREATE INDEX participation_outputs_repository ON participation_outputs(repository_id,participation_id);
 CREATE TABLE discussion_seen(target_id TEXT NOT NULL REFERENCES discussion_targets(id),actor_id TEXT NOT NULL,seen_at TEXT NOT NULL,PRIMARY KEY(target_id,actor_id));

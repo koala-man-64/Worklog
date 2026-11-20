@@ -2,7 +2,7 @@
   "version": 33,
   "shapes": [
     {
-      "digest": "28ee56b54aa3223780c0f2fe529ab31f67abb4345fab9ee0e6672c102995e87a",
+      "digest": "05ffe67df83a40fa3817bdb5376e98658ffd8a253dfe9b2a4b347785ff7d0afc",
       "shape": "agent outputs, request seen marks and deadlines",
       "schema": [
         ["index", "agent_chats_owner", "CREATE INDEX agent_chats_owner ON agent_chats(owner_type,owner_id,archived)"],
@@ -90,7 +90,7 @@
         ["table", "item_repositories", "CREATE TABLE item_repositories(item_id TEXT NOT NULL REFERENCES work_items(id),repository_id TEXT NOT NULL REFERENCES repositories(id),created_at TEXT NOT NULL,PRIMARY KEY(item_id,repository_id))"],
         ["table", "notes", "CREATE TABLE notes(id TEXT PRIMARY KEY,owner_type TEXT NOT NULL CHECK(owner_type IN('item','roadmap','step')),owner_id TEXT NOT NULL,title TEXT NOT NULL,text TEXT NOT NULL,archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL)"],
         ["table", "participation_contexts", "CREATE TABLE participation_contexts(participation_id TEXT NOT NULL REFERENCES participations(id),position INTEGER NOT NULL CHECK(position>=0),repository_id TEXT NOT NULL REFERENCES repositories(id),checkout_path TEXT NOT NULL DEFAULT '',worktree_path TEXT NOT NULL DEFAULT '',branch TEXT NOT NULL DEFAULT '',PRIMARY KEY(participation_id,position))"],
-        ["table", "participation_outputs", "CREATE TABLE participation_outputs(id TEXT PRIMARY KEY,participation_id TEXT NOT NULL REFERENCES participations(id),repository_id TEXT NOT NULL REFERENCES repositories(id),kind TEXT NOT NULL CHECK(kind IN('pr','commit')),reference TEXT NOT NULL,url TEXT NOT NULL DEFAULT '',created_at TEXT NOT NULL,UNIQUE(participation_id,kind,reference))"],
+        ["table", "participation_outputs", "CREATE TABLE participation_outputs(id TEXT PRIMARY KEY,participation_id TEXT NOT NULL REFERENCES participations(id),repository_id TEXT NOT NULL REFERENCES repositories(id),kind TEXT NOT NULL CHECK(kind IN('pr','commit')),reference TEXT NOT NULL,url TEXT NOT NULL DEFAULT '',created_at TEXT NOT NULL,UNIQUE(participation_id,repository_id,kind,reference))"],
         ["table", "participations", "CREATE TABLE participations(id TEXT PRIMARY KEY,run_id TEXT NOT NULL REFERENCES agent_runs(id),item_id TEXT REFERENCES work_items(id),description TEXT NOT NULL DEFAULT '',revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL,last_seen_at TEXT NOT NULL,released_at TEXT,release_reason TEXT)"],
         ["table", "people", "CREATE TABLE people(id TEXT PRIMARY KEY,name TEXT NOT NULL,team TEXT NOT NULL DEFAULT '',notes TEXT NOT NULL DEFAULT '',archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '', email TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '', chat TEXT NOT NULL DEFAULT '', location TEXT NOT NULL DEFAULT '')"],
         ["table", "person_links", "CREATE TABLE person_links(id TEXT PRIMARY KEY,person_id TEXT NOT NULL REFERENCES people(id),target_type TEXT NOT NULL CHECK(target_type IN('item','roadmap','repository')),target_id TEXT NOT NULL,relationship TEXT NOT NULL DEFAULT '',created_at TEXT NOT NULL,UNIQUE(person_id,target_type,target_id))"],

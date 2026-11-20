@@ -448,3 +448,71 @@ def before_v33(rows):
     if "discussion_requests" in kept:
         kept["discussion_requests"] = [row[:10] for row in kept["discussion_requests"]]
     return kept
+
+
+def test_outputs_keep_each_repositorys_pull_request_and_take_an_address_later(client):
+    repo, other = repository(client), repository(client, "Other")
+    builder = credential(client, "Builder")
+    reported = agent_run(client, builder, [repo, other])
+    assert ok(outputs(client, builder, reported, repositoryId=repo["id"], pullRequests=["12"]))["added"] == 1
+    # PR 12 of another repository is another pull request.
+    assert ok(outputs(client, builder, reported, repositoryId=other["id"], pullRequests=["12"]))["added"] == 1
+    # A pull request first reported by its number takes its address, which names the right repository.
+    later = ok(outputs(client, builder, reported, repositoryId=repo["id"], pullRequests=[repo["url"] + "/pull/12"]))
+    assert later["added"] == 0
+    assert sorted((o["repositoryName"], o["url"]) for o in later["outputs"]) == [("Other", ""), ("Worklog", repo["url"] + "/pull/12")]
+    refused = error(outputs(client, builder, reported, repositoryId=other["id"], pullRequests=[repo["url"] + "/pull/13"]),
+                    422, "validation")
+    assert refused["fields"]["repositoryId"] == repo["id"]
+    # A bare number names the pull request in every repository; --repo names one.
+    assert {r["repositoryName"] for r in read(client, "/owners?ref=pr:12")["agents"][0]["relations"]} == {"Worklog", "Other"}
+    assert [r["repositoryName"] for r in read(client, f"/owners?ref=pr:12&repositoryId={other['id']}")["agents"][0]["relations"]] == ["Other"]
+
+
+def test_a_reported_short_sha_answers_for_the_full_one_and_the_full_one_for_a_short_one(client):
+    repo = repository(client)
+    builder = credential(client, "Builder")
+    ok(outputs(client, builder, agent_run(client, builder, [repo]), commits=["43b69ae9", "a" * 40]))
+    for ref in ("43b69ae9" + "0" * 32, "43b69ae9", "a" * 12):
+        assert [a["label"] for a in read(client, f"/owners?ref=commit:{ref}")["agents"]] == ["Builder"], ref
+    assert read(client, "/owners?ref=commit:43b69ae8")["agents"] == []
+
+
+def test_an_answered_request_never_keeps_the_sweep_busy_and_one_failure_spares_the_rest(client, monkeypatch):
+    asker, target = credential(client, "Asker"), credential(client, "Target")
+    thread = ok(write(client, "POST", "/discussions", {"text": "Start"}, asker))["discussion"]["id"]
+    named = [{"kind": "agent", "id": target["agentId"]}]
+    ask(client, asker, thread, named, deadlineSeconds=10)
+    ok(write(client, "POST", f"/discussions/{thread}/messages", {"text": "Answered without acknowledging"}, target))
+    service = DiscussionService(client.app.state.db)
+    later = datetime.now(UTC) + timedelta(minutes=1)
+    # Past its deadline but answered: the watcher's read-only check finds nothing to do.
+    with client.app.state.db.read() as c:
+        assert service.overdue(c, later) is False
+    first, second = (ask(client, asker, thread, named, deadlineSeconds=10) for _ in range(2))
+    shown = DiscussionService.message
+
+    def failing(self, c, identity, actor):
+        if identity == first["id"]:
+            raise sqlite3.OperationalError("simulated")
+        return shown(self, c, identity, actor)
+
+    monkeypatch.setattr(DiscussionService, "message", failing)
+    with client.app.state.db.transaction() as c:
+        assert service.escalate_overdue(c, later) == [second["id"]]
+    monkeypatch.setattr(DiscussionService, "message", shown)
+    with client.app.state.db.transaction() as c:
+        assert service.escalate_overdue(c, later) == [first["id"]]
+
+
+def test_an_open_request_reaches_every_other_agents_inbox(client):
+    asker, other = credential(client, "Asker"), credential(client, "Other")
+    thread = ok(write(client, "POST", "/discussions", {"text": "Start"}, asker))["discussion"]["id"]
+    asked = ok(write(client, "POST", f"/discussions/{thread}/messages",
+                     {"text": "Anyone?", "acknowledgement": {"mode": "any_agent"}}, asker))
+    assert read(client, "/discussions/inbox", asker)["received"] == []
+    waiting = read(client, "/discussions/inbox", other)
+    assert ([i["message"]["id"] for i in waiting["received"]], waiting["unseen"]) == ([asked["id"]], 1)
+    assert read(client, "/discussions/inbox", other)["unseen"] == 0
+    # The person may acknowledge only what names them or anyone.
+    assert read(client, "/discussions/inbox")["received"] == []

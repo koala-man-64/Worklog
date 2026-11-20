@@ -666,7 +666,9 @@ class AgentRegistry:
                 # A form _classify chose always parses; an address or a TYPE:VALUE that doesn't is refused.
                 number, url, remote = pull_request(value) if kind == "pr" else (commit_sha(value), "", "")
                 holder = repository_holder(c, remote) if remote else None
-                where, args = ("o.kind='pr' AND o.reference=?", [number]) if kind == "pr" else ("o.kind='commit' AND o.reference LIKE ?", [number + "%"])
+                # A commit matches whichever SHA is the shorter: a reported short SHA names the full one too.
+                where, args = (("o.kind='pr' AND o.reference=?", [number]) if kind == "pr" else
+                               ("o.kind='commit' AND (o.reference LIKE ? OR ? LIKE o.reference || '%')", [number + "%", number]))
                 if holder is not None:
                     where += " AND o.repository_id=?"
                     args.append(holder["id"])
@@ -690,7 +692,9 @@ class AgentRegistry:
                 elif kind == "pr":
                     named, named_args = "g.reference=? OR rtrim(lower(g.url),'/') LIKE ?", [number, "%/" + number]
                 else:
-                    named, named_args = "lower(g.reference) LIKE ? OR lower(g.url) LIKE ?", [number + "%", "%/" + number + "%"]
+                    named = ("lower(g.reference) LIKE ? OR (length(g.reference)>=7 AND ? LIKE lower(g.reference) || '%') "
+                             "OR lower(g.url) LIKE ?")
+                    named_args = [number + "%", number, "%/" + number[:7] + "%"]
                 references = c.execute("SELECT g.*,ac.chat_id AS chat FROM github_refs g LEFT JOIN agent_chats ac ON ac.id=g.chat_id "
                                        f"WHERE g.kind=? AND g.archived=0 AND ({named})", [kind, *named_args]).fetchall()
                 for g in references:
@@ -716,8 +720,10 @@ class AgentRegistry:
                         if held and (key == held or key.startswith(held + "/")):
                             hits += participations(f"pc.participation_id=? AND pc.{column}=?", [r["participation_id"], r[column]], "checkout")
                             break
-                for r in c.execute("SELECT cc.agent_id,cc.directory,cr.created_at FROM communication_credentials cc "
-                                   "JOIN credentials cr ON cr.id=cc.credential_id WHERE cc.directory IS NOT NULL"):
+                # A registration names no repository, so --repo leaves registrations out.
+                for r in [] if repository_id else c.execute(
+                        "SELECT cc.agent_id,cc.directory,cr.created_at FROM communication_credentials cc "
+                        "JOIN credentials cr ON cr.id=cc.credential_id WHERE cc.directory IS NOT NULL"):
                     held = self._path_key(r["directory"])
                     if key == held or key.startswith(held + "/") or held.startswith(key + "/"):
                         hits += 1

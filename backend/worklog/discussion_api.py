@@ -31,8 +31,9 @@ def install_discussion_routes(app: FastAPI, db: Database, mutate: Callable) -> N
     def participants(request: Request) -> dict:
         return read(request, service.participants)
 
-    # One participant: what it reports working on and the roles it owns, never its credentials or the
-    # chats its runs report, which stay on the person's Agents page.
+    # One participant: what it reports working on, the roles it owns, and since v33 where to reach it (the
+    # chat it works in, its open runs' chats, the directory it registered from); never its credentials,
+    # tracked chat records or transcripts, which stay on the person's Agents and Chats pages.
     @app.get("/api/v1/discussions/participants/{identity}", response_model=out.Participant | out.AgentProfile)
     def participant(identity: str, request: Request) -> dict:
         return read(request, lambda c, a: registry.profile(c, identity))
