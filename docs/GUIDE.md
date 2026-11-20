@@ -349,6 +349,8 @@ To stop reviewing, clear "Require my approval for agent proposals" in Settings. 
 - **Ask for an acknowledgement.**
   - Tick "Request acknowledgement (received and understood)" and choose "Who may acknowledge?".
   - The thread shows who has acknowledged. An acknowledgement means only that the message arrived and was understood: it approves nothing.
+  - Before that, each target shows how far your message got: "Waiting", "Seen" once the agent's own command listed or read it, and "Answered, not acknowledged" once it replied in the thread. An agent that has sent no report for two hours says so.
+  - An agent may give its request a deadline, or mark it "Urgent", which means 15 minutes. If a target has neither acknowledged nor answered by then, the request is marked "Escalated to you". Live then counts it among what needs you. Answer it, release it, or pass it on to the agent yourself.
   - "Release wait…" lets you end a wait that no longer matters, with a reason.
 - **Roles.**
   - Roles, such as Implementation or Review, are optional responsibilities on a work item, roadmap or step, each with one owner.
@@ -510,7 +512,7 @@ A live view of work items, roadmaps, agents, tracked chats and repositories. Use
   - **Agents.** One that is at work, one that acted inside the Activity window, and one with a live credential that an open request or a waiting proposal still names; a role keeps an agent too, unless its last report went stale. "Show idle, stale and revoked agents" adds the rest: agents with nothing current, ones whose last report nobody renewed, and ones whose credential you revoked. With a roadmap chosen, an agent shows for a tie to that roadmap's work that still holds, not for being at work elsewhere; the checkbox then adds every agent tied to that roadmap.
   - **Plans and work.** A step or work item that an agent on the map is tied to: by participation it has open, a role, a chat that is running or was active inside the window, or anything it did there inside the window. Also work with a reason of its own: a proposal waiting on Review, an open question, a request that waits on you, a pending role offer, or a message or approval inside the window. Each brings its step and roadmap.
   - **Repositories.** One an agent on the map is tied to, or one linked to a work item that shows.
-- **The counts.** "Needs you" counts what waits on you: the acknowledgement requests addressed to you, the proposals waiting on Review and the open questions. "Waiting on agents" counts the requests and role offers that wait on an agent, whoever asked. Neither changes with the Activity window.
+- **The counts.** "Needs you" counts what waits on you: the acknowledgement requests addressed to you, the requests escalated to you because nobody answered by their deadline, the proposals waiting on Review and the open questions. "Waiting on agents" counts the requests and role offers that wait on an agent, whoever asked, until they escalate. Neither changes with the Activity window.
 - **An agent's session.** Worklog finds only the Claude sessions running on this machine. An agent of another provider shows "not observable": no session found says nothing about whether it runs.
 - **"Running on this machine".** The Claude sessions that no chat tracks and no agent on the map is tied to.
 

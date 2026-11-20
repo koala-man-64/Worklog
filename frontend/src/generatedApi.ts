@@ -1764,6 +1764,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/participations/{identity}/outputs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Report Outputs */
+        post: operations["report_outputs_api_v1_participations__identity__outputs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/owners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Owners */
+        get: operations["owners_api_v1_owners_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chats/track": {
         parameters: {
             query?: never;
@@ -2177,6 +2211,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/discussions/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Requests */
+        get: operations["requests_api_v1_discussions_requests_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/discussions/inbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inbox */
+        get: operations["inbox_api_v1_discussions_inbox_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/discussions/messages/{identity}": {
         parameters: {
             query?: never;
@@ -2554,6 +2622,10 @@ export interface components {
             mode: "all" | "any" | "any_agent" | "anyone";
             /** Targets */
             targets?: components["schemas"]["Target"][];
+            /** Deadlineseconds */
+            deadlineSeconds?: number | null;
+            /** Urgent */
+            urgent?: boolean | null;
         };
         /** AcknowledgementReceipt */
         AcknowledgementReceipt: {
@@ -2622,6 +2694,20 @@ export interface components {
             authorityRoleId: string | null;
             /** Authoritygeneration */
             authorityGeneration: number | null;
+            /** Deadlineat */
+            deadlineAt?: string | null;
+            /**
+             * Urgent
+             * @default false
+             */
+            urgent: boolean;
+            /** Escalatedat */
+            escalatedAt?: string | null;
+            /**
+             * Overdue
+             * @default false
+             */
+            overdue: boolean;
         };
         /**
          * AcknowledgementTarget
@@ -2647,6 +2733,21 @@ export interface components {
             acknowledged: boolean;
             /** Acknowledgedby */
             acknowledgedBy: string | null;
+            /**
+             * Delivery
+             * @default pending
+             * @enum {string}
+             */
+            delivery: "pending" | "seen" | "acknowledged" | "answered";
+            /** Seenat */
+            seenAt?: string | null;
+            /** Acknowledgedat */
+            acknowledgedAt?: string | null;
+            /** Answeredat */
+            answeredAt?: string | null;
+            /** Answermessageid */
+            answerMessageId?: string | null;
+            presence?: components["schemas"]["Presence"] | null;
         };
         /**
          * ActivityDay
@@ -2900,8 +3001,25 @@ export interface components {
             encrypted?: boolean | null;
         };
         /**
+         * AgentOpenRun
+         * @description An open run as a participant's profile shows it, with the chat it reports.
+         */
+        AgentOpenRun: {
+            /** Id */
+            id: string;
+            /** Displayname */
+            displayName: string;
+            /** Provider */
+            provider: string;
+            /** Chatid */
+            chatId: string | null;
+            /** Createdat */
+            createdAt: string;
+        };
+        /**
          * AgentProfile
-         * @description An agent identity as a participant's profile shows it, to any caller.
+         * @description An agent identity as a participant's profile shows it, to any caller: who it is, and since v33
+         *     where to reach it (decision R11).
          */
         AgentProfile: {
             /** Id */
@@ -2933,6 +3051,20 @@ export interface components {
             kind: "agent";
             /** Avatar */
             avatar: string | null;
+            /** Chatid */
+            chatId: string | null;
+            /** Directory */
+            directory: string | null;
+            /** Registeredat */
+            registeredAt: string | null;
+            /** Provider */
+            provider: string;
+            /** Stale */
+            stale: boolean;
+            /** Runs */
+            runs: components["schemas"]["AgentOpenRun"][];
+            /** Outputs */
+            outputs: components["schemas"]["ParticipationOutput"][];
         };
         /** AgentProposals */
         AgentProposals: {
@@ -4073,6 +4205,22 @@ export interface components {
             /** Repos */
             repos?: string[];
         };
+        /**
+         * DiscussionInbox
+         * @description What waits on the caller and what came back to it (v33).
+         */
+        DiscussionInbox: {
+            /** Received */
+            received: components["schemas"]["RequestListed"][];
+            /** Unseen */
+            unseen: number;
+            /** Answers */
+            answers: components["schemas"]["RequestListed"][];
+            /** Changes */
+            changes: components["schemas"]["InboxChange"][];
+            /** Cursor */
+            cursor: string;
+        };
         /** DiscussionMessage */
         DiscussionMessage: {
             /** Id */
@@ -4099,6 +4247,20 @@ export interface components {
             /** Ownershipgeneration */
             ownershipGeneration: number | null;
             request: components["schemas"]["AcknowledgementRequest"] | null;
+        };
+        /**
+         * DiscussionRequests
+         * @description Requests the caller sent or that have a slot for it, newest first (v33).
+         */
+        DiscussionRequests: {
+            /** Items */
+            items: components["schemas"]["RequestListed"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
         };
         /**
          * DiscussionResume
@@ -4498,6 +4660,30 @@ export interface components {
             id: string;
             /** Name */
             name: string | null;
+        };
+        /**
+         * InboxChange
+         * @description An acknowledgement, cancel, release or escalation of a request the caller manages.
+         */
+        InboxChange: {
+            /** Seq */
+            seq: number;
+            /** Kind */
+            kind: string;
+            /** Discussionid */
+            discussionId: string | null;
+            /** Messageid */
+            messageId: string | null;
+            /** Roleid */
+            roleId: string | null;
+            /** Actorid */
+            actorId: string;
+            /** Actorlabel */
+            actorLabel: string;
+            /** Actorkind */
+            actorKind: string;
+            /** Createdat */
+            createdAt: string;
         };
         /** ItemCreate */
         ItemCreate: {
@@ -5198,6 +5384,18 @@ export interface components {
             /** Position */
             position: number;
         };
+        /** OutputNamed */
+        OutputNamed: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "pr" | "commit";
+            /** Reference */
+            reference: string;
+            /** Url */
+            url: string;
+        };
         /**
          * OverlapDiscussion
          * @description Another open thread tagged with a named record, where someone besides the caller wrote.
@@ -5318,6 +5516,138 @@ export interface components {
             /** Tickets */
             tickets: components["schemas"]["OverlapTicket"][];
         };
+        /**
+         * OwnerAgent
+         * @description An agent tied to what the reference names: its profile, whether it owns it, and why.
+         */
+        OwnerAgent: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Active */
+            active: boolean;
+            /** Createdat */
+            createdAt: string;
+            /** Lastactivityat */
+            lastActivityAt: string | null;
+            /** Providers */
+            providers: string[];
+            /** Openruns */
+            openRuns: number;
+            /** Runcount */
+            runCount: number;
+            /** Messagecount */
+            messageCount: number;
+            /** Working */
+            working: components["schemas"]["AgentWork"][];
+            /** Roles */
+            roles: components["schemas"]["AgentRole"][];
+            /**
+             * Kind
+             * @constant
+             */
+            kind: "agent";
+            /** Avatar */
+            avatar: string | null;
+            /** Chatid */
+            chatId: string | null;
+            /** Directory */
+            directory: string | null;
+            /** Registeredat */
+            registeredAt: string | null;
+            /** Provider */
+            provider: string;
+            /** Stale */
+            stale: boolean;
+            /** Runs */
+            runs: components["schemas"]["AgentOpenRun"][];
+            /** Outputs */
+            outputs: components["schemas"]["ParticipationOutput"][];
+            /** Owner */
+            owner: boolean;
+            /** Relations */
+            relations: components["schemas"]["OwnerRelation"][];
+        };
+        /**
+         * OwnerMatch
+         * @description A record the reference names.
+         */
+        OwnerMatch: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "ticket" | "item" | "pr" | "commit" | "branch" | "path" | "agent";
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /**
+             * Matchedby
+             * @enum {string}
+             */
+            matchedBy: "key" | "number" | "id" | "url" | "sha" | "branch" | "path";
+        };
+        /**
+         * OwnerRelation
+         * @description One thing that ties an agent to what the reference names, with its evidence; fields that don't
+         *     apply to the relation are null.
+         */
+        OwnerRelation: {
+            /**
+             * Relation
+             * @enum {string}
+             */
+            relation: "assignee" | "role" | "producer" | "branch" | "checkout" | "agent" | "participant" | "chat" | "author" | "commenter" | "directory";
+            /** Owner */
+            owner: boolean;
+            /** At */
+            at: string | null;
+            /** Current */
+            current: boolean;
+            /** Ticketid */
+            ticketId: string | null;
+            /** Roleid */
+            roleId: string | null;
+            /** Rolelabel */
+            roleLabel: string | null;
+            /** Participationid */
+            participationId: string | null;
+            /** Repositoryid */
+            repositoryId: string | null;
+            /** Repositoryname */
+            repositoryName: string | null;
+            /** Branch */
+            branch: string | null;
+            /** Checkoutpath */
+            checkoutPath: string | null;
+            /** Worktreepath */
+            worktreePath: string | null;
+            /** Chatid */
+            chatId: string | null;
+            /** Chattitle */
+            chatTitle: string | null;
+            /** Githubreferenceid */
+            githubReferenceId: string | null;
+            output: components["schemas"]["OutputNamed"] | null;
+            /** Directory */
+            directory: string | null;
+        };
+        /**
+         * Owners
+         * @description Who owns what a reference names (v33): the records it matched, the person, and the agents tied
+         *     there, owners first.
+         */
+        Owners: {
+            /** Ref */
+            ref: string;
+            /** Matches */
+            matches: components["schemas"]["OwnerMatch"][];
+            person: components["schemas"]["Actor"];
+            /** Agents */
+            agents: components["schemas"]["OwnerAgent"][];
+        };
         /** PageUnused */
         PageUnused: {
             /** Page */
@@ -5437,6 +5767,54 @@ export interface components {
             itemId?: string | null;
             /** Contexts */
             contexts?: components["schemas"]["ParticipationContext"][];
+        };
+        /**
+         * ParticipationOutput
+         * @description A pull request or commit a participation reported producing (v33).
+         */
+        ParticipationOutput: {
+            /** Id */
+            id: string;
+            /** Participationid */
+            participationId: string;
+            /** Repositoryid */
+            repositoryId: string;
+            /** Repositoryname */
+            repositoryName: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "pr" | "commit";
+            /** Reference */
+            reference: string;
+            /** Url */
+            url: string;
+            /** Createdat */
+            createdAt: string;
+        };
+        /**
+         * ParticipationOutputs
+         * @description What a participation produced: pull requests by address or number, and commits by SHA, in a
+         *     repository it reports, by ID or remote; one it reports alone may be left out.
+         */
+        ParticipationOutputs: {
+            /** Repositoryid */
+            repositoryId?: string | null;
+            /** Repositoryurl */
+            repositoryUrl?: string | null;
+            /** Pullrequests */
+            pullRequests?: string[];
+            /** Commits */
+            commits?: string[];
+        };
+        /** ParticipationOutputsReported */
+        ParticipationOutputsReported: {
+            participation: components["schemas"]["Participation"];
+            /** Outputs */
+            outputs: components["schemas"]["ParticipationOutput"][];
+            /** Added */
+            added: number;
         };
         /**
          * ParticipationRepository
@@ -5851,6 +6229,20 @@ export interface components {
             revision: number;
             /** Retired */
             retired: boolean;
+        };
+        /**
+         * Presence
+         * @description Whether an agent can be reached, as its own reports say.
+         */
+        Presence: {
+            /** Active */
+            active: boolean;
+            /** Lastseenat */
+            lastSeenAt: string | null;
+            /** Stale */
+            stale: boolean;
+            /** Openruns */
+            openRuns: number;
         };
         /** Progress */
         Progress: {
@@ -6421,6 +6813,14 @@ export interface components {
             url?: string | null;
             /** Description */
             description?: string | null;
+        };
+        /**
+         * RequestListed
+         * @description A message with an acknowledgement request, with the thread it is in.
+         */
+        RequestListed: {
+            discussion: components["schemas"]["ThreadNamed"];
+            message: components["schemas"]["DiscussionMessage"];
         };
         /** Reschedule */
         Reschedule: {
@@ -7355,6 +7755,13 @@ export interface components {
             kind: "agent" | "human" | "role";
             /** Id */
             id: string;
+        };
+        /** ThreadNamed */
+        ThreadNamed: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
         };
         /**
          * Ticket
@@ -12340,6 +12747,73 @@ export interface operations {
             };
         };
     };
+    report_outputs_api_v1_participations__identity__outputs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ParticipationOutputs"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParticipationOutputsReported"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    owners_api_v1_owners_get: {
+        parameters: {
+            query: {
+                ref: string;
+                repositoryId?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Owners"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     chat_track_api_v1_chats_track_post: {
         parameters: {
             query?: never;
@@ -13297,6 +13771,71 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DiscussionResume"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    requests_api_v1_discussions_requests_get: {
+        parameters: {
+            query?: {
+                box?: "sent" | "received";
+                state?: "pending" | "ended" | "all";
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscussionRequests"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    inbox_api_v1_discussions_inbox_get: {
+        parameters: {
+            query?: {
+                since?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscussionInbox"];
                 };
             };
             /** @description Validation Error */

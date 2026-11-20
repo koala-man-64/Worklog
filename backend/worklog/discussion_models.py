@@ -30,7 +30,7 @@ class Acknowledgement(Command):
     # How long the request may wait before it escalates to the person (v33): 10 seconds to 7 days.
     # An urgent request without one escalates after 15 minutes.
     deadlineSeconds: int | None = Field(default=None, ge=10, le=604_800)
-    urgent: StrictBool = False
+    urgent: StrictBool | None = None
 
     @model_validator(mode="after")
     def target_shape(self) -> "Acknowledgement":
