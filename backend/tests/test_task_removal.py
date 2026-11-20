@@ -10,6 +10,7 @@ from contextlib import closing
 
 import sealed
 from test_chat_label_links import call, session
+from test_ownership_reachability import before_v33
 from test_sealed_schemas import contents
 from worklog import migrations, recovery
 from worklog.compaction import compact_database
@@ -63,6 +64,7 @@ def test_the_upgrade_drops_every_task_and_changes_no_other_record(tmp_path):
     _, _, before = contents(database)
     Database(database).initialize()
     version, signature, after = contents(database)
+    after = before_v33(after)  # v33 added tables after these
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
     assert "tasks" not in after and len(before["tasks"]) == 2
     # Every other table keeps every row, the work item and the task's history among them; v27 to

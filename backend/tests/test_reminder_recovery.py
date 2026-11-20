@@ -8,6 +8,7 @@ from contextlib import closing
 import pytest
 import sealed
 from test_reminder_removal import remind
+from test_ownership_reachability import before_v33
 from test_sealed_schemas import contents
 from worklog import migrations, recovery
 from worklog.db import Database
@@ -62,6 +63,7 @@ def test_the_upgrade_from_v19_snapshots_first_and_changes_no_record(tmp_path):
     _, _, before = contents(path)
     Database(path).initialize()
     version, signature, after = contents(path)
+    after = before_v33(after)  # v33 added tables after these
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
     # v20 adds the reminders table and v27 drops it again; v25, v26 and v28 to v30 drop the plan
     # import, task, release, ties and chat message tables, empty here.

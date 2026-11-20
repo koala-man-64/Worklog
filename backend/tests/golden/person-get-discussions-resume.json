@@ -218,7 +218,18 @@
               "ownerId": "<id3>",
               "ownershipGeneration": 1,
               "acknowledged": false,
-              "acknowledgedBy": null
+              "acknowledgedBy": null,
+              "delivery": "seen",
+              "seenAt": "<time>",
+              "acknowledgedAt": null,
+              "answeredAt": null,
+              "answerMessageId": null,
+              "presence": {
+                "active": true,
+                "lastSeenAt": "<time>",
+                "stale": false,
+                "openRuns": 1
+              }
             }
           ],
           "receipts": [],
@@ -235,7 +246,11 @@
           "terminalActorLabel": null,
           "terminalActorKind": null,
           "authorityRoleId": null,
-          "authorityGeneration": null
+          "authorityGeneration": null,
+          "deadlineAt": "<time>",
+          "urgent": false,
+          "escalatedAt": null,
+          "overdue": false
         }
       }
     ],

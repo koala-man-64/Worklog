@@ -16,6 +16,42 @@ from .discussions import DiscussionService, communication_actor, identity_chat
 # Step 5.6 (A-09): a role's offer hands work on and moves its pending requests with it, so an
 # update is no longer a handoff. Handoffs posted before stay readable.
 RETIRED_UPDATE_KINDS = frozenset({"handoff"})
+# What a participation can say it produced (v33): a pull request, by URL or number, and a commit by SHA.
+COMMIT_SHA = re.compile(r"[0-9a-fA-F]{7,40}")
+PULL_NUMBER = re.compile(r"[1-9][0-9]{0,9}")
+# The end of a pull request's address: GitHub's pull/N, Azure DevOps' pullrequest/N, Bitbucket's
+# pull-requests/N and GitLab's -/merge_requests/N.
+PULL_PATH = re.compile(r"(.*?)/(?:-/)?(?:pull|pullrequest|pull-requests|merge_requests)/([1-9][0-9]{0,9})/?", re.IGNORECASE)
+
+
+def pull_request(value: str) -> tuple[str, str, str]:
+    """A pull request as an output names it: its number, its address without query or fragment (empty
+    for a bare number), and the remote identity of the repository the address names (empty for a bare
+    number). Anything else is refused."""
+    value = text(value, "pullRequests", required=True, limit=2000).strip()
+    if PULL_NUMBER.fullmatch(value):
+        return value, "", ""
+    error = AppError(422, "validation", "A pull request is its number or its https address, such as "
+                     "https://github.com/OWNER/REPO/pull/12 or https://dev.azure.com/ORG/PROJECT/_git/REPO/pullrequest/12",
+                     {"pullRequests": value[:200]})
+    try:
+        parts = urlsplit(value)
+        found = PULL_PATH.fullmatch(parts.path)
+        if parts.scheme not in {"http", "https"} or not parts.hostname or parts.password is not None or found is None:
+            raise ValueError
+    except ValueError:
+        raise error from None
+    host = parts.netloc.rpartition("@")[2].lower()
+    url = urlunsplit((parts.scheme.lower(), host, parts.path.rstrip("/"), "", ""))
+    return found[2], url, repository_identity(urlunsplit((parts.scheme.lower(), host, found[1], "", "")))
+
+
+def commit_sha(value: str) -> str:
+    """A commit as an output names it: its SHA, 7 to 40 hexadecimal characters, lowercased."""
+    value = text(value, "commits", required=True, limit=200).strip()
+    if not COMMIT_SHA.fullmatch(value):
+        raise AppError(422, "validation", "A commit is its SHA: 7 to 40 hexadecimal characters", {"commits": value[:200]})
+    return value.lower()
 
 
 def _get(c: sqlite3.Connection, table: str, identity: str) -> sqlite3.Row:
@@ -231,7 +267,9 @@ def repository_merge(c: sqlite3.Connection, actor: dict, identity: str, p: dict)
     if survivor["archived"]:
         raise AppError(409, "archived", f"Recover {survivor['name']} before merging into it", {"repositoryId": survivor["id"]})
     moved = {"contexts": c.execute("UPDATE participation_contexts SET repository_id=? WHERE repository_id=?",
-                                   (survivor["id"], source["id"])).rowcount}
+                                   (survivor["id"], source["id"])).rowcount,
+             "outputs": c.execute("UPDATE participation_outputs SET repository_id=? WHERE repository_id=?",
+                                  (survivor["id"], source["id"])).rowcount}
     for kind, table in _REPOSITORY_LINKS.items():
         # Table names are internal constants. An owner already linked to the survivor keeps that link.
         moved[kind] = c.execute(f"SELECT count(*) FROM {table} WHERE repository_id=?", (source["id"],)).fetchone()[0]
@@ -601,6 +639,66 @@ class CoordinationService:
             args.append(repository_id)
         sql = "SELECT p.* FROM participations p WHERE " + " AND ".join(conditions) + " ORDER BY p.last_seen_at DESC,p.id DESC"
         return self._page(c, sql, args, limit, offset, lambda row: self.participation_record(c, row))
+
+    @staticmethod
+    def output_record(row) -> dict:
+        return {"id": row["id"], "participationId": row["participation_id"], "repositoryId": row["repository_id"],
+                "repositoryName": row["repository_name"], "kind": row["kind"], "reference": row["reference"],
+                "url": row["url"], "createdAt": row["created_at"]}
+
+    def outputs(self, c, participation_ids) -> list[dict]:
+        """What these participations said they produced, oldest first."""
+        ids = list(participation_ids)
+        if not ids:
+            return []
+        marks = ",".join("?" * len(ids))
+        return [self.output_record(r) for r in c.execute(
+            "SELECT o.*,r.name AS repository_name FROM participation_outputs o JOIN repositories r ON r.id=o.repository_id "
+            f"WHERE o.participation_id IN ({marks}) ORDER BY o.created_at,o.rowid", ids)]
+
+    def report_outputs(self, c, actor, identity, p) -> dict:
+        """Record what a participation produced: the pull requests it opened and the commits it pushed,
+        in one of the repositories it reports. Each is kept once per participation, so a repeat adds
+        nothing. Like an update, it counts as a report: it refreshes the participation's last seen
+        time and advances its revision."""
+        row = _get(c, "participations", identity)
+        self._own_run(c, actor, row["run_id"])
+        if row["released_at"] is not None:
+            raise AppError(409, "released", "Rejoin before reporting what this participation produced")
+        reported = list(dict.fromkeys(context["repositoryId"] for context in self._contexts(c, identity)))
+        if p.get("repositoryId") is not None and p.get("repositoryUrl") is not None:
+            raise AppError(422, "validation", "Name the repository by its ID or by its remote, not both")
+        if p.get("repositoryUrl") is not None:
+            holder = repository_holder(c, repository_identity(_repository_url(p["repositoryUrl"])))
+            if holder is None:
+                raise AppError(422, "validation", "No repository is registered for that remote", {"repositoryUrl": "not_found"})
+            repository_id = holder["merged_into"] or holder["id"]
+        elif p.get("repositoryId") is not None:
+            repository_id = text(p["repositoryId"], "repositoryId", required=True, limit=200)
+        elif len(reported) == 1:
+            repository_id = reported[0]
+        else:
+            raise AppError(422, "validation", "Name the repository: this participation reports "
+                           + ("none; report one with participation update first" if not reported else "several"),
+                           {"repositoryId": "required"})
+        if repository_id not in reported:
+            raise AppError(422, "validation", "Report outputs in a repository this participation reports",
+                           {"repositoryId": repository_id})
+        if not p.get("pullRequests") and not p.get("commits"):
+            raise AppError(422, "validation", "Name a pull request or a commit", {"pullRequests": "required"})
+        values = [("pr", *pull_request(value)[:2]) for value in p.get("pullRequests", [])]
+        values += [("commit", commit_sha(value), "") for value in p.get("commits", [])]
+        stamp = now()
+        before = self.participation_record(c, row)
+        added = 0
+        for kind, reference, url in dict.fromkeys(values):
+            added += c.execute("INSERT OR IGNORE INTO participation_outputs(id,participation_id,repository_id,kind,reference,url,created_at) "
+                               "VALUES(?,?,?,?,?,?,?)", (uid(), identity, repository_id, kind, reference, url, stamp)).rowcount
+        c.execute("UPDATE participations SET last_seen_at=?,updated_at=?,revision=revision+1 WHERE id=?", (stamp, stamp, identity))
+        result = {"participation": self.participation_record(c, _get(c, "participations", identity)),
+                  "outputs": self.outputs(c, [identity]), "added": added}
+        event(c, actor, "participation.output", identity, before, result)
+        return result
 
     @staticmethod
     def update_record(row) -> dict:

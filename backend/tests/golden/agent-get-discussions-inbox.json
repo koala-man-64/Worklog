@@ -1,0 +1,77 @@
+{
+  "status": 200,
+  "body": {
+    "received": [
+      {
+        "discussion": {
+          "id": "<id1>",
+          "title": "Parser"
+        },
+        "message": {
+          "id": "<id2>",
+          "discussionId": "<id1>",
+          "text": "Who reviews the parser?",
+          "authorId": "local-user",
+          "authorLabel": "You",
+          "authorKind": "human",
+          "createdAt": "<time>",
+          "chatId": null,
+          "onBehalfOfRoleId": null,
+          "ownershipGeneration": null,
+          "request": {
+            "id": "<id2>",
+            "mode": "all",
+            "state": "pending",
+            "targets": [
+              {
+                "id": "<id3>",
+                "kind": "role",
+                "recipientId": "<id4>",
+                "label": "Parser owner",
+                "ownerId": "<id5>",
+                "ownershipGeneration": 1,
+                "acknowledged": false,
+                "acknowledgedBy": null,
+                "delivery": "pending",
+                "seenAt": null,
+                "acknowledgedAt": null,
+                "answeredAt": null,
+                "answerMessageId": null,
+                "presence": {
+                  "active": true,
+                  "lastSeenAt": "<time>",
+                  "stale": false,
+                  "openRuns": 1
+                }
+              }
+            ],
+            "receipts": [],
+            "actionableTargetIds": [
+              "<id3>"
+            ],
+            "canCancel": false,
+            "canRelease": false,
+            "classifications": [
+              "actionable"
+            ],
+            "reason": null,
+            "terminalAt": null,
+            "terminalActorId": null,
+            "terminalActorLabel": null,
+            "terminalActorKind": null,
+            "authorityRoleId": null,
+            "authorityGeneration": null,
+            "deadlineAt": "<time>",
+            "urgent": false,
+            "escalatedAt": null,
+            "overdue": false
+          }
+        }
+      }
+    ],
+    "unseen": 1,
+    "answers": [],
+    "changes": [],
+    "cursor": "<cursor>"
+  }
+}

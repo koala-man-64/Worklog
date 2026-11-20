@@ -61,6 +61,15 @@ class ParticipationUpdate(Expected):
     contexts: list[ParticipationContext] | None = Field(default=None, max_length=40)
 
 
+class ParticipationOutputs(Command):
+    """What a participation produced: pull requests by address or number, and commits by SHA, in a
+    repository it reports, by ID or remote; one it reports alone may be left out."""
+    repositoryId: str | None = None
+    repositoryUrl: str | None = None
+    pullRequests: list[str] = Field(default_factory=list, max_length=50)
+    commits: list[str] = Field(default_factory=list, max_length=50)
+
+
 class CoordinationUpdateCreate(Command):
     kind: Literal["update", "blocker", "handoff"] = "update"
     text: str

@@ -13,8 +13,10 @@ Agents read what they read before this table (K2), apart from the person's own p
 and the API document, the agent registry, the list of tracked chats, each chat's transcript, and the
 Claude Code sessions running on the person's machine. A transcript holds a whole conversation, tool
 output included. The agent registry joins tracked chats into every agent's record, as a
-roadmap's view of its agents does. One participant's profile and the overlap check leave tracked chats
-and credentials out, and agents read both.
+roadmap's view of its agents does. One participant's profile, the owners lookup and the overlap check
+leave tracked chat records, transcripts and credentials out, and agents read all three; since v33 a
+profile names the chat ID its identity works in, its open runs' chat IDs and the directory it registered
+from, so an agent can say where to reach another (decision R11 in docs/ROADMAPS-RETHINK.md).
 """
 
 from __future__ import annotations
@@ -111,12 +113,14 @@ ROUTES: dict[str, dict[str, str | Only]] = {
     "/discussions/avatar": {"POST": DISCUSS},
     "/discussions/avatars": {"GET": READ},
     "/discussions/changes": {"GET": READ},
+    "/discussions/inbox": {"GET": READ},
     "/discussions/messages/{identity}": {"GET": READ},
     "/discussions/messages/{identity}/acknowledge": {"POST": DISCUSS},
     "/discussions/messages/{identity}/cancel": {"POST": DISCUSS},
     "/discussions/messages/{identity}/release": {"POST": HUMAN},
     "/discussions/participants": {"GET": READ},
     "/discussions/participants/{identity}": {"GET": READ},
+    "/discussions/requests": {"GET": READ},
     "/discussions/resume": {"GET": READ},
     "/discussions/roles": {"GET": READ, "POST": DISCUSS},
     "/discussions/roles/{identity}/accept": {"POST": DISCUSS},
@@ -158,6 +162,8 @@ ROUTES: dict[str, dict[str, str | Only]] = {
 
     "/openapi.json": {"GET": HUMAN},
 
+    "/owners": {"GET": READ},
+
     "/page-views": {"POST": HUMAN},
 
     "/participations": {"GET": READ, "POST": COORDINATE},
@@ -165,6 +171,7 @@ ROUTES: dict[str, dict[str, str | Only]] = {
     "/participations/{identity}/check-in": {"POST": COORDINATE},
     "/participations/{identity}/rejoin": {"POST": COORDINATE},
     "/participations/{identity}/release": {"POST": COORDINATE},
+    "/participations/{identity}/outputs": {"POST": COORDINATE},
     "/participations/{identity}/updates": {"POST": COORDINATE},
 
     "/people": {"GET": READ, "POST": HUMAN},

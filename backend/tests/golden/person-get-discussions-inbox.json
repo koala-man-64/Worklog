@@ -1,0 +1,10 @@
+{
+  "status": 200,
+  "body": {
+    "received": [],
+    "unseen": 0,
+    "answers": [],
+    "changes": [],
+    "cursor": "<cursor>"
+  }
+}

@@ -403,6 +403,15 @@ class LiveService:
             if request["state"] != "pending":
                 continue
             counted = request["discussion_id"] in included_discussions
+            escalated = request["escalated_at"] is not None
+            if escalated:
+                # Nobody answered it by its deadline, so it waits on the person now (v33), while the
+                # agents it names still owe it.
+                if request["author_kind"] == "agent":
+                    asking_person.add(request["author_id"])
+                if counted:
+                    person_requests.add(request["message_id"])
+                    person_request_work.update(discussion_contexts.get(request["discussion_id"], []))
             for target in targets_by_message[request["message_id"]]:
                 if target["acknowledged_at"] is not None:
                     continue
@@ -424,7 +433,7 @@ class LiveService:
                     waited = None
                 if waited:
                     pending_for.add(waited)
-                    if counted:
+                    if counted and not escalated:
                         agent_requests.add(request["message_id"])
         pending_offers = [offer for offer in offers if offer["state"] == "pending"]
         pending_for.update(offer["to_id"] for offer in pending_offers)

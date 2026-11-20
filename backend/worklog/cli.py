@@ -71,6 +71,13 @@ TICKET_STATUSES = ("open", "doing", "blocked", "done")
 AGENT_GUIDE = Path(__file__).resolve().parents[2] / "docs" / "AGENT-GUIDE.md"
 ERROR_CODE = re.compile(r"[a-z][a-z0-9_]{0,63}")
 ERROR_FIELDS_LIMIT = 1000
+# A request's deadline (v33): a number with s, m, h or d, 10 seconds to 7 days.
+DEADLINE = re.compile(r"([1-9][0-9]{0,6})([smhd]?)")
+DEADLINE_UNITS = {"": 1, "s": 1, "m": 60, "h": 3600, "d": 86400}
+# How long `inbox --wait` waits by default and at most, in seconds; it polls after about 2 and 5
+# seconds, then every 10, as `discussions wait` does.
+INBOX_WAIT_S = 300
+INBOX_WAIT_MAX_S = 3600
 # What CreateProcess fails with when the caller's job does not allow CREATE_BREAKAWAY_FROM_JOB.
 ERROR_ACCESS_DENIED = 5
 # start's report, and its line in server.log, when the server has to stay in start's own job.
@@ -398,11 +405,14 @@ def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
         finished = threading.Event()
 
         def watch() -> None:
+            from worklog.discussions import ESCALATION_SWEEP, DiscussionService
             from worklog.maintenance import prune_receipts
 
             next_backup = time.monotonic() + 60
             next_prune = time.monotonic() + 3600
             next_usage = time.monotonic() + FLUSH_S
+            next_escalation = time.monotonic() + ESCALATION_SWEEP
+            requests = DiscussionService(app.state.db)
             while not finished.wait(0.2):
                 request = _json_file(marker)
                 if request.get("instanceId") == instance_id and request.get("dataId") == data_id:
@@ -426,6 +436,16 @@ def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
                     # Never raises: counts a write could not add wait for the next one.
                     app.state.usage.flush()
                     next_usage = time.monotonic() + FLUSH_S
+                if time.monotonic() >= next_escalation:
+                    # Requests whose deadline passed unanswered escalate to the person. A busy database
+                    # waits for the next sweep; a failure is only logged.
+                    try:
+                        if app.state.db.snapshot(DiscussionService.overdue):
+                            with app.state.db.transaction() as conn:
+                                requests.escalate_overdue(conn)
+                    except Exception as exc:
+                        print(f"Escalating Worklog requests failed: {type(exc).__name__}", file=sys.stderr, flush=True)
+                    next_escalation = time.monotonic() + ESCALATION_SWEEP
 
         watcher = threading.Thread(target=watch, daemon=True)
         watcher.start()
@@ -458,7 +478,8 @@ def _discussion_route_allowed(method: str, route: str) -> bool:
     """Keep the client independently unable to invoke human-only commands."""
     if route in {"/discussions", "/discussions/roles"}:
         return method in {"GET", "POST"}
-    if route in {"/discussions/participants", "/discussions/avatars", "/discussions/changes", "/discussions/resume"}:
+    if route in {"/discussions/participants", "/discussions/avatars", "/discussions/changes", "/discussions/resume",
+                 "/discussions/requests", "/discussions/inbox"}:
         return method == "GET"
     if route == "/discussions/avatar":
         return method == "POST"
@@ -496,8 +517,9 @@ def _coordination_route_allowed(method: str, route: str) -> bool:
     # Tracking your own chat on the work you do; the person's chat commands stay out of reach.
     if route in {"/repositories/ensure", "/chats/track"}:
         return method == "POST"
-    # Who else works where you will (overlaps), and which record holds a checkout's remote.
-    if route in {"/coordination-overlaps", "/repositories/resolve"}:
+    # Who else works where you will (overlaps), which record holds a checkout's remote, and who owns
+    # what a reference names.
+    if route in {"/coordination-overlaps", "/repositories/resolve", "/owners"}:
         return method == "GET"
     if route in {"/repositories", "/agent-runs", "/participations", "/coordination-updates"}:
         return method == "GET" or (method == "POST" and route in {"/agent-runs", "/participations"})
@@ -514,7 +536,7 @@ def _coordination_route_allowed(method: str, route: str) -> bool:
                 or method == "PATCH" and parts[0] == "participations")
     return method == "POST" and (
         parts[0] == "agent-runs" and parts[2] == "end"
-        or parts[0] == "participations" and parts[2] in {"release", "rejoin", "check-in", "updates"})
+        or parts[0] == "participations" and parts[2] in {"release", "rejoin", "check-in", "updates", "outputs"})
 
 
 def _ticket_route_allowed(method: str, route: str) -> bool:
@@ -880,6 +902,17 @@ def agent_command(args: argparse.Namespace, port: int, redact: list[str]) -> Any
         return client.request("GET", "/context" + _coordination_query(args, "date", "repositoryId", "itemId"))
     if args.agent_action == "overlaps":
         return overlaps_command(client, args)
+    if args.agent_action == "owners":
+        return client.request("GET", "/owners?" + urlencode(
+            {"ref": _owner_ref(args.ref), **({"repositoryId": args.repo} if args.repo else {})}))
+    if args.agent_action == "agents":
+        # The participant profile: who it is and where to reach it.
+        return client.request("GET", "/discussions/participants/" + args.id)
+    if args.agent_action == "requests":
+        return client.request("GET", "/discussions/requests?" + urlencode(
+            {"box": "sent" if args.sent else "received", "state": args.state, "limit": args.limit, "offset": args.offset}))
+    if args.agent_action == "inbox":
+        return _inbox(client, args.since, args.wait, args.timeout)
     if args.agent_action == "search":
         return client.request("GET", "/search?" + urlencode({"q": args.query, "limit": args.limit,
                                                             "archived": str(args.archived).lower()}))
@@ -1010,6 +1043,16 @@ def coordination_command(client: AgentClient, args: argparse.Namespace) -> Any:
         for flag in ("title", "provider", "model"):
             if getattr(args, flag) is not None:
                 payload[flag] = getattr(args, flag)
+    elif group == "participation" and action == "output":
+        # What this participation produced, in a repository it reports (v33).
+        route = "/participations/" + args.id + "/outputs"
+        if not args.pr and not args.commit:
+            raise ValueError("Name a pull request with --pr or a commit with --commit")
+        payload = {"pullRequests": args.pr or [], "commits": args.commit or []}
+        if args.repo is not None:
+            payload["repositoryId"] = args.repo
+        elif args.checkout is not None:
+            payload["repositoryUrl"] = _checkout_context(args.checkout)["repositoryUrl"]
     elif group == "updates":
         route = "/participations/" + args.participation + "/updates"
         if args.text is not None:
@@ -1095,6 +1138,15 @@ def _coordination_parser(actions: Any) -> None:
             source.add_argument("--file", help="JSON object with itemId, description and/or replacement contexts")
             source.add_argument("--description", help="Replace the participation's activity description")
         write(command)
+    output = participation.add_parser("output", help="Report the pull requests you opened and the commits you pushed, "
+                                                     "so `owners` finds you by them")
+    output.add_argument("id", help="Your participation's ID")
+    output.add_argument("--pr", action="append", metavar="URL|NUMBER", help="A pull request's address or number; repeatable")
+    output.add_argument("--commit", action="append", metavar="SHA", help="A commit's SHA (7-40 hex characters); repeatable")
+    where = output.add_mutually_exclusive_group()
+    where.add_argument("--repo", help="The repository's catalog ID, when the participation reports several")
+    where.add_argument("--checkout", help="A local checkout naming the repository by its origin remote")
+    write(output)
     updates = actions.add_parser("updates", help="Append immutable status and blocker messages").add_subparsers(
         dest="coordination_action", required=True)
     listing = updates.add_parser("list")
@@ -1282,6 +1334,68 @@ def _wait_for_discussion(client: AgentClient, identity: str, timeout: float) -> 
             time.sleep(min(delay, remaining))
 
 
+def _inbox(client: AgentClient, since: str | None, wait: bool, timeout: float) -> dict:
+    """What waits on you and what came back to you. With `wait`, return as soon as something new
+    arrives after the cursor (by default, the moment this started), or at once when a request waiting
+    on you has not been seen yet; otherwise when the timeout passes, with timedOut. Three failed polls
+    in a row end the wait with an error; a refused credential ends it at once."""
+    route = "/discussions/inbox"
+    deadline = time.monotonic() + timeout
+    last = client.request("GET", route + ("?" + urlencode({"since": since}) if since else ""))
+    if not wait:
+        return last
+    if last["unseen"] or (since and (last["answers"] or last["changes"])):
+        return {**last, "timedOut": False}
+    cursor = last["cursor"]
+    delay_index, failures = 0, 0
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return {**last, "timedOut": True}
+        time.sleep(min((2, 5, 10)[min(delay_index, 2)] * random.uniform(0.9, 1.1), remaining))
+        delay_index += 1
+        try:
+            polled = client.request("GET", route + "?" + urlencode({"since": cursor}),
+                                    timeout=max(1.0, min(30.0, deadline - time.monotonic())))
+        except AgentRequestError as exc:
+            if exc.status is not None and exc.status < 500:
+                raise
+            failures += 1
+            if failures >= 3:
+                raise
+            continue
+        failures = 0
+        last = polled
+        if polled["unseen"] or polled["answers"] or polled["changes"]:
+            return {**polled, "timedOut": False}
+
+
+def _owner_ref(value: str) -> str:
+    """A reference as `owners` sends it: a folder that exists here is named by its absolute path, so
+    `owners .` names the checkout you are in; `path:` takes a relative path too."""
+    kind, separator, rest = value.partition(":")
+    if separator and kind == "path" and rest:
+        return "path:" + os.path.abspath(rest)
+    if not re.match(r"[A-Za-z][A-Za-z0-9+.-]*://", value) and not separator and os.path.isdir(value):
+        return "path:" + os.path.abspath(value)
+    return value
+
+
+def _deadline(value: str) -> int:
+    found = DEADLINE.fullmatch(value.strip().lower())
+    seconds = int(found[1]) * DEADLINE_UNITS[found[2]] if found else 0
+    if not 10 <= seconds <= 604_800:
+        raise argparse.ArgumentTypeError("A deadline is a number with s, m, h or d, from 10s to 7d, such as 30m")
+    return seconds
+
+
+def _inbox_timeout(value: str) -> float:
+    result = float(value)
+    if not 0 < result <= INBOX_WAIT_MAX_S:
+        raise argparse.ArgumentTypeError(f"Inbox wait timeout must be greater than 0 and at most {INBOX_WAIT_MAX_S} seconds")
+    return result
+
+
 def discussion_command(client: AgentClient, args: argparse.Namespace) -> Any:
     action = args.discussion_action
     base = "/discussions"
@@ -1327,12 +1441,19 @@ def discussion_command(client: AgentClient, args: argparse.Namespace) -> Any:
     else:
         if args.ask and args.file:
             raise ValueError("Give --ask with --text; a --file names its own acknowledgement")
+        if (args.deadline is not None or args.urgent) and not args.ask:
+            raise ValueError("--deadline and --urgent go with --ask; a --file gives acknowledgement.deadlineSeconds or urgent")
         payload = _payload(args.file) if args.file else {"text": args.text}
         if args.ask:
             # Each named one must acknowledge: an agent by its identity, or the person, as person or local-user.
             asked = dict.fromkeys("local-user" if who == "person" else who for who in args.ask)
             payload["acknowledgement"] = {"mode": "all", "targets": [
                 {"kind": "human", "id": who} if who == "local-user" else {"kind": "agent", "id": who} for who in asked]}
+            # Unanswered by then, it escalates to the person (v33).
+            if args.deadline is not None:
+                payload["acknowledgement"]["deadlineSeconds"] = args.deadline
+            if args.urgent:
+                payload["acknowledgement"]["urgent"] = True
         if args.as_role:
             payload["onBehalfOfRoleId"] = args.as_role
         if args.chat:
@@ -1402,6 +1523,11 @@ def _discussion_parser(actions: Any) -> None:
         command.add_argument("--ask", action="append", metavar="AGENT_ID|person",
                              help="Ask this agent, or the person (person or local-user), to acknowledge the message; "
                                   "repeat for more")
+        command.add_argument("--deadline", type=_deadline, metavar="DURATION",
+                             help="With --ask: escalate to the person if a target has neither acknowledged nor answered "
+                                  "by then, such as 30m (10s to 7d)")
+        command.add_argument("--urgent", action="store_true",
+                             help="With --ask: mark it urgent; without --deadline it escalates after 15 minutes")
         if verb == "post":
             command.add_argument("--title")
             command.add_argument("--context", action="append", metavar="TYPE:ID", help="Tag the thread with a record; repeat for more")
@@ -1506,6 +1632,32 @@ def parser() -> argparse.ArgumentParser:
     overlaps.add_argument("--step", action="append", help="A roadmap step ID; repeat for more")
     overlaps.add_argument("--ticket", action="append", help="A ticket's key, number or ID; repeat for more")
     overlaps.add_argument("--limit", type=int, default=20, help="The most of each kind of finding (at most 50)")
+    owners = actions.add_parser("owners", help="Who owns a ticket, work item, pull request, branch, commit or checkout, "
+                                               "with the evidence and how to reach each agent")
+    owners.add_argument("ref", help="T-12, a work item or agent ID, a pull request address or number, a branch, a commit SHA "
+                                    "or a path; TYPE:VALUE (ticket, item, pr, branch, commit, path, agent) says which")
+    owners.add_argument("--repo", help="Narrow pull requests, branches, commits and paths to one repository's catalog ID")
+    agents = actions.add_parser("agents", help="Read one agent: where to reach it and what it works on")
+    agents.add_subparsers(dest="agents_action", required=True).add_parser(
+        "show", help="Its chat, provider, directory, last activity, open runs, participation and outputs").add_argument(
+        "id", help="An agentId, such as a message's authorId")
+    requests = actions.add_parser("requests", help="Acknowledgement requests you sent or that wait on you, "
+                                                   "with how far each got")
+    requests_actions = requests.add_subparsers(dest="requests_action", required=True)
+    listing = requests_actions.add_parser("list", help="Received unless --sent; pending unless --state says otherwise")
+    box = listing.add_mutually_exclusive_group()
+    box.add_argument("--sent", action="store_true", help="The requests you sent, or sent in the name of a role you own")
+    box.add_argument("--received", action="store_true", help="The requests with a slot for you (the default)")
+    listing.add_argument("--state", choices=("pending", "ended", "all"), default="pending")
+    listing.add_argument("--limit", type=int, default=50)
+    listing.add_argument("--offset", type=int, default=0)
+    inbox = actions.add_parser("inbox", help="What waits on you and what came back to you; --wait blocks until "
+                                             "something arrives")
+    inbox.add_argument("--wait", action="store_true",
+                       help="Return as soon as a request or an answer for you arrives, or the timeout passes")
+    inbox.add_argument("--timeout", type=_inbox_timeout, default=INBOX_WAIT_S,
+                       help=f"With --wait: seconds to wait (default {INBOX_WAIT_S}, at most {INBOX_WAIT_MAX_S})")
+    inbox.add_argument("--since", metavar="CURSOR", help="Report what arrived after this cursor from an earlier inbox")
     search = actions.add_parser("search")
     search.add_argument("query")
     search.add_argument("--limit", type=int, default=50)

@@ -16,6 +16,7 @@ from contextlib import closing
 import pytest
 import sealed
 from test_chat_label_links import call, session
+from test_ownership_reachability import before_v33
 from test_sealed_schemas import contents
 from worklog import cli, migrations, recovery
 from worklog.db import Database
@@ -91,6 +92,7 @@ def test_the_upgrade_drops_every_message_delivery_and_confirmation_and_changes_n
     _, _, before = contents(database)
     Database(database).initialize()
     version, signature, after = contents(database)
+    after = before_v33(after)  # v33 added tables after these
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
     assert [len(before[table]) for table in TABLES] == [1, 1, 1]
     assert not set(TABLES) & set(after)
@@ -165,10 +167,11 @@ def test_an_agent_still_cannot_read_an_old_messages_history(tmp_path):
         client.__exit__(None, None, None)
 
 
-def test_the_agent_command_line_has_no_inbox(capsys):
-    with pytest.raises(SystemExit):
-        cli.main(["agent", "inbox"])
-    assert "invalid choice: 'inbox'" in capsys.readouterr().err
+def test_the_agent_command_line_has_no_chat_inbox():
+    # v33's `inbox` reads Discussions (`GET /discussions/inbox`); the chat inbox v30 removed stays out of reach.
     client = cli.AgentClient("http://127.0.0.1:8893", "token")
+    for method, path in (("GET", "/inbox"), ("POST", "/inbox/acknowledge")):
+        with pytest.raises(ValueError, match="outside proposal/read scope"):
+            client.request(method, path, {} if method == "POST" else None)
     with pytest.raises(ValueError, match="outside proposal/read scope"):
         client.request("POST", "/inbox/receive", {})

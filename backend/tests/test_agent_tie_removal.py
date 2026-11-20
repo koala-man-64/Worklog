@@ -14,6 +14,7 @@ from contextlib import closing
 import pytest
 import sealed
 from test_chat_label_links import call, session
+from test_ownership_reachability import before_v33
 from test_sealed_schemas import contents
 from worklog import cli, migrations, recovery
 from worklog.db import Database
@@ -73,6 +74,7 @@ def test_the_upgrade_drops_every_tie_and_changes_no_other_record(tmp_path):
     _, _, before = contents(database)
     Database(database).initialize()
     version, signature, after = contents(database)
+    after = before_v33(after)  # v33 added tables after these
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
     assert "agent_links" not in after and len(before["agent_links"]) == 2
     # Every other table keeps every row: the agent, the records it was tied to, and the ties' history.

@@ -14,6 +14,7 @@ import pytest
 import sealed
 from fastapi.testclient import TestClient
 from test_chat_label_links import to_v23
+from test_ownership_reachability import before_v33
 from test_sealed_schemas import contents
 from worklog import migrations, recovery
 from worklog.app import create_app
@@ -112,6 +113,7 @@ def test_the_v23_upgrade_keeps_every_row_and_rowid_and_gives_the_sealed_shape(tm
     assert all(len(rows) >= 1 for rows in before.values())
     Database(database).initialize()
     version, signature, after = contents(database)
+    after = before_v33(after)  # v33 added tables after these
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
     # Every row stays; v25 to v30, which the upgrade also runs, drop the plan import, task, reminder,
     # release, ties and chat message tables, empty here.

@@ -13,6 +13,7 @@ from contextlib import closing, contextmanager
 
 import pytest
 import sealed
+from test_ownership_reachability import before_v33
 from fastapi.testclient import TestClient
 from worklog import migrations, recovery
 from worklog.app import create_app
@@ -217,7 +218,7 @@ def test_the_v18_upgrade_leaves_earlier_registrations_unknown_and_changes_no_rec
         assert version(conn) == migrations.SCHEMA_VERSION
         assert recovery._schema_signature(conn) == sealed.current()
         assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
-        upgraded = contents(conn)
+        upgraded = before_v33(contents(conn))  # v33 added tables after these
     # Every row of every table is as it was; each registration gains a directory, unknown. The
     # upgrade goes on to v19 and v20, whose releases and reminders start empty and which v28 and v27
     # drop again, and to v25, v26, v29 and v30, which drop the plan import, task, ties and chat

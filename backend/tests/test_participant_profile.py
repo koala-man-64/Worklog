@@ -1,7 +1,9 @@
 """One participant as any caller sees it (`GET /discussions/participants/{identity}`): who it is, whether
 its credential is live, what it reports working on and the roles it owns, so an agent can look up the
-one whose work overlaps its own before it asks it about it. It counts the agent's runs; their records,
-its credentials and its chats stay on the person's Agents page."""
+one whose work overlaps its own before it asks it about it, and since v33 where to reach it (decision
+R11): the chat its identity works in, its provider, the directory it registered from, its open runs with
+the chat each reports, whether it is stale, and what its work produced. Every run's record, its
+credentials and its tracked chats stay on the person's Agents page."""
 
 import uuid
 
@@ -11,6 +13,8 @@ from test_repository_discussions import repository
 
 SUMMARY = {"id", "label", "kind", "avatar", "active", "createdAt", "lastActivityAt", "providers", "openRuns",
            "runCount", "messageCount", "working", "roles"}
+# Where to reach it (v33).
+REACH = {"chatId", "directory", "registeredAt", "provider", "stale", "runs", "outputs"}
 
 
 @pytest.fixture
@@ -24,7 +28,7 @@ def profile(c, identity, agent=None):
                  headers={"Authorization": "Bearer " + agent["token"]} if agent else {})
 
 
-def test_an_agent_looks_up_another_and_sees_its_work_but_not_its_credentials_or_chats(client):
+def test_an_agent_looks_up_another_and_sees_its_work_and_where_to_reach_it_but_not_its_credentials_or_chats(client):
     repo = repository(client)
     work = ok(write(client, "POST", "/work-items", {"title": "Fix the parser"}))
     builder, reviewer = credential(client, "Builder"), credential(client, "Reviewer")
@@ -37,7 +41,10 @@ def test_an_agent_looks_up_another_and_sees_its_work_but_not_its_credentials_or_
     ok(write(client, "POST", f"/discussions/roles/{role['id']}/claim", {"revision": role["revision"]}, builder))
 
     seen = ok(profile(client, builder["agentId"], reviewer))
-    assert set(seen) == SUMMARY
+    assert set(seen) == SUMMARY | REACH
+    assert seen["runs"] == [{"id": running["id"], "displayName": "Implementation", "provider": "claude", "chatId": "chat-1",
+                            "createdAt": running["createdAt"]}]
+    assert (seen["provider"], seen["stale"], seen["outputs"]) == ("claude", False, [])
     listed = {p["id"]: p for p in read(client, "/discussions/participants", reviewer)["items"]}[builder["agentId"]]
     assert {key: seen[key] for key in listed} == listed
     assert (seen["kind"], seen["label"], seen["active"], seen["openRuns"], seen["providers"]) == ("agent", "Builder", True, 1, ["claude"])
@@ -48,7 +55,7 @@ def test_an_agent_looks_up_another_and_sees_its_work_but_not_its_credentials_or_
     assert [(r["id"], r["label"], r["contextId"]) for r in seen["roles"]] == [(role["id"], "Implementation", work["id"])]
     # The person's record of the agent says more, and stays the person's.
     detail = read(client, f"/agents/{builder['agentId']}")
-    assert {"credentials", "runs", "chats"} <= set(detail) and not {"credentials", "runs", "chats"} & set(seen)
+    assert {"credentials", "runs", "chats"} <= set(detail) and not {"credentials", "chats"} & set(seen)
     assert {key: detail[key] for key in SUMMARY - {"kind", "avatar"}} == {key: seen[key] for key in SUMMARY - {"kind", "avatar"}}
     error(client.get(f"/api/v1/agents/{builder['agentId']}", headers={"Authorization": "Bearer " + reviewer["token"]}), 403, "agent_scope")
     # The person reads it too, and an agent reads its own.

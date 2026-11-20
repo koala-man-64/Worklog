@@ -24,7 +24,18 @@
           "ownerId": null,
           "ownershipGeneration": null,
           "acknowledged": true,
-          "acknowledgedBy": "<id4>"
+          "acknowledgedBy": "<id4>",
+          "delivery": "acknowledged",
+          "seenAt": null,
+          "acknowledgedAt": "<time>",
+          "answeredAt": null,
+          "answerMessageId": null,
+          "presence": {
+            "active": true,
+            "lastSeenAt": "<time>",
+            "stale": false,
+            "openRuns": 1
+          }
         }
       ],
       "receipts": [
@@ -50,7 +61,11 @@
       "terminalActorLabel": "Builder",
       "terminalActorKind": "agent",
       "authorityRoleId": null,
-      "authorityGeneration": null
+      "authorityGeneration": null,
+      "deadlineAt": null,
+      "urgent": false,
+      "escalatedAt": null,
+      "overdue": false
     }
   }
 }

@@ -14,6 +14,7 @@ from contextlib import closing
 
 import pytest
 import sealed
+from test_ownership_reachability import before_v33
 from test_sealed_schemas import contents
 from test_step_update import approve, change, client, ok, read, refused, submit, write  # noqa: F401
 from worklog import migrations, recovery
@@ -29,7 +30,10 @@ PRAGMA user_version=30;
 
 
 def to_v30(path):
-    """Take a current database back to v30 the documented way."""
+    """Take a current database back to v30 the documented way: to version 32 first."""
+    from test_ownership_reachability import to_v32
+
+    to_v32(path)
     with closing(sqlite3.connect(path)) as conn:
         if "submitted_by" in {column[1] for column in conn.execute("PRAGMA table_info(github_refs)")}:
             conn.execute("ALTER TABLE github_refs DROP COLUMN submitted_by")
@@ -152,6 +156,7 @@ def test_the_upgrade_gives_every_step_no_outcome_and_changes_no_other_record(tmp
     _, _, before = contents(database)
     Database(database).initialize()
     version, signature, after = contents(database)
+    after = before_v33(after)  # v33 added tables after these
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
     # Each step's row is as it was, with an empty outcome after it.
     assert after["steps"] == sorted((row + ("",) for row in before["steps"]), key=repr) and len(before["steps"]) == 2

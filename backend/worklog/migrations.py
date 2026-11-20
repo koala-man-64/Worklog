@@ -14,10 +14,10 @@ import sqlite3
 
 from .common import now, setting, today, uid
 
-SCHEMA_VERSION = 32
+SCHEMA_VERSION = 33
 # Older versions that startup and offline restore upgrade in one transaction.
 UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
-                                 24, 25, 26, 27, 28, 29, 30, 31})
+                                 24, 25, 26, 27, 28, 29, 30, 31, 32})
 
 # v1 grew in place before versions were counted: _upgrade_v1 adds whichever of these a v1 database
 # lacks. People as v1 had them; v10 renames role to team, adds person details and lets links name
@@ -913,6 +913,20 @@ def add_step_outcomes(conn: sqlite3.Connection) -> None:
     conn.execute("ALTER TABLE steps ADD COLUMN outcome TEXT NOT NULL DEFAULT ''")
 
 
+# v33: what agents report they produced on their participation, when a request's target first saw
+# it, and a request's deadline and escalation to the person.
+REACHABILITY_SCHEMA = """
+CREATE TABLE participation_outputs(id TEXT PRIMARY KEY,participation_id TEXT NOT NULL REFERENCES participations(id),repository_id TEXT NOT NULL REFERENCES repositories(id),kind TEXT NOT NULL CHECK(kind IN('pr','commit')),reference TEXT NOT NULL,url TEXT NOT NULL DEFAULT '',created_at TEXT NOT NULL,UNIQUE(participation_id,kind,reference));
+CREATE INDEX participation_outputs_reference ON participation_outputs(kind,reference);
+CREATE INDEX participation_outputs_repository ON participation_outputs(repository_id,participation_id);
+CREATE TABLE discussion_seen(target_id TEXT NOT NULL REFERENCES discussion_targets(id),actor_id TEXT NOT NULL,seen_at TEXT NOT NULL,PRIMARY KEY(target_id,actor_id));
+ALTER TABLE discussion_requests ADD COLUMN deadline_at TEXT;
+ALTER TABLE discussion_requests ADD COLUMN urgent INTEGER NOT NULL DEFAULT 0 CHECK(urgent IN(0,1));
+ALTER TABLE discussion_requests ADD COLUMN escalated_at TEXT;
+CREATE INDEX discussion_requests_deadline ON discussion_requests(deadline_at) WHERE state='pending' AND deadline_at IS NOT NULL AND escalated_at IS NULL;
+"""
+
+
 def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
     """Unlike executescript, preserve the caller's transaction and rollback boundary."""
     for statement in filter(str.strip, schema.split(";")):
@@ -947,6 +961,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
     v30 drops chat messages, their deliveries and chat confirmations, and changes no other record.
     v31 gives each roadmap step an outcome, empty to start, and changes no record.
     v32 gives pull requests a submitter, unknown for existing references.
+    v33 adds what agents report they produced, when a request's target first saw it, and a
+    request's deadline; each starts empty, and no record changes.
     """
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version == SCHEMA_VERSION:
@@ -1020,6 +1036,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
         add_step_outcomes(conn)
     if version < 32:
         conn.execute("ALTER TABLE github_refs ADD COLUMN submitted_by TEXT NOT NULL DEFAULT ''")
+    if version < 33:
+        execute_schema(conn, REACHABILITY_SCHEMA)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 

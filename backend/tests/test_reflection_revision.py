@@ -9,6 +9,7 @@ import sqlite3
 from contextlib import closing
 
 import sealed
+from test_ownership_reachability import before_v33
 from test_sealed_schemas import contents
 from worklog import migrations, recovery
 from worklog.db import Database
@@ -43,6 +44,7 @@ def test_the_v21_upgrade_starts_each_reflection_at_its_days_revision_and_changes
     _, _, before = contents(path)
     Database(path).initialize()
     version, signature, after = contents(path)
+    after = before_v33(after)  # v33 added tables after these
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
     # A draft opened before the upgrade carries its day's revision, which its reflection now starts at.
     assert after.pop("days") == [(*row, row[2]) for row in before.pop("days")]

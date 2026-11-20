@@ -129,6 +129,16 @@ def install_coordination_routes(app: FastAPI, db: Database, mutate: Callable) ->
     def post_update(identity: str, request: Request, body: m.CoordinationUpdateCreate) -> dict:
         return write(request, body, lambda c, a: service.post_update(c, a, identity, body.model_dump()))
 
+    # What a participation produced: its pull requests and commits (v33), which `owners` resolves.
+    @app.post("/api/v1/participations/{identity}/outputs", response_model=out.ParticipationOutputsReported)
+    def report_outputs(identity: str, request: Request, body: m.ParticipationOutputs) -> dict:
+        return write(request, body, lambda c, a: service.report_outputs(c, a, identity, body.model_dump()))
+
+    # Who owns what a reference names, with the evidence and how to reach each agent (v33).
+    @app.get("/api/v1/owners", response_model=out.Owners)
+    def owners(ref: str = Query(min_length=1, max_length=2000), repositoryId: str | None = None) -> dict:
+        return read(lambda c: registry.owners(c, ref, repositoryId))
+
     # An agent tracks its own chat on the work it does, as its reported work does; the person adds
     # any chat with POST /chats.
     @app.post("/api/v1/chats/track", response_model=out.ChatTracked)

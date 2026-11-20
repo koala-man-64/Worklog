@@ -1,0 +1,65 @@
+{
+  "status": 200,
+  "body": {
+    "participation": {
+      "id": "<id1>",
+      "runId": "<id2>",
+      "itemId": "<id3>",
+      "description": "",
+      "contexts": [
+        {
+          "repositoryId": "<id4>",
+          "repositoryName": "worklog",
+          "archived": false,
+          "checkoutPath": "",
+          "worktreePath": "",
+          "branch": ""
+        }
+      ],
+      "revision": 3,
+      "createdAt": "<time>",
+      "updatedAt": "<time>",
+      "lastSeenAt": "<time>",
+      "releasedAt": null,
+      "releaseReason": null,
+      "stale": false,
+      "run": {
+        "id": "<id2>",
+        "agentId": "<id5>",
+        "credentialId": "<id5>",
+        "clientRunKey": "golden",
+        "displayName": "Builder",
+        "provider": "",
+        "externalChatId": "chat-1",
+        "revision": 1,
+        "createdAt": "<time>",
+        "updatedAt": "<time>",
+        "endedAt": null,
+        "endReason": null
+      }
+    },
+    "outputs": [
+      {
+        "id": "<id6>",
+        "participationId": "<id1>",
+        "repositoryId": "<id4>",
+        "repositoryName": "worklog",
+        "kind": "pr",
+        "reference": "7",
+        "url": "https://github.com/example/worklog/pull/7",
+        "createdAt": "<time>"
+      },
+      {
+        "id": "<id7>",
+        "participationId": "<id1>",
+        "repositoryId": "<id4>",
+        "repositoryName": "worklog",
+        "kind": "commit",
+        "reference": "abcdef1",
+        "url": "",
+        "createdAt": "<time>"
+      }
+    ],
+    "added": 2
+  }
+}

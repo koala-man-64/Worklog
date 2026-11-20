@@ -109,8 +109,8 @@ def asks(c, message, discussion, author, targets, at):
         ),
     )
     c.execute(
-        "INSERT INTO discussion_requests VALUES(?,?,?,?,?,?,?,?,?,?)",
-        (message, "all", "pending", None, None, None, None, None, None, None),
+        "INSERT INTO discussion_requests(message_id,mode,state) VALUES(?,?,?)",
+        (message, "all", "pending"),
     )
     for number, (kind, recipient) in enumerate(targets):
         c.execute(
@@ -262,8 +262,8 @@ def test_live_communication_edges_pulses_sponsorship_and_waiting_proposal(client
             ),
         )
         c.execute(
-            "INSERT INTO discussion_requests VALUES(?,?,?,?,?,?,?,?,?,?)",
-            ("message", "all", "pending", None, None, None, None, None, None, None),
+            "INSERT INTO discussion_requests(message_id,mode,state) VALUES(?,?,?)",
+            ("message", "all", "pending"),
         )
         c.execute(
             "INSERT INTO discussion_targets VALUES(?,?,?,?)",
@@ -304,8 +304,8 @@ def test_live_communication_edges_pulses_sponsorship_and_waiting_proposal(client
             ),
         )
         c.execute(
-            "INSERT INTO discussion_requests VALUES(?,?,?,?,?,?,?,?,?,?)",
-            ("role-message", "all", "pending", None, None, None, None, None, None, None),
+            "INSERT INTO discussion_requests(message_id,mode,state) VALUES(?,?,?)",
+            ("role-message", "all", "pending"),
         )
         c.execute(
             "INSERT INTO discussion_targets VALUES(?,?,?,?)",
