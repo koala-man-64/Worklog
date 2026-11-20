@@ -8,8 +8,8 @@ from contextlib import closing, contextmanager
 
 import pytest
 import sealed
-from test_ownership_reachability import V33_TABLES, before_v33
 from fastapi.testclient import TestClient
+from test_ownership_reachability import V33_TABLES, before_v33
 from worklog import migrations, recovery
 from worklog.app import create_app
 from worklog.db import Database

@@ -9,8 +9,8 @@ from contextlib import closing, contextmanager
 
 import pytest
 import sealed
-from test_ownership_reachability import before_v33
 from fastapi.testclient import TestClient
+from test_ownership_reachability import before_v33
 from test_step_outcomes import without_outcomes
 from worklog import migrations, operations, recovery
 from worklog.app import create_app

@@ -7,8 +7,8 @@ from contextlib import closing
 
 import pytest
 import sealed
-from test_reminder_removal import remind
 from test_ownership_reachability import before_v33
+from test_reminder_removal import remind
 from test_sealed_schemas import contents
 from worklog import migrations, recovery
 from worklog.db import Database

@@ -50,7 +50,7 @@ def to_v32(path):
         conn.executescript(WAY_BACK)
 
 ORIGIN = "http://127.0.0.1:8877"
-REMOTE = "https://dev.azure.com/example-org/Trading/_git/control-plane"
+REMOTE = "https://dev.azure.com/example-org/Platform/_git/control-plane"
 BRANCH = "codex/t4-producer-close-20261118"
 PR_URL = REMOTE + "/pullrequest/4849"
 CODEX_THREAD = "0190f4c2-7a5e-7d31-9b8a-3c6e2f1d4a07"
@@ -102,7 +102,7 @@ def register(run, monkeypatch, folder, chat, name, label):
 
 def test_the_t4_incident_answers_who_owns_it_whether_it_is_reachable_and_whether_the_ask_landed(tmp_path, monkeypatch, capsys):
     with instance(tmp_path, monkeypatch, capsys) as (app, browser, run):
-        project = tmp_path / "Projects" / "asset-control-plane"
+        project = tmp_path / "Projects" / "control-plane"
         codex = register(run, monkeypatch, project, CODEX_THREAD, "execution-delivery", "Execution delivery (Codex)")
         started = run("--as", "execution-delivery", "runs", "start", "--client-run-key", "t4", "--display-name", "T-4 producer close",
                       "--provider", "codex", "--request-id", "codex-run-t4")
@@ -114,7 +114,7 @@ def test_the_t4_incident_answers_who_owns_it_whether_it_is_reachable_and_whether
         reported = run("--as", "execution-delivery", "participation", "start", "--file", str(context), "--request-id", "codex-part-t4")
         for title in ("Earlier ticket", "Another ticket", "A third ticket"):
             run("--as", "execution-delivery", "tickets", "create", "--title", title, "--request-id", "filler-" + title.split()[0])
-        t4 = run("--as", "execution-delivery", "tickets", "create", "--title", "AB#2032: Verify outbound broker audit coverage",
+        t4 = run("--as", "execution-delivery", "tickets", "create", "--title", "Verify the attempt journal covers every outbound call",
                  "--kind", "task", "--priority", "high", "--assign", "me", "--request-id", "codex-t4")
         assert t4["key"] == "T-4"
         produced = run("--as", "execution-delivery", "participation", "output", reported["id"], "--pr", PR_URL,
@@ -123,8 +123,8 @@ def test_the_t4_incident_answers_who_owns_it_whether_it_is_reachable_and_whether
             ("pr", "4849", PR_URL), ("commit", "43b69ae9", "")]
         repo = ok(browser.get("/api/v1/repositories/" + produced["participation"]["contexts"][0]["repositoryId"]))
 
-        reverter = register(run, monkeypatch, tmp_path / "Projects" / "asset-ui", CLAUDE_CHAT, "canary-remediation",
-                            "Canary permit remediation (Claude)")
+        register(run, monkeypatch, tmp_path / "Projects" / "remediation", CLAUDE_CHAT, "canary-remediation",
+                 "Canary permit remediation (Claude)")
         run("--as", "canary-remediation", "runs", "start", "--client-run-key", "revert", "--display-name", "Revert 4849",
             "--provider", "claude", "--request-id", "claude-run-revert")
 
@@ -238,9 +238,9 @@ def outputs(c, agent, participation, **payload):
 
 def test_pull_requests_and_commits_are_named_by_address_number_or_sha():
     assert pull_request("https://github.com/Team/Repo/pull/12") == ("12", "https://github.com/Team/Repo/pull/12", "github.com/team/repo")
-    assert pull_request(PR_URL + "?_a=files") == ("4849", PR_URL, "dev.azure.com/example-org/trading/_git/control-plane")
-    assert pull_request("https://example-org.visualstudio.com/Trading/_git/control-plane/pullrequest/7")[2] == \
-        "dev.azure.com/example-org/trading/_git/control-plane"
+    assert pull_request(PR_URL + "?_a=files") == ("4849", PR_URL, "dev.azure.com/example-org/platform/_git/control-plane")
+    assert pull_request("https://example-org.visualstudio.com/Platform/_git/control-plane/pullrequest/7")[2] == \
+        "dev.azure.com/example-org/platform/_git/control-plane"
     assert pull_request("https://gitlab.com/g/p/-/merge_requests/3")[0] == "3"
     assert pull_request(" 4849 ") == ("4849", "", "")
     assert commit_sha("43B69AE9") == "43b69ae9"

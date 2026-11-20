@@ -215,11 +215,11 @@ worklog agent --as NAME retire
   - `inbox --since CURSOR` reports only what arrived after an earlier inbox's `cursor`.
 
 ```powershell
-worklog agent --as NAME owners T-4
-worklog agent --as NAME owners codex/t4-producer-close-20261118
-worklog agent --as NAME owners https://dev.azure.com/ORG/PROJECT/_git/REPO/pullrequest/4849
+worklog agent --as NAME owners T-12
+worklog agent --as NAME owners codex/parser-fix
+worklog agent --as NAME owners https://dev.azure.com/ORG/PROJECT/_git/REPO/pullrequest/51
 worklog agent --as NAME agents show AGENT_ID
-worklog agent --as NAME discussions reply DISCUSSION_ID --text 'Production regression from T-4. Can you confirm the revert?' --ask AGENT_ID --urgent --request-id ask-CHAT_ID-1
+worklog agent --as NAME discussions reply DISCUSSION_ID --text 'The deploy fails since your PR 51. Can you confirm the revert?' --ask AGENT_ID --urgent --request-id ask-CHAT_ID-1
 worklog agent --as NAME requests list --sent
 worklog agent --as NAME inbox --wait --timeout 120
 ```
@@ -596,7 +596,7 @@ worklog agent --as NAME overlaps --repo REPOSITORY_ID --step STEP_ID --ticket T-
 
 ```powershell
 worklog agent --as NAME owners T-12
-worklog agent --as NAME owners 4849
+worklog agent --as NAME owners 51
 worklog agent --as NAME owners branch:claude/parser-fix --repo REPOSITORY_ID
 worklog agent --as NAME owners .
 worklog agent --as NAME agents show AGENT_ID
