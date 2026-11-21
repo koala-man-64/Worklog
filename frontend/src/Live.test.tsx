@@ -264,14 +264,14 @@ beforeEach(() => {
 });
 
 describe("Live", () => {
-  it("renders the tripartite flow with provenance, overlap, connections and pulses", () => {
+  it("renders the flow top down with provenance, overlap, connections and pulses", () => {
     const { container } = render(<Live />);
     expect(screen.getByRole("button", { name: "Flow map" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("Plans & work")).toBeInTheDocument();
     expect(screen.getByText("Visualize agent work", { selector: ".live-card h3" })).toBeInTheDocument();
     expect(screen.getByText("Working")).toBeInTheDocument();
     expect(screen.getAllByText(/Declared:/, { selector: ".live-provenance" })[0]).toHaveTextContent("reporting");
-    expect(screen.getByText("Worklog", { selector: ".live-repo-column h3" })).toBeInTheDocument();
+    expect(screen.getByText("Worklog", { selector: ".live-repo-tier h3" })).toBeInTheDocument();
     expect(screen.getByText("Overlap: 2 agents")).toBeInTheDocument();
     expect(screen.getByText("visualize-live")).toBeInTheDocument();
     expect(screen.getByText("Recent pulses", { selector: ".live-pulses h2" })).toBeInTheDocument();
@@ -280,7 +280,7 @@ describe("Live", () => {
     for (const path of paths) expect(path.getAttribute("d")).toMatch(/^M .+ [CQ] /);
     expect(container.querySelector('[data-edge-id="work-edge-1"]')).toHaveAttribute(
       "d",
-      "M 342.0 82.0 C 386.0 82.0, 334.0 214.0, 378.0 214.0",
+      "M 150.0 168.0 C 150.0 218.0, 410.0 218.0, 410.0 268.0",
     );
   });
 
@@ -440,10 +440,59 @@ describe("Live", () => {
     });
     const { container } = render(<Live />);
     const bows = [...container.querySelectorAll(".comm-edge path")].map((path) => {
-      const [fromX, , controlX] = path.getAttribute("d")!.match(/-?\d+(\.\d+)?/g)!.map(Number);
-      return Math.abs(controlX - fromX);
+      const [, fromY, , controlY] = path.getAttribute("d")!.match(/-?\d+(\.\d+)?/g)!.map(Number);
+      return controlY - fromY;
     });
     expect(bows).toHaveLength(30);
-    expect(Math.max(...bows)).toBeLessThanOrEqual(106);
+    // Below the agents, and never as deep as the gap down to the repositories.
+    expect(Math.min(...bows)).toBeGreaterThan(0);
+    expect(Math.max(...bows)).toBeLessThanOrEqual(82);
+  });
+
+  it("groups each step with its items, puts worked-on roadmaps nearest the agents, and orders agents and repositories under what they connect to", () => {
+    const work = (id: string, kind: "roadmap" | "step" | "item", parentId: string | null) => ({
+      ...snapshot.work[1],
+      id,
+      kind,
+      title: `Work ${id}`,
+      roadmapId: "road-1",
+      parentId,
+      stepTitle: kind === "item" ? `Work ${parentId}` : null,
+      href: `#work/${id}`,
+    });
+    const workEdge = (agentId: string, workId: string) => ({ ...snapshot.workEdges[0], id: `${agentId}-${workId}`, agentId, workId });
+    const repoEdge = (agentId: string, repositoryId: string) => ({ ...snapshot.repoEdges[0], id: `${agentId}-${repositoryId}`, agentId, repositoryId });
+    mocks.useData.mockReturnValue({
+      data: {
+        ...snapshot,
+        // The server sends a roadmap's steps, then its items.
+        work: [
+          work("road-1", "roadmap", null),
+          work("step-a", "step", null),
+          work("step-b", "step", null),
+          work("item-b", "item", "step-b"),
+          work("item-a", "item", "step-a"),
+          // A roadmap nobody works on moves ahead, away from the agents.
+          { ...work("road-2", "roadmap", null), roadmapId: "road-2" },
+        ],
+        agents: [{ ...snapshot.agents[0], id: "agent-x" }, { ...snapshot.agents[1], id: "agent-y" }],
+        repositories: [{ ...snapshot.repositories[0], id: "repo-p" }, { ...snapshot.repositories[0], id: "repo-q", name: "Other" }],
+        workEdges: [workEdge("agent-x", "item-b"), workEdge("agent-y", "step-a"), workEdge("agent-y", "item-a")],
+        repoEdges: [repoEdge("agent-x", "repo-p"), repoEdge("agent-y", "repo-q")],
+        commEdges: [],
+      },
+      error: null,
+      isPending: false,
+    });
+    const { container } = render(<Live />);
+    const order = (tier: string) =>
+      [...container.querySelectorAll(`.${tier} [data-node-key]`)].map((node) => node.getAttribute("data-node-key"));
+    expect(order("live-work-tier")).toEqual(["work:road-2", "work:road-1", "work:step-a", "work:item-a", "work:step-b", "work:item-b"]);
+    expect(order("live-agent-tier")).toEqual(["agent:agent-y", "agent:agent-x"]);
+    expect(order("live-repo-tier")).toEqual(["repo:repo-q", "repo:repo-p"]);
+    expect(screen.getByText("Under Work step-a")).toBeInTheDocument();
+    // Two lines into one card arrive side by side, not on one point.
+    const end = (id: string) => container.querySelector(`[data-edge-id="${id}"]`)!.getAttribute("d")!.split(" ").slice(-2).join(" ");
+    expect(end("agent-y-step-a")).not.toBe(end("agent-y-item-a"));
   });
 });
