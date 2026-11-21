@@ -5904,6 +5904,112 @@
         }
       }
     },
+    "/api/v1/participations/{identity}/outputs": {
+      "post": {
+        "summary": "Report Outputs",
+        "operationId": "report_outputs_api_v1_participations__identity__outputs_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ParticipationOutputs"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParticipationOutputsReported"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/owners": {
+      "get": {
+        "summary": "Owners",
+        "operationId": "owners_api_v1_owners_get",
+        "parameters": [
+          {
+            "name": "ref",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "title": "Ref"
+            }
+          },
+          {
+            "name": "repositoryId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Repositoryid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Owners"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/chats/track": {
       "post": {
         "summary": "Chat Track",
@@ -7630,6 +7736,135 @@
         }
       }
     },
+    "/api/v1/discussions/requests": {
+      "get": {
+        "summary": "Requests",
+        "operationId": "requests_api_v1_discussions_requests_get",
+        "parameters": [
+          {
+            "name": "box",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "sent",
+                "received"
+              ],
+              "type": "string",
+              "default": "received",
+              "title": "Box"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "pending",
+                "ended",
+                "all"
+              ],
+              "type": "string",
+              "default": "pending",
+              "title": "State"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscussionRequests"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discussions/inbox": {
+      "get": {
+        "summary": "Inbox",
+        "operationId": "inbox_api_v1_discussions_inbox_get",
+        "parameters": [
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 2000
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscussionInbox"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/discussions/messages/{identity}": {
       "get": {
         "summary": "Message",
@@ -8775,6 +9010,30 @@
             "type": "array",
             "maxItems": 100,
             "title": "Targets"
+          },
+          "deadlineSeconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 604800.0,
+                "minimum": 10.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deadlineseconds"
+          },
+          "urgent": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Urgent"
           }
         },
         "additionalProperties": false,
@@ -8998,6 +9257,38 @@
               }
             ],
             "title": "Authoritygeneration"
+          },
+          "deadlineAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deadlineat"
+          },
+          "urgent": {
+            "type": "boolean",
+            "title": "Urgent",
+            "default": false
+          },
+          "escalatedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escalatedat"
+          },
+          "overdue": {
+            "type": "boolean",
+            "title": "Overdue",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -9084,6 +9375,71 @@
               }
             ],
             "title": "Acknowledgedby"
+          },
+          "delivery": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "seen",
+              "acknowledged",
+              "answered"
+            ],
+            "title": "Delivery",
+            "default": "pending"
+          },
+          "seenAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seenat"
+          },
+          "acknowledgedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acknowledgedat"
+          },
+          "answeredAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answeredat"
+          },
+          "answerMessageId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answermessageid"
+          },
+          "presence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Presence"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -9851,6 +10207,48 @@
         "title": "AgentMessage",
         "description": "A message one agent of the chat sent another, or one received from outside it."
       },
+      "AgentOpenRun": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "displayName": {
+            "type": "string",
+            "title": "Displayname"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "chatId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chatid"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "displayName",
+          "provider",
+          "chatId",
+          "createdAt"
+        ],
+        "title": "AgentOpenRun",
+        "description": "An open run as a participant's profile shows it, with the chat it reports."
+      },
       "AgentProfile": {
         "properties": {
           "id": {
@@ -9928,6 +10326,61 @@
               }
             ],
             "title": "Avatar"
+          },
+          "chatId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chatid"
+          },
+          "directory": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Directory"
+          },
+          "registeredAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registeredat"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale"
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/AgentOpenRun"
+            },
+            "type": "array",
+            "title": "Runs"
+          },
+          "outputs": {
+            "items": {
+              "$ref": "#/components/schemas/ParticipationOutput"
+            },
+            "type": "array",
+            "title": "Outputs"
           }
         },
         "additionalProperties": false,
@@ -9945,10 +10398,17 @@
           "working",
           "roles",
           "kind",
-          "avatar"
+          "avatar",
+          "chatId",
+          "directory",
+          "registeredAt",
+          "provider",
+          "stale",
+          "runs",
+          "outputs"
         ],
         "title": "AgentProfile",
-        "description": "An agent identity as a participant's profile shows it, to any caller."
+        "description": "An agent identity as a participant's profile shows it, to any caller: who it is, and since v33\nwhere to reach it (decision R11)."
       },
       "AgentProposals": {
         "properties": {
@@ -13268,6 +13728,50 @@
         ],
         "title": "DiscussionCreate"
       },
+      "DiscussionInbox": {
+        "properties": {
+          "received": {
+            "items": {
+              "$ref": "#/components/schemas/RequestListed"
+            },
+            "type": "array",
+            "title": "Received"
+          },
+          "unseen": {
+            "type": "integer",
+            "title": "Unseen"
+          },
+          "answers": {
+            "items": {
+              "$ref": "#/components/schemas/RequestListed"
+            },
+            "type": "array",
+            "title": "Answers"
+          },
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/InboxChange"
+            },
+            "type": "array",
+            "title": "Changes"
+          },
+          "cursor": {
+            "type": "string",
+            "title": "Cursor"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "received",
+          "unseen",
+          "answers",
+          "changes",
+          "cursor"
+        ],
+        "title": "DiscussionInbox",
+        "description": "What waits on the caller and what came back to it (v33)."
+      },
       "DiscussionMessage": {
         "properties": {
           "id": {
@@ -13362,6 +13866,39 @@
           "request"
         ],
         "title": "DiscussionMessage"
+      },
+      "DiscussionRequests": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RequestListed"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "DiscussionRequests",
+        "description": "Requests the caller sent or that have a slot for it, newest first (v33)."
       },
       "DiscussionResume": {
         "properties": {
@@ -14470,6 +15007,82 @@
         ],
         "title": "HomeRepository",
         "description": "The repository whose own discussion this is."
+      },
+      "InboxChange": {
+        "properties": {
+          "seq": {
+            "type": "integer",
+            "title": "Seq"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "discussionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discussionid"
+          },
+          "messageId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Messageid"
+          },
+          "roleId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roleid"
+          },
+          "actorId": {
+            "type": "string",
+            "title": "Actorid"
+          },
+          "actorLabel": {
+            "type": "string",
+            "title": "Actorlabel"
+          },
+          "actorKind": {
+            "type": "string",
+            "title": "Actorkind"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "seq",
+          "kind",
+          "discussionId",
+          "messageId",
+          "roleId",
+          "actorId",
+          "actorLabel",
+          "actorKind",
+          "createdAt"
+        ],
+        "title": "InboxChange",
+        "description": "An acknowledgement, cancel, release or escalation of a request the caller manages."
       },
       "ItemCreate": {
         "properties": {
@@ -16681,6 +17294,34 @@
         "title": "OutlineStep",
         "description": "A step as a roadmap's outline gives it: no text."
       },
+      "OutputNamed": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "pr",
+              "commit"
+            ],
+            "title": "Kind"
+          },
+          "reference": {
+            "type": "string",
+            "title": "Reference"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "reference",
+          "url"
+        ],
+        "title": "OutputNamed"
+      },
       "OverlapDiscussion": {
         "properties": {
           "id": {
@@ -17025,6 +17666,480 @@
         "title": "Overlaps",
         "description": "Who else is on the named records and what they said there, leaving out the caller's own."
       },
+      "OwnerAgent": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "lastActivityAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastactivityat"
+          },
+          "providers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Providers"
+          },
+          "openRuns": {
+            "type": "integer",
+            "title": "Openruns"
+          },
+          "runCount": {
+            "type": "integer",
+            "title": "Runcount"
+          },
+          "messageCount": {
+            "type": "integer",
+            "title": "Messagecount"
+          },
+          "working": {
+            "items": {
+              "$ref": "#/components/schemas/AgentWork"
+            },
+            "type": "array",
+            "title": "Working"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/AgentRole"
+            },
+            "type": "array",
+            "title": "Roles"
+          },
+          "kind": {
+            "type": "string",
+            "const": "agent",
+            "title": "Kind"
+          },
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          },
+          "chatId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chatid"
+          },
+          "directory": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Directory"
+          },
+          "registeredAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registeredat"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale"
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/AgentOpenRun"
+            },
+            "type": "array",
+            "title": "Runs"
+          },
+          "outputs": {
+            "items": {
+              "$ref": "#/components/schemas/ParticipationOutput"
+            },
+            "type": "array",
+            "title": "Outputs"
+          },
+          "owner": {
+            "type": "boolean",
+            "title": "Owner"
+          },
+          "relations": {
+            "items": {
+              "$ref": "#/components/schemas/OwnerRelation"
+            },
+            "type": "array",
+            "title": "Relations"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "active",
+          "createdAt",
+          "lastActivityAt",
+          "providers",
+          "openRuns",
+          "runCount",
+          "messageCount",
+          "working",
+          "roles",
+          "kind",
+          "avatar",
+          "chatId",
+          "directory",
+          "registeredAt",
+          "provider",
+          "stale",
+          "runs",
+          "outputs",
+          "owner",
+          "relations"
+        ],
+        "title": "OwnerAgent",
+        "description": "An agent tied to what the reference names: its profile, whether it owns it, and why."
+      },
+      "OwnerMatch": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "ticket",
+              "item",
+              "pr",
+              "commit",
+              "branch",
+              "path",
+              "agent"
+            ],
+            "title": "Kind"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "matchedBy": {
+            "type": "string",
+            "enum": [
+              "key",
+              "number",
+              "id",
+              "url",
+              "sha",
+              "branch",
+              "path"
+            ],
+            "title": "Matchedby"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "id",
+          "label",
+          "matchedBy"
+        ],
+        "title": "OwnerMatch",
+        "description": "A record the reference names."
+      },
+      "OwnerRelation": {
+        "properties": {
+          "relation": {
+            "type": "string",
+            "enum": [
+              "assignee",
+              "role",
+              "producer",
+              "branch",
+              "checkout",
+              "agent",
+              "participant",
+              "chat",
+              "author",
+              "commenter",
+              "directory"
+            ],
+            "title": "Relation"
+          },
+          "owner": {
+            "type": "boolean",
+            "title": "Owner"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "current": {
+            "type": "boolean",
+            "title": "Current"
+          },
+          "ticketId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticketid"
+          },
+          "roleId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roleid"
+          },
+          "roleLabel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rolelabel"
+          },
+          "participationId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participationid"
+          },
+          "repositoryId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repositoryid"
+          },
+          "repositoryName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repositoryname"
+          },
+          "branch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch"
+          },
+          "checkoutPath": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checkoutpath"
+          },
+          "worktreePath": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worktreepath"
+          },
+          "chatId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chatid"
+          },
+          "chatTitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chattitle"
+          },
+          "githubReferenceId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Githubreferenceid"
+          },
+          "output": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OutputNamed"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "directory": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Directory"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "relation",
+          "owner",
+          "at",
+          "current",
+          "ticketId",
+          "roleId",
+          "roleLabel",
+          "participationId",
+          "repositoryId",
+          "repositoryName",
+          "branch",
+          "checkoutPath",
+          "worktreePath",
+          "chatId",
+          "chatTitle",
+          "githubReferenceId",
+          "output",
+          "directory"
+        ],
+        "title": "OwnerRelation",
+        "description": "One thing that ties an agent to what the reference names, with its evidence; fields that don't\napply to the relation are null."
+      },
+      "Owners": {
+        "properties": {
+          "ref": {
+            "type": "string",
+            "title": "Ref"
+          },
+          "matches": {
+            "items": {
+              "$ref": "#/components/schemas/OwnerMatch"
+            },
+            "type": "array",
+            "title": "Matches"
+          },
+          "person": {
+            "$ref": "#/components/schemas/Actor"
+          },
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/OwnerAgent"
+            },
+            "type": "array",
+            "title": "Agents"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ref",
+          "matches",
+          "person",
+          "agents"
+        ],
+        "title": "Owners",
+        "description": "Who owns what a reference names (v33): the records it matched, the person, and the agents tied\nthere, owners first."
+      },
       "PageUnused": {
         "properties": {
           "page": {
@@ -17355,6 +18470,132 @@
           "runId"
         ],
         "title": "ParticipationCreate"
+      },
+      "ParticipationOutput": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "participationId": {
+            "type": "string",
+            "title": "Participationid"
+          },
+          "repositoryId": {
+            "type": "string",
+            "title": "Repositoryid"
+          },
+          "repositoryName": {
+            "type": "string",
+            "title": "Repositoryname"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "pr",
+              "commit"
+            ],
+            "title": "Kind"
+          },
+          "reference": {
+            "type": "string",
+            "title": "Reference"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "participationId",
+          "repositoryId",
+          "repositoryName",
+          "kind",
+          "reference",
+          "url",
+          "createdAt"
+        ],
+        "title": "ParticipationOutput",
+        "description": "A pull request or commit a participation reported producing (v33)."
+      },
+      "ParticipationOutputs": {
+        "properties": {
+          "repositoryId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repositoryid"
+          },
+          "repositoryUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repositoryurl"
+          },
+          "pullRequests": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Pullrequests"
+          },
+          "commits": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Commits"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ParticipationOutputs",
+        "description": "What a participation produced: pull requests by address or number, and commits by SHA, in a\nrepository it reports, by ID or remote; one it reports alone may be left out."
+      },
+      "ParticipationOutputsReported": {
+        "properties": {
+          "participation": {
+            "$ref": "#/components/schemas/Participation"
+          },
+          "outputs": {
+            "items": {
+              "$ref": "#/components/schemas/ParticipationOutput"
+            },
+            "type": "array",
+            "title": "Outputs"
+          },
+          "added": {
+            "type": "integer",
+            "title": "Added"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "participation",
+          "outputs",
+          "added"
+        ],
+        "title": "ParticipationOutputsReported"
       },
       "ParticipationRepository": {
         "properties": {
@@ -18400,6 +19641,43 @@
         ],
         "title": "PlanStep",
         "description": "A step's own fields, as a roadmap's steps and its saved revisions give them. A parent's\nstatus is derived from its leaves."
+      },
+      "Presence": {
+        "properties": {
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          },
+          "lastSeenAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastseenat"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale"
+          },
+          "openRuns": {
+            "type": "integer",
+            "title": "Openruns"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "active",
+          "lastSeenAt",
+          "stale",
+          "openRuns"
+        ],
+        "title": "Presence",
+        "description": "Whether an agent can be reached, as its own reports say."
       },
       "Progress": {
         "properties": {
@@ -20066,6 +21344,24 @@
           "revision"
         ],
         "title": "RepositoryUpdate"
+      },
+      "RequestListed": {
+        "properties": {
+          "discussion": {
+            "$ref": "#/components/schemas/ThreadNamed"
+          },
+          "message": {
+            "$ref": "#/components/schemas/DiscussionMessage"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "discussion",
+          "message"
+        ],
+        "title": "RequestListed",
+        "description": "A message with an acknowledgement request, with the thread it is in."
       },
       "Reschedule": {
         "properties": {
@@ -22768,6 +24064,25 @@
           "id"
         ],
         "title": "Target"
+      },
+      "ThreadNamed": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "ThreadNamed"
       },
       "Ticket": {
         "properties": {

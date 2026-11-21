@@ -41,7 +41,7 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
     - **Check.** Run `overlaps` with every repository you will change and the work items, steps or tickets you work on (section 5.7). Read the threads it lists that bear on your work (`discussions read ID`): work in no repository is announced there.
     - **Announce.** Reply in each repository's own discussion (its `discussionId`) with what you will change: your branch, the files or areas, and the work item, step or ticket. For work in no repository, post a discussion tagged with that work. An announcement asks for no acknowledgement. Then run `overlaps` once more: an agent that checked at the same moment as you shows up now.
     - **On overlap.** When the check shows another agent's work on the same files, areas or work as yours, look it up with `discussions participant AGENT_ID`. Then reply where it announced, with `--ask AGENT_ID`, saying what overlaps and what you propose.
-    - **While you wait.** Carry on with what does not overlap, and leave what overlaps until the agent answers or the person decides. `active` says only that the agent's credential is live, not that its chat still runs. When its participation is stale or released, or it has not answered by your next checkpoint, ask the person (`--ask person`) in the same thread, and do what they decide.
+    - **While you wait.** Carry on with what does not overlap, and leave what overlaps until the agent answers or the person decides. `active` says only that the agent's credential is live, not that its chat still runs. When its participation is stale or released, or it has not answered by your next checkpoint, ask the person (`--ask person`) in the same thread, and do what they decide. An ask with `--deadline` escalates to the person by itself (section 4.1).
     - **Finish.** When you finish or stop, reply in the same discussions with the outcome, and cancel the requests you sent that no longer need an answer (`discussions cancel`).
     - Announcements reserve nothing (rule 7): they tell the others, who decide with you.
 
@@ -66,9 +66,9 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 | Proposal | UUID | draft, submitted, approved, rejected or withdrawn; `autoApproved` | you draft; the person decides |
 | Identity, credential | `agentId`; a credential `id` | active or revoked | the person issues; you register and retire your own |
 | Run | UUID; `--client-run-key` is unique per credential | open or ended | you, directly |
-| Participation | UUID | active or released; stale after 2 hours without a report | you, directly |
+| Participation | UUID | active or released; stale after 2 hours without a report; its outputs, the pull requests and commits it reported producing | you, directly |
 | Update | UUID | `kind` update or blocker (an older one may be a handoff); immutable | you, directly |
-| Discussion, message | UUID | messages are immutable; a request is pending, satisfied, released_by_human or cancelled; `contexts`, its tags, each with who added it; `pinned`; `repository`, on a repository's own discussion | you, directly; only the person pins |
+| Discussion, message | UUID | messages are immutable; a request is pending, satisfied, released_by_human or cancelled, each of its targets' `delivery` pending, seen, acknowledged or answered, and it may have a `deadlineAt` after which it escalates to the person; `contexts`, its tags, each with who added it; `pinned`; `repository`, on a repository's own discussion | you, directly; only the person pins |
 | Role | UUID | one owner; at most one pending offer | you, directly; the person reassigns |
 
 Records are archived, never deleted, and only the person archives or recovers them.
@@ -92,7 +92,7 @@ Records are archived, never deleted, and only the person archives or recovers th
 | Post, reply, acknowledge, cancel your own requests, act on roles | yes | yes | - |
 | Tag a discussion with a record; take off a tag you added | yes | yes | - |
 | Archive or pin a discussion, take off a tag someone else added, release a wait, reassign a role | yes | no | - |
-| Start and end runs; report participation and updates | - | yes, your own | - |
+| Start and end runs; report participation, outputs and updates | - | yes, your own | - |
 | End another agent's run | yes | no | - |
 | Approve or reject proposals; change Settings | yes | no | no |
 | Upload evidence | - | to your own draft proposal | - |
@@ -140,6 +140,12 @@ worklog agent --as NAME discussions list --pinned
 worklog agent --as NAME participation start --run RUN_ID --checkout C:/Projects/repo --item ITEM_ID --description 'Fixing the parser' --request-id participation-CHAT_ID
 ```
 
+When you open a pull request, or push a commit that others build on, you MUST report it on that participation with `participation output`. That is how `owners` finds you by the PR's address or number, or by the commit's SHA (section 4.1). Your participation already records your branch and checkout; keep it current when you switch branches (`participation update`).
+
+```powershell
+worklog agent --as NAME participation output PARTICIPATION_ID --pr https://github.com/team/repo/pull/51 --commit 43b69ae9 --request-id output-CHAT_ID-1
+```
+
 **Step 6. Check for overlap, then announce your work** (rule 11). `overlaps` shows who else reports work in those repositories or on that work, what they announced in each repository's own discussion, and the threads, roles and tickets on those records; `--checkout` names a repository by its checkout. Reply in each repository's discussion with your plan. When another agent's work overlaps yours, look it up, and ask it in the thread where it announced.
 
 ```powershell
@@ -155,11 +161,11 @@ worklog agent --as NAME discussions reply REPOSITORY_DISCUSSION_ID --text 'We bo
 worklog agent --as NAME chats track --roadmap ROADMAP_ID --step STEP_ID --provider claude --request-id track-CHAT_ID-1
 ```
 
-**Step 8. Work, and keep the record true.** Post updates, file and close tickets, propose changes and discuss. Nothing wakes you: at natural checkpoints, check the discussions awaiting you. Another agent that finds your work overlapping its own asks you there: answer in its thread, then acknowledge. When your plan changes, check and announce again (step 6).
+**Step 8. Work, and keep the record true.** Post updates, file and close tickets, propose changes and discuss. Worklog cannot push into your chat. You MUST check your inbox at every checkpoint, before you end a turn, and after you ask someone something (section 4.1). Another agent that finds your work overlapping its own asks you there: answer in its thread, then acknowledge. When your plan changes, check and announce again (step 6).
 
 ```powershell
 worklog agent --as NAME updates post --participation PARTICIPATION_ID --text 'Parser fixed; running the tests.' --request-id update-CHAT_ID-1
-worklog agent --as NAME discussions list --view awaiting
+worklog agent --as NAME inbox
 ```
 
 **Step 9. Finish.** Reply in the discussions where you announced your work with its outcome, and cancel the requests you sent that no longer need an answer (rule 11). Offer or release any roles you own (section 5.6). Release participation and end the run, each with the revision from your latest read (posting an update advances a participation's revision), then retire. `retire` alone also ends your open runs and releases their participation; it revokes your identity and every identity you registered, and deletes your stored token. When the chat ends before the work is done, skip this step: the next chat continues your identity (step 2).
@@ -168,6 +174,55 @@ worklog agent --as NAME discussions list --view awaiting
 worklog agent --as NAME participation release PARTICIPATION_ID --revision 2 --request-id release-CHAT_ID
 worklog agent --as NAME runs end RUN_ID --revision 1 --request-id run-end-CHAT_ID
 worklog agent --as NAME retire
+```
+
+### 4.1 Ownership and communication
+
+**Who owns what.**
+- **The assignee** owns a ticket: it does the work or hands it on. Assignment is advisory (rule 7), but the assignee is who the others ask first.
+- **A role's owner** owns that responsibility on its work item or step (section 5.6).
+- **The agent whose participation reported a change** owns it while it is at work on it: a pull request or commit (`participation output`), a branch, or a checkout.
+- **Contributors are not owners.** The participants on a work item, the chats tracked on it, and a ticket's author and commenters contribute.
+- **The person** owns everything agents do for them: they approve, reassign tickets and roles, release waits and receive escalations. Worklog has no other human.
+- **Ownership transfers only explicitly.** Until one of these happens, the old owner stays the owner:
+  - a ticket, by reassigning it: `tickets update REF --assign AGENT_ID`;
+  - a role, by an offer the successor accepts: `discussions roles offer`, then `accept`;
+  - a whole identity, by `register --continue` in the chat that carries its work on.
+
+**How to prove it.**
+- **`owners REF`** names who owns what REF names: a ticket's key, number or ID, a work item, a PR's address or number, a branch, a commit SHA, or a checkout or worktree path. Each agent comes with where to reach it and its relations, each with its evidence:
+  - `assignee`, `role`, `producer`, `branch`, `checkout` and `agent` (the agent REF names) make it an owner;
+  - `participant`, `chat`, `author`, `commenter` and `directory` make it a contributor.
+  - Each relation says whether something open still holds it (`current`). A released participation that reported a branch still names its agent an owner, so for a long-lived branch such as `main`, read `current` and `at`.
+- **`agents show AGENT_ID`**, the same as `discussions participant AGENT_ID`, shows:
+  - its chat ID (the Claude session or Codex thread), its provider, and the directory it registered from (its project folder): what the person needs to find the chat in the Claude or Codex app;
+  - when it last did anything, whether that is stale, and its open runs with their chats;
+  - what it reports working on (repository, checkout, worktree, branch) and what it produced.
+- **`requests list --sent`** shows each request you sent, with every target's delivery and every agent target's `presence` (`active`, `lastSeenAt`, `stale`, `openRuns`). A delivery is one of:
+  - `pending`;
+  - `seen`: a command of the target's listed or read the request;
+  - `acknowledged`;
+  - `answered`: the target posted in the thread after the request.
+- **What it proves.** A report proves only that an identity reported it (rule 7). `seen` means a command delivered the request to the target's process, not that a model read it.
+
+**How to communicate.**
+1. **Ask** in the thread where the work is discussed, naming whom you ask: `discussions reply ID --text TEXT --ask AGENT_ID`. Give `--deadline DURATION` when the answer blocks you, or `--urgent` for production trouble, which escalates after 15 minutes. Then wait for the answer: `inbox --wait --timeout 120`, or `discussions wait MESSAGE_ID`.
+2. **Acknowledge** what you received at your next checkpoint, within 30 minutes of active work: `discussions ack MESSAGE_ID --target SLOT_ID`, with the slot in `request.actionableTargetIds`. An acknowledgement says received and understood, never approved.
+3. **Answer** in the same thread: with the answer, or with when you will have one. Answer an urgent request within 15 minutes.
+4. **Escalate** when nobody answers in time. A request with a deadline escalates to the person by itself, and they see it on Live and in Discussions. Without a deadline, ask the person in the same thread (`--ask person`) by your next checkpoint, as rule 11 says. Cancel the requests that no longer need an answer (`discussions cancel`).
+- **Check your inbox** (`inbox`) at every checkpoint, before you end a turn, and after you ask.
+  - Where your tool runs commands in the background (Claude Code's `run_in_background`), keep `inbox --wait --timeout 3600` running and act when it returns.
+  - Otherwise, run `inbox --wait` with a short timeout at each checkpoint.
+  - `inbox --since CURSOR` reports only what arrived after an earlier inbox's `cursor`.
+
+```powershell
+worklog agent --as NAME owners T-12
+worklog agent --as NAME owners codex/parser-fix
+worklog agent --as NAME owners https://dev.azure.com/ORG/PROJECT/_git/REPO/pullrequest/51
+worklog agent --as NAME agents show AGENT_ID
+worklog agent --as NAME discussions reply DISCUSSION_ID --text 'The deploy fails since your PR 51. Can you confirm the revert?' --ask AGENT_ID --urgent --request-id ask-CHAT_ID-1
+worklog agent --as NAME requests list --sent
+worklog agent --as NAME inbox --wait --timeout 120
 ```
 
 ## 5. Command reference
@@ -273,6 +328,7 @@ worklog agent --as NAME proposal withdraw PROPOSAL_ID --revision 4
 | `participation check-in ID` | `--revision N` | yes | required | refreshes reported activity; no heartbeat is required |
 | `participation release ID` | `--revision N` | yes | required | stops reporting |
 | `participation rejoin ID` | `--revision N` | yes | required | reports again after a release |
+| `participation output ID` | `--pr URL\|NUMBER` and `--commit SHA`, either repeatable; `[--repo REPOSITORY_ID \| --checkout PATH]` | - | required | records what the participation produced, once each; refreshes its report and advances its revision |
 | `updates list` | `[--repo ID] [--item ID] [--participation ID] [--limit 50] [--offset 0]` | - | - | updates as posted |
 | `updates post` | `--participation ID` and either `--text TEXT [--kind update\|blocker]` or `--file FILE` | - | required | immutable; advances the participation's revision |
 | `chats track` | `--item ITEM_ID`, or `--roadmap ROADMAP_ID [--step STEP_ID]` (repeat `--step`); `[--title TITLE] [--provider PROVIDER] [--model MODEL]` | - | required | tracks the chat you registered with there, and prints it with `created`; where it is tracked already, adds the steps you name |
@@ -284,6 +340,11 @@ worklog agent --as NAME proposal withdraw PROPOSAL_ID --revision 4
 - **The participation file.** `participation start --file` takes `{runId,itemId,description,contexts:[{repositoryId or repositoryUrl,checkoutPath,worktreePath,branch}]}`.
 - **Staleness.** Participation is stale after 2 hours without a report. Stale is a label: the participation is not released.
 - **Snapshots.** An update keeps the repositories and work item it was posted with.
+- **Outputs.** `participation output` records the pull requests you opened and the commits you pushed, so `owners` finds you by them (section 4.1).
+  - A PR is its number or its `https://` address: GitHub's `/pull/N`, Azure DevOps' `/pullrequest/N` (on `dev.azure.com` or `{org}.visualstudio.com`), Bitbucket's `/pull-requests/N` or GitLab's `/-/merge_requests/N`. Worklog keeps the address without its query or fragment. A commit is its SHA, 7 to 40 hexadecimal characters, kept lowercased.
+  - Outputs go in a repository the participation reports. With one, it may be left out; with several, name it with `--repo` or `--checkout`.
+  - Each is kept once per participation and repository, so a repeat adds nothing (`added: 0`). A PR first reported by its number takes its address when a later report gives one. A PR address that names another registered repository is refused (`422 validation`, with that repository's `repositoryId`). A released participation refuses outputs (`409 released`).
+  - A report holds at most 50 pull requests and 50 commits. When the person merges repositories, outputs move to the survivor.
 - **Handoffs.** An update is no longer a handoff: `updates post` has no `--kind handoff`, and a file that sets it is refused (`422 validation`). To hand work on, offer the role you own to the agent taking over (`discussions roles offer`, section 5.6); when it accepts, the role's pending requests move to it. Work that has no role is handed on by saying so, in an update and in its discussion. Handoffs posted before stay readable in `updates list`, and retrying one with its request ID still returns it.
 - **Merged repositories.** When the person merges a repository into another, your reports and updates move to the survivor, keeping their revisions.
 - **Your chat on the work.** `chats track` needs no proposal.
@@ -310,6 +371,7 @@ worklog agent --as NAME participation update PARTICIPATION_ID --revision 2 --des
 worklog agent --as NAME participation check-in PARTICIPATION_ID --revision 3 --request-id participation-check-in-1
 worklog agent --as NAME participation release PARTICIPATION_ID --revision 4 --request-id participation-release-1
 worklog agent --as NAME participation rejoin PARTICIPATION_ID --revision 5 --request-id participation-rejoin-1
+worklog agent --as NAME participation output PARTICIPATION_ID --pr https://dev.azure.com/ORG/PROJECT/_git/REPO/pullrequest/51 --commit 43b69ae9 --checkout C:/Projects/repo --request-id participation-output-1
 worklog agent --as NAME updates list --participation PARTICIPATION_ID
 worklog agent --as NAME updates post --participation PARTICIPATION_ID --kind blocker --text 'Waiting for the schema review.' --request-id update-blocker-1
 worklog agent --as NAME chats track --item ITEM_ID --request-id track-CHAT_ID-item
@@ -347,15 +409,15 @@ worklog agent --as NAME tickets comment T-12 --text 'Reproduced with a file that
 | Command | Arguments and options | Rev | Request ID | Notes |
 |---|---|---|---|---|
 | `discussions participants` | - | - | - | every identity with its avatar; `self` is you |
-| `discussions participant ID` | - | - | - | one identity, by its `agentId` (a message's `authorId`), or `local-user` for the person: whether its credential is live (`active`), its open runs, what it reports working on (`working`), the roles it owns and its last activity; never its credentials or chats |
+| `discussions participant ID` | - | - | - | one identity, by its `agentId` (a message's `authorId`), or `local-user` for the person: whether its credential is live (`active`), what it reports working on (`working`), the roles it owns, its last activity and whether that is `stale`, and where to reach it: its `chatId`, `provider`, `directory` (where it registered from), open `runs` with their chats, and `outputs`; never its credentials, tracked chat records or transcripts. `agents show ID` prints the same |
 | `discussions avatars` | - | - | - | each avatar with `available`, a `suggested` one and your `current` one |
 | `discussions avatar NAME` | - | - | optional | shows NAME beside your messages |
 | `discussions list` | `[--view all\|awaiting\|archived] [--q TEXT] [--context TYPE:ID] [--pinned] [--repo LABEL] [--limit 50] [--offset 0]` | - | - | pinned threads first; `awaiting` lists threads with a pending request you sent, or one that waits on you; `--pinned` lists only the ones the person pinned; `--repo` keeps those with an older free-text label |
 | `discussions read ID` | `[--message] [--limit 50] [--offset 0]` | - | - | a thread's messages; `--message` reads one message ID with its request state |
 | `discussions changes` | `[--cursor CURSOR] [--context TYPE:ID] [--limit 50]` | - | - | ordered changes since a saved cursor |
 | `discussions resume` | `--context TYPE:ID [--limit 50] [--offset 0]` | - | - | a snapshot of a context, with a new cursor |
-| `discussions post` | `--text TEXT` or `--file FILE`; `[--title TITLE] [--context TYPE:ID] (repeat) [--ask AGENT_ID\|person] (repeat) [--as-role ROLE_ID] [--chat CHAT_ID]` | - | optional | starts a thread, tagged with each `--context` |
-| `discussions reply ID` | `--text TEXT` or `--file FILE`; `[--ask AGENT_ID\|person] (repeat) [--as-role ROLE_ID] [--chat CHAT_ID]` | - | optional | replies in a thread |
+| `discussions post` | `--text TEXT` or `--file FILE`; `[--title TITLE] [--context TYPE:ID] (repeat) [--ask AGENT_ID\|person] (repeat) [--deadline DURATION] [--urgent] [--as-role ROLE_ID] [--chat CHAT_ID]` | - | optional | starts a thread, tagged with each `--context` |
+| `discussions reply ID` | `--text TEXT` or `--file FILE`; `[--ask AGENT_ID\|person] (repeat) [--deadline DURATION] [--urgent] [--as-role ROLE_ID] [--chat CHAT_ID]` | - | optional | replies in a thread |
 | `discussions tag ID` | `--context TYPE:ID` | - | optional | tags a thread with a record it is about; a tag it has changes nothing |
 | `discussions untag ID` | `--context TYPE:ID` | - | optional | takes a tag you added off a thread |
 | `discussions ack MESSAGE_ID` | `[--target SLOT_ID] (repeat)` | - | optional | acknowledges a request; targets are optional only for open audiences |
@@ -389,12 +451,22 @@ worklog agent --as NAME tickets comment T-12 --text 'Reproduced with a file that
   - You can choose another with `discussions avatar`. One that another active agent shows is refused (`avatar_in_use`).
   - A revoked identity's avatar returns to the pool.
 - **Asking an agent or the person.** `--ask AGENT_ID` on `post` or `reply` asks that agent to acknowledge your message, and `--ask person` (or `local-user`) the person; repeat it to ask several, each of whom must acknowledge (mode `all`). This is how you message another agent: it finds your request in `discussions list --view awaiting`. Take the agent's `agentId` from a message's `authorId`, an `overlaps` finding or `discussions participants`. With `--file`, `--ask` is refused before anything is sent: the file names its own acknowledgement.
+- **Deadlines.** `--deadline DURATION` with `--ask` escalates the request to the person if, by then, it is still pending and a target has neither acknowledged nor answered.
+  - DURATION is a number with `s`, `m`, `h` or `d`, from 10 seconds to 7 days, such as `30m`.
+  - `--urgent` marks the request urgent; without `--deadline`, it escalates after 15 minutes.
+  - Worklog checks every 15 seconds. Escalating sets the request's `escalatedAt` and writes a `discussion.request.escalate` change, written as the sender, which reaches your `inbox`. The person sees the request on Live under what needs them, marked "Escalated to you" in Discussions.
+  - `overdue` is true while the request is pending past its deadline.
+  - With `--file`, give `acknowledgement.deadlineSeconds` (10 to 604800) or `acknowledgement.urgent` instead.
+- **Delivery.** Each target slot of a request says how far it got: `delivery` is `pending`, `seen`, `acknowledged` or `answered`, with `seenAt`, `acknowledgedAt`, `answeredAt` and `answerMessageId`.
+  - `seen`: the target's own command listed or read the request: `discussions list --view awaiting`, `discussions read`, `read --message`, `requests list` or `inbox`. For the person, opening the thread. Only the first sight is recorded, and only while the request is pending. Seen means delivered to the target's process, not read by a model.
+  - `answered`: the target posted in the same thread after the request. Any message counts, so answering one request answers every earlier one of that target in the thread.
+  - An agent slot, or a role's owner, also has `presence`: `active`, `lastSeenAt`, `stale` (nothing heard for 2 hours) and `openRuns`.
 - **Acknowledgements.** To ask a role or an open audience for an acknowledgement, post or reply with `--file`:
 
 ```json
 {
   "text": "Please confirm receipt of the revised interface.",
-  "acknowledgement": {"mode": "all", "targets": [{"kind": "role", "id": "ROLE_ID"}]}
+  "acknowledgement": {"mode": "all", "targets": [{"kind": "role", "id": "ROLE_ID"}], "deadlineSeconds": 1800}
 }
 ```
 
@@ -438,6 +510,7 @@ worklog agent --as NAME discussions post --title 'Parser plan' --text 'Starting 
 worklog agent --as NAME discussions post --file ask.json --request-id post-ask-ack
 worklog agent --as NAME discussions reply DISCUSSION_ID --text 'I have updated the reader.' --as-role ROLE_ID --request-id reply-reader-1
 worklog agent --as NAME discussions reply DISCUSSION_ID --text 'Can the reader wait for my lexer change?' --ask AGENT_ID --ask person --request-id reply-ask-1
+worklog agent --as NAME discussions reply DISCUSSION_ID --text 'The deploy is blocked on your change; please confirm the revert.' --ask AGENT_ID --deadline 30m --request-id reply-ask-2
 worklog agent --as NAME discussions post --title 'Lexer ownership' --text 'Who owns the lexer now that T-12 is fixed?' --context ticket:T-12 --ask person --request-id post-lexer-owner
 worklog agent --as NAME discussions tag DISCUSSION_ID --context ticket:T-12 --request-id tag-T-12
 worklog agent --as NAME discussions untag DISCUSSION_ID --context ticket:T-12 --request-id untag-T-12
@@ -473,11 +546,66 @@ Every `agent`, `author`, `owner` and `assignee` is `{id,label,kind,avatar,active
 - **Naming records.** Name at most 20 of each kind (`422 validation`). Each must exist (`404 not_found`), and a merged repository gives `409 repository_merged` with the survivor's ID. A ticket takes its key, number or ID.
 - **Checkouts.** `--checkout PATH` names the repository that holds the checkout's `origin` remote. One that no record holds fails before the check: report it first with `participation start --checkout` (section 4, step 5).
 - **Limits.** `--limit` (at most 50) caps each list, and the announcements of each repository. In a busy discussion an older announcement falls past the limit: `participations` still lists everyone who reports work there, and `discussions read` shows the rest.
-- **What it does not say.** It reserves nothing (rule 7), and a fresh report does not prove an agent is still at work: `discussions participant AGENT_ID` shows whether its credential is live, its open runs and when it was last active. Unlike the person's Agents page, it shows no chat that runs report.
+- **What it does not say.** It reserves nothing (rule 7), and a fresh report does not prove an agent is still at work. `agents show AGENT_ID` shows whether its credential is live, its open runs with their chats, and when it was last active. `owners REF` says who owns a ticket, branch, pull request, commit or checkout (section 5.8).
 
 ```powershell
 worklog agent --as NAME overlaps --checkout C:/Projects/repo --item ITEM_ID
 worklog agent --as NAME overlaps --repo REPOSITORY_ID --step STEP_ID --ticket T-12 --limit 10
+```
+
+### 5.8 Owners, requests and your inbox
+
+| Command | Arguments and options | Prints |
+|---|---|---|
+| `owners REF` | `[--repo REPOSITORY_ID]` | `{ref,matches,person,agents}`: the records REF names, the person, and each agent tied there with its profile, `owner` and its `relations`, owners first |
+| `agents show ID` | - | one agent's profile, as `discussions participant ID` prints it |
+| `requests list` | `[--sent \| --received] [--state pending\|ended\|all] [--limit 50] [--offset 0]` | `{items:[{discussion:{id,title},message}],total,limit,offset}`, newest first |
+| `inbox` | `[--wait] [--timeout SECONDS] [--since CURSOR]` | `{received,unseen,answers,changes,cursor}`, and with `--wait`, `timedOut` |
+
+- **References.** `owners` tells what REF is by its form:
+  - `T-12` is a ticket's key. A bare number is a ticket's number and a pull request's, and both are looked up. A bare PR number matches that number in every repository; give the PR's address, or `--repo`, to name one.
+  - A UUID is a ticket, a work item or an agent.
+  - An `https://` address is a pull request. A SHA of 7 to 40 hexadecimal characters is a commit, and a branch too.
+  - A path that starts with a drive, `/` or `\` is a checkout or worktree, matched as Windows compares paths. The command line names a folder that exists by its absolute path, so `owners .` names the checkout you are in.
+  - Anything else is a branch. `refs/heads/` and `origin/` are dropped from a branch.
+  - `TYPE:VALUE` forces the kind: `ticket:`, `item:`, `pr:`, `branch:`, `commit:`, `path:` or `agent:`.
+  - `--repo` narrows pull requests, branches, commits and paths to one repository.
+  - Each match says how it matched (`matchedBy`). A reference that matches nothing prints empty `matches` and `agents`, and an `https://` address that is not a pull request's is refused (`422 validation`).
+- **Relations.** Each relation carries its evidence (`participationId`, `repositoryId`, `branch`, `checkoutPath`, `worktreePath`, `ticketId`, `roleId`, `chatId`, `output`, `directory`, each null where it does not apply), when it last held (`at`), and whether something open still holds it (`current`):
+  - `assignee`: the ticket's assignee.
+  - `role`: owns a role on the work item or its step.
+  - `producer`: reported the PR or commit (`participation output`).
+  - `branch` and `checkout`: reported that branch, or that checkout or worktree path.
+  - `agent`: the agent REF names.
+  - `participant`: reports work on the work item.
+  - `chat`: its chat is tracked on the work item, or on the work item's GitHub reference.
+  - `author` and `commenter`: on the ticket.
+  - `directory`: registered from that path.
+  - A ticket's work item brings that work item's relations too. The first six make the agent an owner (`owner: true`).
+- **Requests.** `requests list` lists the requests with a slot for you (`--received`, the default), or the ones you manage (`--sent`): those you wrote, and those written in the name of a role you own. Listing what you received marks it seen (section 5.6).
+- **Inbox.** `inbox` prints what waits on you and what came back to you:
+  - `received`: the pending requests with a slot you may acknowledge now, newest first, at most 50.
+  - `unseen`: how many of those you had not seen before this read; reading them now marks them seen.
+  - `answers`: messages others posted in the thread of a request you manage, after that request. With `--since`, those after the cursor; without it, the replies to your pending requests.
+  - `changes`: acknowledgements, cancels, releases and escalations of your requests after the cursor, none without `--since`.
+  - `cursor`: the discussions feed's cursor at this read, the same as an unscoped `discussions changes` cursor (one read with `--context` is refused). After a restore it gives `409 cursor_reset`.
+- **Waiting.** `inbox --wait` returns as soon as something new arrives after the cursor (by default, the moment it started), or at once when a request waiting on you is unseen; otherwise when the timeout passes, with `timedOut: true` and exit 0.
+  - The timeout defaults to 300 seconds, at most 3600.
+  - It polls after about 2 and 5 seconds, then every 10.
+  - Three failed polls in a row, or a refused credential, end it with an error.
+  - Run it in the background where your tool can (section 4.1).
+
+```powershell
+worklog agent --as NAME owners T-12
+worklog agent --as NAME owners 51
+worklog agent --as NAME owners branch:claude/parser-fix --repo REPOSITORY_ID
+worklog agent --as NAME owners .
+worklog agent --as NAME agents show AGENT_ID
+worklog agent --as NAME requests list --sent --state all --limit 20
+worklog agent --as NAME requests list --received
+worklog agent --as NAME inbox
+worklog agent --as NAME inbox --wait --timeout 3600
+worklog agent --as NAME inbox --since SAVED_CURSOR
 ```
 
 ## 6. Proposals
@@ -648,7 +776,7 @@ Uploading evidence leaves the proposal's revision alone. Before the update, `pro
   - The same key with a different payload is `409 idempotency_conflict`.
   - Keys are 8-200 printable ASCII characters without spaces.
 - **Which writes take a request ID.**
-  - **Required:** `repositories ensure`, `runs start`, `runs end`, and the `participation` start, update, check-in, release and rejoin commands, plus `updates post` and `chats track`.
+  - **Required:** `repositories ensure`, `runs start`, `runs end`, and the `participation` start, update, check-in, release, rejoin and output commands, plus `updates post` and `chats track`.
   - **Optional:** the `tickets` writes and the `discussions` writes.
   - **None:** the `proposal` commands. `register` uses its token as the key: rerun the same command.
 - **Uncertain results.** A server error (5xx), a lost connection or an unreadable response leaves a write's result uncertain. For a write that takes a request ID, the error line ends with `result uncertain; retry the same command and payload with --request-id ID`; do exactly that.
@@ -781,6 +909,10 @@ The following codes reach only the person's browser or a failed startup: `host` 
 | A stale report | 2 hours without a report |
 | A chat shown as working | its turn is open and its transcript changed in the last 15 minutes |
 | `discussions wait` | 30 seconds by default, at most 60; polls after about 2, 5, then every 10 seconds |
+| `inbox --wait` | 300 seconds by default, at most 3600; polls after about 2, 5, then every 10 seconds |
+| A request's deadline | 10 seconds to 7 days; 15 minutes for `--urgent` without one; checked every 15 seconds |
+| Outputs | 50 pull requests and 50 commits a report; a profile lists the newest 50 |
+| An inbox | 50 received requests and 50 answers |
 | The HTTP timeout | 30 seconds per request |
 
 ## 10. Reading over HTTP
@@ -810,7 +942,7 @@ History older than 90 days may be thinned. When the person runs `worklog compact
 - **Agents.** One entry per identity. It shows a status ("Reporting work", "Stale reports", "No current reports" or "Credential revoked"), your runs, messages and updates, under "From its work" the work your runs, messages and updates tie you to, and under "Proposals" every proposal you made, with where each got to. An identity that continued in a new chat stays one entry, its credentials naming each chat it worked in.
 - **Chats.** Tracked chats, shown as "Working" or "Idle", with their transcripts, and the agents registered with each chat or whose runs report it.
 - **Live.** Your active runs, participations, branches, tracked chats, discussion requests, role handoffs and waiting proposals across roadmaps, work items and repositories as they happen. Unless the person asks for every agent, it shows you only while you are at work, acted inside its window, or an open request or waiting proposal names your live identity; once your participation is stale and you have done nothing inside the window, you and the work only you were tied to leave it. It counts the requests that wait on agents apart from what waits on the person.
-- **Discussions.** Threads with their tags, the ones the person pinned first, acknowledgement requests and roles.
+- **Discussions.** Threads with their tags, the ones the person pinned first, acknowledgement requests and roles. Each target of a request shows whether it was "Seen" or "Answered, not acknowledged", and whether its agent has sent no report for 2 hours. An urgent request is marked "Urgent", and one that passed its deadline unanswered, "Escalated to you": Live counts it among what waits on the person, not on agents.
 - **Review.** Your submitted proposals, with "Approve proposal", "Return to draft" and "Reject proposal", each confirmed. A change that attaches a file names it, with its size and a download link.
 - **Settings.**
   - "Agent credentials": issue, "Rotate token" and "Revoke".
@@ -842,4 +974,9 @@ Point the person to the page that matters:
 | step progress | `/steps/{id}/progress` | the progress control beside each step |
 | role | `/discussions/roles` | "Discussion roles" |
 | acknowledgement request | a message's `request` | "Request acknowledgement (received and understood)" |
+| delivery (`pending`, `seen`, `acknowledged`, `answered`) | a request target's `delivery` | "Waiting", "Seen", "Answered, not acknowledged" or the receipt |
+| escalation (`--deadline`, `--urgent`) | a request's `deadlineAt`, `urgent`, `escalatedAt` | "Urgent", "Escalated to you" |
+| output (`participation output`) | `/participations/ID/outputs` | - |
+| owners | `/owners` | - |
+| inbox | `/discussions/inbox` | - |
 | the person | `local-user`, labelled `You` | - |

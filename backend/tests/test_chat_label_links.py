@@ -12,6 +12,7 @@ from contextlib import closing
 import pytest
 import sealed
 from fastapi.testclient import TestClient
+from test_ownership_reachability import before_v33
 from test_sealed_schemas import contents
 from worklog import migrations, recovery
 from worklog.app import create_app
@@ -109,6 +110,7 @@ def test_the_upgrade_links_each_label_that_names_one_repository_and_changes_no_r
     earlier = set(records["chat_repositories"])
     Database(database).initialize()
     version, signature, after = contents(database)
+    after = before_v33(after)  # v33 added tables after these
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
     # Exactly one repository not merged aside: active, archived, or the one left beside a merged one.
     # Not a name two share, one only a merged repository has, another case, extra space, or nothing.

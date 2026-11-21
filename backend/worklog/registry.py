@@ -9,6 +9,7 @@ from them. Reported chat IDs, paths and branches stay provenance, never proof.
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from collections.abc import Callable, Iterable
 from datetime import UTC, datetime, timedelta
@@ -16,12 +17,23 @@ from typing import Any
 
 from . import record_kinds
 from .common import LIVE_AGENT, AppError, rows_in, text
-from .coordination import CoordinationService
+from .coordination import CoordinationService, commit_sha, pull_request, repository_holder
 from .discussions import LISTED, DiscussionService, registered_by, registered_chats
 from .tickets import TicketService
 
 STALE_AFTER = timedelta(hours=2)
 TIE_LIMIT = 200
+# What an agent's profile lists of what its work produced, newest first.
+OUTPUT_LIMIT = 50
+# The kinds of record `owners` resolves, as a TYPE:VALUE reference names them.
+OWNER_KINDS = ("ticket", "item", "pr", "branch", "commit", "path", "agent")
+# The relations that make an agent an owner; every other relation contributes.
+OWNER_RELATIONS = frozenset({"assignee", "role", "producer", "branch", "checkout", "agent"})
+# The evidence an owners relation carries, each null where the relation has none.
+EVIDENCE = ("at", "current", "ticketId", "roleId", "roleLabel", "participationId", "repositoryId", "repositoryName", "branch",
+            "checkoutPath", "worktreePath", "chatId", "chatTitle", "githubReferenceId", "output", "directory")
+UUID_FORM = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+COMMIT_FORM = re.compile(r"[0-9a-fA-F]{7,40}")
 SNIPPET = 1000
 # An overlap check names at most this many records of each kind, and lists at most OVERLAP_LIMIT of
 # each kind of finding (per repository for announcements).
@@ -494,15 +506,258 @@ class AgentRegistry:
                                "contexts": json.loads(u["contexts_json"])})
         return {"items": result, "total": total, "limit": limit, "offset": offset}
 
+    @staticmethod
+    def _registration(c: sqlite3.Connection, agent_id: str) -> sqlite3.Row | None:
+        """The credential an identity works through now: its newest one that names a chat, a live one
+        first, as discussions.identity_chat finds its chat; else its newest credential."""
+        return c.execute("SELECT cc.chat_id,cc.directory,cr.created_at FROM communication_credentials cc "
+                         "JOIN credentials cr ON cr.id=cc.credential_id WHERE cc.agent_id=? "
+                         "ORDER BY cc.chat_id IS NULL,cr.revoked,cr.created_at DESC,cr.rowid DESC LIMIT 1", (agent_id,)).fetchone()
+
     def profile(self, c: sqlite3.Connection, identity: str) -> dict:
         """One participant as any caller may see it: who it is, whether its credential is live, what it
         reports working on, and the roles it owns, so an agent can tell whether the one whose work
-        overlaps its own is still at it before it writes to it. Unlike the Agents page, which is the
-        person's, it shows no credential and no chat its runs report."""
+        overlaps its own is still at it before it writes to it.
+
+        Since v33 it also says how to reach the agent (decision R11): the chat it works in (`chatId`,
+        the provider's session or thread ID), the directory it registered from (`directory`, the
+        project folder), its provider, its open runs with the chat each reports, how long since it
+        last did anything (`stale` after STALE_AFTER) and what its work produced. Unlike the Agents
+        page, which is the person's, it shows no credential, no tracked chat record and no transcript."""
         if identity == "local-user":
             return {"id": "local-user", "label": "You", "kind": "human", "avatar": None, "active": True}
         row = self._agent(c, identity)
-        return {**self._summaries(c, [row])[0], "kind": "agent", "avatar": row["avatar"]}
+        summary = self._summaries(c, [row])[0]
+        registration = self._registration(c, identity)
+        runs = c.execute("SELECT * FROM agent_runs WHERE agent_id=? AND ended_at IS NULL ORDER BY created_at DESC,id DESC",
+                         (identity,)).fetchall()
+        latest = c.execute("SELECT provider FROM agent_runs WHERE agent_id=? AND provider<>'' ORDER BY created_at DESC,id DESC LIMIT 1",
+                           (identity,)).fetchone()
+        produced = c.execute(
+            "SELECT o.*,r.name AS repository_name FROM participation_outputs o JOIN repositories r ON r.id=o.repository_id "
+            "JOIN participations p ON p.id=o.participation_id JOIN agent_runs ar ON ar.id=p.run_id WHERE ar.agent_id=? "
+            "ORDER BY o.created_at DESC,o.rowid DESC LIMIT ?", (identity, OUTPUT_LIMIT)).fetchall()
+        last = summary["lastActivityAt"]
+        return {**summary, "kind": "agent", "avatar": row["avatar"],
+                "chatId": registration["chat_id"] if registration else None,
+                "directory": registration["directory"] if registration else None,
+                "registeredAt": registration["created_at"] if registration else None,
+                "provider": latest["provider"] if latest else "",
+                "stale": last is None or _stale(last),
+                "runs": [{"id": r["id"], "displayName": r["display_name"], "provider": r["provider"],
+                          "chatId": r["external_chat_id"], "createdAt": r["created_at"]} for r in runs[:TIE_LIMIT]],
+                "outputs": [CoordinationService.output_record(r) for r in produced]}
+
+    # ---- Ownership: who owns a ticket, work item, pull request, branch, commit or checkout (v33) ----
+
+    @staticmethod
+    def _path_key(value: str) -> str:
+        """A path compared as Windows compares it: either slash, any case, no trailing slash."""
+        return value.replace("\\", "/").rstrip("/").casefold()
+
+    @staticmethod
+    def _branch_key(value: str) -> str:
+        for prefix in ("refs/heads/", "refs/remotes/origin/", "origin/"):
+            if value.startswith(prefix):
+                return value[len(prefix):]
+        return value
+
+    def _classify(self, ref: str) -> list[tuple[str, str]]:
+        """The kinds of record REF could name, each with the value to look for. `TYPE:VALUE` names one
+        kind; otherwise its form decides, and a bare number is a ticket's and a pull request's."""
+        kind, separator, value = ref.partition(":")
+        if separator and kind.lower() in OWNER_KINDS and value and not value.startswith("//"):
+            return [(kind.lower(), value.strip())]
+        if re.fullmatch(r"https?://\S+", ref, re.IGNORECASE):
+            return [("pr", ref)]
+        if re.fullmatch(r"[Tt]-[1-9][0-9]*", ref):
+            return [("ticket", ref)]
+        if re.fullmatch(r"[1-9][0-9]{0,9}", ref):
+            return [("ticket", ref), ("pr", ref)]
+        if UUID_FORM.fullmatch(ref):
+            return [("ticket", ref), ("item", ref), ("agent", ref.lower())]
+        if re.fullmatch(r"[A-Za-z]:[\\/].*|[\\/].*|\\\\.*", ref):
+            return [("path", ref)]
+        if COMMIT_FORM.fullmatch(ref):
+            return [("commit", ref), ("branch", ref)]
+        return [("branch", ref)]
+
+    def owners(self, c: sqlite3.Connection, ref: str, repository_id: str | None = None) -> dict:
+        """Who owns what REF names, with the evidence. REF is a ticket's key, number or ID, a work item's
+        ID, a pull request's address or number, a branch, a commit SHA, a checkout or worktree path, or
+        an agent's ID; `TYPE:VALUE` (OWNER_KINDS) says which. `repository_id` narrows pull requests,
+        branches, commits and paths to one repository.
+
+        Each agent comes with its profile and every relation that ties it there. An owner is the
+        ticket's assignee, the owner of a role on the work, an agent that reported producing the pull
+        request or commit, or one that reported the branch or the checkout; the others (participants
+        on the work, chats tracked there, the ticket's author and commenters, an agent that registered
+        from the path) contribute. The person owns everything an agent does for them, approves and
+        reassigns, and is where an unanswered request escalates."""
+        ref = text(ref, "ref", required=True, limit=2000).strip()
+        if repository_id is not None:
+            repository_id = text(repository_id, "repositoryId", required=True, limit=200)
+            self._existing(c, "repository", [repository_id], "repositoryId")
+        matches: list[dict] = []
+        found: dict[str, list[dict]] = {}
+
+        def relate(agent_id: str | None, relation: str, **evidence: Any) -> None:
+            # Every relation has every field of evidence, null where it doesn't apply.
+            if agent_id and agent_id != "local-user":
+                found.setdefault(agent_id, []).append({"relation": relation, "owner": relation in OWNER_RELATIONS,
+                                                       **dict.fromkeys(EVIDENCE), **evidence})
+
+        def participations(where: str, args: list, relation: str) -> int:
+            """Agents whose participation context matches, newest report first, with what it reported;
+            returns how many contexts matched."""
+            narrowed = where + (" AND pc.repository_id=?" if repository_id else "")
+            rows = c.execute("SELECT p.id,p.last_seen_at,p.released_at,ar.agent_id,pc.repository_id,pc.branch,pc.checkout_path,"
+                               "pc.worktree_path,r.name FROM participation_contexts pc JOIN participations p ON p.id=pc.participation_id "
+                               "JOIN agent_runs ar ON ar.id=p.run_id JOIN repositories r ON r.id=pc.repository_id WHERE " + narrowed +
+                               " ORDER BY p.last_seen_at DESC,p.id DESC LIMIT ?", [*args, *([repository_id] if repository_id else []), TIE_LIMIT]).fetchall()
+            for r in rows:
+                relate(r["agent_id"], relation, participationId=r["id"], repositoryId=r["repository_id"], repositoryName=r["name"],
+                       branch=r["branch"], checkoutPath=r["checkout_path"], worktreePath=r["worktree_path"],
+                       at=r["last_seen_at"], current=r["released_at"] is None)
+            return len(rows)
+
+        def item(item_id: str, via: str) -> None:
+            work = c.execute("SELECT id,title,step_id FROM work_items WHERE id=?", (item_id,)).fetchone()
+            if work is None:
+                return
+            if via == "item":
+                matches.append({"kind": "item", "id": work["id"], "label": work["title"], "matchedBy": "id"})
+            for role in c.execute("SELECT * FROM discussion_roles WHERE owner_id IS NOT NULL AND ((context_type='item' AND context_id=?) "
+                                  "OR (context_type='step' AND context_id=?)) ORDER BY updated_at DESC,id", (work["id"], work["step_id"] or "")):
+                relate(role["owner_id"], "role", roleId=role["id"], roleLabel=role["label"], at=role["updated_at"], current=True)
+            for r in c.execute("SELECT p.id,p.last_seen_at,p.released_at,ar.agent_id FROM participations p JOIN agent_runs ar ON ar.id=p.run_id "
+                               "WHERE p.item_id=? ORDER BY p.last_seen_at DESC,p.id DESC LIMIT ?", (work["id"], TIE_LIMIT)):
+                relate(r["agent_id"], "participant", participationId=r["id"], at=r["last_seen_at"], current=r["released_at"] is None)
+            for chat in c.execute("SELECT * FROM agent_chats WHERE owner_type='item' AND owner_id=? AND archived=0", (work["id"],)):
+                for agent_id, at, current in self._chat_holders(c, chat["chat_id"]):
+                    relate(agent_id, "chat", chatId=chat["chat_id"], chatTitle=chat["title"], at=at, current=current)
+
+        for kind, value in self._classify(ref):
+            if kind == "ticket":
+                try:
+                    ticket = TicketService.resolve(c, value)
+                except AppError as missing:
+                    if missing.status != 404:
+                        raise
+                    continue
+                matches.append({"kind": "ticket", "id": ticket["id"], "label": f"T-{ticket['number']}: {ticket['title']}",
+                                "matchedBy": "key" if value.upper().startswith("T-") else "number" if value.isdigit() else "id"})
+                relate(ticket["assignee_id"], "assignee", ticketId=ticket["id"], at=ticket["updated_at"], current=ticket["status"] != "done")
+                if ticket["author_kind"] == "agent":
+                    relate(ticket["author_id"], "author", ticketId=ticket["id"], at=ticket["created_at"], current=False)
+                for comment in c.execute("SELECT author_id,MAX(created_at) AS at FROM ticket_comments WHERE ticket_id=? AND author_kind='agent' "
+                                         "GROUP BY author_id", (ticket["id"],)):
+                    relate(comment["author_id"], "commenter", ticketId=ticket["id"], at=comment["at"], current=False)
+                if ticket["item_id"]:
+                    item(ticket["item_id"], "ticket")
+            elif kind == "item":
+                item(value, "item")
+            elif kind == "agent":
+                agent = c.execute("SELECT id,label FROM communication_agents WHERE id=?", (value,)).fetchone()
+                if agent is not None:
+                    matches.append({"kind": "agent", "id": agent["id"], "label": agent["label"], "matchedBy": "id"})
+                    relate(agent["id"], "agent", at=None, current=True)
+            elif kind in {"pr", "commit"}:
+                # A form _classify chose always parses; an address or a TYPE:VALUE that doesn't is refused.
+                number, url, remote = pull_request(value) if kind == "pr" else (commit_sha(value), "", "")
+                holder = repository_holder(c, remote) if remote else None
+                # A commit matches whichever SHA is the shorter: a reported short SHA names the full one too.
+                where, args = (("o.kind='pr' AND o.reference=?", [number]) if kind == "pr" else
+                               ("o.kind='commit' AND (o.reference LIKE ? OR ? LIKE o.reference || '%')", [number + "%", number]))
+                if holder is not None:
+                    where += " AND o.repository_id=?"
+                    args.append(holder["id"])
+                elif url:
+                    where += " AND o.url=?"
+                    args.append(url)
+                if repository_id:
+                    where += " AND o.repository_id=?"
+                    args.append(repository_id)
+                produced = c.execute("SELECT o.*,r.name,p.last_seen_at,p.released_at,ar.agent_id FROM participation_outputs o "
+                                     "JOIN participations p ON p.id=o.participation_id JOIN agent_runs ar ON ar.id=p.run_id "
+                                     "JOIN repositories r ON r.id=o.repository_id WHERE " + where + " ORDER BY o.created_at DESC,o.id DESC LIMIT ?",
+                                     [*args, TIE_LIMIT]).fetchall()
+                for r in produced:
+                    relate(r["agent_id"], "producer", participationId=r["participation_id"], repositoryId=r["repository_id"],
+                           repositoryName=r["name"], output={"kind": r["kind"], "reference": r["reference"], "url": r["url"]},
+                           at=r["created_at"], current=r["released_at"] is None)
+                # A GitHub reference the person keeps on a work item names the chat that worked on it.
+                if url:
+                    named, named_args = "rtrim(lower(g.url),'/')=?", [url.lower()]
+                elif kind == "pr":
+                    named, named_args = "g.reference=? OR rtrim(lower(g.url),'/') LIKE ?", [number, "%/" + number]
+                else:
+                    named = ("lower(g.reference) LIKE ? OR (length(g.reference)>=7 AND ? LIKE lower(g.reference) || '%') "
+                             "OR lower(g.url) LIKE ?")
+                    named_args = [number + "%", number, "%/" + number[:7] + "%"]
+                references = c.execute("SELECT g.*,ac.chat_id AS chat FROM github_refs g LEFT JOIN agent_chats ac ON ac.id=g.chat_id "
+                                       f"WHERE g.kind=? AND g.archived=0 AND ({named})", [kind, *named_args]).fetchall()
+                for g in references:
+                    if g["chat"]:
+                        for agent_id, at, current in self._chat_holders(c, g["chat"]):
+                            relate(agent_id, "chat", chatId=g["chat"], githubReferenceId=g["id"], at=at, current=current)
+                if produced or references:
+                    label = (url or (f"pull request {number}" if kind == "pr" else number))
+                    matches.append({"kind": kind, "id": number, "label": label,
+                                    "matchedBy": "url" if url else "number" if kind == "pr" else "sha"})
+            elif kind == "branch":
+                branch = self._branch_key(value)
+                if branch and participations("pc.branch=?", [branch], "branch"):
+                    matches.append({"kind": "branch", "id": branch, "label": branch, "matchedBy": "branch"})
+            elif kind == "path":
+                key = self._path_key(value)
+                hits = 0
+                # A path names the checkout or worktree that holds it. Each context is compared here, since
+                # paths are stored as each agent's shell wrote them.
+                for r in c.execute("SELECT DISTINCT pc.participation_id,pc.checkout_path,pc.worktree_path FROM participation_contexts pc"):
+                    for column in ("worktree_path", "checkout_path"):
+                        held = self._path_key(r[column])
+                        if held and (key == held or key.startswith(held + "/")):
+                            hits += participations(f"pc.participation_id=? AND pc.{column}=?", [r["participation_id"], r[column]], "checkout")
+                            break
+                # A registration names no repository, so --repo leaves registrations out.
+                for r in [] if repository_id else c.execute(
+                        "SELECT cc.agent_id,cc.directory,cr.created_at FROM communication_credentials cc "
+                        "JOIN credentials cr ON cr.id=cc.credential_id WHERE cc.directory IS NOT NULL"):
+                    held = self._path_key(r["directory"])
+                    if key == held or key.startswith(held + "/") or held.startswith(key + "/"):
+                        hits += 1
+                        relate(r["agent_id"], "directory", directory=r["directory"], at=r["created_at"], current=False)
+                if hits:
+                    matches.append({"kind": "path", "id": value, "label": value, "matchedBy": "path"})
+
+        agents = []
+        for agent_id, relations in found.items():
+            try:
+                detail = self.profile(c, agent_id)
+            except AppError:
+                continue
+            relations.sort(key=lambda e: (e["owner"], e["current"], e.get("at") or ""), reverse=True)
+            agents.append({**detail, "owner": any(e["owner"] for e in relations), "relations": relations[:TIE_LIMIT]})
+        agents.sort(key=lambda a: (a["owner"], any(e["current"] for e in a["relations"]),
+                                   max((e.get("at") or "" for e in a["relations"]), default="")), reverse=True)
+        return {"ref": ref, "matches": list({(m["kind"], m["id"]): m for m in matches}.values()),
+                "person": {"id": "local-user", "label": "You", "kind": "human"},
+                "agents": agents}
+
+    @staticmethod
+    def _chat_holders(c: sqlite3.Connection, chat_id: str) -> list[tuple[str, str | None, bool]]:
+        """The identities a chat ID names: those registered with it, then those whose runs report it,
+        each once, with when and whether that tie is live."""
+        held: dict[str, tuple[str | None, bool]] = {}
+        for r in c.execute("SELECT cc.agent_id,cr.created_at,cr.revoked FROM communication_credentials cc JOIN credentials cr "
+                           "ON cr.id=cc.credential_id WHERE cc.chat_id=?", (chat_id,)):
+            held[r["agent_id"]] = (_latest(held.get(r["agent_id"], (None, False))[0], r["created_at"]),
+                                   held.get(r["agent_id"], (None, False))[1] or not r["revoked"])
+        for r in c.execute("SELECT agent_id,created_at,ended_at FROM agent_runs WHERE external_chat_id=?", (chat_id,)):
+            prior = held.get(r["agent_id"], (None, False))
+            held[r["agent_id"]] = (_latest(prior[0], r["created_at"]), prior[1] or r["ended_at"] is None)
+        return [(agent_id, at, current) for agent_id, (at, current) in held.items()]
 
     @staticmethod
     def _identities(c: sqlite3.Connection, ids: Iterable[str]) -> dict[str, dict]:

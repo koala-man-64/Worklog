@@ -1,13 +1,15 @@
 """HTTP boundary for communication. What agents may call here is in policy.ROUTES: archiving and
 pinning a thread, releasing a request and reassigning a role stay the person's."""
 
-from collections.abc import Callable
+import sqlite3
+from collections.abc import Callable, Iterable
 from typing import Literal
 
 from fastapi import FastAPI, Query, Request
 
 from . import discussion_models as m
 from . import responses as out
+from .common import AppError, rows_in
 from .db import Database
 from .discussions import DiscussionService, communication_actor
 from .registry import AgentRegistry
@@ -29,8 +31,9 @@ def install_discussion_routes(app: FastAPI, db: Database, mutate: Callable) -> N
     def participants(request: Request) -> dict:
         return read(request, service.participants)
 
-    # One participant: what it reports working on and the roles it owns, never its credentials or the
-    # chats its runs report, which stay on the person's Agents page.
+    # One participant: what it reports working on, the roles it owns, and since v33 where to reach it (the
+    # chat it works in, its open runs' chats, the directory it registered from); never its credentials,
+    # tracked chat records or transcripts, which stay on the person's Agents and Chats pages.
     @app.get("/api/v1/discussions/participants/{identity}", response_model=out.Participant | out.AgentProfile)
     def participant(identity: str, request: Request) -> dict:
         return read(request, lambda c, a: registry.profile(c, identity))
@@ -93,9 +96,45 @@ def install_discussion_routes(app: FastAPI, db: Database, mutate: Callable) -> N
                offset: int = Query(0, ge=0)) -> dict:
         return read(request, lambda c, a: service.resume(c, a, context_type=contextType, context_id=contextId, limit=limit, offset=offset))
 
+    def delivering(request: Request, fn: Callable, shown: Callable[[sqlite3.Connection, dict], Iterable[str]]) -> dict:
+        """A read that delivers the requests it shows the caller (v33): the slots of pending requests in
+        the messages `shown` names that wait on the caller and that it had not seen are marked seen,
+        after the snapshot, in a write of their own that happens only when there is one to mark. A
+        busy database leaves them for the next read; the read itself never fails for it."""
+        def snapshot(c: sqlite3.Connection) -> tuple[dict, list[str]]:
+            actor = communication_actor(c, request.state.actor)
+            result = fn(c, actor)
+            return result, service.seen_candidates(c, actor, shown(c, result))
+
+        result, unseen = db.snapshot(snapshot)
+        if unseen:
+            try:
+                with db.transaction() as c:
+                    service.record_seen(c, communication_actor(c, request.state.actor), unseen)
+            except AppError as exc:
+                if exc.code != "database_busy":
+                    raise
+        return result
+
+    # The requests the caller sent or that wait on it, with how far each slot got (v33).
+    @app.get("/api/v1/discussions/requests", response_model=out.DiscussionRequests)
+    def requests(request: Request, box: Literal["sent", "received"] = "received",
+                 state: Literal["pending", "ended", "all"] = "pending",
+                 limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
+        return delivering(request, lambda c, a: service.requests(c, a, box=box, state=state, limit=limit, offset=offset),
+                          lambda c, r: [item["message"]["id"] for item in r["items"]] if box == "received" else [])
+
+    # What waits on the caller and what came back to it since a cursor; `worklog agent inbox --wait`
+    # polls it (v33).
+    @app.get("/api/v1/discussions/inbox", response_model=out.DiscussionInbox)
+    def inbox(request: Request, since: str | None = Query(None, max_length=2000)) -> dict:
+        return delivering(request, lambda c, a: service.inbox(c, a, since=since),
+                          lambda c, r: [item["message"]["id"] for item in r["received"]])
+
     @app.get("/api/v1/discussions/messages/{identity}", response_model=out.DiscussionMessage)
     def message(identity: str, request: Request) -> dict:
-        return read(request, lambda c, a: service.message(c, identity, a))
+        return delivering(request, lambda c, a: service.message(c, identity, a),
+                          lambda c, r: [r["id"]] if r["request"] else [])
 
     @app.post("/api/v1/discussions/messages/{identity}/acknowledge", response_model=out.DiscussionMessage)
     def acknowledge(identity: str, request: Request, body: m.Acknowledge) -> dict:
@@ -115,10 +154,16 @@ def install_discussion_routes(app: FastAPI, db: Database, mutate: Callable) -> N
                          contextId: str | None = None, roadmapId: str | None = None,
                          repo: str | None = None, pinned: bool | None = None,
                          limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
+        def pending(c: sqlite3.Connection, result: dict) -> list[str]:
+            # Listing what awaits the caller shows it the pending requests in those threads.
+            ids = [item["id"] for item in result["items"]] if view == "awaiting" else []
+            return [row[0] for row in rows_in(c, "SELECT m.id FROM discussion_messages m JOIN discussion_requests r ON "
+                                                 "r.message_id=m.id WHERE r.state='pending' AND m.discussion_id IN ({})", ids)]
+
         # `roadmapId` keeps the threads within a roadmap, its sub-roadmaps, their steps and work items.
-        return read(request, lambda c, a: service.list(c, a, view=view, q=q, context_type=contextType, context_id=contextId,
-                                                       roadmap_id=roadmapId, repo=repo, pinned=pinned,
-                                                       limit=limit, offset=offset))
+        return delivering(request, lambda c, a: service.list(c, a, view=view, q=q, context_type=contextType, context_id=contextId,
+                                                             roadmap_id=roadmapId, repo=repo, pinned=pinned,
+                                                             limit=limit, offset=offset), pending)
 
     @app.post("/api/v1/discussions", response_model=out.DiscussionStarted)
     def create_discussion(request: Request, body: m.DiscussionCreate) -> dict:
@@ -127,7 +172,8 @@ def install_discussion_routes(app: FastAPI, db: Database, mutate: Callable) -> N
     @app.get("/api/v1/discussions/{identity}", response_model=out.DiscussionThread)
     def read_discussion(identity: str, request: Request, limit: int = Query(50, ge=1, le=200),
                         offset: int = Query(0, ge=0)) -> dict:
-        return read(request, lambda c, a: service.read(c, a, identity, limit, offset))
+        return delivering(request, lambda c, a: service.read(c, a, identity, limit, offset),
+                          lambda c, r: [message["id"] for message in r["messages"] if message["request"]])
 
     @app.post("/api/v1/discussions/{identity}/messages", response_model=out.DiscussionMessage)
     def post_message(identity: str, request: Request, body: m.MessageCreate) -> dict:

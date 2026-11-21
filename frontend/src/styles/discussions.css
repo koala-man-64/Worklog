@@ -429,6 +429,11 @@ a.context-tag:hover {
   background: var(--status-done-bg);
   color: var(--status-done-ink);
 }
+.ack-state.escalated,
+.ack-state.urgent {
+  background: var(--status-blocked-bg);
+  color: var(--status-blocked-ink);
+}
 .acknowledgement-card > p {
   margin: 0;
   font-size: 12px;

@@ -10,9 +10,11 @@ import base64
 import binascii
 import builtins
 import json
+import logging
 import re
 import sqlite3
 from collections.abc import Iterable
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from . import record_kinds, search
@@ -32,6 +34,8 @@ from .tickets import TicketService
 
 # What a discussion can be tagged with (v22), in the order its tags list them. The first three are
 # v1's work contexts, which roles keep to.
+logger = logging.getLogger("worklog")
+
 TAG_KINDS = ("item", "roadmap", "step", "repository", "ticket", "person", "resource", "question", "decision")
 ROLE_KINDS = ("item", "roadmap", "step")
 TAG_LIMIT = 30
@@ -44,6 +48,31 @@ LISTED = "d.pinned_at IS NULL,d.pinned_at DESC,d.updated_at DESC,d.id"
 # the agent guide's to say.
 REPOSITORY_TITLE = "Repository: {name}"
 REPOSITORY_TEXT = "Worklog opened this discussion for the repository **{name}** (`{id}`)."
+# A request's reach (v33). An urgent request without a deadline escalates after this long, and an
+# agent nothing was heard from for STALE_AFTER is stale, as registry.STALE_AFTER counts it.
+URGENT_DEADLINE = timedelta(minutes=15)
+STALE_AFTER = timedelta(hours=2)
+# How far a target slot got, in order: delivery takes the furthest.
+DELIVERY = ("pending", "seen", "acknowledged", "answered")
+# The feed changes that end or escalate a request, which its sender's inbox reports.
+REQUEST_CHANGES = ("discussion.acknowledge", "discussion.request.cancel", "discussion.request.release",
+                   "discussion.request.escalate")
+INBOX_LIMIT = 50
+# How often, in seconds, the serve watcher escalates requests whose deadline passed.
+ESCALATION_SWEEP = 15
+# A slot of request message m with neither an acknowledgement nor an answer, as _delivery counts an
+# answer: what keeps an overdue request escalating, in SQL, so the watcher's check stays one query.
+UNSETTLED = """EXISTS(SELECT 1 FROM discussion_targets t LEFT JOIN discussion_roles tr ON t.kind='role' AND tr.id=t.recipient_id
+    WHERE t.message_id=m.id AND NOT EXISTS(SELECT 1 FROM discussion_acknowledgements a WHERE a.target_id=t.id)
+    AND NOT EXISTS(SELECT 1 FROM discussion_messages x WHERE x.discussion_id=m.discussion_id AND x.created_at>m.created_at AND (
+        (t.kind='agent' AND x.author_kind='agent' AND x.author_id=t.recipient_id) OR (t.kind='human' AND x.author_kind='human')
+        OR (t.kind='role' AND (x.on_behalf_of_role_id=t.recipient_id OR (x.author_kind='agent' AND x.author_id=tr.owner_id)))
+        OR (t.kind='open_agent' AND x.author_kind='agent' AND x.author_id<>m.author_id)
+        OR (t.kind='open_any' AND x.author_id<>m.author_id))))"""
+# Requests past their deadline, not escalated, with a slot still unsettled.
+DUE = ("SELECT r.message_id,r.deadline_at,m.author_id,m.author_label,m.author_kind,m.discussion_id FROM discussion_requests r "
+       "JOIN discussion_messages m ON m.id=r.message_id WHERE r.state='pending' AND r.deadline_at IS NOT NULL "
+       "AND r.escalated_at IS NULL AND " + UNSETTLED + " ORDER BY r.deadline_at")
 
 
 def avatars_in_use(conn: sqlite3.Connection, *, exclude: str | None = None) -> list[str]:
@@ -462,7 +491,12 @@ class DiscussionService:
             elif kind != "human" or recipient != "local-user":
                 raise AppError(422, "validation", "Unknown acknowledgement target")
             normalized.append((kind, recipient))
-        c.execute("INSERT INTO discussion_requests(message_id,mode) VALUES(?,?)", (message_id, mode))
+        urgent = bool(ack.get("urgent"))
+        seconds = ack.get("deadlineSeconds")
+        wait = timedelta(seconds=seconds) if seconds is not None else URGENT_DEADLINE if urgent else None
+        deadline = (datetime.now(UTC) + wait).isoformat() if wait is not None else None
+        c.execute("INSERT INTO discussion_requests(message_id,mode,deadline_at,urgent) VALUES(?,?,?,?)",
+                  (message_id, mode, deadline, int(urgent)))
         c.executemany("INSERT INTO discussion_targets(id,message_id,kind,recipient_id) VALUES(?,?,?,?)",
                       [(uid(), message_id, kind, recipient) for kind, recipient in normalized])
 
@@ -505,6 +539,7 @@ class DiscussionService:
         targets, actionable = [], []
         for target in c.execute("SELECT * FROM discussion_targets WHERE message_id=? ORDER BY id", (identity,)).fetchall():
             view, eligible = self._target(c, target, actor, m["author_id"])
+            view.update(self._delivery(c, m, view))
             targets.append(view)
             if eligible and not view["acknowledged"]:
                 actionable.append(view["id"])
@@ -527,8 +562,211 @@ class DiscussionService:
                              "canRelease": actor["kind"] == "human" and r["state"] == "pending", "classifications": classifications,
                              "reason": r["reason"], "terminalAt": r["terminal_at"], "terminalActorId": r["terminal_actor_id"],
                              "terminalActorLabel": r["terminal_actor_label"], "terminalActorKind": r["terminal_actor_kind"],
-                             "authorityRoleId": r["authority_role_id"], "authorityGeneration": r["authority_generation"]}
+                             "authorityRoleId": r["authority_role_id"], "authorityGeneration": r["authority_generation"],
+                             "deadlineAt": r["deadline_at"], "urgent": bool(r["urgent"]), "escalatedAt": r["escalated_at"],
+                             # Pending past its deadline: escalated, or due at the watcher's next sweep.
+                             "overdue": bool(r["state"] == "pending" and r["deadline_at"] and (
+                                 r["escalated_at"] is not None or datetime.fromisoformat(r["deadline_at"]) <= datetime.now(UTC)))}
         return result
+
+    @staticmethod
+    def presence(c: sqlite3.Connection, agent_id: str) -> dict:
+        """Whether an agent can be reached, as far as its own reports say: whether its credential is
+        live, when it last did anything (a run started, participation reported, an update or a
+        message, as the Agents page counts it), whether that is STALE_AFTER ago or more, and how
+        many runs it has open. A fresh report does not prove its chat is still running."""
+        row = c.execute(
+            f"SELECT {LIVE_AGENT} AS active,(SELECT count(*) FROM agent_runs WHERE agent_id=a.id AND ended_at IS NULL) AS open_runs,"
+            "max(COALESCE((SELECT max(created_at) FROM agent_runs WHERE agent_id=a.id),''),"
+            "COALESCE((SELECT max(p.last_seen_at) FROM participations p JOIN agent_runs ar ON ar.id=p.run_id WHERE ar.agent_id=a.id),''),"
+            "COALESCE((SELECT max(created_at) FROM coordination_updates WHERE agent_id=a.id),''),"
+            "COALESCE((SELECT max(created_at) FROM discussion_messages WHERE author_id=a.id AND author_kind='agent'),'')) AS last "
+            "FROM communication_agents a WHERE a.id=?", (agent_id,)).fetchone()
+        if row is None:
+            return {"active": False, "lastSeenAt": None, "stale": True, "openRuns": 0}
+        last = row["last"] or None
+        return {"active": bool(row["active"]), "lastSeenAt": last, "openRuns": row["open_runs"],
+                "stale": last is None or datetime.fromisoformat(last) < datetime.now(UTC) - STALE_AFTER}
+
+    def _delivery(self, c: sqlite3.Connection, m: sqlite3.Row, view: dict) -> dict:
+        """How far a target slot of message m's request got (v33): pending, then seen when a command of
+        the target's listed or read it, acknowledged, and answered once the target posted in the
+        thread after the request. Delivery is the furthest; each step keeps its own time. An agent
+        slot, or a role's owner, says whether it can be reached (`presence`)."""
+        kind, recipient = view["kind"], view["recipientId"]
+        seen = c.execute("SELECT min(seen_at) FROM discussion_seen WHERE target_id=?", (view["id"],)).fetchone()[0]
+        acknowledged = c.execute("SELECT min(created_at) FROM discussion_acknowledgements WHERE target_id=?", (view["id"],)).fetchone()[0]
+        if kind == "agent":
+            who, args = "author_kind='agent' AND author_id=?", [recipient]
+        elif kind == "human":
+            who, args = "author_kind='human'", []
+        elif kind == "role":
+            who, args = "(on_behalf_of_role_id=? OR (author_kind='agent' AND author_id=?))", [recipient, view["ownerId"] or ""]
+        else:
+            who, args = ("author_kind='agent' AND " if kind == "open_agent" else "") + "author_id<>?", [m["author_id"]]
+        answer = c.execute(f"SELECT id,created_at FROM discussion_messages WHERE discussion_id=? AND created_at>? AND {who} "
+                           "ORDER BY created_at,id LIMIT 1", [m["discussion_id"], m["created_at"], *args]).fetchone()
+        reached = 3 if answer else 2 if acknowledged else 1 if seen else 0
+        holder = recipient if kind == "agent" else view["ownerId"] if kind == "role" else None
+        return {"delivery": DELIVERY[reached], "seenAt": seen, "acknowledgedAt": acknowledged,
+                "answeredAt": answer["created_at"] if answer else None, "answerMessageId": answer["id"] if answer else None,
+                "presence": self.presence(c, holder) if holder else None}
+
+    def seen_candidates(self, c: sqlite3.Connection, actor: dict, message_ids: Iterable[str]) -> builtins.list[str]:
+        """The slots of these messages' pending requests that wait on the caller and that it has not
+        seen yet: what reading them now delivers. Read in the caller's snapshot, so that a read
+        writes only when there is something to record."""
+        found = []
+        for row in rows_in(c, "SELECT t.*,m.author_id FROM discussion_targets t JOIN discussion_requests r ON r.message_id=t.message_id "
+                              "JOIN discussion_messages m ON m.id=t.message_id WHERE r.state='pending' AND t.message_id IN ({})",
+                           message_ids):
+            if c.execute("SELECT 1 FROM discussion_acknowledgements WHERE target_id=?", (row["id"],)).fetchone():
+                continue
+            if c.execute("SELECT 1 FROM discussion_seen WHERE target_id=? AND actor_id=?", (row["id"], actor["id"])).fetchone():
+                continue
+            if self._target(c, row, actor, row["author_id"])[1]:
+                found.append(row["id"])
+        return found
+
+    @staticmethod
+    def record_seen(c: sqlite3.Connection, actor: dict, target_ids: Iterable[str]) -> int:
+        """Record that the caller has seen these slots, the first time only. A seen mark is delivery
+        bookkeeping, not conversation: it writes no event and leaves the thread's revision alone."""
+        stamp = now()
+        return sum(c.execute("INSERT OR IGNORE INTO discussion_seen(target_id,actor_id,seen_at) VALUES(?,?,?)",
+                             (target_id, actor["id"], stamp)).rowcount for target_id in target_ids)
+
+    def _listed(self, c: sqlite3.Connection, actor: dict, message_ids: Iterable[str]) -> builtins.list[dict]:
+        """Messages as request lists show them: each with its thread's id and title."""
+        result = []
+        for identity in message_ids:
+            message = self.message(c, identity, actor)
+            title = c.execute("SELECT title FROM discussions WHERE id=?", (message["discussionId"],)).fetchone()[0]
+            result.append({"discussion": {"id": message["discussionId"], "title": title}, "message": message})
+        return result
+
+    @staticmethod
+    def _managed(actor: dict, alias: str = "m") -> tuple[str, builtins.list[str]]:
+        """Messages the caller manages: written in its own name, or in the name of a role it owns."""
+        return (f"(({alias}.on_behalf_of_role_id IS NULL AND {alias}.author_id=?) OR EXISTS(SELECT 1 FROM discussion_roles sr "
+                f"WHERE sr.id={alias}.on_behalf_of_role_id AND sr.owner_id=?))", [actor["id"], actor["id"]])
+
+    @staticmethod
+    def _received(actor: dict) -> tuple[str, builtins.list[str]]:
+        """Requests with a slot for the caller: named, through a role it owns, or open to it. The
+        person also receives every request that escalated."""
+        if actor["kind"] == "human":
+            return ("(r.escalated_at IS NOT NULL OR EXISTS(SELECT 1 FROM discussion_targets t WHERE t.message_id=m.id "
+                    "AND t.kind IN('human','open_any')))", [])
+        return ("m.author_id<>? AND EXISTS(SELECT 1 FROM discussion_targets t LEFT JOIN discussion_roles tr ON t.kind='role' "
+                "AND tr.id=t.recipient_id WHERE t.message_id=m.id AND ((t.kind='agent' AND t.recipient_id=?) OR "
+                "(t.kind='role' AND tr.owner_id=?) OR t.kind IN('open_agent','open_any')))", [actor["id"]] * 3)
+
+    def requests(self, c: sqlite3.Connection, actor: dict, *, box: str = "received", state: str = "pending",
+                 limit: int = 50, offset: int = 0) -> dict:
+        """Acknowledgement requests, newest first: those the caller sent (`sent`: written in its name or
+        its role's) or those with a slot for it (`received`), pending, ended or all. Each request says
+        how far each slot got and whether its agents can be reached."""
+        if box not in {"sent", "received"} or state not in {"pending", "ended", "all"}:
+            raise AppError(422, "validation", "Choose sent or received, and pending, ended or all")
+        clause, args = self._managed(actor) if box == "sent" else self._received(actor)
+        if state != "all":
+            clause += " AND r.state" + ("='pending'" if state == "pending" else "<>'pending'")
+        query = " FROM discussion_messages m JOIN discussion_requests r ON r.message_id=m.id WHERE " + clause
+        total = c.execute("SELECT count(*)" + query, args).fetchone()[0]
+        ids = [row[0] for row in c.execute("SELECT m.id" + query + " ORDER BY m.created_at DESC,m.id DESC LIMIT ? OFFSET ?",
+                                           [*args, limit, offset])]
+        return {"items": self._listed(c, actor, ids), "total": total, "limit": limit, "offset": offset}
+
+    def inbox(self, c: sqlite3.Connection, actor: dict, *, since: str | None = None) -> dict:
+        """What waits on the caller and what came back to it, with a cursor to wait from.
+
+        `received`: the pending requests with a slot the caller may acknowledge now, newest first;
+        `unseen` counts those the caller had not seen. `answers`: messages others posted in the thread
+        of a request the caller manages, after that request: since the cursor, or with none, the
+        replies to its pending requests. `changes`: acknowledgements, cancels, releases and
+        escalations of the requests it manages since the cursor (none without one). The cursor is the
+        discussions feed's (`changes`), so either reads on from the other."""
+        seq = self._decode_cursor(c, since, None) if since is not None else None
+        head = c.execute("SELECT COALESCE(max(seq),0) FROM discussion_changes").fetchone()[0]
+        # The slots of pending requests the caller may acknowledge now, as _target decides, in SQL: the
+        # inbox reads only the newest INBOX_LIMIT whole, however many wait.
+        if actor["kind"] == "human":
+            mine, mine_args = "t.kind IN('human','open_any')", []
+        else:
+            mine, mine_args = ("((t.kind='agent' AND t.recipient_id=?) OR (t.kind='role' AND tr.owner_id=?) "
+                               "OR t.kind IN('open_agent','open_any'))"), [actor["id"], actor["id"]]
+        slots = ("FROM discussion_targets t JOIN discussion_requests r ON r.message_id=t.message_id "
+                 "JOIN discussion_messages m ON m.id=t.message_id LEFT JOIN discussion_roles tr ON t.kind='role' AND tr.id=t.recipient_id "
+                 "WHERE r.state='pending' AND m.author_id<>? AND NOT EXISTS(SELECT 1 FROM discussion_acknowledgements a "
+                 f"WHERE a.target_id=t.id) AND {mine}")
+        slot_args = [actor["id"], *mine_args]
+        pending = [row[0] for row in c.execute(f"SELECT m.id {slots} GROUP BY m.id ORDER BY max(m.created_at) DESC,m.id DESC LIMIT ?",
+                                               [*slot_args, INBOX_LIMIT])]
+        unseen = c.execute(f"SELECT count(*) FROM (SELECT m.id,max(EXISTS(SELECT 1 FROM discussion_seen s WHERE s.target_id=t.id "
+                           f"AND s.actor_id=?)) AS seen {slots} GROUP BY m.id) WHERE seen=0", [actor["id"], *slot_args]).fetchone()[0]
+        received = self._listed(c, actor, pending)
+        managed, managed_args = self._managed(actor, "sm")
+        earlier = ("EXISTS(SELECT 1 FROM discussion_messages sm JOIN discussion_requests er ON er.message_id=sm.id WHERE "
+                   f"sm.discussion_id=m.discussion_id AND sm.created_at<m.created_at AND {managed}"
+                   + (")" if seq is not None else " AND er.state='pending')"))
+        if seq is not None:
+            answers = [row[0] for row in c.execute(
+                "SELECT m.id FROM discussion_changes ch JOIN discussion_messages m ON m.id=ch.message_id WHERE ch.seq>? "
+                f"AND ch.kind IN('discussion.message','discussion.create') AND m.author_id<>? AND {earlier} ORDER BY ch.seq LIMIT ?",
+                [seq, actor["id"], *managed_args, INBOX_LIMIT])]
+            sent, sent_args = self._managed(actor)
+            changes = c.execute(
+                "SELECT ch.*,e.actor_id,e.actor_label,e.actor_kind FROM discussion_changes ch JOIN events e ON e.id=ch.event_id "
+                f"JOIN discussion_messages m ON m.id=ch.message_id WHERE ch.seq>? AND ch.kind IN({','.join('?' * len(REQUEST_CHANGES))}) "
+                f"AND {sent} ORDER BY ch.seq LIMIT ?", [seq, *REQUEST_CHANGES, *sent_args, INBOX_LIMIT]).fetchall()
+        else:
+            answers = [row[0] for row in c.execute(
+                f"SELECT m.id FROM discussion_messages m WHERE m.author_id<>? AND {earlier} ORDER BY m.created_at DESC,m.id DESC LIMIT ?",
+                [actor["id"], *managed_args, INBOX_LIMIT])]
+            changes = []
+        return {"received": received, "unseen": unseen, "answers": self._listed(c, actor, answers),
+                "changes": [{"seq": r["seq"], "kind": r["kind"], "discussionId": r["discussion_id"], "messageId": r["message_id"],
+                             "roleId": r["role_id"], "actorId": r["actor_id"], "actorLabel": r["actor_label"],
+                             "actorKind": r["actor_kind"], "createdAt": r["created_at"]} for r in changes],
+                "cursor": self._cursor(c, None, head)}
+
+    @staticmethod
+    def overdue(c: sqlite3.Connection, at: datetime | None = None) -> bool:
+        """Whether a pending request's deadline has passed without it escalating: read first, so the
+        watcher takes the write lock only when there may be something to escalate."""
+        moment = at or datetime.now(UTC)
+        return any(datetime.fromisoformat(row["deadline_at"]) <= moment for row in c.execute(DUE))
+
+    def escalate_overdue(self, c: sqlite3.Connection, at: datetime | None = None) -> builtins.list[str]:
+        """Escalate every pending request whose deadline has passed while some slot has neither
+        acknowledged nor answered: mark it escalated and record the change, which reaches its sender's
+        inbox and the person (Live counts it as theirs, Discussions marks it). The change is written
+        as the request's sender, whose deadline it was. Returns the messages it escalated; the serve
+        watcher calls it every ESCALATION_SWEEP seconds, when `overdue` finds one due."""
+        moment = at or datetime.now(UTC)
+        escalated = []
+        for row in c.execute(DUE).fetchall():
+            if datetime.fromisoformat(row["deadline_at"]) > moment:
+                continue
+            sender = {"id": row["author_id"], "label": row["author_label"], "kind": row["author_kind"]}
+            # Each request escalates on its own: one that fails is logged and left for the next sweep.
+            c.execute("SAVEPOINT escalation")
+            try:
+                before = self.message(c, row["message_id"], sender)
+                c.execute("UPDATE discussion_requests SET escalated_at=? WHERE message_id=? AND escalated_at IS NULL",
+                          (moment.isoformat(), row["message_id"]))
+                self._touch(c, row["discussion_id"])
+                self._emit(c, sender, "discussion.request.escalate", row["message_id"], before,
+                           self.message(c, row["message_id"], sender), discussion_id=row["discussion_id"], message_id=row["message_id"])
+            except (AppError, sqlite3.Error, ValueError, KeyError) as exc:
+                c.execute("ROLLBACK TO escalation")
+                c.execute("RELEASE escalation")
+                logger.warning("Escalating request %s failed (%s); the next sweep tries again", row["message_id"], type(exc).__name__)
+                continue
+            c.execute("RELEASE escalation")
+            escalated.append(row["message_id"])
+        return escalated
 
     def acknowledge(self, c: sqlite3.Connection, actor: dict, identity: str, p: dict) -> dict:
         m = self._get(c, "discussion_messages", identity)

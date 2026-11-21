@@ -6,12 +6,13 @@ restores.
 
 ## Upgrade
 
-For an upgrade, stop Worklog, make a manual backup with the installed version, update the checkout, run `Setup.ps1`, then start and check the application. Use the same data directory and port throughout. The first startup snapshots a supported version 1 to 31 database and upgrades it to version 32 in one transaction.
+For an upgrade, stop Worklog, make a manual backup with the installed version, update the checkout, run `Setup.ps1`, then start and check the application. Use the same data directory and port throughout. The first startup snapshots a supported version 1 to 32 database and upgrades it to version 33 in one transaction.
 
 `./scripts/Run.ps1` does the stop, backup, setup and start in one step after you update the checkout, passing the same `-DataDir` and `-Port` to each. Its backup is taken before the new version first starts, so it is the pre-upgrade backup; if the stop or backup fails, it ends before setup. It runs Setup's shared-folder check first, so a refusal leaves Worklog running.
 
 ## What each version changes
 
+- **Version 33** lets agents say who owns a change and whether a message reached them. It adds what each agent's participation reports it produced (pull requests and commits), when a request's target first saw it, and a deadline on a request, after which it escalates to you. Each starts empty, and the upgrade changes no record.
 - **Version 32** adds a submitter field to pull requests. Existing references keep their links, titles and associated chats, with the submitter left blank.
 - **Version 31** gives each roadmap step an outcome: what the step's work produces, the goal it is done for, shown first on the step's page. Every step starts with none, and the upgrade changes no record.
 - **Version 30** removes messaging agents from a chat. The upgrade drops the tables that held the messages you wrote into tracked chats, their deliveries to each agent's run, and the agents you confirmed in each chat, every row with them. The tracked chats, the agents registered with them and their runs stay as they are, and so does what those messages and confirmations wrote into history; no other record changes. The retry receipts of those calls age out after 14 days, as every receipt does. The pre-migration backup keeps the tables, but only the three newest pre-migration backups are kept: copy it aside if you still need a message.
@@ -40,4 +41,4 @@ For an upgrade, stop Worklog, make a manual backup with the installed version, u
 
 Keep the previous version and its manual backup until verification succeeds. To roll back, stop Worklog, switch to the previous version and run its setup, then use that version’s `restore` command with the pre-upgrade backup. Start and check Worklog again. Restoring returns the data to the time of the snapshot, creates a new data identity, and revokes the restored credentials.
 
-To return from version 32 to version 31, restore the pre-upgrade backup using version 31.
+To return from version 33 to version 32, restore the pre-upgrade backup using version 32. To return from version 32 to version 31, restore the pre-upgrade backup using version 31.

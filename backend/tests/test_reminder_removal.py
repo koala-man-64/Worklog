@@ -13,6 +13,7 @@ from contextlib import closing
 import pytest
 import sealed
 from test_chat_label_links import call, session
+from test_ownership_reachability import before_v33
 from test_sealed_schemas import contents
 from worklog import cli, migrations, recovery
 from worklog.db import Database
@@ -83,6 +84,7 @@ def test_the_upgrade_drops_every_reminder_and_its_search_row_and_changes_no_othe
     _, _, before = contents(database)
     Database(database).initialize()
     version, signature, after = contents(database)
+    after = before_v33(after)  # v33 added tables after these
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
     assert "reminders" not in after and len(before["reminders"]) == 2
     # The search index loses each reminder's row and key, and only those: the work item's stay.

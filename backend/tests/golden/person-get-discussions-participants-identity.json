@@ -58,6 +58,42 @@
       }
     ],
     "kind": "agent",
-    "avatar": "red-dots-antenna"
+    "avatar": "red-dots-antenna",
+    "chatId": null,
+    "directory": null,
+    "registeredAt": "<time>",
+    "provider": "",
+    "stale": false,
+    "runs": [
+      {
+        "id": "<id3>",
+        "displayName": "Builder",
+        "provider": "",
+        "chatId": "chat-1",
+        "createdAt": "<time>"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "<id8>",
+        "participationId": "<id2>",
+        "repositoryId": "<id6>",
+        "repositoryName": "worklog",
+        "kind": "commit",
+        "reference": "abcdef1",
+        "url": "",
+        "createdAt": "<time>"
+      },
+      {
+        "id": "<id9>",
+        "participationId": "<id2>",
+        "repositoryId": "<id6>",
+        "repositoryName": "worklog",
+        "kind": "pr",
+        "reference": "7",
+        "url": "https://github.com/example/worklog/pull/7",
+        "createdAt": "<time>"
+      }
+    ]
   }
 }

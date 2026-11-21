@@ -175,6 +175,9 @@ class World:
         # The agent posts an update on its participation, so the updates and its activity list one.
         self.write(a, "POST", f"/participations/{ids['participation']}/updates", {"kind": "update",
                                                                                   "text": "Parser half done"})
+        # It reports the pull request and commit it produced (v33), so owners names it by them.
+        self.write(a, "POST", f"/participations/{ids['participation']}/outputs", {
+            "pullRequests": ["https://github.com/example/worklog/pull/7"], "commits": ["abcdef1"]})
         # The agent owns a role on the work item and replies in its discussion from the tracked chat,
         # so the registry lists a role, a message with its chat, and the agent tied to that chat.
         role = self.write(a, "POST", "/discussions/roles", {"contextType": "item", "contextId": item["id"],
@@ -199,13 +202,14 @@ class World:
         self.write(a, "POST", f"/discussions/messages/{asked['id']}/acknowledge",
                    {"targetIds": [asked["request"]["targets"][0]["id"]]})
         self.write(p, "POST", f"/discussions/{ids['discussion']}/messages", {
-            "text": "Who reviews the parser?", "acknowledgement": {"targets": [{"kind": "role", "id": role["id"]}]}})
+            "text": "Who reviews the parser?", "acknowledgement": {"targets": [{"kind": "role", "id": role["id"]}],
+                                                               "deadlineSeconds": 3600}})
 
 
 def concrete(template: str, ids: dict[str, str], today: str) -> str:
     """The template with this world's records in it, and the query parameters a read needs."""
     owner = {"/attachments": f"?ownerType=item&ownerId={ids['item']}", "/history": f"?entityId={ids['item']}",
-             "/coordination-overlaps": f"?itemId={ids['item']}",
+             "/coordination-overlaps": f"?itemId={ids['item']}", "/owners": f"?ref={ids['ticketRef']}",
              "/search": "?q=parser", "/repositories/resolve": "?url=https://github.com/example/worklog"}
     by_prefix = [("/work-items/", "item"), ("/notes/", "note"), ("/links/", "link"),
                  ("/references/", "reference"), ("/attachments/", "attachment"), ("/roadmaps/", "roadmap"),

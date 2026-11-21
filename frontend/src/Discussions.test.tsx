@@ -85,6 +85,12 @@ function requestState(
         ownershipGeneration: null,
         acknowledged: false,
         acknowledgedBy: null,
+        delivery: "pending",
+        seenAt: null,
+        acknowledgedAt: null,
+        answeredAt: null,
+        answerMessageId: null,
+        presence: null,
       },
     ],
     receipts: [],
@@ -99,6 +105,10 @@ function requestState(
     terminalActorKind: null,
     authorityRoleId: null,
     authorityGeneration: null,
+    deadlineAt: null,
+    urgent: false,
+    escalatedAt: null,
+    overdue: false,
     ...fields,
   };
 }
@@ -503,6 +513,71 @@ it("keeps human replies separate from acknowledgement and records a human releas
       (call) => call.path === "/discussions/messages/message-1/release",
     )?.body,
   ).toEqual({ reason: "The information is no longer needed." });
+});
+
+it("shows how far a request got, a stale agent, and a request escalated to the person", async () => {
+  const user = userEvent.setup();
+  const target = (
+    id: string,
+    label: string,
+    delivery: "seen" | "answered",
+    stale: boolean,
+  ) => ({
+    id,
+    kind: "agent" as const,
+    recipientId: id,
+    label,
+    ownerId: null,
+    ownershipGeneration: null,
+    acknowledged: false,
+    acknowledgedBy: null,
+    delivery,
+    seenAt: "2026-11-01T10:01:00Z",
+    acknowledgedAt: null,
+    answeredAt: delivery === "answered" ? "2026-11-01T10:02:00Z" : null,
+    answerMessageId: delivery === "answered" ? "message-2" : null,
+    presence: {
+      active: true,
+      lastSeenAt: "2026-11-01T08:00:00Z",
+      stale,
+      openRuns: 1,
+    },
+  });
+  serve({
+    initialMessages: [
+      message({
+        authorId: agentA.id,
+        authorLabel: agentA.label,
+        authorKind: "agent",
+        request: requestState({
+          mode: "all",
+          targets: [
+            target("target-b", "Agent Beta", "seen", true),
+            target("target-c", "Agent Gamma", "answered", false),
+          ],
+          deadlineAt: "2026-11-01T10:15:00Z",
+          urgent: true,
+          escalatedAt: "2026-11-01T10:15:05Z",
+          overdue: true,
+        }),
+      }),
+    ],
+  });
+  renderPage();
+  await user.click(await screen.findByRole("link", { name: /Project notes/ }));
+  const requestCard = await screen.findByRole("region", {
+    name: "Acknowledgement request",
+  });
+  expect(within(requestCard).getByText("Urgent")).toBeInTheDocument();
+  expect(within(requestCard).getByText("Escalated to you")).toBeInTheDocument();
+  expect(within(requestCard).getByText("Seen")).toBeInTheDocument();
+  expect(
+    within(requestCard).getByText("Answered, not acknowledged"),
+  ).toBeInTheDocument();
+  // Only the agent nothing was heard from for two hours is marked.
+  expect(
+    within(requestCard).getAllByText(/no report for 2 hours/),
+  ).toHaveLength(1);
 });
 
 it("shows each author's avatar beside their messages", async () => {

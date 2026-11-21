@@ -1505,11 +1505,57 @@ class Overlaps(Answer):
     tickets: list[OverlapTicket]
 
 
+class AgentOpenRun(Answer):
+    """An open run as a participant's profile shows it, with the chat it reports."""
+
+    id: str
+    displayName: str
+    provider: str
+    chatId: str | None
+    createdAt: str
+
+
+class ParticipationOutput(Answer):
+    """A pull request or commit a participation reported producing (v33)."""
+
+    id: str
+    participationId: str
+    repositoryId: str
+    repositoryName: str
+    kind: Literal["pr", "commit"]
+    # A pull request's number, or a commit's lowercased SHA.
+    reference: str
+    # A pull request's address as reported, without query or fragment; empty for a bare number or a commit.
+    url: str
+    createdAt: str
+
+
 class AgentProfile(AgentListed):
-    """An agent identity as a participant's profile shows it, to any caller."""
+    """An agent identity as a participant's profile shows it, to any caller: who it is, and since v33
+    where to reach it (decision R11)."""
 
     kind: Literal["agent"]
     avatar: str | None
+    # The chat it works in: the provider's session or thread ID its newest registration named.
+    chatId: str | None
+    # The directory it registered from, its project folder; null when it named none.
+    directory: str | None
+    registeredAt: str | None
+    # Its latest run's provider; empty when none named one.
+    provider: str
+    # Nothing heard from it for two hours, or ever.
+    stale: bool
+    runs: list[AgentOpenRun]
+    # What its participation reported producing, newest first, at most 50.
+    outputs: list[ParticipationOutput]
+
+
+class ParticipationOutputsReported(Answer):
+    participation: Participation
+    # Everything the participation reported producing, oldest first.
+    outputs: list[ParticipationOutput]
+    # How many this report added; a repeat adds none.
+    added: int
 
 
 class Actor(Answer):
@@ -1526,6 +1572,66 @@ class Participants(Answer):
     items: list[Participant]
     # The caller.
     self: Actor
+
+
+class OwnerMatch(Answer):
+    """A record the reference names."""
+
+    kind: Literal["ticket", "item", "pr", "commit", "branch", "path", "agent"]
+    id: str
+    label: str
+    matchedBy: Literal["key", "number", "id", "url", "sha", "branch", "path"]
+
+
+class OutputNamed(Answer):
+    kind: Literal["pr", "commit"]
+    reference: str
+    url: str
+
+
+class OwnerRelation(Answer):
+    """One thing that ties an agent to what the reference names, with its evidence; fields that don't
+    apply to the relation are null."""
+
+    relation: Literal["assignee", "role", "producer", "branch", "checkout", "agent", "participant", "chat", "author",
+                      "commenter", "directory"]
+    # Whether this relation makes the agent an owner.
+    owner: bool
+    # When it last held, and whether something still open holds it.
+    at: str | None
+    current: bool
+    ticketId: str | None
+    roleId: str | None
+    roleLabel: str | None
+    participationId: str | None
+    repositoryId: str | None
+    repositoryName: str | None
+    branch: str | None
+    checkoutPath: str | None
+    worktreePath: str | None
+    chatId: str | None
+    chatTitle: str | None
+    githubReferenceId: str | None
+    output: OutputNamed | None
+    directory: str | None
+
+
+class OwnerAgent(AgentProfile):
+    """An agent tied to what the reference names: its profile, whether it owns it, and why."""
+
+    owner: bool
+    relations: list[OwnerRelation]
+
+
+class Owners(Answer):
+    """Who owns what a reference names (v33): the records it matched, the person, and the agents tied
+    there, owners first."""
+
+    ref: str
+    matches: list[OwnerMatch]
+    # The person: who approves, reassigns, and receives escalations.
+    person: Actor
+    agents: list[OwnerAgent]
 
 
 class AvatarOption(Answer):
@@ -1663,6 +1769,16 @@ class Discussions(Answer):
     offset: int
 
 
+class Presence(Answer):
+    """Whether an agent can be reached, as its own reports say."""
+
+    active: bool
+    lastSeenAt: str | None
+    # Nothing heard for two hours, or ever.
+    stale: bool
+    openRuns: int
+
+
 class AcknowledgementTarget(Answer):
     """One slot of an acknowledgement request: a named participant, a role, or any agent or anyone."""
 
@@ -1677,6 +1793,16 @@ class AcknowledgementTarget(Answer):
     acknowledged: bool
     # The first to acknowledge it.
     acknowledgedBy: str | None
+    # How far the slot got (v33): pending, seen (a command of the target's listed or read it),
+    # acknowledged, answered (the target posted in the thread after the request). The defaults read a
+    # retry receipt stored before v33.
+    delivery: Literal["pending", "seen", "acknowledged", "answered"] = "pending"
+    seenAt: str | None = None
+    acknowledgedAt: str | None = None
+    answeredAt: str | None = None
+    answerMessageId: str | None = None
+    # An agent slot's agent, or a role's owner: whether it can be reached; null for other slots.
+    presence: Presence | None = None
 
 
 class AcknowledgementReceipt(Answer):
@@ -1716,6 +1842,13 @@ class AcknowledgementRequest(Answer):
     # The role that cancelled it on its behalf, and that role's generation then.
     authorityRoleId: str | None
     authorityGeneration: int | None
+    # When it escalates to the person if still unanswered, whether it was sent urgent, when it
+    # escalated, and whether its deadline has passed while it is pending (v33). The defaults read a
+    # retry receipt stored before v33.
+    deadlineAt: str | None = None
+    urgent: bool = False
+    escalatedAt: str | None = None
+    overdue: bool = False
 
 
 class DiscussionMessage(Answer):
@@ -1733,6 +1866,55 @@ class DiscussionMessage(Answer):
     ownershipGeneration: int | None
     # Null unless it asks to be acknowledged.
     request: AcknowledgementRequest | None
+
+
+class ThreadNamed(Answer):
+    id: str
+    title: str
+
+
+class RequestListed(Answer):
+    """A message with an acknowledgement request, with the thread it is in."""
+
+    discussion: ThreadNamed
+    message: DiscussionMessage
+
+
+class DiscussionRequests(Answer):
+    """Requests the caller sent or that have a slot for it, newest first (v33)."""
+
+    items: list[RequestListed]
+    total: int
+    limit: int
+    offset: int
+
+
+class InboxChange(Answer):
+    """An acknowledgement, cancel, release or escalation of a request the caller manages."""
+
+    seq: int
+    kind: str
+    discussionId: str | None
+    messageId: str | None
+    roleId: str | None
+    actorId: str
+    actorLabel: str
+    actorKind: str
+    createdAt: str
+
+
+class DiscussionInbox(Answer):
+    """What waits on the caller and what came back to it (v33)."""
+
+    # Pending requests with a slot the caller may acknowledge now, newest first, at most 50.
+    received: list[RequestListed]
+    # How many of the requests waiting on the caller it had not seen before this read.
+    unseen: int
+    # Messages others posted in the thread of a request the caller manages, after that request.
+    answers: list[RequestListed]
+    changes: list[InboxChange]
+    # The discussions feed's cursor at this read: wait from it with `since`.
+    cursor: str
 
 
 class DiscussionThread(Answer):

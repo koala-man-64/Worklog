@@ -15,6 +15,7 @@ from contextlib import closing
 import pytest
 import sealed
 from test_chat_label_links import call, session
+from test_ownership_reachability import before_v33
 from test_sealed_schemas import contents
 from worklog import cli, migrations, recovery
 from worklog.db import Database
@@ -105,6 +106,7 @@ def test_the_upgrade_drops_every_release_its_search_rows_and_tags_and_changes_no
     _, _, before = contents(database)
     Database(database).initialize()
     version, signature, after = contents(database)
+    after = before_v33(after)  # v33 added tables after these
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
     assert [len(before[table]) for table in RELEASE_TABLES] == [1, 2, 2]
     assert not set(RELEASE_TABLES) & set(after)

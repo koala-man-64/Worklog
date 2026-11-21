@@ -27,6 +27,10 @@ class Target(Command):
 class Acknowledgement(Command):
     mode: Literal["all", "any", "any_agent", "anyone"] = "all"
     targets: list[Target] = Field(default_factory=list, max_length=100)
+    # How long the request may wait before it escalates to the person (v33): 10 seconds to 7 days.
+    # An urgent request without one escalates after 15 minutes.
+    deadlineSeconds: int | None = Field(default=None, ge=10, le=604_800)
+    urgent: StrictBool | None = None
 
     @model_validator(mode="after")
     def target_shape(self) -> "Acknowledgement":

@@ -303,6 +303,17 @@ function DiscussionMessageView({
                     ? "Released by human"
                     : "Cancelled"}
             </span>
+            {requestState.state === "pending" && requestState.urgent && (
+              <span className="ack-state urgent">Urgent</span>
+            )}
+            {requestState.state === "pending" && requestState.escalatedAt && (
+              <span
+                className="ack-state escalated"
+                title={exactDiscussionDate(requestState.escalatedAt)}
+              >
+                Escalated to you
+              </span>
+            )}
           </div>
           <p className="muted">{audience}</p>
           {requestState.targets.length > 0 && (
@@ -320,7 +331,14 @@ function DiscussionMessageView({
                         ? "Open recipient"
                         : target.kind === "role" && !target.ownerId
                           ? "Unassigned role"
-                          : "Waiting"}
+                          : target.delivery === "answered"
+                            ? "Answered, not acknowledged"
+                            : target.delivery === "seen"
+                              ? "Seen"
+                              : "Waiting"}
+                    {!target.acknowledged && target.presence?.stale && (
+                      <small className="muted"> · no report for 2 hours</small>
+                    )}
                   </span>
                 </li>
               ))}

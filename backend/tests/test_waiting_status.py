@@ -10,6 +10,7 @@ from contextlib import closing, contextmanager
 import pytest
 import sealed
 from fastapi.testclient import TestClient
+from test_ownership_reachability import before_v33
 from test_step_outcomes import without_outcomes
 from worklog import migrations, operations, recovery
 from worklog.app import create_app
@@ -280,7 +281,7 @@ def test_the_v15_upgrade_keeps_every_work_item_and_every_reference_to_one(tmp_pa
         # each day's reflection revision at its day's revision, to v22, which pins no discussion,
         # and to v25, v26 and v30, which drop the plan import, task and chat message tables, empty
         # here.
-        upgraded = contents(conn)
+        upgraded = before_v33(contents(conn))  # v33 added tables after these
         for table in ("plan_imports", "tasks", "chat_messages", "chat_message_deliveries", "chat_confirmations"):
             assert kept.pop(table) == []
         assert upgraded.pop("proposal_targets") == []
@@ -384,7 +385,7 @@ def test_the_way_back_to_v14_gives_its_exact_shape_and_upgrades_again(tmp_path):
         waiting = set_status(c, item(c, "Hear back from review"), "waiting")
     scatter_rowids(path)
     with closing(sqlite3.connect(path)) as conn:
-        before = contents(conn)
+        before = before_v33(contents(conn))  # the way back to v32 drops what v33 added, empty here
     # The ways back to v21, v20, v19, v18, v17, v16 and v15, which to_v14 takes first, drop v22's pins
     # and its tags of kinds v21 lacks, v21's reflection revision, v20's and v19's tables, v18's
     # registration directory and v17's and v16's tables, and nothing else; this test holds no release
