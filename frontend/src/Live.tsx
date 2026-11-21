@@ -11,6 +11,7 @@ import { Empty, ErrorMessage } from "./ui/Messages";
 import type {
   LiveAgentNode,
   LivePulse,
+  LiveWorkNode,
   LiveSnapshot,
   LiveSwimlaneSpan,
 } from "./apiTypes";
@@ -81,9 +82,57 @@ function edgeClass(active: boolean, stale: boolean, highlighted: boolean, dimmed
     .join(" ");
 }
 
+// From the bottom of a card in one tier to the top of a card in the tier below.
 function curve(from: Point, to: Point) {
-  const bend = Math.max(44, Math.abs(to.x - from.x) * 0.45);
-  return `M ${from.x.toFixed(1)} ${from.y.toFixed(1)} C ${(from.x + bend).toFixed(1)} ${from.y.toFixed(1)}, ${(to.x - bend).toFixed(1)} ${to.y.toFixed(1)}, ${to.x.toFixed(1)} ${to.y.toFixed(1)}`;
+  const bend = Math.max(28, Math.abs(to.y - from.y) * 0.5);
+  return `M ${from.x.toFixed(1)} ${from.y.toFixed(1)} C ${from.x.toFixed(1)} ${(from.y + bend).toFixed(1)}, ${to.x.toFixed(1)} ${(to.y - bend).toFixed(1)}, ${to.x.toFixed(1)} ${to.y.toFixed(1)}`;
+}
+
+type WorkGroup = { id: string; title: string | null; nodes: LiveWorkNode[] };
+
+// One group per roadmap, in the order the server sends them: the roadmap, then each step
+// followed by its own work items, then the roadmap's items that sit under no step shown.
+function workGroups(work: LiveWorkNode[]): WorkGroup[] {
+  const groups = new Map<string, LiveWorkNode[]>();
+  for (const node of work) {
+    const id = node.roadmapId ?? "";
+    groups.set(id, [...(groups.get(id) ?? []), node]);
+  }
+  return [...groups].map(([id, nodes]) => {
+    const steps = nodes.filter((node) => node.kind === "step");
+    const items = nodes.filter((node) => node.kind === "item");
+    const placed = new Set<string>();
+    const ordered = [...nodes.filter((node) => node.kind === "roadmap")];
+    for (const step of steps) {
+      ordered.push(step);
+      for (const item of items) {
+        if (item.parentId === step.id) {
+          ordered.push(item);
+          placed.add(item.id);
+        }
+      }
+    }
+    ordered.push(...items.filter((item) => !placed.has(item.id)));
+    return { id, title: nodes[0]?.roadmapTitle ?? null, nodes: ordered };
+  });
+}
+
+// Each node sits under the mean position of what it connects to above it, so the lines between
+// tiers cross as little as they can. Nodes with nothing above keep their order, at the end.
+function byBarycenter<T extends { id: string }>(nodes: T[], above: (id: string) => number[]) {
+  const score = (id: string) => {
+    const positions = above(id).filter((position) => position >= 0);
+    return positions.length ? positions.reduce((sum, value) => sum + value, 0) / positions.length : null;
+  };
+  return nodes
+    .map((node, index) => ({ node, index, score: score(node.id) }))
+    .sort((a, b) => {
+      if (a.score === null || b.score === null) {
+        return a.score === b.score ? a.index - b.index : a.score === null ? 1 : -1;
+      }
+      return a.score - b.score || a.index - b.index;
+    })
+    .map((entry) => entry.node);
 }
 
 function formatTime(value: string) {
@@ -360,6 +409,13 @@ function connections(snapshot: LiveSnapshot, focus: Focus | null, pulse: LivePul
   return { nodes, edges, active: Boolean(focus || pulse) };
 }
 
+type NodeKind = "work" | "agent" | "repo" | "person";
+type Box = { x: number; top: number; bottom: number; width: number };
+type Line = { id: string; from: string; to: string };
+
+// Top down: what is planned, who works on it, and where the work lands. Lines run from the
+// bottom of a card to the top of a card in the tier below; messages between agents bow below
+// their tier.
 function FlowMap({
   snapshot,
   focus,
@@ -377,6 +433,22 @@ function FlowMap({
   const related = connections(snapshot, focus, pulse);
   const hasPerson = snapshot.commEdges.some((edge) => edge.fromId === "local-user" || edge.toId === "local-user");
 
+  // Roadmaps nobody works on come first: when the tier wraps, the ones with lines to agents sit
+  // on its last row, nearest the agents, so their lines do not pass behind the others.
+  const connectedWork = new Set(snapshot.workEdges.map((edge) => edge.workId));
+  const allGroups = workGroups(snapshot.work);
+  const linked = (group: WorkGroup) => group.nodes.some((node) => connectedWork.has(node.id));
+  const groups = [...allGroups.filter((group) => !linked(group)), ...allGroups.filter(linked)];
+  const workIndex = new Map(groups.flatMap((group) => group.nodes).map((node, index) => [node.id, index]));
+  const agents = byBarycenter(snapshot.agents, (id) =>
+    snapshot.workEdges.filter((edge) => edge.agentId === id).map((edge) => workIndex.get(edge.workId) ?? -1),
+  );
+  const agentIndex = new Map(agents.map((agent, index) => [agent.id, index + (hasPerson ? 1 : 0)]));
+  const repositories = byBarycenter(snapshot.repositories, (id) =>
+    snapshot.repoEdges.filter((edge) => edge.repositoryId === id).map((edge) => agentIndex.get(edge.agentId) ?? -1),
+  );
+  const repoIndex = new Map(repositories.map((repo, index) => [repo.id, index]));
+
   useEffect(() => {
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => setVersion((v) => v + 1));
     if (canvas.current) observer?.observe(canvas.current);
@@ -393,26 +465,57 @@ function FlowMap({
     if (element) cards.current.set(nodeKey, element);
     else cards.current.delete(nodeKey);
   };
-  const indexOf = (kind: "work" | "agent" | "repo" | "person", id: string) => {
-    if (kind === "work") return snapshot.work.findIndex((node) => node.id === id);
-    if (kind === "repo") return snapshot.repositories.findIndex((node) => node.id === id);
-    if (kind === "person") return 0;
-    return snapshot.agents.findIndex((node) => node.id === id) + (hasPerson ? 1 : 0);
+
+  // Where each card is, measured; before layout (and in tests) from its tier and its place in it.
+  void version;
+  const root = canvas.current?.getBoundingClientRect();
+  const boxes = new Map<string, Box>();
+  const place = (kind: NodeKind, id: string) => {
+    const nodeKey = key(kind, id);
+    const known = boxes.get(nodeKey);
+    if (known) return nodeKey;
+    const rect = cards.current.get(nodeKey)?.getBoundingClientRect();
+    if (root && rect && root.width > 0 && rect.width > 0) {
+      boxes.set(nodeKey, {
+        x: rect.left - root.left + rect.width / 2,
+        top: rect.top - root.top,
+        bottom: rect.bottom - root.top,
+        width: rect.width,
+      });
+    } else {
+      const tier = kind === "work" ? 0 : kind === "repo" ? 2 : 1;
+      const index =
+        kind === "work" ? workIndex.get(id) : kind === "repo" ? repoIndex.get(id) : kind === "person" ? 0 : agentIndex.get(id);
+      const top = 48 + tier * 220;
+      boxes.set(nodeKey, { x: 150 + (index ?? 0) * 260, top, bottom: top + 120, width: 240 });
+    }
+    return nodeKey;
   };
-  const fallback = (kind: "work" | "agent" | "repo" | "person", id: string, side: "left" | "right"): Point => {
-    const width = canvas.current?.getBoundingClientRect().width || 1080;
-    const column = kind === "work" ? 0 : kind === "repo" ? 2 : 1;
-    const left = width * (column / 3) + 18;
-    const cardWidth = width / 3 - 36;
-    return { x: side === "left" ? left : left + cardWidth, y: 82 + Math.max(0, indexOf(kind, id)) * 132 };
-  };
-  const anchor = (kind: "work" | "agent" | "repo" | "person", id: string, side: "left" | "right") => {
-    void version;
-    const root = canvas.current?.getBoundingClientRect();
-    const rect = cards.current.get(key(kind, id))?.getBoundingClientRect();
-    if (!root || !rect || root.width === 0 || rect.width === 0) return fallback(kind, id, side);
-    return { x: (side === "left" ? rect.left : rect.right) - root.left, y: rect.top - root.top + rect.height / 2 };
-  };
+  const lines: Line[] = [
+    ...snapshot.workEdges.map((edge) => ({ id: edge.id, from: place("work", edge.workId), to: place("agent", edge.agentId) })),
+    ...snapshot.repoEdges.map((edge) => ({ id: edge.id, from: place("agent", edge.agentId), to: place("repo", edge.repositoryId) })),
+  ];
+  // Lines meeting one edge of a card spread along it, in the order of their other ends, so they
+  // leave side by side instead of on top of each other.
+  const ports = new Map<string, number>();
+  for (const side of ["from", "to"] as const) {
+    const bySide = new Map<string, Line[]>();
+    for (const line of lines) bySide.set(line[side], [...(bySide.get(line[side]) ?? []), line]);
+    const other = (line: Line) => boxes.get(side === "from" ? line.to : line.from)!.x;
+    for (const [nodeKey, list] of bySide) {
+      const own = boxes.get(nodeKey)!;
+      list.sort((a, b) => other(a) - other(b) || a.id.localeCompare(b.id));
+      list.forEach((line, index) => {
+        ports.set(`${side}:${line.id}`, own.x + own.width * 0.6 * ((index + 0.5) / list.length - 0.5));
+      });
+    }
+  }
+  const path = (line: Line) =>
+    curve(
+      { x: ports.get(`from:${line.id}`)!, y: boxes.get(line.from)!.bottom },
+      { x: ports.get(`to:${line.id}`)!, y: boxes.get(line.to)!.top },
+    );
+  const lineById = new Map(lines.map((line) => [line.id, line]));
 
   const nodeState = (nodeKey: string) => ({
     selected: Boolean(focus && key(focus.kind, focus.id) === nodeKey),
@@ -427,132 +530,143 @@ function FlowMap({
             <path d="M 0 0 L 10 5 L 0 10 z" />
           </marker>
         </defs>
-        {snapshot.workEdges.map((edge) => (
+        {[...snapshot.workEdges, ...snapshot.repoEdges].map((edge) => (
           <path
             key={edge.id}
             data-edge-id={edge.id}
             className={edgeClass(edge.active, edge.stale, related.edges.has(edge.id), related.active && !related.edges.has(edge.id))}
-            d={curve(anchor("work", edge.workId, "right"), anchor("agent", edge.agentId, "left"))}
-          />
-        ))}
-        {snapshot.repoEdges.map((edge) => (
-          <path
-            key={edge.id}
-            data-edge-id={edge.id}
-            className={edgeClass(edge.active, edge.stale, related.edges.has(edge.id), related.active && !related.edges.has(edge.id))}
-            d={curve(anchor("agent", edge.agentId, "right"), anchor("repo", edge.repositoryId, "left"))}
+            d={path(lineById.get(edge.id)!)}
           />
         ))}
         {snapshot.commEdges.map((edge, index) => {
-          const fromKind = edge.fromKind === "person" ? "person" : "agent";
-          const toKind = edge.toKind === "person" ? "person" : "agent";
-          const from = anchor(fromKind, edge.fromId, index % 2 ? "left" : "right");
-          const to = anchor(toKind, edge.toId, index % 2 ? "left" : "right");
-          // Nine depths, then over again: a bow that grew with every line would leave the canvas.
-          const bow = 34 + (index % 9) * 9;
-          const direction = index % 2 ? -1 : 1;
-          const d = `M ${from.x.toFixed(1)} ${from.y.toFixed(1)} Q ${(from.x + direction * bow).toFixed(1)} ${((from.y + to.y) / 2).toFixed(1)} ${to.x.toFixed(1)} ${to.y.toFixed(1)}`;
+          const a = boxes.get(place(edge.fromKind === "person" ? "person" : "agent", edge.fromId))!;
+          const b = boxes.get(place(edge.toKind === "person" ? "person" : "agent", edge.toId))!;
+          // From the ends of the two cards that face each other, clear of the lines to repositories.
+          const facing = b.x < a.x ? -1 : 1;
+          const from = { x: a.x + facing * a.width * 0.4, y: a.bottom };
+          const to = { x: b.x - facing * b.width * 0.4, y: b.bottom };
+          // Five depths, then over again: a bow that grew with every line would reach the next tier.
+          const depth = 34 + (index % 5) * 12;
+          const lowest = Math.max(from.y, to.y);
+          const d = `M ${from.x.toFixed(1)} ${from.y.toFixed(1)} Q ${((from.x + to.x) / 2).toFixed(1)} ${(lowest + depth).toFixed(1)} ${to.x.toFixed(1)} ${to.y.toFixed(1)}`;
           return (
             <g key={edge.id} className={`comm-edge comm-${edge.kind} is-${edge.status}${related.edges.has(edge.id) ? " is-highlighted" : ""}${related.active && !related.edges.has(edge.id) ? " is-dimmed" : ""}`}>
               <path data-edge-id={edge.id} d={d} markerEnd="url(#live-arrow)" />
-              {edge.kind === "role_offer" && <text x={(from.x + to.x) / 2 + direction * bow * 0.45} y={(from.y + to.y) / 2}>{edge.label}</text>}
+              {edge.kind === "role_offer" && <text x={(from.x + to.x) / 2} y={lowest + depth / 2} textAnchor="middle">{edge.label}</text>}
             </g>
           );
         })}
       </svg>
-      <section className="live-column live-work-column">
+      <section className="live-tier live-work-tier" aria-label="Plans and work">
         <h2>Plans &amp; work</h2>
-        {snapshot.work.map((node) => {
-          const nodeKey = key("work", node.id);
-          return (
-            <Card
-              key={node.id}
-              nodeKey={nodeKey}
-              {...nodeState(nodeKey)}
-              setRef={setCard(nodeKey)}
-              onSelect={() => onFocus({ kind: "work", id: node.id })}
-              className={`work-${node.kind}`}
-            >
-              <div className="live-card-topline">
-                <span className={`live-status status-${node.status}`}><i />{node.kind}</span>
-                {node.needsYou && <span className="live-warning">Needs you</span>}
-              </div>
-              <h3>{node.title}</h3>
-              {(node.roadmapTitle || node.stepTitle) && <p>{[node.roadmapTitle, node.stepTitle].filter(Boolean).join(" / ")}</p>}
-              <footer>
-                <span>{node.agentCount} connected {node.agentCount === 1 ? "agent" : "agents"}</span>
-                {node.needsYou && <span>{node.openQuestions} questions / {node.waitingProposals} proposals</span>}
-              </footer>
-            </Card>
-          );
-        })}
+        <div className="live-tier-row">
+          {groups.length === 0 && <p className="live-muted">No planned work is moving in this window.</p>}
+          {groups.map((group) => (
+            <div key={group.id || "outside"} className="live-work-group" role="group" aria-label={group.title ?? "Outside roadmaps"}>
+              {!group.nodes.some((node) => node.kind === "roadmap") && (
+                <p className="live-group-caption">{group.title ?? "Outside roadmaps"}</p>
+              )}
+              {group.nodes.map((node) => {
+                const nodeKey = key("work", node.id);
+                return (
+                  <Card
+                    key={node.id}
+                    nodeKey={nodeKey}
+                    {...nodeState(nodeKey)}
+                    setRef={setCard(nodeKey)}
+                    onSelect={() => onFocus({ kind: "work", id: node.id })}
+                    className={`work-${node.kind}`}
+                  >
+                    <div className="live-card-topline">
+                      <span className={`live-status status-${node.status}`}><i />{node.kind}</span>
+                      {node.needsYou && <span className="live-warning">Needs you</span>}
+                    </div>
+                    <h3>{node.title}</h3>
+                    {/* The group names the roadmap; an item still says which step it sits under. */}
+                    {node.kind === "item" && node.stepTitle && <p className="live-under">Under {node.stepTitle}</p>}
+                    <footer>
+                      <span>{node.agentCount} connected {node.agentCount === 1 ? "agent" : "agents"}</span>
+                      {node.needsYou && <span>{node.openQuestions} questions / {node.waitingProposals} proposals</span>}
+                    </footer>
+                  </Card>
+                );
+              })}
+            </div>
+          ))}
+        </div>
       </section>
-      <section className="live-column live-agent-column">
+      <section className="live-tier live-agent-tier" aria-label="Agents and chats">
         <h2>Agents &amp; chats</h2>
-        {hasPerson && (
-          <Card
-            nodeKey={key("person", "local-user")}
-            {...nodeState(key("person", "local-user"))}
-            setRef={setCard(key("person", "local-user"))}
-            onSelect={() => onFocus({ kind: "person", id: "local-user" })}
-            className="live-person-card"
-          >
-            <Avatar kind="human" size={28} />
-            <div><h3>You</h3><p>Requests, replies and handoffs</p></div>
-          </Card>
-        )}
-        {snapshot.agents.map((agent) => {
-          const nodeKey = key("agent", agent.id);
-          return (
+        <div className="live-tier-row">
+          {!hasPerson && agents.length === 0 && <p className="live-muted">No agent is active in this window.</p>}
+          {hasPerson && (
             <Card
-              key={agent.id}
-              nodeKey={nodeKey}
-              {...nodeState(nodeKey)}
-              setRef={setCard(nodeKey)}
-              onSelect={() => onFocus({ kind: "agent", id: agent.id })}
-              className={`agent-${agent.state}`}
+              nodeKey={key("person", "local-user")}
+              {...nodeState(key("person", "local-user"))}
+              setRef={setCard(key("person", "local-user"))}
+              onSelect={() => onFocus({ kind: "person", id: "local-user" })}
+              className="live-person-card"
             >
-              <div className="live-agent-head">
-                <span className="live-agent-avatar"><Avatar name={agent.avatar} size={32} /></span>
-                <div><h3>{agent.label}</h3><span className={`live-state state-${agent.state}`}>{STATES[agent.state]}</span></div>
-              </div>
-              <p className="live-provenance">
-                Declared: <strong>{DECLARED[agent.declaredState]}</strong>
-                <span aria-hidden="true"> / </span>
-                Session: <strong>{sessionText(agent)}</strong>
-              </p>
-              {agent.roles.length > 0 && <div className="live-chips">{agent.roles.map((role) => <span key={role}>{role}</span>)}</div>}
-              {agent.chats.length > 0 && <div className="live-chat-links">{agent.chats.map((chat) => <a key={chat.id} href={chat.href} onClick={(event) => event.stopPropagation()}>{chat.title}</a>)}</div>}
-              {agent.latestNote && <p className="live-note">{agent.latestNote}</p>}
+              <Avatar kind="human" size={28} />
+              <div><h3>You</h3><p>Requests, replies and handoffs</p></div>
             </Card>
-          );
-        })}
+          )}
+          {agents.map((agent) => {
+            const nodeKey = key("agent", agent.id);
+            return (
+              <Card
+                key={agent.id}
+                nodeKey={nodeKey}
+                {...nodeState(nodeKey)}
+                setRef={setCard(nodeKey)}
+                onSelect={() => onFocus({ kind: "agent", id: agent.id })}
+                className={`agent-${agent.state}`}
+              >
+                <div className="live-agent-head">
+                  <span className="live-agent-avatar"><Avatar name={agent.avatar} size={32} /></span>
+                  <div><h3>{agent.label}</h3><span className={`live-state state-${agent.state}`}>{STATES[agent.state]}</span></div>
+                </div>
+                <p className="live-provenance">
+                  Declared: <strong>{DECLARED[agent.declaredState]}</strong>
+                  <span aria-hidden="true"> / </span>
+                  Session: <strong>{sessionText(agent)}</strong>
+                </p>
+                {agent.roles.length > 0 && <div className="live-chips">{agent.roles.map((role) => <span key={role}>{role}</span>)}</div>}
+                {agent.chats.length > 0 && <div className="live-chat-links">{agent.chats.map((chat) => <a key={chat.id} href={chat.href} onClick={(event) => event.stopPropagation()}>{chat.title}</a>)}</div>}
+                {agent.latestNote && <p className="live-note" title={agent.latestNote}>{agent.latestNote}</p>}
+              </Card>
+            );
+          })}
+        </div>
       </section>
-      <section className="live-column live-repo-column">
+      <section className="live-tier live-repo-tier" aria-label="Repositories">
         <h2>Repositories</h2>
-        {snapshot.repositories.map((repo) => {
-          const nodeKey = key("repo", repo.id);
-          return (
-            <Card
-              key={repo.id}
-              nodeKey={nodeKey}
-              {...nodeState(nodeKey)}
-              setRef={setCard(nodeKey)}
-              onSelect={() => onFocus({ kind: "repo", id: repo.id })}
-            >
-              <div className="live-card-topline">
-                <h3>{repo.name}</h3>
-                {repo.unreviewed && <span className="live-neutral">unreviewed</span>}
-              </div>
-              {repo.overlapCount >= 2 && <strong className="live-warning">Overlap: {repo.overlapCount} agents</strong>}
-              {repo.branches.length > 0 && <div className="live-branches">{repo.branches.map((branch) => <code key={branch}>{branch}</code>)}</div>}
-              <footer className="live-links">
-                <a href={repo.href} onClick={(event) => event.stopPropagation()}>Open repository</a>
-                {repo.discussionId && <a href={`#discussions/${repo.discussionId}`} onClick={(event) => event.stopPropagation()}>Repository thread</a>}
-              </footer>
-            </Card>
-          );
-        })}
+        <div className="live-tier-row">
+          {repositories.length === 0 && <p className="live-muted">No repository activity in this window.</p>}
+          {repositories.map((repo) => {
+            const nodeKey = key("repo", repo.id);
+            return (
+              <Card
+                key={repo.id}
+                nodeKey={nodeKey}
+                {...nodeState(nodeKey)}
+                setRef={setCard(nodeKey)}
+                onSelect={() => onFocus({ kind: "repo", id: repo.id })}
+              >
+                <div className="live-card-topline">
+                  <h3>{repo.name}</h3>
+                  {repo.unreviewed && <span className="live-neutral">unreviewed</span>}
+                </div>
+                {repo.overlapCount >= 2 && <strong className="live-warning">Overlap: {repo.overlapCount} agents</strong>}
+                {repo.branches.length > 0 && <div className="live-branches">{repo.branches.map((branch) => <code key={branch}>{branch}</code>)}</div>}
+                <footer className="live-links">
+                  <a href={repo.href} onClick={(event) => event.stopPropagation()}>Open repository</a>
+                  {repo.discussionId && <a href={`#discussions/${repo.discussionId}`} onClick={(event) => event.stopPropagation()}>Repository thread</a>}
+                </footer>
+              </Card>
+            );
+          })}
+        </div>
       </section>
     </div>
   );
