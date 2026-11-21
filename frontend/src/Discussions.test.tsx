@@ -145,7 +145,12 @@ const unassignedRole: DiscussionRole = {
   offer: null,
 };
 
-type Call = { path: string; method: string; body: Record<string, unknown> };
+type Call = {
+  path: string;
+  method: string;
+  body: Record<string, unknown>;
+  params: URLSearchParams;
+};
 
 function serve({
   initialSummary = summary(),
@@ -170,7 +175,7 @@ function serve({
         typeof init?.body === "string"
           ? (JSON.parse(init.body) as Record<string, unknown>)
           : {};
-      calls.push({ path, method, body });
+      calls.push({ path, method, body, params: url.searchParams });
       const json = (value: unknown) =>
         new Response(JSON.stringify(value), {
           status: 200,
@@ -338,13 +343,13 @@ function serve({
   return { calls, fetchSpy };
 }
 
-function renderPage() {
+function renderPage(roadmap?: { id: string; title: string }) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return render(
     <QueryClientProvider client={client}>
-      <Discussions />
+      <Discussions roadmap={roadmap} />
     </QueryClientProvider>,
   );
 }
@@ -620,4 +625,77 @@ it("retains a draft after remounting in the same data context", async () => {
   expect(
     await screen.findByRole("textbox", { name: "Post message" }),
   ).toHaveValue("Saved in the browser.");
+});
+
+it("keeps a roadmap's view to its threads, tags a new post with the roadmap and opens threads there", async () => {
+  const user = userEvent.setup();
+  const api = serve();
+  const replaced = vi.spyOn(window.history, "replaceState");
+  renderPage({ id: "roadmap-1", title: "Launch readiness" });
+
+  const list = await screen.findByRole("region", { name: "Discussion list" });
+  // The roadmap's page gives the heading; roles stay on the Discussions page.
+  expect(
+    screen.queryByRole("heading", { name: "Discussions", level: 1 }),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByText(/Discussion roles/)).not.toBeInTheDocument();
+  await waitFor(() =>
+    expect(
+      api.calls.some(
+        (call) =>
+          call.path === "/discussions" &&
+          call.params.get("roadmapId") === "roadmap-1",
+      ),
+    ).toBe(true),
+  );
+  // Every page of threads it asks for is the roadmap's.
+  expect(
+    api.calls
+      .filter((call) => call.path === "/discussions" && call.method === "GET")
+      .every((call) => call.params.get("roadmapId") === "roadmap-1"),
+  ).toBe(true);
+  expect(
+    await within(list).findByRole("link", { name: /Project notes/ }),
+  ).toHaveAttribute("href", "#roadmaps/roadmap-1/discussions/discussion-1");
+
+  await user.click(screen.getByRole("button", { name: "New post" }));
+  expect(
+    screen.getByRole("button", { name: "Remove Launch readiness context" }),
+  ).toBeInTheDocument();
+  await user.type(
+    screen.getByRole("textbox", { name: "Post message" }),
+    "Freeze the schema on Friday.",
+  );
+  await user.click(screen.getByRole("button", { name: "Post discussion" }));
+
+  await screen.findByRole("heading", { name: "Freeze the schema on Friday." });
+  expect(
+    api.calls.find(
+      (call) => call.path === "/discussions" && call.method === "POST",
+    )?.body,
+  ).toMatchObject({ contexts: [{ type: "roadmap", id: "roadmap-1" }] });
+  expect(replaced).toHaveBeenCalledWith(
+    null,
+    "",
+    "#roadmaps/roadmap-1/discussions/created-discussion",
+  );
+});
+
+it("keeps the Discussions page's own posts untagged and its threads at their own address", async () => {
+  const user = userEvent.setup();
+  const api = serve();
+  renderPage();
+  const list = await screen.findByRole("region", { name: "Discussion list" });
+  expect(
+    await within(list).findByRole("link", { name: /Project notes/ }),
+  ).toHaveAttribute("href", "#discussions/discussion-1");
+  expect(
+    api.calls.every(
+      (call) => call.path !== "/discussions" || !call.params.has("roadmapId"),
+    ),
+  ).toBe(true);
+  await user.click(screen.getByRole("button", { name: "New post" }));
+  expect(
+    screen.queryByRole("list", { name: "Selected contexts" }),
+  ).not.toBeInTheDocument();
 });

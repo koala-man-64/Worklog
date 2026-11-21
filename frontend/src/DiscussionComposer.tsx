@@ -28,6 +28,8 @@ type Draft = {
   acknowledgementTargets: AcknowledgementInputTarget[];
 };
 
+const NO_CONTEXTS: ContextChoice[] = [];
+
 const emptyDraft: Draft = {
   title: "",
   text: "",
@@ -38,9 +40,15 @@ const emptyDraft: Draft = {
   acknowledgementTargets: [],
 };
 
-function readDraft(key: string) {
+// A draft with nothing saved starts with the tags its place gives it, such as a roadmap's view.
+function startingDraft(contexts: ContextChoice[]): Draft {
+  return { ...emptyDraft, contexts };
+}
+
+function readDraft(key: string, contexts: ContextChoice[]) {
   const stored = localStore.read(key);
-  if (!stored.value) return { value: emptyDraft, warning: !stored.ok };
+  if (!stored.value)
+    return { value: startingDraft(contexts), warning: !stored.ok };
   try {
     const parsed = JSON.parse(stored.value) as Partial<Draft>;
     return {
@@ -55,15 +63,15 @@ function readDraft(key: string) {
       warning: !stored.ok,
     };
   } catch {
-    return { value: emptyDraft, warning: !stored.ok };
+    return { value: startingDraft(contexts), warning: !stored.ok };
   }
 }
 
-function useDiscussionDraft(scope: string) {
+function useDiscussionDraft(scope: string, contexts: ContextChoice[]) {
   const key = contextStorageKey("discussion-draft", scope);
-  const [draft, setDraft] = useState(() => readDraft(key).value);
+  const [draft, setDraft] = useState(() => readDraft(key, contexts).value);
   const [storageWarning, setStorageWarning] = useState(
-    () => readDraft(key).warning,
+    () => readDraft(key, contexts).warning,
   );
   const [dirty, setDirty] = useState(false);
   const version = useRef(0);
@@ -82,7 +90,7 @@ function useDiscussionDraft(scope: string) {
   function clear() {
     version.current += 1;
     localStore.remove(key);
-    setDraft(emptyDraft);
+    setDraft(startingDraft(contexts));
     setDirty(false);
     setStorageWarning(false);
   }
@@ -96,6 +104,7 @@ function titleFromText(text: string) {
 
 export function Composer({
   scope,
+  initialContexts = NO_CONTEXTS,
   mode,
   participants,
   roles,
@@ -103,14 +112,18 @@ export function Composer({
   onSubmit,
 }: {
   scope: string;
+  // The tags a new draft starts with; one restored from storage keeps its own.
+  initialContexts?: ContextChoice[];
   mode: "new" | "reply";
   participants?: DiscussionParticipants;
   roles: DiscussionRole[];
   chats: ChatOverview[];
   onSubmit: (body: Schema["DiscussionCreate"]) => Promise<unknown>;
 }) {
-  const { draft, update, clear, storageWarning, version } =
-    useDiscussionDraft(scope);
+  const { draft, update, clear, storageWarning, version } = useDiscussionDraft(
+    scope,
+    initialContexts,
+  );
   const [error, setError] = useState<unknown>(null);
   const [isPending, setIsPending] = useState(false);
   const [notice, setNotice] = useState("");

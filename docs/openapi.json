@@ -7890,6 +7890,22 @@
             }
           },
           {
+            "name": "roadmapId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Roadmapid"
+            }
+          },
+          {
             "name": "repo",
             "in": "query",
             "required": false,

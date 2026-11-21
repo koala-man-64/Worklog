@@ -46,6 +46,7 @@ function viewPath(
   context: ContextRef | null,
   repo: string,
   offset: number,
+  roadmapId: string | undefined,
 ) {
   const params = new URLSearchParams({
     view,
@@ -53,6 +54,7 @@ function viewPath(
     limit: String(PAGE),
     offset: String(offset),
   });
+  if (roadmapId) params.set("roadmapId", roadmapId);
   if (context) {
     params.set("contextType", context.type);
     params.set("contextId", context.id);
@@ -61,7 +63,25 @@ function viewPath(
   return "/discussions?" + params.toString();
 }
 
-export function Discussions({ selected }: { selected?: string }) {
+/** The roadmap a Discussions view sits in, when it is a roadmap's view rather than its own page. */
+export type DiscussionsRoadmap = { id: string; title: string };
+
+/** Where a thread opens: on the Discussions page, or in the roadmap's Discussions view. */
+const discussionAddress = (id: string, roadmapId?: string) =>
+  roadmapId ? `#roadmaps/${roadmapId}/discussions/${id}` : "#discussions/" + id;
+
+/**
+ * The Discussions page, or a roadmap's Discussions view: the same threads, filters and composer,
+ * kept to the threads within the roadmap and the roadmaps under it, a new post tagged with the
+ * roadmap, and threads opened at the roadmap's address. Roles are managed on the page.
+ */
+export function Discussions({
+  selected,
+  roadmap,
+}: {
+  selected?: string;
+  roadmap?: DiscussionsRoadmap;
+}) {
   const [view, setView] = useState<View>("all");
   const [query, setQuery] = useState("");
   const [stableQuery, setStableQuery] = useState("");
@@ -76,7 +96,7 @@ export function Discussions({ selected }: { selected?: string }) {
   const action = useWrites();
   const queryClient = useQueryClient();
   const list = useData<DiscussionList>(
-    viewPath(view, stableQuery, contextFilter, repoFilter, offset),
+    viewPath(view, stableQuery, contextFilter, repoFilter, offset, roadmap?.id),
     REFRESH_MS,
   );
   const participants = useData<DiscussionParticipants>(
@@ -127,7 +147,7 @@ export function Discussions({ selected }: { selected?: string }) {
     window.history.replaceState(
       null,
       "",
-      "#discussions/" + result.discussion.id,
+      discussionAddress(result.discussion.id, roadmap?.id),
     );
   }
 
@@ -140,15 +160,18 @@ export function Discussions({ selected }: { selected?: string }) {
     repoFilter.trim() && "repository",
   ].filter(Boolean);
 
-  return (
-    <div className="bounded-screen">
-      <header>
-        <h1>Discussions</h1>
-        <p className="lede">
-          Durable messages across work, roadmaps, agent chats, and repositories.
-          Agent checks are opt-in; a post does not wake anyone.
-        </p>
-      </header>
+  const newPostContexts: ContextChoice[] = roadmap
+    ? [
+        {
+          type: "roadmap",
+          id: roadmap.id,
+          title: roadmap.title,
+          label: roadmap.title,
+        },
+      ]
+    : [];
+  const body = (
+    <>
       <ErrorMessage error={list.error || participants.error || chats.error} />
       <div
         className={
@@ -263,7 +286,9 @@ export function Discussions({ selected }: { selected?: string }) {
                   ? "No acknowledgement requests are waiting."
                   : view === "archived"
                     ? "No archived discussions."
-                    : "No discussions yet. Start a post when you have something to share or ask."}
+                    : roadmap
+                      ? "No discussion is on this roadmap, its steps, work items or sub-roadmaps yet. Start a post when you have something to share or ask."
+                      : "No discussions yet. Start a post when you have something to share or ask."}
               </Empty>
             ) : (
               <ul className="discussion-list">
@@ -272,6 +297,7 @@ export function Discussions({ selected }: { selected?: string }) {
                     key={discussion.id}
                     discussion={discussion}
                     selected={discussion.id === selectedId}
+                    href={discussionAddress(discussion.id, roadmap?.id)}
                     onSelect={() => {
                       setSelectedId(discussion.id);
                       setNewPostOpen(false);
@@ -289,17 +315,19 @@ export function Discussions({ selected }: { selected?: string }) {
               className="discussion-pagination"
             />
           </div>
-          <DiscussionRolesPanel
-            roles={roles.data?.items ?? []}
-            total={roles.data?.total ?? 0}
-            offset={roleOffset}
-            limit={ROLE_PAGE}
-            onPage={setRoleOffset}
-            onCreated={() => setRoleOffset(0)}
-            participants={participants.data}
-            error={roles.error}
-            isPending={roles.isPending}
-          />
+          {!roadmap && (
+            <DiscussionRolesPanel
+              roles={roles.data?.items ?? []}
+              total={roles.data?.total ?? 0}
+              offset={roleOffset}
+              limit={ROLE_PAGE}
+              onPage={setRoleOffset}
+              onCreated={() => setRoleOffset(0)}
+              participants={participants.data}
+              error={roles.error}
+              isPending={roles.isPending}
+            />
+          )}
         </section>
         <section
           className="pane detail discussion-detail"
@@ -320,7 +348,8 @@ export function Discussions({ selected }: { selected?: string }) {
               </div>
               <Composer
                 key="new"
-                scope="new"
+                scope={roadmap ? "new:roadmap:" + roadmap.id : "new"}
+                initialContexts={newPostContexts}
                 mode="new"
                 participants={participants.data}
                 roles={roles.data?.items ?? []}
@@ -345,6 +374,20 @@ export function Discussions({ selected }: { selected?: string }) {
           )}
         </section>
       </div>
+    </>
+  );
+  return roadmap ? (
+    body
+  ) : (
+    <div className="bounded-screen">
+      <header>
+        <h1>Discussions</h1>
+        <p className="lede">
+          Durable messages across work, roadmaps, agent chats, and repositories.
+          Agent checks are opt-in; a post does not wake anyone.
+        </p>
+      </header>
+      {body}
     </div>
   );
 }
@@ -352,17 +395,19 @@ export function Discussions({ selected }: { selected?: string }) {
 function DiscussionListItem({
   discussion,
   selected,
+  href,
   onSelect,
 }: {
   discussion: DiscussionSummary;
   selected: boolean;
+  href: string;
   onSelect: () => void;
 }) {
   return (
     <li className={selected ? "selected" : undefined}>
       <a
         className="discussion-list-link"
-        href={"#discussions/" + discussion.id}
+        href={href}
         aria-current={selected ? "true" : undefined}
         onClick={onSelect}
       >
