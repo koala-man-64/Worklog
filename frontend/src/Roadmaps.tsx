@@ -40,6 +40,7 @@ import { DecisionsSection, QuestionsSection } from "./QuestionsDecisions";
 import { AgentChips, AgentRoster, rosterOn, workersOn } from "./RoadmapAgents";
 import { AppliedProposals } from "./ProposalHistory";
 import { RoadmapChats } from "./RoadmapChats";
+import { Discussions } from "./Discussions";
 import { Live } from "./Live";
 import type {
   Answer,
@@ -223,6 +224,7 @@ const VIEWS = [
   { id: "outline", label: "Outline" },
   { id: "questions", label: "Questions and decisions" },
   { id: "chats", label: "Chats" },
+  { id: "discussions", label: "Discussions" },
   { id: "live", label: "Live" },
   { id: "material", label: "Material" },
   { id: "history", label: "History" },
@@ -275,7 +277,7 @@ export function RoadmapDetail({
   id: string;
   // After the roadmap, the address names a view or a step.
   step?: string;
-  // After the Chats view, the chat it opens.
+  // After the Chats view, the chat it opens; after the Discussions view, the thread.
   chat?: string;
 }) {
   const named = VIEWS.find((v) => v.id === sub)?.id;
@@ -1066,6 +1068,11 @@ export function RoadmapDetail({
         </div>
       ) : view === "chats" ? (
         <RoadmapChats road={road} chat={chat} />
+      ) : view === "discussions" ? (
+        <Discussions
+          roadmap={{ id: road.id, title: road.title }}
+          selected={chat}
+        />
       ) : view === "live" ? (
         <Live roadmapId={id} embedded />
       ) : (

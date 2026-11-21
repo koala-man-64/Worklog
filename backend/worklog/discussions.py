@@ -742,16 +742,43 @@ class DiscussionService:
             EXISTS(SELECT 1 FROM discussion_messages m JOIN discussion_targets t ON t.message_id=m.id JOIN discussion_roles tr ON t.kind='role' AND tr.id=t.recipient_id WHERE m.discussion_id=d.id AND tr.context_type=? AND tr.context_id=?))"""
         return clause, [*scope, *scope, *scope]
 
+    @staticmethod
+    def _roadmap_scope(roadmap_id: str) -> tuple[str, list]:
+        """The threads within a roadmap: those tagged with it, a sub-roadmap of it at any depth, a step
+        of one of them or a work item on one of them (a work item's step places it before its own
+        roadmap, as on Live), and those a role in one of those contexts wrote or was asked in, as
+        `_discussion_scope` counts them. Archived sub-roadmaps and retired steps keep their threads.
+        An unknown roadmap finds nothing, as an unknown context does."""
+        clause = """d.id IN(WITH RECURSIVE tree(id) AS(SELECT id FROM roadmaps WHERE id=?
+                UNION SELECT r.id FROM roadmaps r JOIN tree ON r.parent_id=tree.id),
+            within(type,id) AS(SELECT 'roadmap',id FROM tree
+                UNION ALL SELECT 'step',s.id FROM steps s WHERE s.roadmap_id IN(SELECT id FROM tree)
+                UNION ALL SELECT 'item',w.id FROM work_items w
+                    WHERE COALESCE((SELECT s.roadmap_id FROM steps s WHERE s.id=w.step_id),w.roadmap_id) IN(SELECT id FROM tree))
+            SELECT dc.discussion_id FROM discussion_contexts dc JOIN within ON within.type=dc.context_type AND within.id=dc.context_id
+            UNION SELECT m.discussion_id FROM discussion_messages m JOIN discussion_roles sr ON sr.id=m.on_behalf_of_role_id
+                JOIN within ON within.type=sr.context_type AND within.id=sr.context_id
+            UNION SELECT m.discussion_id FROM discussion_messages m JOIN discussion_targets t ON t.message_id=m.id
+                JOIN discussion_roles tr ON t.kind='role' AND tr.id=t.recipient_id
+                JOIN within ON within.type=tr.context_type AND within.id=tr.context_id)"""
+        return clause, [text(roadmap_id, "roadmapId", required=True, limit=500)]
+
     def list(self, c: sqlite3.Connection, actor: dict, *, view: str = "all", q: str = "",
              context_type: str | None = None, context_id: str | None = None,
+             roadmap_id: str | None = None,
              repo: str | None = None, pinned: bool | None = None, limit: int = 50, offset: int = 0) -> dict:
         """Pinned threads first, the latest pinned first, then the most recently active. `repo` keeps
-        the threads with that free-text label, which no new thread gets (K8)."""
+        the threads with that free-text label, which no new thread gets (K8). `roadmap_id` keeps the
+        threads within that roadmap and the roadmaps under it, for the roadmap's Discussions view."""
         if view not in {"all", "awaiting", "archived"}:
             raise AppError(422, "validation", "Unknown discussion view")
         scope = self._scope(c, context_type, context_id)
         scope_clause, args = self._discussion_scope(scope)
         clauses = [scope_clause]
+        if roadmap_id is not None:
+            roadmap_clause, roadmap_args = self._roadmap_scope(roadmap_id)
+            clauses.append(roadmap_clause)
+            args.extend(roadmap_args)
         if pinned is not None:
             clauses.append("d.pinned_at IS NOT NULL" if pinned else "d.pinned_at IS NULL")
         if view != "awaiting":

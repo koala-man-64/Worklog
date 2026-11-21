@@ -232,3 +232,42 @@ def test_an_agents_message_in_a_repository_thread_ties_it_to_that_repository_and
     agent = read(client, f"/agents/{builder['agentId']}")
     tied = {r["id"]: r["via"] for r in agent["repositories"]["items"]}
     assert tied == {repository["id"]: ["message"]}
+
+
+def test_a_roadmap_keeps_the_threads_within_it_and_the_roadmaps_under_it(client):
+    """The roadmap's Discussions view: threads tagged with the roadmap, a sub-roadmap at any depth, a step
+    of one, or a work item on one (by its step, else its roadmap); and a thread a role there was asked in. Threads elsewhere stay out, and an unknown roadmap finds nothing."""
+    top = ok(write(client, "POST", "/roadmaps", {"title": "Platform", "steps": [{"title": "Plan"}]}))
+    middle = ok(write(client, "POST", "/roadmaps", {"title": "Storage", "parentId": top["id"]}))
+    bottom = ok(write(client, "POST", "/roadmaps", {"title": "Backups", "parentId": middle["id"],
+                                                     "steps": [{"title": "Nightly copy"}]}))
+    elsewhere = ok(write(client, "POST", "/roadmaps", {"title": "Hiring", "steps": [{"title": "Post the role"}]}))
+    on_bottom_step = ok(write(client, "POST", "/work-items", {"title": "Copy job", "stepId": bottom["steps"][0]["id"]}))
+    # A work item on a roadmap with no step belongs to that roadmap.
+    moved = ok(write(client, "POST", "/work-items", {"title": "Interview loop", "roadmapId": elsewhere["id"]}))
+    role = ok(write(client, "POST", "/discussions/roles", {"contextType": "step", "contextId": top["steps"][0]["id"],
+                                                            "label": "Planner"}))
+    threads = {
+        "top": start(client, title="Top", contexts=[{"type": "roadmap", "id": top["id"]}]),
+        "top step": start(client, title="Top step", contexts=[{"type": "step", "id": top["steps"][0]["id"]}]),
+        "deep roadmap": start(client, title="Deep", contexts=[{"type": "roadmap", "id": bottom["id"]}]),
+        "deep work": start(client, title="Deep work", contexts=[{"type": "item", "id": on_bottom_step["id"]}]),
+        "role asked": start(client, title="Role asked",
+                            acknowledgement={"mode": "all", "targets": [{"kind": "role", "id": role["id"]}]}),
+        "moved work": start(client, title="Moved work", contexts=[{"type": "item", "id": moved["id"]}]),
+        "elsewhere": start(client, title="Elsewhere", contexts=[{"type": "roadmap", "id": elsewhere["id"]}]),
+        "untagged": start(client, title="Untagged"),
+    }
+    names = {thread["id"]: name for name, thread in threads.items()}
+
+    def listed(path):
+        return {names[d["id"]] for d in read(client, path)["items"]}
+
+    assert listed(f"/discussions?roadmapId={top['id']}") == {"top", "top step", "deep roadmap", "deep work", "role asked"}
+    assert read(client, f"/discussions?roadmapId={top['id']}")["total"] == 5
+    assert listed(f"/discussions?roadmapId={middle['id']}") == {"deep roadmap", "deep work"}
+    assert listed(f"/discussions?roadmapId={elsewhere['id']}") == {"elsewhere", "moved work"}
+    # The roadmap scope narrows the other filters rather than replacing them.
+    assert listed(f"/discussions?roadmapId={top['id']}&contextType=roadmap&contextId={bottom['id']}") == {"deep roadmap"}
+    assert listed(f"/discussions?roadmapId={top['id']}&q=Deep") == {"deep roadmap", "deep work"}
+    assert read(client, f"/discussions?roadmapId={uuid.uuid4()}")["total"] == 0

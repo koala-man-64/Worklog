@@ -112,10 +112,13 @@ def install_discussion_routes(app: FastAPI, db: Database, mutate: Callable) -> N
     @app.get("/api/v1/discussions", response_model=out.Discussions)
     def list_discussions(request: Request, view: Literal["all", "awaiting", "archived"] = "all",
                          q: str = "", contextType: m.ContextType | None = None,
-                         contextId: str | None = None, repo: str | None = None, pinned: bool | None = None,
+                         contextId: str | None = None, roadmapId: str | None = None,
+                         repo: str | None = None, pinned: bool | None = None,
                          limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
+        # `roadmapId` keeps the threads within a roadmap, its sub-roadmaps, their steps and work items.
         return read(request, lambda c, a: service.list(c, a, view=view, q=q, context_type=contextType, context_id=contextId,
-                                                       repo=repo, pinned=pinned, limit=limit, offset=offset))
+                                                       roadmap_id=roadmapId, repo=repo, pinned=pinned,
+                                                       limit=limit, offset=offset))
 
     @app.post("/api/v1/discussions", response_model=out.DiscussionStarted)
     def create_discussion(request: Request, body: m.DiscussionCreate) -> dict:

@@ -424,7 +424,7 @@ Plans broken into steps, with every saved version kept.
     - "Edit structure", and "Archive" or "Recover".
     - The progress bar.
     - "Nested under", the sub-roadmaps and "Add sub-roadmap".
-    - Its views, each at its own address: "Status", "Outline", "Questions and decisions" with how many are open, "Chats", "Live", "Material" and "History".
+    - Its views, each at its own address: "Status", "Outline", "Questions and decisions" with how many are open, "Chats", "Discussions", "Live", "Material" and "History".
   - **"Status"**, which the roadmap opens on:
     - "Phases": each step at the top of the outline, with how many of the steps under it are done, in progress, blocked and open, and a bar filled in those colours.
     - "Now": the steps in progress, each with its phase and the agents working on it.
@@ -448,6 +448,7 @@ Plans broken into steps, with every saved version kept.
     - "Agent chats" lists the chats tracked on the roadmap, on its work items and on its sub-roadmaps, working ones first. Each shows its steps, and a chat tracked on a work item or sub-roadmap names it.
     - "Track a chat" tracks a new one on the roadmap and opens it. The roadmap's archived chats are under "Archived supporting records".
     - "Chat history" shows the chosen chat's "Agents" and transcript, the most recently active chat first. A chat tracked on the roadmap itself also has "Copy ID", "Edit" and "Archive" there; a work item's or sub-roadmap's chat is changed on that record's page.
+  - **"Discussions"**: **Discussions** for this roadmap alone: the threads tagged with the roadmap, its steps, its work items or its sub-roadmaps and theirs, and those a responsibility role there wrote or was asked in, with the same views, search and filters. "New post" starts a thread tagged with the roadmap; take the tag off to post it elsewhere. Responsibility roles are managed on **Discussions**.
   - **"Live"**: **Live** for this roadmap and its sub-roadmaps alone.
   - **"Material"**: "Work items", the work on the roadmap, each with a link to the step it is on; add and attach work on a step's page. Then notes, links, GitHub references and files, with archived ones under "Archived supporting records".
   - **"History"**: "Immutable versions", each with its note and "Restore as new version", then "Applied proposals" and "Activity history".
