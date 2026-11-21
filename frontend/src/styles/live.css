@@ -184,38 +184,77 @@
   flex-wrap: wrap;
   gap: 7px;
 }
+/* Three tiers, top down: plans and work, agents and chats, repositories. The gap between tiers
+   is where the lines run, so it stays wide enough for a curve and for messages that bow below
+   the agents. */
 .live-canvas {
   position: relative;
   isolation: isolate;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--live-gap);
+  display: flex;
+  flex-direction: column;
+  gap: 76px;
   min-height: 440px;
-  padding: 14px;
+  padding: 16px 18px 22px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--bg);
   overflow: hidden;
 }
-.live-canvas::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -2;
-  background: linear-gradient(90deg, transparent 33.1%, var(--line) 33.2%, transparent 33.3%, transparent 66.4%, var(--line) 66.5%, transparent 66.6%);
-  opacity: 0.55;
-}
-.live-column {
+.live-tier {
   position: relative;
   z-index: 2;
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr);
+  gap: var(--live-gap);
+  align-items: start;
   min-width: 0;
 }
-.live-column > h2 {
-  margin: 0 0 12px;
-  padding: 7px 10px;
+.live-tier > h2 {
+  margin: 0;
+  padding: 7px 0;
   border-bottom: 2px solid var(--ink);
   font-family: var(--font-display);
-  font-size: clamp(1rem, 2vw, 1.25rem);
+  font-size: clamp(1rem, 1.6vw, 1.2rem);
+  line-height: 1.15;
+}
+.live-tier-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+.live-tier-row > .live-card,
+.live-work-group > .live-card {
+  flex: 0 1 16rem;
+  min-width: 11.5rem;
+  margin: 0;
+}
+.live-tier-row > .live-muted {
+  margin: 8px 0;
+}
+/* One roadmap: its own card first, then each step followed by the items under it. */
+.live-work-group {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px dashed var(--field-edge);
+  border-radius: 10px;
+}
+.live-group-caption {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 .live-wires {
   position: absolute;
@@ -309,11 +348,8 @@
 .lane-row.is-dimmed {
   opacity: 0.28;
 }
-.live-card.work-step {
-  margin-left: 12px;
-}
-.live-card.work-item {
-  margin-left: 24px;
+.live-card.work-roadmap {
+  border-top: 3px solid var(--ink);
 }
 .live-card h3 {
   margin: 2px 0 3px;
@@ -448,6 +484,15 @@
 .live-note {
   padding-left: 8px;
   border-left: 2px solid var(--line);
+}
+/* A tier is only as compact as its tallest card: an agent's note can run to paragraphs, so the
+   map shows its start and the card's title shows the rest. */
+.live-tier .live-note {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
 }
 /* Hashes, paths and branch names have no space to break at, and would leave their card. */
 .live-card,
@@ -720,24 +765,29 @@
   }
 }
 @media (max-width: 980px) {
-  .live-canvas {
-    grid-template-columns: 1fr;
+  .live-tier {
+    grid-template-columns: minmax(0, 1fr);
   }
-  .live-canvas::before,
-  .live-wires {
-    display: none;
-  }
-  .live-card.work-step,
-  .live-card.work-item {
-    margin-left: 0;
-  }
-  .live-column > h2 {
-    position: static;
+  .live-tier > h2 {
+    justify-self: start;
+    padding-right: 12px;
   }
 }
 @media (max-width: 640px) {
   .live-page {
     padding: 14px;
+  }
+  /* One card to a row: lines would run straight through the cards below them. */
+  .live-canvas {
+    gap: 22px;
+  }
+  .live-wires {
+    display: none;
+  }
+  .live-tier-row > .live-card,
+  .live-work-group,
+  .live-work-group > .live-card {
+    flex-basis: 100%;
   }
   .live-heading,
   .live-pulses > header,
