@@ -141,6 +141,22 @@ test("roadmap immutable revisions and mobile navigation", async ({ page }) => {
     chatHistory.getByText(/No transcript on this machine has this chat ID/),
   ).toBeVisible();
   expect(await fits()).toBeTruthy();
+  // A post from the roadmap's Discussions view is tagged with the roadmap, so it lists there.
+  await views.getByRole("link", { name: "Discussions", exact: true }).click();
+  await page.getByRole("button", { name: "New post", exact: true }).click();
+  await page
+    .getByRole("textbox", { name: "Post message", exact: true })
+    .fill("Who reviews the plan?");
+  await page
+    .getByRole("button", { name: "Post discussion", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/discussions\/[0-9a-f-]{36}$/);
+  await expect(
+    page
+      .getByRole("region", { name: "Discussion list" })
+      .getByRole("link", { name: /Who reviews the plan\?/ }),
+  ).toBeVisible();
+  expect(await fits()).toBeTruthy();
   await views.getByRole("link", { name: "History", exact: true }).click();
   await expect(page.getByText("Version 2", { exact: true })).toBeVisible();
   expect(await fits()).toBeTruthy();

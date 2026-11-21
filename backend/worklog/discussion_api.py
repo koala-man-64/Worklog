@@ -151,7 +151,8 @@ def install_discussion_routes(app: FastAPI, db: Database, mutate: Callable) -> N
     @app.get("/api/v1/discussions", response_model=out.Discussions)
     def list_discussions(request: Request, view: Literal["all", "awaiting", "archived"] = "all",
                          q: str = "", contextType: m.ContextType | None = None,
-                         contextId: str | None = None, repo: str | None = None, pinned: bool | None = None,
+                         contextId: str | None = None, roadmapId: str | None = None,
+                         repo: str | None = None, pinned: bool | None = None,
                          limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
         def pending(c: sqlite3.Connection, result: dict) -> list[str]:
             # Listing what awaits the caller shows it the pending requests in those threads.
@@ -159,8 +160,10 @@ def install_discussion_routes(app: FastAPI, db: Database, mutate: Callable) -> N
             return [row[0] for row in rows_in(c, "SELECT m.id FROM discussion_messages m JOIN discussion_requests r ON "
                                                  "r.message_id=m.id WHERE r.state='pending' AND m.discussion_id IN ({})", ids)]
 
+        # `roadmapId` keeps the threads within a roadmap, its sub-roadmaps, their steps and work items.
         return delivering(request, lambda c, a: service.list(c, a, view=view, q=q, context_type=contextType, context_id=contextId,
-                                                             repo=repo, pinned=pinned, limit=limit, offset=offset), pending)
+                                                             roadmap_id=roadmapId, repo=repo, pinned=pinned,
+                                                             limit=limit, offset=offset), pending)
 
     @app.post("/api/v1/discussions", response_model=out.DiscussionStarted)
     def create_discussion(request: Request, body: m.DiscussionCreate) -> dict:

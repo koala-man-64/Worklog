@@ -13992,6 +13992,7 @@ export interface operations {
                 q?: string;
                 contextType?: ("item" | "roadmap" | "step" | "repository" | "ticket" | "person" | "resource" | "question" | "decision") | null;
                 contextId?: string | null;
+                roadmapId?: string | null;
                 repo?: string | null;
                 pinned?: boolean | null;
                 limit?: number;

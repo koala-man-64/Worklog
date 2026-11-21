@@ -426,7 +426,7 @@ Plans broken into steps, with every saved version kept.
     - "Edit structure", and "Archive" or "Recover".
     - The progress bar.
     - "Nested under", the sub-roadmaps and "Add sub-roadmap".
-    - Its views, each at its own address: "Status", "Outline", "Questions and decisions" with how many are open, "Chats", "Live", "Material" and "History".
+    - Its views, each at its own address: "Status", "Outline", "Questions and decisions" with how many are open, "Chats", "Discussions", "Live", "Material" and "History".
   - **"Status"**, which the roadmap opens on:
     - "Phases": each step at the top of the outline, with how many of the steps under it are done, in progress, blocked and open, and a bar filled in those colours.
     - "Now": the steps in progress, each with its phase and the agents working on it.
@@ -450,6 +450,7 @@ Plans broken into steps, with every saved version kept.
     - "Agent chats" lists the chats tracked on the roadmap, on its work items and on its sub-roadmaps, working ones first. Each shows its steps, and a chat tracked on a work item or sub-roadmap names it.
     - "Track a chat" tracks a new one on the roadmap and opens it. The roadmap's archived chats are under "Archived supporting records".
     - "Chat history" shows the chosen chat's "Agents" and transcript, the most recently active chat first. A chat tracked on the roadmap itself also has "Copy ID", "Edit" and "Archive" there; a work item's or sub-roadmap's chat is changed on that record's page.
+  - **"Discussions"**: **Discussions** for this roadmap alone: the threads tagged with the roadmap, its steps, its work items or its sub-roadmaps and theirs, and those a responsibility role there wrote or was asked in, with the same views, search and filters. "New post" starts a thread tagged with the roadmap; take the tag off to post it elsewhere. Responsibility roles are managed on **Discussions**.
   - **"Live"**: **Live** for this roadmap and its sub-roadmaps alone.
   - **"Material"**: "Work items", the work on the roadmap, each with a link to the step it is on; add and attach work on a step's page. Then notes, links, GitHub references and files, with archived ones under "Archived supporting records".
   - **"History"**: "Immutable versions", each with its note and "Restore as new version", then "Applied proposals" and "Activity history".
@@ -506,7 +507,7 @@ See [Keep reference pages for you and your agents](#keep-reference-pages-for-you
 
 ### Live
 
-A live view of work items, roadmaps, agents, tracked chats and repositories. Use "Filter by roadmap" to choose a roadmap and "Activity window" to set the time range. "Visualization mode" switches between "Flow map" and "Swimlanes". "Pause live updates" stops refreshing. "Recent pulses" lists recent updates; "Show as table" switches to a table.
+A live view of work items, roadmaps, agents, tracked chats and repositories. Use "Filter by roadmap" to choose a roadmap and "Activity window" to set the time range. "Visualization mode" switches between "Flow map" and "Swimlanes". The flow map reads top down: each roadmap's work at the top (the roadmap, then each step followed by its work items), the agents working on it in the middle, and the repositories they change at the bottom. Agents sit under the work they connect to, and repositories under their agents, so the lines between them cross as little as they can; select a card to see only what it connects to. "Pause live updates" stops refreshing. "Recent pulses" lists recent updates; "Show as table" switches to a table.
 
 - **What shows.** Live shows what is moving, not everything in progress: the roadmap's "Status" shows that.
   - **Agents.** One that is at work, one that acted inside the Activity window, and one with a live credential that an open request or a waiting proposal still names; a role keeps an agent too, unless its last report went stale. "Show idle, stale and revoked agents" adds the rest: agents with nothing current, ones whose last report nobody renewed, and ones whose credential you revoked. With a roadmap chosen, an agent shows for a tie to that roadmap's work that still holds, not for being at work elsewhere; the checkbox then adds every agent tied to that roadmap.
