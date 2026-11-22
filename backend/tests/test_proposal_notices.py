@@ -142,6 +142,19 @@ def test_a_notice_that_cannot_be_posted_leaves_the_write_applied_and_is_recorded
     assert recorded(client, waiting["id"]) == (1, 0)
 
 
+def test_a_reopening_whose_notice_cannot_be_posted_still_returns_the_proposal_to_draft(client, monkeypatch):
+    _, ids, agent = plan(client)
+    proposal = submit(client, agent, "Start step 0", [progress(ids[0])])
+
+    def refuse(*args, **kwargs):
+        raise AppError(422, "validation", "A discussion holds at most 30 tags", {"contexts": "limit"})
+
+    monkeypatch.setattr(DiscussionService, "create", refuse)
+    reopened = ok(write(client, "POST", f"/proposals/{proposal['id']}/reopen", {"revision": proposal["revision"]}))
+    assert reopened["status"] == "draft"
+    assert notices(client) == []
+
+
 def test_a_database_error_in_a_notice_still_fails_the_write(client, monkeypatch):
     _, ids, agent = plan(client)
     submit(client, agent, "Finish step 0", [progress(ids[0], "done")])

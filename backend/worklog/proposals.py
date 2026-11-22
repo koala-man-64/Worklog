@@ -27,8 +27,6 @@ from .plans import Forecast
 # keys come from its one definition in operations.py: (required, allowed) per action.
 FIELDS = {action: tuple(set(names) for names in keys(action)) for action in OPERATIONS}
 
-# Approves under the person's standing choice in Settings rather than a decision on one
-# proposal: the person's authority, recorded apart from the approvals they give in Review.
 logger = logging.getLogger("worklog")
 # A notice's title, as a discussion's title, holds at most this many UTF-8 bytes (discussions.create).
 NOTICE_TITLE_BYTES = 1000
@@ -41,6 +39,8 @@ def _cut(value: str, limit: int) -> str:
     return value.encode("utf-8")[:limit].decode("utf-8", "ignore")
 
 
+# Approves under the person's standing choice in Settings rather than a decision on one
+# proposal: the person's authority, recorded apart from the approvals they give in Review.
 AUTOMATIC = {"id": AUTOMATIC_APPROVAL_ID, "label": "Automatic approval", "kind": "human"}
 # Since v12 a proposal's row says when it was last submitted and whether automatic approval
 # applied it; before, both were read from its events. Since v18 a proposal also names the directory
