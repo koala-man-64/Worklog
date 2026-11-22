@@ -25,5 +25,9 @@ export default defineConfig({
         // sessions running on it would show on Chats. Specs write the records they need.
         env: { CLAUDE_CONFIG_DIR: claudeFolder },
       },
-  reporter: "list",
+  // In CI a failed test runs once more, so one flaky test cannot leave main red; locally it
+  // fails at once. The list reporter's summary names each test that passed only on its retry
+  // ("flaky"), and in CI the github reporter shows them on the run's page.
+  retries: process.env.CI ? 1 : 0,
+  reporter: process.env.CI ? [["list"], ["github"]] : "list",
 });

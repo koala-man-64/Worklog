@@ -22,14 +22,16 @@ export function Settings() {
   const catalog = useData<AvatarCatalog>("/discussions/avatars");
   const action = useWrites();
   const [label, setLabel] = useState("");
-  // Null keeps the server's latest draw until the person picks one.
+  // Null until the person picks one: the form previews the server's suggestion, and creating
+  // sends no avatar, so the server draws a free one then. Another agent may take the suggestion
+  // meanwhile, which only the person's own choice can collide with.
   const [avatar, setAvatar] = useState<string | null>(null);
-  const chosenAvatar = avatar ?? catalog.data?.suggested;
+  const shownAvatar = avatar ?? catalog.data?.suggested;
   const avatarTaken = !!(
     catalog.data &&
-    chosenAvatar &&
+    avatar &&
     !catalog.data.items.some(
-      (entry) => entry.available && entry.name === chosenAvatar,
+      (entry) => entry.available && entry.name === avatar,
     )
   );
   const [token, setToken] = useState("");
@@ -226,7 +228,7 @@ export function Settings() {
             await action
               .mutateAsync(() =>
                 commands.issueCredential(
-                  chosenAvatar ? { label, avatar: chosenAvatar } : { label },
+                  avatar ? { label, avatar } : { label },
                 ),
               )
               .then((result) => {
@@ -251,10 +253,11 @@ export function Settings() {
               .catch(() => undefined);
           }}
         >
-          {catalog.data && chosenAvatar && (
+          {catalog.data && shownAvatar && (
             <AvatarPicker
-              value={chosenAvatar}
+              value={shownAvatar}
               catalog={catalog.data}
+              suggested={avatar === null}
               taken={avatarTaken}
               onChange={setAvatar}
             />
@@ -383,8 +386,8 @@ export function Settings() {
         <h2>Archive & recovery</h2>
         <p>
           Archived work and roadmaps retain their history. Use the archive
-          switches in Work and Roadmaps to recover them. Notes, files and
-          paths can be recovered inside their owning record.
+          switches in Work and Roadmaps to recover them. Notes, files and paths
+          can be recovered inside their owning record.
         </p>
         <div className="toolbar">
           <a className="button" href="#work">
@@ -405,11 +408,14 @@ const COLOR_NAMES = Object.keys(AVATAR_COLORS) as AvatarParts["color"][];
 function AvatarPicker({
   value,
   catalog,
+  suggested,
   taken,
   onChange,
 }: {
   value: string;
   catalog: AvatarCatalog;
+  /** The server's suggestion, not yet the person's choice. */
+  suggested: boolean;
   taken: boolean;
   onChange: (name: string) => void;
 }) {
@@ -453,6 +459,12 @@ function AvatarPicker({
       >
         Shuffle
       </button>
+      {suggested && (
+        <small className="muted">
+          Suggested. Pick your own, or leave it and Worklog gives the agent a
+          free avatar.
+        </small>
+      )}
       {taken && (
         <small className="warning" role="status">
           An active agent already shows this avatar. Choose another.
