@@ -282,7 +282,7 @@ Agents read your pages and change them only by proposal: you see each change on 
 
 ### Bring an AI agent in
 
-1. In **Settings**, under "Agent credentials", give the credential a label ("Credential label"), pick an avatar or press "Shuffle", and press "Create credential".
+1. In **Settings**, under "Agent credentials", give the credential a label ("Credential label"), and press "Create credential". The avatar shown first is only a suggestion: pick your own or press "Shuffle", or leave it, and Worklog gives the agent an avatar no active agent shows.
 2. Press "Copy token". The token is shown only once; press "I have saved it" when done.
 3. Give the token to your agents through a user environment variable named `WORKLOG_AGENT_TOKEN`:
    - Open the Start menu and search for **Edit environment variables for your account**.

@@ -191,6 +191,62 @@ it("issues a credential with the suggested avatar or one the person picks", asyn
   );
 });
 
+it("leaves the avatar to the server until the person picks one, even when the suggestion was taken", async () => {
+  const posted: unknown[] = [];
+  // The suggestion was drawn when the form loaded; another agent has taken it since.
+  const stale: AvatarCatalog = {
+    ...catalog,
+    items: [
+      ...catalog.items.filter((entry) => entry.name !== "amber-dots-ears"),
+      { name: "amber-dots-ears", available: false },
+    ],
+  };
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const path = new URL(String(input), "http://worklog.test").pathname.replace(
+      "/api/v1",
+      "",
+    );
+    if (init?.method === "POST") posted.push(JSON.parse(String(init.body)));
+    const result =
+      init?.method === "POST"
+        ? { id: "credential-new", agentId: "profile-new", token: "secret" }
+        : path === "/discussions/avatars"
+          ? stale
+          : settings;
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+  const user = userEvent.setup();
+  render(
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: {
+            queries: { retry: false },
+            mutations: { retry: false },
+          },
+        })
+      }
+    >
+      <Settings />
+    </QueryClientProvider>,
+  );
+
+  const picker = await screen.findByRole("group", { name: "Avatar" });
+  expect(picker).toHaveTextContent(/Suggested/);
+  expect(screen.queryByText(/already shows this avatar/)).toBeNull();
+  await user.type(
+    screen.getByRole("textbox", { name: "Credential label" }),
+    "Builder",
+  );
+  const create = screen.getByRole("button", { name: "Create credential" });
+  expect(create).toBeEnabled();
+  await user.click(create);
+  await waitFor(() => expect(posted).toEqual([{ label: "Builder" }]));
+});
+
 it("turns proposal approval off and back on", async () => {
   let current = settings;
   const patches: unknown[] = [];
