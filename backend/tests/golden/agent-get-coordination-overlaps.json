@@ -1,24 +1,24 @@
 {
-  "status": 200,
   "body": {
-    "repositories": [],
-    "participations": [],
     "announcements": [],
     "discussions": [
       {
         "id": "<id1>",
-        "title": "Parser",
-        "pinned": true,
-        "updatedAt": "<time>",
         "matched": [
           {
-            "type": "item",
-            "id": "<id2>"
+            "id": "<id2>",
+            "type": "item"
           }
-        ]
+        ],
+        "pinned": true,
+        "title": "Parser",
+        "updatedAt": "<time.ffffff+hh:mm>"
       }
     ],
+    "participations": [],
+    "repositories": [],
     "roles": [],
     "tickets": []
-  }
+  },
+  "status": 200
 }

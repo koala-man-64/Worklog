@@ -1,57 +1,57 @@
 {
-  "status": 200,
   "body": {
+    "collectionRevision": 6,
     "items": [
       {
-        "id": "<id1>",
-        "title": "Parser",
-        "description": "Parse the plan",
-        "status": "doing",
         "adoUrl": null,
-        "roadmapId": "<id2>",
-        "stepId": "<id3>",
-        "backlogOrder": 1,
         "archived": false,
-        "revision": 3,
-        "createdAt": "<time>",
-        "updatedAt": "<time>",
-        "rank": 1,
-        "repositoryIds": [],
+        "backlogOrder": 1,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "description": "Parse the plan",
+        "id": "<id1>",
         "isBacklog": false,
         "people": [
           {
-            "id": "<id4>",
-            "personId": "<id5>",
-            "name": "Ada",
-            "personTitle": "Engineer",
-            "personTeam": "",
-            "relationship": "Reviewer",
             "archived": false,
-            "createdAt": "<time>"
+            "createdAt": "<time.ffffff+hh:mm>",
+            "id": "<id4>",
+            "name": "Ada",
+            "personId": "<id5>",
+            "personTeam": "",
+            "personTitle": "Engineer",
+            "relationship": "Reviewer"
           }
-        ]
+        ],
+        "rank": 1,
+        "repositoryIds": [],
+        "revision": 3,
+        "roadmapId": "<id2>",
+        "status": "doing",
+        "stepId": "<id3>",
+        "title": "Parser",
+        "updatedAt": "<time.ffffff+hh:mm>"
       },
       {
-        "id": "<id6>",
-        "title": "Release notes",
-        "description": "",
-        "status": "open",
         "adoUrl": null,
-        "roadmapId": null,
-        "stepId": null,
-        "backlogOrder": 2,
         "archived": false,
-        "revision": 1,
-        "createdAt": "<time>",
-        "updatedAt": "<time>",
+        "backlogOrder": 2,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "description": "",
+        "id": "<id6>",
+        "isBacklog": true,
+        "people": [],
         "rank": 2,
         "repositoryIds": [],
-        "isBacklog": true,
-        "people": []
+        "revision": 1,
+        "roadmapId": null,
+        "status": "open",
+        "stepId": null,
+        "title": "Release notes",
+        "updatedAt": "<time.ffffff+hh:mm>"
       }
     ],
-    "total": 2,
     "rankedCount": 2,
-    "collectionRevision": 6
-  }
+    "total": 2
+  },
+  "status": 200
 }

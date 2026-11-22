@@ -1,52 +1,52 @@
 {
-  "status": 200,
   "body": {
+    "archived": false,
+    "attachments": [],
+    "chats": [],
+    "createdAt": "<time.ffffff+hh:mm>",
+    "decisions": [],
+    "github": [],
+    "history": [],
     "id": "<id1>",
-    "title": "Plan",
+    "links": [],
+    "notes": [],
     "overview": "",
     "parentId": null,
+    "questions": [],
     "revision": 1,
-    "archived": false,
-    "createdAt": "<time>",
-    "updatedAt": "<time>",
     "steps": [
       {
-        "id": "<id2>",
-        "title": "Parent",
         "description": "",
+        "id": "<id2>",
         "outcome": "",
         "parentId": null,
         "position": 0,
-        "status": "open",
+        "retired": false,
         "revision": 1,
-        "retired": false
+        "status": "open",
+        "title": "Parent"
       },
       {
-        "id": "<id3>",
-        "title": "Child",
         "description": "",
+        "id": "<id3>",
         "outcome": "",
         "parentId": "<id2>",
         "position": 1,
-        "status": "open",
+        "retired": false,
         "revision": 1,
-        "retired": false
+        "status": "open",
+        "title": "Child"
       }
     ],
+    "title": "Plan",
+    "updatedAt": "<time.ffffff+hh:mm>",
     "versions": [
       {
-        "number": 1,
-        "createdAt": "<time>",
-        "note": "Created"
+        "createdAt": "<time.ffffff+hh:mm>",
+        "note": "Created",
+        "number": 1
       }
-    ],
-    "notes": [],
-    "attachments": [],
-    "links": [],
-    "chats": [],
-    "github": [],
-    "questions": [],
-    "decisions": [],
-    "history": []
-  }
+    ]
+  },
+  "status": 200
 }

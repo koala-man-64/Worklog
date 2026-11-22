@@ -1,50 +1,50 @@
 {
-  "status": 200,
   "body": {
     "items": [
       {
-        "kind": "message",
-        "id": "<id1>",
-        "createdAt": "<time>",
-        "text": "Starting with the tables",
-        "truncated": false,
-        "discussionId": "<id2>",
-        "discussionTitle": "Parser",
         "chatId": "chat-1",
         "chats": [
           {
             "id": "<id3>",
             "title": "Build"
           }
-        ]
+        ],
+        "createdAt": "<time.ffffff+hh:mm>",
+        "discussionId": "<id2>",
+        "discussionTitle": "Parser",
+        "id": "<id1>",
+        "kind": "message",
+        "text": "Starting with the tables",
+        "truncated": false
       },
       {
-        "kind": "update",
+        "contexts": [
+          {
+            "archived": false,
+            "branch": "",
+            "checkoutPath": "",
+            "repositoryId": "<id7>",
+            "repositoryName": "worklog",
+            "worktreePath": ""
+          }
+        ],
+        "createdAt": "<time.ffffff+hh:mm>",
         "id": "<id4>",
-        "createdAt": "<time>",
-        "text": "Parser half done",
-        "truncated": false,
-        "updateKind": "update",
-        "runName": "Builder",
-        "participationId": "<id5>",
         "item": {
           "id": "<id6>",
           "title": "Parser"
         },
-        "contexts": [
-          {
-            "repositoryId": "<id7>",
-            "repositoryName": "worklog",
-            "archived": false,
-            "checkoutPath": "",
-            "worktreePath": "",
-            "branch": ""
-          }
-        ]
+        "kind": "update",
+        "participationId": "<id5>",
+        "runName": "Builder",
+        "text": "Parser half done",
+        "truncated": false,
+        "updateKind": "update"
       }
     ],
-    "total": 2,
     "limit": 50,
-    "offset": 0
-  }
+    "offset": 0,
+    "total": 2
+  },
+  "status": 200
 }

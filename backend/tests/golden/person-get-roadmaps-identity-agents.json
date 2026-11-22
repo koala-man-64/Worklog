@@ -1,77 +1,71 @@
 {
-  "status": 200,
   "body": {
     "items": [
       {
-        "kind": "agent",
-        "id": "<id1>",
-        "label": "Builder",
         "avatar": "red-dots-antenna",
-        "provider": "",
+        "id": "<id1>",
+        "kind": "agent",
+        "label": "Builder",
+        "lastAt": "<time.ffffff+hh:mm>",
         "model": "",
+        "provider": "",
+        "stale": false,
         "ties": [
           {
-            "stepId": "<id2>",
-            "via": "role",
-            "item": null,
             "chat": null,
+            "item": null,
+            "lastAt": "<time.ffffff+hh:mm>",
             "role": {
               "id": "<id3>",
               "label": "Parser owner"
             },
-            "lastAt": "<time>",
-            "stale": false
+            "stale": false,
+            "stepId": "<id2>",
+            "via": "role"
           },
           {
-            "stepId": "<id2>",
-            "via": "participation",
-            "item": {
-              "id": "<id4>",
-              "title": "Parser"
-            },
             "chat": null,
-            "role": null,
-            "lastAt": "<time>",
-            "stale": false
-          },
-          {
-            "stepId": "<id2>",
-            "via": "chat",
             "item": {
               "id": "<id4>",
               "title": "Parser"
             },
+            "lastAt": "<time.ffffff+hh:mm>",
+            "role": null,
+            "stale": false,
+            "stepId": "<id2>",
+            "via": "participation"
+          },
+          {
             "chat": {
               "id": "<id5>",
               "title": "Build"
             },
+            "item": {
+              "id": "<id4>",
+              "title": "Parser"
+            },
+            "lastAt": "<time.ffffff+hh:mm>",
             "role": null,
-            "lastAt": "<time>",
-            "stale": false
+            "stale": false,
+            "stepId": "<id2>",
+            "via": "chat"
           }
-        ],
-        "lastAt": "<time>",
-        "stale": false
+        ]
       }
     ],
     "roster": {
       "items": [
         {
+          "active": true,
+          "avatar": "red-dots-antenna",
+          "current": true,
           "id": "<id1>",
           "label": "Builder",
-          "avatar": "red-dots-antenna",
-          "active": true,
-          "via": [
-            "participation",
-            "role",
-            "update",
-            "message",
-            "chat"
-          ],
-          "current": true,
-          "lastAt": "<time>",
+          "lastAt": "<time.ffffff+hh:mm>",
           "steps": [
             {
+              "current": true,
+              "lastAt": "<time.ffffff+hh:mm>",
               "stepId": "<id2>",
               "via": [
                 "participation",
@@ -79,14 +73,20 @@
                 "update",
                 "message",
                 "chat"
-              ],
-              "current": true,
-              "lastAt": "<time>"
+              ]
             }
+          ],
+          "via": [
+            "participation",
+            "role",
+            "update",
+            "message",
+            "chat"
           ]
         }
       ],
       "total": 1
     }
-  }
+  },
+  "status": 200
 }

@@ -1,27 +1,27 @@
 {
-  "status": 200,
   "body": {
-    "url": "https://github.com/example/worklog",
     "remoteIdentity": "github.com/example/worklog",
     "repository": {
-      "id": "<id1>",
-      "name": "worklog",
-      "url": "https://github.com/example/worklog",
-      "remoteIdentity": "github.com/example/worklog",
-      "duplicateOf": null,
-      "mergedInto": null,
-      "description": "",
       "archived": false,
+      "createdAt": "<time.ffffff+hh:mm>",
+      "description": "",
+      "discussionId": "<id2>",
+      "duplicateOf": null,
+      "id": "<id1>",
+      "mergedInto": null,
+      "name": "worklog",
       "registeredBy": {
+        "agentId": null,
         "kind": "human",
-        "label": "You",
-        "agentId": null
+        "label": "You"
       },
+      "remoteIdentity": "github.com/example/worklog",
       "reviewed": true,
       "revision": 1,
-      "createdAt": "<time>",
-      "updatedAt": "<time>",
-      "discussionId": "<id2>"
-    }
-  }
+      "updatedAt": "<time.ffffff+hh:mm>",
+      "url": "https://github.com/example/worklog"
+    },
+    "url": "https://github.com/example/worklog"
+  },
+  "status": 200
 }

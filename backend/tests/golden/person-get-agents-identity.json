@@ -1,137 +1,126 @@
 {
-  "status": 200,
   "body": {
+    "active": true,
+    "avatar": "red-dots-antenna",
+    "chats": {
+      "items": [
+        {
+          "archived": false,
+          "chatId": "chat-1",
+          "current": true,
+          "id": "<id8>",
+          "lastAt": "<time.ffffff+hh:mm>",
+          "model": "",
+          "ownerId": "<id4>",
+          "ownerTitle": "Parser",
+          "ownerType": "item",
+          "provider": "",
+          "title": "Build",
+          "via": [
+            "message",
+            "run"
+          ]
+        }
+      ],
+      "total": 1
+    },
+    "createdAt": "<time.ffffff+hh:mm>",
+    "credentials": [
+      {
+        "chatId": null,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "id": "<id1>",
+        "label": "Builder",
+        "registeredBy": null,
+        "revoked": false
+      }
+    ],
     "id": "<id1>",
     "label": "Builder",
-    "active": true,
-    "createdAt": "<time>",
-    "lastActivityAt": "<time>",
-    "providers": [],
-    "openRuns": 1,
-    "runCount": 1,
+    "lastActivityAt": "<time.ffffff+hh:mm>",
     "messageCount": 1,
-    "working": [
-      {
-        "participationId": "<id2>",
-        "runId": "<id3>",
-        "runName": "Builder",
-        "description": "",
-        "lastSeenAt": "<time>",
-        "stale": false,
-        "item": {
-          "id": "<id4>",
-          "title": "Parser",
-          "status": "doing",
+    "openRuns": 1,
+    "providers": [],
+    "repositories": {
+      "items": [
+        {
           "archived": false,
-          "roadmapId": "<id5>"
-        },
-        "roadmap": {
-          "id": "<id5>",
-          "title": "Plan 2",
-          "archived": false
-        },
-        "contexts": [
-          {
-            "repositoryId": "<id6>",
-            "repositoryName": "worklog",
-            "archived": false,
-            "checkoutPath": "",
-            "worktreePath": "",
-            "branch": ""
-          }
-        ]
-      }
-    ],
-    "roles": [
-      {
-        "id": "<id7>",
-        "label": "Parser owner",
-        "contextType": "item",
-        "contextId": "<id4>",
-        "contextTitle": "Parser",
-        "roadmap": {
-          "id": "<id5>",
-          "title": "Plan 2",
-          "archived": false
-        },
-        "updatedAt": "<time>"
-      }
-    ],
-    "avatar": "red-dots-antenna",
+          "current": true,
+          "id": "<id6>",
+          "lastAt": "<time.ffffff+hh:mm>",
+          "name": "worklog",
+          "via": [
+            "participation",
+            "update",
+            "message"
+          ]
+        }
+      ],
+      "total": 1
+    },
     "roadmaps": {
       "items": [
         {
-          "id": "<id5>",
-          "title": "Plan 2",
           "archived": false,
+          "current": true,
+          "id": "<id5>",
+          "lastAt": "<time.ffffff+hh:mm>",
+          "title": "Plan 2",
           "via": [
             "participation",
             "role",
             "update",
             "message",
             "chat"
-          ],
-          "current": true,
-          "lastAt": "<time>"
+          ]
         }
       ],
       "total": 1
     },
-    "repositories": {
-      "items": [
-        {
-          "id": "<id6>",
-          "name": "worklog",
-          "archived": false,
-          "via": [
-            "participation",
-            "update",
-            "message"
-          ],
-          "current": true,
-          "lastAt": "<time>"
-        }
-      ],
-      "total": 1
-    },
-    "credentials": [
+    "roles": [
       {
-        "id": "<id1>",
-        "label": "Builder",
-        "createdAt": "<time>",
-        "revoked": false,
-        "registeredBy": null,
-        "chatId": null
+        "contextId": "<id4>",
+        "contextTitle": "Parser",
+        "contextType": "item",
+        "id": "<id7>",
+        "label": "Parser owner",
+        "roadmap": {
+          "archived": false,
+          "id": "<id5>",
+          "title": "Plan 2"
+        },
+        "updatedAt": "<time.ffffff+hh:mm>"
       }
     ],
+    "runCount": 1,
     "runs": {
       "items": [
         {
-          "id": "<id3>",
           "agentId": "<id1>",
-          "credentialId": "<id1>",
-          "clientRunKey": "golden",
-          "displayName": "Builder",
-          "provider": "",
-          "externalChatId": "chat-1",
-          "revision": 1,
-          "createdAt": "<time>",
-          "updatedAt": "<time>",
-          "endedAt": null,
-          "endReason": null,
           "chats": [
             {
-              "id": "<id8>",
-              "chatId": "chat-1",
-              "title": "Build",
-              "provider": "",
-              "model": "",
               "archived": false,
-              "ownerType": "item",
+              "chatId": "chat-1",
+              "id": "<id8>",
+              "model": "",
               "ownerId": "<id4>",
-              "ownerTitle": "Parser"
+              "ownerTitle": "Parser",
+              "ownerType": "item",
+              "provider": "",
+              "title": "Build"
             }
-          ]
+          ],
+          "clientRunKey": "golden",
+          "createdAt": "<time.ffffff+hh:mm>",
+          "credentialId": "<id1>",
+          "displayName": "Builder",
+          "endReason": null,
+          "endedAt": null,
+          "externalChatId": "chat-1",
+          "id": "<id3>",
+          "provider": "",
+          "revision": 1,
+          "updatedAt": "<time.ffffff+hh:mm>"
         }
       ],
       "total": 1
@@ -139,49 +128,60 @@
     "workItems": {
       "items": [
         {
-          "id": "<id4>",
-          "title": "Parser",
-          "status": "doing",
           "archived": false,
+          "current": true,
+          "id": "<id4>",
+          "lastAt": "<time.ffffff+hh:mm>",
           "roadmap": {
+            "archived": false,
             "id": "<id5>",
-            "title": "Plan 2",
-            "archived": false
+            "title": "Plan 2"
           },
+          "status": "doing",
+          "title": "Parser",
           "via": [
             "participation",
             "role",
             "update",
             "message",
             "chat"
-          ],
-          "current": true,
-          "lastAt": "<time>"
+          ]
         }
       ],
       "total": 1
     },
-    "chats": {
-      "items": [
-        {
-          "id": "<id8>",
-          "chatId": "chat-1",
-          "title": "Build",
-          "provider": "",
-          "model": "",
+    "working": [
+      {
+        "contexts": [
+          {
+            "archived": false,
+            "branch": "",
+            "checkoutPath": "",
+            "repositoryId": "<id6>",
+            "repositoryName": "worklog",
+            "worktreePath": ""
+          }
+        ],
+        "description": "",
+        "item": {
           "archived": false,
-          "ownerType": "item",
-          "ownerId": "<id4>",
-          "ownerTitle": "Parser",
-          "via": [
-            "message",
-            "run"
-          ],
-          "current": true,
-          "lastAt": "<time>"
-        }
-      ],
-      "total": 1
-    }
-  }
+          "id": "<id4>",
+          "roadmapId": "<id5>",
+          "status": "doing",
+          "title": "Parser"
+        },
+        "lastSeenAt": "<time.ffffff+hh:mm>",
+        "participationId": "<id2>",
+        "roadmap": {
+          "archived": false,
+          "id": "<id5>",
+          "title": "Plan 2"
+        },
+        "runId": "<id3>",
+        "runName": "Builder",
+        "stale": false
+      }
+    ]
+  },
+  "status": 200
 }

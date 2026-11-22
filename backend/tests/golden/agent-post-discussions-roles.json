@@ -1,15 +1,15 @@
 {
-  "status": 200,
   "body": {
-    "id": "<id1>",
-    "contextType": "item",
     "contextId": "<id2>",
-    "label": "Parser owner",
     "contextTitle": "Parser",
+    "contextType": "item",
+    "generation": 0,
+    "id": "<id1>",
+    "label": "Parser owner",
+    "offer": null,
     "ownerId": null,
     "ownerLabel": null,
-    "revision": 1,
-    "generation": 0,
-    "offer": null
-  }
+    "revision": 1
+  },
+  "status": 200
 }

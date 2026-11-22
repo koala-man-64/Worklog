@@ -1,20 +1,20 @@
 {
-  "status": 200,
   "body": {
-    "id": "<id1>",
-    "title": "Rename",
-    "rationale": "Clearer",
-    "status": "draft",
-    "autoApproved": false,
-    "revision": 1,
+    "actorDirectory": null,
     "actorId": "<id2>",
     "actorLabel": "Builder",
-    "actorDirectory": null,
+    "attachments": [],
+    "autoApproved": false,
+    "createdAt": "<time.ffffff+hh:mm>",
+    "id": "<id1>",
     "operations": [],
-    "supersedesId": null,
-    "createdAt": "<time>",
-    "updatedAt": "<time>",
+    "rationale": "Clearer",
+    "revision": 1,
+    "status": "draft",
     "submittedAt": null,
-    "attachments": []
-  }
+    "supersedesId": null,
+    "title": "Rename",
+    "updatedAt": "<time.ffffff+hh:mm>"
+  },
+  "status": 200
 }

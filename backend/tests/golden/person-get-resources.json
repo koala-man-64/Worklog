@@ -1,19 +1,19 @@
 {
-  "status": 200,
   "body": {
     "items": [
       {
-        "id": "<id1>",
-        "title": "Style",
-        "summary": "How we write",
         "archived": false,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "id": "<id1>",
         "revision": 1,
-        "createdAt": "<time>",
-        "updatedAt": "<time>"
+        "summary": "How we write",
+        "title": "Style",
+        "updatedAt": "<time.ffffff+hh:mm>"
       }
     ],
-    "total": 1,
     "limit": 50,
-    "offset": 0
-  }
+    "offset": 0,
+    "total": 1
+  },
+  "status": 200
 }
