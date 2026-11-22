@@ -70,7 +70,7 @@ async function getJson(page: Page, path: string) {
 test("human replies do not satisfy a request, while an agent receipt appears in the thread", async ({
   page,
 }) => {
-  const alphaLabel = "Agent Alpha " + Date.now();
+  const alphaLabel = "Agent Alpha " + crypto.randomUUID();
   const alphaToken = await createAgent(page, alphaLabel);
   const discussionTitle = "Please confirm the local release notes " + Date.now();
   const settings = await getJson(page, "/api/v1/settings");
@@ -167,8 +167,8 @@ test("human replies do not satisfy a request, while an agent receipt appears in 
 test("agent handoff offers and accepted ownership are visible in the role panel", async ({
   page,
 }) => {
-  const alphaLabel = "Handoff Alpha " + Date.now();
-  const betaLabel = "Handoff Beta " + Date.now();
+  const alphaLabel = "Handoff Alpha " + crypto.randomUUID();
+  const betaLabel = "Handoff Beta " + crypto.randomUUID();
   const alphaToken = await createAgent(page, alphaLabel);
   const betaToken = await createAgent(page, betaLabel);
   const settings = await getJson(page, "/api/v1/settings");
