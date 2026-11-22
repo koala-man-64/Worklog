@@ -1,55 +1,55 @@
 {
-  "status": 200,
   "body": {
     "items": [
       {
-        "id": "<id1>",
-        "ownerType": "item",
-        "ownerId": "<id2>",
-        "chatId": "chat-1",
-        "title": "Build",
-        "createdDate": "<today>",
-        "archived": false,
-        "revision": 1,
-        "createdAt": "<time>",
-        "updatedAt": "<time>",
-        "provider": "",
-        "model": "",
-        "repos": [],
-        "stepIds": [],
-        "repositoryIds": [],
-        "owner": {
-          "type": "item",
-          "id": "<id2>",
-          "title": "Parser",
-          "archived": false
-        },
-        "roadmaps": [
-          {
-            "id": "<id3>",
-            "title": "Plan 2",
-            "archived": false
-          }
-        ],
-        "steps": [],
         "agents": [
           {
-            "id": "<id4>",
-            "label": "Builder",
-            "avatar": "red-dots-antenna",
             "active": true,
+            "avatar": "red-dots-antenna",
             "binding": "run",
-            "chatId": "chat-1"
+            "chatId": "chat-1",
+            "id": "<id4>",
+            "label": "Builder"
           }
         ],
+        "archived": false,
+        "chatId": "chat-1",
+        "createdAt": "<time.ffffff+hh:mm>",
+        "createdDate": "<today>",
+        "id": "<id1>",
+        "model": "",
+        "owner": {
+          "archived": false,
+          "id": "<id2>",
+          "title": "Parser",
+          "type": "item"
+        },
+        "ownerId": "<id2>",
+        "ownerType": "item",
+        "provider": "",
+        "repos": [],
+        "repositoryIds": [],
+        "revision": 1,
+        "roadmaps": [
+          {
+            "archived": false,
+            "id": "<id3>",
+            "title": "Plan 2"
+          }
+        ],
+        "stepIds": [],
+        "steps": [],
+        "title": "Build",
         "transcript": {
           "found": false,
-          "source": null,
           "lastActivityAt": null,
+          "source": null,
           "state": "idle",
           "threads": []
-        }
+        },
+        "updatedAt": "<time.ffffff+hh:mm>"
       }
     ]
-  }
+  },
+  "status": 200
 }

@@ -1,30 +1,30 @@
 {
-  "status": 200,
   "body": {
     "items": [
       {
-        "id": "<id1>",
-        "entityId": "<id2>",
-        "kind": "step.create",
         "actorId": "local-user",
-        "actorLabel": "You",
         "actorKind": "human",
-        "createdAt": "<time>",
-        "localDate": "<today>",
-        "before": null,
+        "actorLabel": "You",
         "after": {
-          "id": "<id2>",
-          "title": "Child",
           "description": "",
+          "id": "<id2>",
           "outcome": "",
           "parentId": "<id3>",
           "position": 1,
-          "status": "open",
+          "retired": false,
           "revision": 1,
-          "retired": false
-        }
+          "status": "open",
+          "title": "Child"
+        },
+        "before": null,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "entityId": "<id2>",
+        "id": "<id1>",
+        "kind": "step.create",
+        "localDate": "<today>"
       }
     ],
     "total": 1
-  }
+  },
+  "status": 200
 }

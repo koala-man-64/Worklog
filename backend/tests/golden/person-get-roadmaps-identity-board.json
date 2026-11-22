@@ -1,7 +1,7 @@
 {
-  "status": 200,
   "body": {
-    "waiting": [],
-    "recentlyDone": []
-  }
+    "recentlyDone": [],
+    "waiting": []
+  },
+  "status": 200
 }

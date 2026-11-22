@@ -1,26 +1,26 @@
 {
-  "status": 200,
   "body": {
-    "id": "<id1>",
-    "title": "Child",
-    "description": "",
-    "outcome": "",
-    "parentId": "<id2>",
-    "position": 1,
-    "status": "open",
-    "revision": 1,
-    "retired": false,
-    "notes": [],
-    "attachments": [],
-    "roadmapId": "<id3>",
     "ancestors": [
       {
         "id": "<id2>",
-        "title": "Parent",
-        "status": "open"
+        "status": "open",
+        "title": "Parent"
       }
     ],
+    "attachments": [],
+    "chats": [],
+    "description": "",
+    "id": "<id1>",
+    "notes": [],
+    "outcome": "",
+    "parentId": "<id2>",
+    "position": 1,
+    "retired": false,
+    "revision": 1,
+    "roadmapId": "<id3>",
     "siblings": [],
-    "chats": []
-  }
+    "status": "open",
+    "title": "Child"
+  },
+  "status": 200
 }

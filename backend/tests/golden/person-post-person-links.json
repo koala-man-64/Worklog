@@ -1,15 +1,15 @@
 {
-  "status": 200,
   "body": {
-    "id": "<id1>",
-    "personId": "<id2>",
-    "name": "Ada",
-    "personTitle": "Engineer",
-    "personTeam": "",
-    "targetType": "item",
-    "targetId": "<id3>",
-    "relationship": "Reviewer",
     "archived": false,
-    "createdAt": "<time>"
-  }
+    "createdAt": "<time.ffffff+hh:mm>",
+    "id": "<id1>",
+    "name": "Ada",
+    "personId": "<id2>",
+    "personTeam": "",
+    "personTitle": "Engineer",
+    "relationship": "Reviewer",
+    "targetId": "<id3>",
+    "targetType": "item"
+  },
+  "status": 200
 }

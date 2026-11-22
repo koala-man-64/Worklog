@@ -1,19 +1,19 @@
 {
-  "status": 200,
   "body": {
-    "id": "<id1>",
-    "ownerType": "item",
-    "ownerId": "<id2>",
-    "kind": "pr",
-    "url": "https://github.com/example/repo/pull/1",
-    "reference": "example/repo#1",
-    "title": "",
-    "description": "",
-    "chatId": null,
-    "submittedBy": "",
     "archived": false,
+    "chatId": null,
+    "createdAt": "<time.ffffff+hh:mm>",
+    "description": "",
+    "id": "<id1>",
+    "kind": "pr",
+    "ownerId": "<id2>",
+    "ownerType": "item",
+    "reference": "example/repo#1",
     "revision": 1,
-    "createdAt": "<time>",
-    "updatedAt": "<time>"
-  }
+    "submittedBy": "",
+    "title": "",
+    "updatedAt": "<time.ffffff+hh:mm>",
+    "url": "https://github.com/example/repo/pull/1"
+  },
+  "status": 200
 }

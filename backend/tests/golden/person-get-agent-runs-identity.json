@@ -1,17 +1,17 @@
 {
-  "status": 200,
   "body": {
-    "id": "<id1>",
     "agentId": "<id2>",
-    "credentialId": "<id2>",
     "clientRunKey": "golden",
+    "createdAt": "<time.ffffff+hh:mm>",
+    "credentialId": "<id2>",
     "displayName": "Builder",
-    "provider": "",
-    "externalChatId": "chat-1",
-    "revision": 1,
-    "createdAt": "<time>",
-    "updatedAt": "<time>",
+    "endReason": null,
     "endedAt": null,
-    "endReason": null
-  }
+    "externalChatId": "chat-1",
+    "id": "<id1>",
+    "provider": "",
+    "revision": 1,
+    "updatedAt": "<time.ffffff+hh:mm>"
+  },
+  "status": 200
 }

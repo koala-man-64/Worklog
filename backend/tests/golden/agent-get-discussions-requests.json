@@ -1,5 +1,4 @@
 {
-  "status": 200,
   "body": {
     "items": [
       {
@@ -8,69 +7,70 @@
           "title": "Parser"
         },
         "message": {
-          "id": "<id2>",
-          "discussionId": "<id1>",
-          "text": "Who reviews the parser?",
           "authorId": "local-user",
-          "authorLabel": "You",
           "authorKind": "human",
-          "createdAt": "<time>",
+          "authorLabel": "You",
           "chatId": null,
+          "createdAt": "<time.ffffff+hh:mm>",
+          "discussionId": "<id1>",
+          "id": "<id2>",
           "onBehalfOfRoleId": null,
           "ownershipGeneration": null,
           "request": {
-            "id": "<id2>",
-            "mode": "all",
-            "state": "pending",
-            "targets": [
-              {
-                "id": "<id3>",
-                "kind": "role",
-                "recipientId": "<id4>",
-                "label": "Parser owner",
-                "ownerId": "<id5>",
-                "ownershipGeneration": 1,
-                "acknowledged": false,
-                "acknowledgedBy": null,
-                "delivery": "seen",
-                "seenAt": "<time>",
-                "acknowledgedAt": null,
-                "answeredAt": null,
-                "answerMessageId": null,
-                "presence": {
-                  "active": true,
-                  "lastSeenAt": "<time>",
-                  "stale": false,
-                  "openRuns": 1
-                }
-              }
-            ],
-            "receipts": [],
             "actionableTargetIds": [
               "<id3>"
             ],
+            "authorityGeneration": null,
+            "authorityRoleId": null,
             "canCancel": false,
             "canRelease": false,
             "classifications": [
               "actionable"
             ],
-            "reason": null,
-            "terminalAt": null,
-            "terminalActorId": null,
-            "terminalActorLabel": null,
-            "terminalActorKind": null,
-            "authorityRoleId": null,
-            "authorityGeneration": null,
-            "deadlineAt": "<time>",
-            "urgent": false,
+            "deadlineAt": "<time.ffffff+hh:mm>",
             "escalatedAt": null,
-            "overdue": false
-          }
+            "id": "<id2>",
+            "mode": "all",
+            "overdue": false,
+            "reason": null,
+            "receipts": [],
+            "state": "pending",
+            "targets": [
+              {
+                "acknowledged": false,
+                "acknowledgedAt": null,
+                "acknowledgedBy": null,
+                "answerMessageId": null,
+                "answeredAt": null,
+                "delivery": "seen",
+                "id": "<id3>",
+                "kind": "role",
+                "label": "Parser owner",
+                "ownerId": "<id5>",
+                "ownershipGeneration": 1,
+                "presence": {
+                  "active": true,
+                  "lastSeenAt": "<time.ffffff+hh:mm>",
+                  "openRuns": 1,
+                  "stale": false
+                },
+                "recipientId": "<id4>",
+                "seenAt": "<time.ffffff+hh:mm>"
+              }
+            ],
+            "terminalActorId": null,
+            "terminalActorKind": null,
+            "terminalActorLabel": null,
+            "terminalAt": null,
+            "urgent": false
+          },
+          "text": "Who reviews the parser?"
         }
       }
     ],
-    "total": 1,
     "limit": 50,
-    "offset": 0
-  }
+    "offset": 0,
+    "total": 1
+  },
+  "status": 200
 }

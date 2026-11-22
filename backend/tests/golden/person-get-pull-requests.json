@@ -1,28 +1,28 @@
 {
-  "status": 200,
   "body": {
     "items": [
       {
-        "id": "<id1>",
-        "ownerType": "item",
-        "ownerId": "<id2>",
-        "kind": "pr",
-        "url": "https://github.com/example/repo/pull/1",
-        "reference": "example/repo#1",
-        "title": "",
-        "description": "",
-        "chatId": null,
-        "submittedBy": "",
         "archived": false,
-        "revision": 1,
-        "createdAt": "<time>",
-        "updatedAt": "<time>",
+        "chatId": null,
         "chatTitle": null,
-        "ownerTitle": "Parser"
+        "createdAt": "<time.ffffff+hh:mm>",
+        "description": "",
+        "id": "<id1>",
+        "kind": "pr",
+        "ownerId": "<id2>",
+        "ownerTitle": "Parser",
+        "ownerType": "item",
+        "reference": "example/repo#1",
+        "revision": 1,
+        "submittedBy": "",
+        "title": "",
+        "updatedAt": "<time.ffffff+hh:mm>",
+        "url": "https://github.com/example/repo/pull/1"
       }
     ],
-    "total": 1,
     "limit": 50,
-    "offset": 0
-  }
+    "offset": 0,
+    "total": 1
+  },
+  "status": 200
 }

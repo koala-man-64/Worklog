@@ -1,71 +1,71 @@
 {
-  "status": 200,
   "body": {
-    "id": "<id1>",
-    "discussionId": "<id2>",
-    "text": "Confirm the table plan",
     "authorId": "local-user",
-    "authorLabel": "You",
     "authorKind": "human",
-    "createdAt": "<time>",
+    "authorLabel": "You",
     "chatId": null,
+    "createdAt": "<time.ffffff+hh:mm>",
+    "discussionId": "<id2>",
+    "id": "<id1>",
     "onBehalfOfRoleId": null,
     "ownershipGeneration": null,
     "request": {
-      "id": "<id1>",
-      "mode": "all",
-      "state": "satisfied",
-      "targets": [
-        {
-          "id": "<id3>",
-          "kind": "agent",
-          "recipientId": "<id4>",
-          "label": "Builder",
-          "ownerId": null,
-          "ownershipGeneration": null,
-          "acknowledged": true,
-          "acknowledgedBy": "<id4>",
-          "delivery": "acknowledged",
-          "seenAt": null,
-          "acknowledgedAt": "<time>",
-          "answeredAt": null,
-          "answerMessageId": null,
-          "presence": {
-            "active": true,
-            "lastSeenAt": "<time>",
-            "stale": false,
-            "openRuns": 1
-          }
-        }
-      ],
-      "receipts": [
-        {
-          "id": "<id5>",
-          "targetId": "<id3>",
-          "actorId": "<id4>",
-          "actorLabel": "Builder",
-          "actorKind": "agent",
-          "roleId": null,
-          "ownershipGeneration": null,
-          "createdAt": "<time>",
-          "late": false
-        }
-      ],
       "actionableTargetIds": [],
+      "authorityGeneration": null,
+      "authorityRoleId": null,
       "canCancel": false,
       "canRelease": false,
       "classifications": [],
-      "reason": null,
-      "terminalAt": "<time>",
-      "terminalActorId": "<id4>",
-      "terminalActorLabel": "Builder",
-      "terminalActorKind": "agent",
-      "authorityRoleId": null,
-      "authorityGeneration": null,
       "deadlineAt": null,
-      "urgent": false,
       "escalatedAt": null,
-      "overdue": false
-    }
-  }
+      "id": "<id1>",
+      "mode": "all",
+      "overdue": false,
+      "reason": null,
+      "receipts": [
+        {
+          "actorId": "<id4>",
+          "actorKind": "agent",
+          "actorLabel": "Builder",
+          "createdAt": "<time.ffffff+hh:mm>",
+          "id": "<id5>",
+          "late": false,
+          "ownershipGeneration": null,
+          "roleId": null,
+          "targetId": "<id3>"
+        }
+      ],
+      "state": "satisfied",
+      "targets": [
+        {
+          "acknowledged": true,
+          "acknowledgedAt": "<time.ffffff+hh:mm>",
+          "acknowledgedBy": "<id4>",
+          "answerMessageId": null,
+          "answeredAt": null,
+          "delivery": "acknowledged",
+          "id": "<id3>",
+          "kind": "agent",
+          "label": "Builder",
+          "ownerId": null,
+          "ownershipGeneration": null,
+          "presence": {
+            "active": true,
+            "lastSeenAt": "<time.ffffff+hh:mm>",
+            "openRuns": 1,
+            "stale": false
+          },
+          "recipientId": "<id4>",
+          "seenAt": null
+        }
+      ],
+      "terminalActorId": "<id4>",
+      "terminalActorKind": "agent",
+      "terminalActorLabel": "Builder",
+      "terminalAt": "<time.ffffff+hh:mm>",
+      "urgent": false
+    },
+    "text": "Confirm the table plan"
+  },
+  "status": 200
 }

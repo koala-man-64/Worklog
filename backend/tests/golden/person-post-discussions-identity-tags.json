@@ -1,45 +1,45 @@
 {
-  "status": 200,
   "body": {
-    "id": "<id1>",
-    "title": "Parser",
     "archived": false,
-    "revision": 3,
-    "createdAt": "<time>",
-    "updatedAt": "<time>",
-    "pinned": false,
-    "pinnedAt": null,
     "contexts": [
       {
-        "type": "item",
-        "id": "<id2>",
-        "title": "Parser",
-        "archived": false,
-        "status": "doing",
-        "home": false,
+        "addedAt": "<time.ffffff+hh:mm>",
         "addedBy": {
           "id": "local-user",
-          "label": "You",
-          "kind": "human"
+          "kind": "human",
+          "label": "You"
         },
-        "addedAt": "<time>"
+        "archived": false,
+        "home": false,
+        "id": "<id2>",
+        "status": "doing",
+        "title": "Parser",
+        "type": "item"
       },
       {
-        "type": "roadmap",
-        "id": "<id3>",
-        "title": "Plan 2",
-        "archived": false,
-        "home": false,
+        "addedAt": "<time.ffffff+hh:mm>",
         "addedBy": {
           "id": "local-user",
-          "label": "You",
-          "kind": "human"
+          "kind": "human",
+          "label": "You"
         },
-        "addedAt": "<time>"
+        "archived": false,
+        "home": false,
+        "id": "<id3>",
+        "title": "Plan 2",
+        "type": "roadmap"
       }
     ],
-    "repos": [],
+    "createdAt": "<time.ffffff+hh:mm>",
+    "id": "<id1>",
     "pendingCount": 0,
-    "repository": null
-  }
+    "pinned": false,
+    "pinnedAt": null,
+    "repos": [],
+    "repository": null,
+    "revision": 3,
+    "title": "Parser",
+    "updatedAt": "<time.ffffff+hh:mm>"
+  },
+  "status": 200
 }
