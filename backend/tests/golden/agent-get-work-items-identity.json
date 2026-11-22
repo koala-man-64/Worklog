@@ -1,312 +1,312 @@
 {
-  "status": 200,
   "body": {
-    "id": "<id1>",
-    "title": "Parser",
-    "description": "Parse the plan",
-    "status": "doing",
     "adoUrl": null,
-    "roadmapId": "<id2>",
-    "stepId": "<id3>",
-    "backlogOrder": 1,
     "archived": false,
-    "revision": 3,
-    "createdAt": "<time>",
-    "updatedAt": "<time>",
-    "rank": 1,
-    "rankedCount": 2,
-    "repositoryIds": [],
-    "notes": [
-      {
-        "id": "<id4>",
-        "ownerType": "item",
-        "ownerId": "<id1>",
-        "title": "Scratch",
-        "text": "Notes",
-        "archived": false,
-        "revision": 1,
-        "createdAt": "<time>",
-        "updatedAt": "<time>"
-      }
-    ],
     "attachments": [
       {
+        "archived": false,
+        "createdAt": "<time.ffffff+hh:mm>",
         "id": "<id5>",
-        "ownerType": "item",
-        "ownerId": "<id1>",
-        "name": "a.txt",
         "mime": "text/plain",
-        "size": 4,
+        "name": "a.txt",
+        "ownerId": "<id1>",
+        "ownerType": "item",
+        "revision": 1,
         "sha256": "982d9e3eb996f559e633f4d194def3761d909f5a3b647d1a851fead67c32c9d1",
-        "archived": false,
-        "revision": 1,
-        "createdAt": "<time>"
+        "size": 4
       }
     ],
-    "links": [
-      {
-        "id": "<id6>",
-        "ownerType": "item",
-        "ownerId": "<id1>",
-        "url": "https://example.com/spec",
-        "title": "",
-        "description": "",
-        "archived": false,
-        "revision": 1,
-        "createdAt": "<time>",
-        "updatedAt": "<time>"
-      },
-      {
-        "id": "<id7>",
-        "ownerType": "item",
-        "ownerId": "<id1>",
-        "url": "https://example.com/plan",
-        "title": "",
-        "description": "",
-        "archived": false,
-        "revision": 1,
-        "createdAt": "<time>",
-        "updatedAt": "<time>"
-      }
-    ],
+    "backlogOrder": 1,
     "chats": [
       {
-        "id": "<id8>",
-        "ownerType": "item",
-        "ownerId": "<id1>",
+        "archived": false,
         "chatId": "chat-1",
-        "title": "Build",
+        "createdAt": "<time.ffffff+hh:mm>",
         "createdDate": "<today>",
-        "archived": false,
-        "revision": 1,
-        "createdAt": "<time>",
-        "updatedAt": "<time>",
-        "provider": "",
+        "id": "<id8>",
         "model": "",
-        "repos": [],
-        "stepIds": [],
-        "repositoryIds": []
-      }
-    ],
-    "github": [
-      {
-        "id": "<id9>",
-        "ownerType": "item",
         "ownerId": "<id1>",
-        "kind": "pr",
-        "url": "https://github.com/example/repo/pull/1",
-        "reference": "example/repo#1",
-        "title": "",
-        "description": "",
-        "chatId": null,
-        "submittedBy": "",
-        "archived": false,
+        "ownerType": "item",
+        "provider": "",
+        "repos": [],
+        "repositoryIds": [],
         "revision": 1,
-        "createdAt": "<time>",
-        "updatedAt": "<time>",
-        "chatTitle": null
+        "stepIds": [],
+        "title": "Build",
+        "updatedAt": "<time.ffffff+hh:mm>"
       }
     ],
-    "references": [
-      {
-        "id": "<id10>",
-        "itemId": "<id1>",
-        "path": "C:/work/spec.md",
-        "archived": false,
-        "revision": 1,
-        "createdAt": "<time>"
-      }
-    ],
-    "people": [
-      {
-        "id": "<id11>",
-        "personId": "<id12>",
-        "name": "Ada",
-        "personTitle": "Engineer",
-        "personTeam": "",
-        "relationship": "Reviewer",
-        "archived": false,
-        "createdAt": "<time>"
-      }
-    ],
+    "createdAt": "<time.ffffff+hh:mm>",
     "dailyEntries": [
       {
+        "date": "<today>",
         "id": "<id13>",
         "itemId": "<id1>",
-        "date": "<today>",
-        "planned": true,
-        "worked": true,
         "outcome": "Half done",
+        "planned": true,
         "position": 1,
-        "revision": 1
+        "revision": 1,
+        "worked": true
+      }
+    ],
+    "description": "Parse the plan",
+    "github": [
+      {
+        "archived": false,
+        "chatId": null,
+        "chatTitle": null,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "description": "",
+        "id": "<id9>",
+        "kind": "pr",
+        "ownerId": "<id1>",
+        "ownerType": "item",
+        "reference": "example/repo#1",
+        "revision": 1,
+        "submittedBy": "",
+        "title": "",
+        "updatedAt": "<time.ffffff+hh:mm>",
+        "url": "https://github.com/example/repo/pull/1"
       }
     ],
     "history": [
       {
-        "id": "<id14>",
-        "entityId": "<id1>",
-        "kind": "person.link",
         "actorId": "local-user",
-        "actorLabel": "You",
         "actorKind": "human",
-        "createdAt": "<time>",
-        "localDate": "<today>",
-        "before": null,
+        "actorLabel": "You",
         "after": {
+          "archived": false,
+          "createdAt": "<time.ffffff+hh:mm>",
           "id": "<id11>",
-          "personId": "<id12>",
           "name": "Ada",
-          "personTitle": "Engineer",
+          "personId": "<id12>",
           "personTeam": "",
-          "targetType": "item",
-          "targetId": "<id1>",
+          "personTitle": "Engineer",
           "relationship": "Reviewer",
-          "archived": false,
-          "createdAt": "<time>"
-        }
+          "targetId": "<id1>",
+          "targetType": "item"
+        },
+        "before": null,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "entityId": "<id1>",
+        "id": "<id14>",
+        "kind": "person.link",
+        "localDate": "<today>"
       },
       {
-        "id": "<id15>",
-        "entityId": "<id1>",
-        "kind": "item.update",
         "actorId": "local-user",
-        "actorLabel": "You",
         "actorKind": "human",
-        "createdAt": "<time>",
-        "localDate": "<today>",
-        "before": {
-          "id": "<id1>",
-          "title": "Parser",
-          "description": "Parse the plan",
-          "status": "doing",
-          "adoUrl": null,
-          "roadmapId": null,
-          "stepId": null,
-          "backlogOrder": 1,
-          "archived": false,
-          "revision": 2,
-          "createdAt": "<time>",
-          "updatedAt": "<time>",
-          "repositoryIds": []
-        },
+        "actorLabel": "You",
         "after": {
-          "id": "<id1>",
-          "title": "Parser",
-          "description": "Parse the plan",
-          "status": "doing",
+          "_statusChanged": false,
           "adoUrl": null,
-          "roadmapId": "<id2>",
-          "stepId": "<id3>",
-          "backlogOrder": 1,
           "archived": false,
+          "backlogOrder": 1,
+          "createdAt": "<time.ffffff+hh:mm>",
+          "description": "Parse the plan",
+          "id": "<id1>",
+          "repositoryIds": [],
           "revision": 3,
-          "createdAt": "<time>",
-          "updatedAt": "<time>",
-          "repositoryIds": [],
-          "_statusChanged": false
-        }
-      },
-      {
-        "id": "<id16>",
-        "entityId": "<id1>",
-        "kind": "entry.upsert",
-        "actorId": "local-user",
-        "actorLabel": "You",
-        "actorKind": "human",
-        "createdAt": "<time>",
-        "localDate": "<today>",
-        "before": null,
-        "after": {
-          "id": "<id13>",
-          "date": "<today>",
-          "itemId": "<id1>",
-          "planned": true,
-          "worked": true,
-          "outcome": "Half done",
-          "position": 1,
-          "revision": 1
-        }
-      },
-      {
-        "id": "<id17>",
-        "entityId": "<id1>",
-        "kind": "item.update",
-        "actorId": "local-user",
-        "actorLabel": "You",
-        "actorKind": "human",
-        "createdAt": "<time>",
-        "localDate": "<today>",
-        "before": {
-          "id": "<id1>",
-          "title": "Parser",
-          "description": "Parse the plan",
-          "status": "open",
-          "adoUrl": null,
-          "roadmapId": null,
-          "stepId": null,
-          "backlogOrder": 1,
-          "archived": false,
-          "revision": 1,
-          "createdAt": "<time>",
-          "updatedAt": "<time>",
-          "repositoryIds": []
-        },
-        "after": {
-          "id": "<id1>",
-          "title": "Parser",
-          "description": "Parse the plan",
+          "roadmapId": "<id2>",
           "status": "doing",
+          "stepId": "<id3>",
+          "title": "Parser",
+          "updatedAt": "<time.ffffff+hh:mm>"
+        },
+        "before": {
           "adoUrl": null,
-          "roadmapId": null,
-          "stepId": null,
-          "backlogOrder": 1,
           "archived": false,
-          "revision": 2,
-          "createdAt": "<time>",
-          "updatedAt": "<time>",
+          "backlogOrder": 1,
+          "createdAt": "<time.ffffff+hh:mm>",
+          "description": "Parse the plan",
+          "id": "<id1>",
           "repositoryIds": [],
-          "_statusChanged": true
-        }
+          "revision": 2,
+          "roadmapId": null,
+          "status": "doing",
+          "stepId": null,
+          "title": "Parser",
+          "updatedAt": "<time.ffffff+hh:mm>"
+        },
+        "createdAt": "<time.ffffff+hh:mm>",
+        "entityId": "<id1>",
+        "id": "<id15>",
+        "kind": "item.update",
+        "localDate": "<today>"
       },
       {
-        "id": "<id18>",
-        "entityId": "<id1>",
-        "kind": "item.create",
         "actorId": "local-user",
-        "actorLabel": "You",
         "actorKind": "human",
-        "createdAt": "<time>",
-        "localDate": "<today>",
-        "before": null,
+        "actorLabel": "You",
         "after": {
-          "id": "<id1>",
-          "title": "Parser",
-          "description": "Parse the plan",
-          "status": "open",
+          "date": "<today>",
+          "id": "<id13>",
+          "itemId": "<id1>",
+          "outcome": "Half done",
+          "planned": true,
+          "position": 1,
+          "revision": 1,
+          "worked": true
+        },
+        "before": null,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "entityId": "<id1>",
+        "id": "<id16>",
+        "kind": "entry.upsert",
+        "localDate": "<today>"
+      },
+      {
+        "actorId": "local-user",
+        "actorKind": "human",
+        "actorLabel": "You",
+        "after": {
+          "_statusChanged": true,
           "adoUrl": null,
-          "roadmapId": null,
-          "stepId": null,
           "archived": false,
           "backlogOrder": 1,
-          "revision": 1,
-          "createdAt": "<time>",
-          "updatedAt": "<time>",
+          "createdAt": "<time.ffffff+hh:mm>",
+          "description": "Parse the plan",
+          "id": "<id1>",
           "repositoryIds": [],
-          "_statusChanged": false
-        }
+          "revision": 2,
+          "roadmapId": null,
+          "status": "doing",
+          "stepId": null,
+          "title": "Parser",
+          "updatedAt": "<time.ffffff+hh:mm>"
+        },
+        "before": {
+          "adoUrl": null,
+          "archived": false,
+          "backlogOrder": 1,
+          "createdAt": "<time.ffffff+hh:mm>",
+          "description": "Parse the plan",
+          "id": "<id1>",
+          "repositoryIds": [],
+          "revision": 1,
+          "roadmapId": null,
+          "status": "open",
+          "stepId": null,
+          "title": "Parser",
+          "updatedAt": "<time.ffffff+hh:mm>"
+        },
+        "createdAt": "<time.ffffff+hh:mm>",
+        "entityId": "<id1>",
+        "id": "<id17>",
+        "kind": "item.update",
+        "localDate": "<today>"
+      },
+      {
+        "actorId": "local-user",
+        "actorKind": "human",
+        "actorLabel": "You",
+        "after": {
+          "_statusChanged": false,
+          "adoUrl": null,
+          "archived": false,
+          "backlogOrder": 1,
+          "createdAt": "<time.ffffff+hh:mm>",
+          "description": "Parse the plan",
+          "id": "<id1>",
+          "repositoryIds": [],
+          "revision": 1,
+          "roadmapId": null,
+          "status": "open",
+          "stepId": null,
+          "title": "Parser",
+          "updatedAt": "<time.ffffff+hh:mm>"
+        },
+        "before": null,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "entityId": "<id1>",
+        "id": "<id18>",
+        "kind": "item.create",
+        "localDate": "<today>"
       }
     ],
+    "id": "<id1>",
     "linkedRoadmap": {
+      "archived": false,
       "id": "<id2>",
-      "title": "Plan 2",
-      "archived": false
+      "title": "Plan 2"
     },
     "linkedStep": {
       "id": "<id3>",
-      "title": "Child",
+      "retired": false,
       "roadmapId": "<id2>",
       "roadmapTitle": "Plan 2",
-      "retired": false
-    }
-  }
+      "title": "Child"
+    },
+    "links": [
+      {
+        "archived": false,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "description": "",
+        "id": "<id6>",
+        "ownerId": "<id1>",
+        "ownerType": "item",
+        "revision": 1,
+        "title": "",
+        "updatedAt": "<time.ffffff+hh:mm>",
+        "url": "https://example.com/spec"
+      },
+      {
+        "archived": false,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "description": "",
+        "id": "<id7>",
+        "ownerId": "<id1>",
+        "ownerType": "item",
+        "revision": 1,
+        "title": "",
+        "updatedAt": "<time.ffffff+hh:mm>",
+        "url": "https://example.com/plan"
+      }
+    ],
+    "notes": [
+      {
+        "archived": false,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "id": "<id4>",
+        "ownerId": "<id1>",
+        "ownerType": "item",
+        "revision": 1,
+        "text": "Notes",
+        "title": "Scratch",
+        "updatedAt": "<time.ffffff+hh:mm>"
+      }
+    ],
+    "people": [
+      {
+        "archived": false,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "id": "<id11>",
+        "name": "Ada",
+        "personId": "<id12>",
+        "personTeam": "",
+        "personTitle": "Engineer",
+        "relationship": "Reviewer"
+      }
+    ],
+    "rank": 1,
+    "rankedCount": 2,
+    "references": [
+      {
+        "archived": false,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "id": "<id10>",
+        "itemId": "<id1>",
+        "path": "C:/work/spec.md",
+        "revision": 1
+      }
+    ],
+    "repositoryIds": [],
+    "revision": 3,
+    "roadmapId": "<id2>",
+    "status": "doing",
+    "stepId": "<id3>",
+    "title": "Parser",
+    "updatedAt": "<time.ffffff+hh:mm>"
+  },
+  "status": 200
 }

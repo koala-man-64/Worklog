@@ -1,62 +1,62 @@
 {
-  "status": 200,
   "body": {
-    "id": "<id1>",
-    "discussionId": "<id2>",
-    "text": "Confirm the table plan",
     "authorId": "local-user",
-    "authorLabel": "You",
     "authorKind": "human",
-    "createdAt": "<time>",
+    "authorLabel": "You",
     "chatId": null,
+    "createdAt": "<time.ffffff+hh:mm>",
+    "discussionId": "<id2>",
+    "id": "<id1>",
     "onBehalfOfRoleId": null,
     "ownershipGeneration": null,
     "request": {
-      "id": "<id1>",
-      "mode": "all",
-      "state": "pending",
-      "targets": [
-        {
-          "id": "<id3>",
-          "kind": "agent",
-          "recipientId": "<id4>",
-          "label": "Builder",
-          "ownerId": null,
-          "ownershipGeneration": null,
-          "acknowledged": false,
-          "acknowledgedBy": null,
-          "delivery": "pending",
-          "seenAt": null,
-          "acknowledgedAt": null,
-          "answeredAt": null,
-          "answerMessageId": null,
-          "presence": {
-            "active": true,
-            "lastSeenAt": "<time>",
-            "stale": false,
-            "openRuns": 1
-          }
-        }
-      ],
-      "receipts": [],
       "actionableTargetIds": [],
+      "authorityGeneration": null,
+      "authorityRoleId": null,
       "canCancel": true,
       "canRelease": true,
       "classifications": [
         "personal",
         "managed"
       ],
-      "reason": null,
-      "terminalAt": null,
-      "terminalActorId": null,
-      "terminalActorLabel": null,
-      "terminalActorKind": null,
-      "authorityRoleId": null,
-      "authorityGeneration": null,
       "deadlineAt": null,
-      "urgent": false,
       "escalatedAt": null,
-      "overdue": false
-    }
-  }
+      "id": "<id1>",
+      "mode": "all",
+      "overdue": false,
+      "reason": null,
+      "receipts": [],
+      "state": "pending",
+      "targets": [
+        {
+          "acknowledged": false,
+          "acknowledgedAt": null,
+          "acknowledgedBy": null,
+          "answerMessageId": null,
+          "answeredAt": null,
+          "delivery": "pending",
+          "id": "<id3>",
+          "kind": "agent",
+          "label": "Builder",
+          "ownerId": null,
+          "ownershipGeneration": null,
+          "presence": {
+            "active": true,
+            "lastSeenAt": "<time.ffffff+hh:mm>",
+            "openRuns": 1,
+            "stale": false
+          },
+          "recipientId": "<id4>",
+          "seenAt": null
+        }
+      ],
+      "terminalActorId": null,
+      "terminalActorKind": null,
+      "terminalActorLabel": null,
+      "terminalAt": null,
+      "urgent": false
+    },
+    "text": "Confirm the table plan"
+  },
+  "status": 200
 }

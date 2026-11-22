@@ -1,220 +1,220 @@
 {
-  "status": 200,
   "body": {
-    "ref": "T-1",
+    "agents": [
+      {
+        "active": true,
+        "avatar": "red-dots-antenna",
+        "chatId": null,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "directory": null,
+        "id": "<id2>",
+        "kind": "agent",
+        "label": "Builder",
+        "lastActivityAt": "<time.ffffff+hh:mm>",
+        "messageCount": 1,
+        "openRuns": 1,
+        "outputs": [
+          {
+            "createdAt": "<time.ffffff+hh:mm>",
+            "id": "<id9>",
+            "kind": "commit",
+            "participationId": "<id3>",
+            "reference": "abcdef1",
+            "repositoryId": "<id7>",
+            "repositoryName": "worklog",
+            "url": ""
+          },
+          {
+            "createdAt": "<time.ffffff+hh:mm>",
+            "id": "<id10>",
+            "kind": "pr",
+            "participationId": "<id3>",
+            "reference": "7",
+            "repositoryId": "<id7>",
+            "repositoryName": "worklog",
+            "url": "https://github.com/example/worklog/pull/7"
+          }
+        ],
+        "owner": true,
+        "provider": "",
+        "providers": [],
+        "registeredAt": "<time.ffffff+hh:mm>",
+        "relations": [
+          {
+            "at": "<time.ffffff+hh:mm>",
+            "branch": null,
+            "chatId": null,
+            "chatTitle": null,
+            "checkoutPath": null,
+            "current": true,
+            "directory": null,
+            "githubReferenceId": null,
+            "output": null,
+            "owner": true,
+            "participationId": null,
+            "relation": "role",
+            "repositoryId": null,
+            "repositoryName": null,
+            "roleId": "<id8>",
+            "roleLabel": "Parser owner",
+            "ticketId": null,
+            "worktreePath": null
+          },
+          {
+            "at": "<time.ffffff+hh:mm>",
+            "branch": null,
+            "chatId": null,
+            "chatTitle": null,
+            "checkoutPath": null,
+            "current": true,
+            "directory": null,
+            "githubReferenceId": null,
+            "output": null,
+            "owner": true,
+            "participationId": null,
+            "relation": "assignee",
+            "repositoryId": null,
+            "repositoryName": null,
+            "roleId": null,
+            "roleLabel": null,
+            "ticketId": "<id1>",
+            "worktreePath": null
+          },
+          {
+            "at": "<time.ffffff+hh:mm>",
+            "branch": null,
+            "chatId": null,
+            "chatTitle": null,
+            "checkoutPath": null,
+            "current": true,
+            "directory": null,
+            "githubReferenceId": null,
+            "output": null,
+            "owner": false,
+            "participationId": "<id3>",
+            "relation": "participant",
+            "repositoryId": null,
+            "repositoryName": null,
+            "roleId": null,
+            "roleLabel": null,
+            "ticketId": null,
+            "worktreePath": null
+          },
+          {
+            "at": "<time.ffffff+hh:mm>",
+            "branch": null,
+            "chatId": "chat-1",
+            "chatTitle": "Build",
+            "checkoutPath": null,
+            "current": true,
+            "directory": null,
+            "githubReferenceId": null,
+            "output": null,
+            "owner": false,
+            "participationId": null,
+            "relation": "chat",
+            "repositoryId": null,
+            "repositoryName": null,
+            "roleId": null,
+            "roleLabel": null,
+            "ticketId": null,
+            "worktreePath": null
+          },
+          {
+            "at": "<time.ffffff+hh:mm>",
+            "branch": null,
+            "chatId": null,
+            "chatTitle": null,
+            "checkoutPath": null,
+            "current": false,
+            "directory": null,
+            "githubReferenceId": null,
+            "output": null,
+            "owner": false,
+            "participationId": null,
+            "relation": "commenter",
+            "repositoryId": null,
+            "repositoryName": null,
+            "roleId": null,
+            "roleLabel": null,
+            "ticketId": "<id1>",
+            "worktreePath": null
+          }
+        ],
+        "roles": [
+          {
+            "contextId": "<id5>",
+            "contextTitle": "Parser",
+            "contextType": "item",
+            "id": "<id8>",
+            "label": "Parser owner",
+            "roadmap": {
+              "archived": false,
+              "id": "<id6>",
+              "title": "Plan 2"
+            },
+            "updatedAt": "<time.ffffff+hh:mm>"
+          }
+        ],
+        "runCount": 1,
+        "runs": [
+          {
+            "chatId": "chat-1",
+            "createdAt": "<time.ffffff+hh:mm>",
+            "displayName": "Builder",
+            "id": "<id4>",
+            "provider": ""
+          }
+        ],
+        "stale": false,
+        "working": [
+          {
+            "contexts": [
+              {
+                "archived": false,
+                "branch": "",
+                "checkoutPath": "",
+                "repositoryId": "<id7>",
+                "repositoryName": "worklog",
+                "worktreePath": ""
+              }
+            ],
+            "description": "",
+            "item": {
+              "archived": false,
+              "id": "<id5>",
+              "roadmapId": "<id6>",
+              "status": "doing",
+              "title": "Parser"
+            },
+            "lastSeenAt": "<time.ffffff+hh:mm>",
+            "participationId": "<id3>",
+            "roadmap": {
+              "archived": false,
+              "id": "<id6>",
+              "title": "Plan 2"
+            },
+            "runId": "<id4>",
+            "runName": "Builder",
+            "stale": false
+          }
+        ]
+      }
+    ],
     "matches": [
       {
-        "kind": "ticket",
         "id": "<id1>",
+        "kind": "ticket",
         "label": "T-1: Crash on save",
         "matchedBy": "key"
       }
     ],
     "person": {
       "id": "local-user",
-      "label": "You",
-      "kind": "human"
+      "kind": "human",
+      "label": "You"
     },
-    "agents": [
-      {
-        "id": "<id2>",
-        "label": "Builder",
-        "active": true,
-        "createdAt": "<time>",
-        "lastActivityAt": "<time>",
-        "providers": [],
-        "openRuns": 1,
-        "runCount": 1,
-        "messageCount": 1,
-        "working": [
-          {
-            "participationId": "<id3>",
-            "runId": "<id4>",
-            "runName": "Builder",
-            "description": "",
-            "lastSeenAt": "<time>",
-            "stale": false,
-            "item": {
-              "id": "<id5>",
-              "title": "Parser",
-              "status": "doing",
-              "archived": false,
-              "roadmapId": "<id6>"
-            },
-            "roadmap": {
-              "id": "<id6>",
-              "title": "Plan 2",
-              "archived": false
-            },
-            "contexts": [
-              {
-                "repositoryId": "<id7>",
-                "repositoryName": "worklog",
-                "archived": false,
-                "checkoutPath": "",
-                "worktreePath": "",
-                "branch": ""
-              }
-            ]
-          }
-        ],
-        "roles": [
-          {
-            "id": "<id8>",
-            "label": "Parser owner",
-            "contextType": "item",
-            "contextId": "<id5>",
-            "contextTitle": "Parser",
-            "roadmap": {
-              "id": "<id6>",
-              "title": "Plan 2",
-              "archived": false
-            },
-            "updatedAt": "<time>"
-          }
-        ],
-        "kind": "agent",
-        "avatar": "red-dots-antenna",
-        "chatId": null,
-        "directory": null,
-        "registeredAt": "<time>",
-        "provider": "",
-        "stale": false,
-        "runs": [
-          {
-            "id": "<id4>",
-            "displayName": "Builder",
-            "provider": "",
-            "chatId": "chat-1",
-            "createdAt": "<time>"
-          }
-        ],
-        "outputs": [
-          {
-            "id": "<id9>",
-            "participationId": "<id3>",
-            "repositoryId": "<id7>",
-            "repositoryName": "worklog",
-            "kind": "commit",
-            "reference": "abcdef1",
-            "url": "",
-            "createdAt": "<time>"
-          },
-          {
-            "id": "<id10>",
-            "participationId": "<id3>",
-            "repositoryId": "<id7>",
-            "repositoryName": "worklog",
-            "kind": "pr",
-            "reference": "7",
-            "url": "https://github.com/example/worklog/pull/7",
-            "createdAt": "<time>"
-          }
-        ],
-        "owner": true,
-        "relations": [
-          {
-            "relation": "role",
-            "owner": true,
-            "at": "<time>",
-            "current": true,
-            "ticketId": null,
-            "roleId": "<id8>",
-            "roleLabel": "Parser owner",
-            "participationId": null,
-            "repositoryId": null,
-            "repositoryName": null,
-            "branch": null,
-            "checkoutPath": null,
-            "worktreePath": null,
-            "chatId": null,
-            "chatTitle": null,
-            "githubReferenceId": null,
-            "output": null,
-            "directory": null
-          },
-          {
-            "relation": "assignee",
-            "owner": true,
-            "at": "<time>",
-            "current": true,
-            "ticketId": "<id1>",
-            "roleId": null,
-            "roleLabel": null,
-            "participationId": null,
-            "repositoryId": null,
-            "repositoryName": null,
-            "branch": null,
-            "checkoutPath": null,
-            "worktreePath": null,
-            "chatId": null,
-            "chatTitle": null,
-            "githubReferenceId": null,
-            "output": null,
-            "directory": null
-          },
-          {
-            "relation": "participant",
-            "owner": false,
-            "at": "<time>",
-            "current": true,
-            "ticketId": null,
-            "roleId": null,
-            "roleLabel": null,
-            "participationId": "<id3>",
-            "repositoryId": null,
-            "repositoryName": null,
-            "branch": null,
-            "checkoutPath": null,
-            "worktreePath": null,
-            "chatId": null,
-            "chatTitle": null,
-            "githubReferenceId": null,
-            "output": null,
-            "directory": null
-          },
-          {
-            "relation": "chat",
-            "owner": false,
-            "at": "<time>",
-            "current": true,
-            "ticketId": null,
-            "roleId": null,
-            "roleLabel": null,
-            "participationId": null,
-            "repositoryId": null,
-            "repositoryName": null,
-            "branch": null,
-            "checkoutPath": null,
-            "worktreePath": null,
-            "chatId": "chat-1",
-            "chatTitle": "Build",
-            "githubReferenceId": null,
-            "output": null,
-            "directory": null
-          },
-          {
-            "relation": "commenter",
-            "owner": false,
-            "at": "<time>",
-            "current": false,
-            "ticketId": "<id1>",
-            "roleId": null,
-            "roleLabel": null,
-            "participationId": null,
-            "repositoryId": null,
-            "repositoryName": null,
-            "branch": null,
-            "checkoutPath": null,
-            "worktreePath": null,
-            "chatId": null,
-            "chatTitle": null,
-            "githubReferenceId": null,
-            "output": null,
-            "directory": null
-          }
-        ]
-      }
-    ]
-  }
+    "ref": "T-1"
+  },
+  "status": 200
 }

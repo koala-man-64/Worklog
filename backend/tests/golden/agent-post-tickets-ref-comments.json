@@ -1,15 +1,15 @@
 {
-  "status": 200,
   "body": {
-    "id": "<id1>",
-    "ticketId": "<id2>",
-    "text": "Seen it",
-    "createdAt": "<time>",
     "author": {
+      "avatar": "red-dots-antenna",
       "id": "<id3>",
-      "label": "Builder",
       "kind": "agent",
-      "avatar": "red-dots-antenna"
-    }
-  }
+      "label": "Builder"
+    },
+    "createdAt": "<time.ffffff+hh:mm>",
+    "id": "<id1>",
+    "text": "Seen it",
+    "ticketId": "<id2>"
+  },
+  "status": 200
 }

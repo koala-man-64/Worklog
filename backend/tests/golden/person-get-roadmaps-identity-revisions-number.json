@@ -1,34 +1,34 @@
 {
-  "status": 200,
   "body": {
-    "number": 1,
-    "createdAt": "<time>",
+    "createdAt": "<time.ffffff+hh:mm>",
     "note": "Created",
-    "title": "Plan",
+    "number": 1,
     "overview": "",
     "steps": [
       {
-        "id": "<id1>",
-        "title": "Parent",
         "description": "",
+        "id": "<id1>",
         "outcome": "",
         "parentId": null,
         "position": 0,
-        "status": "open",
+        "retired": false,
         "revision": 1,
-        "retired": false
+        "status": "open",
+        "title": "Parent"
       },
       {
-        "id": "<id2>",
-        "title": "Child",
         "description": "",
+        "id": "<id2>",
         "outcome": "",
         "parentId": "<id1>",
         "position": 1,
-        "status": "open",
+        "retired": false,
         "revision": 1,
-        "retired": false
+        "status": "open",
+        "title": "Child"
       }
-    ]
-  }
+    ],
+    "title": "Plan"
+  },
+  "status": 200
 }

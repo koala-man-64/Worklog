@@ -1,27 +1,27 @@
 {
-  "status": 200,
   "body": {
     "items": [
       {
-        "id": "<id1>",
-        "name": "Ada",
-        "title": "Engineer",
-        "team": "",
+        "archived": false,
+        "chat": "",
+        "createdAt": "<time.ffffff+hh:mm>",
         "description": "",
         "email": "",
-        "phone": "",
-        "chat": "",
+        "id": "<id1>",
         "location": "",
+        "name": "Ada",
         "notes": "",
-        "archived": false,
+        "phone": "",
+        "repositoryCount": 1,
         "revision": 1,
-        "createdAt": "<time>",
-        "updatedAt": "<time>",
-        "workItemCount": 1,
         "roadmapCount": 1,
-        "repositoryCount": 1
+        "team": "",
+        "title": "Engineer",
+        "updatedAt": "<time.ffffff+hh:mm>",
+        "workItemCount": 1
       }
     ],
     "total": 1
-  }
+  },
+  "status": 200
 }

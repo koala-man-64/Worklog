@@ -1,28 +1,28 @@
 {
-  "status": 200,
   "body": {
     "items": [
       {
-        "number": 1,
-        "id": "<id1>",
-        "title": "Track the spec",
-        "status": "approved",
-        "autoApproved": false,
         "actorLabel": "Builder",
         "agentId": "<id2>",
-        "createdAt": "<time>",
-        "submittedAt": "<time>",
-        "appliedAt": "<time>",
-        "updatedAt": "<time>",
-        "operationCount": 2,
+        "appliedAt": "<time.ffffff+hh:mm>",
+        "autoApproved": false,
         "changes": [
           {
-            "number": 1,
-            "action": "link.create"
+            "action": "link.create",
+            "number": 1
           }
-        ]
+        ],
+        "createdAt": "<time.ffffff+hh:mm>",
+        "id": "<id1>",
+        "number": 1,
+        "operationCount": 2,
+        "status": "approved",
+        "submittedAt": "<time.ffffff+hh:mm>",
+        "title": "Track the spec",
+        "updatedAt": "<time.ffffff+hh:mm>"
       }
     ],
     "total": 1
-  }
+  },
+  "status": 200
 }

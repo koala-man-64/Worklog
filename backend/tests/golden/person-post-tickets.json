@@ -1,34 +1,34 @@
 {
-  "status": 200,
   "body": {
-    "id": "<id1>",
-    "number": 1,
-    "key": "T-1",
-    "title": "Crash on save",
-    "description": "",
-    "resolution": "",
-    "truncated": false,
-    "kind": "bug",
-    "priority": "normal",
-    "status": "open",
-    "labels": [],
-    "repositoryIds": [],
-    "itemId": null,
-    "item": null,
-    "assigneeId": null,
-    "assignee": null,
-    "author": {
-      "id": "local-user",
-      "label": "You",
-      "kind": "human",
-      "avatar": null
-    },
-    "commentCount": 0,
     "archived": false,
-    "revision": 1,
-    "createdAt": "<time>",
-    "updatedAt": "<time>",
+    "assignee": null,
+    "assigneeId": null,
+    "author": {
+      "avatar": null,
+      "id": "local-user",
+      "kind": "human",
+      "label": "You"
+    },
     "closedAt": null,
-    "lastActivityAt": "<time>"
-  }
+    "commentCount": 0,
+    "createdAt": "<time.ffffff+hh:mm>",
+    "description": "",
+    "id": "<id1>",
+    "item": null,
+    "itemId": null,
+    "key": "T-1",
+    "kind": "bug",
+    "labels": [],
+    "lastActivityAt": "<time.ffffff+hh:mm>",
+    "number": 1,
+    "priority": "normal",
+    "repositoryIds": [],
+    "resolution": "",
+    "revision": 1,
+    "status": "open",
+    "title": "Crash on save",
+    "truncated": false,
+    "updatedAt": "<time.ffffff+hh:mm>"
+  },
+  "status": 200
 }

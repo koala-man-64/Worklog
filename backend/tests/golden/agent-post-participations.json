@@ -1,40 +1,40 @@
 {
-  "status": 200,
   "body": {
-    "id": "<id1>",
-    "runId": "<id2>",
-    "itemId": "<id3>",
-    "description": "",
     "contexts": [
       {
+        "archived": false,
+        "branch": "",
+        "checkoutPath": "",
         "repositoryId": "<id4>",
         "repositoryName": "worklog",
-        "archived": false,
-        "checkoutPath": "",
-        "worktreePath": "",
-        "branch": ""
+        "worktreePath": ""
       }
     ],
-    "revision": 1,
-    "createdAt": "<time>",
-    "updatedAt": "<time>",
-    "lastSeenAt": "<time>",
-    "releasedAt": null,
+    "createdAt": "<time.ffffff+hh:mm>",
+    "description": "",
+    "id": "<id1>",
+    "itemId": "<id3>",
+    "lastSeenAt": "<time.ffffff+hh:mm>",
     "releaseReason": null,
-    "stale": false,
+    "releasedAt": null,
+    "revision": 1,
     "run": {
-      "id": "<id2>",
       "agentId": "<id5>",
-      "credentialId": "<id5>",
       "clientRunKey": "golden",
+      "createdAt": "<time.ffffff+hh:mm>",
+      "credentialId": "<id5>",
       "displayName": "Builder",
-      "provider": "",
-      "externalChatId": "chat-1",
-      "revision": 1,
-      "createdAt": "<time>",
-      "updatedAt": "<time>",
+      "endReason": null,
       "endedAt": null,
-      "endReason": null
-    }
-  }
+      "externalChatId": "chat-1",
+      "id": "<id2>",
+      "provider": "",
+      "revision": 1,
+      "updatedAt": "<time.ffffff+hh:mm>"
+    },
+    "runId": "<id2>",
+    "stale": false,
+    "updatedAt": "<time.ffffff+hh:mm>"
+  },
+  "status": 200
 }

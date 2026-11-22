@@ -1,32 +1,32 @@
 {
-  "status": 200,
   "body": {
     "items": [
       {
-        "id": "<id1>",
-        "participationId": "<id2>",
-        "runId": "<id3>",
         "agentId": "<id4>",
-        "credentialId": "<id4>",
         "authorLabel": "Builder",
-        "kind": "update",
-        "text": "Parser half done",
-        "itemId": "<id5>",
         "contexts": [
           {
+            "archived": false,
+            "branch": "",
+            "checkoutPath": "",
             "repositoryId": "<id6>",
             "repositoryName": "worklog",
-            "archived": false,
-            "checkoutPath": "",
-            "worktreePath": "",
-            "branch": ""
+            "worktreePath": ""
           }
         ],
-        "createdAt": "<time>"
+        "createdAt": "<time.ffffff+hh:mm>",
+        "credentialId": "<id4>",
+        "id": "<id1>",
+        "itemId": "<id5>",
+        "kind": "update",
+        "participationId": "<id2>",
+        "runId": "<id3>",
+        "text": "Parser half done"
       }
     ],
-    "total": 1,
     "limit": 50,
-    "offset": 0
-  }
+    "offset": 0,
+    "total": 1
+  },
+  "status": 200
 }

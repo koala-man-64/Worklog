@@ -1,105 +1,105 @@
 {
-  "status": 200,
   "body": {
     "items": [
       {
+        "active": true,
+        "avatar": "red-dots-antenna",
+        "createdAt": "<time.ffffff+hh:mm>",
         "id": "<id1>",
         "label": "Builder",
-        "active": true,
-        "createdAt": "<time>",
-        "lastActivityAt": "<time>",
-        "providers": [],
-        "openRuns": 1,
-        "runCount": 1,
+        "lastActivityAt": "<time.ffffff+hh:mm>",
         "messageCount": 1,
-        "working": [
-          {
-            "participationId": "<id2>",
-            "runId": "<id3>",
-            "runName": "Builder",
-            "description": "",
-            "lastSeenAt": "<time>",
-            "stale": false,
-            "item": {
-              "id": "<id4>",
-              "title": "Parser",
-              "status": "doing",
+        "openRuns": 1,
+        "providers": [],
+        "repositories": {
+          "items": [
+            {
               "archived": false,
-              "roadmapId": "<id5>"
-            },
-            "roadmap": {
-              "id": "<id5>",
-              "title": "Plan 2",
-              "archived": false
-            },
-            "contexts": [
-              {
-                "repositoryId": "<id6>",
-                "repositoryName": "worklog",
-                "archived": false,
-                "checkoutPath": "",
-                "worktreePath": "",
-                "branch": ""
-              }
-            ]
-          }
-        ],
-        "roles": [
-          {
-            "id": "<id7>",
-            "label": "Parser owner",
-            "contextType": "item",
-            "contextId": "<id4>",
-            "contextTitle": "Parser",
-            "roadmap": {
-              "id": "<id5>",
-              "title": "Plan 2",
-              "archived": false
-            },
-            "updatedAt": "<time>"
-          }
-        ],
-        "avatar": "red-dots-antenna",
+              "current": true,
+              "id": "<id6>",
+              "lastAt": "<time.ffffff+hh:mm>",
+              "name": "worklog",
+              "via": [
+                "participation",
+                "update",
+                "message"
+              ]
+            }
+          ],
+          "total": 1
+        },
         "roadmaps": {
           "items": [
             {
-              "id": "<id5>",
-              "title": "Plan 2",
               "archived": false,
+              "current": true,
+              "id": "<id5>",
+              "lastAt": "<time.ffffff+hh:mm>",
+              "title": "Plan 2",
               "via": [
                 "participation",
                 "role",
                 "update",
                 "message",
                 "chat"
-              ],
-              "current": true,
-              "lastAt": "<time>"
+              ]
             }
           ],
           "total": 1
         },
-        "repositories": {
-          "items": [
-            {
-              "id": "<id6>",
-              "name": "worklog",
+        "roles": [
+          {
+            "contextId": "<id4>",
+            "contextTitle": "Parser",
+            "contextType": "item",
+            "id": "<id7>",
+            "label": "Parser owner",
+            "roadmap": {
               "archived": false,
-              "via": [
-                "participation",
-                "update",
-                "message"
-              ],
-              "current": true,
-              "lastAt": "<time>"
-            }
-          ],
-          "total": 1
-        }
+              "id": "<id5>",
+              "title": "Plan 2"
+            },
+            "updatedAt": "<time.ffffff+hh:mm>"
+          }
+        ],
+        "runCount": 1,
+        "working": [
+          {
+            "contexts": [
+              {
+                "archived": false,
+                "branch": "",
+                "checkoutPath": "",
+                "repositoryId": "<id6>",
+                "repositoryName": "worklog",
+                "worktreePath": ""
+              }
+            ],
+            "description": "",
+            "item": {
+              "archived": false,
+              "id": "<id4>",
+              "roadmapId": "<id5>",
+              "status": "doing",
+              "title": "Parser"
+            },
+            "lastSeenAt": "<time.ffffff+hh:mm>",
+            "participationId": "<id2>",
+            "roadmap": {
+              "archived": false,
+              "id": "<id5>",
+              "title": "Plan 2"
+            },
+            "runId": "<id3>",
+            "runName": "Builder",
+            "stale": false
+          }
+        ]
       }
     ],
-    "total": 1,
     "limit": 50,
-    "offset": 0
-  }
+    "offset": 0,
+    "total": 1
+  },
+  "status": 200
 }

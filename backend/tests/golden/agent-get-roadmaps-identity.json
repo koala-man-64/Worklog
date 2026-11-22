@@ -1,204 +1,204 @@
 {
-  "status": 200,
   "body": {
-    "id": "<id1>",
-    "title": "Plan 2",
-    "overview": "",
-    "parentId": null,
-    "revision": 2,
+    "ancestors": [],
     "archived": false,
-    "createdAt": "<time>",
-    "updatedAt": "<time>",
-    "steps": [
-      {
-        "id": "<id2>",
-        "title": "Parent",
-        "description": "",
-        "outcome": "",
-        "parentId": null,
-        "position": 0,
-        "status": "open",
-        "revision": 1,
-        "retired": false,
-        "notes": [],
-        "attachments": []
-      },
-      {
-        "id": "<id3>",
-        "title": "Child",
-        "description": "",
-        "outcome": "",
-        "parentId": "<id2>",
-        "position": 1,
-        "status": "open",
-        "revision": 1,
-        "retired": false,
-        "notes": [],
-        "attachments": []
-      }
-    ],
-    "versions": [
-      {
-        "number": 1,
-        "createdAt": "<time>",
-        "note": "Created"
-      },
-      {
-        "number": 2,
-        "createdAt": "<time>",
-        "note": ""
-      }
-    ],
-    "notes": [],
     "attachments": [],
-    "links": [],
     "chats": [],
-    "github": [],
-    "questions": [
+    "children": [
       {
-        "id": "<id4>",
-        "roadmapId": "<id1>",
-        "title": "Which parser?",
-        "details": "",
-        "answer": "",
-        "status": "open",
         "archived": false,
-        "revision": 1,
-        "createdAt": "<time>",
-        "updatedAt": "<time>"
-      },
-      {
-        "id": "<id5>",
-        "roadmapId": "<id1>",
-        "title": "Who reviews?",
-        "details": "",
-        "answer": "",
-        "status": "open",
-        "archived": false,
-        "revision": 1,
-        "createdAt": "<time>",
-        "updatedAt": "<time>"
+        "id": "<id12>",
+        "title": "Sub-plan"
       }
     ],
+    "createdAt": "<time.ffffff+hh:mm>",
     "decisions": [
       {
+        "archived": false,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "decidedDate": "2026-01-05",
         "id": "<id6>",
+        "rationale": "",
+        "revision": 1,
         "roadmapId": "<id1>",
         "title": "Use the HTML one",
-        "rationale": "",
-        "decidedDate": "2026-01-05",
-        "archived": false,
-        "revision": 1,
-        "createdAt": "<time>",
-        "updatedAt": "<time>"
+        "updatedAt": "<time.ffffff+hh:mm>"
       }
     ],
+    "github": [],
     "history": [
       {
-        "id": "<id7>",
-        "entityId": "<id1>",
-        "kind": "person.link",
         "actorId": "local-user",
-        "actorLabel": "You",
         "actorKind": "human",
-        "createdAt": "<time>",
-        "localDate": "<today>",
-        "before": null,
+        "actorLabel": "You",
         "after": {
-          "id": "<id8>",
-          "personId": "<id9>",
-          "name": "Ada",
-          "personTitle": "Engineer",
-          "personTeam": "",
-          "targetType": "roadmap",
-          "targetId": "<id1>",
-          "relationship": "Reviewer",
           "archived": false,
-          "createdAt": "<time>"
-        }
+          "createdAt": "<time.ffffff+hh:mm>",
+          "id": "<id8>",
+          "name": "Ada",
+          "personId": "<id9>",
+          "personTeam": "",
+          "personTitle": "Engineer",
+          "relationship": "Reviewer",
+          "targetId": "<id1>",
+          "targetType": "roadmap"
+        },
+        "before": null,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "entityId": "<id1>",
+        "id": "<id7>",
+        "kind": "person.link",
+        "localDate": "<today>"
       },
       {
+        "actorId": "local-user",
+        "actorKind": "human",
+        "actorLabel": "You",
+        "after": {
+          "changedStepIds": [],
+          "versionNumber": 2
+        },
+        "before": null,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "entityId": "<id1>",
         "id": "<id10>",
-        "entityId": "<id1>",
         "kind": "roadmap.revise",
-        "actorId": "local-user",
-        "actorLabel": "You",
-        "actorKind": "human",
-        "createdAt": "<time>",
-        "localDate": "<today>",
-        "before": null,
-        "after": {
-          "versionNumber": 2,
-          "changedStepIds": []
-        }
+        "localDate": "<today>"
       },
       {
-        "id": "<id11>",
-        "entityId": "<id1>",
-        "kind": "roadmap.create",
         "actorId": "local-user",
-        "actorLabel": "You",
         "actorKind": "human",
-        "createdAt": "<time>",
-        "localDate": "<today>",
-        "before": null,
+        "actorLabel": "You",
         "after": {
-          "versionNumber": 1,
           "changedStepIds": [
             "<id2>",
             "<id3>"
-          ]
-        }
+          ],
+          "versionNumber": 1
+        },
+        "before": null,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "entityId": "<id1>",
+        "id": "<id11>",
+        "kind": "roadmap.create",
+        "localDate": "<today>"
       }
     ],
-    "ancestors": [],
-    "children": [
+    "id": "<id1>",
+    "links": [],
+    "notes": [],
+    "overview": "",
+    "parentId": null,
+    "people": [
       {
-        "id": "<id12>",
-        "title": "Sub-plan",
-        "archived": false
+        "archived": false,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "id": "<id8>",
+        "name": "Ada",
+        "personId": "<id9>",
+        "personTeam": "",
+        "personTitle": "Engineer",
+        "relationship": "Reviewer"
+      }
+    ],
+    "questions": [
+      {
+        "answer": "",
+        "archived": false,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "details": "",
+        "id": "<id4>",
+        "revision": 1,
+        "roadmapId": "<id1>",
+        "status": "open",
+        "title": "Which parser?",
+        "updatedAt": "<time.ffffff+hh:mm>"
+      },
+      {
+        "answer": "",
+        "archived": false,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "details": "",
+        "id": "<id5>",
+        "revision": 1,
+        "roadmapId": "<id1>",
+        "status": "open",
+        "title": "Who reviews?",
+        "updatedAt": "<time.ffffff+hh:mm>"
+      }
+    ],
+    "revision": 2,
+    "steps": [
+      {
+        "attachments": [],
+        "description": "",
+        "id": "<id2>",
+        "notes": [],
+        "outcome": "",
+        "parentId": null,
+        "position": 0,
+        "retired": false,
+        "revision": 1,
+        "status": "open",
+        "title": "Parent"
+      },
+      {
+        "attachments": [],
+        "description": "",
+        "id": "<id3>",
+        "notes": [],
+        "outcome": "",
+        "parentId": "<id2>",
+        "position": 1,
+        "retired": false,
+        "revision": 1,
+        "status": "open",
+        "title": "Child"
+      }
+    ],
+    "title": "Plan 2",
+    "updatedAt": "<time.ffffff+hh:mm>",
+    "versions": [
+      {
+        "createdAt": "<time.ffffff+hh:mm>",
+        "note": "Created",
+        "number": 1
+      },
+      {
+        "createdAt": "<time.ffffff+hh:mm>",
+        "note": "",
+        "number": 2
       }
     ],
     "workItems": [
       {
-        "id": "<id13>",
-        "title": "Parser",
-        "description": "Parse the plan",
-        "status": "doing",
         "adoUrl": null,
-        "roadmapId": "<id1>",
-        "stepId": "<id3>",
-        "backlogOrder": 1,
         "archived": false,
-        "revision": 3,
-        "createdAt": "<time>",
-        "updatedAt": "<time>",
-        "repositoryIds": [],
+        "backlogOrder": 1,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "description": "Parse the plan",
+        "id": "<id13>",
         "people": [
           {
-            "id": "<id14>",
-            "personId": "<id9>",
-            "name": "Ada",
-            "personTitle": "Engineer",
-            "personTeam": "",
-            "relationship": "Reviewer",
             "archived": false,
-            "createdAt": "<time>"
+            "createdAt": "<time.ffffff+hh:mm>",
+            "id": "<id14>",
+            "name": "Ada",
+            "personId": "<id9>",
+            "personTeam": "",
+            "personTitle": "Engineer",
+            "relationship": "Reviewer"
           }
-        ]
-      }
-    ],
-    "people": [
-      {
-        "id": "<id8>",
-        "personId": "<id9>",
-        "name": "Ada",
-        "personTitle": "Engineer",
-        "personTeam": "",
-        "relationship": "Reviewer",
-        "archived": false,
-        "createdAt": "<time>"
+        ],
+        "repositoryIds": [],
+        "revision": 3,
+        "roadmapId": "<id1>",
+        "status": "doing",
+        "stepId": "<id3>",
+        "title": "Parser",
+        "updatedAt": "<time.ffffff+hh:mm>"
       }
     ]
-  }
+  },
+  "status": 200
 }

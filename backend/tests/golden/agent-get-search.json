@@ -1,80 +1,80 @@
 {
-  "status": 200,
   "body": {
     "items": [
       {
         "id": "<id1>",
-        "type": "discussion",
-        "title": "Parser",
-        "snippet": "",
         "ownerId": "<id1>",
+        "routeId": "<id1>",
         "routeType": "discussions",
-        "routeId": "<id1>"
+        "snippet": "",
+        "title": "Parser",
+        "type": "discussion"
       },
       {
         "id": "<id2>",
-        "type": "discussion_message",
-        "title": "Parser",
-        "snippet": "Who reviews the parser?",
         "ownerId": "<id1>",
+        "routeId": "<id1>",
         "routeType": "discussions",
-        "routeId": "<id1>"
+        "snippet": "Who reviews the parser?",
+        "title": "Parser",
+        "type": "discussion_message"
       },
       {
         "id": "<id3>",
-        "type": "question",
-        "title": "Which parser?",
-        "snippet": "",
         "ownerId": "<id4>",
+        "routeId": "<id4>",
         "routeType": "roadmaps",
-        "routeId": "<id4>"
+        "snippet": "",
+        "title": "Which parser?",
+        "type": "question"
       },
       {
         "id": "<id5>",
-        "type": "item",
-        "title": "Parser",
-        "snippet": "Parse the plan",
         "ownerId": "<id5>",
+        "routeId": "<id5>",
         "routeType": "work",
-        "routeId": "<id5>"
+        "snippet": "Parse the plan",
+        "title": "Parser",
+        "type": "item"
       },
       {
         "id": "<id6>",
-        "type": "discussion_message",
-        "title": "Parser",
-        "snippet": "Where do we start?",
         "ownerId": "<id1>",
+        "routeId": "<id1>",
         "routeType": "discussions",
-        "routeId": "<id1>"
+        "snippet": "Where do we start?",
+        "title": "Parser",
+        "type": "discussion_message"
       },
       {
         "id": "<id7>",
-        "type": "discussion_message",
-        "title": "Parser",
-        "snippet": "Starting with the tables",
         "ownerId": "<id1>",
+        "routeId": "<id1>",
         "routeType": "discussions",
-        "routeId": "<id1>"
+        "snippet": "Starting with the tables",
+        "title": "Parser",
+        "type": "discussion_message"
       },
       {
         "id": "<id8>",
-        "type": "discussion_message",
-        "title": "Parser",
-        "snippet": "Confirm the table plan",
         "ownerId": "<id1>",
+        "routeId": "<id1>",
         "routeType": "discussions",
-        "routeId": "<id1>"
+        "snippet": "Confirm the table plan",
+        "title": "Parser",
+        "type": "discussion_message"
       },
       {
         "id": "<id9>",
-        "type": "ticket",
-        "title": "T-1 Crash on save",
-        "snippet": "bug parser",
         "ownerId": "<id9>",
+        "routeId": "<id9>",
         "routeType": "tickets",
-        "routeId": "<id9>"
+        "snippet": "bug parser",
+        "title": "T-1 Crash on save",
+        "type": "ticket"
       }
     ],
     "total": 8
-  }
+  },
+  "status": 200
 }
