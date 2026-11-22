@@ -558,3 +558,23 @@ def test_an_upgrade_stops_when_its_backup_cannot_be_taken(tmp_path, monkeypatch)
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("SELECT count(*) FROM sqlite_master WHERE name='roadmap_questions'").fetchone() == (0,)
     assert list((tmp_path / "backups").glob("worklog-pre-migration-*.sqlite3")) == []
+
+
+def test_a_daily_backup_still_prunes_when_its_marker_cannot_be_written(tmp_path, monkeypatch):
+    """A marker that cannot be written fails the day's backup, so the watcher tries again; pruning
+    still runs, so those tries cannot pile up copies."""
+    source = make_database(tmp_path / "live.sqlite3")
+    directory = tmp_path / "backups"
+    old = old_backups(directory, "daily", 14)
+    replace = os.replace
+
+    def refused(stage, target):
+        if Path(target).name == "daily-backup-state.json":
+            raise PermissionError(13, "The process cannot access the file", str(target))
+        return replace(stage, target)
+
+    monkeypatch.setattr(recovery.os, "replace", refused)
+    with pytest.raises(PermissionError):
+        recovery.automatic_backup(source, directory)
+    assert not old[0].exists()
+    assert len(list(directory.glob("worklog-daily-*.sqlite3"))) == 14

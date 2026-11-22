@@ -319,19 +319,16 @@ def _hashed(target: Path) -> dict[str, Any]:
     return result
 
 
-def prune_backups(backup_dir: Path | str, kind: str, keep: int) -> list[str]:
+def prune_backups(backup_dir: Path | str, kind: str, keep: int) -> None:
     """Delete all but the newest `keep` backups of a kind, by the time in their names. A file that
     cannot be deleted, as on Windows while another program holds it open, is logged and left for
-    the next backup of its kind to try again; the rest are still deleted. Returns the names left."""
-    left = []
+    the next backup of its kind to try again; the rest are still deleted."""
     for old in sorted(Path(backup_dir).glob(f"worklog-{kind}-*.sqlite3"), reverse=True)[keep:]:
         try:
             old.unlink()
         except OSError as exc:
             logger.warning("Could not delete old backup %s (%s); the next %s backup tries again",
                            old.name, type(exc).__name__, kind)
-            left.append(old.name)
-    return left
 
 
 def automatic_backup(db_path: Path | str, backup_dir: Path | str) -> dict[str, Any] | None:
@@ -369,6 +366,7 @@ def _daily_backup(db_path: Path | str, backup_dir: Path | str) -> dict[str, Any]
         return None
     # The day's backup counts once its file is published: the marker is written before pruning and
     # hashing, and neither raises out of here, or the watcher would take another full copy each time.
+    # Pruning runs even when the marker cannot be written, so retries cannot pile up copies.
     target = _publish(db_path, directory, "daily")
     temporary = directory / (".daily-" + uuid.uuid4().hex + ".tmp")
     try:
@@ -377,7 +375,11 @@ def _daily_backup(db_path: Path | str, backup_dir: Path | str) -> dict[str, Any]
         os.replace(temporary, marker)
     finally:
         temporary.unlink(missing_ok=True)
-    _prune_after(directory, "daily")
+        try:
+            _prune_after(directory, "daily")
+        except OSError as exc:
+            logger.warning("Pruning daily backups failed (%s); the next daily backup tries again",
+                           type(exc).__name__)
     try:
         return _hashed(target)
     except OSError as exc:
