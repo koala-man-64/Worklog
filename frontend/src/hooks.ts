@@ -9,11 +9,15 @@ import {
 import type { Query, QueryClient } from "@tanstack/react-query";
 import { request, contextStorageKey, getDataContext, ApiError } from "./api";
 import { localStore, readIdSet } from "./storage";
-/** The app's query client, with the defaults every read and write starts from. */
+/**
+ * The app's query client, with the defaults every read and write starts from. The server runs on
+ * this machine, so a read never waits for the browser to report itself online, as writes don't
+ * (`useCommand`).
+ */
 export function createQueryClient() {
   return new TanStackQueryClient({
     defaultOptions: {
-      queries: { retry: 1, refetchOnWindowFocus: true },
+      queries: { retry: 1, refetchOnWindowFocus: true, networkMode: "always" },
       mutations: { retry: false },
     },
   });
