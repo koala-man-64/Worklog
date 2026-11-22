@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from contextlib import nullcontext
 
 from . import proposal_names, proposal_targets, scratchpad
@@ -17,7 +18,7 @@ from .common import (
     setting,
     uid,
 )
-from .discussions import DiscussionService
+from .discussions import TAG_LIMIT, DiscussionService
 from .migrations import AUTOMATIC_APPROVAL_ID, stale_signature
 from .operations import OPERATIONS, keys, validate
 from .plans import Forecast
@@ -25,6 +26,18 @@ from .plans import Forecast
 # Explicit schemas prevent a proposal becoming an arbitrary operation transport. Each operation's
 # keys come from its one definition in operations.py: (required, allowed) per action.
 FIELDS = {action: tuple(set(names) for names in keys(action)) for action in OPERATIONS}
+
+logger = logging.getLogger("worklog")
+# A notice's title, as a discussion's title, holds at most this many UTF-8 bytes (discussions.create).
+NOTICE_TITLE_BYTES = 1000
+# The kinds a notice is tagged with, in the order they take its TAG_LIMIT tags.
+NOTICE_TAG_ORDER = {"roadmap": 0, "item": 1, "step": 2}
+
+
+def _cut(value: str, limit: int) -> str:
+    """value cut to at most limit UTF-8 bytes, never inside a character."""
+    return value.encode("utf-8")[:limit].decode("utf-8", "ignore")
+
 
 # Approves under the person's standing choice in Settings rather than a decision on one
 # proposal: the person's authority, recorded apart from the approvals they give in Review.
@@ -682,38 +695,57 @@ class ProposalService:
                     if isinstance(val, str) and (ctype, val) not in seen_ctx and conn.execute(f"SELECT 1 FROM {table} WHERE id=?", (val,)).fetchone():
                         seen_ctx.add((ctype, val))
                         contexts.append({"type": ctype, "id": val})
+        # A discussion takes TAG_LIMIT tags: roadmaps first, then work items, then steps.
+        contexts = sorted(contexts, key=lambda ctx: NOTICE_TAG_ORDER[ctx["type"]])[:TAG_LIMIT]
         lines = [
             f"Change {c['operation']} ({c['action']} on {c['targetTitle']!r} `{c['targetId']}`): expected revision {c['expectedRevision']}, current revision {c['currentRevision']}"
             for c in conflicts
         ]
         summary = "; ".join(lines)
         if reason == "reopened":
-            title = f"Proposal returned to draft: {row['title']}"[:1000]
+            title = _cut(f"Proposal returned to draft: {row['title']}", NOTICE_TITLE_BYTES)
             body = (
                 f"Proposal **{row['title']}** (`{row['id']}`) was returned to draft for re-review."
                 + (f" Stale target(s): {summary}." if summary else "")
                 + " Reload the current plan, update the draft, and resubmit."
             )
         else:
-            title = f"Plan changed — re-review proposal: {row['title']}"[:1000]
+            title = _cut(f"Plan changed — re-review proposal: {row['title']}", NOTICE_TITLE_BYTES)
             body = (
                 f"Proposal **{row['title']}** (`{row['id']}`) has stale target revision(s) after a plan update: {summary}. "
                 "Reload the plan, reopen or supersede the proposal, and resubmit."
             )
         notifier = {"id": "local-user", "label": "You", "kind": "human"}
-        discussion = DiscussionService(self.db).create(
-            conn,
-            notifier,
-            {
-                "title": title,
-                "text": body,
-                "contexts": contexts,
-                "acknowledgement": {
-                    "mode": "all",
-                    "targets": [{"kind": "agent", "id": agent["id"]}],
+        # The notice is posted inside the person's own write (a plan change, an approval, a
+        # reopening), which it must never fail. One the discussion refuses is rolled back to its own
+        # savepoint and logged; a database error still fails the write, so a busy or full database
+        # is never reported as saved.
+        conn.execute("SAVEPOINT proposal_notice")
+        try:
+            discussion = DiscussionService(self.db).create(
+                conn,
+                notifier,
+                {
+                    "title": title,
+                    "text": body,
+                    "contexts": contexts,
+                    "acknowledgement": {
+                        "mode": "all",
+                        "targets": [{"kind": "agent", "id": agent["id"]}],
+                    },
                 },
-            },
-        )
+            )
+        except AppError as exc:
+            conn.execute("ROLLBACK TO proposal_notice")
+            conn.execute("RELEASE proposal_notice")
+            logger.warning("The %s notice for proposal %s could not be posted: %s", reason, row["id"], exc.message)
+            if reason == "plan_changed":
+                # Recorded, so later writes don't try it again; no proposal.stale event, which says
+                # a notice was posted.
+                conn.execute("INSERT OR IGNORE INTO proposal_stale_notices(proposal_id,proposal_revision,conflicts,"
+                             "created_at) VALUES(?,?,?,?)", (row["id"], row["revision"], stale_signature(conflicts), now()))
+            return None
+        conn.execute("RELEASE proposal_notice")
         if reason == "plan_changed":
             stamp = now()
             conn.execute("INSERT OR IGNORE INTO proposal_stale_notices(proposal_id,proposal_revision,conflicts,created_at) VALUES(?,?,?,?)",

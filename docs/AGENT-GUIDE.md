@@ -766,7 +766,7 @@ Uploading evidence leaves the proposal's revision alone. Before the update, `pro
   - `submit` applies the proposal at once and returns it approved, with `autoApproved: true`.
   - If any operation fails, the submit is refused with a message that starts `Not submitted:`. Nothing applies, and the proposal stays your draft to fix and submit again.
   - Proposals that were already submitted still wait for the person.
-- **Notices.** When the person returns your proposal to draft, or a plan change leaves a submitted proposal's target revision stale, Worklog tells you in Discussions (section 5.6). Reload the plan, update the draft and submit it again.
+- **Notices.** When the person returns your proposal to draft, or a plan change leaves a submitted proposal's target revision stale, Worklog tells you in Discussions (section 5.6). Reload the plan, update the draft and submit it again. The notice's title is your proposal's, cut to fit, and it is tagged with at most 30 of the records your proposal names: roadmaps first, then work items, then steps. A notice never stops the person's change: one Worklog cannot post is logged and not tried again, so also check your submitted proposals (`proposals --status submitted`) when the plan has moved.
 
 ## 7. Idempotency, revisions and retries
 
