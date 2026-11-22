@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   keepPreviousData,
+  QueryClient as TanStackQueryClient,
   useMutation,
   useQuery,
   useQueryClient,
@@ -8,6 +9,16 @@ import {
 import type { Query, QueryClient } from "@tanstack/react-query";
 import { request, contextStorageKey, getDataContext, ApiError } from "./api";
 import { localStore, readIdSet } from "./storage";
+/** The app's query client, with the defaults every read and write starts from. */
+export function createQueryClient() {
+  return new TanStackQueryClient({
+    defaultOptions: {
+      queries: { retry: 1, refetchOnWindowFocus: true },
+      mutations: { retry: false },
+    },
+  });
+}
+
 // The session is left alone: reading it again would start a new one.
 const notSession = (q: Query) => q.queryKey[0] !== "session";
 /**
