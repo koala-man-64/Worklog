@@ -15,7 +15,7 @@ import {
 } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { getDataContext, request } from "./api";
-import { useCommand, useData, useWrites } from "./hooks";
+import { createQueryClient, useCommand, useData, useWrites } from "./hooks";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -261,6 +261,27 @@ it("writes while the browser reports itself offline, since the server is on this
     // A mutation that waited for the browser to come online would stay pending here.
     await expect(answered).resolves.toBe("saved");
     await waitFor(() => expect(result.current.isPending).toBe(false));
+  } finally {
+    onlineManager.setOnline(true);
+  }
+});
+
+it("reads, and reads again after a write, while the browser reports itself offline", async () => {
+  const server = serve([]);
+  onlineManager.setOnline(false);
+  try {
+    // The app's own client: a read that waited for the browser to come online would never start.
+    const { result } = renderHook(
+      () => ({
+        people: useData<string[]>("/people"),
+        add: useCommand(addPerson()),
+      }),
+      { wrapper: wrapper(createQueryClient()) },
+    );
+    await waitFor(() => expect(result.current.people.data).toEqual([]));
+    await act(() => result.current.add.mutateAsync({ name: "Ada" }));
+    await waitFor(() => expect(result.current.people.data).toEqual(["Ada"]));
+    expect(server.reads.filter((path) => path === "/people")).toHaveLength(2);
   } finally {
     onlineManager.setOnline(true);
   }
