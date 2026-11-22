@@ -4,7 +4,7 @@ import json
 import os
 import sqlite3
 import zipfile
-from contextlib import closing
+from contextlib import closing, contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -460,3 +460,121 @@ def test_a_failed_questions_and_decisions_migration_leaves_no_partial_tables(tmp
         Database(path).initialize()
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("SELECT count(*) FROM sqlite_master WHERE name IN ('roadmap_questions','roadmap_decisions','roadmap_questions_roadmap')").fetchone() == (0,)
+
+
+# A daily backup survives a failed prune (audit finding B1, roadmap step 1.1). On Windows another
+# program holding an old backup open (a SQLite viewer, a copy, `backups -Verify`) makes deleting it
+# fail; that used to stop the day's backup counting, so every minute added another full copy.
+
+
+def old_backups(directory: Path, kind: str, count: int) -> list[Path]:
+    """`count` backups of a kind from earlier days, oldest first."""
+    directory.mkdir(parents=True, exist_ok=True)
+    paths = [directory / f"worklog-{kind}-202601{day:02d}T000000000000Z-{day:08x}.sqlite3" for day in range(1, count + 1)]
+    for path in paths:
+        path.write_bytes(b"an earlier backup")
+    return paths
+
+
+@contextmanager
+def held(path: Path, monkeypatch):
+    """`path` held open by another handle. Windows refuses to delete it then; elsewhere the refusal
+    is made the same way, by Path.unlink."""
+    if os.name == "nt":
+        with path.open("rb"):
+            yield
+        return
+    unlink = Path.unlink
+
+    def refused(self, *args, **kwargs):
+        if self == path:
+            raise PermissionError(13, "The process cannot access the file", str(self))
+        return unlink(self, *args, **kwargs)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(Path, "unlink", refused)
+        yield
+
+
+def test_a_daily_backup_counts_while_an_old_one_cannot_be_deleted(tmp_path, monkeypatch):
+    source = make_database(tmp_path / "live.sqlite3")
+    directory = tmp_path / "backups"
+    old = old_backups(directory, "daily", 14)
+    with held(old[0], monkeypatch):
+        results = [recovery.automatic_backup(source, directory) for _ in range(3)]
+    assert results[0] is not None and results[1:] == [None, None]
+    new = sorted(set(directory.glob("worklog-daily-*.sqlite3")) - set(old))
+    assert [path.name for path in new] == [results[0]["name"]]
+    assert all(path.exists() for path in old)
+    assert json.loads((directory / "daily-backup-state.json").read_text())["name"] == results[0]["name"]
+
+
+def test_a_daily_backup_counts_when_hashing_it_fails(tmp_path, monkeypatch):
+    source = make_database(tmp_path / "live.sqlite3")
+    directory = tmp_path / "backups"
+
+    def unreadable(path):
+        raise OSError(5, "Input/output error", str(path))
+
+    monkeypatch.setattr(recovery, "_file_hash", unreadable)
+    result = recovery.automatic_backup(source, directory)
+    assert result is not None and "sha256" not in result
+    assert (directory / result["name"]).is_file()
+    assert json.loads((directory / "daily-backup-state.json").read_text())["name"] == result["name"]
+    assert recovery.automatic_backup(source, directory) is None
+
+
+def test_the_watcher_waits_longer_after_each_failed_backup():
+    from worklog.cli import backup_wait
+
+    assert [backup_wait(failures) for failures in range(8)] == [60, 120, 240, 480, 960, 1920, 3600, 3600]
+    assert backup_wait(10_000) == 3600
+    # A success counts no failures, so the next check is a minute away again.
+    assert backup_wait(0) == 60
+
+
+def test_a_pre_migration_backup_completes_while_an_old_one_is_held_open(tmp_path, monkeypatch):
+    source = make_database(tmp_path / "live.sqlite3")
+    directory = tmp_path / "backups"
+    old = old_backups(directory, "pre-migration", 3)
+    with held(old[0], monkeypatch):
+        result = recovery.backup_database(source, directory, "pre-migration")
+    assert result["sha256"] == hashlib.sha256((directory / result["name"]).read_bytes()).hexdigest()
+    assert all(path.exists() for path in old)
+    recovery.backup_database(source, directory, "pre-migration")
+    assert len(list(directory.glob("worklog-pre-migration-*.sqlite3"))) == 3
+
+
+def test_an_upgrade_stops_when_its_backup_cannot_be_taken(tmp_path, monkeypatch):
+    path = tmp_path / "previous.sqlite3"
+    sealed.build(path, 1, BEFORE_DISCUSSIONS)
+
+    def full(source, stage):
+        raise OSError(28, "No space left on device", str(stage))
+
+    monkeypatch.setattr(recovery, "_snapshot", full)
+    with pytest.raises(OSError):
+        Database(path).initialize()
+    with closing(sqlite3.connect(path)) as conn:
+        assert conn.execute("SELECT count(*) FROM sqlite_master WHERE name='roadmap_questions'").fetchone() == (0,)
+    assert list((tmp_path / "backups").glob("worklog-pre-migration-*.sqlite3")) == []
+
+
+def test_a_daily_backup_still_prunes_when_its_marker_cannot_be_written(tmp_path, monkeypatch):
+    """A marker that cannot be written fails the day's backup, so the watcher tries again; pruning
+    still runs, so those tries cannot pile up copies."""
+    source = make_database(tmp_path / "live.sqlite3")
+    directory = tmp_path / "backups"
+    old = old_backups(directory, "daily", 14)
+    replace = os.replace
+
+    def refused(stage, target):
+        if Path(target).name == "daily-backup-state.json":
+            raise PermissionError(13, "The process cannot access the file", str(target))
+        return replace(stage, target)
+
+    monkeypatch.setattr(recovery.os, "replace", refused)
+    with pytest.raises(PermissionError):
+        recovery.automatic_backup(source, directory)
+    assert not old[0].exists()
+    assert len(list(directory.glob("worklog-daily-*.sqlite3"))) == 14
