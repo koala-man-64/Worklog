@@ -1,36 +1,36 @@
 {
-  "status": 200,
   "body": {
     "items": [
       {
-        "number": 2,
-        "id": "<id1>",
-        "title": "Track the spec",
-        "status": "approved",
-        "autoApproved": false,
         "actorLabel": "Builder",
         "agentId": "<id2>",
-        "createdAt": "<time>",
-        "submittedAt": "<time>",
-        "appliedAt": "<time>",
-        "updatedAt": "<time>",
-        "operationCount": 2
+        "appliedAt": "<time.ffffff+hh:mm>",
+        "autoApproved": false,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "id": "<id1>",
+        "number": 2,
+        "operationCount": 2,
+        "status": "approved",
+        "submittedAt": "<time.ffffff+hh:mm>",
+        "title": "Track the spec",
+        "updatedAt": "<time.ffffff+hh:mm>"
       },
       {
-        "number": 1,
-        "id": "<id3>",
-        "title": "Rename",
-        "status": "draft",
-        "autoApproved": false,
         "actorLabel": "Builder",
         "agentId": "<id2>",
-        "createdAt": "<time>",
-        "submittedAt": null,
         "appliedAt": null,
-        "updatedAt": "<time>",
-        "operationCount": 0
+        "autoApproved": false,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "id": "<id3>",
+        "number": 1,
+        "operationCount": 0,
+        "status": "draft",
+        "submittedAt": null,
+        "title": "Rename",
+        "updatedAt": "<time.ffffff+hh:mm>"
       }
     ],
     "total": 2
-  }
+  },
+  "status": 200
 }

@@ -1,13 +1,13 @@
 {
-  "status": 200,
   "body": {
-    "id": "<id1>",
-    "title": "Style",
-    "summary": "How we write",
     "archived": false,
+    "body": "Plain words",
+    "createdAt": "<time.ffffff+hh:mm>",
+    "id": "<id1>",
     "revision": 1,
-    "createdAt": "<time>",
-    "updatedAt": "<time>",
-    "body": "Plain words"
-  }
+    "summary": "How we write",
+    "title": "Style",
+    "updatedAt": "<time.ffffff+hh:mm>"
+  },
+  "status": 200
 }

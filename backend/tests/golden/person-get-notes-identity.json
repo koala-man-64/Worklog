@@ -1,14 +1,14 @@
 {
-  "status": 200,
   "body": {
-    "id": "<id1>",
-    "ownerType": "item",
-    "ownerId": "<id2>",
-    "title": "Scratch",
-    "text": "Notes",
     "archived": false,
+    "createdAt": "<time.ffffff+hh:mm>",
+    "id": "<id1>",
+    "ownerId": "<id2>",
+    "ownerType": "item",
     "revision": 1,
-    "createdAt": "<time>",
-    "updatedAt": "<time>"
-  }
+    "text": "Notes",
+    "title": "Scratch",
+    "updatedAt": "<time.ffffff+hh:mm>"
+  },
+  "status": 200
 }

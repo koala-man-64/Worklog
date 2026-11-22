@@ -1,20 +1,20 @@
 {
-  "status": 200,
   "body": {
     "items": [
       {
-        "id": "<id1>",
-        "ownerType": "item",
-        "ownerId": "<id2>",
-        "name": "a.txt",
-        "mime": "text/plain",
-        "size": 4,
-        "sha256": "982d9e3eb996f559e633f4d194def3761d909f5a3b647d1a851fead67c32c9d1",
         "archived": false,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "id": "<id1>",
+        "mime": "text/plain",
+        "name": "a.txt",
+        "ownerId": "<id2>",
+        "ownerType": "item",
         "revision": 1,
-        "createdAt": "<time>"
+        "sha256": "982d9e3eb996f559e633f4d194def3761d909f5a3b647d1a851fead67c32c9d1",
+        "size": 4
       }
     ],
     "total": 1
-  }
+  },
+  "status": 200
 }

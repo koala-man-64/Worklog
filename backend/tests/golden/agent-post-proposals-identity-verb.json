@@ -1,21 +1,18 @@
 {
-  "status": 200,
   "body": {
-    "id": "<id1>",
-    "title": "Track the spec",
-    "rationale": "One place",
-    "status": "submitted",
-    "autoApproved": false,
-    "revision": 2,
+    "actorDirectory": null,
     "actorId": "<id2>",
     "actorLabel": "Builder",
-    "actorDirectory": null,
+    "attachments": [],
+    "autoApproved": false,
+    "createdAt": "<time.ffffff+hh:mm>",
+    "id": "<id1>",
     "operations": [
       {
         "action": "link.create",
         "payload": {
-          "ownerType": "item",
           "ownerId": "<id3>",
+          "ownerType": "item",
           "url": "https://example.com/plan"
         }
       },
@@ -27,10 +24,13 @@
         }
       }
     ],
+    "rationale": "One place",
+    "revision": 2,
+    "status": "submitted",
+    "submittedAt": "<time.ffffff+hh:mm>",
     "supersedesId": null,
-    "createdAt": "<time>",
-    "updatedAt": "<time>",
-    "submittedAt": "<time>",
-    "attachments": []
-  }
+    "title": "Track the spec",
+    "updatedAt": "<time.ffffff+hh:mm>"
+  },
+  "status": 200
 }

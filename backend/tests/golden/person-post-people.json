@@ -1,19 +1,19 @@
 {
-  "status": 200,
   "body": {
-    "id": "<id1>",
-    "name": "Ada",
-    "title": "Engineer",
-    "team": "",
+    "archived": false,
+    "chat": "",
+    "createdAt": "<time.ffffff+hh:mm>",
     "description": "",
     "email": "",
-    "phone": "",
-    "chat": "",
+    "id": "<id1>",
     "location": "",
+    "name": "Ada",
     "notes": "",
-    "archived": false,
+    "phone": "",
     "revision": 1,
-    "createdAt": "<time>",
-    "updatedAt": "<time>"
-  }
+    "team": "",
+    "title": "Engineer",
+    "updatedAt": "<time.ffffff+hh:mm>"
+  },
+  "status": 200
 }

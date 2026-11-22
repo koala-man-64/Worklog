@@ -12,15 +12,26 @@ what a route returns, write the files again with
 
     ./.venv/Scripts/python.exe backend/tests/test_golden_responses.py
 
-which builds the world twice and refuses to write unless both give the same answers.
+which builds the world twice and refuses to write unless both give the same answers. It writes each
+file with its keys sorted, and only the files whose answer changed, so the diff shows only the
+routes that changed.
+
+A time's placeholder keeps its shape, `<time.ffffff+hh:mm>` for 2026-11-22T17:00:00.123456+00:00,
+so a change to how times are written shows. The world runs on a clock of its own (steady_clock), so
+its answers don't depend on how finely the machine's clock ticks.
 """
 
+import difflib
 import json
 import os
 import re
 import sys
 import tempfile
+import threading
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
+from datetime import UTC, datetime, timedelta, tzinfo
 from pathlib import Path
 
 if __name__ == "__main__":
@@ -36,7 +47,7 @@ from worklog.app import create_app  # noqa: E402
 ORIGIN = "http://127.0.0.1:8877"
 GOLDEN = Path(__file__).with_name("golden")
 UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
-TIME = re.compile(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?([+-]\d\d:\d\d|Z)?$")
+TIME = re.compile(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?P<fraction>\.\d+)?(?P<offset>[+-]\d\d:\d\d|Z)?$")
 # Values that change from world to world where no ID or time shows: a random avatar suggested, a
 # feed cursor, which encodes the data ID, and a credential's token.
 KEYED = {"suggested": "<avatar>", "cursor": "<cursor>", "token": "<token>"}
@@ -48,6 +59,40 @@ COUNTED = {"/usage"}
 # Reads that list every day of a window ending today, each by its date: every new day would change
 # them. test_git_activity.py pins it, and agent_route_matrix.json pins the agent's refusal.
 DATED = {"/pull-requests/activity"}
+
+
+@contextmanager
+def steady_clock(base: type[datetime] = datetime) -> Iterator[None]:
+    """Every Worklog module reads the time from this clock while the world runs (T-19). It starts at
+    the machine's time and moves on a microsecond each time it is read, so records are stamped in
+    the order they are written and no two share a time. On a coarse clock, as on CI's Windows
+    runners, two writes could share a time, and an answer sorted by time, then by kind, came out in
+    another order. It never reads a whole second, where isoformat leaves the fraction out: that
+    would change a time's shape. `base` lets a test change how its times are written."""
+    lock = threading.Lock()
+    last = [datetime.now(UTC)]
+
+    class Steady(base):  # type: ignore[valid-type,misc]
+        @classmethod
+        def now(cls, tz: tzinfo | None = None) -> "Steady":
+            with lock:
+                moment = last[0] + timedelta(microseconds=1)
+                if moment.microsecond == 0:
+                    moment += timedelta(microseconds=1)
+                last[0] = moment
+            local = moment.astimezone(tz) if tz is not None else moment.astimezone().replace(tzinfo=None)
+            return cls.combine(local.date(), local.timetz())
+
+    clocks = {module: clock for name, module in list(sys.modules.items())
+              if (name == "worklog" or name.startswith("worklog."))
+              and isinstance(clock := getattr(module, "datetime", None), type) and issubclass(clock, datetime)}
+    for module in clocks:
+        module.datetime = Steady  # type: ignore[attr-defined]
+    try:
+        yield
+    finally:
+        for module, clock in clocks.items():
+            module.datetime = clock  # type: ignore[attr-defined]
 
 
 class World:
@@ -235,11 +280,21 @@ def normalized(value: object, names: dict[str, str], today: str) -> object:
     if isinstance(value, list):
         return [normalized(item, names, today) for item in value]
     if isinstance(value, str):
-        if TIME.match(value):
-            return "<time>"
+        if moment := TIME.match(value):
+            return time_shape(moment)
         value = UUID.sub(lambda match: names.setdefault(match.group(0), f"<id{len(names) + 1}>"), value)
         return value.replace(today, "<today>")
     return value
+
+
+def time_shape(moment: re.Match[str]) -> str:
+    """A time's placeholder, keeping its shape: whether it has a fraction and of how many digits, and
+    whether its offset is written +hh:mm, as Z or not at all."""
+    fraction = "." + "f" * (len(moment["fraction"]) - 1) if moment["fraction"] else ""
+    offset = moment["offset"] or ""
+    if offset not in ("", "Z"):
+        offset = offset[0] + "hh:mm"
+    return f"<time{fraction}{offset}>"
 
 
 def answers(world: World) -> dict[str, dict]:
@@ -258,8 +313,9 @@ def answers(world: World) -> dict[str, dict]:
     return result
 
 
-def built() -> dict[str, dict]:
-    with tempfile.TemporaryDirectory(prefix="worklog-golden-") as folder, World(Path(folder)) as world:
+def built(clock: type[datetime] = datetime) -> dict[str, dict]:
+    with (steady_clock(clock), tempfile.TemporaryDirectory(prefix="worklog-golden-") as folder,
+          World(Path(folder)) as world):
         return answers(world)
 
 
@@ -271,26 +327,96 @@ def test_every_read_answers_as_its_golden_file():
     current = built()
     files = {path.name for path in GOLDEN.glob("*.json")}
     assert files == {slug(key) for key in current}, "Write the golden files again: the reads have changed"
-    # Compared as JSON text with keys sorted: key order is not part of an answer, but Python holds
-    # true equal to 1 and false to 0, and an answer that turned one into the other has changed.
-    changed = [key for key, answer in current.items()
-               if canonical(json.loads((GOLDEN / slug(key)).read_text(encoding="utf-8"))) != canonical(answer)]
-    assert changed == [], f"These reads answer differently from their golden files: {changed}"
+    changed = differences(current, GOLDEN)
+    # The differing answers in full, as a diff: a failure on CI is read from its log alone.
+    assert changed == {}, "These reads answer differently from their golden files:\n" + "\n".join(changed.values())
+
+
+def test_a_change_to_how_times_are_written_shows():
+    class Seconds(datetime):
+        def isoformat(self, sep: str = "T", timespec: str = "auto") -> str:
+            return super().isoformat(sep, "seconds")
+
+    changed = differences(built(Seconds), GOLDEN)
+    assert "person GET /work-items/{identity}" in changed
+    assert "<time+hh:mm>" in changed["person GET /work-items/{identity}"]
+
+
+def test_the_world_stamps_its_writes_in_order_on_a_coarse_clock(monkeypatch):
+    import worklog.common as common
+
+    class Coarse(datetime):
+        """A machine clock that ticks once a second, so readings in one second share a time."""
+
+        @classmethod
+        def now(cls, tz: tzinfo | None = None) -> "Coarse":
+            return super().now(tz).replace(microsecond=0)
+
+    monkeypatch.setattr(common, "datetime", Coarse)
+    assert len({common.now() for _ in range(1000)}) < 1000
+    with steady_clock():
+        readings = [common.now() for _ in range(1000)]
+    assert common.datetime is Coarse
+    assert readings == sorted(set(readings))
+    assert all(TIME.match(reading)["fraction"] for reading in readings)  # type: ignore[index]
+
+
+def test_regenerating_writes_only_the_files_that_changed(tmp_path):
+    answer = {"status": 200, "body": {"b": 1, "a": "<time.ffffff+hh:mm>"}}
+    assert write_golden({"person GET /x": answer, "person GET /y": answer}, tmp_path) == 2
+    text = (tmp_path / "person-get-x.json").read_text(encoding="utf-8")
+    assert text.index('"a"') < text.index('"b"')
+    (tmp_path / "person-get-gone.json").write_text("{}", encoding="utf-8")
+    changed = {"status": 200, "body": {"b": 2, "a": "<time.ffffff+hh:mm>"}}
+    assert write_golden({"person GET /x": answer, "person GET /y": changed}, tmp_path) == 1
+    assert (tmp_path / "person-get-x.json").read_text(encoding="utf-8") == text
+    assert sorted(path.name for path in tmp_path.iterdir()) == ["person-get-x.json", "person-get-y.json"]
 
 
 def canonical(answer: object) -> str:
+    """An answer as JSON text with keys sorted: key order is not part of an answer, but Python holds
+    true equal to 1 and false to 0, and an answer that turned one into the other has changed."""
     return json.dumps(answer, sort_keys=True, ensure_ascii=False)
+
+
+def rendered(answer: object) -> str:
+    """An answer as its golden file holds it."""
+    return json.dumps(answer, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+
+
+def differences(current: dict[str, dict], folder: Path) -> dict[str, str]:
+    """Each answer that differs from its file in folder, with a diff of the two."""
+    changed: dict[str, str] = {}
+    for key, answer in current.items():
+        path = folder / slug(key)
+        held = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
+        if canonical(held) != canonical(answer):
+            diff = difflib.unified_diff(rendered(held).splitlines(), rendered(answer).splitlines(),
+                                        f"golden/{slug(key)}", key, lineterm="", n=2)
+            changed[key] = "\n".join(diff)
+    return changed
+
+
+def write_golden(current: dict[str, dict], folder: Path) -> int:
+    """Write each answer whose file holds anything else, and delete the files of reads that are
+    gone; a file already holding its answer is left alone. Returns how many it wrote."""
+    folder.mkdir(exist_ok=True)
+    names = {slug(key) for key in current}
+    for stale in folder.glob("*.json"):
+        if stale.name not in names:
+            stale.unlink()
+    written = 0
+    for key, answer in current.items():
+        path, text = folder / slug(key), rendered(answer)
+        if not path.is_file() or path.read_text(encoding="utf-8") != text:
+            path.write_text(text, encoding="utf-8", newline="\n")
+            written += 1
+    return written
 
 
 if __name__ == "__main__":
     first, second = built(), built()
-    differing = sorted(key for key in first if first[key] != second.get(key))
+    differing = sorted(key for key in first if canonical(first[key]) != canonical(second.get(key)))
     if differing or set(first) != set(second):
         sys.exit(f"Two worlds answered differently, so a placeholder is missing: {differing}")
-    GOLDEN.mkdir(exist_ok=True)
-    for stale in GOLDEN.glob("*.json"):
-        stale.unlink()
-    for key, answer in first.items():
-        (GOLDEN / slug(key)).write_text(json.dumps(answer, indent=2, ensure_ascii=False) + "\n", encoding="utf-8",
-                                        newline="\n")
-    print(f"Wrote {len(first)} golden files to {GOLDEN}")
+    print(f"Wrote {write_golden(first, GOLDEN)} of {len(first)} golden files to {GOLDEN}")

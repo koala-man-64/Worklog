@@ -1,69 +1,69 @@
 {
-  "status": 200,
   "body": {
-    "repositories": [],
-    "participations": [
-      {
-        "participationId": "<id1>",
-        "agent": {
-          "id": "<id2>",
-          "label": "Builder",
-          "kind": "agent",
-          "avatar": "red-dots-antenna",
-          "active": true
-        },
-        "runId": "<id3>",
-        "runName": "Builder",
-        "description": "",
-        "lastSeenAt": "<time>",
-        "stale": false,
-        "item": {
-          "id": "<id4>",
-          "title": "Parser",
-          "status": "doing"
-        },
-        "contexts": [
-          {
-            "repositoryId": "<id5>",
-            "repositoryName": "worklog",
-            "archived": false,
-            "checkoutPath": "",
-            "worktreePath": "",
-            "branch": ""
-          }
-        ]
-      }
-    ],
     "announcements": [],
     "discussions": [
       {
         "id": "<id6>",
-        "title": "Parser",
-        "pinned": true,
-        "updatedAt": "<time>",
         "matched": [
           {
-            "type": "item",
-            "id": "<id4>"
+            "id": "<id4>",
+            "type": "item"
           }
-        ]
+        ],
+        "pinned": true,
+        "title": "Parser",
+        "updatedAt": "<time.ffffff+hh:mm>"
       }
     ],
+    "participations": [
+      {
+        "agent": {
+          "active": true,
+          "avatar": "red-dots-antenna",
+          "id": "<id2>",
+          "kind": "agent",
+          "label": "Builder"
+        },
+        "contexts": [
+          {
+            "archived": false,
+            "branch": "",
+            "checkoutPath": "",
+            "repositoryId": "<id5>",
+            "repositoryName": "worklog",
+            "worktreePath": ""
+          }
+        ],
+        "description": "",
+        "item": {
+          "id": "<id4>",
+          "status": "doing",
+          "title": "Parser"
+        },
+        "lastSeenAt": "<time.ffffff+hh:mm>",
+        "participationId": "<id1>",
+        "runId": "<id3>",
+        "runName": "Builder",
+        "stale": false
+      }
+    ],
+    "repositories": [],
     "roles": [
       {
+        "contextId": "<id4>",
+        "contextType": "item",
         "id": "<id7>",
         "label": "Parser owner",
-        "contextType": "item",
-        "contextId": "<id4>",
         "owner": {
-          "id": "<id2>",
-          "label": "Builder",
-          "kind": "agent",
+          "active": true,
           "avatar": "red-dots-antenna",
-          "active": true
+          "id": "<id2>",
+          "kind": "agent",
+          "label": "Builder"
         }
       }
     ],
     "tickets": []
-  }
+  },
+  "status": 200
 }

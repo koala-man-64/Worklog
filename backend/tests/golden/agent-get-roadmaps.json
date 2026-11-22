@@ -1,43 +1,43 @@
 {
-  "status": 200,
   "body": {
     "items": [
       {
+        "archived": false,
+        "createdAt": "<time.ffffff+hh:mm>",
         "id": "<id1>",
-        "title": "Plan 2",
+        "openQuestions": 2,
         "overview": "",
         "parentId": null,
-        "revision": 2,
-        "archived": false,
-        "createdAt": "<time>",
-        "updatedAt": "<time>",
         "people": [
           {
-            "id": "<id2>",
-            "personId": "<id3>",
-            "name": "Ada",
-            "personTitle": "Engineer",
-            "personTeam": "",
-            "relationship": "Reviewer",
             "archived": false,
-            "createdAt": "<time>"
+            "createdAt": "<time.ffffff+hh:mm>",
+            "id": "<id2>",
+            "name": "Ada",
+            "personId": "<id3>",
+            "personTeam": "",
+            "personTitle": "Engineer",
+            "relationship": "Reviewer"
           }
         ],
-        "openQuestions": 2
+        "revision": 2,
+        "title": "Plan 2",
+        "updatedAt": "<time.ffffff+hh:mm>"
       },
       {
+        "archived": false,
+        "createdAt": "<time.ffffff+hh:mm>",
         "id": "<id4>",
-        "title": "Sub-plan",
+        "openQuestions": 0,
         "overview": "",
         "parentId": "<id1>",
-        "revision": 1,
-        "archived": false,
-        "createdAt": "<time>",
-        "updatedAt": "<time>",
         "people": [],
-        "openQuestions": 0
+        "revision": 1,
+        "title": "Sub-plan",
+        "updatedAt": "<time.ffffff+hh:mm>"
       }
     ],
     "total": 2
-  }
+  },
+  "status": 200
 }

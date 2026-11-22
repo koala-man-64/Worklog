@@ -1,20 +1,20 @@
 {
-  "status": 200,
   "body": {
-    "id": "<id1>",
-    "ownerType": "item",
-    "ownerId": "<id2>",
-    "chatId": "chat-1",
-    "title": "Build",
-    "createdDate": "<today>",
     "archived": false,
-    "revision": 1,
-    "createdAt": "<time>",
-    "updatedAt": "<time>",
-    "provider": "",
+    "chatId": "chat-1",
+    "createdAt": "<time.ffffff+hh:mm>",
+    "createdDate": "<today>",
+    "id": "<id1>",
     "model": "",
+    "ownerId": "<id2>",
+    "ownerType": "item",
+    "provider": "",
     "repos": [],
+    "repositoryIds": [],
+    "revision": 1,
     "stepIds": [],
-    "repositoryIds": []
-  }
+    "title": "Build",
+    "updatedAt": "<time.ffffff+hh:mm>"
+  },
+  "status": 200
 }

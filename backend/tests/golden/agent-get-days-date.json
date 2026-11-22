@@ -1,53 +1,53 @@
 {
-  "status": 200,
   "body": {
     "date": "<today>",
-    "revision": 2,
     "entries": [
       {
-        "id": "<id1>",
-        "itemId": "<id2>",
-        "date": "<today>",
-        "planned": true,
-        "worked": true,
-        "outcome": "Half done",
-        "position": 1,
-        "revision": 1,
-        "item": {
-          "id": "<id2>",
-          "title": "Parser",
-          "description": "Parse the plan",
-          "status": "doing",
-          "adoUrl": null,
-          "roadmapId": "<id3>",
-          "stepId": "<id4>",
-          "backlogOrder": 1,
-          "archived": false,
-          "revision": 3,
-          "createdAt": "<time>",
-          "updatedAt": "<time>",
-          "repositoryIds": [],
-          "rank": 1
-        },
         "counts": {
-          "links": 2,
           "files": 2,
+          "links": 2,
           "scratchpad": true
         },
-        "statusOnDay": "doing"
+        "date": "<today>",
+        "id": "<id1>",
+        "item": {
+          "adoUrl": null,
+          "archived": false,
+          "backlogOrder": 1,
+          "createdAt": "<time.ffffff+hh:mm>",
+          "description": "Parse the plan",
+          "id": "<id2>",
+          "rank": 1,
+          "repositoryIds": [],
+          "revision": 3,
+          "roadmapId": "<id3>",
+          "status": "doing",
+          "stepId": "<id4>",
+          "title": "Parser",
+          "updatedAt": "<time.ffffff+hh:mm>"
+        },
+        "itemId": "<id2>",
+        "outcome": "Half done",
+        "planned": true,
+        "position": 1,
+        "revision": 1,
+        "statusOnDay": "doing",
+        "worked": true
       }
     ],
+    "nextItemId": "<id2>",
+    "revision": 2,
     "summary": {
+      "blocked": [],
+      "completed": [],
       "worked": [
         {
           "id": "<id2>",
-          "title": "Parser",
-          "outcome": "Half done"
+          "outcome": "Half done",
+          "title": "Parser"
         }
-      ],
-      "completed": [],
-      "blocked": []
-    },
-    "nextItemId": "<id2>"
-  }
+      ]
+    }
+  },
+  "status": 200
 }

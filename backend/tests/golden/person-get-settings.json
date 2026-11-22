@@ -1,35 +1,35 @@
 {
-  "status": 200,
   "body": {
-    "timezone": "America/Chicago",
-    "today": "<today>",
-    "version": "1.0.0",
-    "requireProposalApproval": true,
     "agentRepositoryRegistration": true,
-    "credentials": [
-      {
-        "id": "<id1>",
-        "label": "Builder",
-        "createdAt": "<time>",
-        "revoked": false,
-        "agentId": "<id1>",
-        "registeredBy": null,
-        "chatId": null,
-        "registeredActive": 0
-      }
-    ],
     "agents": [
       {
+        "avatar": "red-dots-antenna",
         "id": "<id1>",
-        "label": "Builder",
-        "avatar": "red-dots-antenna"
+        "label": "Builder"
       }
     ],
     "backups": [],
+    "credentials": [
+      {
+        "agentId": "<id1>",
+        "chatId": null,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "id": "<id1>",
+        "label": "Builder",
+        "registeredActive": 0,
+        "registeredBy": null,
+        "revoked": false
+      }
+    ],
+    "requireProposalApproval": true,
     "storage": {
-      "databaseBytes": 950272,
       "backupBytes": 0,
+      "databaseBytes": 950272,
       "warning": null
-    }
-  }
+    },
+    "timezone": "America/Chicago",
+    "today": "<today>",
+    "version": "1.0.0"
+  },
+  "status": 200
 }

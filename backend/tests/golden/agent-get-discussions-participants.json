@@ -1,26 +1,26 @@
 {
-  "status": 200,
   "body": {
     "items": [
       {
-        "id": "local-user",
-        "label": "You",
-        "kind": "human",
         "active": true,
-        "avatar": null
+        "avatar": null,
+        "id": "local-user",
+        "kind": "human",
+        "label": "You"
       },
       {
-        "id": "<id1>",
-        "label": "Builder",
-        "kind": "agent",
         "active": true,
-        "avatar": "red-dots-antenna"
+        "avatar": "red-dots-antenna",
+        "id": "<id1>",
+        "kind": "agent",
+        "label": "Builder"
       }
     ],
     "self": {
       "id": "<id1>",
-      "label": "Builder",
-      "kind": "agent"
+      "kind": "agent",
+      "label": "Builder"
     }
-  }
+  },
+  "status": 200
 }

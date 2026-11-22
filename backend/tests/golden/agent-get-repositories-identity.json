@@ -1,35 +1,35 @@
 {
-  "status": 200,
   "body": {
-    "id": "<id1>",
-    "name": "worklog",
-    "url": "https://github.com/example/worklog",
-    "remoteIdentity": "github.com/example/worklog",
-    "duplicateOf": null,
-    "mergedInto": null,
-    "description": "",
     "archived": false,
-    "registeredBy": {
-      "kind": "human",
-      "label": "You",
-      "agentId": null
-    },
-    "reviewed": true,
-    "revision": 1,
-    "createdAt": "<time>",
-    "updatedAt": "<time>",
+    "createdAt": "<time.ffffff+hh:mm>",
+    "description": "",
     "discussionId": "<id2>",
+    "duplicateOf": null,
+    "id": "<id1>",
+    "mergedInto": null,
+    "name": "worklog",
     "people": [
       {
-        "id": "<id3>",
-        "personId": "<id4>",
-        "name": "Ada",
-        "personTitle": "Engineer",
-        "personTeam": "",
-        "relationship": "Reviewer",
         "archived": false,
-        "createdAt": "<time>"
+        "createdAt": "<time.ffffff+hh:mm>",
+        "id": "<id3>",
+        "name": "Ada",
+        "personId": "<id4>",
+        "personTeam": "",
+        "personTitle": "Engineer",
+        "relationship": "Reviewer"
       }
-    ]
-  }
+    ],
+    "registeredBy": {
+      "agentId": null,
+      "kind": "human",
+      "label": "You"
+    },
+    "remoteIdentity": "github.com/example/worklog",
+    "reviewed": true,
+    "revision": 1,
+    "updatedAt": "<time.ffffff+hh:mm>",
+    "url": "https://github.com/example/worklog"
+  },
+  "status": 200
 }

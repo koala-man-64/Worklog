@@ -1,25 +1,25 @@
 {
-  "status": 200,
   "body": {
-    "id": "<id1>",
-    "title": "Plan 2",
     "archived": false,
+    "id": "<id1>",
     "revision": 2,
     "steps": [
       {
         "id": "<id2>",
-        "title": "Parent",
-        "status": "open",
         "parentId": null,
-        "position": 0
+        "position": 0,
+        "status": "open",
+        "title": "Parent"
       },
       {
         "id": "<id3>",
-        "title": "Child",
-        "status": "open",
         "parentId": "<id2>",
-        "position": 1
+        "position": 1,
+        "status": "open",
+        "title": "Child"
       }
-    ]
-  }
+    ],
+    "title": "Plan 2"
+  },
+  "status": 200
 }
