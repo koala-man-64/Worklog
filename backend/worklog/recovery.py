@@ -276,6 +276,15 @@ def list_backups(backup_dir: Path | str, *, hashed: bool = True, verify: bool = 
 
 def backup_database(db_path: Path | str, backup_dir: Path | str,
                     kind: str = "manual") -> dict[str, Any]:
+    """Take a backup of a kind, prune that kind, and return the new file's metadata with its hash.
+    A backup that cannot be taken raises; an old one that cannot be deleted does not."""
+    target = _publish(db_path, backup_dir, kind)
+    _prune_after(target.parent, kind)
+    return _hashed(target)
+
+
+def _publish(db_path: Path | str, backup_dir: Path | str, kind: str) -> Path:
+    """Snapshot the database to a temporary file beside the backups and publish it atomically."""
     if kind not in {"manual", "daily", "pre-migration", "pre-restore", "pre-compact"}:
         raise ValueError("Unknown backup kind")
     source, directory = Path(db_path), Path(backup_dir)
@@ -292,21 +301,37 @@ def backup_database(db_path: Path | str, backup_dir: Path | str,
         os.replace(stage, target)
     finally:
         stage.unlink(missing_ok=True)
+    return target
+
+
+def _prune_after(directory: Path, kind: str) -> None:
     # Compaction prunes its own backups, once a compaction has finished (compaction.BACKUPS_KEPT).
     keep = {"daily": 14, "pre-migration": 3}.get(kind)
     if keep is not None:
         prune_backups(directory, kind, keep)
+
+
+def _hashed(target: Path) -> dict[str, Any]:
     # The new backup is hashed for its metadata anyway, so the next listing need not hash it again.
-    cache = _hash_cache(directory)
+    cache = _hash_cache(target.parent)
     result = _metadata(target, cache=cache)
-    _save_hash_cache(directory, cache)
+    _save_hash_cache(target.parent, cache)
     return result
 
 
-def prune_backups(backup_dir: Path | str, kind: str, keep: int) -> None:
-    """Delete all but the newest `keep` backups of a kind, by the time in their names."""
+def prune_backups(backup_dir: Path | str, kind: str, keep: int) -> list[str]:
+    """Delete all but the newest `keep` backups of a kind, by the time in their names. A file that
+    cannot be deleted, as on Windows while another program holds it open, is logged and left for
+    the next backup of its kind to try again; the rest are still deleted. Returns the names left."""
+    left = []
     for old in sorted(Path(backup_dir).glob(f"worklog-{kind}-*.sqlite3"), reverse=True)[keep:]:
-        old.unlink()
+        try:
+            old.unlink()
+        except OSError as exc:
+            logger.warning("Could not delete old backup %s (%s); the next %s backup tries again",
+                           old.name, type(exc).__name__, kind)
+            left.append(old.name)
+    return left
 
 
 def automatic_backup(db_path: Path | str, backup_dir: Path | str) -> dict[str, Any] | None:
@@ -342,15 +367,23 @@ def _daily_backup(db_path: Path | str, backup_dir: Path | str) -> dict[str, Any]
             and Path(str(prior.get("name", ""))).name == prior.get("name")
             and (directory / prior["name"]).is_file()):
         return None
-    result = backup_database(db_path, directory, "daily")
+    # The day's backup counts once its file is published: the marker is written before pruning and
+    # hashing, and neither raises out of here, or the watcher would take another full copy each time.
+    target = _publish(db_path, directory, "daily")
     temporary = directory / (".daily-" + uuid.uuid4().hex + ".tmp")
     try:
         temporary.write_text(json.dumps({"date": day, "timezone": timezone, "dataId": data_id,
-                                         "name": result["name"]}), encoding="utf-8")
+                                         "name": target.name}), encoding="utf-8")
         os.replace(temporary, marker)
     finally:
         temporary.unlink(missing_ok=True)
-    return result
+    _prune_after(directory, "daily")
+    try:
+        return _hashed(target)
+    except OSError as exc:
+        logger.warning("Daily backup %s was taken but could not be hashed (%s); listing it hashes it",
+                       target.name, type(exc).__name__)
+        return _metadata(target, hashed=False)
 
 
 def _offline_evidence(target: Path, backup_dir: Path) -> dict[str, Any] | None:

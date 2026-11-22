@@ -380,6 +380,17 @@ def _server(app: Any, port: int, grace: int = SHUTDOWN_GRACE_S) -> Any:
     return uvicorn.Server(uvicorn.Config(app, host=HOST, port=port, access_log=False, timeout_graceful_shutdown=grace))
 
 
+BACKUP_CHECK_S = 60
+BACKUP_WAIT_MAX_S = 3600
+
+
+def backup_wait(failures: int) -> int:
+    """Seconds until the serve watcher next checks for the day's backup: a minute, doubling with each
+    failure in a row, an hour at most. A success counts no failures. A failing backup copies the
+    whole database each time, so it is not retried every minute."""
+    return min(BACKUP_CHECK_S * 2 ** min(failures, 12), BACKUP_WAIT_MAX_S)
+
+
 def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
     """Private foreground entry point; start launches this in one hidden process."""
     from worklog.app import create_app, daily_backup
@@ -408,7 +419,8 @@ def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
             from worklog.discussions import ESCALATION_SWEEP, DiscussionService
             from worklog.maintenance import prune_receipts
 
-            next_backup = time.monotonic() + 60
+            backup_failures = 0
+            next_backup = time.monotonic() + backup_wait(backup_failures)
             next_prune = time.monotonic() + 3600
             next_usage = time.monotonic() + FLUSH_S
             next_escalation = time.monotonic() + ESCALATION_SWEEP
@@ -421,9 +433,13 @@ def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
                 if time.monotonic() >= next_backup and os.environ.get("WORKLOG_AUTO_BACKUP") != "0":
                     # The day's automatic backup is taken here and at startup, never by a request. A
                     # failure, whatever it is, shows in Settings until one succeeds, and in server.log.
-                    if not daily_backup(app):
-                        print("Automatic Worklog backup failed; Settings shows it", file=sys.stderr, flush=True)
-                    next_backup = time.monotonic() + 60
+                    if daily_backup(app):
+                        backup_failures = 0
+                    else:
+                        backup_failures += 1
+                        print(f"Automatic Worklog backup failed; Settings shows it. Next try in "
+                              f"{backup_wait(backup_failures)} s", file=sys.stderr, flush=True)
+                    next_backup = time.monotonic() + backup_wait(backup_failures)
                 if time.monotonic() >= next_prune:
                     try:
                         with app.state.db.transaction() as conn:
