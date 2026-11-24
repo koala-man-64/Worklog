@@ -387,9 +387,14 @@ class ProposalService:
 
     def detail(self, identifier, actor):
         with self.db.read() as conn:
-            row = _row(conn, identifier)
-            _visible(conn, row, actor)
-            return _record(row)
+            return self.record(conn, identifier, actor)
+
+    @staticmethod
+    def record(conn, identifier, actor):
+        """The proposal as its writes answer it, read on conn: what a replayed receipt reads back."""
+        row = _row(conn, identifier)
+        _visible(conn, row, actor)
+        return _record(row)
 
     def applied_to(self, target_type, target_id, limit=50, offset=0):
         """The proposals applied to a work item or roadmap, in the order they were applied, with
