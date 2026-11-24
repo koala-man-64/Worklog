@@ -96,6 +96,11 @@ def default_data_directory() -> Path:
 
 # Settings warns when the backups take more than this many times the database (step 2.2).
 BACKUP_RATIO = 40
+# A keyed write's answer past this many bytes of JSON is stored in its receipt as what identifies its
+# record, when its route passes a reader for a replay (audit finding B4, roadmap step 2.5).
+RECEIPT_LIMIT = 64 * 1024
+# The key of such a receipt: no response model has it, so a stored answer never holds it.
+RECEIPT_MARK = "_receipt"
 BACKUP_FAILED = "Automatic backup failed. Check free disk space and retry a manual backup."
 
 
@@ -230,7 +235,14 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     install_session_routes(app, app.state.session_launcher, app.state.request_chats)
 
     def mutate(request: Request, payload: Any, fn: Callable, *, required_key: bool = False,
-               redact: tuple[str, ...] = (), communication: bool = False) -> dict:
+               redact: tuple[str, ...] = (), communication: bool = False,
+               replay: tuple[str, Callable[[sqlite3.Connection, dict, str], dict]] | None = None) -> dict:
+        """Run a write once per Idempotency-Key, keeping its answer for a replay. `replay`, a kind and a
+        reader of (connection, actor, record ID), lets an answer past RECEIPT_LIMIT be kept as what
+        identifies its record; a replay then reads that record as it now stands. Without one the
+        answer is kept whole, and one past the limit is logged with its route."""
+        # A replay reads the record back whole, so a route that redacts a token never takes a reader.
+        assert not (redact and replay), "a route that redacts its answer takes no replay reader"
         key = request.headers.get("idempotency-key")
         if required_key and not key:
             raise AppError(428, "idempotency", "An Idempotency-Key is required for this command")
@@ -251,19 +263,41 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                 if receipt:
                     if receipt["request_hash"] != digest:
                         raise AppError(409, "idempotency_conflict", "This key was already used for a different request")
-                    return json.loads(receipt["response_json"])
+                    answer = json.loads(receipt["response_json"])
+                    if isinstance(answer, dict) and isinstance(answer.get(RECEIPT_MARK), dict):
+                        if replay is None:
+                            raise AppError(409, "idempotency_conflict", "This key was already used for a different request")
+                        return replay[1](c, actor, answer[RECEIPT_MARK]["id"])
+                    return answer
             result = fn(c, actor)
             if key:
-                stored = {**result, **dict.fromkeys(redact)}
+                text = json.dumps({**result, **dict.fromkeys(redact)})
+                if len(text) > RECEIPT_LIMIT:
+                    if replay is not None and isinstance(result.get("id"), str):
+                        text = json.dumps({RECEIPT_MARK: {"kind": replay[0], "id": result["id"],
+                                                          "revision": result.get("revision")}})
+                    else:
+                        route = request.scope.get("route")
+                        logger.warning("A receipt of %s bytes was kept whole for %s %s", len(text), request.method,
+                                       getattr(route, "path", request.url.path))
                 c.execute("INSERT INTO receipts(actor_id,key,request_hash,response_json,created_at) VALUES(?,?,?,?,?)",
-                          (receipt_actor, key, digest, json.dumps(stored), now()))
+                          (receipt_actor, key, digest, text, now()))
             return result
 
     def discussion_mutate(request: Request, payload: Any, fn: Callable, *, required_key: bool = True) -> dict:
         return mutate(request, payload, fn, required_key=True, communication=True)
 
+    # How a replayed receipt reads each family's record back, in the shape its route answers.
+    proposal_replay = ("proposal", lambda c, actor, identity: proposals.record(c, identity, actor))
+    replays: dict[str, tuple[str, Callable[[sqlite3.Connection, dict, str], dict]]] = {
+        "roadmap": ("roadmap", lambda c, actor, identity: plans.saved(c, identity)),
+        "progress.set": ("step", lambda c, actor, identity: plans.step_answer(c, identity)),
+        "step.update": ("step", lambda c, actor, identity: plans.step_answer(c, identity, with_roadmap=True)),
+    }
+
     def apply(request: Request, action: str, payload: dict, *, create: bool = False) -> dict:
-        result = mutate(request, payload, lambda c, a: work.apply(c, a, action, payload), required_key=create)
+        result = mutate(request, payload, lambda c, a: work.apply(c, a, action, payload), required_key=create,
+                        replay=replays.get(action.split(".", 1)[0] if action.startswith("roadmap.") else action))
         if action.startswith("github."):
             result.setdefault("submittedBy", "")  # Receipts from v31 and earlier omit this field.
         return result
@@ -694,7 +728,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     @app.post("/api/v1/proposals", response_model=out.ProposalListed)
     def proposal_create(request: Request, body: m.ProposalCreate) -> dict:
         p = body.model_dump()
-        return mutate(request, p, lambda c, a: proposals.create(p, a, conn=c), required_key=True)
+        return mutate(request, p, lambda c, a: proposals.create(p, a, conn=c), required_key=True, replay=proposal_replay)
 
     @app.patch("/api/v1/proposals/{identity}", response_model=out.ProposalListed)
     def proposal_update(identity: str, request: Request, body: m.ProposalUpdate) -> dict:
@@ -929,7 +963,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                 # applies the proposal, so a revoke that wins that race must stop it here.
                 communication_actor(c, actor)
             return proposals.transition(identity, verb, p, actor, conn=c)
-        return mutate(request, p, transition, required_key=verb == "approve")
+        return mutate(request, p, transition, required_key=verb == "approve", replay=proposal_replay)
 
     install_coordination_routes(app, db, mutate)
     install_ticket_routes(app, db, mutate)

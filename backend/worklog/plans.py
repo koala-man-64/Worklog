@@ -418,6 +418,16 @@ class PlanService:
             return {"number": row["number"], "createdAt": row["created_at"],
                     "note": row["note"], **snapshot}
 
+    def step_answer(self, conn, identifier, *, with_roadmap=False):
+        """A step as progress.set answers it, or step.update with its roadmap's ID: what a replayed
+        receipt of either reads back (audit step 2.5)."""
+        row = self.get_step(conn, identifier)
+        return {**_step(row), "roadmapId": row["roadmap_id"]} if with_roadmap else _step(row)
+
+    def saved(self, conn, identifier):
+        """A roadmap as a save, move, archive or recovery answers it."""
+        return self._detail(conn, identifier)
+
     @staticmethod
     def get_step(conn, identifier):
         row = conn.execute("SELECT * FROM steps WHERE id=?", (identifier,)).fetchone()
