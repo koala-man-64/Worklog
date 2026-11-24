@@ -592,7 +592,7 @@ class PlanService:
             row = _row(conn, identifier)
             require_revision(row, payload.get("revision"))
             if action in {"roadmap.archive", "roadmap.recover", "roadmap.move"}:
-                before = self._detail(conn, identifier)
+                before = _roadmap(row)
             # History records the field that changed, with the roadmap's ID, title and revision, not the
             # whole roadmap with every step (audit finding B3).
             changed = "parentId" if action == "roadmap.move" else "archived"

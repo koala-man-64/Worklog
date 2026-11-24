@@ -196,9 +196,11 @@ def test_each_proposal_names_the_directory_its_agent_registered_from(clients):
     # Agents read it on the proposals they may see, as they read the label.
     seen = ok(agent.get("/api/v1/proposals", headers={"Authorization": "Bearer " + sponsor["token"]}))["items"]
     assert {p["title"]: p["actorDirectory"] for p in seen}["From the worktree"] == DIRECTORY
-    # The proposal's history records it as the proposal was.
+    # The proposal's history records it as the proposal was, where it records the whole proposal:
+    # status changes record only a summary (audit step 2.3).
     history = ok(client.get("/api/v1/history", params={"entityId": proposals[DIRECTORY]["id"]}))["items"]
-    assert {e["after"]["actorDirectory"] for e in history} == {DIRECTORY}
+    whole = [e for e in history if e["kind"] == "proposal.create"]
+    assert whole and {e["after"]["actorDirectory"] for e in whole} == {DIRECTORY}
 
 
 def test_the_v18_upgrade_leaves_earlier_registrations_unknown_and_changes_no_record(tmp_path):

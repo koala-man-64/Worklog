@@ -76,7 +76,7 @@ Nothing is deleted. Archived records leave the lists, and their pages show what 
 
 ### Activity history
 
-Work items, roadmaps, people, tickets and resources keep an "Activity history" at the bottom of their page, a roadmap's under its "History". Every change is listed with who made it, including changes applied from an agent's proposal. Each entry is the raw record of the change.
+Work items, roadmaps, people, tickets and resources keep an "Activity history" at the bottom of their page, a roadmap's under its "History". Every change is listed with who made it, including changes applied from an agent's proposal. Each entry is the raw record of the change: the record before and after, or for a proposal's status change and a roadmap's archive, recovery or move, the fields that changed.
 
 Work items and roadmaps also keep "Applied proposals" just above it. It lists every proposal applied to the record, the latest first, each numbered in the order it was applied. A row names the agent that proposed it, when it was applied, and which of its changes were made here, by their numbers on Review. Its title opens the proposal on Review.
 
