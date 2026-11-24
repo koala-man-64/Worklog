@@ -3433,6 +3433,8 @@ export interface components {
             sha256: string;
             /** Archived */
             archived: boolean;
+            /** Removed */
+            removed: boolean;
             /** Revision */
             revision: number;
             /** Createdat */

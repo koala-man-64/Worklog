@@ -313,7 +313,8 @@ def test_the_cli_compacts_and_reports_or_explains_a_refusal(world, capsys):
     assert cli.main(["--data-dir", str(data), "compact"]) == 0
     report = json.loads(capsys.readouterr().out)
     assert set(report) == {"compacted", "proposalEventsReduced", "proposalBytesReclaimed", "roadmapEventsReduced",
-                           "roadmapBytesReclaimed", "eventsThinned", "eventsThinnedBytes", "versionsRemoved",
+                           "roadmapBytesReclaimed", "eventsThinned", "eventsThinnedBytes", "evidenceEmptied",
+                           "evidenceBytesReclaimed", "versionsRemoved",
                            "receiptsPruned", "bytesBefore", "bytesAfter", "bytesReclaimed", "preCompactBackup"}
     assert report["versionsRemoved"] == 5
 

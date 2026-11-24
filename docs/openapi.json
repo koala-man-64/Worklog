@@ -11443,6 +11443,10 @@
             "type": "boolean",
             "title": "Archived"
           },
+          "removed": {
+            "type": "boolean",
+            "title": "Removed"
+          },
           "revision": {
             "type": "integer",
             "title": "Revision"
@@ -11463,6 +11467,7 @@
           "size",
           "sha256",
           "archived",
+          "removed",
           "revision",
           "createdAt"
         ],

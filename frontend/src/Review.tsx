@@ -617,6 +617,13 @@ function EvidenceFile({ file }: { file?: Attachment }) {
   const link = (
     <a href={download(`/attachments/${file.id}?download=1`)}>{file.name}</a>
   );
+  if (file.removed)
+    return (
+      <p className="warning">
+        {file.name} was removed: its proposal was closed long ago and its bytes
+        were emptied.
+      </p>
+    );
   return file.archived ? (
     <p className="warning">
       {link} was archived from this proposal, so approval fails.

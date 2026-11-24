@@ -135,12 +135,17 @@ export function Files({
       {entries.map((entry) =>
         entry.kind === "copy" ? (
           <div className="line" key={"copy-" + entry.record.id}>
-            <a href={download(`/attachments/${entry.record.id}?download=1`)}>
-              {entry.record.name}
-            </a>
+            {entry.record.removed ? (
+              <span>{entry.record.name}</span>
+            ) : (
+              <a href={download(`/attachments/${entry.record.id}?download=1`)}>
+                {entry.record.name}
+              </a>
+            )}
             <small>
               {references && "Attached copy · "}
               {formatBytes(entry.record.size)}
+              {entry.record.removed && " · removed"}
             </small>
             {!readOnly && (
               <button

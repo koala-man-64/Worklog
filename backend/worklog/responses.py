@@ -212,6 +212,9 @@ class Attachment(Answer):
     size: int
     sha256: str
     archived: bool
+    # Emptied by compact: the evidence of a proposal withdrawn or rejected long ago (step 2.6). Its
+    # name, size and hash stay; its download answers 410.
+    removed: bool
     revision: int
     createdAt: str
 

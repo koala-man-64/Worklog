@@ -84,6 +84,13 @@ DRAFT_LIMIT = 50
 AWAITING_LIMIT = 100
 EVIDENCE_FILES = 20
 EVIDENCE_BYTES = 100_000_000
+# What one agent identity holds in evidence, in bytes, on its proposals never approved: drafts,
+# submitted, withdrawn and rejected ones (audit finding B7, step 2.6). Withdrawing a draft frees its
+# place among the drafts, not its bytes; compact empties the evidence of closed ones after 30 days.
+IDENTITY_EVIDENCE_BYTES = 500_000_000
+# A proposal's revisions: every edit and status change raises it. An agent's edit past this is
+# refused, so a looping agent cannot grow one draft's history without end.
+PROPOSAL_REVISIONS = 200
 HELD_BY = ("p.actor_kind='agent' AND (p.actor_id=? OR p.actor_id IN (SELECT theirs.credential_id FROM communication_credentials"
            " theirs JOIN communication_credentials mine ON mine.agent_id=theirs.agent_id WHERE mine.credential_id=?))")
 
@@ -165,11 +172,17 @@ def evidence_file(conn, proposal_id, attachment_id):
     file is missing or belongs elsewhere, so it reveals nothing about other drafts.
     """
     # Not the content: a copy is made inside SQLite, so the bytes never need to be read here.
-    row = conn.execute("SELECT id,archived FROM attachments WHERE id=? AND owner_type='proposal' AND owner_id=?",
+    row = conn.execute("SELECT id,archived,(size>0 AND length(content)=0) AS removed FROM attachments WHERE id=?"
+                       " AND owner_type='proposal' AND owner_id=?",
                        (attachment_id, proposal_id)).fetchone() if isinstance(attachment_id, str) else None
     if row is None:
         raise AppError(422, "validation", "attachmentId must name a file uploaded to this proposal as evidence",
                        {"attachmentId": "not_evidence"})
+    if row["removed"]:
+        # Only a closed proposal's evidence is emptied, and a closed proposal is never approved: this
+        # keeps an empty copy from ever landing on a record should that change.
+        raise AppError(410, "removed", "That file's bytes were removed, so it cannot be attached",
+                       {"attachmentId": "removed"})
     if row["archived"]:
         raise AppError(409, "archived", "That file was archived from this proposal, so it cannot be attached",
                        {"attachmentId": "archived"})
@@ -463,6 +476,9 @@ class ProposalService:
             require_revision(row, payload.get("revision"))
             if row["status"] != "draft":
                 raise AppError(409, "conflict", "Only drafts can be edited")
+            if actor["kind"] == "agent" and row["revision"] >= PROPOSAL_REVISIONS:
+                raise AppError(429, "agent_limit", f"A proposal takes at most {PROPOSAL_REVISIONS} revisions; "
+                               "supersede it with a new proposal instead")
             before = _record(row)
             title = _string(payload.get("title", row["title"]), "title", 1000, required=True)
             rationale = _string(payload.get("rationale", row["rationale"]), "rationale")
@@ -499,6 +515,11 @@ class ProposalService:
                 raise AppError(422, "validation", "A submitted proposal needs at least one operation")
             if verb == "reopen":
                 _room_for_a_draft(connection, actor)
+                # Submitting and reopening raise the revision as edits do, so a looping agent meets
+                # the same bound.
+                if actor["kind"] == "agent" and row["revision"] >= PROPOSAL_REVISIONS:
+                    raise AppError(429, "agent_limit", f"A proposal takes at most {PROPOSAL_REVISIONS} revisions; "
+                                   "supersede it with a new proposal instead")
             # With approval off a submitted proposal is applied at once, and none waits for review.
             if (verb == "submit" and actor["kind"] == "agent" and approval_required(connection)
                     and _held(connection, actor, "submitted") >= AWAITING_LIMIT):
@@ -789,4 +810,12 @@ class ProposalService:
                 raise AppError(429, "agent_limit", f"A proposal holds at most {EVIDENCE_FILES} evidence files")
             if held + size > EVIDENCE_BYTES:
                 raise AppError(429, "agent_limit", f"A proposal's evidence holds at most {EVIDENCE_BYTES:,} bytes in all")
+            # Bytes still held: evidence compact emptied holds none.
+            (unapproved,) = conn.execute(
+                "SELECT coalesce(sum(length(a.content)),0) FROM attachments a JOIN proposals p ON p.id=a.owner_id"
+                " WHERE a.owner_type='proposal' AND p.status<>'approved' AND " + HELD_BY,
+                (actor["id"], actor["id"])).fetchone()
+            if unapproved + size > IDENTITY_EVIDENCE_BYTES:
+                raise AppError(429, "agent_limit", f"An agent holds at most {IDENTITY_EVIDENCE_BYTES:,} bytes of evidence on "
+                               "its proposals never approved; withdrawn and rejected ones count until compact empties them")
         return _record(row)

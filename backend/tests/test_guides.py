@@ -157,3 +157,18 @@ def test_quoted_interface_text_exists_in_the_frontend(guide):
     quoted = {flat(phrase) for phrase in re.findall(r'"([^"\n]+)"', prose(guide.read_text(encoding="utf-8")))}
     missing = sorted(phrase for phrase in quoted if phrase not in source)
     assert not missing, f"{guide.name} quotes interface text the frontend no longer has: {missing}"
+
+
+def test_the_limits_table_matches_the_code():
+    """The guide's limits on proposals and their evidence are the ones the code enforces (step 2.6)."""
+    from worklog import compaction, proposals
+
+    rows = {line.split("|")[1].strip(): line.split("|")[2].strip()
+            for line in AGENT_GUIDE.read_text(encoding="ascii").splitlines()
+            if line.startswith("| ") and line.count("|") == 3}
+    assert rows["Your proposals, under any of your credentials"] == (
+        f"{proposals.DRAFT_LIMIT} drafts; {proposals.AWAITING_LIMIT} awaiting review while approval is on; "
+        f"{proposals.IDENTITY_EVIDENCE_BYTES:,} bytes of evidence on those never approved")
+    assert rows["A proposal's evidence"] == f"{proposals.EVIDENCE_FILES} files; {proposals.EVIDENCE_BYTES:,} bytes in all"
+    assert rows["A proposal's revisions"] == f"{proposals.PROPOSAL_REVISIONS}"
+    assert rows["Evidence of a withdrawn or rejected proposal"] == f"emptied by `compact` after {compaction.EVIDENCE_DAYS} days"

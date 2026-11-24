@@ -55,6 +55,10 @@ from .recovery import (
 )
 
 HISTORY_DAYS = 90
+# The evidence of a proposal withdrawn or rejected more than this many days ago is emptied: the file
+# keeps its row, name, size and hash, and no bytes (audit finding B7, step 2.6; Rudy's answer of
+# 2026-11-24). The pre-compaction backup is the way back.
+EVIDENCE_DAYS = 30
 # A proposal's status changes, whose payloads compaction reduces to a summary at any age.
 PROPOSAL_STATUS_KINDS = frozenset({"proposal.submit", "proposal.approve", "proposal.reject", "proposal.withdraw",
                                    "proposal.reopen"})
@@ -199,10 +203,12 @@ def _compact(stage: Path, moment: datetime) -> dict[str, int]:
                                                         reduced_proposal)
             roadmaps, roadmap_bytes = _rewrite_events(conn, frozenset(ROADMAP_PLAN_KINDS), reduced_roadmap)
             history, history_bytes = _thin_events(conn, (moment - timedelta(days=HISTORY_DAYS)).isoformat())
+            evidence, evidence_bytes = _empty_evidence(conn, (moment - timedelta(days=EVIDENCE_DAYS)).isoformat())
             counts = {
                 "proposalEventsReduced": proposals, "proposalBytesReclaimed": proposal_bytes,
                 "roadmapEventsReduced": roadmaps, "roadmapBytesReclaimed": roadmap_bytes,
                 "eventsThinned": history, "eventsThinnedBytes": history_bytes,
+                "evidenceEmptied": evidence, "evidenceBytesReclaimed": evidence_bytes,
                 "versionsRemoved": conn.execute(OLD_VERSIONS, (VERSIONS_KEPT,)).rowcount,
                 "receiptsPruned": prune_receipts(conn, now=moment),
             }
@@ -229,6 +235,16 @@ def _event_order(conn: sqlite3.Connection) -> str:
     for (identity,) in conn.execute("SELECT id FROM events ORDER BY rowid"):
         digest.update(identity.encode("utf-8") + b"\0")
     return digest.hexdigest()
+
+
+def _empty_evidence(conn: sqlite3.Connection, cutoff: str) -> tuple[int, int]:
+    """Empty the evidence of proposals withdrawn or rejected before cutoff (their last change is the
+    withdrawal or rejection: nothing changes a closed proposal); return how many files and bytes."""
+    found = conn.execute(
+        "SELECT a.id,length(a.content) FROM attachments a JOIN proposals p ON p.id=a.owner_id WHERE a.owner_type='proposal'"
+        " AND p.status IN ('withdrawn','rejected') AND p.updated_at<? AND length(a.content)>0", (cutoff,)).fetchall()
+    conn.executemany("UPDATE attachments SET content=X'' WHERE id=?", [(identity,) for identity, _ in found])
+    return len(found), sum(size for _, size in found)
 
 
 def _payload_bytes(*texts: str) -> int:
