@@ -172,11 +172,17 @@ def evidence_file(conn, proposal_id, attachment_id):
     file is missing or belongs elsewhere, so it reveals nothing about other drafts.
     """
     # Not the content: a copy is made inside SQLite, so the bytes never need to be read here.
-    row = conn.execute("SELECT id,archived FROM attachments WHERE id=? AND owner_type='proposal' AND owner_id=?",
+    row = conn.execute("SELECT id,archived,(size>0 AND length(content)=0) AS removed FROM attachments WHERE id=?"
+                       " AND owner_type='proposal' AND owner_id=?",
                        (attachment_id, proposal_id)).fetchone() if isinstance(attachment_id, str) else None
     if row is None:
         raise AppError(422, "validation", "attachmentId must name a file uploaded to this proposal as evidence",
                        {"attachmentId": "not_evidence"})
+    if row["removed"]:
+        # Only a closed proposal's evidence is emptied, and a closed proposal is never approved: this
+        # keeps an empty copy from ever landing on a record should that change.
+        raise AppError(410, "removed", "That file's bytes were removed, so it cannot be attached",
+                       {"attachmentId": "removed"})
     if row["archived"]:
         raise AppError(409, "archived", "That file was archived from this proposal, so it cannot be attached",
                        {"attachmentId": "archived"})
@@ -509,6 +515,11 @@ class ProposalService:
                 raise AppError(422, "validation", "A submitted proposal needs at least one operation")
             if verb == "reopen":
                 _room_for_a_draft(connection, actor)
+                # Submitting and reopening raise the revision as edits do, so a looping agent meets
+                # the same bound.
+                if actor["kind"] == "agent" and row["revision"] >= PROPOSAL_REVISIONS:
+                    raise AppError(429, "agent_limit", f"A proposal takes at most {PROPOSAL_REVISIONS} revisions; "
+                                   "supersede it with a new proposal instead")
             # With approval off a submitted proposal is applied at once, and none waits for review.
             if (verb == "submit" and actor["kind"] == "agent" and approval_required(connection)
                     and _held(connection, actor, "submitted") >= AWAITING_LIMIT):

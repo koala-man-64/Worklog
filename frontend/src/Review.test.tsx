@@ -319,7 +319,7 @@ it.each([
   [
     "removed",
     [{ ...archivedFile, archived: false, removed: true }],
-    /^old\.pdf was removed: its proposal was closed long ago/,
+    /^old\.pdf was removed: its proposal was closed long ago and its bytes were emptied\.$/,
   ],
 ])("warns when approval cannot attach a %s file", async (_, files, warning) => {
   renderWithClient(

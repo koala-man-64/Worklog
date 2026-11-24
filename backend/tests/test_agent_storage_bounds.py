@@ -140,3 +140,36 @@ def test_compact_empties_the_evidence_of_proposals_closed_long_ago(tmp_path):
         assert c.get(f"/api/v1/attachments/{recent_file['id']}").status_code == 200
     # A second compaction has nothing more to empty.
     assert compaction.compact_database(database, tmp_path / "backups")["evidenceEmptied"] == 0
+
+
+
+def test_an_agents_reopen_meets_the_revision_bound_too(client, agent, monkeypatch):
+    monkeypatch.setattr(proposals, "PROPOSAL_REVISIONS", 4)
+    current = draft(client, agent)
+    current = call(client, "POST", f"/proposals/{current['id']}/submit", {"revision": current["revision"]}, agent=agent)
+    current = call(client, "POST", f"/proposals/{current['id']}/reopen", {"revision": current["revision"]}, agent=agent)
+    current = call(client, "POST", f"/proposals/{current['id']}/submit", {"revision": current["revision"]}, agent=agent)
+    refused = call(client, "POST", f"/proposals/{current['id']}/reopen", {"revision": current["revision"]}, agent=agent,
+                   expect=429)
+    assert refused["error"]["code"] == "agent_limit"
+
+
+def test_compact_leaves_an_approved_copy_of_evidence_whole(tmp_path):
+    with TestClient(create_app(tmp_path, testing=True), base_url=ORIGIN) as c:
+        connect(c)
+        c.data = tmp_path
+        agent = call(c, "POST", "/credentials", {"label": "Looper"})
+        item = call(c, "POST", "/work-items", {"title": "Target"})
+        attaching = draft(c, agent, "Attach it")
+        evidence = upload(c, agent, attaching, 400)
+        attaching = call(c, "PATCH", f"/proposals/{attaching['id']}", {"revision": attaching["revision"], "operations": [
+            {"action": "attachment.create",
+             "payload": {"ownerType": "item", "ownerId": item["id"], "attachmentId": evidence["id"]}}]}, agent=agent)
+        submitted = call(c, "POST", f"/proposals/{attaching['id']}/submit", {"revision": attaching["revision"]}, agent=agent)
+        call(c, "POST", f"/proposals/{attaching['id']}/approve", {"revision": submitted["revision"]})
+        set_closed(c, attaching["id"], compaction.EVIDENCE_DAYS + 10)
+    database = tmp_path / "worklog.sqlite3"
+    assert compaction.compact_database(database, tmp_path / "backups")["evidenceEmptied"] == 0
+    with closing(sqlite3.connect(database)) as conn:
+        assert conn.execute("SELECT length(content) FROM attachments WHERE owner_type='item'").fetchone() == (400,)
+        assert conn.execute("SELECT length(content) FROM attachments WHERE id=?", (evidence["id"],)).fetchone() == (400,)
