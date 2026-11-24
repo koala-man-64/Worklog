@@ -28,7 +28,7 @@ from typing import Any
 
 from . import search
 from .migrations import SCHEMA_VERSION
-from .recovery import _readonly
+from .recovery import _readonly, copy_database
 
 EXAMPLES = 5
 # The table of each kind of record that other records name by type and id.
@@ -67,10 +67,11 @@ def doctor_database(db_path: Path | str) -> dict[str, Any]:
         raise ValueError("Database file does not exist")
     with tempfile.TemporaryDirectory(prefix="worklog-doctor-") as directory:
         copy = Path(directory) / "copy.sqlite3"
-        # The backup API reads one consistent snapshot, as a backup does. Unlike a backup, nothing
-        # validates the copy: the doctor reports what a validation would refuse.
+        # The backup API reads one consistent snapshot, as a backup does, in steps so writers are not
+        # locked out meanwhile. Unlike a backup, nothing validates the copy: the doctor reports what a
+        # validation would refuse.
         with closing(_readonly(source)) as src, closing(sqlite3.connect(copy)) as dest:
-            src.backup(dest)
+            copy_database(src, dest)
         with closing(sqlite3.connect(copy, isolation_level=None)) as conn:
             version = conn.execute("PRAGMA user_version").fetchone()[0]
             if version != SCHEMA_VERSION:
