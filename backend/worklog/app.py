@@ -24,7 +24,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import __version__, git_activity, operations, policy, support
+from . import __version__, git_activity, locations, operations, policy, support
 from . import models as m
 from . import responses as out
 from .active_sessions import running_sessions
@@ -79,7 +79,9 @@ logger = logging.getLogger("worklog")
 
 
 def default_data_directory() -> Path:
-    return Path(os.environ.get("WORKLOG_DATA_DIR") or Path(os.environ.get("LOCALAPPDATA", Path.home() / ".local/share")) / "Worklog")
+    """The data folder the CLI would choose: the process's WORKLOG_DATA_DIR, the user-level one, or
+    the default (locations.locate)."""
+    return locations.locate().path
 
 
 BACKUP_FAILED = "Automatic backup failed. Check free disk space and retry a manual backup."

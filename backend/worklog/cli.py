@@ -27,7 +27,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlsplit
 from urllib.request import HTTPHandler, HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
-from worklog import __version__
+from worklog import __version__, locations
 from worklog.common import shows_as_written
 from worklog.compaction import compact_database
 from worklog.doctor import doctor_database
@@ -192,14 +192,9 @@ def _response_json(response: Any, deadline: float | None) -> Any:
 
 
 def data_directory(value: str | None = None) -> Path:
-    if value or os.environ.get("WORKLOG_DATA_DIR"):
-        return Path(value or os.environ["WORKLOG_DATA_DIR"]).expanduser().resolve()
-    if os.name == "nt":
-        base = os.environ.get("LOCALAPPDATA")
-        if not base:
-            raise RuntimeError("LOCALAPPDATA is unavailable; supply --data-dir")
-        return Path(base) / "Worklog"
-    return Path.home() / ".local" / "share" / "Worklog"
+    """The data folder: --data-dir, the process's WORKLOG_DATA_DIR, the user-level one, or the default
+    (locations.locate)."""
+    return locations.locate(value).path
 
 
 def _json_file(path: Path) -> dict[str, Any]:
@@ -322,12 +317,18 @@ def _launch_server(command: list[str], log: Any,
     return launch(creationflags=hidden), JOB_WARNING
 
 
-def start(directory: Path, port: int = DEFAULT_PORT) -> dict[str, Any]:
+def start(directory: Path, port: int = DEFAULT_PORT, *,
+          folder: locations.DataFolder | None = None) -> dict[str, Any]:
+    """Start the server for `directory`. `folder` says how the folder was found: one nobody named that
+    holds no database is refused, before anything is created, while another candidate holds one."""
+    if folder is not None:
+        locations.refuse_unnamed_empty(folder)
+    created = not (directory / locations.DATABASE).is_file()
     directory.mkdir(parents=True, exist_ok=True)
     with InstanceLock(directory, ".launcher.lock"):
         current = check(directory, port)
         if current["running"]:
-            return {**current, "reused": True}
+            return {**current, "reused": True, "created": False}
         # Refuse another managed instance still booting or running on a different port.
         with InstanceLock(directory):
             pass
@@ -346,7 +347,8 @@ def start(directory: Path, port: int = DEFAULT_PORT) -> dict[str, Any]:
             health = _health(port)
             if _owned(directory, health, state):
                 return {"running": True, "url": local_url(port), **(health or {}), "pid": state["pid"],
-                        "dataDir": str(directory), "reused": False, **({"warning": warning} if warning else {})}
+                        "dataDir": str(directory), "reused": False, "created": created,
+                        **({"warning": warning} if warning else {})}
             time.sleep(0.1)
         raise RuntimeError(f"Startup did not become ready; inspect {directory / 'server.log'} and run check")
 
@@ -1759,14 +1761,16 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "agent":
             result = agent_command(args, resolve_port(args.port), redact)
         else:
-            directory = data_directory(args.data_dir)
+            folder = locations.locate(args.data_dir)
+            directory = folder.path
             database = directory / "worklog.sqlite3"
             if args.command == "serve":
                 serve(directory, resolve_port(args.port))
                 return 0
-            if args.command in {"start", "stop", "check"}:
-                result = {"start": start, "stop": stop, "check": check}[args.command](
-                    directory, resolve_port(args.port))
+            if args.command == "start":
+                result = start(directory, resolve_port(args.port), folder=folder)
+            elif args.command in {"stop", "check"}:
+                result = {"stop": stop, "check": check}[args.command](directory, resolve_port(args.port))
             elif args.command == "backup":
                 result = backup_database(database, directory / "backups")
             elif args.command == "backups":

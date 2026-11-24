@@ -13,10 +13,9 @@ $worklogScript = Join-Path $PSScriptRoot "Worklog.ps1"
 $pythonPath = Join-Path $projectRoot ".venv/Scripts/python.exe"
 $worklogExe = Join-Path $projectRoot ".venv/Scripts/worklog.exe"
 
-if (-not $DataDir -and -not $env:WORKLOG_DATA_DIR) {
-    $userDataDir = [Environment]::GetEnvironmentVariable("WORKLOG_DATA_DIR", "User")
-    if ($userDataDir) { $env:WORKLOG_DATA_DIR = $userDataDir }
-}
+# Without -DataDir or WORKLOG_DATA_DIR, the CLI reads the user-level WORKLOG_DATA_DIR itself, and
+# refuses to start an empty folder nobody named beside one that holds a database: copying the
+# variable in here would name it and skip that check.
 
 $commonArgs = @{}
 if ($DataDir) { $commonArgs["DataDir"] = $DataDir }

@@ -72,6 +72,8 @@ $env:WORKLOG_DATA_DIR = 'D:/Private/Worklog'
 ./.venv/Scripts/python.exe -m worklog.cli --data-dir 'D:/Private/Worklog' check
 ```
 
+The data directory is `--data-dir` (`-DataDir`), else the process's `WORKLOG_DATA_DIR`, else on Windows your user-level `WORKLOG_DATA_DIR` (read even by a shell that was started without it), else the default. So set the variable at user level to have every shell find your data. A folder you named with `--data-dir` or the process's variable may always be new: that is how an isolated test instance starts. A folder nobody named, from the user-level variable or the default, is refused by `start` when it holds no database while the other one does, and the message names both: a typo in the variable, or a shell that missed it, never opens an empty data set on your port. `start` reports `"created": true` when it made a new database.
+
 Only one managed server or offline restore can own a data directory. OS locks release after a crash; do not delete lock files to try to bypass a running instance. `check` requires a matching instance and readiness identity, not merely an open TCP port.
 
 ## Guides
