@@ -828,11 +828,55 @@ class BackupFile(Answer):
     createdAt: str
 
 
+class ListedBackup(BackupFile):
+    """A backup as Settings lists it (step 2.2)."""
+
+    # manual, daily, pre-migration, pre-restore, pre-compact or pre-restore-raw, from the file's name.
+    kind: str | None
+    # Marked by the person to keep: the rule for manual backups never removes it.
+    kept: bool
+    # The rule for manual backups would remove it (recovery.manual_prunable).
+    prunable: bool
+
+
+class BackupKind(Answer):
+    count: int
+    bytes: int
+
+
+class BackupPruning(Answer):
+    """The rule for manual backups: the newest `keep`, and those marked to keep. Until the person
+    confirms it once, nothing is removed, and `candidates` lists what the rule would remove."""
+
+    keep: int
+    confirmed: bool
+    candidates: list[str]
+    candidateBytes: int
+
+
 class Storage(Answer):
     databaseBytes: int
     backupBytes: int
-    # Null unless the last automatic backup failed or the database is past 2 GB.
+    backupCount: int
+    # Count and bytes of each kind of backup, by kind.
+    backupKinds: dict[str, BackupKind]
+    # Free bytes on the disk that holds the data folder.
+    diskFreeBytes: int
+    pruning: BackupPruning
+    # Null unless the last automatic backup failed, the database is past 2 GB, the backups pass
+    # BACKUP_RATIO times the database, or the disk's free space falls below twice the database.
     warning: str | None
+
+
+class BackupsPruned(Answer):
+    """What confirming the rule for manual backups removed."""
+
+    removed: list[str]
+
+
+class BackupMark(Answer):
+    name: str
+    kept: bool
 
 
 class Settings(Answer):
@@ -843,7 +887,7 @@ class Settings(Answer):
     agentRepositoryRegistration: bool
     credentials: list[SettingsCredential]
     agents: list[SettingsAgent]
-    backups: list[BackupFile]
+    backups: list[ListedBackup]
     storage: Storage
 
 

@@ -51,6 +51,8 @@ TIME = re.compile(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?P<fraction>\.\d+)?(?P<offse
 # Values that change from world to world where no ID or time shows: a random avatar suggested, a
 # feed cursor, which encodes the data ID, and a credential's token.
 KEYED = {"suggested": "<avatar>", "cursor": "<cursor>", "token": "<token>"}
+# Numbers that differ from machine to machine: the free space on the disk that holds the data.
+KEYED_NUMBERS = {"diskFreeBytes": "<free bytes>"}
 # Reads whose answer is not JSON: files and archives, pinned by their own tests.
 NOT_JSON = {"/export"}
 # Reads whose answer counts the golden world's own calls, by date: every new route or call, and every
@@ -275,7 +277,9 @@ def concrete(template: str, ids: dict[str, str], today: str) -> str:
 def normalized(value: object, names: dict[str, str], today: str) -> object:
     """value with each ID named by its first appearance, each time as <time>, and today as <today>."""
     if isinstance(value, dict):
-        return {key: KEYED[key] if key in KEYED and isinstance(item, str) else normalized(item, names, today)
+        return {key: KEYED[key] if key in KEYED and isinstance(item, str)
+                else KEYED_NUMBERS[key] if key in KEYED_NUMBERS and isinstance(item, int)
+                else normalized(item, names, today)
                 for key, item in value.items()}
     if isinstance(value, list):
         return [normalized(item, names, today) for item in value]

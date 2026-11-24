@@ -36,7 +36,8 @@ def test_settings_lists_backups_without_reading_them(client, monkeypatch):
     settings = client.get("/api/v1/settings")
     assert settings.status_code == 200, settings.text
     [listed] = settings.json()["backups"]
-    assert set(listed) == {"name", "size", "createdAt"}
+    assert set(listed) == {"name", "size", "createdAt", "kind", "kept", "prunable"}
+    assert (listed["kind"], listed["kept"], listed["prunable"]) == ("manual", False, False)
     assert listed["name"] == made.json()["name"] and listed["size"] > 0
     assert settings.json()["storage"]["backupBytes"] == listed["size"]
 

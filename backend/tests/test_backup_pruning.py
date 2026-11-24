@@ -173,3 +173,17 @@ def test_settings_warn_when_backups_outgrow_the_database_or_the_disk_fills(clien
     usage = namedtuple("usage", "total used free")
     monkeypatch.setattr(shutil, "disk_usage", lambda path: usage(10 * size, 9 * size, size))
     assert "Free disk space" in client.get("/api/v1/settings").json()["storage"]["warning"]
+
+
+def test_the_backups_command_marks_what_the_rule_removes_and_confirms_it(tmp_path, source, capsys):
+    import json
+
+    from worklog import cli
+
+    folder = tmp_path / "data" / "backups"
+    old = backups_of(folder, "manual", range(1, 13))
+    assert cli.main(["--data-dir", str(tmp_path / "data"), "backups"]) == 0
+    listed = json.loads(capsys.readouterr().out)
+    assert {b["name"] for b in listed if b["prunable"]} == {old[0].name, old[1].name}
+    assert cli.main(["--data-dir", str(tmp_path / "data"), "backups", "--confirm-pruning"]) == 0
+    assert json.loads(capsys.readouterr().out) == {"removed": [old[1].name, old[0].name]}

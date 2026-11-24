@@ -34,6 +34,7 @@ from worklog.doctor import doctor_database
 from worklog.recovery import (
     InstanceLock,
     backup_database,
+    confirm_manual_pruning,
     list_backups,
     restore_database,
     write_export,
@@ -1644,6 +1645,9 @@ def parser() -> argparse.ArgumentParser:
         if command == "backups":
             sub.add_argument("--verify", action="store_true",
                              help="Hash every file's bytes now; without it, a file unchanged since it was hashed shows that hash")
+            sub.add_argument("--confirm-pruning", action="store_true",
+                             help="Confirm the rule for manual backups (the newest 10 and those marked to keep) and "
+                                  "prune by it now; until then the list only marks what it would remove (prunable)")
         if command == "usage":
             sub.add_argument("--days", type=_report_days, default=30,
                              help="How many days to today the report covers (default 30)")
@@ -1810,6 +1814,8 @@ def main(argv: list[str] | None = None) -> int:
                 result = {"stop": stop, "check": check}[args.command](directory, resolve_port(args.port))
             elif args.command == "backup":
                 result = backup_database(database, directory / "backups")
+            elif args.command == "backups" and args.confirm_pruning:
+                result = {"removed": confirm_manual_pruning(directory / "backups")}
             elif args.command == "backups":
                 result = list_backups(directory / "backups", verify=args.verify)
             elif args.command == "restore":

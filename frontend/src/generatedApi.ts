@@ -1366,6 +1366,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/backups/pruning": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Backups Pruning
+         * @description Confirm the rule for manual backups once, and prune by it now (step 2.2).
+         */
+        post: operations["backups_pruning_api_v1_backups_pruning_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/backups/{name}/keep": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Backup Keep */
+        post: operations["backup_keep_api_v1_backups__name__keep_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/export": {
         parameters: {
             query?: never;
@@ -3447,17 +3484,47 @@ export interface components {
             /** Current */
             current: string | null;
         };
-        /**
-         * BackupFile
-         * @description A backup or raw recovery file, by its file's metadata; Settings reads no hashes.
-         */
-        BackupFile: {
+        /** BackupKeep */
+        BackupKeep: {
+            /** Kept */
+            kept: boolean;
+        };
+        /** BackupKind */
+        BackupKind: {
+            /** Count */
+            count: number;
+            /** Bytes */
+            bytes: number;
+        };
+        /** BackupMark */
+        BackupMark: {
             /** Name */
             name: string;
-            /** Size */
-            size: number;
-            /** Createdat */
-            createdAt: string;
+            /** Kept */
+            kept: boolean;
+        };
+        /**
+         * BackupPruning
+         * @description The rule for manual backups: the newest `keep`, and those marked to keep. Until the person
+         *     confirms it once, nothing is removed, and `candidates` lists what the rule would remove.
+         */
+        BackupPruning: {
+            /** Keep */
+            keep: number;
+            /** Confirmed */
+            confirmed: boolean;
+            /** Candidates */
+            candidates: string[];
+            /** Candidatebytes */
+            candidateBytes: number;
+        };
+        /**
+         * BackupsPruned
+         * @description What confirming the rule for manual backups removed.
+         */
+        BackupsPruned: {
+            /** Removed */
+            removed: string[];
         };
         /** CallUnused */
         CallUnused: {
@@ -4834,6 +4901,24 @@ export interface components {
             roadmapTitle: string;
             /** Retired */
             retired: boolean;
+        };
+        /**
+         * ListedBackup
+         * @description A backup as Settings lists it (step 2.2).
+         */
+        ListedBackup: {
+            /** Name */
+            name: string;
+            /** Size */
+            size: number;
+            /** Createdat */
+            createdAt: string;
+            /** Kind */
+            kind: string | null;
+            /** Kept */
+            kept: boolean;
+            /** Prunable */
+            prunable: boolean;
         };
         /**
          * ListedGithubReference
@@ -7623,7 +7708,7 @@ export interface components {
             /** Agents */
             agents: components["schemas"]["SettingsAgent"][];
             /** Backups */
-            backups: components["schemas"]["BackupFile"][];
+            backups: components["schemas"]["ListedBackup"][];
             storage: components["schemas"]["Storage"];
         };
         /** SettingsAgent */
@@ -7782,6 +7867,15 @@ export interface components {
             databaseBytes: number;
             /** Backupbytes */
             backupBytes: number;
+            /** Backupcount */
+            backupCount: number;
+            /** Backupkinds */
+            backupKinds: {
+                [key: string]: components["schemas"]["BackupKind"];
+            };
+            /** Diskfreebytes */
+            diskFreeBytes: number;
+            pruning: components["schemas"]["BackupPruning"];
             /** Warning */
             warning: string | null;
         };
@@ -11793,6 +11887,61 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HashedBackup"];
+                };
+            };
+        };
+    };
+    backups_pruning_api_v1_backups_pruning_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupsPruned"];
+                };
+            };
+        };
+    };
+    backup_keep_api_v1_backups__name__keep_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BackupKeep"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupMark"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

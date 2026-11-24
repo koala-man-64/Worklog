@@ -6,6 +6,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import sqlite3
 import tempfile
 import time
@@ -292,8 +293,108 @@ def _cached_hash(path: Path, cache: dict[str, Any]) -> str:
     return digest
 
 
+# Manual backups keep the newest MANUAL_KEPT and those the person marks to keep (audit finding B2,
+# roadmap step 2.2; Rudy's answer of 2026-11-24). The marks, and whether the person confirmed the
+# first pruning, live in PRUNING beside the backups. Until confirmed, nothing is pruned: the listing
+# and Settings show what the rule would remove. Pre-restore backups and raw evidence are never pruned.
+MANUAL_KEPT = 10
+PRUNING = "backup-pruning.json"
+# A backup's file name: its kind, the UTC time it was taken, and a random suffix.
+BACKUP_NAME = re.compile(r"^worklog-(?P<kind>.+?)-(?P<stamp>\d{8}T\d{6}\d*Z)-[0-9a-f]+\.(?:sqlite3|zip)$")
+
+
+def backup_kind(name: str) -> str | None:
+    """A backup's kind from its file name (manual, daily, pre-migration, pre-restore, pre-compact,
+    pre-restore-raw), or None for a name that is not a backup's."""
+    found = BACKUP_NAME.match(name)
+    return found["kind"] if found else None
+
+
+def _taken(name: str) -> str:
+    """The time in a backup's name, which sorts in time order; the name itself when it has none."""
+    found = BACKUP_NAME.match(name)
+    return found["stamp"] if found else name
+
+
+def pruning_state(backup_dir: Path | str) -> dict[str, Any]:
+    """The person's marks and whether they confirmed the pruning of manual backups."""
+    try:
+        state = json.loads((Path(backup_dir) / PRUNING).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        state = {}
+    if not isinstance(state, dict):
+        state = {}
+    kept = state.get("kept")
+    return {"confirmed": state.get("confirmed") is True,
+            "kept": sorted({str(name) for name in kept}) if isinstance(kept, list) else []}
+
+
+def _save_pruning(directory: Path, state: dict[str, Any]) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    temporary = directory / (".pruning-" + uuid.uuid4().hex + ".tmp")
+    try:
+        temporary.write_text(json.dumps(state, sort_keys=True), encoding="utf-8")
+        os.replace(temporary, directory / PRUNING)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def manual_prunable(backup_dir: Path | str) -> list[str]:
+    """The manual backups the rule removes: all but the newest MANUAL_KEPT, and none marked to keep,
+    newest first."""
+    directory = Path(backup_dir)
+    kept = set(pruning_state(directory)["kept"])
+    manual = sorted((path.name for path in directory.glob("worklog-manual-*.sqlite3") if path.is_file()),
+                    key=lambda name: (_taken(name), name), reverse=True)
+    return [name for name in manual[MANUAL_KEPT:] if name not in kept]
+
+
+def prune_manual_backups(backup_dir: Path | str) -> list[str]:
+    """Delete what manual_prunable names, once the person confirmed the rule; return what went. A file
+    that cannot be deleted is logged and left for the next manual backup, as prune_backups does."""
+    directory = Path(backup_dir)
+    if not pruning_state(directory)["confirmed"]:
+        return []
+    removed = []
+    for name in manual_prunable(directory):
+        try:
+            (directory / name).unlink()
+        except OSError as exc:
+            logger.warning("Could not delete old backup %s (%s); the next manual backup tries again",
+                           name, type(exc).__name__)
+            continue
+        removed.append(name)
+    return removed
+
+
+def confirm_manual_pruning(backup_dir: Path | str) -> list[str]:
+    """Record the person's confirmation of the rule, then prune; return what went."""
+    directory = Path(backup_dir)
+    _save_pruning(directory, {**pruning_state(directory), "confirmed": True})
+    return prune_manual_backups(directory)
+
+
+def mark_backup(backup_dir: Path | str, name: str, kept: bool) -> dict[str, Any]:
+    """Mark a backup to keep, or take the mark off. Only a backup in the folder can be marked."""
+    directory = Path(backup_dir)
+    if backup_kind(name) is None or Path(name).name != name or not (directory / name).is_file():
+        raise ValueError("No such backup")
+    state = pruning_state(directory)
+    marks = set(state["kept"])
+    if kept:
+        marks.add(name)
+    else:
+        marks.discard(name)
+    # Marks of backups that are gone are dropped as the file is written again.
+    marks = {mark for mark in marks if (directory / mark).is_file()}
+    _save_pruning(directory, {**state, "kept": sorted(marks)})
+    return {"name": name, "kept": kept}
+
+
 def list_backups(backup_dir: Path | str, *, hashed: bool = True, verify: bool = False) -> list[dict[str, Any]]:
-    """Backups and raw recovery evidence, newest first.
+    """Backups and raw recovery evidence, newest first by the time in their names, whatever their
+    kind. Each says its kind, whether the person marked it to keep, and whether the rule for manual
+    backups would remove it.
 
     With hashed=False the listing reads file metadata only: hashing reads every byte of
     every file, which Settings would otherwise pay on each load. The CLI keeps the hashes,
@@ -308,7 +409,10 @@ def list_backups(backup_dir: Path | str, *, hashed: bool = True, verify: bool = 
     files = [*directory.glob("worklog-*.sqlite3"), *directory.glob("worklog-pre-restore-raw-*.zip")]
     cache = ({} if verify else _hash_cache(directory)) if hashed else None
     before = json.dumps(cache, sort_keys=True)
-    listed = [_metadata(path, hashed=hashed, cache=cache) for path in sorted(files, reverse=True)
+    kept, prunable = set(pruning_state(directory)["kept"]), set(manual_prunable(directory))
+    listed = [{**_metadata(path, hashed=hashed, cache=cache), "kind": backup_kind(path.name),
+               "kept": path.name in kept, "prunable": path.name in prunable}
+              for path in sorted(files, key=lambda path: (_taken(path.name), path.name), reverse=True)
               if path.is_file()]
     if cache is not None and json.dumps(cache, sort_keys=True) != before:
         _save_hash_cache(directory, cache)
@@ -347,6 +451,11 @@ def _publish(db_path: Path | str, backup_dir: Path | str, kind: str) -> Path:
 
 def _prune_after(directory: Path, kind: str) -> None:
     # Compaction prunes its own backups, once a compaction has finished (compaction.BACKUPS_KEPT).
+    # Manual backups go by the person's rule, and only after a manual backup: never inside a
+    # pre-migration, pre-restore or pre-compact backup.
+    if kind == "manual":
+        prune_manual_backups(directory)
+        return
     keep = {"daily": 14, "pre-migration": 3}.get(kind)
     if keep is not None:
         prune_backups(directory, kind, keep)
@@ -364,7 +473,8 @@ def prune_backups(backup_dir: Path | str, kind: str, keep: int) -> None:
     """Delete all but the newest `keep` backups of a kind, by the time in their names. A file that
     cannot be deleted, as on Windows while another program holds it open, is logged and left for
     the next backup of its kind to try again; the rest are still deleted."""
-    for old in sorted(Path(backup_dir).glob(f"worklog-{kind}-*.sqlite3"), reverse=True)[keep:]:
+    paths = Path(backup_dir).glob(f"worklog-{kind}-*.sqlite3")
+    for old in sorted(paths, key=lambda path: (_taken(path.name), path.name), reverse=True)[keep:]:
         try:
             old.unlink()
         except OSError as exc:
