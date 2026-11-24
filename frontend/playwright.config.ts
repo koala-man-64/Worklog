@@ -1,5 +1,8 @@
 import { defineConfig } from "@playwright/test";
 import { fileURLToPath } from "node:url";
+import { checkTarget } from "./e2e/guard";
+// Refuses a server the suite did not start unless it is declared disposable, and port 8877 always.
+checkTarget(process.env);
 const port = Number(process.env.WORKLOG_PORT || 8877);
 if (!Number.isInteger(port) || port < 1 || port > 65535)
   throw new Error("WORKLOG_PORT must be a port number 1-65535");
@@ -10,6 +13,8 @@ const claudeFolder = fileURLToPath(
 );
 export default defineConfig({
   testDir: "./e2e",
+  // e2e/ also holds vitest's unit tests of the guard (*.test.ts).
+  testMatch: "**/*.spec.ts",
   fullyParallel: false,
   use: {
     baseURL: process.env.WORKLOG_BASE_URL ?? local,

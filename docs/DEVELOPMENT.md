@@ -25,6 +25,8 @@ npm run build
 npm run test:e2e
 ```
 
+The browser suite refuses a server it did not start: with `WORKLOG_BASE_URL` set it runs only when `WORKLOG_E2E_DISPOSABLE=1` declares that server disposable, and never against an address on port 8877 (`frontend/e2e/guard.ts`).
+
 Use an isolated `WORKLOG_DATA_DIR` for manual or browser tests; never point tests at your personal database. Lifecycle smoke checks should cover start, repeated start, health/check, stop, refusal of an unrelated port listener, and a restart against the same data. Restore tests cover invalid candidates, an active server lock, credential revocation, and failed replacement preservation. Inspect readable export records and verify the manifest hashes when testing archive workflows.
 
 ## Dependencies
