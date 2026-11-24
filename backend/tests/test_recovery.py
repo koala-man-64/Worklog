@@ -618,14 +618,35 @@ def test_a_backup_copies_in_steps_and_a_writer_commits_between_them(tmp_path):
         assert conn.execute("SELECT title FROM work_items WHERE id='item'").fetchone() == ("Written meanwhile",)
 
 
-def test_a_stepped_copy_past_its_deadline_finishes_in_one_step(tmp_path, caplog):
+def test_a_copy_writes_keep_starting_over_past_its_deadline_finishes_in_one_step(tmp_path, caplog):
     source = large_database(tmp_path / "live.sqlite3")
     copy = tmp_path / "copy.sqlite3"
-    with caplog.at_level("WARNING", logger="worklog"), closing(recovery._readonly(source)) as src, \
-            closing(sqlite3.connect(copy)) as dest:
-        recovery.copy_database(src, dest, pages=10, deadline_s=0)
+    writes = [0]
+
+    def write_every_step(status, remaining, total):
+        writes[0] += 1
+        with closing(sqlite3.connect(source, timeout=0)) as writer:
+            writer.execute("UPDATE work_items SET title=? WHERE id='item'", (f"Write {writes[0]}",))
+            writer.commit()
+
+    with caplog.at_level("WARNING", logger="worklog"), closing(recovery._readonly(source)) as src,             closing(sqlite3.connect(copy)) as dest:
+        recovery.copy_database(src, dest, pages=10, deadline_s=0, progress=write_every_step)
     recovery.validate_database(copy)
     assert "one step" in caplog.text
+    # The one-step copy is whole: every row, and the last write before it.
+    with closing(sqlite3.connect(source)) as a, closing(sqlite3.connect(copy)) as b:
+        assert a.execute("SELECT count(*),max(title) FROM work_items").fetchone() ==             b.execute("SELECT count(*),max(title) FROM work_items").fetchone()
+
+
+def test_a_slow_copy_that_keeps_going_forward_keeps_its_steps(tmp_path, caplog):
+    source = large_database(tmp_path / "live.sqlite3")
+    copy = tmp_path / "copy.sqlite3"
+    steps: list[int] = []
+    with caplog.at_level("WARNING", logger="worklog"), closing(recovery._readonly(source)) as src,             closing(sqlite3.connect(copy)) as dest:
+        recovery.copy_database(src, dest, pages=10, deadline_s=0, progress=lambda s, r, t: steps.append(r))
+    assert len(steps) > 1 and steps == sorted(steps, reverse=True)
+    assert "one step" not in caplog.text
+    recovery.validate_database(copy)
 
 
 def test_backups_and_the_doctor_copy_in_steps(tmp_path, monkeypatch):
@@ -643,4 +664,5 @@ def test_backups_and_the_doctor_copy_in_steps(tmp_path, monkeypatch):
     monkeypatch.setattr(doctor, "copy_database", counted)
     recovery.backup_database(source, tmp_path / "backups")
     assert doctor.doctor_database(source)["ok"] is True
+    assert recovery.BACKUP_STEP_PAGES > 0
     assert copies == [recovery.BACKUP_STEP_PAGES, recovery.BACKUP_STEP_PAGES]
