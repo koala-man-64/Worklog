@@ -15,7 +15,7 @@ ORIGIN = "http://127.0.0.1:8877"
 THE_PERSONS = {
     ("GET", "/settings"), ("PATCH", "/settings"),
     ("POST", "/credentials"), ("POST", "/credentials/{identity}/rotate"), ("POST", "/credentials/{identity}/revoke"),
-    ("POST", "/backups"), ("GET", "/export"),
+    ("POST", "/backups"), ("POST", "/backups/pruning"), ("POST", "/backups/{name}/keep"), ("GET", "/export"),
 }
 
 
@@ -57,7 +57,9 @@ def test_an_agent_the_table_lets_in_by_mistake_is_refused_at_the_route(started, 
              ("POST", "/credentials", {"label": "Minted"}),
              ("POST", f"/credentials/{credential['id']}/rotate", {}),
              ("POST", f"/credentials/{credential['id']}/revoke", None),
-             ("POST", "/backups", None), ("GET", "/export", None)]
+             ("POST", "/backups", None), ("POST", "/backups/pruning", {}),
+             ("POST", "/backups/worklog-manual-20260101T000000000000Z-00000001.sqlite3/keep", {"kept": True}),
+             ("GET", "/export", None)]
     for method, path, body in calls:
         response = agent.request(method, "/api/v1" + path, json=body,
                                  headers={**bearer, "Idempotency-Key": str(uuid.uuid4())})

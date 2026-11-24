@@ -393,4 +393,17 @@ export const commands = {
   // The route takes no body; an empty one keeps the request what it was.
   createBackup: () =>
     request<Answer<"/api/v1/backups", "post">>("/backups", "POST", {}),
+  // Confirms the rule for manual backups once, and prunes by it now.
+  confirmBackupPruning: () =>
+    request<Answer<"/api/v1/backups/pruning", "post">>(
+      "/backups/pruning",
+      "POST",
+      {},
+    ),
+  keepBackup: (name: string, kept: boolean) =>
+    request<Answer<"/api/v1/backups/{name}/keep", "post">>(
+      `/backups/${encodeURIComponent(name)}/keep`,
+      "POST",
+      { kept },
+    ),
 };

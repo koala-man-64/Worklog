@@ -13,7 +13,15 @@ const settings: SettingsData = {
   version: "test",
   requireProposalApproval: true,
   agentRepositoryRegistration: true,
-  storage: { databaseBytes: 0, backupBytes: 0, warning: null },
+  storage: {
+    databaseBytes: 0,
+    backupBytes: 0,
+    backupCount: 0,
+    backupKinds: {},
+    diskFreeBytes: 0,
+    pruning: { keep: 10, confirmed: false, candidates: [], candidateBytes: 0 },
+    warning: null,
+  },
   backups: [],
   credentials: [
     {
@@ -245,6 +253,92 @@ it("leaves the avatar to the server until the person picks one, even when the su
   expect(create).toBeEnabled();
   await user.click(create);
   await waitFor(() => expect(posted).toEqual([{ label: "Builder" }]));
+});
+
+it("lists what pruning would remove, prunes once confirmed and keeps what the person marks", async () => {
+  const backup = (name: string, prunable: boolean) => ({
+    name,
+    size: 1000,
+    createdAt: "2026-11-01T10:00:00Z",
+    kind: "manual",
+    kept: false,
+    prunable,
+  });
+  const old = "worklog-manual-20261001T000000000000Z-00000001.sqlite3";
+  const recent = "worklog-manual-20261101T000000000000Z-00000002.sqlite3";
+  const current: SettingsData = {
+    ...settings,
+    backups: [backup(recent, false), backup(old, true)],
+    storage: {
+      ...settings.storage,
+      backupBytes: 2000,
+      backupCount: 2,
+      backupKinds: { manual: { count: 2, bytes: 2000 } },
+      diskFreeBytes: 5_000_000,
+      pruning: {
+        keep: 10,
+        confirmed: false,
+        candidates: [old],
+        candidateBytes: 1000,
+      },
+    },
+  };
+  const posted: { path: string; body: unknown }[] = [];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const path = new URL(String(input), "http://worklog.test").pathname.replace(
+      "/api/v1",
+      "",
+    );
+    if (init?.method === "POST")
+      posted.push({ path, body: JSON.parse(String(init.body)) });
+    const result =
+      path === "/backups/pruning"
+        ? { removed: [old] }
+        : path.endsWith("/keep")
+          ? { name: recent, kept: true }
+          : path === "/discussions/avatars"
+            ? catalog
+            : current;
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+  const user = userEvent.setup();
+  render(
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: {
+            queries: { retry: false },
+            mutations: { retry: false },
+          },
+        })
+      }
+    >
+      <Settings />
+    </QueryClientProvider>,
+  );
+  expect(
+    await screen.findByText(/would remove 1 older ones/),
+  ).toBeInTheDocument();
+  expect(screen.getByLabelText("Backups by kind")).toHaveTextContent(
+    "2 manual",
+  );
+  expect(screen.getByText("Would be removed")).toBeInTheDocument();
+  await user.click(screen.getByRole("checkbox", { name: `Keep ${recent}` }));
+  await user.click(
+    screen.getByRole("button", { name: "Prune old manual backups" }),
+  );
+  await waitFor(() =>
+    expect(posted).toEqual([
+      { path: `/backups/${recent}/keep`, body: { kept: true } },
+      { path: "/backups/pruning", body: {} },
+    ]),
+  );
+  expect(
+    await screen.findByText("Removed 1 old manual backups."),
+  ).toBeInTheDocument();
 });
 
 it("turns proposal approval off and back on", async () => {

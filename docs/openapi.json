@@ -4454,6 +4454,74 @@
         }
       }
     },
+    "/api/v1/backups/pruning": {
+      "post": {
+        "summary": "Backups Pruning",
+        "description": "Confirm the rule for manual backups once, and prune by it now (step 2.2).",
+        "operationId": "backups_pruning_api_v1_backups_pruning_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupsPruned"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/backups/{name}/keep": {
+      "post": {
+        "summary": "Backup Keep",
+        "operationId": "backup_keep_api_v1_backups__name__keep_post",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackupKeep"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupMark"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/export": {
       "get": {
         "summary": "Export",
@@ -11533,30 +11601,108 @@
         ],
         "title": "Avatars"
       },
-      "BackupFile": {
+      "BackupKeep": {
+        "properties": {
+          "kept": {
+            "type": "boolean",
+            "title": "Kept"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kept"
+        ],
+        "title": "BackupKeep"
+      },
+      "BackupKind": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "bytes": {
+            "type": "integer",
+            "title": "Bytes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "count",
+          "bytes"
+        ],
+        "title": "BackupKind"
+      },
+      "BackupMark": {
         "properties": {
           "name": {
             "type": "string",
             "title": "Name"
           },
-          "size": {
-            "type": "integer",
-            "title": "Size"
-          },
-          "createdAt": {
-            "type": "string",
-            "title": "Createdat"
+          "kept": {
+            "type": "boolean",
+            "title": "Kept"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
           "name",
-          "size",
-          "createdAt"
+          "kept"
         ],
-        "title": "BackupFile",
-        "description": "A backup or raw recovery file, by its file's metadata; Settings reads no hashes."
+        "title": "BackupMark"
+      },
+      "BackupPruning": {
+        "properties": {
+          "keep": {
+            "type": "integer",
+            "title": "Keep"
+          },
+          "confirmed": {
+            "type": "boolean",
+            "title": "Confirmed"
+          },
+          "candidates": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Candidates"
+          },
+          "candidateBytes": {
+            "type": "integer",
+            "title": "Candidatebytes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "keep",
+          "confirmed",
+          "candidates",
+          "candidateBytes"
+        ],
+        "title": "BackupPruning",
+        "description": "The rule for manual backups: the newest `keep`, and those marked to keep. Until the person\nconfirms it once, nothing is removed, and `candidates` lists what the rule would remove."
+      },
+      "BackupsPruned": {
+        "properties": {
+          "removed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Removed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "removed"
+        ],
+        "title": "BackupsPruned",
+        "description": "What confirming the rule for manual backups removed."
       },
       "CallUnused": {
         "properties": {
@@ -15561,6 +15707,53 @@
           "retired"
         ],
         "title": "LinkedStep"
+      },
+      "ListedBackup": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "kept": {
+            "type": "boolean",
+            "title": "Kept"
+          },
+          "prunable": {
+            "type": "boolean",
+            "title": "Prunable"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "size",
+          "createdAt",
+          "kind",
+          "kept",
+          "prunable"
+        ],
+        "title": "ListedBackup",
+        "description": "A backup as Settings lists it (step 2.2)."
       },
       "ListedGithubReference": {
         "properties": {
@@ -23624,7 +23817,7 @@
           },
           "backups": {
             "items": {
-              "$ref": "#/components/schemas/BackupFile"
+              "$ref": "#/components/schemas/ListedBackup"
             },
             "type": "array",
             "title": "Backups"
@@ -24155,6 +24348,24 @@
             "type": "integer",
             "title": "Backupbytes"
           },
+          "backupCount": {
+            "type": "integer",
+            "title": "Backupcount"
+          },
+          "backupKinds": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/BackupKind"
+            },
+            "type": "object",
+            "title": "Backupkinds"
+          },
+          "diskFreeBytes": {
+            "type": "integer",
+            "title": "Diskfreebytes"
+          },
+          "pruning": {
+            "$ref": "#/components/schemas/BackupPruning"
+          },
           "warning": {
             "anyOf": [
               {
@@ -24172,6 +24383,10 @@
         "required": [
           "databaseBytes",
           "backupBytes",
+          "backupCount",
+          "backupKinds",
+          "diskFreeBytes",
+          "pruning",
           "warning"
         ],
         "title": "Storage"
