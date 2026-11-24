@@ -1,6 +1,16 @@
 """Offline compaction, `worklog compact` (consolidation step 4.3, K6; B-04, B-12, REM-19, REM-20).
 
-Worklog keeps every record and every event row. Compaction lets go of what K6 decided it may:
+Worklog keeps every record and every event row. Compaction lets go of what K6 decided it may (K6 as
+revised on 2026-11-24, audit step 2.4, adds the first two):
+
+- The copies of whole proposals stored in their history, at any age: each status change
+  (proposal.submit, approve, reject, withdraw, reopen) keeps the summary proposals.summary
+  writes today, and each proposal.update's before-state the same. proposal.create and the
+  after-state of proposal.update keep the content, and proposal.stale stays whole: an upgrade
+  step reads it. The proposal family is not THINNED, whose rule would blank proposal.create too.
+- The step lists stored in roadmap.revise, archive, recover and move events written before those
+  recorded only what changed, at any age: a revise keeps its KEPT fields, and an archive, recovery
+  or move its roadmap's id, title, revision and the field that changed, as plans.py writes today.
 
 - The payloads of display-only history older than HISTORY_DAYS. An event of a THINNED family
   keeps only the KEPT fields of its before and after records, so an object with none of them
@@ -26,6 +36,7 @@ import json
 import os
 import sqlite3
 import tempfile
+from collections.abc import Callable
 from contextlib import closing
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -44,6 +55,13 @@ from .recovery import (
 )
 
 HISTORY_DAYS = 90
+# A proposal's status changes, whose payloads compaction reduces to a summary at any age.
+PROPOSAL_STATUS_KINDS = frozenset({"proposal.submit", "proposal.approve", "proposal.reject", "proposal.withdraw",
+                                   "proposal.reopen"})
+# The roadmap events whose stored payloads may hold a whole step list, and for each the field an
+# archive, recovery or move changes (a revise keeps only its KEPT fields).
+ROADMAP_PLAN_KINDS: dict[str, str | None] = {"roadmap.revise": None, "roadmap.archive": "archived",
+                                             "roadmap.recover": "archived", "roadmap.move": "parentId"}
 VERSIONS_KEPT = 20
 # The pre-compaction backups kept: those of the newest compactions that finished.
 BACKUPS_KEPT = 3
@@ -69,6 +87,41 @@ def thinned(payload: Any) -> Any:
     if isinstance(payload, dict):
         return {key: payload[key] for key in KEPT if key in payload}
     return None
+
+
+def proposal_summary(payload: Any) -> Any:
+    """A stored proposal record as proposals.summary gives it, from whichever fields it holds: an
+    event written by an older version may lack some. A summary already is one; anything else stays."""
+    if not isinstance(payload, dict) or "operations" not in payload:
+        return payload
+    operations = payload["operations"]
+    return {"id": payload.get("id"), "title": payload.get("title"), "status": payload.get("status"),
+            "revision": payload.get("revision"), "submittedAt": payload.get("submittedAt"),
+            "autoApproved": payload.get("autoApproved"),
+            "operationCount": len(operations) if isinstance(operations, list) else None}
+
+
+def roadmap_fields(kind: str, payload: Any) -> Any:
+    """A stored roadmap event's payload without its step list, as plans.py writes the kind today."""
+    if not isinstance(payload, dict) or "steps" not in payload:
+        return payload
+    changed = ROADMAP_PLAN_KINDS[kind]
+    if changed is None:
+        return thinned(payload)
+    return {"id": payload.get("id"), "title": payload.get("title"), changed: payload.get(changed),
+            "revision": payload.get("revision")}
+
+
+def reduced_proposal(kind: str, before: Any, after: Any) -> tuple[Any, Any]:
+    """A proposal event's payloads as compaction leaves them: a status change summarised on both sides,
+    an edit on its before-side only."""
+    if kind == "proposal.update":
+        return proposal_summary(before), after
+    return proposal_summary(before), proposal_summary(after)
+
+
+def reduced_roadmap(kind: str, before: Any, after: Any) -> tuple[Any, Any]:
+    return roadmap_fields(kind, before), roadmap_fields(kind, after)
 
 
 def compact_database(db_path: Path | str, backup_dir: Path | str, *, now: datetime | None = None) -> dict[str, Any]:
@@ -142,8 +195,14 @@ def _compact(stage: Path, moment: datetime) -> dict[str, int]:
         conn.execute("PRAGMA foreign_keys=ON")
         conn.execute("BEGIN IMMEDIATE")
         try:
+            proposals, proposal_bytes = _rewrite_events(conn, PROPOSAL_STATUS_KINDS | {"proposal.update"},
+                                                        reduced_proposal)
+            roadmaps, roadmap_bytes = _rewrite_events(conn, frozenset(ROADMAP_PLAN_KINDS), reduced_roadmap)
+            history, history_bytes = _thin_events(conn, (moment - timedelta(days=HISTORY_DAYS)).isoformat())
             counts = {
-                "eventsThinned": _thin_events(conn, (moment - timedelta(days=HISTORY_DAYS)).isoformat()),
+                "proposalEventsReduced": proposals, "proposalBytesReclaimed": proposal_bytes,
+                "roadmapEventsReduced": roadmaps, "roadmapBytesReclaimed": roadmap_bytes,
+                "eventsThinned": history, "eventsThinnedBytes": history_bytes,
                 "versionsRemoved": conn.execute(OLD_VERSIONS, (VERSIONS_KEPT,)).rowcount,
                 "receiptsPruned": prune_receipts(conn, now=moment),
             }
@@ -172,11 +231,39 @@ def _event_order(conn: sqlite3.Connection) -> str:
     return digest.hexdigest()
 
 
-def _thin_events(conn: sqlite3.Connection, cutoff: str) -> int:
-    """Thin the display-only history written before cutoff; return how many events changed.
+def _payload_bytes(*texts: str) -> int:
+    return sum(len(text.encode("utf-8")) for text in texts)
+
+
+def _rewrite_events(conn: sqlite3.Connection, kinds: frozenset[str],
+                    rewrite: Callable[[str, Any, Any], tuple[Any, Any]]) -> tuple[int, int]:
+    """Rewrite the payloads of every event of these kinds, whatever its age, with rewrite(kind, before,
+    after); return how many events changed and the bytes of payload text they gave back."""
+    changed, saved = [], 0
+    marks = ",".join("?" for _ in kinds)
+    for identity, kind, before_text, after_text in conn.execute(
+            f"SELECT id,kind,before_json,after_json FROM events WHERE kind IN ({marks})", sorted(kinds)):
+        try:
+            before, after = json.loads(before_text), json.loads(after_text)
+        except ValueError as exc:
+            raise ValueError(f"Event {identity} holds a payload that is not JSON, so the database was "
+                             "not changed") from exc
+        kept = rewrite(kind, before, after)
+        if kept != (before, after):
+            # As common.event writes them.
+            texts = json.dumps(kept[0]), json.dumps(kept[1])
+            saved += _payload_bytes(before_text, after_text) - _payload_bytes(*texts)
+            changed.append((*texts, identity))
+    conn.executemany("UPDATE events SET before_json=?,after_json=? WHERE id=?", changed)
+    return len(changed), saved
+
+
+def _thin_events(conn: sqlite3.Connection, cutoff: str) -> tuple[int, int]:
+    """Thin the display-only history written before cutoff; return how many events changed and the
+    bytes of payload text they gave back.
 
     created_at holds common.now() text, which sorts in time order, as for receipts."""
-    changed = []
+    changed, saved = [], 0
     for identity, kind, before_text, after_text in conn.execute(
             "SELECT id,kind,before_json,after_json FROM events WHERE created_at<?", (cutoff,)):
         if kind.split(".", 1)[0] not in THINNED:
@@ -189,6 +276,8 @@ def _thin_events(conn: sqlite3.Connection, cutoff: str) -> int:
         kept = thinned(before), thinned(after)
         if kept != (before, after):
             # As common.event writes them.
-            changed.append((json.dumps(kept[0]), json.dumps(kept[1]), identity))
+            texts = json.dumps(kept[0]), json.dumps(kept[1])
+            saved += _payload_bytes(before_text, after_text) - _payload_bytes(*texts)
+            changed.append((*texts, identity))
     conn.executemany("UPDATE events SET before_json=?,after_json=? WHERE id=?", changed)
-    return len(changed)
+    return len(changed), saved

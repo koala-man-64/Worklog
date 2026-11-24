@@ -312,8 +312,9 @@ def test_the_cli_compacts_and_reports_or_explains_a_refusal(world, capsys):
     assert "Worklog is running" in capsys.readouterr().err
     assert cli.main(["--data-dir", str(data), "compact"]) == 0
     report = json.loads(capsys.readouterr().out)
-    assert set(report) == {"compacted", "eventsThinned", "versionsRemoved", "receiptsPruned",
-                           "bytesBefore", "bytesAfter", "bytesReclaimed", "preCompactBackup"}
+    assert set(report) == {"compacted", "proposalEventsReduced", "proposalBytesReclaimed", "roadmapEventsReduced",
+                           "roadmapBytesReclaimed", "eventsThinned", "eventsThinnedBytes", "versionsRemoved",
+                           "receiptsPruned", "bytesBefore", "bytesAfter", "bytesReclaimed", "preCompactBackup"}
     assert report["versionsRemoved"] == 5
 
 
@@ -322,7 +323,8 @@ def test_the_cli_compacts_and_reports_or_explains_a_refusal(world, capsys):
 # as Rudy revised it on 2026-11-24): a proposal's status changes, the before-state of its edits, and
 # roadmap events that hold a whole step list, at any age.
 
-RECENT = "2026-11-20T00:00:00+00:00"
+# Days old whenever the test runs: inside the 90 days the display-history rule leaves alone.
+RECENT = (datetime.now(UTC) - timedelta(days=2)).isoformat()
 PROPOSAL = {"id": "proposal-1", "title": "Big plan", "rationale": "Why", "status": "submitted", "autoApproved": False,
             "revision": 2, "actorId": "agent-1", "actorLabel": "Builder", "actorDirectory": None,
             "operations": [{"action": "item.create", "payload": {"title": f"Item {n}", "description": "d" * 500}}
@@ -363,7 +365,7 @@ def test_compaction_reduces_stored_proposal_copies_at_any_age(world):
     ])
     before_rows = rows(database, "SELECT id,kind FROM events ORDER BY rowid")
     created, stale = stored(database, "p-create"), stored(database, "p-stale")
-    result = compact_database(database, data / "backups", now=LATER)
+    result = compact_database(database, data / "backups")
     # Every status change, and an edit's old side, is the summary 2.3 writes; it is the same for a
     # whole record as proposals.summary gives.
     assert stored(database, "p-submit") == (summary(edited), summary(PROPOSAL))
@@ -385,7 +387,7 @@ def test_compaction_thins_stored_roadmap_events_that_hold_a_step_list(world):
         ("r-move", "roadmap.move", ROADMAP, moved),
         ("r-new", "roadmap.revise", None, {"versionNumber": 7, "changedStepIds": ["step-1"]}),
     ])
-    result = compact_database(database, data / "backups", now=LATER)
+    result = compact_database(database, data / "backups")
     assert stored(database, "r-revise") == ({"id": "roadmap-old", "title": "Old plan"},) * 2
     assert stored(database, "r-archive") == (
         {"id": "roadmap-old", "title": "Old plan", "archived": False, "revision": 4},
@@ -402,7 +404,7 @@ def test_reducing_stored_copies_leaves_every_reader_of_state_answering_the_same(
     data, database, before = world
     insert_events(database, [("p-submit", "proposal.submit", PROPOSAL, PROPOSAL),
                              ("r-archive", "roadmap.archive", ROADMAP, ROADMAP)])
-    compact_database(database, data / "backups", now=LATER)
+    compact_database(database, data / "backups")
     assert canonical(exported(database)) == canonical(before["files"])
     with TestClient(create_app(data, testing=True), base_url=ORIGIN) as c:
         connect(c)
