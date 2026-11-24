@@ -410,3 +410,42 @@ def test_reducing_stored_copies_leaves_every_reader_of_state_answering_the_same(
         connect(c)
         assert call(c, "GET", f"/days/{before['day']}") == before["today"]
         assert call(c, "GET", "/search?q=Finished") == before["search"]
+
+
+@pytest.mark.parametrize("kind", ["proposal.reject", "proposal.withdraw", "proposal.reopen"])
+def test_every_status_change_is_reduced(world, kind):
+    from worklog.proposals import summary
+
+    data, database, _ = world
+    insert_events(database, [("p-change", kind, PROPOSAL, PROPOSAL)])
+    compact_database(database, data / "backups")
+    assert stored(database, "p-change") == (summary(PROPOSAL), summary(PROPOSAL))
+
+
+def test_payloads_of_every_older_shape_are_left_as_they_are(world):
+    data, database, _ = world
+    odd = [None, "text", [1, 2], {}, {"operations": "x", "title": "Odd"}, {"id": "summary", "operationCount": 3}]
+    insert_events(database, [(f"odd-{n}", "proposal.submit", value, value) for n, value in enumerate(odd)])
+    insert_events(database, [(f"oddr-{n}", "roadmap.archive", value, value) for n, value in enumerate(odd[:4])])
+    compact_database(database, data / "backups")
+    for n, value in enumerate(odd):
+        before, after = stored(database, f"odd-{n}")
+        if isinstance(value, dict) and "operations" in value:
+            # A record whose operations are not a list still loses them, with no count.
+            assert after == {"id": None, "title": "Odd", "status": None, "revision": None, "submittedAt": None,
+                             "autoApproved": None, "operationCount": None}
+        else:
+            assert (before, after) == (value, value)
+    for n, value in enumerate(odd[:4]):
+        assert stored(database, f"oddr-{n}") == (value, value)
+
+
+def test_compacting_again_changes_no_history(world):
+    data, database, _ = world
+    insert_events(database, [("p-submit", "proposal.submit", PROPOSAL, PROPOSAL),
+                             ("r-archive", "roadmap.archive", ROADMAP, ROADMAP)])
+    compact_database(database, data / "backups")
+    first = rows(database, "SELECT id,before_json,after_json FROM events ORDER BY rowid")
+    again = compact_database(database, data / "backups")
+    assert (again["proposalEventsReduced"], again["roadmapEventsReduced"], again["eventsThinned"]) == (0, 0, 0)
+    assert rows(database, "SELECT id,before_json,after_json FROM events ORDER BY rowid") == first
