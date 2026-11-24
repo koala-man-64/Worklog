@@ -8,9 +8,10 @@ import logging
 import os
 import sqlite3
 import tempfile
+import time
 import uuid
 import zipfile
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from contextlib import closing
 from datetime import UTC, datetime
 from pathlib import Path
@@ -187,10 +188,50 @@ def validate_database(path: Path | str, *, require_current: bool = True) -> None
         raise ValueError(f"Invalid SQLite database: {exc}") from exc
 
 
+# A copy of the database goes in steps of this many pages (8 MB at 4 KB pages), so no single hold of
+# the read lock lasts long: under the rollback journal a writer cannot commit while the copy holds
+# it, and gives up after 3 s (db.py). One step of 2,000 pages held it for at most 0.24 s on 524 MB.
+BACKUP_STEP_PAGES = 2000
+# SQLite starts a stepped copy over whenever another connection writes during it. A copy that writes
+# keep starting over past this many seconds finishes in one step instead, so a busy database still
+# gets its backup; a copy that is only slow keeps its steps.
+BACKUP_DEADLINE_S = 30.0
+
+
+class _CopyTimedOut(Exception):
+    pass
+
+
+def copy_database(src: sqlite3.Connection, dest: sqlite3.Connection, *, pages: int = BACKUP_STEP_PAGES,
+                  deadline_s: float = BACKUP_DEADLINE_S,
+                  progress: Callable[[int, int, int], object] | None = None) -> None:
+    """Copy src into dest with SQLite's backup API, `pages` at a time, releasing the read lock between
+    steps (audit finding B5). A copy that a write started over after `deadline_s` is logged and
+    finished in one step; one that keeps going forward is left to finish in steps. `progress` is
+    called after each step, as by Connection.backup."""
+    ends = time.monotonic() + deadline_s
+    last = [-1]
+
+    def step(status: int, remaining: int, total: int) -> None:
+        if progress is not None:
+            progress(status, remaining, total)
+        # No fewer pages left than after the step before: a write started the copy over.
+        restarted = last[0] >= 0 and remaining >= last[0]
+        last[0] = remaining
+        if remaining and restarted and time.monotonic() >= ends:
+            raise _CopyTimedOut
+
+    try:
+        src.backup(dest, pages=pages, progress=step, sleep=0.001)
+    except _CopyTimedOut:
+        logger.warning("Writes kept starting a copy of the database over for %s s; copying it in one step", deadline_s)
+        src.backup(dest)
+
+
 def _snapshot(source: Path, destination: Path) -> None:
     # SQLite's backup API reads a consistent snapshot even when the source uses WAL.
     with closing(_readonly(source)) as src, closing(sqlite3.connect(destination)) as dest:
-        src.backup(dest)
+        copy_database(src, dest)
     validate_database(destination, require_current=False)
     with destination.open("r+b") as stream:
         os.fsync(stream.fileno())
