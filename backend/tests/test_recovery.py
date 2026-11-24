@@ -578,3 +578,69 @@ def test_a_daily_backup_still_prunes_when_its_marker_cannot_be_written(tmp_path,
         recovery.automatic_backup(source, directory)
     assert not old[0].exists()
     assert len(list(directory.glob("worklog-daily-*.sqlite3"))) == 14
+
+
+# A backup copies in steps, so writers are not locked out (audit finding B5, roadmap step 2.1). Under
+# the rollback journal a one-step copy held the read lock for the whole file (3.28 s for 524 MB), and
+# a writer gave up after 3 s with 503 database_busy.
+
+
+def large_database(path: Path) -> Path:
+    """A database of a few hundred pages, so a copy in steps of 10 pages takes many steps."""
+    make_database(path)
+    with closing(sqlite3.connect(path)) as conn:
+        conn.executemany("INSERT INTO work_items(id,title,backlog_order,created_at,updated_at) VALUES (?,?,0,'2026-01-01','2026-01-01')",
+                         [(f"bulk-{n}", "x" * 2000) for n in range(400)])
+        conn.commit()
+    return path
+
+
+def test_a_backup_copies_in_steps_and_a_writer_commits_between_them(tmp_path):
+    source = large_database(tmp_path / "live.sqlite3")
+    copy = tmp_path / "copy.sqlite3"
+    steps: list[int] = []
+
+    def write_between_steps(status, remaining, total):
+        steps.append(remaining)
+        if len(steps) == 1:
+            # Another connection commits while the copy is under way: it must not wait on the copy.
+            with closing(sqlite3.connect(source, timeout=0)) as writer:
+                writer.execute("UPDATE work_items SET title='Written meanwhile' WHERE id='item'")
+                writer.commit()
+
+    with closing(recovery._readonly(source)) as src, closing(sqlite3.connect(copy)) as dest:
+        recovery.copy_database(src, dest, pages=10, progress=write_between_steps)
+    assert len(steps) > 1
+    recovery.validate_database(copy)
+    assert read_title(source) == "Written meanwhile"
+    # SQLite starts a stepped copy over when another connection writes, so the copy holds the write.
+    with closing(sqlite3.connect(copy)) as conn:
+        assert conn.execute("SELECT title FROM work_items WHERE id='item'").fetchone() == ("Written meanwhile",)
+
+
+def test_a_stepped_copy_past_its_deadline_finishes_in_one_step(tmp_path, caplog):
+    source = large_database(tmp_path / "live.sqlite3")
+    copy = tmp_path / "copy.sqlite3"
+    with caplog.at_level("WARNING", logger="worklog"), closing(recovery._readonly(source)) as src, \
+            closing(sqlite3.connect(copy)) as dest:
+        recovery.copy_database(src, dest, pages=10, deadline_s=0)
+    recovery.validate_database(copy)
+    assert "one step" in caplog.text
+
+
+def test_backups_and_the_doctor_copy_in_steps(tmp_path, monkeypatch):
+    from worklog import doctor
+
+    source = large_database(tmp_path / "live.sqlite3")
+    copies: list[int] = []
+    real = recovery.copy_database
+
+    def counted(src, dest, **options):
+        copies.append(options.get("pages", recovery.BACKUP_STEP_PAGES))
+        return real(src, dest, **options)
+
+    monkeypatch.setattr(recovery, "copy_database", counted)
+    monkeypatch.setattr(doctor, "copy_database", counted)
+    recovery.backup_database(source, tmp_path / "backups")
+    assert doctor.doctor_database(source)["ok"] is True
+    assert copies == [recovery.BACKUP_STEP_PAGES, recovery.BACKUP_STEP_PAGES]
