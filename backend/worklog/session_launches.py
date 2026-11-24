@@ -32,7 +32,7 @@ from .records import get_item
 from .registry import AgentRegistry
 from .repository_links import linked_repositories
 from .services import WorkService
-from .transcripts import TranscriptReader, one_line
+from .transcripts import TranscriptReader
 
 RECEIPT_PREFIX = "session-launch:"
 PREPARE_TIMEOUT_SECONDS = 90
@@ -558,20 +558,23 @@ class SessionLauncher:
 
 
 APPS = {"claude": "Claude", "codex": "Codex"}
-PASTE_LABEL_LIMIT = 200  # characters of a thread title or sender label the paste text quotes
+LOCAL_FOLDER = re.compile(r"^[A-Za-z]:[\\/]")
 
 
-def _paste(title: str, sender: str, discussion_id: str, message_id: str, target_id: str) -> str:
-    """What the person pastes into the agent's chat: where the request is and the commands that read,
-    acknowledge and answer it. It quotes no message text, so nothing another agent wrote reaches the
-    chat as the person's words; reading the request through Worklog also records that it was seen."""
+def _paste(discussion_id: str, message_id: str, target_id: str, acknowledged: bool) -> str:
+    """What the person pastes into the agent's chat: the request by its IDs, and the commands that
+    read, acknowledge and answer it. It names nothing an agent wrote, not even a thread's title or a
+    sender's label, so no agent's words reach the chat as the person's; reading the request through
+    Worklog shows who wrote it, and records that it was seen."""
+    steps = [f"Read it: worklog agent --as NAME discussions read {message_id} --message"]
+    if not acknowledged:
+        steps.append(f"Acknowledge it: worklog agent --as NAME discussions ack {message_id} --target {target_id}")
+    steps.append(f"Answer in its thread, or say when you will: worklog agent --as NAME discussions reply {discussion_id} --text 'YOUR ANSWER'")
     return "\n".join([
-        f'A Worklog request waits on you: {one_line(sender, PASTE_LABEL_LIMIT)} asked in the thread '
-        f'"{one_line(title, PASTE_LABEL_LIMIT)}". Deal with it now, as the agent guide says (section 4.1).',
+        f"A Worklog request waits on you: message {message_id} in thread {discussion_id}. "
+        "Deal with it now, as the agent guide says (section 4.1).",
         "NAME is the name you registered with; give it as --as NAME, as in every Worklog command.",
-        f"1. Read it: worklog agent --as NAME discussions read {message_id} --message",
-        f"2. Acknowledge it: worklog agent --as NAME discussions ack {message_id} --target {target_id}",
-        f"3. Answer in its thread, or say when you will: worklog agent --as NAME discussions reply {discussion_id} --text 'YOUR ANSWER'",
+        *(f"{number}. {step}" for number, step in enumerate(steps, 1)),
         "Then check your inbox: worklog agent --as NAME inbox",
     ])
 
@@ -588,13 +591,17 @@ class AgentChats:
     def __init__(self, db: Database, transcripts: TranscriptReader):
         self.db, self.transcripts = db, transcripts
         self.registry = AgentRegistry()
+        # Sessions being opened now: a second click while the first handoff runs starts nothing.
+        self.lock = threading.Lock()
+        self.opening: set[str] = set()
 
     def _target(self, message_id: str, target_id: str) -> tuple[sqlite3.Row, dict]:
         with self.db.read() as c:
             row = c.execute(
-                "SELECT m.discussion_id,m.author_label,m.author_kind,d.title,r.state,t.kind,t.recipient_id,ro.owner_id AS role_owner "
+                "SELECT m.discussion_id,r.state,t.kind,t.recipient_id,ro.owner_id AS role_owner,"
+                "EXISTS(SELECT 1 FROM discussion_acknowledgements a WHERE a.target_id=t.id) AS acknowledged "
                 "FROM discussion_targets t JOIN discussion_requests r ON r.message_id=t.message_id "
-                "JOIN discussion_messages m ON m.id=t.message_id JOIN discussions d ON d.id=m.discussion_id "
+                "JOIN discussion_messages m ON m.id=t.message_id "
                 "LEFT JOIN discussion_roles ro ON t.kind='role' AND ro.id=t.recipient_id "
                 "WHERE t.id=? AND t.message_id=?", (target_id, message_id)).fetchone()
             if row is None:
@@ -607,6 +614,17 @@ class AgentChats:
                 raise AppError(409, "not_an_agent", "Only an agent's slot, or a role an agent owns, has a chat to open")
             return row, self.registry.profile(c, agent_id)
 
+    @staticmethod
+    def _folder(directory: str | None) -> str:
+        """The folder a Claude session resumes from: the local drive folder its agent registered from,
+        checked as written before it is resolved, so a share or a rootless path is never touched."""
+        if not directory or "\0" in directory or not LOCAL_FOLDER.match(directory):
+            return ""
+        try:
+            return SessionLauncher._folder(directory)
+        except AppError:
+            return ""
+
     def open(self, message_id: str, target_id: str, actor: dict) -> dict:
         if actor.get("kind") != "human":
             raise AppError(403, "agent_scope", "Only the person opens an agent's chat")
@@ -617,8 +635,7 @@ class AgentChats:
         result: dict[str, Any] = {
             "messageId": message_id, "targetId": target_id, "agentId": profile["id"], "agentLabel": label,
             "chatId": chat_id, "directory": profile["directory"], "provider": None, "sessionId": None, "opened": False,
-            "paste": _paste(row["title"], "The person" if row["author_kind"] == "human" else row["author_label"],
-                            row["discussion_id"], message_id, target_id)}
+            "paste": _paste(row["discussion_id"], message_id, target_id, bool(row["acknowledged"]))}
 
         def unopened(reason: str) -> dict:
             return {**result, "message": reason + " Paste the message below where it works."}
@@ -627,25 +644,32 @@ class AgentChats:
             return unopened(f"{label} reported no chat, so there is none to open.")
         found = self.transcripts.locate(chat_id)
         if found is None:
-            return unopened(f"Worklog found no Claude or Codex chat {chat_id} on this computer.")
+            return unopened(f"Worklog found no Claude or Codex chat with the ID {label} reported on this computer.")
         provider, session = found
         result.update(provider=provider, sessionId=session)
+        if self.transcripts.archived(chat_id):
+            return unopened(f"{label}'s chat is archived in the {APPS[provider]} app.")
         folder = ""
         if provider == "claude":
             # Claude resumes a session from the folder it works in, which is where the agent registered.
-            try:
-                folder = SessionLauncher._folder(profile["directory"]) if profile["directory"] else ""
-            except AppError:
-                folder = ""
+            folder = self._folder(profile["directory"])
             if not folder:
-                return unopened(f"Claude resumes a session from its folder, and the folder {label} registered from is missing.")
+                return unopened(f"Claude resumes a session from its folder, and the folder {label} registered from "
+                                "is missing or not a local drive folder.")
+        with self.lock:
+            if session in self.opening:
+                return {**result, "message": f"Worklog is already opening {label}'s chat. Paste the message below into it once it opens."}
+            self.opening.add(session)
         try:
             _open_desktop(provider, folder, session)
-        except FileNotFoundError:
-            return unopened(f"The {APPS[provider]} command line could not be found.")
         except Exception as exc:
             # Never include provider output or exception messages.
             logger.warning("Opening an agent's chat failed (%s)", type(exc).__name__)
+            if provider == "claude" and isinstance(exc, FileNotFoundError):
+                return unopened("The Claude command line could not be found.")
             return unopened(f"The {APPS[provider]} app did not open the chat.")
+        finally:
+            with self.lock:
+                self.opening.discard(session)
         return {**result, "opened": True,
                 "message": f"Asked the {APPS[provider]} app to open {label}'s chat. Paste the message below into it and send it."}

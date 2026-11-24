@@ -405,13 +405,18 @@ function DiscussionMessageView({
               ))}
             </ul>
           )}
-          {handoff && (
+          {handoff && requestState.state === "pending" && (
             <div
               className="chat-handoff"
               role="region"
               aria-label={`Message for ${handoff.agentLabel}`}
             >
-              <p role="status">{handoff.message}</p>
+              <p
+                role="status"
+                className={handoff.opened ? undefined : "chat-handoff-unopened"}
+              >
+                {handoff.message}
+              </p>
               <pre className="chat-handoff-paste">{handoff.paste}</pre>
               <div className="chat-handoff-actions">
                 <button

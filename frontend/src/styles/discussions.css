@@ -495,6 +495,13 @@ button.quiet.chat-handoff-open {
   margin: 0;
   font-size: 13px;
 }
+/* The chat did not open: the reason reads as a warning, not as done. */
+.chat-handoff > p.chat-handoff-unopened {
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--status-blocked-bg);
+  color: var(--status-blocked-ink);
+}
 .chat-handoff-paste {
   margin: 0;
   padding: 10px;

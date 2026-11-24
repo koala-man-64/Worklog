@@ -312,18 +312,21 @@ function serve({
         method === "POST" &&
         path === "/discussions/messages/message-1/open-chat"
       ) {
+        // Agent Beta's chat opens; any other agent's chat is not on this computer.
+        const opened = body.targetId === "target-b";
         return json({
           messageId: "message-1",
           targetId: String(body.targetId),
-          agentId: agentB.id,
-          agentLabel: agentB.label,
+          agentId: opened ? agentB.id : "agent-c",
+          agentLabel: opened ? agentB.label : "Agent Gamma",
           chatId: "0190f4c2-7a5e-7d31-9b8a-3c6e2f1d4a07",
           directory: "C:\\Projects\\control-plane",
-          provider: "codex",
-          sessionId: "0190f4c2-7a5e-7d31-9b8a-3c6e2f1d4a07",
-          opened: true,
-          message:
-            "Asked the Codex app to open Agent Beta's chat. Paste the message below into it and send it.",
+          provider: opened ? "codex" : null,
+          sessionId: opened ? "0190f4c2-7a5e-7d31-9b8a-3c6e2f1d4a07" : null,
+          opened,
+          message: opened
+            ? "Asked the Codex app to open Agent Beta's chat. Paste the message below into it and send it."
+            : "Worklog found no Claude or Codex chat with the ID Agent Gamma reported on this computer. Paste the message below where it works.",
           paste:
             "A Worklog request waits on you.\n1. Read it: worklog agent --as NAME discussions read message-1 --message",
         } satisfies AgentChatOpened);
@@ -609,7 +612,9 @@ it("opens the chat of an agent a request waits on and gives the person the messa
     id,
     kind: "agent" as const,
     recipientId: id,
-    label: id === "target-b" ? "Agent Beta" : "Agent Alpha",
+    label:
+      { "target-a": "Agent Alpha", "target-b": "Agent Beta" }[id] ??
+      "Agent Gamma",
     acknowledged,
     acknowledgedBy: acknowledged ? agentA.id : null,
     delivery: acknowledged ? ("acknowledged" as const) : ("seen" as const),
@@ -622,6 +627,7 @@ it("opens the chat of an agent a request waits on and gives the person the messa
           targets: [
             slot("target-a", true),
             slot("target-b", false),
+            slot("target-c", false),
             requestState().targets[0],
           ],
         }),
@@ -633,10 +639,28 @@ it("opens the chat of an agent a request waits on and gives the person the messa
   const requestCard = await screen.findByRole("region", {
     name: "Acknowledgement request",
   });
-  // Only the agent slot still owed has a chat to open; an open recipient has none.
+  // Only the agent slots still owed have a chat to open; an open recipient has none.
   expect(
-    within(requestCard).getAllByRole("button", { name: /^Open the chat of/ }),
-  ).toHaveLength(1);
+    within(requestCard)
+      .getAllByRole("button", { name: /^Open the chat of/ })
+      .map((button) => button.getAttribute("aria-label")),
+  ).toEqual(["Open the chat of Agent Beta", "Open the chat of Agent Gamma"]);
+
+  // A chat that cannot be opened says why, as a warning, and still offers the message.
+  await user.click(
+    within(requestCard).getByRole("button", {
+      name: "Open the chat of Agent Gamma",
+    }),
+  );
+  const unopened = await within(requestCard).findByRole("region", {
+    name: "Message for Agent Gamma",
+  });
+  expect(within(unopened).getByRole("status")).toHaveClass(
+    "chat-handoff-unopened",
+  );
+  expect(unopened.querySelector("pre")).toHaveTextContent(
+    "discussions read message-1 --message",
+  );
 
   await user.click(
     within(requestCard).getByRole("button", {
@@ -647,12 +671,17 @@ it("opens the chat of an agent a request waits on and gives the person the messa
     name: "Message for Agent Beta",
   });
   expect(
-    api.calls.find(
-      (call) => call.path === "/discussions/messages/message-1/open-chat",
-    )?.body,
-  ).toEqual({ targetId: "target-b" });
+    api.calls
+      .filter(
+        (call) => call.path === "/discussions/messages/message-1/open-chat",
+      )
+      .map((call) => call.body),
+  ).toEqual([{ targetId: "target-c" }, { targetId: "target-b" }]);
   expect(within(handoff).getByRole("status")).toHaveTextContent(
     "Asked the Codex app to open Agent Beta's chat.",
+  );
+  expect(within(handoff).getByRole("status")).not.toHaveClass(
+    "chat-handoff-unopened",
   );
   expect(handoff.querySelector("pre")).toHaveTextContent(
     "discussions read message-1 --message",
