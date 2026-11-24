@@ -28,7 +28,7 @@ class DataFolder:
     candidates: tuple[Path, ...]
 
 
-def user_environment_variable(name: str) -> str | None:
+def read_user_variable(name: str) -> str | None:
     """The user-level environment variable `name` as Windows keeps it, or None elsewhere or unset."""
     if os.name != "nt":
         return None
@@ -42,6 +42,10 @@ def user_environment_variable(name: str) -> str | None:
     if not isinstance(value, str) or not value.strip():
         return None
     return winreg.ExpandEnvironmentStrings(value) if kind == winreg.REG_EXPAND_SZ else value
+
+
+# What locate reads: tests replace it, so none of them reaches the person's real data folder.
+user_environment_variable = read_user_variable
 
 
 def default_folder() -> Path:
@@ -65,6 +69,10 @@ def locate(value: str | None = None) -> DataFolder:
     default = default_folder()
     user = user_environment_variable(VARIABLE)
     if user:
+        if not Path(user).expanduser().is_absolute():
+            # A relative folder would be a different one in every shell's working directory.
+            raise RuntimeError(f"The user-level {VARIABLE} must be an absolute path, not {user!r}; fix it "
+                               "or supply --data-dir")
         path = _resolved(user)
         return DataFolder(path, False, tuple(dict.fromkeys((path, default))))
     return DataFolder(default, False, (default,))
@@ -72,7 +80,7 @@ def locate(value: str | None = None) -> DataFolder:
 
 def refuse_unnamed_empty(folder: DataFolder) -> None:
     """Refuse a folder nobody named that holds no database while another candidate holds one."""
-    if folder.named or (folder.path / DATABASE).exists():
+    if folder.named or (folder.path / DATABASE).is_file():
         return
     held = [candidate for candidate in folder.candidates
             if candidate != folder.path and (candidate / DATABASE).is_file()]

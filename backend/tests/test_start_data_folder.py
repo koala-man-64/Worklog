@@ -104,3 +104,41 @@ def test_a_start_on_existing_data_reports_nothing_created(machine, launches, cap
     database_in(machine["default"])
     assert cli.main(["--port", "8890", "start"]) == 0, capsys.readouterr().err
     assert json.loads(capsys.readouterr().out)["created"] is False
+
+
+def test_a_relative_user_level_folder_is_refused(machine):
+    machine["user"]["value"] = "Worklog"
+    with pytest.raises(RuntimeError, match="absolute path"):
+        locations.locate(None)
+
+
+
+@pytest.mark.skipif(locations.os.name != "nt", reason="the user-level variable is Windows'")
+@pytest.mark.parametrize("stored, read", [
+    (("D:/Worklog", 1), "D:/Worklog"),
+    (("%DRIVE%/Worklog", 2), "D:/Worklog"),
+    (("   ", 1), None),
+    (None, None),
+], ids=["plain", "expandable", "blank", "unset"])
+def test_the_user_level_variable_is_read_as_windows_keeps_it(monkeypatch, stored, read):
+    """The real reader, against a fake registry."""
+    import sys
+    import types
+
+    class Key:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    def query(key, name):
+        if stored is None:
+            raise FileNotFoundError(name)
+        return stored
+
+    fake = types.SimpleNamespace(HKEY_CURRENT_USER="HKCU", REG_EXPAND_SZ=2, OpenKey=lambda root, path: Key(),
+                                 QueryValueEx=query,
+                                 ExpandEnvironmentStrings=lambda value: value.replace("%DRIVE%", "D:"))
+    monkeypatch.setitem(sys.modules, "winreg", fake)
+    assert locations.read_user_variable("WORKLOG_DATA_DIR") == read

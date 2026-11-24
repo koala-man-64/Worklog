@@ -323,7 +323,7 @@ def start(directory: Path, port: int = DEFAULT_PORT, *,
     holds no database is refused, before anything is created, while another candidate holds one."""
     if folder is not None:
         locations.refuse_unnamed_empty(folder)
-    created = not (directory / locations.DATABASE).exists()
+    created = not (directory / locations.DATABASE).is_file()
     directory.mkdir(parents=True, exist_ok=True)
     with InstanceLock(directory, ".launcher.lock"):
         current = check(directory, port)
