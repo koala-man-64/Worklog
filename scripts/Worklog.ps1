@@ -10,7 +10,9 @@ param(
     # With backups: hash every file's bytes now rather than showing the hash each had when last hashed.
     [switch]$Verify,
     # With usage: how many days to today the report covers (default 30).
-    [ValidateRange(1, 3650)][int]$Days
+    [ValidateRange(1, 3650)][int]$Days,
+    # With start: serve a data folder another checkout last served, and record this one.
+    [switch]$Force
 )
 $ErrorActionPreference = "Stop"
 # Windows PowerShell 5.1 turns native stderr into a terminating error under "Stop" when output is
@@ -31,6 +33,10 @@ $worklogArgs += $Command
 if ($File) { $worklogArgs += $File }
 if ($Verify) { $worklogArgs += "--verify" }
 if ($Days) { $worklogArgs += @("--days", "$Days") }
+if ($Force) {
+    if ($Command -ne "start") { throw "-Force goes with start only" }
+    $worklogArgs += "--force"
+}
 Invoke-Native { & $pythonPath @worklogArgs }
 $worklogExitCode = $LASTEXITCODE
 if ($Command -eq "start" -and $worklogExitCode -eq 0 -and -not $NoBrowser) {

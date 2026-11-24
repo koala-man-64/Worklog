@@ -281,15 +281,37 @@ def _owned(directory: Path, health: dict[str, Any] | None,
         return False
 
 
+# The checkout whose code this is: serve records it beside the data it serves (roadmap step 1.6).
+CHECKOUT = Path(__file__).resolve().parents[2]
+SERVED_BY = "served-by.json"
+
+
+def served_by(directory: Path) -> str | None:
+    """The checkout that last served `directory`, as serve recorded it, or None."""
+    recorded = _json_file(directory / SERVED_BY).get("checkout")
+    return recorded if isinstance(recorded, str) and recorded else None
+
+
+def record_checkout(directory: Path) -> None:
+    """Record that this checkout's code serves `directory`."""
+    directory.mkdir(parents=True, exist_ok=True)
+    _write_json(directory / SERVED_BY, {"checkout": str(CHECKOUT)})
+
+
+def _checkout_report(directory: Path) -> dict[str, Any]:
+    recorded = served_by(directory)
+    return {"servedBy": recorded, "servedByThisCheckout": None if recorded is None else Path(recorded) == CHECKOUT}
+
+
 def check(directory: Path, port: int = DEFAULT_PORT) -> dict[str, Any]:
     state = _json_file(directory / "server-state.json")
     health = _health(port)
     if _owned(directory, health, state):
         return {"running": True, "url": local_url(port), **(health or {}), "pid": state["pid"],
-                "dataDir": str(directory)}
+                "dataDir": str(directory), **_checkout_report(directory)}
     if _port_busy(port):
         raise RuntimeError(f"Port {port} belongs to an unverified instance. Nothing was stopped")
-    return {"running": False, "url": local_url(port), "dataDir": str(directory)}
+    return {"running": False, "url": local_url(port), "dataDir": str(directory), **_checkout_report(directory)}
 
 
 def _launch_server(command: list[str], log: Any,
@@ -318,9 +340,11 @@ def _launch_server(command: list[str], log: Any,
 
 
 def start(directory: Path, port: int = DEFAULT_PORT, *,
-          folder: locations.DataFolder | None = None) -> dict[str, Any]:
+          folder: locations.DataFolder | None = None, force: bool = False) -> dict[str, Any]:
     """Start the server for `directory`. `folder` says how the folder was found: one nobody named that
-    holds no database is refused, before anything is created, while another candidate holds one."""
+    holds no database is refused, before anything is created, while another candidate holds one. A
+    folder another checkout last served is refused unless `force`: a branch in an agent's worktree
+    must not upgrade or change the data the person's own checkout serves."""
     if folder is not None:
         locations.refuse_unnamed_empty(folder)
     created = not (directory / locations.DATABASE).is_file()
@@ -332,6 +356,12 @@ def start(directory: Path, port: int = DEFAULT_PORT, *,
         # Refuse another managed instance still booting or running on a different port.
         with InstanceLock(directory):
             pass
+        recorded = served_by(directory)
+        if recorded is not None and Path(recorded) != CHECKOUT and not force:
+            raise RuntimeError(
+                f"{directory} was last served by the checkout {recorded}, not this one ({CHECKOUT}). Nothing "
+                "was started. Start it from that checkout, or pass --force (Worklog.ps1 and Run.ps1: -Force) "
+                "if this checkout should serve it from now on, as after moving the checkout.")
         environment = os.environ.copy()
         environment["WORKLOG_DATA_DIR"] = str(directory)
         # The server never needs the invoking agent credential.
@@ -346,6 +376,8 @@ def start(directory: Path, port: int = DEFAULT_PORT, *,
             state = _json_file(directory / "server-state.json")
             health = _health(port)
             if _owned(directory, health, state):
+                # serve recorded it already; this keeps the record whatever started the server.
+                record_checkout(directory)
                 return {"running": True, "url": local_url(port), **(health or {}), "pid": state["pid"],
                         "dataDir": str(directory), "reused": False, "created": created,
                         **({"warning": warning} if warning else {})}
@@ -402,6 +434,8 @@ def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
     os.environ["WORKLOG_PORT"] = str(port)
     os.environ["WORKLOG_INSTANCE_ID"] = instance_id = str(uuid.uuid4())
     with InstanceLock(directory):
+        # Before create_app, which may upgrade the database: the record says which code touched it.
+        record_checkout(directory)
         app = create_app()
         # What this version serves, so `usage` can tell what nothing used. A failure is only logged.
         app.state.usage.describe(catalog(app.router.routes), __version__)
@@ -1602,6 +1636,9 @@ def parser() -> argparse.ArgumentParser:
         sub.add_argument("--data-dir", default=argparse.SUPPRESS)
         if command in {"start", "stop", "check", "serve"}:
             sub.add_argument("--port", type=int, default=argparse.SUPPRESS)
+        if command == "start":
+            sub.add_argument("--force", action="store_true",
+                             help="Serve a data folder another checkout last served, and record this one")
         if command in {"restore", "export"}:
             sub.add_argument("file")
         if command == "backups":
@@ -1768,7 +1805,7 @@ def main(argv: list[str] | None = None) -> int:
                 serve(directory, resolve_port(args.port))
                 return 0
             if args.command == "start":
-                result = start(directory, resolve_port(args.port), folder=folder)
+                result = start(directory, resolve_port(args.port), folder=folder, force=args.force)
             elif args.command in {"stop", "check"}:
                 result = {"stop": stop, "check": check}[args.command](directory, resolve_port(args.port))
             elif args.command == "backup":

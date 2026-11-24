@@ -8,7 +8,7 @@ restores.
 
 For an upgrade, stop Worklog, make a manual backup with the installed version, update the checkout, run `Setup.ps1`, then start and check the application. Use the same data directory and port throughout. The first startup snapshots a supported version 1 to 32 database and upgrades it to version 33 in one transaction.
 
-`./scripts/Run.ps1` does the stop, backup, setup and start in one step after you update the checkout, passing the same `-DataDir` and `-Port` to each. Its backup is taken before the new version first starts, so it is the pre-upgrade backup; if the stop or backup fails, it ends before setup. It runs Setup's shared-folder check first, so a refusal leaves Worklog running.
+`./scripts/Run.ps1` does the stop, backup, setup and start in one step after you update the checkout, passing the same `-DataDir` and `-Port` to each. Its backup is taken before the new version first starts, so it is the pre-upgrade backup; if the stop or backup fails, it ends before setup. It runs Setup's shared-folder check first, so a refusal leaves Worklog running. It then asks `check` which checkout last served the data folder, and refuses one another checkout served before it stops anything: run it from the checkout that serves your data. After you move or re-clone that checkout, the first start from the new place needs `-Force` (`./scripts/Run.ps1 -Force`, or `./scripts/Worklog.ps1 start -Force`), which records the new checkout.
 
 ## What each version changes
 
