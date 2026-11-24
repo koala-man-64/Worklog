@@ -28,7 +28,8 @@ LATER = datetime.now(UTC) + timedelta(days=365)
 OLD = "2020-01-01T00:00:00+00:00"
 # Events of kinds that hold state, are read at runtime or are history the guides promise, written
 # long ago with payloads compaction would otherwise thin.
-KEPT_KINDS = ["credential.register", "credential.revoke", "proposal.create", "proposal.approve", "chat.unassign",
+# A proposal's status changes are not among them: since audit step 2.4 compaction reduces them to a summary.
+KEPT_KINDS = ["credential.register", "credential.revoke", "proposal.create", "proposal.stale", "chat.unassign",
               "chat.message", "discussion.message", "resource.update", "release.create", "check.update",
               "ticket.create", "reminder.update", "person.update", "repository.create", "agent.link",
               "coordination.update", "run.create", "participation.create", "settings.timezone"]
@@ -311,6 +312,140 @@ def test_the_cli_compacts_and_reports_or_explains_a_refusal(world, capsys):
     assert "Worklog is running" in capsys.readouterr().err
     assert cli.main(["--data-dir", str(data), "compact"]) == 0
     report = json.loads(capsys.readouterr().out)
-    assert set(report) == {"compacted", "eventsThinned", "versionsRemoved", "receiptsPruned",
-                           "bytesBefore", "bytesAfter", "bytesReclaimed", "preCompactBackup"}
+    assert set(report) == {"compacted", "proposalEventsReduced", "proposalBytesReclaimed", "roadmapEventsReduced",
+                           "roadmapBytesReclaimed", "eventsThinned", "eventsThinnedBytes", "versionsRemoved",
+                           "receiptsPruned", "bytesBefore", "bytesAfter", "bytesReclaimed", "preCompactBackup"}
     assert report["versionsRemoved"] == 5
+
+
+
+# Compaction reduces the copies already stored (audit findings B3 and B6, roadmap step 2.4, decision K6
+# as Rudy revised it on 2026-11-24): a proposal's status changes, the before-state of its edits, and
+# roadmap events that hold a whole step list, at any age.
+
+# Days old whenever the test runs: inside the 90 days the display-history rule leaves alone.
+RECENT = (datetime.now(UTC) - timedelta(days=2)).isoformat()
+PROPOSAL = {"id": "proposal-1", "title": "Big plan", "rationale": "Why", "status": "submitted", "autoApproved": False,
+            "revision": 2, "actorId": "agent-1", "actorLabel": "Builder", "actorDirectory": None,
+            "operations": [{"action": "item.create", "payload": {"title": f"Item {n}", "description": "d" * 500}}
+                           for n in range(40)],
+            "supersedesId": None, "createdAt": RECENT, "updatedAt": RECENT, "submittedAt": RECENT, "attachments": []}
+STEPS = [{"id": f"step-{n}", "title": f"Step {n}", "description": "s" * 300} for n in range(30)]
+ROADMAP = {"id": "roadmap-old", "title": "Old plan", "overview": "", "parentId": None, "revision": 4, "archived": False,
+           "steps": STEPS}
+
+
+def insert_events(database, events):
+    with closing(sqlite3.connect(database)) as conn:
+        for identity, kind, before, after in events:
+            conn.execute("INSERT INTO events(id,entity_id,kind,actor_id,actor_label,actor_kind,created_at,local_date,"
+                         "before_json,after_json) VALUES(?,?,?,'agent-1','Builder','agent',?,'2026-11-20',?,?)",
+                         (identity, before.get("id", "x") if isinstance(before, dict) else "x", kind, RECENT,
+                          json.dumps(before), json.dumps(after)))
+        conn.commit()
+
+
+def stored(database, identity):
+    (before, after), = rows(database, "SELECT before_json,after_json FROM events WHERE id=?", identity)
+    return json.loads(before), json.loads(after)
+
+
+def test_compaction_reduces_stored_proposal_copies_at_any_age(world):
+    from worklog.proposals import summary
+
+    data, database, _ = world
+    approved = {**PROPOSAL, "status": "approved", "revision": 3}
+    edited = {**PROPOSAL, "status": "draft", "revision": 1, "title": "Big plan, edited"}
+    insert_events(database, [
+        ("p-create", "proposal.create", None, PROPOSAL),
+        ("p-update", "proposal.update", {**PROPOSAL, "status": "draft"}, edited),
+        ("p-submit", "proposal.submit", edited, PROPOSAL),
+        ("p-approve", "proposal.approve", PROPOSAL, approved),
+        ("p-stale", "proposal.stale", None, {"proposalRevision": 2, "conflicts": [{"operation": 1}] * 50}),
+    ])
+    before_rows = rows(database, "SELECT id,kind FROM events ORDER BY rowid")
+    created, stale = stored(database, "p-create"), stored(database, "p-stale")
+    result = compact_database(database, data / "backups")
+    # Every status change, and an edit's old side, is the summary 2.3 writes; it is the same for a
+    # whole record as proposals.summary gives.
+    assert stored(database, "p-submit") == (summary(edited), summary(PROPOSAL))
+    assert stored(database, "p-approve") == (summary(PROPOSAL), summary(approved))
+    assert stored(database, "p-update") == (summary({**PROPOSAL, "status": "draft"}), edited)
+    # Creation keeps the content, and a stale notice stays whole: an upgrade step reads it.
+    assert stored(database, "p-create") == created and stored(database, "p-stale") == stale
+    assert result["proposalEventsReduced"] == 3 and result["proposalBytesReclaimed"] > 3 * 20_000
+    assert rows(database, "SELECT id,kind FROM events ORDER BY rowid") == before_rows
+
+
+def test_compaction_thins_stored_roadmap_events_that_hold_a_step_list(world):
+    data, database, _ = world
+    archived = {**ROADMAP, "archived": True, "revision": 5}
+    moved = {**ROADMAP, "parentId": "roadmap-parent", "revision": 6}
+    insert_events(database, [
+        ("r-revise", "roadmap.revise", ROADMAP, {**ROADMAP, "revision": 5}),
+        ("r-archive", "roadmap.archive", ROADMAP, archived),
+        ("r-move", "roadmap.move", ROADMAP, moved),
+        ("r-new", "roadmap.revise", None, {"versionNumber": 7, "changedStepIds": ["step-1"]}),
+    ])
+    result = compact_database(database, data / "backups")
+    assert stored(database, "r-revise") == ({"id": "roadmap-old", "title": "Old plan"},) * 2
+    assert stored(database, "r-archive") == (
+        {"id": "roadmap-old", "title": "Old plan", "archived": False, "revision": 4},
+        {"id": "roadmap-old", "title": "Old plan", "archived": True, "revision": 5})
+    assert stored(database, "r-move")[1] == {"id": "roadmap-old", "title": "Old plan", "parentId": "roadmap-parent",
+                                            "revision": 6}
+    # A revise of today's shape holds no step list, and stays as it is.
+    assert stored(database, "r-new") == (None, {"versionNumber": 7, "changedStepIds": ["step-1"]})
+    assert result["roadmapEventsReduced"] == 3 and result["roadmapBytesReclaimed"] > 3 * 20_000
+    assert result["eventsThinnedBytes"] >= 0
+
+
+def test_reducing_stored_copies_leaves_every_reader_of_state_answering_the_same(world):
+    data, database, before = world
+    insert_events(database, [("p-submit", "proposal.submit", PROPOSAL, PROPOSAL),
+                             ("r-archive", "roadmap.archive", ROADMAP, ROADMAP)])
+    compact_database(database, data / "backups")
+    assert canonical(exported(database)) == canonical(before["files"])
+    with TestClient(create_app(data, testing=True), base_url=ORIGIN) as c:
+        connect(c)
+        assert call(c, "GET", f"/days/{before['day']}") == before["today"]
+        assert call(c, "GET", "/search?q=Finished") == before["search"]
+
+
+@pytest.mark.parametrize("kind", ["proposal.reject", "proposal.withdraw", "proposal.reopen"])
+def test_every_status_change_is_reduced(world, kind):
+    from worklog.proposals import summary
+
+    data, database, _ = world
+    insert_events(database, [("p-change", kind, PROPOSAL, PROPOSAL)])
+    compact_database(database, data / "backups")
+    assert stored(database, "p-change") == (summary(PROPOSAL), summary(PROPOSAL))
+
+
+def test_payloads_of_every_older_shape_are_left_as_they_are(world):
+    data, database, _ = world
+    odd = [None, "text", [1, 2], {}, {"operations": "x", "title": "Odd"}, {"id": "summary", "operationCount": 3}]
+    insert_events(database, [(f"odd-{n}", "proposal.submit", value, value) for n, value in enumerate(odd)])
+    insert_events(database, [(f"oddr-{n}", "roadmap.archive", value, value) for n, value in enumerate(odd[:4])])
+    compact_database(database, data / "backups")
+    for n, value in enumerate(odd):
+        before, after = stored(database, f"odd-{n}")
+        if isinstance(value, dict) and "operations" in value:
+            # A record whose operations are not a list still loses them, with no count.
+            assert after == {"id": None, "title": "Odd", "status": None, "revision": None, "submittedAt": None,
+                             "autoApproved": None, "operationCount": None}
+        else:
+            assert (before, after) == (value, value)
+    for n, value in enumerate(odd[:4]):
+        assert stored(database, f"oddr-{n}") == (value, value)
+
+
+def test_compacting_again_changes_no_history(world):
+    data, database, _ = world
+    insert_events(database, [("p-submit", "proposal.submit", PROPOSAL, PROPOSAL),
+                             ("r-archive", "roadmap.archive", ROADMAP, ROADMAP)])
+    compact_database(database, data / "backups")
+    first = rows(database, "SELECT id,before_json,after_json FROM events ORDER BY rowid")
+    again = compact_database(database, data / "backups")
+    assert (again["proposalEventsReduced"], again["roadmapEventsReduced"], again["eventsThinned"]) == (0, 0, 0)
+    assert rows(database, "SELECT id,before_json,after_json FROM events ORDER BY rowid") == first

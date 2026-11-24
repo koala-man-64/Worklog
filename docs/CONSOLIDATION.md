@@ -49,7 +49,7 @@ The order is fixed:
 | K3 | Which agents receive what the person writes into a tracked chat? | An identity that registered with the chat receives it automatically. Any other claim shows as unconfirmed, and receives nothing until the person confirms it on the chat page. Credentials issued in Settings work through confirmation. | 0.5, 1.4 | 2026-11-04, Rudy |
 | K4 (D2) | May reorder, progress and structure saves stop bumping the revisions of records they don't change? | Yes | 4.1 | 2026-11-04, Rudy |
 | K5 | How old a backup must restore accept? | Every version from v1, including the nine sealed v1 shapes | 2.5 | 2026-11-04, Rudy |
-| K6 | How much edit history is kept? | Thin display-only history older than 90 days, and keep each roadmap's last 20 versions. Never touch registration, proposal or Today state (see *Rules*). | 4.3 | 2026-11-04, Rudy |
+| K6 | How much edit history is kept? | Thin display-only history older than 90 days, and keep each roadmap's last 20 versions. Never touch registration, proposal or Today state (see *Rules*). **Revised 2026-11-24, Rudy (audit steps 2.3 and 2.4):** a proposal's status changes, and the earlier side of its edits, record a summary, and compaction reduces those already stored at any age, with the old roadmap events that hold a whole step list; `proposal.create`, an edit's new side and `proposal.stale` stay whole. Proposal state lives in its columns since 1.3, so no state is touched. | 4.3 | 2026-11-04, Rudy |
 | K7 | How are the agent pages organized? | Group the sidebar first. Decide whether Chats and Agents merge after using it. | 5.1 | 2026-11-04, Rudy |
 | K8 | What happens to free-text repository labels on discussions and tracked chats? | They stay as read-only labels: new writes stop, exact matches are linked to catalog repositories, and the columns are never dropped. | 5.6 | 2026-11-04, Rudy |
 | K9 | What happens to REMEDIATION.md? | It is superseded by this file and kept as the record of the 2026-10-28 audit. | 5.5a | 2026-11-04, Rudy |
@@ -74,7 +74,7 @@ These come from the cross-examination. Each one overturned a first proposal.
     - proposal visibility, submitted time, auto-approval and stale-notice de-duplication (`proposals.py`);
     - Today's "completed" and "blocked as of" lists, and each day entry's `statusOnDay`, which replay item events (`items.py`).
   - Move that state into columns (step 1.3) before any compaction.
-  - Compaction thins only an allowlist of display-only kinds, and keeps `{id, title, status, _statusChanged}` on item events.
+  - Compaction thins only an allowlist of display-only kinds, and keeps `{id, title, status, _statusChanged}` on item events. Since K6's revision (2026-11-24, audit 2.4) it also reduces stored proposal status changes, the before-state of proposal edits and old roadmap events holding a whole step list; `proposal.create` and `proposal.stale` keep everything.
   - Never delete an event row: `discussion_changes.event_id` references it.
 - **Proposal fields come from one registry with explicit markers.** Every operation says whether agents may propose it and which fields are server-only. Never derive what agents may supply from the request models: `AttachmentCreate.proposalId` is set by Worklog, and `ReferenceCreate`, which carries a local path, is not proposable.
 - **Characterization comes first.** The policy table must reproduce today's agent route matrix exactly before anything replaces the predicates. Only K2's "new routes start closed" changes what agents see.
@@ -456,7 +456,7 @@ What changed:
   - Plan imports never committed go 7 days after their preview, and receipts past their 14 days.
 - **Then the swap.** `VACUUM` runs, and must keep the order of events, which history is read in. The copy is validated as restore validates a candidate, and only then is it renamed into the database's place. A failure before that leaves the database as it was. The README gives the way back: restore the pre-compaction backup.
 
-  `test_compaction.py` pins each of these. Today and every other table read the same afterwards, event order and the search index hold, and the kinds that hold state keep their payloads byte for byte.
+  `test_compaction.py` pins each of these. Today and every other table read the same afterwards, event order and the search index hold, and the kinds that hold state keep their payloads byte for byte (since audit 2.4, a proposal's status changes are reduced to a summary instead; `proposal.create` and `proposal.stale` are among those kept).
 
 Not in this step: REM-19's limits on what an import preview parses (5,000 headings, 100,000 elements, 1,000-byte titles). Only the person previews imports, and the preview already takes at most 5 MB.
 
