@@ -592,12 +592,19 @@ class PlanService:
             row = _row(conn, identifier)
             require_revision(row, payload.get("revision"))
             if action in {"roadmap.archive", "roadmap.recover", "roadmap.move"}:
-                before = self._detail(conn, identifier)
+                before = _roadmap(row)
+            # History records the field that changed, with the roadmap's ID, title and revision, not the
+            # whole roadmap with every step (audit finding B3).
+            changed = "parentId" if action == "roadmap.move" else "archived"
+
+            def fields(state: dict) -> dict:
+                return {"id": state["id"], "title": state["title"], changed: state[changed], "revision": state["revision"]}
+
             if action in {"roadmap.archive", "roadmap.recover"}:
                 conn.execute("UPDATE roadmaps SET archived=?,revision=revision+1,updated_at=? WHERE id=?",
                              (int(action == "roadmap.archive"), now(), identifier))
                 result = self._detail(conn, identifier)
-                event(conn, actor, action, identifier, before, result)
+                event(conn, actor, action, identifier, fields(before), fields(result))
                 return result
             if row["archived"]:
                 raise AppError(409, "conflict", "Archived roadmaps must be recovered before editing")
@@ -607,7 +614,7 @@ class PlanService:
                 conn.execute("UPDATE roadmaps SET parent_id=?,revision=revision+1,updated_at=? WHERE id=?",
                              (parent, now(), identifier))
                 result = self._detail(conn, identifier)
-                event(conn, actor, action, identifier, before, result)
+                event(conn, actor, action, identifier, fields(before), fields(result))
                 return result
             if action == "roadmap.restore":
                 version = conn.execute("SELECT snapshot FROM roadmap_versions WHERE roadmap_id=? AND number=?",

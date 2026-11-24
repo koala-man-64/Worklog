@@ -4,7 +4,7 @@ import pytest
 from worklog.common import AppError, event, require_revision
 from worklog.db import Database
 from worklog.plans import PlanService
-from worklog.proposals import ProposalService
+from worklog.proposals import ProposalService, summary
 from worklog.search import global_search
 from worklog.services import WorkService
 
@@ -76,7 +76,8 @@ def test_records_date_the_submission_and_the_latest_update(proposals):
     # A transition's record carries its event's time, so the record and its history agree.
     submitted_at = events["proposal.submit"]["created_at"]
     assert submitted["submittedAt"] == submitted["updatedAt"] == submitted_at
-    assert json.loads(events["proposal.submit"]["after_json"]) == submitted
+    # A status change records the proposal's summary, not the whole record (audit step 2.3).
+    assert json.loads(events["proposal.submit"]["after_json"]) == summary(submitted)
     assert rejected["submittedAt"] == submitted_at
     assert rejected["updatedAt"] == events["proposal.reject"]["created_at"]
     assert proposals.detail(proposal["id"], OTHER) == rejected == proposals.list(OTHER)["items"][0]
@@ -126,7 +127,7 @@ def test_with_approval_off_submitting_applies_and_records_an_automatic_approval(
             ("item.update", "agent", "agent"), ("proposal.approve", "automatic-approval", "human")]
         approval = conn.execute("SELECT after_json FROM events WHERE kind='proposal.approve'").fetchone()[0]
         submitted_at = conn.execute("SELECT created_at FROM events WHERE kind='proposal.submit'").fetchone()[0]
-    assert json.loads(approval) == result and result["submittedAt"] == submitted_at
+    assert json.loads(approval) == summary(result) and result["submittedAt"] == submitted_at
 
 
 def test_with_approval_off_a_failed_apply_leaves_the_draft_unsubmitted(proposals):
