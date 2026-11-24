@@ -124,6 +124,7 @@ export type AcknowledgementTarget = Schema["AcknowledgementTarget"];
 export type AcknowledgementReceipt = Schema["AcknowledgementReceipt"];
 export type AcknowledgementMode = AcknowledgementRequest["mode"];
 export type AcknowledgementState = AcknowledgementRequest["state"];
+export type AgentChatOpened = Schema["AgentChatOpened"];
 export type DiscussionRole = Schema["DiscussionRole"];
 export type DiscussionRoles = Schema["DiscussionRoles"];
 export type DiscussionResume = Schema["DiscussionResume"];

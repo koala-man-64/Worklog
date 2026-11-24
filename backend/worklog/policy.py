@@ -17,7 +17,8 @@ roadmap's view of its agents does. One participant's profile, the owners lookup 
 leave transcripts and credentials out, and agents read all three; the owners lookup names a tracked
 chat only by its ID and title, as a work item's own read does. Since v33 a profile names the chat ID
 its identity works in, its open runs' chat IDs and the directory it registered from, so an agent can
-say where to reach another (decision R11 in docs/ROADMAPS-RETHINK.md).
+say where to reach another (decision R11 in docs/ROADMAPS-RETHINK.md). Opening that chat in its
+desktop app for a pending request starts a local process, so it stays the person's.
 """
 
 from __future__ import annotations
@@ -118,6 +119,7 @@ ROUTES: dict[str, dict[str, str | Only]] = {
     "/discussions/messages/{identity}": {"GET": READ},
     "/discussions/messages/{identity}/acknowledge": {"POST": DISCUSS},
     "/discussions/messages/{identity}/cancel": {"POST": DISCUSS},
+    "/discussions/messages/{identity}/open-chat": {"POST": HUMAN},
     "/discussions/messages/{identity}/release": {"POST": HUMAN},
     "/discussions/participants": {"GET": READ},
     "/discussions/participants/{identity}": {"GET": READ},

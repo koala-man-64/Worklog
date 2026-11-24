@@ -477,6 +477,41 @@ a.context-tag:hover {
 .acknowledgement-receipts li > span {
   margin-right: auto;
 }
+/* Open chat sits beside an agent slot's name; the handoff below the slots holds the message to paste. */
+button.quiet.chat-handoff-open {
+  min-height: 0;
+  margin-left: 8px;
+  padding: 0 6px;
+  color: var(--teal);
+  font-size: 12px;
+}
+.chat-handoff {
+  display: grid;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.chat-handoff > p {
+  margin: 0;
+  font-size: 13px;
+}
+/* The chat did not open: the reason reads as a warning, not as done. */
+.chat-handoff > p.chat-handoff-unopened {
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--status-blocked-bg);
+  color: var(--status-blocked-ink);
+}
+.chat-handoff-paste {
+  margin: 0;
+  padding: 10px;
+  font-family: var(--font-mono);
+}
+.chat-handoff-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .acknowledgement-receipts time {
   color: var(--muted);
   font-size: 12px;

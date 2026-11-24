@@ -124,6 +124,10 @@ class SessionStart(Command):
     prompt: str = Field(min_length=1, max_length=12000)
 
 
+class AgentChatOpen(Command):
+    targetId: str = Field(min_length=1, max_length=200)
+
+
 class ChatUpdate(Expected):
     repositoryIds: list[str] = Field(default_factory=list, max_length=100)
     chatId: str | None = None

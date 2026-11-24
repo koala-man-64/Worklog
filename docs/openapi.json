@@ -5,6 +5,55 @@
     "version": "1.0.0"
   },
   "paths": {
+    "/api/v1/discussions/messages/{identity}/open-chat": {
+      "post": {
+        "summary": "Open Agent Chat",
+        "operationId": "open_agent_chat_api_v1_discussions_messages__identity__open_chat_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentChatOpen"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentChatOpened"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/work-items/{identity}/sessions": {
       "post": {
         "summary": "Start Session",
@@ -10024,6 +10073,119 @@
         ],
         "title": "AgentCard",
         "description": "An agent identity as its card on the Agents page shows it: who it is, and the roadmaps and\nrepositories its work ties it to, as its own page lists them. The person's alone, like the\npage: tracked chats tie it too (AgentProfile, which any caller reads, holds none of this)."
+      },
+      "AgentChatOpen": {
+        "properties": {
+          "targetId": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Targetid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "targetId"
+        ],
+        "title": "AgentChatOpen"
+      },
+      "AgentChatOpened": {
+        "properties": {
+          "messageId": {
+            "type": "string",
+            "title": "Messageid"
+          },
+          "targetId": {
+            "type": "string",
+            "title": "Targetid"
+          },
+          "agentId": {
+            "type": "string",
+            "title": "Agentid"
+          },
+          "agentLabel": {
+            "type": "string",
+            "title": "Agentlabel"
+          },
+          "chatId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chatid"
+          },
+          "directory": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Directory"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "codex",
+                  "claude"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
+          },
+          "sessionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sessionid"
+          },
+          "opened": {
+            "type": "boolean",
+            "title": "Opened"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "paste": {
+            "type": "string",
+            "title": "Paste"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "messageId",
+          "targetId",
+          "agentId",
+          "agentLabel",
+          "chatId",
+          "directory",
+          "provider",
+          "sessionId",
+          "opened",
+          "message",
+          "paste"
+        ],
+        "title": "AgentChatOpened",
+        "description": "The person's handoff of a pending request to the agent its slot waits on: whether Worklog asked\nthe agent's desktop app to open its chat, why not, and the message for the person to paste there."
       },
       "AgentContinuation": {
         "properties": {

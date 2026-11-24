@@ -82,6 +82,22 @@ class SessionLaunch(Answer):
     sessionId: str | None = None
 
 
+class AgentChatOpened(Answer):
+    """The person's handoff of a pending request to the agent its slot waits on: whether Worklog asked
+    the agent's desktop app to open its chat, why not, and the message for the person to paste there."""
+    messageId: str
+    targetId: str
+    agentId: str
+    agentLabel: str
+    chatId: str | None
+    directory: str | None
+    provider: Literal["codex", "claude"] | None
+    sessionId: str | None
+    opened: bool
+    message: str
+    paste: str
+
+
 class GithubReference(Answer):
     id: str
     ownerType: Literal["item", "roadmap"]
