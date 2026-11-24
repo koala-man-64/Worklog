@@ -30,6 +30,11 @@ def _isolated_environment(monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pyt
     for name in [key for key in os.environ if key.upper().startswith("WORKLOG_")]:
         monkeypatch.delenv(name)
     monkeypatch.setenv("WORKLOG_DATA_DIR", str(tmp_path_factory.mktemp("default-data-dir")))
+    # Nor the user-level WORKLOG_DATA_DIR Windows keeps, which names the person's real data: a test
+    # that takes the process's variable away must not fall back to it (locations.locate).
+    from worklog import locations
+
+    monkeypatch.setattr(locations, "user_environment_variable", lambda name: None)
 
 
 class TypedAnswerChanged(AssertionError):
