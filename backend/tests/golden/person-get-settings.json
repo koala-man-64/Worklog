@@ -24,7 +24,7 @@
     "requireProposalApproval": true,
     "storage": {
       "backupBytes": 0,
-      "databaseBytes": 950272,
+      "databaseBytes": 946176,
       "warning": null
     },
     "timezone": "America/Chicago",

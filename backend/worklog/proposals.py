@@ -194,6 +194,15 @@ def _record(row):
             "attachments": []}
 
 
+def summary(record: dict) -> dict:
+    """What a proposal's history records of its status changes (audit finding B3, decision K6 as revised
+    on 2026-11-24): not its operations, which proposal.create and each proposal.update keep, and which
+    would otherwise be stored again with every transition."""
+    return {"id": record["id"], "title": record["title"], "status": record["status"], "revision": record["revision"],
+            "submittedAt": record["submittedAt"], "autoApproved": record["autoApproved"],
+            "operationCount": len(record["operations"])}
+
+
 def _row(conn, identifier):
     row = conn.execute(SELECT + " WHERE p.id=?", (identifier,)).fetchone()
     if row is None:
@@ -456,7 +465,8 @@ class ProposalService:
             conn.execute("UPDATE proposals SET title=?,rationale=?,operations=?,revision=revision+1,updated_at=? WHERE id=?",
                          (title, rationale, operations, now(), identifier))
             result = _record(_row(conn, identifier))
-            event(conn, actor, "proposal.update", identifier, before, result)
+            # The new content whole, as a draft's next submit is judged by it; the old one as a summary.
+            event(conn, actor, "proposal.update", identifier, summary(before), result)
             return result
 
     def transition(self, identifier, verb, payload, actor, conn=None):
@@ -592,7 +602,7 @@ class ProposalService:
                            (state, stamp, verb == "submit", stamp,
                             verb == "approve" and actor.get("id") == AUTOMATIC_APPROVAL_ID, identifier))
         result = _record(_row(connection, identifier))
-        event(connection, actor, f"proposal.{verb}", identifier, before, result, at=stamp)
+        event(connection, actor, f"proposal.{verb}", identifier, summary(before), summary(result), at=stamp)
         return result
 
     def _stale_operations(self, conn, row, roadmap_id=None):
