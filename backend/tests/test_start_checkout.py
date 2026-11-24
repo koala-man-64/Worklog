@@ -104,3 +104,26 @@ def test_start_with_force_from_the_command_line(tmp_path, launches, capsys):
     assert "--force" in capsys.readouterr().err
     assert cli.main(["--data-dir", str(data), "--port", "8890", "start", "--force"]) == 0, capsys.readouterr().err
     assert served_by(data) == str(cli.CHECKOUT)
+
+
+def test_serve_records_its_checkout_before_it_opens_the_database(tmp_path, monkeypatch):
+    """serve's own record, before create_app can upgrade the file: start's tests above run a fake server."""
+    import worklog.app
+
+    class Opened(Exception):
+        pass
+
+    seen: list[str | None] = []
+
+    def opened(*args, **kwargs):
+        seen.append(served_by(tmp_path))
+        raise Opened
+
+    monkeypatch.setattr(worklog.app, "create_app", opened)
+    # serve sets these for the process; registering them here lets the test put them back.
+    for name in ("WORKLOG_DATA_DIR", "WORKLOG_PORT", "WORKLOG_INSTANCE_ID"):
+        monkeypatch.setenv(name, "")
+    other_checkout(tmp_path, tmp_path)
+    with pytest.raises(Opened):
+        cli.serve(tmp_path, 8890)
+    assert seen == [str(cli.CHECKOUT)]
