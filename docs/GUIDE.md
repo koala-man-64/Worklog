@@ -369,7 +369,9 @@ To stop reviewing, clear "Require my approval for agent proposals" in Settings. 
 
 In **Settings**, under "Storage & portability":
 
-- "Create backup" takes a backup now. The list shows every backup.
+- "Create backup" takes a backup now. The list shows every backup, newest first whatever its kind.
+- The sizes show the database, the backups (how many, and by kind) and the "Free disk space". A warning shows when the backups take more than 40 times the database, or the free space falls below twice the database.
+- Worklog keeps the newest 10 manual backups and any you mark "Keep". Until you confirm that once, it removes nothing: it says how many older manual backups it would remove, marks them "Would be removed", and waits for "Prune old manual backups". After that, each manual backup removes what the rule no longer keeps. Daily, pre-migration and pre-compact backups keep their own counts, and pre-restore backups are never removed.
 - "Export everything (.zip)" downloads your data as readable Markdown and JSON, with every file and a manifest of hashes.
 
 Restoring a backup is an offline command; see *Backup, export and restore* in `docs/OPERATIONS.md`.
@@ -555,7 +557,7 @@ Inspect agent suggestions before they change your work. "Proposal status" filter
 - **"Preferences":**
   - The timezone decides what "today" is, which items count as backlog, and when daily backups happen. Save it with "Save timezone".
   - "Appearance" follows the system or stays light or dark.
-- **"Storage & portability":** database and backup sizes, "Create backup", the backup list and "Export everything (.zip)".
+- **"Storage & portability":** database and backup sizes, "Free disk space", "Create backup", the backup list with "Keep" on manual backups, "Prune old manual backups" until you confirm the rule once, and "Export everything (.zip)".
 - **"Agent permissions":** "Require my approval for agent proposals" and "Agents may register repositories". Both are on until you clear them, and only you can change them.
 - **"Agent credentials":**
   - Create credentials, and copy the new token once.

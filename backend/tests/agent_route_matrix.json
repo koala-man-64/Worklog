@@ -94,6 +94,8 @@
   "POST /api/v1/attachments?ownerType=item": "refused",
   "POST /api/v1/attachments?ownerType=proposal": "reaches handler",
   "POST /api/v1/backups": "refused",
+  "POST /api/v1/backups/pruning": "refused",
+  "POST /api/v1/backups/{name}/keep": "refused",
   "POST /api/v1/chats": "refused",
   "POST /api/v1/chats/track": "reaches handler",
   "POST /api/v1/chats/{identity}/archive": "refused",

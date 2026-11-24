@@ -134,8 +134,55 @@ export function Settings() {
             <dt>Database</dt>
             <dd>{formatBytes(data.storage.databaseBytes)}</dd>
             <dt>Backups</dt>
-            <dd>{formatBytes(data.storage.backupBytes)}</dd>
+            <dd>
+              {formatBytes(data.storage.backupBytes)} in{" "}
+              {data.storage.backupCount} files
+            </dd>
+            <dt>Free disk space</dt>
+            <dd>{formatBytes(data.storage.diskFreeBytes)}</dd>
           </dl>
+          {data.storage.backupCount > 0 && (
+            <p className="muted" aria-label="Backups by kind">
+              {Object.entries(data.storage.backupKinds)
+                .map(
+                  ([kind, k]) => `${k.count} ${kind} (${formatBytes(k.bytes)})`,
+                )
+                .join(", ")}
+            </p>
+          )}
+          {data.storage.pruning.confirmed ? (
+            <p className="muted">
+              Worklog keeps the newest {data.storage.pruning.keep} manual
+              backups and those you mark to keep.
+            </p>
+          ) : (
+            data.storage.pruning.candidates.length > 0 && (
+              <div className="warning" role="status">
+                <p>
+                  Keeping the newest {data.storage.pruning.keep} manual backups
+                  and those you mark to keep would remove{" "}
+                  {data.storage.pruning.candidates.length} older ones (
+                  {formatBytes(data.storage.pruning.candidateBytes)}), marked
+                  below. Nothing is removed until you confirm.
+                </p>
+                <button
+                  disabled={action.isPending}
+                  onClick={async () => {
+                    await action
+                      .mutateAsync(() => commands.confirmBackupPruning())
+                      .then((result) =>
+                        setMessage(
+                          `Removed ${result.removed.length} old manual backups.`,
+                        ),
+                      )
+                      .catch(() => undefined);
+                  }}
+                >
+                  Prune old manual backups
+                </button>
+              </div>
+            )
+          )}
           {data.storage.warning && (
             <p className="warning">{data.storage.warning}</p>
           )}
@@ -161,6 +208,25 @@ export function Settings() {
               <code>{b.name}</code>
               <small>{formatBytes(b.size)}</small>
               <small>{new Date(b.createdAt).toLocaleString()}</small>
+              {b.kind === "manual" && (
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    aria-label={`Keep ${b.name}`}
+                    checked={b.kept}
+                    disabled={action.isPending}
+                    onChange={(e) =>
+                      action.mutate(() =>
+                        commands.keepBackup(b.name, e.target.checked),
+                      )
+                    }
+                  />
+                  Keep
+                </label>
+              )}
+              {b.prunable && (
+                <small className="warning">Would be removed</small>
+              )}
             </div>
           ))}
           <p className="muted">

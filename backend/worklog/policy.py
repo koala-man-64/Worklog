@@ -77,6 +77,8 @@ ROUTES: dict[str, dict[str, str | Only]] = {
     "/attachments/{identity}/recover": {"POST": HUMAN},
 
     "/backups": {"POST": HUMAN},
+    "/backups/pruning": {"POST": HUMAN},
+    "/backups/{name}/keep": {"POST": HUMAN},
 
     "/chats": {"GET": HUMAN, "POST": HUMAN},
     "/chats/track": {"POST": COORDINATE},

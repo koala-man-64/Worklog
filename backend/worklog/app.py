@@ -8,6 +8,7 @@ import logging
 import os
 import re
 import secrets
+import shutil
 import sqlite3
 import tempfile
 import time
@@ -56,7 +57,16 @@ from .proposals import (
     waiting_on,
 )
 from .records import check_owner, people_on, support_record
-from .recovery import automatic_backup, backup_database, list_backups, write_export
+from .recovery import (
+    MANUAL_KEPT,
+    automatic_backup,
+    backup_database,
+    confirm_manual_pruning,
+    list_backups,
+    mark_backup,
+    pruning_state,
+    write_export,
+)
 from .registration import (
     active_registrations,
     install_registration_routes,
@@ -84,6 +94,8 @@ def default_data_directory() -> Path:
     return locations.locate().path
 
 
+# Settings warns when the backups take more than this many times the database (step 2.2).
+BACKUP_RATIO = 40
 # A keyed write's answer past this many bytes of JSON is stored in its receipt as what identifies its
 # record, when its route passes a reader for a replay (audit finding B4, roadmap step 2.5).
 RECEIPT_LIMIT = 64 * 1024
@@ -766,12 +778,39 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             agents = [{"id": r["id"], "label": r["label"], "avatar": r["avatar"]} for r in c.execute("SELECT id,label,avatar FROM communication_agents ORDER BY label,id")]
         # Settings shows no hashes, and hashing would read every backup on each load.
         backups = list_backups(directory / "backups", hashed=False)
-        size = db.path.stat().st_size
         return {"timezone": tz, "today": today(tz), "version": __version__, "requireProposalApproval": require_approval,
                 "agentRepositoryRegistration": register_repositories,
                 "credentials": creds, "agents": agents,
-                "backups": backups, "storage": {"databaseBytes": size, "backupBytes": sum(b.get("size", 0) for b in backups),
-                                                 "warning": app.state.backup_error or ("Primary data exceeds 2 GB; review retained files and backup capacity" if size > 2_000_000_000 else None)}}
+                "backups": backups, "storage": storage(db.path.stat().st_size, backups)}
+
+    def storage(size: int, backups: list[dict]) -> dict:
+        """The database and backups' sizes, by kind, the disk's free space, the rule for manual
+        backups and what it would remove, and a warning when any of them needs the person (B2)."""
+        kinds: dict[str, dict[str, int]] = {}
+        for backup in backups:
+            kind = kinds.setdefault(backup["kind"] or "other", {"count": 0, "bytes": 0})
+            kind["count"] += 1
+            kind["bytes"] += backup["size"]
+        backup_bytes = sum(b["size"] for b in backups)
+        try:
+            free = shutil.disk_usage(directory).free
+        except OSError:
+            # Settings still loads; the warning below then says nothing of free space.
+            free = 2 * size
+        pruning = pruning_state(directory / "backups")
+        candidates = [b for b in backups if b["prunable"]]
+        warnings = [app.state.backup_error,
+                    "Primary data exceeds 2 GB; review retained files and backup capacity" if size > 2_000_000_000 else None,
+                    f"Backups take more than {BACKUP_RATIO} times the database; review the manual backups"
+                    if size and backup_bytes > BACKUP_RATIO * size else None,
+                    "Free disk space is less than twice the database; free some space before the next backup"
+                    if free < 2 * size else None]
+        return {"databaseBytes": size, "backupBytes": backup_bytes, "backupCount": len(backups),
+                "backupKinds": kinds, "diskFreeBytes": free,
+                "pruning": {"keep": MANUAL_KEPT, "confirmed": pruning["confirmed"],
+                            "candidates": [b["name"] for b in candidates],
+                            "candidateBytes": sum(b["size"] for b in candidates)},
+                "warning": " ".join(w for w in warnings if w) or None}
 
     @app.patch("/api/v1/settings", dependencies=[Depends(person_only)], response_model=out.Settings)
     def settings_update(request: Request, body: m.SettingsUpdate) -> dict:
@@ -848,6 +887,18 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         result = backup_database(db.path, directory / "backups")
         app.state.backup_error = None
         return result
+
+    @app.post("/api/v1/backups/pruning", dependencies=[Depends(person_only)], response_model=out.BackupsPruned)
+    def backups_pruning() -> dict:
+        """Confirm the rule for manual backups once, and prune by it now (step 2.2)."""
+        return {"removed": confirm_manual_pruning(directory / "backups")}
+
+    @app.post("/api/v1/backups/{name}/keep", dependencies=[Depends(person_only)], response_model=out.BackupMark)
+    def backup_keep(name: str, body: m.BackupKeep) -> dict:
+        try:
+            return mark_backup(directory / "backups", name, body.kept)
+        except ValueError as exc:
+            raise AppError(404, "not_found", str(exc)) from exc
 
     @app.get("/api/v1/export", dependencies=[Depends(person_only)])
     def export() -> Response:

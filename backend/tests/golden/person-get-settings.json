@@ -24,7 +24,16 @@
     "requireProposalApproval": true,
     "storage": {
       "backupBytes": 0,
+      "backupCount": 0,
+      "backupKinds": {},
       "databaseBytes": 946176,
+      "diskFreeBytes": "<free bytes>",
+      "pruning": {
+        "candidateBytes": 0,
+        "candidates": [],
+        "confirmed": false,
+        "keep": 10
+      },
       "warning": null
     },
     "timezone": "America/Chicago",
