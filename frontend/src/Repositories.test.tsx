@@ -264,6 +264,7 @@ const runbook: Attachment = {
   sha256: "",
   revision: 1,
   archived: false,
+  removed: false,
   createdAt: "2026-11-04T10:00:00+00:00",
 };
 const repoFiles = "/api/v1/attachments?ownerType=repository&ownerId=repo-1";

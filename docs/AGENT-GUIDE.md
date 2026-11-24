@@ -832,6 +832,7 @@ worklog check
 |---|---|---|---|
 | `validation` | 422 | A field is missing, malformed, too long or retired, or text holds a lone UTF-16 surrogate (half of a pair, which names no character); `fields` names it, with a dotted path such as `operations.0.payload.title` when it is nested, and marks a retired one `"retired"` | Fix the input; do not retry unchanged |
 | `not_found` | 404 | No such record, or not one you can see, such as another agent's draft | Check the ID with `search` or `context` |
+| `removed` | 410 | The file's bytes are gone: it was the evidence of a proposal withdrawn or rejected more than 30 days before `compact` ran. Its name, size and hash remain | Upload it again to a new proposal if you still need it |
 | `conflict` | 409 | A stale revision (`fields` `{expected,currentRevision}`), or a state that forbids the change, such as editing a submitted proposal | Read again; retry with the current revision only if the change is still right |
 | `operation` | 422 | An unsupported operation reached the server | Use an action from section 6.1 |
 | `archived` | 409 | The target, what it links to, or the evidence file to attach is archived | Ask the person to recover it, or choose another |
@@ -862,7 +863,7 @@ worklog check
 | `token_in_use` | 409 | The token stored for your name belongs to a credential the person issued, or the token a continuation sent belongs to any credential | Tell the person; a registration never reuses another credential's token |
 | `chat_mismatch` | 409 | Your name's identity was registered for another chat, or before chats were recorded | Continue it in this chat (`--continue NAME`) if this chat carries on its work; otherwise register this chat under another `--name` |
 | `same_chat` | 409 | `--continue` named the identity that already works in this chat | Carry on as you are, with `--as NAME` |
-| `agent_limit` | 429 | 200 registered identities are active, or 200 were registered or continued today. Or you keep 50 drafts, 100 of your proposals await review, or a proposal holds 20 evidence files or 100,000,000 bytes of them | Report it; do not retry. For drafts, submit or withdraw one first |
+| `agent_limit` | 429 | 200 registered identities are active, or 200 were registered or continued today. Or you keep 50 drafts, 100 of your proposals await review, a proposal holds 20 evidence files or 100,000,000 bytes of them, your proposals never approved hold 500,000,000 bytes of evidence, or a proposal reached 200 revisions | Report it; do not retry. For drafts, submit or withdraw one first; withdrawn and rejected proposals' evidence counts until `compact` empties it; supersede a proposal at 200 revisions |
 | `avatar_in_use` | 409 | Another active agent shows that avatar | Choose one marked available |
 | `identity_binding` | 409 | A credential cannot change its agent identity | Tell the person |
 | `identity_missing` | 409 | A credential has no communication identity | The person's; tell them |
@@ -892,8 +893,10 @@ The following codes reach only the person's browser or a failed startup: `host` 
 | An evidence file or attachment | 25,000,000 bytes |
 | A note or scratchpad, a proposal's rationale, a discussion message | 1,000,000 bytes |
 | A proposal | 500 operations; 5,000,000 bytes of operations; a title of 1,000 bytes |
-| Your proposals, under any of your credentials | 50 drafts; 100 awaiting review while approval is on |
+| Your proposals, under any of your credentials | 50 drafts; 100 awaiting review while approval is on; 500,000,000 bytes of evidence on those never approved |
 | A proposal's evidence | 20 files; 100,000,000 bytes in all |
+| A proposal's revisions | 200 |
+| Evidence of a withdrawn or rejected proposal | emptied by `compact` after 30 days |
 | A roadmap | 5,000 steps; 100 levels of nesting |
 | A ticket | title 1,000 bytes; description, resolution and each comment 100,000 bytes; 20 labels |
 | A participation | description 2,000 characters; 40 contexts |

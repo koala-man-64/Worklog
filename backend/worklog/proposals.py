@@ -84,6 +84,13 @@ DRAFT_LIMIT = 50
 AWAITING_LIMIT = 100
 EVIDENCE_FILES = 20
 EVIDENCE_BYTES = 100_000_000
+# What one agent identity holds in evidence, in bytes, on its proposals never approved: drafts,
+# submitted, withdrawn and rejected ones (audit finding B7, step 2.6). Withdrawing a draft frees its
+# place among the drafts, not its bytes; compact empties the evidence of closed ones after 30 days.
+IDENTITY_EVIDENCE_BYTES = 500_000_000
+# A proposal's revisions: every edit and status change raises it. An agent's edit past this is
+# refused, so a looping agent cannot grow one draft's history without end.
+PROPOSAL_REVISIONS = 200
 HELD_BY = ("p.actor_kind='agent' AND (p.actor_id=? OR p.actor_id IN (SELECT theirs.credential_id FROM communication_credentials"
            " theirs JOIN communication_credentials mine ON mine.agent_id=theirs.agent_id WHERE mine.credential_id=?))")
 
@@ -463,6 +470,9 @@ class ProposalService:
             require_revision(row, payload.get("revision"))
             if row["status"] != "draft":
                 raise AppError(409, "conflict", "Only drafts can be edited")
+            if actor["kind"] == "agent" and row["revision"] >= PROPOSAL_REVISIONS:
+                raise AppError(429, "agent_limit", f"A proposal takes at most {PROPOSAL_REVISIONS} revisions; "
+                               "supersede it with a new proposal instead")
             before = _record(row)
             title = _string(payload.get("title", row["title"]), "title", 1000, required=True)
             rationale = _string(payload.get("rationale", row["rationale"]), "rationale")
@@ -789,4 +799,12 @@ class ProposalService:
                 raise AppError(429, "agent_limit", f"A proposal holds at most {EVIDENCE_FILES} evidence files")
             if held + size > EVIDENCE_BYTES:
                 raise AppError(429, "agent_limit", f"A proposal's evidence holds at most {EVIDENCE_BYTES:,} bytes in all")
+            # Bytes still held: evidence compact emptied holds none.
+            (unapproved,) = conn.execute(
+                "SELECT coalesce(sum(length(a.content)),0) FROM attachments a JOIN proposals p ON p.id=a.owner_id"
+                " WHERE a.owner_type='proposal' AND p.status<>'approved' AND " + HELD_BY,
+                (actor["id"], actor["id"])).fetchone()
+            if unapproved + size > IDENTITY_EVIDENCE_BYTES:
+                raise AppError(429, "agent_limit", f"An agent holds at most {IDENTITY_EVIDENCE_BYTES:,} bytes of evidence on "
+                               "its proposals never approved; withdrawn and rejected ones count until compact empties them")
         return _record(row)

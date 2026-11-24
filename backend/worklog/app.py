@@ -580,7 +580,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                 proposals.detail(ownerId, request.state.actor)
             else:
                 check_owner(c, ownerType, ownerId, files=True)
-            records = [support_record(r) for r in c.execute("SELECT id,owner_type,owner_id,name,mime,size,sha256,archived,revision,created_at FROM attachments WHERE owner_type=? AND owner_id=? AND archived=? ORDER BY created_at,id", (ownerType, ownerId, int(archived)))]
+            records = [support_record(r) for r in c.execute("SELECT id,owner_type,owner_id,name,mime,size,sha256,archived,revision,created_at,(size>0 AND length(content)=0) AS removed FROM attachments WHERE owner_type=? AND owner_id=? AND archived=? ORDER BY created_at,id", (ownerType, ownerId, int(archived)))]
             return {"items": records, "total": len(records)}
 
     @app.post("/api/v1/attachments", response_model=out.Attachment)
@@ -607,6 +607,9 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                 raise AppError(404, "not_found", "Attachment not found")
             if row["owner_type"] == "proposal":
                 proposals.detail(row["owner_id"], request.state.actor)
+            if row["size"] and not row["content"]:
+                raise AppError(410, "removed", f"{row['name']} was removed: its proposal was withdrawn or rejected over "
+                               "30 days before compact ran, which keeps its name, size and hash but not its bytes")
             inline = not download and row["mime"] in {"image/png", "image/jpeg", "image/gif", "image/webp", "image/avif", "image/bmp", "text/plain"}
             return download_response(row["content"], row["name"], row["mime"], inline)
 

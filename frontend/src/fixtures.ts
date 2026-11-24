@@ -93,6 +93,7 @@ export const anAttachment = (fields: Fields<Attachment>): Attachment => ({
   size: 0,
   sha256: "",
   archived: false,
+  removed: false,
   revision: 1,
   createdAt: MADE,
   ...fields,

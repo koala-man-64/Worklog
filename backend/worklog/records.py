@@ -33,9 +33,12 @@ def support_record(r: Any) -> dict:
             "roadmap_id": "roadmapId", "decided_date": "decidedDate",
             "created_at": "createdAt", "updated_at": "updatedAt", "submitted_by": "submittedBy",
             "owner_title": "ownerTitle"}
-    # A file's bytes are read on their own.
-    record = {keys.get(k, k): bool(v) if k == "archived" else v
-              for k, v in dict(r).items() if k != "content"}
+    # A file's bytes are read on their own. A file with a size and no bytes was emptied by compact.
+    row = dict(r)
+    record = {keys.get(k, k): bool(v) if k in {"archived", "removed"} else v
+              for k, v in row.items() if k != "content"}
+    if "content" in row and "size" in row:
+        record["removed"] = bool(row["size"]) and not row["content"]
     if "repos" in record:
         record["repos"] = json.loads(r["repos"])
     return record

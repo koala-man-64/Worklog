@@ -368,7 +368,8 @@ function currentPath(
     const date = String(payload.date ?? "");
     return DATE.test(date) ? "/days/" + encodeURIComponent(date) : null;
   }
-  if (action === "progress.set" || action.startsWith("step.")) return "/steps/" + id;
+  if (action === "progress.set" || action.startsWith("step."))
+    return "/steps/" + id;
   if (action.startsWith("repository.")) return "/repositories/" + id;
   const collection = action.startsWith("roadmap.")
     ? "roadmaps"
@@ -617,6 +618,13 @@ function EvidenceFile({ file }: { file?: Attachment }) {
   const link = (
     <a href={download(`/attachments/${file.id}?download=1`)}>{file.name}</a>
   );
+  if (file.removed)
+    return (
+      <p className="warning">
+        {file.name} was removed: its proposal was closed long ago and its bytes
+        were emptied, so approval fails.
+      </p>
+    );
   return file.archived ? (
     <p className="warning">
       {link} was archived from this proposal, so approval fails.
