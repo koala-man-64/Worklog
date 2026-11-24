@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/discussions/messages/{identity}/open-chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Open Agent Chat */
+        post: operations["open_agent_chat_api_v1_discussions_messages__identity__open_chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/work-items/{identity}/sessions": {
         parameters: {
             query?: never;
@@ -2942,6 +2959,40 @@ export interface components {
             avatar: string | null;
             roadmaps: components["schemas"]["TiedRoadmaps"];
             repositories: components["schemas"]["TiedRepositories"];
+        };
+        /** AgentChatOpen */
+        AgentChatOpen: {
+            /** Targetid */
+            targetId: string;
+        };
+        /**
+         * AgentChatOpened
+         * @description The person's handoff of a pending request to the agent its slot waits on: whether Worklog asked
+         *     the agent's desktop app to open its chat, why not, and the message for the person to paste there.
+         */
+        AgentChatOpened: {
+            /** Messageid */
+            messageId: string;
+            /** Targetid */
+            targetId: string;
+            /** Agentid */
+            agentId: string;
+            /** Agentlabel */
+            agentLabel: string;
+            /** Chatid */
+            chatId: string | null;
+            /** Directory */
+            directory: string | null;
+            /** Provider */
+            provider: ("codex" | "claude") | null;
+            /** Sessionid */
+            sessionId: string | null;
+            /** Opened */
+            opened: boolean;
+            /** Message */
+            message: string;
+            /** Paste */
+            paste: string;
         };
         /**
          * AgentContinuation
@@ -8653,6 +8704,41 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    open_agent_chat_api_v1_discussions_messages__identity__open_chat_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentChatOpen"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentChatOpened"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     start_session_api_v1_work_items__identity__sessions_post: {
         parameters: {
             query?: never;

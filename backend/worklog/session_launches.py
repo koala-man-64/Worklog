@@ -1,4 +1,5 @@
-"""Prepare and reopen provider chats linked to human-owned Worklog items.
+"""Prepare and reopen provider chats linked to human-owned Worklog items, and open the chat of an
+agent a request waits on.
 
 The provider CLI creates each session once. Worklog persists an idempotent launch receipt before
 starting that process, then atomically links the returned chat and completes the receipt.
@@ -14,6 +15,7 @@ import os
 import re
 import shutil
 import signal
+import sqlite3
 import subprocess
 import sys
 import threading
@@ -27,8 +29,10 @@ from urllib.parse import quote
 from .common import AppError, now
 from .db import Database
 from .records import get_item
+from .registry import AgentRegistry
 from .repository_links import linked_repositories
 from .services import WorkService
+from .transcripts import TranscriptReader, one_line
 
 RECEIPT_PREFIX = "session-launch:"
 PREPARE_TIMEOUT_SECONDS = 90
@@ -551,3 +555,97 @@ class SessionLauncher:
             with self.lock:
                 self.opening.discard(identity)
         return self.get(identity, actor)
+
+
+APPS = {"claude": "Claude", "codex": "Codex"}
+PASTE_LABEL_LIMIT = 200  # characters of a thread title or sender label the paste text quotes
+
+
+def _paste(title: str, sender: str, discussion_id: str, message_id: str, target_id: str) -> str:
+    """What the person pastes into the agent's chat: where the request is and the commands that read,
+    acknowledge and answer it. It quotes no message text, so nothing another agent wrote reaches the
+    chat as the person's words; reading the request through Worklog also records that it was seen."""
+    return "\n".join([
+        f'A Worklog request waits on you: {one_line(sender, PASTE_LABEL_LIMIT)} asked in the thread '
+        f'"{one_line(title, PASTE_LABEL_LIMIT)}". Deal with it now, as the agent guide says (section 4.1).',
+        "NAME is the name you registered with; give it as --as NAME, as in every Worklog command.",
+        f"1. Read it: worklog agent --as NAME discussions read {message_id} --message",
+        f"2. Acknowledge it: worklog agent --as NAME discussions ack {message_id} --target {target_id}",
+        f"3. Answer in its thread, or say when you will: worklog agent --as NAME discussions reply {discussion_id} --text 'YOUR ANSWER'",
+        "Then check your inbox: worklog agent --as NAME inbox",
+    ])
+
+
+class AgentChats:
+    """The person's handoff of a pending request to the agent it waits on (decision R11).
+
+    It opens that agent's own chat in its desktop app, as Open in app does for a launched chat, and
+    gives the person a message to paste there. Worklog never types or sends into a chat and never
+    resumes one headlessly: Codex refuses `exec resume` while the app has the thread open, a Claude
+    desktop session does not show a turn another process appends, and a headless turn would either
+    run the agent's tools unattended or run without them. It stores nothing; the person sends."""
+
+    def __init__(self, db: Database, transcripts: TranscriptReader):
+        self.db, self.transcripts = db, transcripts
+        self.registry = AgentRegistry()
+
+    def _target(self, message_id: str, target_id: str) -> tuple[sqlite3.Row, dict]:
+        with self.db.read() as c:
+            row = c.execute(
+                "SELECT m.discussion_id,m.author_label,m.author_kind,d.title,r.state,t.kind,t.recipient_id,ro.owner_id AS role_owner "
+                "FROM discussion_targets t JOIN discussion_requests r ON r.message_id=t.message_id "
+                "JOIN discussion_messages m ON m.id=t.message_id JOIN discussions d ON d.id=m.discussion_id "
+                "LEFT JOIN discussion_roles ro ON t.kind='role' AND ro.id=t.recipient_id "
+                "WHERE t.id=? AND t.message_id=?", (target_id, message_id)).fetchone()
+            if row is None:
+                raise AppError(404, "not_found", "Request target not found")
+            if row["state"] != "pending":
+                raise AppError(409, "request_terminal", "This request already has a permanent outcome")
+            # A role's slot waits on the agent that owns the role now.
+            agent_id = {"agent": row["recipient_id"], "role": row["role_owner"]}.get(row["kind"])
+            if not agent_id:
+                raise AppError(409, "not_an_agent", "Only an agent's slot, or a role an agent owns, has a chat to open")
+            return row, self.registry.profile(c, agent_id)
+
+    def open(self, message_id: str, target_id: str, actor: dict) -> dict:
+        if actor.get("kind") != "human":
+            raise AppError(403, "agent_scope", "Only the person opens an agent's chat")
+        row, profile = self._target(message_id, target_id)
+        label = profile["label"]
+        # The chat it registered for, else the one its newest open run reports.
+        chat_id = profile["chatId"] or next((run["chatId"] for run in profile["runs"] if run["chatId"]), None)
+        result: dict[str, Any] = {
+            "messageId": message_id, "targetId": target_id, "agentId": profile["id"], "agentLabel": label,
+            "chatId": chat_id, "directory": profile["directory"], "provider": None, "sessionId": None, "opened": False,
+            "paste": _paste(row["title"], "The person" if row["author_kind"] == "human" else row["author_label"],
+                            row["discussion_id"], message_id, target_id)}
+
+        def unopened(reason: str) -> dict:
+            return {**result, "message": reason + " Paste the message below where it works."}
+
+        if not chat_id:
+            return unopened(f"{label} reported no chat, so there is none to open.")
+        found = self.transcripts.locate(chat_id)
+        if found is None:
+            return unopened(f"Worklog found no Claude or Codex chat {chat_id} on this computer.")
+        provider, session = found
+        result.update(provider=provider, sessionId=session)
+        folder = ""
+        if provider == "claude":
+            # Claude resumes a session from the folder it works in, which is where the agent registered.
+            try:
+                folder = SessionLauncher._folder(profile["directory"]) if profile["directory"] else ""
+            except AppError:
+                folder = ""
+            if not folder:
+                return unopened(f"Claude resumes a session from its folder, and the folder {label} registered from is missing.")
+        try:
+            _open_desktop(provider, folder, session)
+        except FileNotFoundError:
+            return unopened(f"The {APPS[provider]} command line could not be found.")
+        except Exception as exc:
+            # Never include provider output or exception messages.
+            logger.warning("Opening an agent's chat failed (%s)", type(exc).__name__)
+            return unopened(f"The {APPS[provider]} app did not open the chat.")
+        return {**result, "opened": True,
+                "message": f"Asked the {APPS[provider]} app to open {label}'s chat. Paste the message below into it and send it."}

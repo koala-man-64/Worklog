@@ -7,6 +7,7 @@ import { AVATAR_COLORS } from "./Avatar";
 import { Discussions } from "./Discussions";
 import type {
   AcknowledgementRequest,
+  AgentChatOpened,
   DiscussionDetail,
   DiscussionList,
   DiscussionMessage,
@@ -309,6 +310,27 @@ function serve({
 
       if (
         method === "POST" &&
+        path === "/discussions/messages/message-1/open-chat"
+      ) {
+        return json({
+          messageId: "message-1",
+          targetId: String(body.targetId),
+          agentId: agentB.id,
+          agentLabel: agentB.label,
+          chatId: "0190f4c2-7a5e-7d31-9b8a-3c6e2f1d4a07",
+          directory: "C:\\Projects\\control-plane",
+          provider: "codex",
+          sessionId: "0190f4c2-7a5e-7d31-9b8a-3c6e2f1d4a07",
+          opened: true,
+          message:
+            "Asked the Codex app to open Agent Beta's chat. Paste the message below into it and send it.",
+          paste:
+            "A Worklog request waits on you.\n1. Read it: worklog agent --as NAME discussions read message-1 --message",
+        } satisfies AgentChatOpened);
+      }
+
+      if (
+        method === "POST" &&
         path === "/discussions/messages/message-1/cancel"
       ) {
         const updated = message({
@@ -578,6 +600,92 @@ it("shows how far a request got, a stale agent, and a request escalated to the p
   expect(
     within(requestCard).getAllByText(/no report for 2 hours/),
   ).toHaveLength(1);
+});
+
+it("opens the chat of an agent a request waits on and gives the person the message to paste", async () => {
+  const user = userEvent.setup();
+  const slot = (id: string, acknowledged: boolean) => ({
+    ...requestState().targets[0],
+    id,
+    kind: "agent" as const,
+    recipientId: id,
+    label: id === "target-b" ? "Agent Beta" : "Agent Alpha",
+    acknowledged,
+    acknowledgedBy: acknowledged ? agentA.id : null,
+    delivery: acknowledged ? ("acknowledged" as const) : ("seen" as const),
+  });
+  const api = serve({
+    initialMessages: [
+      message({
+        request: requestState({
+          mode: "all",
+          targets: [
+            slot("target-a", true),
+            slot("target-b", false),
+            requestState().targets[0],
+          ],
+        }),
+      }),
+    ],
+  });
+  renderPage();
+  await user.click(await screen.findByRole("link", { name: /Project notes/ }));
+  const requestCard = await screen.findByRole("region", {
+    name: "Acknowledgement request",
+  });
+  // Only the agent slot still owed has a chat to open; an open recipient has none.
+  expect(
+    within(requestCard).getAllByRole("button", { name: /^Open the chat of/ }),
+  ).toHaveLength(1);
+
+  await user.click(
+    within(requestCard).getByRole("button", {
+      name: "Open the chat of Agent Beta",
+    }),
+  );
+  const handoff = await within(requestCard).findByRole("region", {
+    name: "Message for Agent Beta",
+  });
+  expect(
+    api.calls.find(
+      (call) => call.path === "/discussions/messages/message-1/open-chat",
+    )?.body,
+  ).toEqual({ targetId: "target-b" });
+  expect(within(handoff).getByRole("status")).toHaveTextContent(
+    "Asked the Codex app to open Agent Beta's chat.",
+  );
+  expect(handoff.querySelector("pre")).toHaveTextContent(
+    "discussions read message-1 --message",
+  );
+
+  await user.click(
+    within(handoff).getByRole("button", { name: "Copy message" }),
+  );
+  expect(await navigator.clipboard.readText()).toContain(
+    "worklog agent --as NAME discussions read message-1 --message",
+  );
+  expect(
+    within(handoff).getByRole("button", { name: "Copied" }),
+  ).toBeInTheDocument();
+  // A browser that refuses the clipboard leaves the message on screen to copy by hand.
+  vi.spyOn(navigator.clipboard, "writeText").mockRejectedValue(
+    new Error("Write permission denied."),
+  );
+  await user.click(within(handoff).getByRole("button", { name: "Copied" }));
+  expect(
+    await within(requestCard).findByText(
+      "The message was not copied: Write permission denied. Select it and copy it yourself.",
+    ),
+  ).toBeInTheDocument();
+  expect(
+    within(handoff).getByRole("button", { name: "Copy message" }),
+  ).toBeInTheDocument();
+  await user.click(within(handoff).getByRole("button", { name: "Close" }));
+  expect(
+    within(requestCard).queryByRole("region", {
+      name: "Message for Agent Beta",
+    }),
+  ).not.toBeInTheDocument();
 });
 
 it("shows each author's avatar beside their messages", async () => {

@@ -111,6 +111,7 @@
   "POST /api/v1/discussions/avatar": "reaches handler",
   "POST /api/v1/discussions/messages/{identity}/acknowledge": "reaches handler",
   "POST /api/v1/discussions/messages/{identity}/cancel": "reaches handler",
+  "POST /api/v1/discussions/messages/{identity}/open-chat": "refused",
   "POST /api/v1/discussions/messages/{identity}/release": "refused",
   "POST /api/v1/discussions/roles": "reaches handler",
   "POST /api/v1/discussions/roles/{identity}/accept": "reaches handler",

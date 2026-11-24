@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { getDataContext } from "./api";
+import { getDataContext, request } from "./api";
 import { Avatar } from "./Avatar";
 import { Markdown } from "./ui/Markdown";
 import { Empty, ErrorMessage } from "./ui/Messages";
@@ -16,6 +16,7 @@ import {
 import type {
   AcknowledgementMode,
   AcknowledgementRequest,
+  AgentChatOpened,
   ChatOverview,
   DiscussionDetail,
   DiscussionMessage,
@@ -242,6 +243,11 @@ function DiscussionMessageView({
   disabled: boolean;
 }) {
   const [error, setError] = useState<unknown>(null);
+  // The person's handoff of this request to an agent it waits on: Worklog opens the agent's chat in
+  // its desktop app and gives a message to paste there; it never sends into the chat itself.
+  const [handoff, setHandoff] = useState<AgentChatOpened | null>(null);
+  const [opening, setOpening] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const requestState = message.request;
   const messageRole = roles.find(
     (role) => role.id === message.onBehalfOfRoleId,
@@ -257,6 +263,44 @@ function DiscussionMessageView({
       await action();
     } catch (failure) {
       setError(failure);
+    }
+  }
+
+  async function openChat(targetId: string) {
+    setOpening(targetId);
+    setCopied(false);
+    try {
+      await run(async () =>
+        setHandoff(
+          await request<AgentChatOpened>(
+            `/discussions/messages/${message.id}/open-chat`,
+            "POST",
+            { targetId },
+          ),
+        ),
+      );
+    } finally {
+      setOpening(null);
+    }
+  }
+
+  async function copyPaste(text: string) {
+    setError(null);
+    setCopied(false);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+    } catch (cause) {
+      setError(
+        new Error(
+          "The message was not copied: " +
+            (cause instanceof Error ? cause.message : String(cause)).replace(
+              /\.$/,
+              "",
+            ) +
+            ". Select it and copy it yourself.",
+        ),
+      );
     }
   }
 
@@ -323,7 +367,24 @@ function DiscussionMessageView({
                   key={target.id}
                   className={target.acknowledged ? "received" : undefined}
                 >
-                  <span>{target.label}</span>
+                  <span>
+                    {target.label}
+                    {requestState.state === "pending" &&
+                      !target.acknowledged &&
+                      (target.kind === "agent" ||
+                        (target.kind === "role" && target.ownerId)) && (
+                        <button
+                          type="button"
+                          className="quiet chat-handoff-open"
+                          aria-label={`Open the chat of ${target.label}`}
+                          title="Open this agent's chat in its desktop app, with a message for you to paste"
+                          disabled={opening !== null}
+                          onClick={() => void openChat(target.id)}
+                        >
+                          {opening === target.id ? "Opening…" : "Open chat"}
+                        </button>
+                      )}
+                  </span>
                   <span>
                     {target.acknowledged
                       ? `Received by ${participants?.items.find((participant) => participant.id === target.acknowledgedBy)?.label ?? target.acknowledgedBy ?? target.label}`
@@ -343,6 +404,32 @@ function DiscussionMessageView({
                 </li>
               ))}
             </ul>
+          )}
+          {handoff && (
+            <div
+              className="chat-handoff"
+              role="region"
+              aria-label={`Message for ${handoff.agentLabel}`}
+            >
+              <p role="status">{handoff.message}</p>
+              <pre className="chat-handoff-paste">{handoff.paste}</pre>
+              <div className="chat-handoff-actions">
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={() => void copyPaste(handoff.paste)}
+                >
+                  {copied ? "Copied" : "Copy message"}
+                </button>
+                <button
+                  type="button"
+                  className="quiet"
+                  onClick={() => setHandoff(null)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           )}
           {requestState.receipts.length > 0 && (
             <ul

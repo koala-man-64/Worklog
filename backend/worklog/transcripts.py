@@ -244,18 +244,39 @@ class TranscriptReader:
             self.index = (time.monotonic(), claude, codex)
         return claude, codex
 
-    def threads(self, chat_id: str) -> tuple[str | None, list[Thread]]:
+    def _session(self, chat_id: str) -> tuple[str, str] | None:
+        """The session ID a chat ID names, and the desktop app's title for it, if any."""
         match = CHAT_ID.fullmatch(chat_id.strip().lower())
         if not match:
+            return None
+        if not match.group(1):
+            return match.group(2), ""
+        # The desktop app's own session ID names the Claude Code session it runs.
+        record = self._desktop_record(match.group(0))
+        cli = string(record.get("cliSessionId")).lower() if record else ""
+        if not record or not re.fullmatch(UUID, cli):
+            return None
+        return cli, one_line(record.get("title"), NAME_LIMIT)
+
+    def locate(self, chat_id: str) -> tuple[str, str] | None:
+        """Which tool keeps a chat on this computer ("claude" or "codex") and the session ID that tool
+        opens it by, which for a Claude desktop local_ ID is the Claude Code session it runs. None when
+        neither keeps it here."""
+        session = self._session(chat_id)
+        if session is None:
+            return None
+        claude, codex = self._index()
+        if any(p.exists() for p in claude.get(session[0], [])):
+            return "claude", session[0]
+        if session[0] in codex and codex[session[0]][0].exists():
+            return "codex", session[0]
+        return None
+
+    def threads(self, chat_id: str) -> tuple[str | None, list[Thread]]:
+        session = self._session(chat_id)
+        if session is None:
             return None, []
-        ident, title = match.group(2), ""
-        if match.group(1):
-            # The desktop app's own session ID names the Claude Code session it runs.
-            record = self._desktop_record(match.group(0))
-            cli = string(record.get("cliSessionId")).lower() if record else ""
-            if not re.fullmatch(UUID, cli):
-                return None, []
-            ident, title = cli, one_line(record.get("title"), NAME_LIMIT) if record else ""
+        ident, title = session
         claude, codex = self._index()
         found = [p for p in claude.get(ident, []) if p.exists()]
         if found:
