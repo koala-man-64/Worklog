@@ -95,6 +95,35 @@ def test_a_receipt_stored_whole_answers_as_before(client, agent):
     assert call(client, "POST", f"/proposals/{draft['id']}/approve", {"revision": submitted["revision"]}, key=key) == approved
 
 
+def test_replaying_the_step_writes_answers_the_step(client):
+    steps = [{"id": str(uuid.uuid4()), "title": "Step"}]
+    call(client, "POST", "/roadmaps", {"title": "Plan", "steps": steps})
+    step = steps[0]["id"]
+    current = call(client, "GET", f"/steps/{step}")
+    text_key, body = str(uuid.uuid4()), {"revision": current["revision"], "description": "t" * 100_000}
+    updated = call(client, "PATCH", f"/steps/{step}", body, key=text_key)
+    assert set(receipt(client, text_key)) == {app_module.RECEIPT_MARK}
+    assert call(client, "PATCH", f"/steps/{step}", body, key=text_key) == updated
+    progress_key, done = str(uuid.uuid4()), {"revision": updated["revision"], "status": "doing"}
+    progressed = call(client, "PATCH", f"/steps/{step}/progress", done, key=progress_key)
+    assert call(client, "PATCH", f"/steps/{step}/progress", done, key=progress_key) == progressed
+    assert progressed["revision"] == updated["revision"] + 1
+
+
+def test_a_whole_receipt_past_the_limit_from_before_the_change_answers_as_stored(client, agent):
+    draft = call(client, "POST", "/proposals", {"title": "Old", "rationale": "", "operations": big_items(1, 10)},
+                 agent=agent)
+    submitted = call(client, "POST", f"/proposals/{draft['id']}/submit", {"revision": draft["revision"]}, agent=agent)
+    key = str(uuid.uuid4())
+    approved = call(client, "POST", f"/proposals/{draft['id']}/approve", {"revision": submitted["revision"]}, key=key)
+    # As a version before step 2.5 kept it: whole, and past the limit.
+    old = {**approved, "rationale": "r" * (app_module.RECEIPT_LIMIT + 10)}
+    with closing(sqlite3.connect(client.db_path)) as conn:
+        conn.execute("UPDATE receipts SET response_json=? WHERE key=?", (json.dumps(old), key))
+        conn.commit()
+    assert call(client, "POST", f"/proposals/{draft['id']}/approve", {"revision": submitted["revision"]}, key=key) == old
+
+
 def test_no_receipt_of_the_three_families_passes_the_limit(client, agent):
     steps = [{"id": str(uuid.uuid4()), "title": f"Step {n}", "description": "s" * 800} for n in range(120)]
     parent = call(client, "POST", "/roadmaps", {"title": "Parent"})
@@ -115,13 +144,18 @@ def test_no_receipt_of_the_three_families_passes_the_limit(client, agent):
     submitted = call(client, "POST", f"/proposals/{draft['id']}/submit", {"revision": draft["revision"]}, agent=agent)
     call(client, "POST", f"/proposals/{draft['id']}/approve", {"revision": submitted["revision"]})
     assert scalar(client, "SELECT max(length(response_json)) FROM receipts") <= app_module.RECEIPT_LIMIT
+    # The large answers were kept as markers, not dropped.
+    assert scalar(client, "SELECT count(*) FROM receipts WHERE response_json LIKE ?",
+                  '{"' + app_module.RECEIPT_MARK + '"%') >= 5
 
 
 def test_a_route_without_a_reader_stores_its_answer_whole_and_says_so(client, caplog):
     item = call(client, "POST", "/work-items", {"title": "Notes"})
+    note = call(client, "POST", "/notes", {"ownerType": "item", "ownerId": item["id"], "title": "Long", "text": "n"})
     key = str(uuid.uuid4())
     with caplog.at_level(logging.WARNING, logger="worklog"):
-        note = call(client, "POST", "/notes", {"ownerType": "item", "ownerId": item["id"], "title": "Long",
-                                               "text": "n" * (app_module.RECEIPT_LIMIT + 10)}, key=key)
-    assert receipt(client, key) == note
-    assert "/api/v1/notes" in caplog.text
+        edited = call(client, "PATCH", f"/notes/{note['id']}",
+                      {"revision": note["revision"], "text": "n" * (app_module.RECEIPT_LIMIT + 10)}, key=key)
+    assert receipt(client, key) == edited
+    # The route's template, not the path it was called with.
+    assert "PATCH /api/v1/notes/{identity}" in caplog.text and note["id"] not in caplog.text

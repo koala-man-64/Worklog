@@ -229,6 +229,8 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         reader of (connection, actor, record ID), lets an answer past RECEIPT_LIMIT be kept as what
         identifies its record; a replay then reads that record as it now stands. Without one the
         answer is kept whole, and one past the limit is logged with its route."""
+        # A replay reads the record back whole, so a route that redacts a token never takes a reader.
+        assert not (redact and replay), "a route that redacts its answer takes no replay reader"
         key = request.headers.get("idempotency-key")
         if required_key and not key:
             raise AppError(428, "idempotency", "An Idempotency-Key is required for this command")
