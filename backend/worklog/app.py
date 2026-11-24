@@ -758,7 +758,11 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             kind["count"] += 1
             kind["bytes"] += backup["size"]
         backup_bytes = sum(b["size"] for b in backups)
-        free = shutil.disk_usage(directory).free
+        try:
+            free = shutil.disk_usage(directory).free
+        except OSError:
+            # Settings still loads; the warning below then says nothing of free space.
+            free = 2 * size
         pruning = pruning_state(directory / "backups")
         candidates = [b for b in backups if b["prunable"]]
         warnings = [app.state.backup_error,

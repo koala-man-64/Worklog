@@ -13,7 +13,7 @@ import time
 import uuid
 import zipfile
 from collections.abc import Callable, Iterable, Iterator
-from contextlib import closing
+from contextlib import closing, contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -300,19 +300,19 @@ def _cached_hash(path: Path, cache: dict[str, Any]) -> str:
 MANUAL_KEPT = 10
 PRUNING = "backup-pruning.json"
 # A backup's file name: its kind, the UTC time it was taken, and a random suffix.
-BACKUP_NAME = re.compile(r"^worklog-(?P<kind>.+?)-(?P<stamp>\d{8}T\d{6}\d*Z)-[0-9a-f]+\.(?:sqlite3|zip)$")
+BACKUP_NAME = re.compile(r"worklog-(?P<kind>.+?)-(?P<stamp>\d{8}T\d{6}\d*Z)-[0-9a-f]+\.(?:sqlite3|zip)")
 
 
 def backup_kind(name: str) -> str | None:
     """A backup's kind from its file name (manual, daily, pre-migration, pre-restore, pre-compact,
     pre-restore-raw), or None for a name that is not a backup's."""
-    found = BACKUP_NAME.match(name)
+    found = BACKUP_NAME.fullmatch(name)
     return found["kind"] if found else None
 
 
 def _taken(name: str) -> str:
     """The time in a backup's name, which sorts in time order; the name itself when it has none."""
-    found = BACKUP_NAME.match(name)
+    found = BACKUP_NAME.fullmatch(name)
     return found["stamp"] if found else name
 
 
@@ -324,9 +324,11 @@ def pruning_state(backup_dir: Path | str) -> dict[str, Any]:
         state = {}
     if not isinstance(state, dict):
         state = {}
-    kept = state.get("kept")
-    return {"confirmed": state.get("confirmed") is True,
-            "kept": sorted({str(name) for name in kept}) if isinstance(kept, list) else []}
+    kept = state.get("kept", [])
+    if not isinstance(kept, list):
+        # A file whose marks can't be read is treated as never confirmed: no marked backup may go.
+        return {"confirmed": False, "kept": []}
+    return {"confirmed": state.get("confirmed") is True, "kept": sorted({str(name) for name in kept})}
 
 
 def _save_pruning(directory: Path, state: dict[str, Any]) -> None:
@@ -339,12 +341,33 @@ def _save_pruning(directory: Path, state: dict[str, Any]) -> None:
         temporary.unlink(missing_ok=True)
 
 
+@contextmanager
+def _pruning_lock(directory: Path) -> Iterator[None]:
+    """Hold the backups' pruning lock, waiting a few seconds for another holder to finish."""
+    directory.mkdir(parents=True, exist_ok=True)
+    deadline = time.monotonic() + 10
+    while True:
+        lock = InstanceLock(directory, ".pruning.lock")
+        try:
+            lock.__enter__()
+            break
+        except RuntimeError:
+            if time.monotonic() > deadline:
+                raise RuntimeError("Another command is pruning or marking backups; try again") from None
+            time.sleep(0.05)
+    try:
+        yield
+    finally:
+        lock.__exit__()
+
+
 def manual_prunable(backup_dir: Path | str) -> list[str]:
     """The manual backups the rule removes: all but the newest MANUAL_KEPT, and none marked to keep,
     newest first."""
     directory = Path(backup_dir)
     kept = set(pruning_state(directory)["kept"])
-    manual = sorted((path.name for path in directory.glob("worklog-manual-*.sqlite3") if path.is_file()),
+    manual = sorted((path.name for path in directory.glob("worklog-manual-*.sqlite3")
+                     if path.is_file() and backup_kind(path.name) == "manual"),
                     key=lambda name: (_taken(name), name), reverse=True)
     return [name for name in manual[MANUAL_KEPT:] if name not in kept]
 
@@ -353,12 +376,19 @@ def prune_manual_backups(backup_dir: Path | str) -> list[str]:
     """Delete what manual_prunable names, once the person confirmed the rule; return what went. A file
     that cannot be deleted is logged and left for the next manual backup, as prune_backups does."""
     directory = Path(backup_dir)
+    with _pruning_lock(directory):
+        return _prune_manual(directory)
+
+
+def _prune_manual(directory: Path) -> list[str]:
     if not pruning_state(directory)["confirmed"]:
         return []
     removed = []
     for name in manual_prunable(directory):
         try:
             (directory / name).unlink()
+        except FileNotFoundError:
+            continue
         except OSError as exc:
             logger.warning("Could not delete old backup %s (%s); the next manual backup tries again",
                            name, type(exc).__name__)
@@ -370,8 +400,9 @@ def prune_manual_backups(backup_dir: Path | str) -> list[str]:
 def confirm_manual_pruning(backup_dir: Path | str) -> list[str]:
     """Record the person's confirmation of the rule, then prune; return what went."""
     directory = Path(backup_dir)
-    _save_pruning(directory, {**pruning_state(directory), "confirmed": True})
-    return prune_manual_backups(directory)
+    with _pruning_lock(directory):
+        _save_pruning(directory, {**pruning_state(directory), "confirmed": True})
+        return _prune_manual(directory)
 
 
 def mark_backup(backup_dir: Path | str, name: str, kept: bool) -> dict[str, Any]:
@@ -379,6 +410,11 @@ def mark_backup(backup_dir: Path | str, name: str, kept: bool) -> dict[str, Any]
     directory = Path(backup_dir)
     if backup_kind(name) is None or Path(name).name != name or not (directory / name).is_file():
         raise ValueError("No such backup")
+    with _pruning_lock(directory):
+        return _mark(directory, name, kept)
+
+
+def _mark(directory: Path, name: str, kept: bool) -> dict[str, Any]:
     state = pruning_state(directory)
     marks = set(state["kept"])
     if kept:

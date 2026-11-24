@@ -187,3 +187,24 @@ def test_the_backups_command_marks_what_the_rule_removes_and_confirms_it(tmp_pat
     assert {b["name"] for b in listed if b["prunable"]} == {old[0].name, old[1].name}
     assert cli.main(["--data-dir", str(tmp_path / "data"), "backups", "--confirm-pruning"]) == 0
     assert json.loads(capsys.readouterr().out) == {"removed": [old[1].name, old[0].name]}
+
+
+
+def test_a_hand_named_copy_neither_counts_among_the_newest_nor_goes(tmp_path):
+    folder = tmp_path / "backups"
+    old = backups_of(folder, "manual", range(1, 12))
+    copy = folder / "worklog-manual-before-upgrade.sqlite3"
+    copy.write_bytes(b"a copy the person made")
+    assert recovery.manual_prunable(folder) == [old[0].name]
+    assert recovery.confirm_manual_pruning(folder) == [old[0].name]
+    assert copy.exists() and all(path.exists() for path in old[1:])
+    assert {b["name"]: b["kind"] for b in recovery.list_backups(folder, hashed=False)}[copy.name] is None
+
+
+@pytest.mark.parametrize("text", ['{"confirmed": true, "kept": "everything"}', "not json", "[1, 2]"])
+def test_a_pruning_file_that_cannot_be_read_never_prunes(tmp_path, text):
+    folder = tmp_path / "backups"
+    old = backups_of(folder, "manual", range(1, 14))
+    (folder / recovery.PRUNING).write_text(text, encoding="utf-8")
+    assert recovery.prune_manual_backups(folder) == []
+    assert all(path.exists() for path in old)
