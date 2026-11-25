@@ -15,13 +15,7 @@ import { DraftField } from "./ui/DraftField";
 import { Empty, ErrorMessage } from "./ui/Messages";
 import { ITEM_STATUSES, statusLabel, StatusSelect } from "./ui/Status";
 import { Pager } from "./ui/Pager";
-import type {
-  Answer,
-  Detail,
-  ItemListed,
-  ItemStatus,
-  Roadmap,
-} from "./apiTypes";
+import type { Answer, Detail, ItemListed, ItemStatus } from "./apiTypes";
 import {
   RepositoryBadges,
   RepositoryPicker,
@@ -411,9 +405,13 @@ export function ItemDetail({ id }: { id: string }) {
   const item = query.data;
   const activeRoadId =
     selectedRoad ?? item?.roadmapId ?? item?.linkedStep?.roadmapId ?? "";
+  // The picker needs each step's title, not the whole roadmap: the outline leaves out the text and
+  // the retired steps. A work item on a retired step still names it, from its own linkedStep.
+  const outlinePath = "/roadmaps/" + activeRoadId + "/outline";
   const selectedRoadmap = useQuery({
-    queryKey: [getDataContext(), "/roadmaps/" + activeRoadId],
-    queryFn: () => request<Roadmap>("/roadmaps/" + activeRoadId),
+    queryKey: [getDataContext(), outlinePath],
+    queryFn: () =>
+      request<Answer<"/api/v1/roadmaps/{identity}/outline">>(outlinePath),
     enabled: !!activeRoadId,
   });
   const action = useWrites();
@@ -573,13 +571,11 @@ export function ItemDetail({ id }: { id: string }) {
                     {item.linkedStep?.title ?? "Current linked step"}
                   </option>
                 )}
-              {selectedRoadmap.data?.steps
-                ?.filter((s) => !s.retired)
-                .map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.title}
-                  </option>
-                ))}
+              {selectedRoadmap.data?.steps.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.title}
+                </option>
+              ))}
             </select>
           </label>
           <form
