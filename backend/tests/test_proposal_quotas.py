@@ -184,7 +184,7 @@ def test_a_page_is_read_from_one_snapshot(client, wire, monkeypatch):
     item = ok(call(client, "POST", "/work-items", {"title": "Target"}))
     proposal = draft(wire, a["token"], item)
     ok(call(wire, "POST", f"/proposals/{proposal['id']}/submit", {"revision": proposal["revision"]}, a["token"]))
-    original, landed = proposals_module._records, []
+    original, landed = proposals_module._listed, []
 
     def reopened_between(conn, ids):
         # The proposal turns back into a draft between the two reads, if any write can land there.
@@ -199,6 +199,6 @@ def test_a_page_is_read_from_one_snapshot(client, wire, monkeypatch):
             writer.close()
         return original(conn, ids)
 
-    monkeypatch.setattr(proposals_module, "_records", reopened_between)
+    monkeypatch.setattr(proposals_module, "_listed", reopened_between)
     listed = ok(call(wire, "GET", "/proposals", token=b["token"]))
     assert landed == [] and [(p["id"], p["status"]) for p in listed["items"]] == [(proposal["id"], "submitted")]

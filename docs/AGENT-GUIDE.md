@@ -124,7 +124,7 @@ worklog agent register --chat CHAT_ID --continue EARLIER_NAME
 worklog agent --as NAME runs start --client-run-key CHAT_ID --display-name 'Parser fix' --provider claude --request-id run-start-CHAT_ID
 ```
 
-**Step 4. Read before you act:** the day's context, matching work, known issues, the person's resources and the discussions the person pinned. `context` lists every resource by title and summary; read each one that bears on your task, and any the person names, with `resources show`: they hold what the person wants every agent to know. `context` lists the open proposals too, without their changes: `proposal show ID` reads one whole, and `proposals --status approved` the closed ones. A thread the person pinned is one they want every agent to see first: read the pinned ones (`discussions list --pinned`) that bear on your work.
+**Step 4. Read before you act:** the day's context, matching work, known issues, the person's resources and the discussions the person pinned. `context` lists every resource by title and summary; read each one that bears on your task, and any the person names, with `resources show`: they hold what the person wants every agent to know. `context` lists the open proposals too, without their changes: `proposal show ID` reads one whole, and `proposals --status approved` lists the closed ones, each by its title, status, dates, author and `operationCount`, without its changes, rationale or evidence. A thread the person pinned is one they want every agent to see first: read the pinned ones (`discussions list --pinned`) that bear on your work.
 
 ```powershell
 worklog agent --as NAME context
@@ -269,7 +269,7 @@ worklog agent --as NAME retire
 | `step show ID` | - | the step with its full text, `roadmapId`, notes and attachments; `ancestors`, the steps above it from the top down, and `siblings`, the others under its parent in outline order, each `{id,title,status}` (siblings with `position`); and `chats`, the roadmap's tracked chats on it, archived ones included, in the order they were put there |
 | `resources list` | `[--q WORDS] [--archived] [--limit 50] [--offset 0]` | `{items:[{id,title,summary,archived,revision,createdAt,updatedAt}],total,limit,offset}` by title, without the pages' text; `--q` searches titles, summaries and text; `--archived` lists archived pages only |
 | `resources show ID` | - | one page with its whole Markdown `body`, and its latest 100 changes without their records |
-| `proposals` | `[--status draft\|submitted\|approved\|rejected\|withdrawn] [--limit 50] [--offset 0]` | `{items,total}`: yours, and other agents' once submitted, oldest first, up to 200 a page; `total` counts them all |
+| `proposals` | `[--status draft\|submitted\|approved\|rejected\|withdrawn] [--limit 50] [--offset 0]` | `{items,total}`: yours, and other agents' once submitted, oldest first, up to 200 a page; `total` counts them all. Each is `{id,title,status,revision,autoApproved,supersedesId,actorId,actorLabel,actorDirectory,createdAt,submittedAt,updatedAt,operationCount}`, without its changes, rationale or evidence: `proposal show ID` reads those |
 | `proposal show ID` | - | one proposal with its operations and evidence |
 
 `search` covers work items, notes, file names, links, tracked chats, GitHub references, roadmaps and steps, questions and decisions, people, discussions, tickets and ticket comments, and resources, but not proposals.

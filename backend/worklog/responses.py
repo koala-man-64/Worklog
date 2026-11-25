@@ -994,7 +994,7 @@ class ProposalOperation(Answer):
 
 
 class ProposalListed(Answer):
-    """A proposal as GET /proposals lists it: whole, without its evidence files."""
+    """A proposal as its writes answer it: whole, without its evidence files."""
 
     id: str
     title: str
@@ -1019,8 +1019,33 @@ class ProposalListed(Answer):
     attachments: list[Attachment]
 
 
+class ProposalSummary(Answer):
+    """A proposal as GET /proposals lists it: who made it, its state and dates, and the number of its
+    changes. Its rationale, changes and evidence come from its own read."""
+
+    id: str
+    title: str
+    # proposals.status has no CHECK.
+    status: str
+    revision: int
+    # Applied when its agent submitted it, because approval was off.
+    autoApproved: bool
+    supersedesId: str | None
+    actorId: str
+    actorLabel: str
+    # The directory its agent identity registered from; null for the person, a credential issued
+    # in Settings, or an identity that registered without one.
+    actorDirectory: str | None
+    createdAt: str
+    # Null until it is first submitted, and for a draft.
+    submittedAt: str | None
+    updatedAt: str
+    # How many changes it holds; 0 for stored operations that are not a list.
+    operationCount: int
+
+
 class Proposals(Answer):
-    items: list[ProposalListed]
+    items: list[ProposalSummary]
     total: int
 
 

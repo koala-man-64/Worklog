@@ -220,8 +220,10 @@ export type LiveWorkNode = Schema["LiveWorkNode"];
 
 // Proposals and Settings.
 export type Operation = Schema["ProposalOperation"];
-/** A proposal as the review list shows it. */
+/** A proposal as its writes answer it, whole. */
 export type ProposalListed = Schema["ProposalListed"];
+/** A proposal as the review list shows it: its state, dates, author and number of changes. */
+export type ProposalSummary = Schema["ProposalSummary"];
 /** A proposal with its notes, as its own page reads it. */
 export type Proposal = Schema["Proposal"];
 /** A proposal as a history lists it; a work item's or roadmap's also names the changes made to it. */

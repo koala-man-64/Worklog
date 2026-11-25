@@ -6471,7 +6471,7 @@ export interface components {
         };
         /**
          * ProposalListed
-         * @description A proposal as GET /proposals lists it: whole, without its evidence files.
+         * @description A proposal as its writes answer it: whole, without its evidence files.
          */
         ProposalListed: {
             /** Id */
@@ -6517,6 +6517,39 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /**
+         * ProposalSummary
+         * @description A proposal as GET /proposals lists it: who made it, its state and dates, and the number of its
+         *     changes. Its rationale, changes and evidence come from its own read.
+         */
+        ProposalSummary: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Status */
+            status: string;
+            /** Revision */
+            revision: number;
+            /** Autoapproved */
+            autoApproved: boolean;
+            /** Supersedesid */
+            supersedesId: string | null;
+            /** Actorid */
+            actorId: string;
+            /** Actorlabel */
+            actorLabel: string;
+            /** Actordirectory */
+            actorDirectory: string | null;
+            /** Createdat */
+            createdAt: string;
+            /** Submittedat */
+            submittedAt: string | null;
+            /** Updatedat */
+            updatedAt: string;
+            /** Operationcount */
+            operationCount: number;
+        };
         /** ProposalUpdate */
         ProposalUpdate: {
             /** Revision */
@@ -6531,7 +6564,7 @@ export interface components {
         /** Proposals */
         Proposals: {
             /** Items */
-            items: components["schemas"]["ProposalListed"][];
+            items: components["schemas"]["ProposalSummary"][];
             /** Total */
             total: number;
         };
