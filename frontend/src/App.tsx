@@ -205,7 +205,7 @@ export default function App() {
             <span className="muted">/ {page}</span>
           </span>
           <label className="search">
-            <Icon name="search" size={18} />
+            <Icon name="search" size={15} />
             <input
               aria-label="Search all work"
               placeholder="Search your work…"

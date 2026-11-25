@@ -899,21 +899,37 @@ export function RoadmapDetail({
   return (
     <div className="bounded-screen">
       <header className="roadmap-head">
-        <nav className="crumbs" aria-label="Roadmap location">
-          <a className="back" href="#roadmaps">
-            <Icon name="back" />
-            All roadmaps
-          </a>
-          {road.ancestors?.map((a) => (
-            <Fragment key={a.id}>
-              <span aria-hidden="true">/</span>
-              <a href={"#roadmaps/" + a.id}>
-                {a.title}
-                {a.archived && " (archived)"}
-              </a>
-            </Fragment>
-          ))}
-        </nav>
+        <div className="roadmap-eyebrow">
+          <nav className="crumbs" aria-label="Roadmap location">
+            <a className="back" href="#roadmaps">
+              <Icon name="back" />
+              All roadmaps
+            </a>
+            {road.ancestors?.map((a) => (
+              <Fragment key={a.id}>
+                <span aria-hidden="true">/</span>
+                <a href={"#roadmaps/" + a.id}>
+                  {a.title}
+                  {a.archived && " (archived)"}
+                </a>
+              </Fragment>
+            ))}
+          </nav>
+          <div className="roadmap-progress">
+            <StatusBar steps={leaves} />
+            <span>
+              {leaves.length} step{leaves.length === 1 ? "" : "s"}
+            </span>
+            <ul className="status-counts" aria-label="Steps by status">
+              {COUNTED_STATUSES.map((status) => (
+                <li key={status}>
+                  <span className={"status-dot " + status} aria-hidden="true" />
+                  {leaves.filter((s) => s.status === status).length} {status}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
         <div className="roadmap-title title-row">
           <h1>{road.title}</h1>
           <div className="toolbar">
@@ -940,20 +956,6 @@ export function RoadmapDetail({
               {road.archived ? "Recover" : "Archive"}
             </button>
           </div>
-        </div>
-        <div className="roadmap-progress">
-          <StatusBar steps={leaves} />
-          <span>
-            {leaves.length} step{leaves.length === 1 ? "" : "s"}
-          </span>
-          <ul className="status-counts" aria-label="Steps by status">
-            {COUNTED_STATUSES.map((status) => (
-              <li key={status}>
-                <span className={"status-dot " + status} aria-hidden="true" />
-                {leaves.filter((s) => s.status === status).length} {status}
-              </li>
-            ))}
-          </ul>
         </div>
         {/* Where the roadmap sits among the others, until a step opens into its own roadmap (2.1). */}
         <div className="roadmap-family">
@@ -987,20 +989,20 @@ export function RoadmapDetail({
             </select>
           </label>
           {children.length > 0 && (
-            <span>
-              Sub-roadmaps:{" "}
-              {children.map((c, index) => (
-                <Fragment key={c.id}>
-                  {index > 0 && ", "}
-                  <a href={"#roadmaps/" + c.id}>
-                    {c.title}
-                    {c.archived && " (archived)"}
+            <span className="roadmap-children">
+              <span className="muted">Sub-roadmaps:</span>
+              {children.map((c) => {
+                const label = c.title + (c.archived ? " (archived)" : "");
+                return (
+                  <a key={c.id} href={"#roadmaps/" + c.id} title={label}>
+                    {label}
                   </a>
-                </Fragment>
-              ))}
+                );
+              })}
             </span>
           )}
           <form
+            className="roadmap-add-sub"
             onSubmit={async (e) => {
               e.preventDefault();
               if (!subTitle.trim() || road.archived) return;

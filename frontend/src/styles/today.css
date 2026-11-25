@@ -55,17 +55,34 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  gap: 20px;
-  align-items: center;
+  gap: 8px 16px;
+  align-items: safe center;
 }
 .day-header > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
   min-width: 0;
 }
+.day-header h1 {
+  margin-bottom: 0;
+}
 .date-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  margin: 0;
   font-size: 12px;
   color: var(--muted);
 }
-.date-label input {
+.day-header label.date-label > input:not([type="checkbox"]):not([type="file"]) {
+  display: inline-block;
+  width: auto;
+  height: 30px;
+  margin: 0;
+  padding: 3px 9px;
   font-size: 12px;
 }
 /* The day's counts, beside the heading of its work. */
@@ -173,9 +190,6 @@
 @media (max-width: 760px) {
   .day-header {
     align-items: flex-start;
-  }
-  .date-label {
-    max-width: 140px;
   }
   .day-summary {
     column-gap: 18px;

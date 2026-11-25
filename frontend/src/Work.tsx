@@ -434,7 +434,7 @@ export function ItemDetail({ id }: { id: string }) {
         <Icon name="back" />
         All work
       </a>
-      <header>
+      <header className="title-row">
         <h1>{item.title}</h1>
         <div className="toolbar">
           <RankButton
