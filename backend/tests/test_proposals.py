@@ -47,12 +47,12 @@ def store_approval_setting(proposals, value):
         conn.execute("INSERT INTO settings VALUES('requireProposalApproval',?)", (value,))
 
 
-
 def listed(record):
     """A whole proposal as the list gives it (audit step 3.4): its count in place of its changes,
     rationale and evidence."""
     return {**{key: value for key, value in record.items() if key not in ("rationale", "operations", "attachments")},
             "operationCount": len(record["operations"])}
+
 
 def test_human_only_approval_attribution_and_no_implicit_writes(proposals):
     proposal = draft(proposals)
