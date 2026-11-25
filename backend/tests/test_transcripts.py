@@ -455,7 +455,7 @@ def test_an_unchanged_transcript_answers_304_to_its_tag(client, roots):
     assert client.get(path + "?limit=5", headers={"If-None-Match": tag}).status_code == 200
     assert client.get(path + "?thread=a1b2c3", headers={"If-None-Match": tag}).status_code == 200
     # A transcript that grew answers in full, with a new tag.
-    session = next(roots.claude[0].glob(f"*/{CLAUDE}.jsonl"))
+    session = next(roots.claude_projects[0].glob(f"*/{CLAUDE}.jsonl"))
     lines(session, [human(14, "One more thing")])
     grown = client.get(path, headers={"If-None-Match": tag})
     assert grown.status_code == 200 and grown.headers["etag"] != tag
