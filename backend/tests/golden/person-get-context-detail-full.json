@@ -1,0 +1,365 @@
+{
+  "body": {
+    "day": {
+      "date": "<today>",
+      "entries": [
+        {
+          "counts": {
+            "files": 2,
+            "links": 2,
+            "scratchpad": true
+          },
+          "date": "<today>",
+          "id": "<id1>",
+          "item": {
+            "adoUrl": null,
+            "archived": false,
+            "backlogOrder": 1,
+            "createdAt": "<time.ffffff+hh:mm>",
+            "description": "Parse the plan",
+            "id": "<id2>",
+            "rank": 1,
+            "repositoryIds": [],
+            "revision": 3,
+            "roadmapId": "<id3>",
+            "status": "doing",
+            "stepId": "<id4>",
+            "title": "Parser",
+            "updatedAt": "<time.ffffff+hh:mm>"
+          },
+          "itemId": "<id2>",
+          "outcome": "Half done",
+          "planned": true,
+          "position": 1,
+          "revision": 1,
+          "statusOnDay": "doing",
+          "worked": true
+        }
+      ],
+      "nextItemId": "<id2>",
+      "revision": 2,
+      "summary": {
+        "blocked": [],
+        "completed": [],
+        "worked": [
+          {
+            "id": "<id2>",
+            "outcome": "Half done",
+            "title": "Parser"
+          }
+        ]
+      }
+    },
+    "participations": {
+      "items": [
+        {
+          "contexts": [
+            {
+              "archived": false,
+              "branch": "",
+              "checkoutPath": "",
+              "repositoryId": "<id11>",
+              "repositoryName": "worklog",
+              "worktreePath": ""
+            }
+          ],
+          "createdAt": "<time.ffffff+hh:mm>",
+          "description": "",
+          "id": "<id14>",
+          "itemId": "<id2>",
+          "lastSeenAt": "<time.ffffff+hh:mm>",
+          "releaseReason": null,
+          "releasedAt": null,
+          "revision": 3,
+          "run": {
+            "agentId": "<id10>",
+            "clientRunKey": "golden",
+            "createdAt": "<time.ffffff+hh:mm>",
+            "credentialId": "<id10>",
+            "displayName": "Builder",
+            "endReason": null,
+            "endedAt": null,
+            "externalChatId": "chat-1",
+            "id": "<id13>",
+            "provider": "",
+            "revision": 1,
+            "updatedAt": "<time.ffffff+hh:mm>"
+          },
+          "runId": "<id13>",
+          "stale": false,
+          "updatedAt": "<time.ffffff+hh:mm>"
+        }
+      ],
+      "limit": 100,
+      "offset": 0,
+      "total": 1
+    },
+    "people": {
+      "items": [
+        {
+          "archived": false,
+          "chat": "",
+          "createdAt": "<time.ffffff+hh:mm>",
+          "description": "",
+          "email": "",
+          "id": "<id6>",
+          "location": "",
+          "name": "Ada",
+          "notes": "",
+          "phone": "",
+          "repositoryCount": 1,
+          "revision": 1,
+          "roadmapCount": 1,
+          "team": "",
+          "title": "Engineer",
+          "updatedAt": "<time.ffffff+hh:mm>",
+          "workItemCount": 1
+        }
+      ],
+      "total": 1
+    },
+    "proposals": {
+      "items": [
+        {
+          "actorLabel": "Builder",
+          "agentId": "<id10>",
+          "createdAt": "<time.ffffff+hh:mm>",
+          "id": "<id9>",
+          "operationCount": 0,
+          "revision": 1,
+          "status": "draft",
+          "submittedAt": null,
+          "title": "Rename",
+          "updatedAt": "<time.ffffff+hh:mm>"
+        }
+      ],
+      "total": 1
+    },
+    "repositories": {
+      "items": [
+        {
+          "archived": false,
+          "createdAt": "<time.ffffff+hh:mm>",
+          "description": "",
+          "discussionId": "<id12>",
+          "duplicateOf": null,
+          "id": "<id11>",
+          "mergedInto": null,
+          "name": "worklog",
+          "registeredBy": {
+            "agentId": null,
+            "kind": "human",
+            "label": "You"
+          },
+          "remoteIdentity": "github.com/example/worklog",
+          "reviewed": true,
+          "revision": 1,
+          "updatedAt": "<time.ffffff+hh:mm>",
+          "url": "https://github.com/example/worklog"
+        }
+      ],
+      "limit": 100,
+      "offset": 0,
+      "total": 1
+    },
+    "resources": {
+      "items": [
+        {
+          "archived": false,
+          "createdAt": "<time.ffffff+hh:mm>",
+          "id": "<id17>",
+          "revision": 1,
+          "summary": "How we write",
+          "title": "Style",
+          "updatedAt": "<time.ffffff+hh:mm>"
+        }
+      ],
+      "limit": 100,
+      "offset": 0,
+      "total": 1
+    },
+    "roadmaps": {
+      "items": [
+        {
+          "archived": false,
+          "createdAt": "<time.ffffff+hh:mm>",
+          "id": "<id3>",
+          "overview": "",
+          "parentId": null,
+          "revision": 2,
+          "title": "Plan 2",
+          "updatedAt": "<time.ffffff+hh:mm>"
+        },
+        {
+          "archived": false,
+          "createdAt": "<time.ffffff+hh:mm>",
+          "id": "<id8>",
+          "overview": "",
+          "parentId": "<id3>",
+          "revision": 1,
+          "title": "Sub-plan",
+          "updatedAt": "<time.ffffff+hh:mm>"
+        }
+      ],
+      "total": 2
+    },
+    "runs": {
+      "items": [
+        {
+          "agentId": "<id10>",
+          "clientRunKey": "golden",
+          "createdAt": "<time.ffffff+hh:mm>",
+          "credentialId": "<id10>",
+          "displayName": "Builder",
+          "endReason": null,
+          "endedAt": null,
+          "externalChatId": "chat-1",
+          "id": "<id13>",
+          "provider": "",
+          "revision": 1,
+          "updatedAt": "<time.ffffff+hh:mm>"
+        }
+      ],
+      "limit": 100,
+      "offset": 0,
+      "total": 1
+    },
+    "tickets": {
+      "items": [
+        {
+          "archived": false,
+          "assignee": {
+            "active": true,
+            "avatar": "red-dots-antenna",
+            "id": "<id10>",
+            "kind": "agent",
+            "label": "Builder"
+          },
+          "assigneeId": "<id10>",
+          "author": {
+            "avatar": null,
+            "id": "local-user",
+            "kind": "human",
+            "label": "You"
+          },
+          "closedAt": null,
+          "commentCount": 1,
+          "createdAt": "<time.ffffff+hh:mm>",
+          "description": "",
+          "id": "<id16>",
+          "item": {
+            "archived": false,
+            "id": "<id2>",
+            "status": "doing",
+            "title": "Parser"
+          },
+          "itemId": "<id2>",
+          "key": "T-1",
+          "kind": "bug",
+          "labels": [
+            "parser"
+          ],
+          "lastActivityAt": "<time.ffffff+hh:mm>",
+          "number": 1,
+          "priority": "normal",
+          "repositoryIds": [
+            "<id11>"
+          ],
+          "resolution": "",
+          "revision": 2,
+          "status": "open",
+          "title": "Crash on save",
+          "truncated": false,
+          "updatedAt": "<time.ffffff+hh:mm>"
+        }
+      ],
+      "limit": 100,
+      "offset": 0,
+      "total": 1
+    },
+    "updates": {
+      "items": [
+        {
+          "agentId": "<id10>",
+          "authorLabel": "Builder",
+          "contexts": [
+            {
+              "archived": false,
+              "branch": "",
+              "checkoutPath": "",
+              "repositoryId": "<id11>",
+              "repositoryName": "worklog",
+              "worktreePath": ""
+            }
+          ],
+          "createdAt": "<time.ffffff+hh:mm>",
+          "credentialId": "<id10>",
+          "id": "<id15>",
+          "itemId": "<id2>",
+          "kind": "update",
+          "participationId": "<id14>",
+          "runId": "<id13>",
+          "text": "Parser half done"
+        }
+      ],
+      "limit": 100,
+      "offset": 0,
+      "total": 1
+    },
+    "workItems": {
+      "collectionRevision": 6,
+      "items": [
+        {
+          "adoUrl": null,
+          "archived": false,
+          "backlogOrder": 1,
+          "createdAt": "<time.ffffff+hh:mm>",
+          "description": "Parse the plan",
+          "id": "<id2>",
+          "isBacklog": false,
+          "people": [
+            {
+              "archived": false,
+              "createdAt": "<time.ffffff+hh:mm>",
+              "id": "<id5>",
+              "name": "Ada",
+              "personId": "<id6>",
+              "personTeam": "",
+              "personTitle": "Engineer",
+              "relationship": "Reviewer"
+            }
+          ],
+          "rank": 1,
+          "repositoryIds": [],
+          "revision": 3,
+          "roadmapId": "<id3>",
+          "status": "doing",
+          "stepId": "<id4>",
+          "title": "Parser",
+          "updatedAt": "<time.ffffff+hh:mm>"
+        },
+        {
+          "adoUrl": null,
+          "archived": false,
+          "backlogOrder": 2,
+          "createdAt": "<time.ffffff+hh:mm>",
+          "description": "",
+          "id": "<id7>",
+          "isBacklog": true,
+          "people": [],
+          "rank": 2,
+          "repositoryIds": [],
+          "revision": 1,
+          "roadmapId": null,
+          "status": "open",
+          "stepId": null,
+          "title": "Release notes",
+          "updatedAt": "<time.ffffff+hh:mm>"
+        }
+      ],
+      "rankedCount": 2,
+      "total": 2
+    }
+  },
+  "status": 200
+}
