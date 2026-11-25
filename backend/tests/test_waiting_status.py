@@ -174,7 +174,7 @@ def test_work_waits_on_someone_else_and_stays_ranked_unfinished_work(client):
     assert (detail["status"], detail["rank"], detail["rankedCount"]) == ("waiting", 1, 2)
     assert waiting["id"] in ids(ok(client.get("/api/v1/work-items?view=backlog")))
     assert ok(write(client, "POST", f"/work-items/{waiting['id']}/rank", {"revision": changed["revision"], "rank": 2}))["rank"] == 2
-    history = ok(client.get(f"/api/v1/history?entityId={waiting['id']}"))["items"]
+    history = ok(client.get(f"/api/v1/history?entityId={waiting['id']}&payloads=true"))["items"]
     update = next(event for event in history if event["kind"] == "item.update")
     assert (update["before"]["status"], update["after"]["status"]) == ("open", "waiting")
     # Work goes back from waiting like any other state.
