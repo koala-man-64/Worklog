@@ -236,6 +236,21 @@ def for_owner(c: sqlite3.Connection, owner_type: str, owner_id: str) -> dict:
     return result
 
 
+def for_steps(c: sqlite3.Connection, roadmap_id: str) -> dict[str, dict]:
+    """Each step of a roadmap's notes and files, as for_owner gives one step's, in two queries for the
+    whole roadmap. A step with neither is absent."""
+    found: dict[str, dict] = {}
+    steps = "SELECT id FROM steps WHERE roadmap_id=?"
+    for r in c.execute(f"SELECT * FROM notes WHERE owner_type='step' AND owner_id IN ({steps}) ORDER BY created_at",
+                       (roadmap_id,)):
+        found.setdefault(r["owner_id"], {"notes": [], "attachments": []})["notes"].append(support_record(r))
+    for r in c.execute("SELECT id,owner_type,owner_id,name,mime,size,sha256,archived,revision,created_at,"
+                       "(size>0 AND length(content)=0) AS removed FROM attachments "
+                       f"WHERE owner_type='step' AND owner_id IN ({steps}) ORDER BY created_at", (roadmap_id,)):
+        found.setdefault(r["owner_id"], {"notes": [], "attachments": []})["attachments"].append(support_record(r))
+    return found
+
+
 def apply(c: sqlite3.Connection, actor: dict, action: str, p: dict, *, moved_to: dict | None = None) -> dict:
     """Create or change a supporting record. `moved_to` is for continue_chats alone: the tracked chat
     that takes over the steps a chat.update takes off this one, which each step's history names."""

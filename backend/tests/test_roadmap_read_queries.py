@@ -95,7 +95,8 @@ def test_the_step_read_runs_a_bounded_number_of_queries_and_reads_one_steps_text
         "c" * 2_000, roadmap["id"], [steps[0]["id"]])
     assert len(statements) < 30, len(statements)
     assert not [sql for sql in statements if "roadmap_versions" in sql]
-    # No query reads every step's text: the steps query selects the text of this step alone.
+    # No query reads every step's text: the steps query selects the text of this step alone. (The
+    # trace shows each statement with its values bound; one step read by its ID is fine.)
     whole = [sql for sql in statements if "FROM steps" in sql and ("SELECT *" in sql or "SELECT s.*" in sql)
-             and "WHERE id=?" not in sql]
+             and "WHERE id='" not in sql]
     assert not whole, whole
