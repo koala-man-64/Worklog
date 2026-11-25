@@ -488,3 +488,32 @@ def test_the_chat_list_carries_each_chats_open_runs(client):
     items = {c["id"]: c for c in client.get("/api/v1/chats").json()["items"]}
     assert [r["id"] for r in items[record["id"]]["openRuns"]] == [running["id"]]
     assert items[other["id"]]["openRuns"] == []
+
+
+def test_a_working_chat_that_goes_quiet_answers_in_full_not_304(client, roots, monkeypatch):
+    # From the review of #231: "working" is an open turn written to in the last 15 minutes, so the
+    # answer changes when that time passes even if no file does; a tag over files alone kept it.
+    work = write(client, "POST", "/work-items", {"title": "API"}).json()
+    record = chat(client, "item", work["id"], CLAUDE, "API builder")
+    session = next(roots.claude_projects[0].glob(f"*/{CLAUDE}.jsonl"))
+    lines(session, [human(14, "Keep going")])
+    path = f"/api/v1/chats/{record['id']}/transcript"
+    first = client.get(path)
+    assert first.json()["state"] == "working"
+    later = time.time() + transcripts.WORKING_SECONDS + 60
+    monkeypatch.setattr(transcripts.time, "time", lambda: later)
+    quiet = client.get(path, headers={"If-None-Match": first.headers["etag"]})
+    assert quiet.status_code == 200 and quiet.json()["state"] == "idle"
+
+
+def test_a_renamed_subagent_answers_in_full_not_304(client, roots):
+    # A subagent's name and task come from its sidecar, which no transcript line changes.
+    work = write(client, "POST", "/work-items", {"title": "API"}).json()
+    record = chat(client, "item", work["id"], CLAUDE, "API builder")
+    path = f"/api/v1/chats/{record['id']}/transcript"
+    tag = client.get(path).headers["etag"]
+    sidecar = next(roots.claude_projects[0].glob(f"*/{CLAUDE}/subagents/agent-a1b2c3.meta.json"))
+    sidecar.write_text(json.dumps({"agentType": "Explore", "description": "Review the API again, in depth"}), encoding="utf-8")
+    renamed = client.get(path, headers={"If-None-Match": tag})
+    assert renamed.status_code == 200
+    assert any(t["task"] == "Review the API again, in depth" for t in renamed.json()["threads"])
