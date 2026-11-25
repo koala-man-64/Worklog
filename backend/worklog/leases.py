@@ -258,6 +258,7 @@ def repository_slot_summaries(c: sqlite3.Connection, repo_ids: Iterable[str]) ->
             "rescuedCount": counts[rid]["rescued"],
             "baseReadonly": bool(pol["base_readonly"]) if pol is not None else False,
             "configured": pol is not None,
+            "revision": int(pol["revision"]) if pol is not None else 0,
             "activeLeases": holders[rid],
         }
     return result
@@ -734,14 +735,15 @@ class LeaseService:
             if not default_branch or len(default_branch) > 200 or any(ch.isspace() for ch in default_branch):
                 raise AppError(422, "validation", "Give a valid default branch name", {"defaultBranch": "invalid"})
 
-        # Validate paths outside the SQLite write transaction.
-        if base_path:
-            validated_base = slot_worktrees.validate_base_checkout(base_path, repo["remote_identity"])
-            base_path = str(validated_base)
-            if slot_root:
+        # Validate a path only when it changes, outside the SQLite write transaction. A stored path was
+        # validated when it was saved, so the slot count, TTL or branch still change while a moved base
+        # checkout waits to be fixed; a lease that provisions from it is refused meanwhile.
+        base_changed = base_path != current["baseCheckoutPath"]
+        if base_path and base_changed:
+            base_path = str(slot_worktrees.validate_base_checkout(base_path, repo["remote_identity"]))
+        if slot_root and (base_changed or slot_root != current["slotRootPath"]):
+            if base_path:
                 slot_worktrees.resolve_slot_path(base_path, slot_root, repo["name"], 1)
-                slot_root = str(slot_worktrees.validate_local_path(slot_root, "slotRootPath"))
-        elif slot_root:
             slot_root = str(slot_worktrees.validate_local_path(slot_root, "slotRootPath"))
 
         promoted_dispatch = False

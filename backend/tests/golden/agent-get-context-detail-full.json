@@ -165,7 +165,8 @@
             "dirtyCount": 0,
             "maxActiveLeases": 2,
             "queuedCount": 0,
-            "rescuedCount": 0
+            "rescuedCount": 0,
+            "revision": 0
           },
           "tier": 1,
           "updatedAt": "<time.ffffff+hh:mm>",
@@ -198,7 +199,8 @@
             "dirtyCount": 0,
             "maxActiveLeases": 2,
             "queuedCount": 0,
-            "rescuedCount": 0
+            "rescuedCount": 0,
+            "revision": 0
           },
           "tier": 2,
           "updatedAt": "<time.ffffff+hh:mm>",

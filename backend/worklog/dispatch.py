@@ -529,6 +529,7 @@ class DispatchService:
                     "rescuedCount": slot["rescuedCount"],
                     "baseReadonly": slot["baseReadonly"],
                     "configured": slot["configured"],
+                    "revision": slot["revision"],
                 },
                 "activeWriters": active_w,
                 "doingCount": doing_count,

@@ -177,6 +177,7 @@ const dispatchFixture: RoadmapDispatch = {
         rescuedCount: 0,
         baseReadonly: false,
         configured: true,
+        revision: 1,
       },
       activeWriters: 1,
       doingCount: 2,

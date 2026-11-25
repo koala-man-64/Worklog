@@ -2088,6 +2088,32 @@ code {
   color: var(--status-done-ink);
   border-color: var(--status-done-border);
 }
+/* A list row's slot count: label, a narrow number box and Set on one line; an error wraps under. */
+.slot-count-control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: 16rem;
+}
+.slot-count-control label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.slot-count-control input {
+  width: 4.5rem;
+  font-variant-numeric: tabular-nums;
+}
+.slot-count-control .error {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 12px;
+  text-align: right;
+}
 .slots-section {
   padding: 16px;
   border: 1px solid var(--line);

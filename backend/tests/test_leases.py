@@ -231,6 +231,44 @@ def test_ttl_expiry_auto_rescue_and_human_rescue_when_disabled(env):
     assert rescued.json()["rescueRef"] == f"refs/worklog-rescue/{l2_active['id']}"
 
 
+def test_slot_count_changes_from_the_list_while_a_moved_base_waits_to_be_fixed(env):
+    """The Repositories list sends only the slot count, with the revision its slot summary carries. A
+    stored base checkout path is not validated again, so a moved one blocks no count change; a new path is."""
+    client, tmp_path = env
+    _, base = make_repo_pair(tmp_path, "moved-repo")
+    repo = _create_repo(client, "moved-repo", url="")
+    policy_url = f"/api/v1/repositories/{repo['id']}/slot-policy"
+
+    def listed_summary() -> dict:
+        items = client.get("/api/v1/repositories", params={"q": "moved-repo"}).json()["items"]
+        return items[0]["slotSummary"]
+
+    assert listed_summary()["revision"] == 0 and listed_summary()["configured"] is False
+    configured = client.patch(policy_url, json={"revision": 0, "baseCheckoutPath": str(base)})
+    assert configured.status_code == 200, configured.text
+    assert configured.json()["revision"] == 1 and listed_summary()["revision"] == 1
+
+    base.rename(tmp_path / "moved-away")
+    count = client.patch(policy_url, json={"revision": 1, "maxActiveLeases": 4})
+    assert count.status_code == 200, count.text
+    assert count.json()["maxActiveLeases"] == 4
+    assert count.json()["baseCheckoutPath"] == configured.json()["baseCheckoutPath"]
+    summary = listed_summary()
+    assert (summary["maxActiveLeases"], summary["revision"]) == (4, 2)
+
+    # The detail form sends every field; the unchanged path is not checked again either.
+    fields = ("maxActiveLeases", "defaultTtlSeconds", "baseCheckoutPath", "slotRootPath", "defaultBranch", "autoRescueDirty")
+    form = client.patch(policy_url, json={**{k: count.json()[k] for k in fields}, "revision": 2, "maxActiveLeases": 3})
+    assert form.status_code == 200, form.text
+    assert form.json()["maxActiveLeases"] == 3
+
+    stale = client.patch(policy_url, json={"revision": 2, "maxActiveLeases": 5})
+    assert stale.status_code == 409, stale.text
+    moved = client.patch(policy_url, json={"revision": 3, "baseCheckoutPath": str(tmp_path / "nowhere")})
+    assert moved.status_code == 422 and moved.json()["error"]["fields"] == {"baseCheckoutPath": "not_found"}
+    assert client.get(policy_url).json()["maxActiveLeases"] == 3
+
+
 def test_lifecycle_hooks_run_end_retire_continue_and_merge(env):
     client, _ = env
     repo = _create_repo(client, "lifecycle-repo")

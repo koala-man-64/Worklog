@@ -11,7 +11,11 @@ import { Pager } from "./ui/Pager";
 import { Coordination, OpenRuns } from "./Coordination";
 import { LinkPicker } from "./LinkPicker";
 import { RepositoryName, RepositoryPicker } from "./RepositoryControls";
-import { RepositorySlotsSection, SlotSummaryPills } from "./RepositorySlots";
+import {
+  RepositorySlotsSection,
+  SlotCountControl,
+  SlotSummaryPills,
+} from "./RepositorySlots";
 import { workClassLabel } from "./RoadmapExecution";
 import type {
   Answer,
@@ -163,6 +167,13 @@ function RepositoryList() {
               <Registrant repo={repo} edit />
               <p>{repo.description}</p>
             </div>
+            {!repo.mergedInto && !repo.archived && repo.slotSummary && (
+              <SlotCountControl
+                key={`${repo.id}:${repo.slotSummary.revision}`}
+                repo={repo}
+                summary={repo.slotSummary}
+              />
+            )}
             {!repo.mergedInto && (
               <button
                 disabled={action.isPending}

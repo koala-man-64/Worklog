@@ -1,5 +1,69 @@
 import { expect, test } from "@playwright/test";
 
+test("sets a repository's checkout slot count from its row in the list", async ({
+  page,
+  baseURL,
+}) => {
+  const origin = new URL(baseURL!).origin;
+  const repoName = "SlotCount-" + crypto.randomUUID().slice(0, 8);
+
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Today", exact: true }),
+  ).toBeVisible();
+  const boot = await page.request.post("/api/v1/session/bootstrap", {
+    headers: { Origin: origin, "X-Worklog-Bootstrap": "1" },
+    data: {},
+  });
+  const { csrfToken } = await boot.json();
+  const created = await page.request.post("/api/v1/repositories", {
+    headers: {
+      "Idempotency-Key": crypto.randomUUID(),
+      Origin: origin,
+      "X-CSRF-Token": csrfToken,
+    },
+    data: { name: repoName, url: `https://github.com/example/${repoName}` },
+  });
+  expect(created.ok(), await created.text()).toBeTruthy();
+
+  await page.goto("/#repositories");
+  await page
+    .getByRole("textbox", { name: "Find repositories", exact: true })
+    .fill(repoName);
+  const row = page.locator("article").filter({
+    has: page.getByRole("link", { name: repoName, exact: true }),
+  });
+  await expect(row).toContainText("Slots 0/2");
+  const slots = row.getByRole("spinbutton", {
+    name: `Checkout slots for ${repoName}`,
+    exact: true,
+  });
+  const set = row.getByRole("button", {
+    name: `Set checkout slots for ${repoName}`,
+    exact: true,
+  });
+  await expect(slots).toHaveValue("2");
+  await expect(set).toBeDisabled();
+  await slots.fill("33");
+  await expect(set).toBeDisabled();
+
+  await slots.fill("4");
+  await set.click();
+  await expect(row).toContainText("Slots 0/4");
+  await expect(set).toBeDisabled();
+
+  // 0 freezes the repository; Enter sets it too.
+  await slots.fill("0");
+  await slots.press("Enter");
+  await expect(row).toContainText("Frozen (0/0)");
+
+  // The repository's own page reads the same policy.
+  await row.getByRole("link", { name: repoName, exact: true }).click();
+  await expect(
+    page.getByRole("spinbutton", { name: "Max active slots", exact: true }),
+  ).toHaveValue("0");
+});
+
 test("repository checkout slots enforce cap, show queue, and promote on force release", async ({
   page,
   baseURL,
