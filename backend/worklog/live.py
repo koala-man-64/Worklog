@@ -20,6 +20,29 @@ from .discussions import DiscussionService
 from .transcripts import TranscriptReader
 
 STALE_AFTER = timedelta(hours=2)
+# A pulse's summary and an agent's latest note, cut to this many characters (audit finding P7): a
+# message or update can run to megabytes, and the page polls.
+BRIEF = 300
+# The text Live never shows, left unread: a step's description and outcome, a work item's
+# description, a roadmap's overview.
+UNSHOWN = {"steps": {"description", "outcome"}, "work_items": {"description"}, "roadmaps": {"overview"}}
+
+
+def _shown(c, table: str, cut: tuple[str, ...] = ()) -> str:
+    """The rowid and every column of table but those UNSHOWN, for a SELECT; each column in cut is
+    read only as far as a pulse or note could show it."""
+    columns = [f"substr({name},1,{BRIEF * 4}) AS {name}" if name in cut else name
+               for name in (row[1] for row in c.execute(f"PRAGMA table_info({table})"))
+               if name not in UNSHOWN.get(table, set())]
+    return ",".join(["rowid AS _rowid", *columns])
+
+
+def brief(value: str | None) -> str:
+    """Text on one line, cut to BRIEF characters with an ellipsis."""
+    line = " ".join((value or "").split())
+    return line if len(line) <= BRIEF else line[:BRIEF - 1].rstrip() + "…"
+
+
 STATE_RANK = {"working": 0, "waiting": 1, "reporting": 2, "stale": 3, "idle": 4, "revoked": 5}
 WORK_VIA = ("participation", "role", "chat", "proposal", "discussion")
 REPO_VIA = ("participation", "chat", "update")
@@ -85,7 +108,7 @@ class LiveService:
             parsed = _parse(value)
             return parsed is not None and parsed >= cutoff_dt
 
-        roadmaps_list = [dict(r) for r in c.execute("SELECT rowid AS _rowid,* FROM roadmaps")]
+        roadmaps_list = [dict(r) for r in c.execute(f"SELECT {_shown(c, 'roadmaps')} FROM roadmaps")]
         roadmaps = {r["id"]: r for r in roadmaps_list}
         if roadmap_id is not None and roadmap_id not in roadmaps:
             raise AppError(404, "not_found", "Roadmap not found")
@@ -122,9 +145,9 @@ class LiveService:
                 key=lambda r: (r["title"].casefold(), int(r["_rowid"])),
             )
         ]
-        steps_list = [dict(r) for r in c.execute("SELECT rowid AS _rowid,* FROM steps")]
+        steps_list = [dict(r) for r in c.execute(f"SELECT {_shown(c, 'steps')} FROM steps")]
         steps = {r["id"]: r for r in steps_list}
-        items_list = [dict(r) for r in c.execute("SELECT rowid AS _rowid,* FROM work_items")]
+        items_list = [dict(r) for r in c.execute(f"SELECT {_shown(c, 'work_items')} FROM work_items")]
         items = {r["id"]: r for r in items_list}
         repos_list = [
             dict(r)
@@ -150,7 +173,10 @@ class LiveService:
         updates = [
             dict(r)
             for r in c.execute(
-                "SELECT u.rowid AS _rowid,u.*,ur.repository_id FROM coordination_updates u "
+                # Text is read only as far as a pulse or note shows it.
+                "SELECT u.rowid AS _rowid,u.id,u.participation_id,u.run_id,u.agent_id,u.credential_id,u.author_label,"
+                f"u.kind,substr(u.text,1,{BRIEF * 4}) AS text,u.item_id,u.contexts_json,u.created_at,ur.repository_id "
+                "FROM coordination_updates u "
                 "LEFT JOIN coordination_update_repositories ur ON ur.update_id=u.id"
             )
         ]
@@ -163,7 +189,9 @@ class LiveService:
             discussion_contexts[row["discussion_id"]].append(
                 (row["context_type"], row["context_id"])
             )
-        messages = [dict(r) for r in c.execute("SELECT rowid AS _rowid,* FROM discussion_messages")]
+        messages = [dict(r) for r in c.execute(
+            f"SELECT {_shown(c, 'discussion_messages', cut=('text',))} "
+            "FROM discussion_messages")]
         chats = support.chat_overview(c, False)
         chat_rowids = {
             r["id"]: int(r["_rowid"])
@@ -754,7 +782,7 @@ class LiveService:
                     ],
                     "chats": list(node_chats),
                     "lastAt": last_at,
-                    "latestNote": latest_note_row["text"] if latest_note_row else "",
+                    "latestNote": brief(latest_note_row["text"]) if latest_note_row else "",
                     "href": _href("agents", aid),
                     "_rowid": int(agent["_rowid"]),
                     "_keep": keep,
@@ -1852,5 +1880,5 @@ class LiveService:
             "repoEdges": [clean(edge) for edge in draft["repoEdges"]],
             "commEdges": [clean(edge) for edge in draft["commEdges"]],
             "lanes": [clean(lane) for lane in draft["lanes"]],
-            "pulses": [clean(pulse) for pulse in draft["pulses"]],
+            "pulses": [clean({**pulse, "summary": brief(pulse["summary"])}) for pulse in draft["pulses"]],
         }
