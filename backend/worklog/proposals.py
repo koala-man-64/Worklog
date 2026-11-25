@@ -55,6 +55,12 @@ SELECT = ("SELECT p.*,(SELECT reg.directory FROM communication_credentials cc JO
           " WHERE cc.credential_id=p.actor_id AND reg.directory IS NOT NULL"
           " ORDER BY reg.credential_id=cc.credential_id DESC,held.created_at DESC,held.rowid DESC LIMIT 1)"
           " AS actor_directory FROM proposals p")
+# A proposal as GET /proposals lists it (audit finding P2): what Review's rows show, and the number of
+# its changes in place of the changes, its rationale and its evidence, which its own read returns.
+LISTED = SELECT.replace("SELECT p.*,", "SELECT p.id,p.title,p.status,p.revision,p.auto_approved,p.supersedes_id,"
+                        "p.actor_id,p.actor_label,p.created_at,p.submitted_at,p.updated_at,"
+                        "CASE WHEN json_valid(p.operations) AND json_type(p.operations)='array'"
+                        " THEN json_array_length(p.operations) ELSE 0 END AS operation_count,", 1)
 # Changes whose record proposal_targets reads from applying them: the work item or roadmap a create
 # made, whose ID Worklog chooses, and the ticket a change was made to, which may be named by its key.
 APPLIED_TO_RECORD = frozenset({"item.create", "roadmap.create", "ticket.create", "ticket.update"})
@@ -351,13 +357,19 @@ def _room_for_a_draft(conn, actor):
         raise AppError(429, "agent_limit", f"An agent keeps at most {DRAFT_LIMIT} drafts; submit or withdraw one first")
 
 
-def _records(conn, ids):
-    """The proposals with these IDs, whole and in the order given."""
+def _listed(conn, ids):
+    """The proposals with these IDs as the list gives them, in the order given."""
     found: dict[str, dict] = {}
     for start in range(0, len(ids), 500):
         chunk = ids[start:start + 500]
-        found.update((row["id"], _record(row)) for row in conn.execute(
-            SELECT + f" WHERE p.id IN ({','.join('?' * len(chunk))})", chunk))
+        found.update((row["id"], {
+            "id": row["id"], "title": row["title"], "status": row["status"], "revision": row["revision"],
+            "autoApproved": bool(row["auto_approved"]), "supersedesId": row["supersedes_id"],
+            "actorId": row["actor_id"], "actorLabel": row["actor_label"], "actorDirectory": row["actor_directory"],
+            "createdAt": row["created_at"], "updatedAt": row["updated_at"],
+            "submittedAt": None if row["status"] == "draft" else row["submitted_at"],
+            "operationCount": row["operation_count"]}) for row in conn.execute(
+            LISTED + f" WHERE p.id IN ({','.join('?' * len(chunk))})", chunk))
     return [found[identifier] for identifier in ids]
 
 
@@ -398,9 +410,10 @@ class ProposalService:
 
     def list(self, actor, status=None, limit=None, offset=0):
         """The proposals the caller may see, oldest first: a page of `limit` from `offset`, or with no
-        limit every one. Visibility is decided on each row's status and owner alone,
-        before the page's proposals are read whole. Both reads see one snapshot, so a proposal that
-        turns back into a draft between them is never shown whole to another agent."""
+        limit every one, each by its title, status, dates, author and number of changes. Visibility is
+        decided on each row's status and owner alone, before the page's proposals are read. Both reads
+        see one snapshot, so a proposal that turns back into a draft between them is never shown to
+        another agent."""
         if status is not None and status not in {"draft", "submitted", "approved", "rejected", "withdrawn"}:
             raise AppError(422, "validation", "Invalid proposal status")
 
@@ -410,7 +423,7 @@ class ProposalService:
                                 (status,) if status else ()).fetchall()
             visible = [row["id"] for row in rows if can_see(conn, row, actor)]
             page = visible[offset:] if limit is None else visible[offset:offset + limit]
-            return {"items": _records(conn, page), "total": len(visible)}
+            return {"items": _listed(conn, page), "total": len(visible)}
         return self.db.snapshot(read)
 
     def detail(self, identifier, actor):

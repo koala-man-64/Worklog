@@ -342,6 +342,7 @@ it("says when approval is off and marks automatic approvals", async () => {
     revision: 3,
     actorLabel: "Parser agent",
     operations: [],
+    operationCount: 0,
     attachments: [],
   });
   requestMock.mockImplementation(async (path: string) => {
@@ -412,6 +413,7 @@ function fromAgent(id: string, title: string, actorDirectory: string | null) {
     actorLabel: "Parser agent",
     actorDirectory,
     operations: [],
+    operationCount: 0,
     attachments: [],
   };
 }
@@ -530,6 +532,7 @@ function dated(
     revision: 2,
     actorLabel: "Engineer",
     operations: [],
+    operationCount: 0,
     attachments: [],
     createdAt: STARTED,
     submittedAt,
@@ -727,4 +730,39 @@ it("warns at the decision bar when a target changed and can return the proposal 
       { revision: 2 },
     ),
   );
+});
+it("counts each listed proposal's changes from the list's operationCount", async () => {
+  // Audit 3.4 (P2): the list answered every proposal whole, 12.6 MB a page, for this count.
+  requestMock.mockImplementation(async (path: string) => {
+    if (path === "/settings") return { requireProposalApproval: true };
+    if (path === "/proposals?status=submitted&limit=50&offset=0")
+      return {
+        items: [
+          {
+            id: ID,
+            title: "Seven changes",
+            status: "submitted",
+            revision: 2,
+            autoApproved: false,
+            supersedesId: null,
+            actorId: "credential-1",
+            actorLabel: "Parser agent",
+            actorDirectory: null,
+            createdAt: "2026-11-20T10:00:00Z",
+            submittedAt: "2026-11-20T11:00:00Z",
+            updatedAt: "2026-11-20T11:00:00Z",
+            operationCount: 7,
+          },
+        ],
+        total: 1,
+      };
+    throw new ApiError(404, "Not found", "not_found");
+  });
+  renderWithClient(<Review />);
+  const row = (
+    await screen.findByRole("link", { name: "Seven changes" })
+  ).closest("article") as HTMLElement;
+  expect(
+    within(row).getByText("Parser agent, 7 proposed changes"),
+  ).toBeInTheDocument();
 });

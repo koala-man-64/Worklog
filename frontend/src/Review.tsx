@@ -15,7 +15,7 @@ import type {
   Detail,
   Operation,
   Proposal,
-  ProposalListed,
+  ProposalSummary,
   Repository,
   RepositoryResolution,
   Settings,
@@ -104,7 +104,7 @@ export function Review({ selectedId }: { selectedId?: string }) {
                 {p.title}
               </a>
               <p>
-                {p.actorLabel}, {p.operations.length} proposed changes
+                {p.actorLabel}, {p.operationCount} proposed changes
               </p>
               <Directory proposal={p} />
               <Dates proposal={p} />
@@ -278,7 +278,11 @@ function timestamp(value: string) {
 }
 // The directory the proposal's agent registered from, which says where it
 // works; nothing when it named none.
-function Directory({ proposal: p }: { proposal: ProposalListed }) {
+function Directory({
+  proposal: p,
+}: {
+  proposal: Pick<ProposalSummary, "actorDirectory">;
+}) {
   if (!p.actorDirectory) return null;
   return (
     <p className="muted proposal-directory">
@@ -292,7 +296,7 @@ function Dates({
   proposal: p,
   className,
 }: {
-  proposal: ProposalListed;
+  proposal: Pick<ProposalSummary, "submittedAt" | "createdAt" | "updatedAt">;
   className?: string;
 }) {
   const since = p.submittedAt ?? p.createdAt;

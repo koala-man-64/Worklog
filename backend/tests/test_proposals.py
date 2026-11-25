@@ -47,6 +47,13 @@ def store_approval_setting(proposals, value):
         conn.execute("INSERT INTO settings VALUES('requireProposalApproval',?)", (value,))
 
 
+def listed(record):
+    """A whole proposal as the list gives it (audit step 3.4): its count in place of its changes,
+    rationale and evidence."""
+    return {**{key: value for key, value in record.items() if key not in ("rationale", "operations", "attachments")},
+            "operationCount": len(record["operations"])}
+
+
 def test_human_only_approval_attribution_and_no_implicit_writes(proposals):
     proposal = draft(proposals)
     with proposals.db.read() as conn:
@@ -80,7 +87,8 @@ def test_records_date_the_submission_and_the_latest_update(proposals):
     assert json.loads(events["proposal.submit"]["after_json"]) == summary(submitted)
     assert rejected["submittedAt"] == submitted_at
     assert rejected["updatedAt"] == events["proposal.reject"]["created_at"]
-    assert proposals.detail(proposal["id"], OTHER) == rejected == proposals.list(OTHER)["items"][0]
+    assert proposals.detail(proposal["id"], OTHER) == rejected
+    assert proposals.list(OTHER)["items"] == [listed(rejected)]
 
 
 def test_stale_second_operation_rolls_back_everything(proposals):
@@ -118,7 +126,7 @@ def test_with_approval_off_submitting_applies_and_records_an_automatic_approval(
     result = submit(proposals, draft(proposals))
     assert result["status"] == "approved" and result["autoApproved"] is True
     assert proposals.detail(result["id"], OTHER) == result
-    assert proposals.list(OTHER, "approved")["items"] == [result]
+    assert proposals.list(OTHER, "approved")["items"] == [listed(result)]
     with proposals.db.read() as conn:
         assert conn.execute("SELECT title FROM test_targets").fetchone()[0] == "After"
         # The change keeps its proposer; the approval names the person's setting, not the person.

@@ -20442,7 +20442,7 @@
           "attachments"
         ],
         "title": "ProposalListed",
-        "description": "A proposal as GET /proposals lists it: whole, without its evidence files."
+        "description": "A proposal as its writes answer it: whole, without its evidence files."
       },
       "ProposalOperation": {
         "properties": {
@@ -20464,6 +20464,102 @@
         ],
         "title": "ProposalOperation",
         "description": "One change a proposal makes, as its create or last update checked it."
+      },
+      "ProposalSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "autoApproved": {
+            "type": "boolean",
+            "title": "Autoapproved"
+          },
+          "supersedesId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supersedesid"
+          },
+          "actorId": {
+            "type": "string",
+            "title": "Actorid"
+          },
+          "actorLabel": {
+            "type": "string",
+            "title": "Actorlabel"
+          },
+          "actorDirectory": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actordirectory"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "submittedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submittedat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "operationCount": {
+            "type": "integer",
+            "title": "Operationcount"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "status",
+          "revision",
+          "autoApproved",
+          "supersedesId",
+          "actorId",
+          "actorLabel",
+          "actorDirectory",
+          "createdAt",
+          "submittedAt",
+          "updatedAt",
+          "operationCount"
+        ],
+        "title": "ProposalSummary",
+        "description": "A proposal as GET /proposals lists it: who made it, its state and dates, and the number of its\nchanges. Its rationale, changes and evidence come from its own read."
       },
       "ProposalUpdate": {
         "properties": {
@@ -20520,7 +20616,7 @@
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/ProposalListed"
+              "$ref": "#/components/schemas/ProposalSummary"
             },
             "type": "array",
             "title": "Items"

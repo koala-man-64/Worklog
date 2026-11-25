@@ -5,12 +5,10 @@
         "actorDirectory": null,
         "actorId": "<id2>",
         "actorLabel": "Builder",
-        "attachments": [],
         "autoApproved": false,
         "createdAt": "<time.ffffff+hh:mm>",
         "id": "<id1>",
-        "operations": [],
-        "rationale": "Clearer",
+        "operationCount": 0,
         "revision": 1,
         "status": "draft",
         "submittedAt": null,
@@ -22,28 +20,10 @@
         "actorDirectory": null,
         "actorId": "<id2>",
         "actorLabel": "Builder",
-        "attachments": [],
         "autoApproved": false,
         "createdAt": "<time.ffffff+hh:mm>",
         "id": "<id3>",
-        "operations": [
-          {
-            "action": "link.create",
-            "payload": {
-              "ownerId": "<id4>",
-              "ownerType": "item",
-              "url": "https://example.com/plan"
-            }
-          },
-          {
-            "action": "question.create",
-            "payload": {
-              "roadmapId": "<id5>",
-              "title": "Who reviews?"
-            }
-          }
-        ],
-        "rationale": "One place",
+        "operationCount": 2,
         "revision": 3,
         "status": "approved",
         "submittedAt": "<time.ffffff+hh:mm>",
