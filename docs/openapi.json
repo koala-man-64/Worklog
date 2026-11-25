@@ -26579,6 +26579,10 @@
           "configured": {
             "type": "boolean",
             "title": "Configured"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
           }
         },
         "additionalProperties": false,
@@ -26590,7 +26594,8 @@
           "dirtyCount",
           "rescuedCount",
           "baseReadonly",
-          "configured"
+          "configured",
+          "revision"
         ],
         "title": "RepositorySlotSummary",
         "description": "Compact checkout slot occupancy and policy flags for lists and badges."

@@ -905,6 +905,118 @@ it("shows immutable update context names and paths instead of the repository's c
   expect(screen.getByText("old-branch")).toBeVisible();
 });
 
+it("sets a repository's checkout slot count from its list row, with the revision its summary carries", async () => {
+  let summary = {
+    maxActiveLeases: 2,
+    activeCount: 1,
+    queuedCount: 0,
+    dirtyCount: 0,
+    rescuedCount: 0,
+    baseReadonly: false,
+    configured: true,
+    revision: 3,
+  };
+  const archivedRepo = {
+    ...repo,
+    id: "repo-2",
+    name: "Old service",
+    archived: true,
+    slotSummary: summary,
+  };
+  const writes: { path: string; method: string; body: unknown }[] = [];
+  let refuse = false;
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const path = String(input);
+    const method = init?.method ?? "GET";
+    if (method !== "GET") {
+      const body = JSON.parse(String(init?.body));
+      writes.push({ path, method, body });
+      if (refuse)
+        return json(
+          {
+            error: {
+              code: "conflict",
+              message: "This record changed. Reload and review your draft.",
+            },
+          },
+          409,
+        );
+      summary = {
+        ...summary,
+        maxActiveLeases: body.maxActiveLeases,
+        revision: summary.revision + 1,
+      };
+      return json({});
+    }
+    if (path.includes("/repositories?"))
+      return json({
+        items: [{ ...repo, slotSummary: summary }, archivedRepo],
+        total: 2,
+      });
+    return json({ items: [], total: 0 });
+  });
+
+  show(<Repositories />);
+  const slots = await screen.findByRole("spinbutton", {
+    name: "Checkout slots for Service",
+  });
+  const set = screen.getByRole("button", {
+    name: "Set checkout slots for Service",
+  });
+  // An archived repository takes no checkouts, so its row has no control.
+  expect(
+    screen.queryByRole("spinbutton", {
+      name: "Checkout slots for Old service",
+    }),
+  ).not.toBeInTheDocument();
+  expect(slots).toHaveValue(2);
+  expect(set).toBeDisabled();
+
+  await userEvent.clear(slots);
+  expect(set).toBeDisabled();
+  await userEvent.type(slots, "33");
+  expect(set).toBeDisabled();
+  await userEvent.clear(slots);
+  await userEvent.type(slots, "4{Enter}");
+  await waitFor(() =>
+    expect(writes).toEqual([
+      {
+        path: "/api/v1/repositories/repo-1/slot-policy",
+        method: "PATCH",
+        body: { revision: 3, maxActiveLeases: 4 },
+      },
+    ]),
+  );
+  // The refreshed row carries the new count and revision; its draft follows them.
+  await waitFor(() =>
+    expect(
+      screen.getByRole("spinbutton", { name: "Checkout slots for Service" }),
+    ).toHaveValue(4),
+  );
+  expect(
+    screen.getByRole("button", { name: "Set checkout slots for Service" }),
+  ).toBeDisabled();
+
+  // Freezing is a count of 0; a row read before another change is refused, not overwritten.
+  refuse = true;
+  const refreshed = screen.getByRole("spinbutton", {
+    name: "Checkout slots for Service",
+  });
+  await userEvent.clear(refreshed);
+  await userEvent.type(refreshed, "0");
+  await userEvent.click(
+    screen.getByRole("button", { name: "Set checkout slots for Service" }),
+  );
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "This record changed. Reload and review your draft.",
+  );
+  expect(writes.at(-1)).toEqual({
+    path: "/api/v1/repositories/repo-1/slot-policy",
+    method: "PATCH",
+    body: { revision: 4, maxActiveLeases: 0 },
+  });
+});
+
 it("shows repository slot summary badges on the list and manages policy, base lock, force release, and rescue on detail", async () => {
   const slotSummary = {
     maxActiveLeases: 2,
@@ -914,6 +1026,7 @@ it("shows repository slot summary badges on the list and manages policy, base lo
     rescuedCount: 0,
     baseReadonly: true,
     configured: true,
+    revision: 1,
   };
   const slotsPayload = {
     repositoryId: repo.id,
@@ -1072,6 +1185,18 @@ it("shows repository slot summary badges on the list and manages policy, base lo
   expect(within(section).getByText("Claude Worker")).toBeVisible();
   expect(within(section).getByText("Codex Worker")).toBeVisible();
   expect(within(section).getByText("Antigravity Waiter")).toBeVisible();
+  // The form's bounds are the server's, so the browser refuses what the server would.
+  const max = within(section).getByRole("spinbutton", {
+    name: "Max active slots",
+  });
+  expect(max).toHaveAttribute("max", "32");
+  expect(max).toBeRequired();
+  const ttl = within(section).getByRole("spinbutton", {
+    name: "Default TTL (seconds)",
+  });
+  expect(ttl).toHaveAttribute("min", "300");
+  expect(ttl).toHaveAttribute("max", "14400");
+  expect(ttl).toBeRequired();
 
   await userEvent.click(
     within(section).getByRole("button", { name: "Lock base read-only" }),

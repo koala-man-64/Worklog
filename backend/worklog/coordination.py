@@ -116,6 +116,7 @@ def with_discussion(c: sqlite3.Connection, record: dict) -> dict:
             "rescuedCount": summary["rescuedCount"],
             "baseReadonly": summary["baseReadonly"],
             "configured": summary["configured"],
+            "revision": summary["revision"],
         },
     }
 

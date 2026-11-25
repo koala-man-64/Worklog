@@ -97,6 +97,9 @@ class RepositorySlotSummary(Answer):
     rescuedCount: int
     baseReadonly: bool
     configured: bool
+    # The slot policy's revision, 0 until configured: a change from a list, such as the slot count,
+    # carries it as the policy's own read would.
+    revision: int
 
 
 class OverlapSlotPolicy(Answer):

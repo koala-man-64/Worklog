@@ -14,6 +14,11 @@ import type {
   SlotPolicy,
 } from "./apiTypes";
 
+// The server's bounds for a slot policy (SlotPolicyUpdate).
+const MAX_SLOTS = 32;
+const MIN_TTL_SECONDS = 300;
+const MAX_TTL_SECONDS = 14_400;
+
 const PROVIDER_LABELS: Record<string, string> = {
   claude: "Claude",
   codex: "Codex",
@@ -89,6 +94,65 @@ export function SlotSummaryPills({
   );
 }
 
+/**
+ * A repository's checkout slot count, set from its row in the list. It sends only the count, with
+ * the revision the row's slot summary carries, so a row read before another change is refused
+ * instead of overwriting it. Key it by that revision so a new count replaces the draft.
+ */
+export function SlotCountControl({
+  repo,
+  summary,
+}: {
+  repo: Pick<Repository, "id" | "name">;
+  summary: RepositorySlotSummary;
+}) {
+  const action = useWrites();
+  const [draft, setDraft] = useState(String(summary.maxActiveLeases));
+  const count = /^\d+$/.test(draft) ? Number(draft) : Number.NaN;
+  const changed =
+    count >= 0 && count <= MAX_SLOTS && count !== summary.maxActiveLeases;
+  return (
+    <form
+      className="slot-count-control"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!changed) return;
+        action.mutate(() =>
+          commands.updateSlotPolicy(repo.id, {
+            revision: summary.revision,
+            maxActiveLeases: count,
+          }),
+        );
+      }}
+    >
+      <label>
+        Checkout slots
+        <input
+          aria-label={`Checkout slots for ${repo.name}`}
+          title="0 freezes checkouts in this repository"
+          type="number"
+          inputMode="numeric"
+          min={0}
+          max={MAX_SLOTS}
+          step={1}
+          required
+          value={draft}
+          disabled={action.isPending}
+          onChange={(e) => setDraft(e.target.value)}
+        />
+      </label>
+      <button
+        type="submit"
+        aria-label={`Set checkout slots for ${repo.name}`}
+        disabled={!changed || action.isPending}
+      >
+        Set
+      </button>
+      <ErrorMessage error={action.error} />
+    </form>
+  );
+}
+
 function SlotPolicyForm({
   repo,
   policy,
@@ -140,7 +204,8 @@ function SlotPolicyForm({
           aria-label="Max active slots"
           type="number"
           min={0}
-          max={20}
+          max={MAX_SLOTS}
+          required
           value={maxActive}
           disabled={repo.archived || action.isPending}
           onChange={(e) => setMaxActive(e.target.value)}
@@ -151,8 +216,9 @@ function SlotPolicyForm({
         <input
           aria-label="Default TTL (seconds)"
           type="number"
-          min={60}
-          max={86400}
+          min={MIN_TTL_SECONDS}
+          max={MAX_TTL_SECONDS}
+          required
           value={ttlSeconds}
           disabled={repo.archived || action.isPending}
           onChange={(e) => setTtlSeconds(e.target.value)}
@@ -364,6 +430,7 @@ export function RepositorySlotsSection({ repo }: { repo: Repository }) {
     rescuedCount: data.recentLeases.filter((l) => Boolean(l.rescueRef)).length,
     baseReadonly: policy.baseReadonly,
     configured: policy.configured,
+    revision: policy.revision,
   };
 
   return (

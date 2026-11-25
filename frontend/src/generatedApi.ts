@@ -8484,6 +8484,8 @@ export interface components {
             baseReadonly: boolean;
             /** Configured */
             configured: boolean;
+            /** Revision */
+            revision: number;
         };
         /** RepositorySlots */
         RepositorySlots: {
