@@ -21,7 +21,9 @@ jobs:
   backend:
     name: Backend
     runs-on: windows-latest
-    timeout-minutes: 20
+    # The whole suite took 15 to 19 minutes on windows-latest by 2026-11-24 and then passed 20; per-test
+    # bounds are roadmap step 9.2.
+    timeout-minutes: 30
     defaults:
       run:
         # Bash stops at the first failing command; multi-line pwsh steps only check the last one.

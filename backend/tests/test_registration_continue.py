@@ -86,7 +86,7 @@ def chats_on(client, owner_type, owner_id):
 
 def step_chat_events(client, step_id):
     return [(e["kind"], e["actorId"], (e["before"] or e["after"])["chatId"])
-            for e in ok(client.get("/api/v1/history", params={"entityId": step_id}))["items"] if e["kind"].startswith("chat.")]
+            for e in ok(client.get("/api/v1/history", params={"entityId": step_id, "payloads": "true"}))["items"] if e["kind"].startswith("chat.")]
 
 
 def test_the_identity_continues_in_a_new_chat_with_everything_it_holds(client, agent_http):
@@ -139,7 +139,7 @@ def test_the_identity_continues_in_a_new_chat_with_everything_it_holds(client, a
     detail = ok(client.get(f"/api/v1/agents/{identity['agentId']}"))
     assert detail["active"] is True
     assert {(c["chatId"], c["revoked"]) for c in detail["credentials"]} == {(OLD_CHAT, True), (NEW_CHAT, False)}
-    history = ok(client.get("/api/v1/history", params={"entityId": continued["id"]}))["items"]
+    history = ok(client.get("/api/v1/history", params={"entityId": continued["id"], "payloads": "true"}))["items"]
     assert [(e["kind"], e["actorId"], e["before"]["chatId"], e["after"]["chatId"]) for e in history] == [
         ("credential.continue", identity["id"], OLD_CHAT, NEW_CHAT)]
     with client.app.state.db.read() as conn:
@@ -189,9 +189,9 @@ def test_the_new_chat_takes_over_where_the_old_one_was_tracked(client, agent_htt
     assert sorted(step_chat_events(client, parse)) == sorted([("chat.assign", identity["id"], OLD_CHAT),
                                                               ("chat.unassign", identity["id"], OLD_CHAT),
                                                               ("chat.assign", identity["id"], NEW_CHAT)])
-    [unassigned] = [e for e in ok(client.get("/api/v1/history", params={"entityId": parse}))["items"] if e["kind"] == "chat.unassign"]
+    [unassigned] = [e for e in ok(client.get("/api/v1/history", params={"entityId": parse, "payloads": "true"}))["items"] if e["kind"] == "chat.unassign"]
     assert (unassigned["before"]["id"], unassigned["after"]["id"]) == (chat["id"], taken["id"])
-    history = ok(client.get("/api/v1/history", params={"entityId": taken["id"]}))["items"]
+    history = ok(client.get("/api/v1/history", params={"entityId": taken["id"], "payloads": "true"}))["items"]
     assert sorted((e["kind"], (e["before"] or {}).get("id") or "") for e in history) == [("chat.continue", chat["id"]), ("chat.create", "")]
 
     # Once the new chat's run starts, the roadmap shows the identity on those steps through it, and

@@ -109,7 +109,7 @@ def test_agent_registers_a_separate_identity_and_acts_as_it(client, agent_http):
     assert settings[sponsor["id"]]["registeredBy"] is None
     detail = client.get(f"/api/v1/agents/{registered['agentId']}").json()
     assert [c["registeredBy"] for c in detail["credentials"]] == [{"id": sponsor["agentId"], "label": "Shared agents"}]
-    history = client.get("/api/v1/history", params={"entityId": registered["id"]}).json()["items"]
+    history = client.get("/api/v1/history", params={"entityId": registered["id"], "payloads": "true"}).json()["items"]
     assert [(e["kind"], e["actorId"]) for e in history] == [("credential.register", sponsor["id"])]
 
 
@@ -217,7 +217,7 @@ def test_registered_agent_retires_itself_but_settings_credentials_cannot(client,
     # A retired agent's avatar returns to the pool, as after a revoke.
     catalog = agent_http.get("/api/v1/discussions/avatars", headers=bearer(sponsor["token"])).json()["items"]
     assert {item["name"]: item["available"] for item in catalog}[agent["avatar"]] is True
-    history = client.get("/api/v1/history", params={"entityId": agent["id"]}).json()["items"]
+    history = client.get("/api/v1/history", params={"entityId": agent["id"], "payloads": "true"}).json()["items"]
     assert [e["kind"] for e in history] == ["credential.retire", "credential.register"]
 
 
@@ -243,7 +243,7 @@ def test_revoking_a_credential_revokes_what_it_registered_but_rotation_keeps_it(
     assert agent_http.get("/api/v1/context", headers=bearer(unrelated_token)).status_code == 200
     assert agent_http.get("/api/v1/context", headers=bearer(other["token"])).status_code == 200
     assert client.get(f"/api/v1/agent-runs/{run['id']}").json()["endReason"] == "credential_revoked"
-    history = client.get("/api/v1/history", params={"entityId": grandchild.json()["id"]}).json()["items"]
+    history = client.get("/api/v1/history", params={"entityId": grandchild.json()["id"], "payloads": "true"}).json()["items"]
     assert history[0]["kind"] == "credential.revoke" and history[0]["after"]["via"] == rotated["id"]
 
 

@@ -85,7 +85,7 @@ def test_ranking_moves_work_up_down_and_past_the_last(client):
     assert ranking(client) == ["D", "B", "A", "C"]
     assert ok(rank(client, d["id"], 99))["rank"] == 4
     assert ranking(client) == ["B", "A", "C", "D"]
-    history = client.get(f"/api/v1/history?entityId={d['id']}").json()["items"]
+    history = client.get(f"/api/v1/history?entityId={d['id']}&payloads=true").json()["items"]
     moves = sorted((e["before"]["rank"], e["after"]["rank"]) for e in history if e["kind"] == "item.rank")
     assert moves == [(1, 4), (4, 1)]
 
@@ -95,7 +95,7 @@ def test_ranking_to_the_same_rank_changes_nothing(client):
     before = work(client)["collectionRevision"]
     assert ok(rank(client, b["id"], 2)) == {"id": b["id"], "rank": 2, "rankedCount": 2}
     assert work(client)["collectionRevision"] == before
-    assert not [e for e in client.get(f"/api/v1/history?entityId={b['id']}").json()["items"] if e["kind"] == "item.rank"]
+    assert not [e for e in client.get(f"/api/v1/history?entityId={b['id']}&payloads=true").json()["items"] if e["kind"] == "item.rank"]
 
 
 def test_ranking_keeps_item_revisions_so_open_drafts_still_save(client):
