@@ -65,7 +65,11 @@ def test_an_agent_sees_who_else_works_in_a_repository_and_what_they_announced(cl
     announced = reply(client, repo["discussionId"], "Changing the parser on claude/parser", builder)
 
     found = check(client, reviewer, repos=[repo["id"]])
-    assert found["repositories"] == [{"id": repo["id"], "name": "Worklog", "discussionId": repo["discussionId"]}]
+    assert found["repositories"] == [{
+        "id": repo["id"], "name": "Worklog", "discussionId": repo["discussionId"],
+        "slotPolicy": {"maxActiveLeases": 2, "activeCount": 0, "queuedCount": 0, "dirtyCount": 0, "baseReadonly": False, "configured": False},
+        "activeLeases": [],
+    }]
     [working] = found["participations"]
     assert (working["participationId"], working["agent"], working["runName"]) == (reported["id"], who(builder, "Builder"), "Implementation")
     assert (working["description"], working["stale"], working["item"]) == ("Changing the parser", False, None)

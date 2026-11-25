@@ -79,7 +79,7 @@ def doctor_database(db_path: Path | str) -> dict[str, Any]:
                                  f"to version {SCHEMA_VERSION}, then check it")
             checks = {"integrity": _integrity(conn), "references": _references(conn), "steps": _steps(conn),
                       "trackedChats": _tracked_chats(conn), "searchIndex": _search_index(conn),
-                      "searchKeys": _search_keys(conn)}
+                      "searchKeys": _search_keys(conn), "leases": _leases(conn)}
     return {"ok": not any(check["problems"] for check in checks.values()), "checks": checks}
 
 
@@ -173,4 +173,40 @@ def _search_keys(conn: sqlite3.Connection) -> dict[str, Any]:
         for (entity,) in conn.execute(f"SELECT k.entity_id FROM search_keys k WHERE k.type=? AND NOT EXISTS "
                                       f"(SELECT 1 FROM {table} o WHERE o.id=k.entity_id) ORDER BY k.entity_id", (kind,)):
             found.add({"entityId": entity, "type": kind, "problem": "its record is gone"})
+    return found.report()
+
+
+def _leases(conn: sqlite3.Connection) -> dict[str, Any]:
+    found = _Found()
+    # Active/offered leases exceeding the repository's configured slot cap (default 2).
+    for repo_id, count, limit in conn.execute(
+            "SELECT l.repository_id,count(*) AS held,COALESCE(p.max_active_leases,2) AS cap "
+            "FROM repository_leases l LEFT JOIN repository_slot_policies p ON p.repository_id=l.repository_id "
+            "WHERE l.state IN('offered','active') GROUP BY l.repository_id HAVING held>cap ORDER BY l.repository_id"):
+        found.add({"repositoryId": repo_id, "held": count, "limit": limit,
+                   "problem": "more active leases than the repository slot cap allows"})
+    # Exclusive lease held alongside another active/offered lease on the same repository.
+    for repo_id, count in conn.execute(
+            "SELECT repository_id,count(*) AS held FROM repository_leases WHERE state IN('offered','active') "
+            "GROUP BY repository_id HAVING held>1 AND SUM(mode='exclusive')>0 ORDER BY repository_id"):
+        found.add({"repositoryId": repo_id, "held": count,
+                   "problem": "exclusive lease held alongside another active lease"})
+    # Dispatch queue entries whose repository does not match their lease's repository.
+    for dispatch_id, repo_id, lease_repo in conn.execute(
+            "SELECT dq.id,dq.repository_id,l.repository_id FROM dispatch_queue dq "
+            "JOIN repository_leases l ON l.id=dq.lease_id WHERE dq.repository_id<>l.repository_id ORDER BY dq.id"):
+        found.add({"dispatchId": dispatch_id, "repositoryId": repo_id, "leaseRepositoryId": lease_repo,
+                   "problem": "dispatch queue repository disagrees with its lease"})
+    # Active/offered leases bound to a revoked credential.
+    for lease_id, cred_id in conn.execute(
+            "SELECT l.id,l.credential_id FROM repository_leases l JOIN credentials cr ON cr.id=l.credential_id "
+            "WHERE l.state IN('offered','active') AND cr.revoked=1 ORDER BY l.id"):
+        found.add({"leaseId": lease_id, "credentialId": cred_id,
+                   "problem": "active lease belongs to a revoked credential"})
+    # Active/offered/queued leases on an archived or merged repository.
+    for lease_id, repo_id in conn.execute(
+            "SELECT l.id,l.repository_id FROM repository_leases l JOIN repositories r ON r.id=l.repository_id "
+            "WHERE l.state IN('queued','offered','active') AND (r.archived=1 OR r.merged_into IS NOT NULL) ORDER BY l.id"):
+        found.add({"leaseId": lease_id, "repositoryId": repo_id,
+                   "problem": "open lease belongs to an archived or merged repository"})
     return found.report()

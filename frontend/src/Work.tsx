@@ -608,6 +608,7 @@ export function ItemDetail({ id }: { id: string }) {
         title={item.title}
         description={item.description}
         archived={!!item.archived}
+        repositoryIds={item.repositoryIds ?? []}
       />
       <AgentChatsSection ownerType="item" ownerId={id} chats={item.chats} />
       <GithubRefsSection

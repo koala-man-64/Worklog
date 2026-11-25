@@ -39,6 +39,7 @@ from .discussions import (
     registered_by,
     registered_chats,
 )
+from .leases import transfer_continued_leases
 from .models import Command
 
 # Stop a registration loop. Credentials issued in Settings neither count nor are refused. A
@@ -267,6 +268,8 @@ def continue_identity(c: sqlite3.Connection, actor: dict, p: dict, move_chats: C
     ended = 0
     for (old,) in c.execute("SELECT cr.id FROM credentials cr JOIN communication_credentials cc ON cc.credential_id=cr.id "
                             "WHERE cc.agent_id=? AND cr.revoked=0 AND cr.id<>?", (agent["id"], identity)).fetchall():
+        # Preserve active/offered/queued checkout slot leases across chat continuation before old runs end.
+        transfer_continued_leases(c, agent["id"], old, identity, chat)
         ended += c.execute("SELECT count(*) FROM agent_runs WHERE credential_id=? AND ended_at IS NULL", (old,)).fetchone()[0]
         close_credential_runs(c, actor, old, "credential_continued")
         # Unlike retiring, this keeps the identities it registered: the identity goes on.
@@ -307,4 +310,8 @@ def install_registration_routes(app: FastAPI, db: Database, move_chats: ChatMove
 
     @app.post("/api/v1/agent-registrations/retire", response_model=out.Retirement)
     def retire_agent(request: Request) -> dict:
-        return write(request, retire)
+        result = write(request, retire)
+        leases_svc = getattr(app.state, "leases", None)
+        if leases_svc is not None:
+            leases_svc.reap_deferred()
+        return result

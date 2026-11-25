@@ -11,12 +11,14 @@ import json
 import sqlite3
 from collections import defaultdict, deque
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
-from . import proposal_targets, support
+from . import antigravity_sessions, proposal_targets, support
 from .active_sessions import ORDER
 from .common import LIVE_AGENT, AppError, now
 from .discussions import DiscussionService
+from .leases import repository_slot_summaries
 from .transcripts import TranscriptReader
 
 STALE_AFTER = timedelta(hours=2)
@@ -66,8 +68,10 @@ def _work_roadmap(item: dict, steps: dict[str, dict]) -> str | None:
 
 
 class LiveService:
-    def __init__(self, transcripts: TranscriptReader):
+    def __init__(self, transcripts: TranscriptReader, *, antigravity_brain_root: Path | None = None, check_antigravity: bool = True):
         self.transcripts = transcripts
+        self.antigravity_brain_root = antigravity_brain_root
+        self.check_antigravity = check_antigravity
 
     def snapshot(
         self,
@@ -586,6 +590,13 @@ class LiveService:
             "ORDER BY cc.agent_id,cr.revoked,cr.created_at DESC,cr.rowid DESC"
         ):
             sponsors.setdefault(row["agent_id"], (row["registered_by"], row["registered_by_label"]))
+        registered_chat_by_agent: dict[str, str] = {}
+        for row in c.execute(
+            "SELECT cc.agent_id,cc.chat_id FROM communication_credentials cc "
+            "JOIN credentials cr ON cr.id=cc.credential_id WHERE cc.chat_id IS NOT NULL "
+            "ORDER BY cc.agent_id,cr.revoked,cr.created_at DESC,cr.rowid DESC"
+        ):
+            registered_chat_by_agent.setdefault(row["agent_id"], row["chat_id"])
 
         # The agents tied to the work gathered above. With a roadmap chosen that is the work in it,
         # and only these agents can show: the ones whose tie may still hold, or, when every agent
@@ -759,6 +770,9 @@ class LiveService:
                     "_rowid": int(agent["_rowid"]),
                     "_keep": keep,
                     "_scope": bool(scoped is None or aid in scope_tied),
+                    "_agChatId": registered_chat_by_agent.get(aid) or next(
+                        (r["external_chat_id"] for r in open_runs if r["external_chat_id"]), None
+                    ),
                 }
             )
         # An agent tied to a tracked chat stays a candidate until enrich has read the transcript,
@@ -894,6 +908,7 @@ class LiveService:
         ]
 
         home_discussions = DiscussionService.home_discussions(c, include_repo_ids)
+        slot_summaries = repository_slot_summaries(c, include_repo_ids)
         open_branches: dict[str, set[str]] = defaultdict(set)
         overlap_by_repo: dict[str, set[str]] = defaultdict(set)
         for participation in participations:
@@ -916,6 +931,7 @@ class LiveService:
                 key=lambda branch: (branch.casefold(), branch),
             )
             overlap_agents = overlap_by_repo[rid]
+            slot_info = slot_summaries.get(rid, {})
             repo_nodes.append(
                 {
                     "id": rid,
@@ -926,6 +942,12 @@ class LiveService:
                     "branches": list(branches),
                     "agentCount": int(len({edge["agentId"] for edge in related})),
                     "overlapCount": int(len(overlap_agents)),
+                    "maxActiveLeases": int(slot_info.get("maxActiveLeases", 2)),
+                    "activeLeases": int(slot_info.get("activeCount", 0)),
+                    "queuedLeases": int(slot_info.get("queuedCount", 0)),
+                    "dirtySlots": int(slot_info.get("dirtyCount", 0)),
+                    "rescuedLeases": int(slot_info.get("rescuedCount", 0)),
+                    "baseReadonly": bool(slot_info.get("baseReadonly", False)),
                     "lastAt": _latest(*[edge["lastAt"] for edge in related]),
                     "href": _href("repositories", rid),
                     "_rowid": int(repository["_rowid"]),
@@ -1611,6 +1633,12 @@ class LiveService:
                 chat["lastAt"] = _latest(chat["lastAt"], summary.get("lastActivityAt"))
                 if chat["working"] or recent(chat["lastAt"]):
                     running.add(chat["chatId"])
+            if self.check_antigravity and agent["sessionState"] is None and agent.get("_agChatId"):
+                ag_state = antigravity_sessions.live_session_state(
+                    str(agent["_agChatId"]), brain_root=self.antigravity_brain_root
+                )
+                if ag_state is not None:
+                    agent["sessionState"] = ag_state
             if not agent["active"]:
                 agent["state"] = "revoked"
             elif agent["sessionState"] == "waiting":

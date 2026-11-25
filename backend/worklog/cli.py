@@ -454,6 +454,7 @@ def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
 
         def watch() -> None:
             from worklog.discussions import ESCALATION_SWEEP, DiscussionService
+            from worklog.leases import SWEEP_INTERVAL_SECONDS
             from worklog.maintenance import prune_receipts
 
             backup_failures = 0
@@ -461,6 +462,7 @@ def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
             next_prune = time.monotonic() + 3600
             next_usage = time.monotonic() + FLUSH_S
             next_escalation = time.monotonic() + ESCALATION_SWEEP
+            next_lease_sweep = time.monotonic() + SWEEP_INTERVAL_SECONDS
             requests = DiscussionService(app.state.db)
             while not finished.wait(0.2):
                 request = _json_file(marker)
@@ -499,6 +501,13 @@ def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
                     except Exception as exc:
                         print(f"Escalating Worklog requests failed: {type(exc).__name__}", file=sys.stderr, flush=True)
                     next_escalation = time.monotonic() + ESCALATION_SWEEP
+                if time.monotonic() >= next_lease_sweep:
+                    try:
+                        app.state.leases.sweep()
+                        app.state.session_launcher.drain_promoted()
+                    except Exception as exc:
+                        print(f"Sweeping Worklog leases failed: {type(exc).__name__}", file=sys.stderr, flush=True)
+                    next_lease_sweep = time.monotonic() + SWEEP_INTERVAL_SECONDS
 
         watcher = threading.Thread(target=watch, daemon=True)
         watcher.start()
@@ -592,6 +601,31 @@ def _coordination_route_allowed(method: str, route: str) -> bool:
         or parts[0] == "participations" and parts[2] in {"release", "rejoin", "check-in", "updates", "outputs"})
 
 
+def _lease_route_allowed(method: str, route: str) -> bool:
+    """Agents read slot policies/status and acquire/poll/renew/release their own checkout leases."""
+    if not route.startswith("/") or route.endswith("/"):
+        return False
+    if route == "/leases":
+        return method == "GET"
+    if route == "/leases/acquire":
+        return method == "POST"
+    parts = route.strip("/").split("/")
+    if len(parts) not in {2, 3}:
+        return False
+    try:
+        if str(uuid.UUID(parts[1])) != parts[1].lower():
+            return False
+    except ValueError:
+        return False
+    if len(parts) == 2 and parts[0] == "leases":
+        return method == "GET"
+    if len(parts) == 3 and parts[0] == "leases" and parts[2] in {"poll", "renew", "release"}:
+        return method == "POST"
+    if len(parts) == 3 and parts[0] == "repositories" and parts[2] in {"slot-policy", "slots"}:
+        return method == "GET"
+    return False
+
+
 def _ticket_route_allowed(method: str, route: str) -> bool:
     """Agents file, change and comment on tickets; archive and recover stay with the person."""
     if route == "/tickets":
@@ -650,7 +684,7 @@ class AgentClient:
             ids = query.get("ownerId", [])
             allowed = query.get("ownerType") == ["proposal"] and len(ids) == 1 and valid_id(ids[0])
         allowed = (allowed or _discussion_route_allowed(method, route) or _coordination_route_allowed(method, route)
-                   or _ticket_route_allowed(method, route))
+                   or _lease_route_allowed(method, route) or _ticket_route_allowed(method, route))
         if not allowed:
             raise ValueError("Agent command is outside proposal/read scope")
         headers = {"Authorization": "Bearer " + self.token, "Accept": "application/json"}
@@ -661,7 +695,7 @@ class AgentClient:
             data = json.dumps(payload).encode("utf-8")
             headers["Content-Type"] = "application/json"
         coordination_write = method in {"POST", "PATCH"} and route.startswith(("/repositories", "/agent-runs", "/participations",
-                                                                               "/tickets", "/chats/track"))
+                                                                               "/tickets", "/chats/track", "/leases"))
         if method == "POST" or coordination_write:
             request_id = request_id or str(uuid.uuid4())
             if not 8 <= len(request_id) <= 200 or not request_id.isascii() or any(ord(c) < 33 or ord(c) > 126 for c in request_id):
@@ -943,6 +977,8 @@ def agent_command(args: argparse.Namespace, port: int, redact: list[str]) -> Any
         return retire_command(client, args)
     if args.agent_action == "discussions":
         return discussion_command(client, args)
+    if args.agent_action == "leases":
+        return lease_command(client, args)
     if args.agent_action in {"repositories", "runs", "participation", "updates", "chats"}:
         return coordination_command(client, args)
     if args.agent_action == "tickets":
@@ -1614,6 +1650,271 @@ def _discussion_parser(actions: Any) -> None:
         write(command)
 
 
+def _lease_ttl(value: str) -> int:
+    found = DEADLINE.fullmatch(value.strip().lower())
+    seconds = int(found[1]) * DEADLINE_UNITS[found[2]] if found else 0
+    if not 300 <= seconds <= 14400:
+        raise argparse.ArgumentTypeError("TTL must be between 300s (5m) and 14400s (4h), such as 30m")
+    return seconds
+
+
+def _lease_wait_timeout(value: str) -> float:
+    result = float(value)
+    if not 0 < result <= INBOX_WAIT_MAX_S:
+        raise argparse.ArgumentTypeError(f"Wait timeout must be greater than 0 and at most {INBOX_WAIT_MAX_S} seconds")
+    return result
+
+
+def _wait_for_lease(client: AgentClient, lease_id: str, timeout: float, *, branch: str | None = None) -> dict:
+    """Poll POST /leases/{id}/poll with adaptive backoff (2s -> 5s -> 10s +/-10%) until granted or terminal."""
+    deadline = time.monotonic() + timeout
+    route = f"/leases/{lease_id}/poll"
+    payload = {"branch": branch} if branch else {}
+    delay_index = 0
+    failures = 0
+    last: dict[str, Any] | None = None
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return {**(last or {"id": lease_id, "state": "queued"}), "timedOut": True}
+        try:
+            last = client.request("POST", route, payload, timeout=max(1.0, min(30.0, remaining)), deadline=deadline)
+            failures = 0
+        except AgentRequestError as exc:
+            if exc.status is not None and exc.status < 500:
+                raise
+            failures += 1
+            if failures >= 3 or time.monotonic() >= deadline:
+                raise
+        else:
+            if last.get("state") not in {"queued", "offered"}:
+                return {**last, "timedOut": False}
+            if time.monotonic() >= deadline:
+                return {**last, "timedOut": True}
+        delay = (2, 5, 10)[min(delay_index, 2)] * random.uniform(0.9, 1.1)
+        delay_index += 1
+        remaining = deadline - time.monotonic()
+        if remaining > 0:
+            time.sleep(min(delay, remaining))
+
+
+def lease_command(client: AgentClient, args: argparse.Namespace) -> Any:
+    action = args.lease_action
+    if action == "list":
+        return client.request(
+            "GET",
+            "/leases" + _coordination_query(args, "repositoryId", "mine", "includeClosed", "limit", "offset"),
+        )
+    if action == "status":
+        repo_id = args.repo
+        if args.checkout:
+            url = _checkout_context(args.checkout)["repositoryUrl"]
+            held = client.request("GET", "/repositories/resolve?" + urlencode({"url": url}))["repository"]
+            if held is None:
+                raise ValueError(f"No repository is registered for {args.checkout}'s origin remote")
+            repo_id = held["id"]
+        if repo_id:
+            return client.request("GET", f"/repositories/{repo_id}/slots")
+        return client.request("GET", "/leases")
+    if action == "wait":
+        return _wait_for_lease(client, args.id, args.timeout)
+    if action == "acquire":
+        payload: dict[str, Any] = {"mode": args.mode, "priority": args.priority}
+        if args.repo:
+            payload["repositoryId"] = args.repo
+        elif args.checkout:
+            payload["repositoryUrl"] = _checkout_context(args.checkout)["repositoryUrl"]
+        if args.branch:
+            payload["branch"] = args.branch
+        if args.ttl is not None:
+            payload["ttlSeconds"] = args.ttl
+        if args.reason:
+            payload["reason"] = args.reason
+        if args.run:
+            payload["runId"] = args.run
+        if args.provider:
+            payload["provider"] = args.provider
+        lease = client.request("POST", "/leases/acquire", payload, request_id=args.request_id)
+        if args.wait and lease.get("state") in {"queued", "offered"}:
+            return _wait_for_lease(client, lease["id"], args.timeout, branch=args.branch)
+        return lease
+    if action == "renew":
+        payload = {"revision": args.revision}
+        if args.ttl is not None:
+            payload["ttlSeconds"] = args.ttl
+        return client.request("POST", f"/leases/{args.id}/renew", payload, request_id=args.request_id)
+    if action == "release":
+        payload = {"revision": args.revision, "rescue": bool(args.rescue)}
+        if args.reason:
+            payload["reason"] = args.reason
+        return client.request("POST", f"/leases/{args.id}/release", payload, request_id=args.request_id)
+    raise ValueError(f"Unknown lease action: {action}")
+
+
+def _lease_parser(actions: Any) -> None:
+    def write(command: Any) -> None:
+        command.add_argument("--request-id", required=True,
+                             help="Stable operation key; reuse with the same payload after an uncertain result")
+
+    leases = actions.add_parser("leases", help="Acquire, renew, release and inspect repository checkout slots").add_subparsers(
+        dest="lease_action", required=True)
+    acquire = leases.add_parser("acquire", help="Acquire a checkout slot lease or enter the FIFO queue")
+    target = acquire.add_mutually_exclusive_group(required=True)
+    target.add_argument("--repo", help="Catalog repository ID")
+    target.add_argument("--checkout", help="Local checkout path naming the repository by its origin remote")
+    acquire.add_argument("--branch", help="Working feature branch to check out in the assigned slot")
+    acquire.add_argument("--mode", choices=("shared", "exclusive"), default="shared")
+    acquire.add_argument("--ttl", type=_lease_ttl, help="Lease TTL duration (e.g. 30m, 1h; 5m to 4h)")
+    acquire.add_argument("--priority", choices=("normal", "pr_fixup", "wave", "incident"), default="normal")
+    acquire.add_argument("--reason", help="Brief description of why you need this checkout slot")
+    acquire.add_argument("--run", help="Optional run ID to bind this lease to")
+    acquire.add_argument("--provider", help="Agent provider (claude, codex, antigravity)")
+    acquire.add_argument("--wait", action="store_true", help="Wait in the FIFO queue until a slot is granted or timeout passes")
+    acquire.add_argument("--timeout", type=_lease_wait_timeout, default=600,
+                         help="With --wait: seconds to wait (default 600, max 3600)")
+    write(acquire)
+
+    waiting = leases.add_parser("wait", help="Poll an existing queued or offered lease until active or terminal")
+    waiting.add_argument("id", help="Lease ID")
+    waiting.add_argument("--timeout", type=_lease_wait_timeout, default=600,
+                         help="Seconds to wait (default 600, max 3600)")
+
+    renew = leases.add_parser("renew", help="Extend an active lease's TTL")
+    renew.add_argument("id", help="Lease ID")
+    renew.add_argument("--revision", type=int, required=True)
+    renew.add_argument("--ttl", type=_lease_ttl, help="New TTL duration (e.g. 30m, 1h; 5m to 4h)")
+    write(renew)
+
+    release = leases.add_parser("release", help="Release your checkout slot lease (or cancel if queued)")
+    release.add_argument("id", help="Lease ID")
+    release.add_argument("--revision", type=int, required=True)
+    release.add_argument("--rescue", action="store_true",
+                         help="Auto-commit uncommitted slot edits to refs/worklog-rescue/<lease-id> before recycling")
+    release.add_argument("--reason", help="Why the lease is being released")
+    write(release)
+
+    status = leases.add_parser("status", help="Show checkout slot policy, active slots and wait queue")
+    status_target = status.add_mutually_exclusive_group()
+    status_target.add_argument("--repo", help="Catalog repository ID")
+    status_target.add_argument("--checkout", help="Local checkout path naming the repository by its origin remote")
+
+    listing = leases.add_parser("list", help="List checkout leases")
+    listing.add_argument("--repo", dest="repositoryId", help="Catalog repository ID")
+    listing.add_argument("--mine", action="store_true", help="Show only leases belonging to your agent identity")
+    listing.add_argument("--include-closed", dest="includeClosed", action="store_true", help="Include released/expired leases")
+    listing.add_argument("--limit", type=int, default=50)
+    listing.add_argument("--offset", type=int, default=0)
+
+
+def repo_command(directory: Path, args: argparse.Namespace) -> dict[str, Any]:
+    """Human local lifecycle commands for repository slot worktrees and read-only base locks."""
+    from worklog import slot_worktrees
+    from worklog.db import Database
+    from worklog.leases import LeaseService, policy_record, repository_slots_view
+    from worklog.transcripts import TranscriptReader, TranscriptRoots
+
+    actor = {"id": "local-user", "label": "You", "kind": "human"}
+    action = args.repo_action
+
+    if action in {"lock-base", "unlock-base"} and args.path and not args.repo:
+        locked = action == "lock-base"
+        detail = (
+            slot_worktrees.lock_base_readonly(args.path, args.default_branch)
+            if locked
+            else slot_worktrees.unlock_base_readonly(args.path)
+        )
+        # If a Worklog DB already tracks a policy for this base checkout path, keep base_readonly in sync.
+        db_path = directory / "worklog.sqlite3"
+        if db_path.is_file():
+            db = Database(db_path)
+            db.initialize()
+            resolved = str(Path(detail["basePath"]).resolve()).casefold()
+            with db.transaction() as c:
+                for row in c.execute("SELECT repository_id,base_checkout_path FROM repository_slot_policies WHERE base_checkout_path<>''").fetchall():
+                    if str(Path(row["base_checkout_path"]).resolve()).casefold() == resolved:
+                        c.execute(
+                            "UPDATE repository_slot_policies SET base_readonly=?,revision=revision+1,updated_at=? WHERE repository_id=?",
+                            (int(locked), time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), row["repository_id"]),
+                        )
+        return detail
+
+    db = Database(directory / "worklog.sqlite3")
+    db.initialize()
+    leases = LeaseService(db, TranscriptReader(TranscriptRoots.from_environment()))
+
+    if action == "init-slots":
+        payload: dict[str, Any] = {
+            "maxActiveLeases": args.max_slots,
+            "baseCheckoutPath": args.base_checkout,
+            "defaultBranch": args.default_branch,
+            "autoRescueDirty": not args.no_auto_rescue,
+        }
+        if args.slot_root is not None:
+            payload["slotRootPath"] = args.slot_root
+        if args.ttl is not None:
+            payload["defaultTtlSeconds"] = args.ttl
+        policy = leases.update_policy(actor, args.repo, payload)
+        with db.read() as c:
+            repo_row = c.execute("SELECT name FROM repositories WHERE id=?", (args.repo,)).fetchone()
+            repo_name = repo_row["name"] if repo_row else args.repo
+        slot_paths = [
+            str(slot_worktrees.resolve_slot_path(policy["baseCheckoutPath"], policy["slotRootPath"], repo_name, idx))
+            for idx in range(1, policy["maxActiveLeases"] + 1)
+        ]
+        if slot_paths:
+            Path(slot_paths[0]).parent.mkdir(parents=True, exist_ok=True)
+        return {"policy": policy, "slotPaths": slot_paths}
+
+    if action in {"lock-base", "unlock-base"}:
+        return leases.set_base_lock(actor, args.repo, locked=(action == "lock-base"))
+
+    if action == "slot-status":
+        if args.repo:
+            view = leases.get_slots(args.repo)
+            base_path = view["policy"]["baseCheckoutPath"]
+            return {**view, "baseLockedOnDisk": slot_worktrees.is_base_locked_on_disk(base_path)}
+        with db.read() as c:
+            repos = c.execute(
+                "SELECT id FROM repositories WHERE archived=0 AND merged_into IS NULL ORDER BY name COLLATE NOCASE,id"
+            ).fetchall()
+            items = []
+            for r in repos:
+                view = repository_slots_view(c, r["id"])
+                pol = policy_record(c, r["id"])
+                items.append({**view, "baseLockedOnDisk": slot_worktrees.is_base_locked_on_disk(pol["baseCheckoutPath"])})
+            return {"items": items, "total": len(items)}
+    raise ValueError(f"Unknown repo action: {action}")
+
+
+def _repo_parser(commands: Any) -> None:
+    repo = commands.add_parser("repo", help="Manage repository checkout slot worktrees and read-only base clones")
+    repo.add_argument("--data-dir", default=argparse.SUPPRESS)
+    actions = repo.add_subparsers(dest="repo_action", required=True)
+
+    init = actions.add_parser("init-slots", help="Configure a repository's slot policy and centralized slot directory")
+    init.add_argument("--repo", required=True, help="Catalog repository ID")
+    init.add_argument("--base-checkout", required=True, help="Absolute local path to the main clone")
+    init.add_argument("--max-slots", type=int, default=2, help="Maximum concurrent checkout leases (0 freezes repo)")
+    init.add_argument("--slot-root", help="Optional custom slot root directory (default: <base.parent>/.worklog-slots)")
+    init.add_argument("--default-branch", default="main", help="Default branch name (default: main)")
+    init.add_argument("--ttl", type=_lease_ttl, help="Default lease TTL (e.g. 30m)")
+    init.add_argument("--no-auto-rescue", action="store_true", help="Leave dirty expired slots in expired_dirty instead of auto-committing rescue refs")
+
+    lock = actions.add_parser("lock-base", help="Set Git-tracked files in the canonical base clone read-only")
+    lock_target = lock.add_mutually_exclusive_group(required=True)
+    lock_target.add_argument("--repo", help="Catalog repository ID")
+    lock_target.add_argument("--path", help="Direct local path to a base Git checkout")
+    lock.add_argument("--default-branch", default="main", help="Default branch for unpushed-commit preflight (used with --path)")
+
+    unlock = actions.add_parser("unlock-base", help="Restore write permission on tracked files in a base clone")
+    unlock_target = unlock.add_mutually_exclusive_group(required=True)
+    unlock_target.add_argument("--repo", help="Catalog repository ID")
+    unlock_target.add_argument("--path", help="Direct local path to a base Git checkout")
+
+    status = actions.add_parser("slot-status", help="Inspect slot policies, active leases, queues and base lock status")
+    status.add_argument("--repo", help="Catalog repository ID (omit for all active repositories)")
+
+
 def _report_days(value: str) -> int:
     days = int(value)
     if not 1 <= days <= 3650:
@@ -1648,6 +1949,7 @@ def parser() -> argparse.ArgumentParser:
         if command == "usage":
             sub.add_argument("--days", type=_report_days, default=30,
                              help="How many days to today the report covers (default 30)")
+    _repo_parser(commands)
     agent = commands.add_parser(
         "agent", help="Agent commands; start with `worklog agent guide`",
         description="Commands for AI agents. `worklog agent guide` explains every one, with the rules agents follow.")
@@ -1675,6 +1977,7 @@ def parser() -> argparse.ArgumentParser:
     actions.add_parser("retire", help="Revoke the credential of the agent given with --as and forget its token")
     _discussion_parser(actions)
     _coordination_parser(actions)
+    _lease_parser(actions)
     _ticket_parser(actions)
     context = actions.add_parser("context")
     context.add_argument("--date")
@@ -1821,6 +2124,8 @@ def main(argv: list[str] | None = None) -> int:
                 result = compact_database(database, directory / "backups")
             elif args.command == "doctor":
                 result = doctor_database(database)
+            elif args.command == "repo":
+                result = repo_command(directory, args)
             elif args.command == "usage":
                 # Imported here: the API's modules would slow every other command's start.
                 from worklog.usage import FILE as USAGE_FILE

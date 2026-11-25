@@ -66,6 +66,7 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 | Proposal | UUID | draft, submitted, approved, rejected or withdrawn; `autoApproved` | you draft; the person decides |
 | Identity, credential | `agentId`; a credential `id` | active or revoked | the person issues; you register and retire your own |
 | Run | UUID; `--client-run-key` is unique per credential | open or ended | you, directly |
+| Lease | UUID; bounded per-repository checkout slot | `queued`, `offered`, `active`, `released`, `expired`, `expired_dirty`, `revoked` or `cancelled`; `slotIndex`, `worktreePath`, `branch`, `rescueRef` | you acquire, poll, renew and release your own; the person configures policies and may force-release or rescue |
 | Participation | UUID | active or released; stale after 2 hours without a report; its outputs, the pull requests and commits it reported producing | you, directly |
 | Update | UUID | `kind` update or blocker (an older one may be a handoff); immutable | you, directly |
 | Discussion, message | UUID | messages are immutable; a request is pending, satisfied, released_by_human or cancelled, each of its targets' `delivery` pending, seen, acknowledged or answered, and it may have a `deadlineAt` after which it escalates to the person; `contexts`, its tags, each with who added it; `pinned`; `repository`, on a repository's own discussion | you, directly; only the person pins |
@@ -93,6 +94,8 @@ Records are archived, never deleted, and only the person archives or recovers th
 | Tag a discussion with a record; take off a tag you added | yes | yes | - |
 | Archive or pin a discussion, take off a tag someone else added, release a wait, reassign a role | yes | no | - |
 | Start and end runs; report participation, outputs and updates | - | yes, your own | - |
+| Acquire, poll, renew and release your own repository checkout lease | yes | yes, your own | - |
+| Configure repository slot policies, lock/unlock base checkouts, force-release or rescue leases, and manage the dispatch queue | yes | no | no |
 | End another agent's run | yes | no | - |
 | Approve or reject proposals; change Settings | yes | no | no |
 | Upload evidence | - | to your own draft proposal | - |
@@ -332,6 +335,14 @@ worklog agent --as NAME proposal withdraw PROPOSAL_ID --revision 4
 | `updates list` | `[--repo ID] [--item ID] [--participation ID] [--limit 50] [--offset 0]` | - | - | updates as posted |
 | `updates post` | `--participation ID` and either `--text TEXT [--kind update\|blocker]` or `--file FILE` | - | required | immutable; advances the participation's revision |
 | `chats track` | `--item ITEM_ID`, or `--roadmap ROADMAP_ID [--step STEP_ID]` (repeat `--step`); `[--title TITLE] [--provider PROVIDER] [--model MODEL]` | - | required | tracks the chat you registered with there, and prints it with `created`; where it is tracked already, adds the steps you name |
+| `leases acquire` | `--repo REPOSITORY_ID` or `--checkout PATH`; `[--branch NAME] [--mode shared\|exclusive] [--ttl 30m] [--priority normal\|pr_fixup\|wave\|incident] [--reason TEXT] [--run RUN_ID] [--provider PROVIDER] [--wait] [--timeout 600]` | - | required | acquires a checkout slot lease (provisioning a reusable worktree when configured) or enters the FIFO queue; `--wait` polls until granted or timeout |
+| `leases wait ID` | `[--timeout 600]` | - | - | polls an existing queued or offered lease until active or terminal |
+| `leases renew ID` | `--revision N [--ttl 30m]` | yes | required | extends an active lease's TTL (5m to 4h) |
+| `leases release ID` | `--revision N [--rescue] [--reason TEXT]` | yes | required | releases your slot (or cancels if queued); refuses dirty slots with `409 slot_dirty` unless `--rescue` snapshots uncommitted edits to `refs/worklog-rescue/<lease-id>` |
+| `leases status` | `[--repo REPOSITORY_ID \| --checkout PATH]` | - | - | shows slot policy, active slots and FIFO wait queue for a repository (or all open leases) |
+| `leases list` | `[--repo REPOSITORY_ID] [--mine] [--include-closed] [--limit 50] [--offset 0]` | - | - | lists leases across repositories |
+
+- **Checkout slots and read-only base clones.** Before editing files in a repository, acquire a lease with `leases acquire --checkout PATH --branch BRANCH --wait --request-id KEY`. If the repository configures slot worktrees, edit files strictly inside the returned `worktreePath` (never in a read-only base clone) and preserve per-slot `.venv` and `node_modules`. Each agent may hold at most one active repository lease at a time (`409 agent_lease_limit`). Release the lease immediately after pushing your PR or handing off (`leases release`). Heartbeats also refresh implicitly on `participation check-in`, `participation output`, and `updates post`. Ending a run or retiring releases held leases; continuing an identity (`register --continue`) transfers open leases to your new chat.
 
 - **Remotes.** A remote is an `https://` address, `ssh://git@host/path` or `git@host:path`. Every form of one remote names the same record: HTTPS or SSH, with or without `.git` or a trailing `/`, in any case, and Azure DevOps' `dev.azure.com`, `{org}.visualstudio.com` and `ssh.dev.azure.com` forms.
 - **Unreviewed registrations.** A repository you register shows as unreviewed until the person confirms or edits it.
@@ -376,6 +387,12 @@ worklog agent --as NAME updates list --participation PARTICIPATION_ID
 worklog agent --as NAME updates post --participation PARTICIPATION_ID --kind blocker --text 'Waiting for the schema review.' --request-id update-blocker-1
 worklog agent --as NAME chats track --item ITEM_ID --request-id track-CHAT_ID-item
 worklog agent --as NAME chats track --roadmap ROADMAP_ID --step STEP_ID --step OTHER_STEP_ID --title 'Parser fix' --provider claude --model MODEL --request-id track-CHAT_ID-roadmap
+worklog agent --as NAME leases acquire --repo REPOSITORY_ID --branch claude/parser-fix --wait --timeout 600 --request-id lease-acquire-CHAT_ID-1
+worklog agent --as NAME leases wait LEASE_ID --timeout 600
+worklog agent --as NAME leases renew LEASE_ID --revision 1 --ttl 30m --request-id lease-renew-CHAT_ID-1
+worklog agent --as NAME leases release LEASE_ID --revision 2 --reason 'PR pushed' --request-id lease-release-CHAT_ID-1
+worklog agent --as NAME leases status --repo REPOSITORY_ID
+worklog agent --as NAME leases list --mine --include-closed
 ```
 
 ### 5.5 Tickets
@@ -882,6 +899,14 @@ worklog check
 | `request_authority` | 403 | Only the request's manager may cancel it | Do not retry |
 | `ticket_archived` | 409 | The ticket is archived and read-only | Ask the person to recover it |
 | `assignee_unavailable` | 422 | The assignee is neither the person nor an identity with a live credential | Choose another assignee |
+| `slot_dirty` | 409 | A slot worktree has uncommitted changes that block reuse or clean release (`fields.dirtyFiles`) | Commit and push your edits, clean the slot, or release with `--rescue` to save them under `refs/worklog-rescue/<lease-id>` |
+| `slot_provisioning_failed` | 503 | Git failed or timed out while provisioning or recycling a slot worktree | Check Git status and disk space, then retry or tell the person |
+| `base_dirty` | 409 | The canonical base checkout has uncommitted changes (`fields.dirtyFiles`) | The person cleans or moves base changes into a slot before locking |
+| `base_unpushed_commits` | 409 | The canonical base checkout has local commits ahead of the default branch remote ref | The person pushes or merges base commits before locking |
+| `agent_lease_limit` | 409 | Your identity already holds an active or offered lease on another repository (`fields.leaseId`, `fields.repositoryId`) | Release your existing repository lease before acquiring another |
+| `branch_in_use` | 409 | Another active or offered lease already holds that working branch (`fields.branch`, `fields.leaseId`) | Choose a distinct feature branch name |
+| `lease_scope` | 403 | The lease belongs to another agent identity | Poll, renew and release only your own leases |
+| `lease_closed` | 409 | The lease is already released, expired, revoked or cancelled | Acquire a new lease if you need another checkout slot |
 
 The following codes reach only the person's browser or a failed startup: `host` (400), `content_length` (400), `origin` (403), `session` (401), `csrf` (403), `bootstrap` (403), `sessions` (429), `restore_interrupted` (503), `database_invalid` (503), `schema_version` (503) and `usage_unavailable` (503).
 
@@ -933,7 +958,7 @@ A proposal's history (`GET /history?entityId=PROPOSAL_ID&payloads=true`) holds i
 
 History older than 90 days may be thinned. When the person runs `worklog compact`, the older changes to work items, the day's plan, notes, links, GitHub and file references, questions, decisions, attachments, roadmaps, steps, progress, and the plan imports, day reflections and checklist tasks of older versions keep only each record's `id`, `title`, `status` and `_statusChanged`, so a record with none of them reads `{}`, and a payload that is not a record, such as the day's order or an old reflection's text, reads `null`. Compaction also reduces, at any age, a proposal's stored status changes and the earlier side of its edits to the summary above, and old roadmap saves, archives, recoveries and moves that hold a whole step list to the roadmap's `id` and `title` (an archive, recovery or move also its `revision` and the field that changed). Every change stays listed, and changes of every other kind, `proposal.create` and `proposal.stale` among them, keep everything. Compaction also keeps each roadmap's 20 newest versions.
 
-- **Readable routes.** Worklog's route table (`policy.ROUTES`) lists each read an agent credential may make, in the scope `agent:read`: every GET under `/api/v1` but the person's. The person's are `/settings`, `/export`, `/openapi.json`, the usage counts `/usage`, the chat list `/chats` with a chat's `/chats/ID/transcript`, the running sessions `/claude-sessions`, desktop launch status `/session-launches/ID`, the live workflow `/live`, the registry `/pull-requests`, `/pull-requests/activity`, the agents `/agents`, `/agents/ID`, `/agents/ID/activity` and `/agents/ID/proposals`, and a roadmap's `/roadmaps/ID/agents` and status board `/roadmaps/ID/board`. Those return `403 agent_scope`. A route the table does not open to agents is the person's, so a new route starts closed to you.
+- **Readable routes.** Worklog's route table (`policy.ROUTES`) lists each read an agent credential may make, in the scope `agent:read`: every GET under `/api/v1` but the person's. The person's are `/settings`, `/export`, `/openapi.json`, the usage counts `/usage`, the chat list `/chats` with a chat's `/chats/ID/transcript`, the running sessions `/claude-sessions`, desktop launch status `/session-launches/ID`, the dispatch queue `/dispatch-queue`, the live workflow `/live`, the registry `/pull-requests`, `/pull-requests/activity`, the agents `/agents`, `/agents/ID`, `/agents/ID/activity` and `/agents/ID/proposals`, and a roadmap's `/roadmaps/ID/agents` and status board `/roadmaps/ID/board`. Those return `403 agent_scope`. A route the table does not open to agents is the person's, so a new route starts closed to you.
 - **Host header.** It must be `127.0.0.1:PORT`.
 - **Writes.** Make them only through the command line with `--as NAME`. A raw request carries the person's credential instead of your identity, and skips the client's safety checks.
 - **Contract.** `docs/API.md` describes the routes; `docs/openapi.json` is the generated schema.

@@ -15,16 +15,18 @@ PACKAGE = Path(__file__).resolve().parents[1] / "worklog"
 ORDER = [
     # Nothing of Worklog's below them, where the data lives, the current schema and the route policy
     # among them, then the record kinds discussion tags name.
-    "__init__", "locations", "common", "models", "responses", "avatars", "transcripts", "active_sessions", "maintenance", "schema", "policy",
+    "__init__", "locations", "common", "models", "responses", "avatars", "transcripts", "active_sessions", "antigravity_sessions", "maintenance", "schema", "policy",
     "record_kinds",
     # Search, scratchpads, repository links, request shapes, the operation registry, the names a
     # proposal gives its new records, and what an applied change counts toward.
-    "search", "scratchpad", "repository_links", "coordination_models", "discussion_models", "operations",
+    "search", "scratchpad", "repository_links", "coordination_models", "discussion_models", "lease_models", "operations",
     "proposal_names", "proposal_targets",
     # Roadmaps, then the database, which opens, upgrades and validates the file.
     "plans", "db",
     # Records that stand on their own, and the agent identities that discussions and chats share.
     "resources", "tickets", "discussions",
+    # Reusable slot worktrees and bounded repository checkout leases.
+    "slot_worktrees", "leases",
     # Agent runs and participations with the repository catalog, then agent registration.
     "coordination", "registration", "registry",
     # Schema history, proposals, then backup and restore, offline compaction and the read-only doctor.
@@ -34,7 +36,7 @@ ORDER = [
     "records", "support", "items", "people", "services", "session_launches", "live", "git_activity",
     # HTTP: the routes of each domain, the request guard in front of them all, the usage counts kept
     # inside it, and the app.
-    "coordination_api", "discussion_api", "registry_api",
+    "coordination_api", "lease_api", "discussion_api", "registry_api",
     "resource_api", "ticket_api", "session_api", "live_api", "guard", "usage", "app",
     # The command line.
     "cli",

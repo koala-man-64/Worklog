@@ -12,6 +12,15 @@ from urllib.parse import urlsplit, urlunsplit
 from . import search
 from .common import AppError, event, now, require_revision, setting, text, uid
 from .discussions import DiscussionService, communication_actor, identity_chat
+from .leases import (
+    merge_repository_leases,
+    release_credential_leases,
+    release_repository_leases,
+    release_run_leases,
+    repository_slot_summaries,
+    touch_agent_leases,
+)
+from .repository_links import _repository_url, repository_identity
 
 # Step 5.6 (A-09): a role's offer hands work on and moves its pending requests with it, so an
 # update is no longer a handoff. Handoffs posted before stay readable.
@@ -73,79 +82,28 @@ def repository_record(row: Any) -> dict:
 
 
 def with_discussion(c: sqlite3.Connection, record: dict) -> dict:
-    """A repository record as the API returns it, with its own discussion's id (v22). A merged one,
-    whose discussion is tagged with the survivor now, gives null, as does one archived when the upgrade
-    opened the others' and not recovered since. History keeps the record as repository_record gives it."""
-    return {**record, "discussionId": DiscussionService.home_discussions(c, [record["id"]]).get(record["id"])}
+    """A repository record as the API returns it, with its own discussion's id (v22) and slot summary (v34).
+    A merged one, whose discussion is tagged with the survivor now, gives null, as does one archived when
+    the upgrade opened the others' and not recovered since. History keeps the record as repository_record gives it."""
+    summary = repository_slot_summaries(c, [record["id"]])[record["id"]]
+    return {
+        **record,
+        "discussionId": DiscussionService.home_discussions(c, [record["id"]]).get(record["id"]),
+        "slotSummary": {
+            "maxActiveLeases": summary["maxActiveLeases"],
+            "activeCount": summary["activeCount"],
+            "queuedCount": summary["queuedCount"],
+            "dirtyCount": summary["dirtyCount"],
+            "rescuedCount": summary["rescuedCount"],
+            "baseReadonly": summary["baseReadonly"],
+            "configured": summary["configured"],
+        },
+    }
 
 
 def agents_may_register(c: sqlite3.Connection) -> bool:
     # Only an explicit false restores the approval gate; a missing or unexpected value keeps registration open.
     return setting(c, "agentRepositoryRegistration", True) is not False
-
-
-def _repository_url(value: Any) -> str:
-    value = text(value, "url", limit=2000)
-    error = "Use an HTTP(S), ssh://git@host/path, or git@host:path remote without passwords, query, fragment or control characters"
-    if any(ord(char) < 32 or ord(char) == 127 for char in value):
-        raise AppError(422, "validation", error)
-    value = value.strip()
-    if not value:
-        return ""
-    if any(char.isspace() for char in value) or "?" in value or "#" in value:
-        raise AppError(422, "validation", error)
-    # SCP-like Git remotes are declared addresses, never commands or filesystem paths.
-    scp = re.fullmatch(r"git@([A-Za-z0-9][A-Za-z0-9._-]*):(.+)", value)
-    if scp:
-        return "git@" + scp[1].lower() + ":" + scp[2]
-    try:
-        parts = urlsplit(value)
-        if parts.scheme not in {"http", "https", "ssh"} or not parts.hostname or parts.password is not None:
-            raise ValueError
-        if not re.fullmatch(r"[A-Za-z0-9._:-]+", parts.hostname):
-            raise ValueError
-        if parts.scheme == "ssh" and (parts.username != "git" or parts.path in {"", "/"}):
-            raise ValueError
-        _ = parts.port
-    except ValueError:
-        raise AppError(422, "validation", error) from None
-    if parts.scheme == "ssh":
-        return urlunsplit(("ssh", parts.netloc.lower(), parts.path, "", ""))
-    # An HTTP(S) user name, as in Azure DevOps clone URLs, may be a token: never keep it.
-    return urlunsplit((parts.scheme.lower(), parts.netloc.rpartition("@")[2].lower(), parts.path.rstrip("/"), "", ""))
-
-
-def repository_identity(url: str) -> str:
-    """One key for every address of a remote: host plus path, lowercased, without
-    scheme, user, port, `.git` or trailing `/`.
-
-    HTTPS, ssh:// and scp-like forms share it, and so do Azure DevOps' dev.azure.com,
-    {org}.visualstudio.com and ssh.dev.azure.com:v3 forms. Expects an address that
-    _repository_url accepted; anything else keys as its lowercased text.
-    """
-    if not url:
-        return ""
-    scp = re.fullmatch(r"[^@/]+@([^:/]+):(.*)", url)
-    if scp:
-        host, path = scp[1].lower(), scp[2]
-    else:
-        try:
-            parts = urlsplit(url)
-        except ValueError:
-            return url.lower()
-        host, path = parts.hostname or "", parts.path
-    segments = [segment for segment in path.lower().strip("/").removesuffix(".git").split("/") if segment]
-    if host in {"ssh.dev.azure.com", "vs-ssh.visualstudio.com"}:
-        if len(segments) == 4 and segments[0] == "v3":
-            host, segments = "dev.azure.com", [segments[1], segments[2], "_git", segments[3]]
-    elif host.endswith(".visualstudio.com"):
-        if segments[:1] == ["defaultcollection"]:
-            segments = segments[1:]
-        host, segments = "dev.azure.com", [host.removesuffix(".visualstudio.com"), *segments]
-    if host == "dev.azure.com" and len(segments) == 3 and segments[1] == "_git":
-        # A project's default repository may leave out the project: {org}/_git/{project}.
-        segments = [segments[0], segments[2], "_git", segments[2]]
-    return "/".join([host, *segments])
 
 
 def _release(c: sqlite3.Connection, actor: dict, row: Any, reason: str) -> None:
@@ -165,6 +123,7 @@ def release_item_participations(c: sqlite3.Connection, actor: dict, item_id: str
 def close_credential_runs(c: sqlite3.Connection, actor: dict, credential_id: str, reason: str = "credential_revoked") -> None:
     for row in c.execute("SELECT * FROM agent_runs WHERE credential_id=? AND ended_at IS NULL", (credential_id,)).fetchall():
         _close_run(c, actor, row, reason)
+    release_credential_leases(c, actor, credential_id, reason)
 
 
 def _close_run(c: sqlite3.Connection, actor: dict, row: Any, reason: str) -> None:
@@ -173,6 +132,7 @@ def _close_run(c: sqlite3.Connection, actor: dict, row: Any, reason: str) -> Non
               (stamp, reason, stamp, row["id"]))
     for participation in c.execute("SELECT * FROM participations WHERE run_id=? AND released_at IS NULL", (row["id"],)).fetchall():
         _release(c, actor, participation, reason)
+    release_run_leases(c, actor, row["id"], reason)
     event(c, actor, "run.end", row["id"], dict(row), {"reason": reason})
 
 
@@ -287,6 +247,8 @@ def repository_merge(c: sqlite3.Connection, actor: dict, identity: str, p: dict)
     search.move_repository_files(c, source["id"], survivor["id"])
     moved["attachments"] = c.execute("UPDATE attachments SET owner_id=? WHERE owner_type='repository' AND owner_id=?",
                                      (survivor["id"], source["id"])).rowcount
+    # Move checkout slot policies, leases and queued dispatches to the survivor.
+    moved["leases"] = merge_repository_leases(c, source["id"], survivor["id"])
     before = repository_record(source)
     c.execute("UPDATE repositories SET archived=1,duplicate_of=NULL,merged_into=?,revision=revision+1,updated_at=? WHERE id=?",
               (survivor["id"], now(), source["id"]))
@@ -384,6 +346,7 @@ def repository_apply(c: sqlite3.Connection, actor: dict, action: str, p: dict) -
                 live_repo = c.execute("SELECT 1 FROM participation_contexts pc JOIN repositories r ON r.id=pc.repository_id WHERE pc.participation_id=? AND r.archived=0", (row["id"],)).fetchone()
                 if not live_item and not live_repo:
                     _release(c, actor, row, "repository_archived")
+            release_repository_leases(c, actor, before["id"], "repository_archived")
         else:
             # One archived when the v22 upgrade opened the others' discussions gets its own now.
             DiscussionService(None).open_repository_discussion(c, before["id"], before["name"])
@@ -620,6 +583,9 @@ class CoordinationService:
         description = text(p.get("description", row["description"]), "description", limit=2000)
         c.execute("UPDATE participations SET item_id=?,description=?,last_seen_at=?,updated_at=?,revision=revision+1,released_at=NULL,release_reason=NULL WHERE id=?", (item_id, description, stamp, stamp, identity))
         self._replace_contexts(c, identity, contexts)
+        if verb == "check-in":
+            run = _get(c, "agent_runs", row["run_id"])
+            touch_agent_leases(c, run["agent_id"], [ctx["repositoryId"] for ctx in contexts])
         result = self.participation_record(c, _get(c, "participations", identity))
         event(c, actor, "participation." + verb, identity, before, result)
         self._track_chat(c, actor, row["run_id"], item_id)
@@ -712,6 +678,8 @@ class CoordinationService:
                 c.execute("UPDATE participation_outputs SET url=? WHERE participation_id=? AND repository_id=? AND kind=? "
                           "AND reference=?", (url, *key))
         c.execute("UPDATE participations SET last_seen_at=?,updated_at=?,revision=revision+1 WHERE id=?", (stamp, stamp, identity))
+        run = _get(c, "agent_runs", row["run_id"])
+        touch_agent_leases(c, run["agent_id"], [repository_id])
         result = {"participation": self.participation_record(c, _get(c, "participations", identity)),
                   "outputs": self.outputs(c, [identity]), "added": added}
         event(c, actor, "participation.output", identity, before, result)
@@ -736,8 +704,10 @@ class CoordinationService:
         update_id, stamp = uid(), now()
         c.execute("INSERT INTO coordination_updates(id,participation_id,run_id,agent_id,credential_id,author_label,kind,text,item_id,contexts_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                   (update_id, identity, run["id"], run["agent_id"], actor["id"], run["display_name"], p["kind"], text(p["text"], "text", required=True, limit=4000), row["item_id"], json.dumps(self._contexts(c, identity)), stamp))
-        c.executemany("INSERT INTO coordination_update_repositories(update_id,repository_id) VALUES(?,?)", [(update_id, repo_id) for repo_id in {context["repositoryId"] for context in self._contexts(c, identity)}])
+        repo_ids = {context["repositoryId"] for context in self._contexts(c, identity)}
+        c.executemany("INSERT INTO coordination_update_repositories(update_id,repository_id) VALUES(?,?)", [(update_id, repo_id) for repo_id in repo_ids])
         c.execute("UPDATE participations SET last_seen_at=?,updated_at=?,revision=revision+1 WHERE id=?", (stamp, stamp, identity))
+        touch_agent_leases(c, run["agent_id"], repo_ids)
         result = self.update_record(_get(c, "coordination_updates", update_id))
         event(c, actor, "coordination.update", update_id, None, result)
         return result

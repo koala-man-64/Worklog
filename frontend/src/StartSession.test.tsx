@@ -620,4 +620,215 @@ describe("StartSession", () => {
     expect(screen.getByText("Release checks")).toBeTruthy();
     expect(fetch).toHaveBeenCalledTimes(2);
   });
+
+  it("shows linked repository slot availability, queues full repos, and cancels queued dispatches", async () => {
+    const REPO_ID = "repo-aa-jobs";
+    const DISPATCH_ID = "4444444444444444444444444444444444444444444444444444444444444444";
+    const writes: { path: string; method: string; body?: unknown }[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const path = String(input);
+      const method = init?.method ?? "GET";
+      if (method !== "GET") {
+        writes.push({
+          path,
+          method,
+          body: init?.body ? JSON.parse(String(init.body)) : undefined,
+        });
+      }
+      if (path === `/api/v1/repositories/${REPO_ID}/slots`) {
+        return response({
+          repositoryId: REPO_ID,
+          repositoryName: "asset-allocation-jobs",
+          policy: {
+            repositoryId: REPO_ID,
+            maxActiveLeases: 2,
+            defaultTtlSeconds: 1800,
+            baseCheckoutPath: "C:\\Projects\\asset-allocation-jobs",
+            slotRootPath: "",
+            defaultBranch: "main",
+            baseReadonly: true,
+            autoRescueDirty: true,
+            revision: 1,
+            updatedAt: "2026-11-24T00:00:00Z",
+            configured: true,
+          },
+          activeCount: 2,
+          queuedCount: 0,
+          dirtyCount: 0,
+          availableSlots: 0,
+          slots: [],
+          activeLeases: [],
+          queuedLeases: [],
+          recentLeases: [],
+        });
+      }
+      if (path === `/api/v1/work-items/${ITEM_ID}/sessions`) {
+        return response(
+          launch({
+            id: DISPATCH_ID,
+            dispatchId: DISPATCH_ID,
+            status: "queued",
+            chat: null,
+            repositoryId: REPO_ID,
+            repositoryName: "asset-allocation-jobs",
+            queuePosition: 1,
+            activeHolders: [
+              {
+                leaseId: "lease-1",
+                agentId: "a1",
+                holderLabel: "Codex A",
+                provider: "codex",
+                slotIndex: 1,
+                branch: "codex/job-1",
+                worktreePath: "C:\\Projects\\.worklog-slots\\aa-jobs\\slot-1",
+                mode: "shared",
+                state: "active",
+                expiresAt: "2026-11-24T01:00:00Z",
+              },
+            ],
+            message: "Queued at #1.",
+          }),
+        );
+      }
+      if (path === `/api/v1/session-launches/${DISPATCH_ID}`) {
+        return response(
+          launch({
+            id: DISPATCH_ID,
+            dispatchId: DISPATCH_ID,
+            status: "queued",
+            chat: null,
+            repositoryId: REPO_ID,
+            repositoryName: "asset-allocation-jobs",
+            queuePosition: 1,
+            message: "Queued at #1.",
+          }),
+        );
+      }
+      if (path === `/api/v1/dispatch-queue/${DISPATCH_ID}/cancel`) {
+        return response({
+          id: DISPATCH_ID,
+          status: "cancelled",
+        });
+      }
+      return response({});
+    });
+
+    mount({ repositoryIds: [REPO_ID] });
+    await userEvent.click(
+      screen.getByRole("button", { name: "Start session" }),
+    );
+    expect(
+      await screen.findByText(/2\/2 slots full — will queue at #1/),
+    ).toBeTruthy();
+    expect(screen.queryByRole("textbox", { name: "Working folder" })).toBeNull();
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "Branch" }),
+      "codex/batch-retry",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Start" }));
+
+    expect(
+      await screen.findByText(/Queued for/i),
+    ).toBeTruthy();
+    expect(writes[0]).toEqual({
+      path: `/api/v1/work-items/${ITEM_ID}/sessions`,
+      method: "POST",
+      body: {
+        provider: "codex",
+        repositoryId: REPO_ID,
+        branch: "codex/batch-retry",
+        prompt: "Release checks\n\nConfirm the gates.",
+      },
+    });
+    await userEvent.click(
+      screen.getByRole("button", { name: "Cancel queued dispatch" }),
+    );
+    await waitFor(() =>
+      expect(
+        writes.some(
+          (w) => w.path === `/api/v1/dispatch-queue/${DISPATCH_ID}/cancel`,
+        ),
+      ).toBe(true),
+    );
+    expect(await screen.findByText("Queued dispatch cancelled.")).toBeTruthy();
+  });
+
+  it("renders a copyable Antigravity slot brief when status is ready_manual", async () => {
+    const REPO_ID = "repo-ag";
+    const DISPATCH_ID = "5555555555555555555555555555555555555555555555555555555555555555";
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const path = String(input);
+      if (path === `/api/v1/repositories/${REPO_ID}/slots`) {
+        return response({
+          repositoryId: REPO_ID,
+          repositoryName: "ag-repo",
+          policy: {
+            repositoryId: REPO_ID,
+            maxActiveLeases: 2,
+            defaultTtlSeconds: 1800,
+            baseCheckoutPath: "C:\\Projects\\ag-repo",
+            slotRootPath: "",
+            defaultBranch: "main",
+            baseReadonly: false,
+            autoRescueDirty: true,
+            revision: 1,
+            updatedAt: "2026-11-24T00:00:00Z",
+            configured: true,
+          },
+          activeCount: 0,
+          queuedCount: 0,
+          dirtyCount: 0,
+          availableSlots: 2,
+          slots: [],
+          activeLeases: [],
+          queuedLeases: [],
+          recentLeases: [],
+        });
+      }
+      return response(
+        launch({
+          id: DISPATCH_ID,
+          dispatchId: DISPATCH_ID,
+          provider: "antigravity",
+          status: "ready_manual",
+          chat: null,
+          slotIndex: 1,
+          branch: "ag/slot-ui",
+          worktreePath: "C:\\Projects\\.worklog-slots\\ag-repo\\slot-1",
+          copyablePrompt: "Worklog Checkout Slot Assignment:\n- Slot: slot-1",
+          message: "Slot reserved for Antigravity.",
+        }),
+      );
+    });
+
+    mount({ repositoryIds: [REPO_ID] });
+    await userEvent.click(
+      screen.getByRole("button", { name: "Start session" }),
+    );
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: "Provider" }),
+      "antigravity",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Start" }));
+
+    const brief = await screen.findByRole("textbox", {
+      name: "Antigravity slot brief",
+    });
+    expect(brief).toHaveValue(
+      "Worklog Checkout Slot Assignment:\n- Slot: slot-1",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Copy slot brief" }),
+    );
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(
+        "Worklog Checkout Slot Assignment:\n- Slot: slot-1",
+      ),
+    );
+  });
 });

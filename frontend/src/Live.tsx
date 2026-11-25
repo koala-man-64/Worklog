@@ -46,14 +46,14 @@ const SESSION: Record<NonNullable<LiveAgentNode["sessionState"]>, string> = {
   waiting: "waiting",
   idle: "idle",
 };
-const CLAUDE = /claude|anthropic/i;
+const OBSERVABLE = /claude|anthropic|antigravity/i;
 
-// Worklog finds only the Claude sessions running on this machine. For an agent of another
-// provider, no session found says nothing about whether it runs.
+// Worklog finds local Claude and Antigravity sessions running on this machine. For an agent of
+// another provider, no session found says nothing about whether it runs.
 function sessionText(agent: LiveAgentNode) {
   if (agent.sessionState) return SESSION[agent.sessionState];
   const providers = [...agent.providers, ...agent.chats.map((chat) => chat.provider)].filter(Boolean);
-  return providers.length > 0 && !providers.some((provider) => CLAUDE.test(provider))
+  return providers.length > 0 && !providers.some((provider) => OBSERVABLE.test(provider))
     ? "not observable"
     : "no local session";
 }
@@ -657,6 +657,25 @@ function FlowMap({
                   <h3>{repo.name}</h3>
                   {repo.unreviewed && <span className="live-neutral">unreviewed</span>}
                 </div>
+                {typeof repo.maxActiveLeases === "number" && (
+                  <div className="live-chips live-slot-chips">
+                    <span className={repo.maxActiveLeases === 0 ? "live-warning" : undefined}>
+                      {repo.maxActiveLeases === 0
+                        ? "Frozen (0/0)"
+                        : `Slots ${repo.activeLeases}/${repo.maxActiveLeases}`}
+                    </span>
+                    {repo.queuedLeases > 0 && (
+                      <span className="live-warning">+{repo.queuedLeases} queued</span>
+                    )}
+                    {repo.baseReadonly && <span>Base locked</span>}
+                    {repo.dirtySlots > 0 && (
+                      <span className="live-warning">{repo.dirtySlots} dirty</span>
+                    )}
+                    {repo.rescuedLeases > 0 && (
+                      <span>{repo.rescuedLeases} rescued</span>
+                    )}
+                  </div>
+                )}
                 {repo.overlapCount >= 2 && <strong className="live-warning">Overlap: {repo.overlapCount} agents</strong>}
                 {repo.branches.length > 0 && <div className="live-branches">{repo.branches.map((branch) => <code key={branch}>{branch}</code>)}</div>}
                 <footer className="live-links">

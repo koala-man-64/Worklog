@@ -1,0 +1,101 @@
+{
+  "body": {
+    "activeCount": 1,
+    "activeLeases": [
+      {
+        "acquiredAt": "<time.ffffff+hh:mm>",
+        "agentId": "<id3>",
+        "branch": "claude/golden",
+        "chatId": "chat-1",
+        "credentialId": "<id3>",
+        "expiresAt": "<time.ffffff+hh:mm>",
+        "fetchWarning": "",
+        "holderLabel": "Builder",
+        "id": "<id2>",
+        "lastHeartbeatAt": "<time.ffffff+hh:mm>",
+        "mode": "shared",
+        "offeredAt": "<time.ffffff+hh:mm>",
+        "priority": "normal",
+        "provider": "",
+        "queuePosition": null,
+        "queueSeq": 1,
+        "reason": "Golden test",
+        "releaseReason": null,
+        "releasedAt": null,
+        "repositoryId": "<id1>",
+        "repositoryName": "worklog",
+        "requestedAt": "<time.ffffff+hh:mm>",
+        "rescueRef": "",
+        "revision": 1,
+        "runId": "<id4>",
+        "slotIndex": 1,
+        "state": "active",
+        "worktreePath": ""
+      }
+    ],
+    "availableSlots": 1,
+    "dirtyCount": 0,
+    "policy": {
+      "autoRescueDirty": true,
+      "baseCheckoutPath": "",
+      "baseReadonly": false,
+      "configured": false,
+      "defaultBranch": "main",
+      "defaultTtlSeconds": 1800,
+      "maxActiveLeases": 2,
+      "repositoryId": "<id1>",
+      "revision": 0,
+      "slotRootPath": "",
+      "updatedAt": null
+    },
+    "queuedCount": 0,
+    "queuedLeases": [],
+    "recentLeases": [],
+    "repositoryId": "<id1>",
+    "repositoryName": "worklog",
+    "slots": [
+      {
+        "expectedWorktreePath": "",
+        "lease": {
+          "acquiredAt": "<time.ffffff+hh:mm>",
+          "agentId": "<id3>",
+          "branch": "claude/golden",
+          "chatId": "chat-1",
+          "credentialId": "<id3>",
+          "expiresAt": "<time.ffffff+hh:mm>",
+          "fetchWarning": "",
+          "holderLabel": "Builder",
+          "id": "<id2>",
+          "lastHeartbeatAt": "<time.ffffff+hh:mm>",
+          "mode": "shared",
+          "offeredAt": "<time.ffffff+hh:mm>",
+          "priority": "normal",
+          "provider": "",
+          "queuePosition": null,
+          "queueSeq": 1,
+          "reason": "Golden test",
+          "releaseReason": null,
+          "releasedAt": null,
+          "repositoryId": "<id1>",
+          "repositoryName": "worklog",
+          "requestedAt": "<time.ffffff+hh:mm>",
+          "rescueRef": "",
+          "revision": 1,
+          "runId": "<id4>",
+          "slotIndex": 1,
+          "state": "active",
+          "worktreePath": ""
+        },
+        "slotIndex": 1,
+        "state": "active"
+      },
+      {
+        "expectedWorktreePath": "",
+        "lease": null,
+        "slotIndex": 2,
+        "state": "free"
+      }
+    ]
+  },
+  "status": 200
+}

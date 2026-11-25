@@ -38,8 +38,15 @@ def _session_pids(folders: tuple[Path, ...], sessions: list[dict]) -> list[dict]
     ]
 
 
-def install_live_routes(app: FastAPI, db: Database, transcripts: TranscriptReader) -> None:
-    service = LiveService(transcripts)
+def install_live_routes(
+    app: FastAPI,
+    db: Database,
+    transcripts: TranscriptReader,
+    *,
+    antigravity_brain_root: Path | None = None,
+    check_antigravity: bool = True,
+) -> None:
+    service = LiveService(transcripts, antigravity_brain_root=antigravity_brain_root, check_antigravity=check_antigravity)
 
     @app.get("/api/v1/live", response_model=out.LiveSnapshot)
     def live(

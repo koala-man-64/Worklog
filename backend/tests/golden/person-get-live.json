@@ -269,14 +269,20 @@
     ],
     "repositories": [
       {
+        "activeLeases": 1,
         "agentCount": 1,
+        "baseReadonly": false,
         "branches": [],
+        "dirtySlots": 0,
         "discussionId": "<id9>",
         "href": "#repositories/<id8>",
         "id": "<id8>",
         "lastAt": "<time.ffffff+hh:mm>",
+        "maxActiveLeases": 2,
         "name": "worklog",
         "overlapCount": 1,
+        "queuedLeases": 0,
+        "rescuedLeases": 0,
         "unreviewed": false,
         "url": "https://github.com/example/worklog"
       }

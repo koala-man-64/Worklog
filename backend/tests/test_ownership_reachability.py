@@ -46,6 +46,9 @@ PRAGMA user_version=32;
 
 def to_v32(path):
     """Take a current database back to v32 the documented way."""
+    from test_leases import to_v33
+
+    to_v33(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK)
 
@@ -426,6 +429,9 @@ def test_the_v33_upgrade_changes_no_record_and_the_way_back_gives_v32s_exact_sha
     Database(database).initialize()
     version, signature, after = contents(database)
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
+    from test_leases import before_v34
+
+    after = before_v34(after)
     # Each request keeps its row, with no deadline, not urgent and not escalated; the new tables start empty.
     assert after["discussion_requests"] == sorted((row + (None, 0, None) for row in before["discussion_requests"]), key=repr)
     assert (after["participation_outputs"], after["discussion_seen"]) == ([], [])
@@ -442,8 +448,11 @@ V33_TABLES = ("participation_outputs", "discussion_seen")
 
 
 def before_v33(rows):
-    """A database's rows as they read before v33: its new tables left out while empty, and each request's
-    row cut back to its ten older columns."""
+    """A database's rows as they read before v33: its new tables (and v34's) left out while empty, and each
+    request's row cut back to its ten older columns."""
+    from test_leases import before_v34
+
+    rows = before_v34(rows)
     kept = {table: values for table, values in rows.items() if table not in V33_TABLES or values}
     if "discussion_requests" in kept:
         kept["discussion_requests"] = [row[:10] for row in kept["discussion_requests"]]

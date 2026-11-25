@@ -119,8 +119,12 @@ class ChatCreate(Command):
 
 
 class SessionStart(Command):
-    provider: Literal["codex", "claude"]
-    cwd: str = Field(min_length=1, max_length=2000)
+    provider: Literal["codex", "claude", "antigravity"]
+    repositoryId: str | None = Field(default=None, min_length=1, max_length=200)
+    cwd: str | None = Field(default=None, max_length=2000)
+    branch: str = Field(default="", max_length=200)
+    mode: Literal["shared", "exclusive"] = "shared"
+    priority: Literal["normal", "pr_fixup", "wave", "incident"] = "normal"
     prompt: str = Field(min_length=1, max_length=12000)
 
 

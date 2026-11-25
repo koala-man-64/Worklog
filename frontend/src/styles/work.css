@@ -56,6 +56,21 @@
 .session-launch-status > :last-child {
   margin-bottom: 0;
 }
+.session-launch-availability {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.session-launch-brief {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0;
+}
+.session-launch-brief textarea {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  min-height: 10rem;
+}
 @media (max-width: 650px) {
   .session-launch-fields {
     grid-template-columns: 1fr;

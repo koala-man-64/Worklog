@@ -17,6 +17,15 @@
     "remoteIdentity": "github.com/example/worklog",
     "reviewed": true,
     "revision": 1,
+    "slotSummary": {
+      "activeCount": 0,
+      "baseReadonly": false,
+      "configured": false,
+      "dirtyCount": 0,
+      "maxActiveLeases": 2,
+      "queuedCount": 0,
+      "rescuedCount": 0
+    },
     "updatedAt": "<time.ffffff+hh:mm>",
     "url": "https://github.com/example/worklog"
   },

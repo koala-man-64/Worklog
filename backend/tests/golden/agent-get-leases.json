@@ -1,0 +1,40 @@
+{
+  "body": {
+    "items": [
+      {
+        "acquiredAt": "<time.ffffff+hh:mm>",
+        "agentId": "<id3>",
+        "branch": "claude/golden",
+        "chatId": "chat-1",
+        "credentialId": "<id3>",
+        "expiresAt": "<time.ffffff+hh:mm>",
+        "fetchWarning": "",
+        "holderLabel": "Builder",
+        "id": "<id1>",
+        "lastHeartbeatAt": "<time.ffffff+hh:mm>",
+        "mode": "shared",
+        "offeredAt": "<time.ffffff+hh:mm>",
+        "priority": "normal",
+        "provider": "",
+        "queuePosition": null,
+        "queueSeq": 1,
+        "reason": "Golden test",
+        "releaseReason": null,
+        "releasedAt": null,
+        "repositoryId": "<id2>",
+        "repositoryName": "worklog",
+        "requestedAt": "<time.ffffff+hh:mm>",
+        "rescueRef": "",
+        "revision": 1,
+        "runId": "<id4>",
+        "slotIndex": 1,
+        "state": "active",
+        "worktreePath": ""
+      }
+    ],
+    "limit": 50,
+    "offset": 0,
+    "total": 1
+  },
+  "status": 200
+}

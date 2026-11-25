@@ -11,6 +11,7 @@ import { Pager } from "./ui/Pager";
 import { Coordination, OpenRuns } from "./Coordination";
 import { LinkPicker } from "./LinkPicker";
 import { RepositoryName } from "./RepositoryControls";
+import { RepositorySlotsSection, SlotSummaryPills } from "./RepositorySlots";
 import type {
   Answer,
   Item,
@@ -136,6 +137,9 @@ function RepositoryList() {
               <a className="item-title" href={"#repositories/" + repo.id}>
                 {repo.name}
               </a>
+              {!repo.mergedInto && (
+                <SlotSummaryPills summary={repo.slotSummary} />
+              )}
               <small>{repo.url || "No remote URL"}</small>
               {repo.mergedInto ? (
                 <MergedInto id={repo.mergedInto} />
@@ -513,6 +517,7 @@ function RepositoryDetail({ id }: { id: string }) {
         </>
       )}
       <LinkedWork repo={repo} />
+      {!repo.mergedInto && <RepositorySlotsSection repo={repo} />}
       {/* A merge moves every tie and file to the record that answers for this one. An archived
           record keeps its ties, and their roles, but takes no new one until it is recovered. */}
       {!repo.mergedInto && (

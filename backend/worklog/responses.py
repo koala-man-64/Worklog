@@ -72,14 +72,181 @@ class TrackedChat(Answer):
     repositoryIds: list[str]
 
 
+class ActiveLeaseSummary(Answer):
+    """Compact summary of an active or offered checkout lease."""
+
+    leaseId: str
+    agentId: str | None
+    holderLabel: str
+    provider: str
+    slotIndex: int | None
+    branch: str
+    worktreePath: str
+    mode: Literal["shared", "exclusive"]
+    state: Literal["offered", "active"]
+    expiresAt: str | None
+
+
+class RepositorySlotSummary(Answer):
+    """Compact checkout slot occupancy and policy flags for lists and badges."""
+
+    maxActiveLeases: int
+    activeCount: int
+    queuedCount: int
+    dirtyCount: int
+    rescuedCount: int
+    baseReadonly: bool
+    configured: bool
+
+
+class OverlapSlotPolicy(Answer):
+    maxActiveLeases: int
+    activeCount: int
+    queuedCount: int
+    dirtyCount: int
+    baseReadonly: bool
+    configured: bool
+
+
+class SlotPolicy(Answer):
+    """A repository's checkout slot policy (or effective defaults when unconfigured)."""
+
+    repositoryId: str
+    maxActiveLeases: int
+    defaultTtlSeconds: int
+    baseCheckoutPath: str
+    slotRootPath: str
+    defaultBranch: str
+    baseReadonly: bool
+    autoRescueDirty: bool
+    revision: int
+    updatedAt: str | None
+    configured: bool
+
+
+class BaseLockResult(Answer):
+    """Result of locking or unlocking a repository's canonical base checkout."""
+
+    repositoryId: str
+    basePath: str
+    baseReadonly: bool
+    filesAffected: int
+    detachedAt: str
+    policy: SlotPolicy
+
+
+class Lease(Answer):
+    """A bounded repository checkout slot lease (active, offered, queued, or closed)."""
+
+    id: str
+    repositoryId: str
+    repositoryName: str
+    agentId: str | None
+    credentialId: str | None
+    runId: str | None
+    provider: str
+    chatId: str
+    holderLabel: str
+    slotIndex: int | None
+    worktreePath: str
+    branch: str
+    mode: Literal["shared", "exclusive"]
+    state: Literal["queued", "offered", "active", "released", "expired", "expired_dirty", "revoked", "cancelled"]
+    priority: Literal["normal", "pr_fixup", "wave", "incident"]
+    queueSeq: int
+    queuePosition: int | None
+    reason: str
+    requestedAt: str
+    offeredAt: str | None
+    acquiredAt: str | None
+    lastHeartbeatAt: str
+    expiresAt: str | None
+    releasedAt: str | None
+    releaseReason: str | None
+    rescueRef: str
+    revision: int
+    fetchWarning: str
+
+
+class Leases(Answer):
+    items: list[Lease]
+    total: int
+    limit: int
+    offset: int
+
+
+class RepositorySlot(Answer):
+    slotIndex: int
+    expectedWorktreePath: str
+    state: Literal["free", "offered", "active", "expired_dirty"]
+    lease: Lease | None
+
+
+class RepositorySlots(Answer):
+    repositoryId: str
+    repositoryName: str
+    policy: SlotPolicy
+    activeCount: int
+    queuedCount: int
+    dirtyCount: int
+    availableSlots: int
+    slots: list[RepositorySlot]
+    activeLeases: list[Lease]
+    queuedLeases: list[Lease]
+    recentLeases: list[Lease]
+
+
+class DispatchItem(Answer):
+    """A durable dispatch-time session queue entry linked 1:1 to a repository lease."""
+
+    id: str
+    itemId: str
+    itemTitle: str
+    repositoryId: str
+    repositoryName: str
+    leaseId: str
+    provider: Literal["codex", "claude", "antigravity"]
+    requestedBranch: str
+    branch: str
+    slotIndex: int | None
+    worktreePath: str
+    queuePosition: int | None
+    status: Literal["queued", "provisioning", "preparing", "ready", "ready_manual", "failed", "cancelled"]
+    sessionId: str | None
+    chatRecordId: str | None
+    model: str
+    message: str
+    copyablePrompt: str | None
+    revision: int
+    createdAt: str
+    updatedAt: str
+
+
+class DispatchQueue(Answer):
+    items: list[DispatchItem]
+    total: int
+    limit: int
+    offset: int
+
+
 class SessionLaunch(Answer):
     id: str
-    provider: Literal["codex", "claude"]
-    status: Literal["starting", "ready", "failed"]
+    provider: Literal["codex", "claude", "antigravity"]
+    status: Literal["queued", "provisioning", "starting", "preparing", "ready", "ready_manual", "failed", "cancelled"]
     chat: TrackedChat | None
     message: str
     # A provider chat can exist before a failed local link is repaired.
     sessionId: str | None = None
+    dispatchId: str | None = None
+    repositoryId: str | None = None
+    repositoryName: str | None = None
+    leaseId: str | None = None
+    slotIndex: int | None = None
+    worktreePath: str | None = None
+    branch: str | None = None
+    queuePosition: int | None = None
+    activeHolders: list[ActiveLeaseSummary] | None = None
+    copyablePrompt: str | None = None
 
 
 class AgentChatOpened(Answer):
@@ -407,11 +574,12 @@ class Repository(Answer):
 
 
 class DiscussedRepository(Repository):
-    """A repository with its own discussion's id (v22), as the list, its read and a resolved address show it."""
+    """A repository with its own discussion's id (v22) and checkout slot summary (v34)."""
 
     # Null for a merged repository, whose discussion is tagged with the survivor now, and for one
     # archived before v22 and not recovered since (coordination.with_discussion).
     discussionId: str | None
+    slotSummary: RepositorySlotSummary
 
 
 class RepositoryDetail(DiscussedRepository):
@@ -1511,6 +1679,8 @@ class OverlapRepository(Answer):
     name: str
     # Its own discussion; null for one merged into another or archived before v22.
     discussionId: str | None
+    slotPolicy: OverlapSlotPolicy
+    activeLeases: list[ActiveLeaseSummary]
 
 
 class OverlapWorkItem(Answer):
@@ -2634,6 +2804,12 @@ class LiveRepoNode(Answer):
     branches: list[str]
     agentCount: int
     overlapCount: int
+    maxActiveLeases: int
+    activeLeases: int
+    queuedLeases: int
+    dirtySlots: int
+    rescuedLeases: int
+    baseReadonly: bool
     lastAt: str | None
     href: str
 

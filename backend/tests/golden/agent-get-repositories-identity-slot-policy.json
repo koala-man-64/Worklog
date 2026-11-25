@@ -1,0 +1,16 @@
+{
+  "body": {
+    "autoRescueDirty": true,
+    "baseCheckoutPath": "",
+    "baseReadonly": false,
+    "configured": false,
+    "defaultBranch": "main",
+    "defaultTtlSeconds": 1800,
+    "maxActiveLeases": 2,
+    "repositoryId": "<id1>",
+    "revision": 0,
+    "slotRootPath": "",
+    "updatedAt": null
+  },
+  "status": 200
+}

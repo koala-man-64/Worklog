@@ -14,10 +14,10 @@ import sqlite3
 
 from .common import now, setting, today, uid
 
-SCHEMA_VERSION = 33
+SCHEMA_VERSION = 34
 # Older versions that startup and offline restore upgrade in one transaction.
 UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
-                                 24, 25, 26, 27, 28, 29, 30, 31, 32})
+                                 24, 25, 26, 27, 28, 29, 30, 31, 32, 33})
 
 # v1 grew in place before versions were counted: _upgrade_v1 adds whichever of these a v1 database
 # lacks. People as v1 had them; v10 renames role to team, adds person details and lets links name
@@ -927,6 +927,22 @@ CREATE INDEX discussion_requests_deadline ON discussion_requests(deadline_at) WH
 """
 
 
+# v34: repository slot policies, active/queued leases, and dispatch-time session queue.
+LEASE_SLOT_SCHEMA = """
+CREATE TABLE repository_slot_policies(repository_id TEXT PRIMARY KEY REFERENCES repositories(id),max_active_leases INTEGER NOT NULL DEFAULT 2 CHECK(max_active_leases>=0),default_ttl_seconds INTEGER NOT NULL DEFAULT 1800 CHECK(default_ttl_seconds BETWEEN 300 AND 14400),base_checkout_path TEXT NOT NULL DEFAULT '',slot_root_path TEXT NOT NULL DEFAULT '',default_branch TEXT NOT NULL DEFAULT 'main',base_readonly INTEGER NOT NULL DEFAULT 0 CHECK(base_readonly IN(0,1)),auto_rescue_dirty INTEGER NOT NULL DEFAULT 1 CHECK(auto_rescue_dirty IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),updated_at TEXT NOT NULL);
+CREATE TABLE repository_leases(id TEXT PRIMARY KEY,repository_id TEXT NOT NULL REFERENCES repositories(id),agent_id TEXT REFERENCES communication_agents(id),credential_id TEXT REFERENCES credentials(id),run_id TEXT REFERENCES agent_runs(id),provider TEXT NOT NULL DEFAULT '',chat_id TEXT NOT NULL DEFAULT '',holder_label TEXT NOT NULL DEFAULT '',slot_index INTEGER CHECK(slot_index IS NULL OR slot_index>=1),worktree_path TEXT NOT NULL DEFAULT '',branch TEXT NOT NULL DEFAULT '',mode TEXT NOT NULL DEFAULT 'shared' CHECK(mode IN('shared','exclusive')),state TEXT NOT NULL CHECK(state IN('queued','offered','active','released','expired','expired_dirty','revoked','cancelled')),priority TEXT NOT NULL DEFAULT 'normal' CHECK(priority IN('normal','pr_fixup','wave','incident')),queue_seq INTEGER NOT NULL,reason TEXT NOT NULL DEFAULT '',requested_at TEXT NOT NULL,offered_at TEXT,acquired_at TEXT,last_heartbeat_at TEXT NOT NULL,expires_at TEXT,released_at TEXT,release_reason TEXT,rescue_ref TEXT NOT NULL DEFAULT '',revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1));
+CREATE INDEX repository_leases_repo_state ON repository_leases(repository_id,state,queue_seq);
+CREATE INDEX repository_leases_agent_state ON repository_leases(agent_id,state);
+CREATE INDEX repository_leases_run ON repository_leases(run_id,state);
+CREATE UNIQUE INDEX repository_leases_active_slot ON repository_leases(repository_id,slot_index) WHERE state IN('offered','active','expired_dirty') AND slot_index IS NOT NULL;
+CREATE UNIQUE INDEX repository_leases_active_branch ON repository_leases(repository_id,branch) WHERE state IN('offered','active') AND branch<>'';
+CREATE UNIQUE INDEX repository_leases_active_worktree ON repository_leases(repository_id,worktree_path) WHERE state IN('offered','active','expired_dirty') AND worktree_path<>'';
+CREATE TABLE dispatch_queue(id TEXT PRIMARY KEY,item_id TEXT NOT NULL REFERENCES work_items(id),repository_id TEXT NOT NULL REFERENCES repositories(id),lease_id TEXT NOT NULL UNIQUE REFERENCES repository_leases(id),provider TEXT NOT NULL CHECK(provider IN('codex','claude','antigravity')),requested_branch TEXT NOT NULL DEFAULT '',prompt TEXT NOT NULL,status TEXT NOT NULL CHECK(status IN('queued','provisioning','preparing','ready','ready_manual','failed','cancelled')),session_id TEXT,chat_record_id TEXT REFERENCES agent_chats(id),model TEXT NOT NULL DEFAULT '',message TEXT NOT NULL DEFAULT '',process_token TEXT NOT NULL DEFAULT '',revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+CREATE INDEX dispatch_queue_repo_status ON dispatch_queue(repository_id,status,created_at);
+CREATE INDEX dispatch_queue_item ON dispatch_queue(item_id,created_at);
+"""
+
+
 def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
     """Unlike executescript, preserve the caller's transaction and rollback boundary."""
     for statement in filter(str.strip, schema.split(";")):
@@ -1038,6 +1054,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE github_refs ADD COLUMN submitted_by TEXT NOT NULL DEFAULT ''")
     if version < 33:
         execute_schema(conn, REACHABILITY_SCHEMA)
+    if version < 34:
+        execute_schema(conn, LEASE_SLOT_SCHEMA)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 
@@ -1065,6 +1083,9 @@ def _upgrade_v1(conn: sqlite3.Connection, tables: set[str]) -> None:
 
 
 def invalidate_restored_presence(conn: sqlite3.Connection, stamp: str) -> None:
-    """Retain reports while making restored runs and participation visibly ended."""
+    """Retain reports while making restored runs, participation, leases and queued dispatches visibly ended."""
     conn.execute("UPDATE participations SET released_at=?,release_reason='restore',updated_at=?,revision=revision+1 WHERE released_at IS NULL", (stamp, stamp))
     conn.execute("UPDATE agent_runs SET ended_at=?,end_reason='restore',updated_at=?,revision=revision+1 WHERE ended_at IS NULL", (stamp, stamp))
+    conn.execute("UPDATE repository_leases SET state='released',released_at=?,release_reason='restore',revision=revision+1 WHERE state IN('offered','active')", (stamp,))
+    conn.execute("UPDATE repository_leases SET state='cancelled',released_at=?,release_reason='restore',revision=revision+1 WHERE state='queued'", (stamp,))
+    conn.execute("UPDATE dispatch_queue SET status='cancelled',message='Cancelled on restore',updated_at=?,revision=revision+1 WHERE status IN('queued','provisioning','preparing')", (stamp,))

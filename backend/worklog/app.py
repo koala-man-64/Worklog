@@ -45,6 +45,8 @@ from .db import Database
 from .discussion_api import install_discussion_routes
 from .discussions import bind_credential, communication_actor, registered_by, registered_chats
 from .guard import RequestGuard, error_response, read_body
+from .lease_api import install_lease_routes
+from .leases import LeaseService
 from .live_api import install_live_routes
 from .maintenance import prune_receipts
 from .plans import PlanService, recently_done, step_family, step_place
@@ -146,7 +148,8 @@ def person_only(request: Request) -> None:
 
 
 def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
-               transcript_roots: TranscriptRoots | None = None) -> FastAPI:
+               transcript_roots: TranscriptRoots | None = None,
+               antigravity_brain_root: Path | None = None) -> FastAPI:
     directory = Path(data_dir) if data_dir else default_data_directory()
     db = Database(directory / "worklog.sqlite3")
     db.initialize()
@@ -154,6 +157,12 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     work = WorkService(db, plans)
     # Tests read only the transcripts they write; they never see this machine's own.
     transcripts = TranscriptReader(transcript_roots or (TranscriptRoots() if testing else TranscriptRoots.from_environment()))
+    check_antigravity = (not testing) or (antigravity_brain_root is not None)
+    leases = LeaseService(
+        db,
+        transcripts,
+        antigravity_brain_root=antigravity_brain_root if check_antigravity else (directory / ".no-ag-brain"),
+    )
 
     def dispatch(conn: sqlite3.Connection, actor: dict, action: str, payload: dict) -> dict:
         # A proposal's operation passes the same request model the person's own route takes,
@@ -168,7 +177,9 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                   openapi_url="/api/v1/openapi.json")
     app.state.db, app.state.work, app.state.plans, app.state.proposals = db, work, plans, proposals
     app.state.transcripts = transcripts
-    app.state.session_launcher = SessionLauncher(db, work)
+    app.state.leases = leases
+    app.state.session_launcher = SessionLauncher(db, work, leases)
+    leases.on_promote = app.state.session_launcher.drain_promoted
     app.state.request_chats = AgentChats(db, transcripts)
     app.state.sessions = {}
     app.state.instance_id = os.environ.get("WORKLOG_INSTANCE_ID", uid())
@@ -889,6 +900,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             event(c, request.state.actor, "credential.revoke", identity, None, {"revoked": True})
             # Containment: what this identity registered loses access with it. Rotation keeps it.
             registered = revoke_registered(c, request.state.actor, identity)
+        leases.reap_deferred()
         return {"ok": True, "registeredRevoked": registered}
 
     @app.post("/api/v1/backups", dependencies=[Depends(person_only)], response_model=out.HashedBackup)
@@ -974,13 +986,15 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             return proposals.transition(identity, verb, p, actor, conn=c)
         return mutate(request, p, transition, required_key=verb == "approve", replay=proposal_replay)
 
+    # Install lease routes before coordination routes so /repositories/{identity}/base-lock precedes /{verb}.
+    install_lease_routes(app, db, leases)
     install_coordination_routes(app, db, mutate)
     install_ticket_routes(app, db, mutate)
     install_resource_routes(app, db, mutate)
     install_discussion_routes(app, db, discussion_mutate)
     install_registration_routes(app, db, support.continue_chats)
     install_registry_routes(app, db, transcripts)
-    install_live_routes(app, db, transcripts)
+    install_live_routes(app, db, transcripts, antigravity_brain_root=antigravity_brain_root, check_antigravity=check_antigravity)
     dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
     if (dist / "assets").is_dir():
         app.mount("/assets", StaticFiles(directory=dist / "assets", follow_symlink=False), name="assets")

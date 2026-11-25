@@ -138,6 +138,12 @@ const snapshot: LiveSnapshot = {
       branches: ["visualize-live", "review-live"],
       agentCount: 2,
       overlapCount: 2,
+      maxActiveLeases: 2,
+      activeLeases: 2,
+      queuedLeases: 1,
+      dirtySlots: 0,
+      rescuedLeases: 0,
+      baseReadonly: true,
       lastAt: "2026-11-14T11:59:00Z",
       href: "#repositories/repo-1",
     },
@@ -272,6 +278,9 @@ describe("Live", () => {
     expect(screen.getByText("Working")).toBeInTheDocument();
     expect(screen.getAllByText(/Declared:/, { selector: ".live-provenance" })[0]).toHaveTextContent("reporting");
     expect(screen.getByText("Worklog", { selector: ".live-repo-tier h3" })).toBeInTheDocument();
+    expect(screen.getByText("Slots 2/2")).toBeInTheDocument();
+    expect(screen.getByText("+1 queued")).toBeInTheDocument();
+    expect(screen.getByText("Base locked")).toBeInTheDocument();
     expect(screen.getByText("Overlap: 2 agents")).toBeInTheDocument();
     expect(screen.getByText("visualize-live")).toBeInTheDocument();
     expect(screen.getByText("Recent pulses", { selector: ".live-pulses h2" })).toBeInTheDocument();
