@@ -178,7 +178,7 @@ def test_detail_stays_small_however_often_a_long_ticket_changes(client):
     assert len(response.content) < 150_000
     history = response.json()["history"]
     assert len(history) == 21 and set(history[0]) == {"id", "kind", "actorId", "actorLabel", "actorKind", "createdAt"}
-    full = get(client, f"/history?entityId={ticket['id']}&limit=1")["items"][0]
+    full = get(client, f"/history?entityId={ticket['id']}&limit=1&payloads=true")["items"][0]
     assert full["after"]["priority"] == "low" and full["before"]["priority"] == "high"
 
 

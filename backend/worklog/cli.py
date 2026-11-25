@@ -972,10 +972,7 @@ def agent_command(args: argparse.Namespace, port: int, redact: list[str]) -> Any
     if args.agent_action == "roadmap":
         if args.roadmap_action == "outline":
             return client.request("GET", f"/roadmaps/{args.id}/outline")
-        roadmap = client.request("GET", "/roadmaps/" + args.id)
-        # Each history event keeps whole before-and-after copies of the plan; the steps already hold its text.
-        roadmap.pop("history", None)
-        return roadmap
+        return client.request("GET", "/roadmaps/" + args.id)
     if args.agent_action == "step":
         return client.request("GET", "/steps/" + args.id)
     if args.agent_action == "proposals":

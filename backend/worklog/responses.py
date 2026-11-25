@@ -185,8 +185,8 @@ class Author(Answer):
     avatar: str | None
 
 
-class Event(Answer):
-    """One entry of a record's history in full: the record before and after the change, as written then."""
+class RecordChange(Answer):
+    """One entry of a record's history: who made the change, its kind and when."""
 
     id: str
     entityId: str
@@ -196,6 +196,11 @@ class Event(Answer):
     actorKind: str
     createdAt: str
     localDate: str
+
+
+class Event(RecordChange):
+    """One entry of a record's history in full: the record before and after the change, as written then."""
+
     # As the change wrote them, and as compaction may have thinned them: any JSON.
     before: Any
     after: Any
@@ -371,7 +376,6 @@ class WorkItem(Answer):
     references: list[FileReference]
     people: list[RecordPerson]
     dailyEntries: list[DailyEntry]
-    history: list[Event]
     linkedRoadmap: LinkedRoadmap | None
     linkedStep: LinkedStep | None
 
@@ -498,7 +502,6 @@ class Person(PersonRecord):
     roadmaps: list[PersonRoadmap]
     workItems: list[PersonWorkItem]
     repositories: list[PersonRepository]
-    history: list[Event]
 
 
 class PlanStep(Answer):
@@ -565,7 +568,6 @@ class Roadmap(Answer):
     github: list[ListedGithubReference]
     questions: list[Question]
     decisions: list[Decision]
-    history: list[Event]
     ancestors: list[FamilyRoadmap]
     children: list[FamilyRoadmap]
     workItems: list[RoadmapWorkItem]
@@ -777,9 +779,10 @@ class Health(Answer):
 
 
 class RecordHistory(Answer):
-    """A record's latest history entries the reader may see."""
+    """A record's latest history entries the reader may see: each change without its before and after,
+    unless one change was asked for by its ID or every one with payloads."""
 
-    items: list[Event]
+    items: list[Event | RecordChange]
 
 
 class Attachments(Answer):
@@ -2282,7 +2285,6 @@ class SavedRoadmap(PlanRoadmap):
     github: list[ListedGithubReference]
     questions: list[Question]
     decisions: list[Decision]
-    history: list[Event]
 
 
 class SavedStep(PlanStep):

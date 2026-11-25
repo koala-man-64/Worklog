@@ -343,13 +343,26 @@ it("loads a ticket's full change records only when its history is opened", async
     "/tickets/": () => detail({ history: [change] }),
     "/discussions/participants": () => participants,
     "/history": () => ({
-      items: [{ ...change, after: { title: "Recorded in full" } }],
+      items: [{ ...change, entityId: ID, localDate: "2026-11-02" }],
+    }),
+    [`/history?entityId=${ID}&eventId=`]: () => ({
+      items: [
+        {
+          ...change,
+          entityId: ID,
+          localDate: "2026-11-02",
+          before: null,
+          after: { title: "Recorded in full" },
+        },
+      ],
     }),
   });
   show(<Tickets selected={ID} />);
   await screen.findByRole("heading", { name: "T-1 Backup holds a lock" });
   expect(paths.some((p) => p.startsWith("/history"))).toBe(false);
   await userEvent.click(screen.getByText("Activity history (1)"));
+  await userEvent.click(await screen.findByText("Show the change"));
   expect(await screen.findByText(/Recorded in full/)).toBeInTheDocument();
   expect(paths).toContain("/history?entityId=" + ID);
+  expect(paths).toContain(`/history?entityId=${ID}&eventId=event-1`);
 });

@@ -33,7 +33,6 @@ export const aRoadmap = (fields: Fields<Roadmap>): Roadmap => ({
   github: [],
   questions: [],
   decisions: [],
-  history: [],
   ancestors: [],
   children: [],
   workItems: [],

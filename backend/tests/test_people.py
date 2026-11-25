@@ -171,7 +171,8 @@ def test_merging_a_repository_moves_the_people_tied_to_it(client):
     assert [(p["name"], p["relationship"]) for p in ok(client.get(f"/api/v1/repositories/{kept['id']}"))["people"]] == [
         ("Dana Kim", "Maintainer"), ("Eli Park", "Owner")]
     assert ok(client.get(f"/api/v1/repositories/{old['id']}"))["people"] == []
-    event = next(e for e in ok(client.get("/api/v1/history", params={"entityId": old["id"]}))["items"] if e["kind"] == "repository.merge")
+    event = next(e for e in ok(client.get("/api/v1/history", params={"entityId": old["id"], "payloads": "true"}))["items"]
+                 if e["kind"] == "repository.merge")
     assert event["after"]["moved"]["people"] == 2
     # A merged record answers with the one it was merged into.
     refused = tie(client, dana, "repository", old)

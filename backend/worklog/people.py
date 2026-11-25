@@ -9,7 +9,7 @@ import unicodedata
 from typing import Any
 
 from . import search
-from .common import AppError, event, now, read_events, require_revision, text, uid
+from .common import AppError, event, now, require_revision, text, uid
 from .coordination import repository_record, repository_takes_people
 from .db import Database
 from .records import (
@@ -142,7 +142,6 @@ class People:
             result["roadmaps"] = roadmaps
             result["workItems"] = work_items
             result["repositories"] = repositories
-            result["history"] = read_events(c, person_id)
             return result
 
     @staticmethod

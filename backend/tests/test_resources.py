@@ -69,7 +69,7 @@ def test_the_person_writes_a_page_that_reads_back_whole_and_lists_by_title(clien
     assert [e["kind"] for e in shown["history"]] == ["resource.create"]
     # The detail's history names who changed what when; /history keeps the whole records.
     assert set(shown["history"][0]) == {"id", "kind", "actorId", "actorLabel", "actorKind", "createdAt"}
-    full = ok(request(client, "GET", f"/history?entityId={page['id']}"))["items"]
+    full = ok(request(client, "GET", f"/history?entityId={page['id']}&payloads=true"))["items"]
     assert full[0]["after"]["body"] == page["body"]
     error(request(client, "GET", f"/resources/{ID}"), 404, "not_found")
 

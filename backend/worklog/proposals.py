@@ -12,6 +12,8 @@ from .common import (
     AppError,
     event,
     now,
+    read_changes,
+    read_event,
     read_events,
     require_revision,
     rows_in,
@@ -272,16 +274,29 @@ def _visible_events(conn, events: list[dict], actor: dict) -> list[dict]:
     return [entry for entry in events if (identity := proposal(entry)) is None or identity in seen]
 
 
-def visible_history(conn, entity_id: str, limit: int, actor: dict) -> list[dict]:
+def visible_history(conn, entity_id: str, limit: int, actor: dict, *, payloads: bool = False) -> list[dict]:
     """A record's latest history entries the caller may see, `limit` of them where it has that many: the
-    page fills up past entries left out, so its length says nothing about them."""
+    page fills up past entries left out, so its length says nothing about them. Each says who made the
+    change, its kind and when; with payloads, also the record before and after it."""
     window = limit
     while True:
-        entries = read_events(conn, entity_id, window)
+        entries = (read_events if payloads else read_changes)(conn, entity_id, window)
         shown = _visible_events(conn, entries, actor)
         if len(shown) >= limit or len(entries) < window:
-            return shown[:limit]
+            if payloads:
+                return shown[:limit]
+            return [{key: value for key, value in entry.items() if key not in ("before", "after")}
+                    for entry in shown[:limit]]
         window *= 2
+
+
+def visible_event(conn, entity_id: str, event_id: str, actor: dict) -> dict:
+    """One of a record's changes in full, if the caller may see it; otherwise 404, as for a change the
+    record does not have."""
+    entry = read_event(conn, entity_id, event_id)
+    if entry is None or not _visible_events(conn, [entry], actor):
+        raise AppError(404, "not_found", "The record has no such change")
+    return entry
 
 
 def open_proposals(conn, actor, limit, offset=0) -> dict:

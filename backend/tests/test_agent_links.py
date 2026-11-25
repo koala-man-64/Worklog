@@ -118,10 +118,25 @@ def test_an_agents_history_page_fills_up_past_entries_it_may_not_see(client, tmp
              (now + timedelta(minutes=minute)).isoformat(), kind)
 
     def page(agent=None):
-        entries = read(client, f"/history?entityId={author['agentId']}&limit=2", agent)["items"]
+        entries = read(client, f"/history?entityId={author['agentId']}&limit=2&payloads=true", agent)["items"]
         return [(e["kind"], (e["after"] or e["before"])["relationship"]) for e in entries]
 
+    def listed(agent=None):
+        # Without payloads, the same check leaves the same entries out.
+        entries = read(client, f"/history?entityId={author['agentId']}&limit=2", agent)["items"]
+        assert all("after" not in e and "before" not in e for e in entries)
+        return [e["id"] for e in entries]
+
     assert page(other) == [("agent.link", "Three"), ("agent.link", "One")]
+    assert listed(other) == [e["id"] for e in read(client, f"/history?entityId={author['agentId']}&limit=2&payloads=true",
+                                                   other)["items"]]
+    assert len(listed()) == 2 and listed() != listed(other)
+    # Asked for by its ID, a hidden tie is as absent as a change the agent has none of.
+    hidden = next(e["id"] for e in read(client, f"/history?entityId={author['agentId']}&limit=1&payloads=true")["items"])
+    refused = client.get(f"/api/v1/history?entityId={author['agentId']}&eventId={hidden}",
+                         headers={"Authorization": "Bearer " + other["token"]})
+    assert refused.status_code == 404 and refused.json()["error"]["code"] == "not_found"
+    assert read(client, f"/history?entityId={author['agentId']}&eventId={hidden}", author)["items"][0]["id"] == hidden
     assert page() == [("agent.unlink", "Hidden"), ("agent.link", "Three")]
     # Once submitted, the draft is no longer hidden.
     ok(write(client, "POST", f"/proposals/{draft['id']}/submit", {"revision": draft["revision"]}, author))

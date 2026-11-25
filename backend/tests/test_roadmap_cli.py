@@ -84,10 +84,8 @@ def test_an_agent_reads_every_step_in_full_from_the_application(tmp_path, monkey
                  {"id": CHILD, "title": "Measure", "description": "Draft", "parentId": PARENT, "position": 0}]
         roadmap = write("/roadmaps", {"title": "Parser", "steps": steps}, "create-parser-roadmap")
         steps[1]["description"] = CHILD_DESCRIPTION
-        # A revision adds whole copies of the plan to the roadmap's history.
         revised = write(f"/roadmaps/{roadmap['id']}/revisions",
                         {"revision": roadmap["revision"], "title": "Parser", "steps": steps}, "revise-parser-roadmap")
-        assert len(wire.get(f"/api/v1/roadmaps/{roadmap['id']}", headers={"Authorization": "Bearer " + token}).json()["history"]) == 2
         monkeypatch.setenv("WORKLOG_AGENT_TOKEN", token)
 
         def bridge(request, **kwargs):

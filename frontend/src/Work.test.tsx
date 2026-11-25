@@ -52,7 +52,6 @@ function item(fields: Partial<Detail>): Detail {
     chats: [],
     github: [],
     references: [],
-    history: [],
     dailyEntries: [],
     rank: 2,
     rankedCount: 5,

@@ -34,7 +34,6 @@ from .common import (
     AppError,
     event,
     now,
-    read_events,
     setting,
     text,
     today,
@@ -53,6 +52,7 @@ from .proposals import (
     ProposalService,
     approval_required,
     open_proposals,
+    visible_event,
     visible_history,
     waiting_on,
 )
@@ -423,10 +423,15 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             proposals.detail(attachment["owner_id"], actor)
 
     @app.get("/api/v1/history", response_model=out.RecordHistory)
-    def history(request: Request, entityId: str, limit: int = Query(100, ge=1, le=200)) -> dict:
+    def history(request: Request, entityId: str, limit: int = Query(100, ge=1, le=200),
+                eventId: str | None = Query(None, max_length=200), payloads: bool = False) -> dict:
+        # Who changed the record, how and when. A change's before and after can each repeat the whole
+        # record, so they come only for the one change eventId names, or for every one with payloads.
         with db.read() as c:
             authorize_history(c, entityId, request.state.actor)
-            return {"items": visible_history(c, entityId, limit, request.state.actor)}
+            if eventId is not None:
+                return {"items": [visible_event(c, entityId, eventId, request.state.actor)]}
+            return {"items": visible_history(c, entityId, limit, request.state.actor, payloads=payloads)}
 
     @app.get("/api/v1/pull-requests", response_model=out.PullRequests)
     def pull_requests(submittedBy: str = Query("", max_length=200),
@@ -644,7 +649,6 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                 step.update(support.for_owner(c, "step", step["id"]))
             result["workItems"] = work.items.roadmap_items(c, identity)
             result["people"] = people_on(c, "roadmap", [identity]).get(identity, [])
-            result["history"] = read_events(c, identity)
         return result
 
     @app.get("/api/v1/roadmaps/{identity}/board", response_model=out.RoadmapBoard)

@@ -22,7 +22,7 @@ import {
 import { StepAgentChats } from "./sections/AgentChats";
 import { Files } from "./sections/Files";
 import { GithubRefsSection } from "./sections/GithubRefs";
-import { ChangeHistory, History } from "./sections/History";
+import { ChangeHistory } from "./sections/History";
 import { LinksSection } from "./sections/Links";
 import { Notes } from "./sections/Notes";
 import { PeopleLinks, PersonBadges } from "./sections/PeopleLinks";
@@ -780,7 +780,7 @@ export function RoadmapDetail({
         ))}
       </section>
       <AppliedProposals path={"/roadmaps/" + id} noun="roadmap" />
-      <History items={road.history} />
+      <ChangeHistory id={road.id} />
     </>
   );
   const shown = VIEWS.find((v) => v.id === view)!;

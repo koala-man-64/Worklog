@@ -6040,8 +6040,6 @@ export interface components {
             workItems: components["schemas"]["PersonWorkItem"][];
             /** Repositories */
             repositories: components["schemas"]["PersonRepository"][];
-            /** History */
-            history: components["schemas"]["Event"][];
         };
         /** PersonCreate */
         PersonCreate: {
@@ -6683,12 +6681,35 @@ export interface components {
             rankedCount: number;
         };
         /**
+         * RecordChange
+         * @description One entry of a record's history: who made the change, its kind and when.
+         */
+        RecordChange: {
+            /** Id */
+            id: string;
+            /** Entityid */
+            entityId: string;
+            /** Kind */
+            kind: string;
+            /** Actorid */
+            actorId: string;
+            /** Actorlabel */
+            actorLabel: string;
+            /** Actorkind */
+            actorKind: string;
+            /** Createdat */
+            createdAt: string;
+            /** Localdate */
+            localDate: string;
+        };
+        /**
          * RecordHistory
-         * @description A record's latest history entries the reader may see.
+         * @description A record's latest history entries the reader may see: each change without its before and after,
+         *     unless one change was asked for by its ID or every one with payloads.
          */
         RecordHistory: {
             /** Items */
-            items: components["schemas"]["Event"][];
+            items: (components["schemas"]["Event"] | components["schemas"]["RecordChange"])[];
         };
         /**
          * RecordPerson
@@ -7146,8 +7167,6 @@ export interface components {
             questions: components["schemas"]["Question"][];
             /** Decisions */
             decisions: components["schemas"]["Decision"][];
-            /** History */
-            history: components["schemas"]["Event"][];
             /** Ancestors */
             ancestors: components["schemas"]["FamilyRoadmap"][];
             /** Children */
@@ -7581,8 +7600,6 @@ export interface components {
             questions: components["schemas"]["Question"][];
             /** Decisions */
             decisions: components["schemas"]["Decision"][];
-            /** History */
-            history: components["schemas"]["Event"][];
         };
         /**
          * SavedStep
@@ -8693,8 +8710,6 @@ export interface components {
             people: components["schemas"]["RecordPerson"][];
             /** Dailyentries */
             dailyEntries: components["schemas"]["DailyEntry"][];
-            /** History */
-            history: components["schemas"]["Event"][];
             linkedRoadmap: components["schemas"]["LinkedRoadmap"] | null;
             linkedStep: components["schemas"]["LinkedStep"] | null;
         };
@@ -9495,6 +9510,8 @@ export interface operations {
             query: {
                 entityId: string;
                 limit?: number;
+                eventId?: string | null;
+                payloads?: boolean;
             };
             header?: never;
             path?: never;

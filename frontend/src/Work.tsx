@@ -6,7 +6,7 @@ import { useCommand, useData, useWrites } from "./hooks";
 import { AgentChatsSection } from "./sections/AgentChats";
 import { Files } from "./sections/Files";
 import { GithubRefsSection } from "./sections/GithubRefs";
-import { History } from "./sections/History";
+import { ChangeHistory } from "./sections/History";
 import { LinksSection } from "./sections/Links";
 import { Scratchpad } from "./sections/Notes";
 import { PeopleLinks, PersonBadges } from "./sections/PeopleLinks";
@@ -660,7 +660,7 @@ export function ItemDetail({ id }: { id: string }) {
         ]}
       />
       <AppliedProposals path={"/work-items/" + id} noun="work item" />
-      <History items={item.history} />
+      <ChangeHistory id={item.id} />
     </>
   );
 }
