@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime, timedelta
 
 from test_step_update import change, client, ok, read, refused, submit, write
 
@@ -156,6 +157,54 @@ def test_overlaps_and_proposal_guardrails_surface_execution_warnings(client):
     assert any(r["repositoryId"] == r1["id"] and r["overWipCap"] for r in guard["repositories"])
     assert any(s["stepId"] == s_multi for s in guard["multiRepoSteps"])
     assert any(s["stepId"] == s_out for s in guard["competingWaveSteps"])
+
+
+def _writer(c, sponsor, label, repository_id):
+    """A registered agent with a run and a participation in the repository; returns the participation."""
+    token = "tok-" + uuid.uuid4().hex + uuid.uuid4().hex
+    chat = f"chat-{uuid.uuid4().hex[:8]}"
+    reg = {**ok(write(c, "POST", "/agent-registrations", {"label": label, "chatId": chat, "token": token}, sponsor)),
+           "token": token}
+    run = ok(write(c, "POST", "/agent-runs", {"clientRunKey": chat, "displayName": label, "externalChatId": chat}, reg))
+    return ok(write(c, "POST", "/participations", {
+        "runId": run["id"], "description": label, "contexts": [{"repositoryId": repository_id, "branch": f"feat/{chat}"}],
+    }, reg))
+
+
+def test_stale_participations_are_listed_but_do_not_count_as_writers(client):
+    repo = _repo(client, "contracts", tier=1, wipCap=1)
+    step = str(uuid.uuid4())
+    rm = _roadmap(client, steps=[{"id": step, "title": "Schema work", "position": 0, "repositoryIds": [repo["id"]]}])
+    sponsor = _credential(client, "Sponsor")
+    fresh = _writer(client, sponsor, "Fresh writer", repo["id"])
+    left_open = _writer(client, sponsor, "Never released", repo["id"])
+
+    def lane():
+        disp = ok(read(client, f"/roadmaps/{rm['id']}/dispatch"))
+        return next(x for x in disp["repoLanes"] if x["repositoryId"] == repo["id"]), disp["summary"]
+
+    def advisory():
+        ov = ok(read(client, f"/coordination-overlaps?repositoryId={repo['id']}&stepId={step}", sponsor))
+        return next(r for r in ov["dispatchAdvisories"]["repositories"] if r["repositoryId"] == repo["id"])
+
+    # Two fresh writers exceed the cap of 1 everywhere the cap is checked.
+    current, summary = lane()
+    assert (current["activeWriters"], current["overWipCap"], summary["overCapRepos"]) == (2, True, 1)
+    assert ok(read(client, f"/repositories/{repo['id']}/queue"))["overWipCap"] is True
+    assert advisory()["overWipCap"] is True
+
+    # One participation goes 3 hours without a report and is never released.
+    old = (datetime.now(UTC) - timedelta(hours=3)).isoformat()
+    with client.app.state.db.transaction() as c:
+        c.execute("UPDATE participations SET last_seen_at=? WHERE id=?", (old, left_open["id"]))
+
+    current, summary = lane()
+    assert (current["activeWriters"], current["overWipCap"], summary["overCapRepos"]) == (1, False, 0)
+    stale_by_id = {p["participationId"]: p["stale"] for p in current["participations"]}
+    assert stale_by_id == {fresh["id"]: False, left_open["id"]: True}
+    queue = ok(read(client, f"/repositories/{repo['id']}/queue"))
+    assert (queue["activeWriters"], queue["overWipCap"]) == (1, False)
+    assert (advisory()["activeWriters"], advisory()["overWipCap"]) == (1, False)
 
 
 def test_dispatch_scale_120_steps_remains_lean_and_bounded_queries(client):
