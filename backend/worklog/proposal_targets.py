@@ -57,6 +57,12 @@ def _step_roadmap(conn: sqlite3.Connection, step_id: Any) -> str | None:
     return row[0] if row else None
 
 
+def _wave_roadmap(conn: sqlite3.Connection, wave_id: Any) -> str | None:
+    wave = _named(wave_id)
+    row = conn.execute("SELECT roadmap_id FROM waves WHERE id=?", (wave,)).fetchone() if wave else None
+    return row[0] if row else None
+
+
 def _holder(conn: sqlite3.Connection, owner_type: Any, owner_id: Any) -> tuple[str, str] | None:
     """The work item or roadmap a supporting record's owner is: a step's roadmap for a step."""
     identity = _named(owner_id)
@@ -95,8 +101,14 @@ def targets(conn: sqlite3.Connection, action: Any, payload: Any, applied: str | 
         add("roadmap", applied if verb == "create" else payload.get("id"))
         if verb in {"create", "move"}:
             add("roadmap", payload.get("parentId"))
-    elif action in {"progress.set", "step.update"}:
+    elif action == "step.create":
+        add("roadmap", payload.get("roadmapId"))
+    elif action in {"progress.set", "step.update", "step.split", "step.move"}:
         add("roadmap", _step_roadmap(conn, payload.get("id") or payload.get("stepId")))
+    elif action == "wave.create":
+        add("roadmap", payload.get("roadmapId"))
+    elif action in {"wave.update", "wave.steps"}:
+        add("roadmap", _wave_roadmap(conn, payload.get("id")))
     elif action == "entry.upsert":
         add("item", payload.get("itemId"))
     elif action in {"person.link", "person.unlink"}:

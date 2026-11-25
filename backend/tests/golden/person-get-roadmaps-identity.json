@@ -7,7 +7,7 @@
     "children": [
       {
         "archived": false,
-        "id": "<id7>",
+        "id": "<id9>",
         "title": "Sub-plan"
       }
     ],
@@ -17,7 +17,7 @@
         "archived": false,
         "createdAt": "<time.ffffff+hh:mm>",
         "decidedDate": "2026-01-05",
-        "id": "<id6>",
+        "id": "<id8>",
         "rationale": "",
         "revision": 1,
         "roadmapId": "<id1>",
@@ -35,9 +35,9 @@
       {
         "archived": false,
         "createdAt": "<time.ffffff+hh:mm>",
-        "id": "<id11>",
+        "id": "<id13>",
         "name": "Ada",
-        "personId": "<id10>",
+        "personId": "<id12>",
         "personTeam": "",
         "personTitle": "Engineer",
         "relationship": "Reviewer"
@@ -49,7 +49,7 @@
         "archived": false,
         "createdAt": "<time.ffffff+hh:mm>",
         "details": "",
-        "id": "<id4>",
+        "id": "<id6>",
         "revision": 1,
         "roadmapId": "<id1>",
         "status": "open",
@@ -61,7 +61,7 @@
         "archived": false,
         "createdAt": "<time.ffffff+hh:mm>",
         "details": "",
-        "id": "<id5>",
+        "id": "<id7>",
         "revision": 1,
         "roadmapId": "<id1>",
         "status": "open",
@@ -69,7 +69,7 @@
         "updatedAt": "<time.ffffff+hh:mm>"
       }
     ],
-    "revision": 2,
+    "revision": 3,
     "steps": [
       {
         "attachments": [],
@@ -79,10 +79,13 @@
         "outcome": "",
         "parentId": null,
         "position": 0,
+        "repositoryIds": [],
         "retired": false,
         "revision": 1,
         "status": "open",
-        "title": "Parent"
+        "title": "Parent",
+        "waveIds": [],
+        "workClass": ""
       },
       {
         "attachments": [],
@@ -92,10 +95,17 @@
         "outcome": "",
         "parentId": "<id2>",
         "position": 1,
+        "repositoryIds": [
+          "<id4>"
+        ],
         "retired": false,
-        "revision": 1,
+        "revision": 2,
         "status": "open",
-        "title": "Child"
+        "title": "Child",
+        "waveIds": [
+          "<id5>"
+        ],
+        "workClass": "critical_path"
       }
     ],
     "title": "Plan 2",
@@ -119,14 +129,14 @@
         "backlogOrder": 1,
         "createdAt": "<time.ffffff+hh:mm>",
         "description": "Parse the plan",
-        "id": "<id8>",
+        "id": "<id10>",
         "people": [
           {
             "archived": false,
             "createdAt": "<time.ffffff+hh:mm>",
-            "id": "<id9>",
+            "id": "<id11>",
             "name": "Ada",
-            "personId": "<id10>",
+            "personId": "<id12>",
             "personTeam": "",
             "personTitle": "Engineer",
             "relationship": "Reviewer"

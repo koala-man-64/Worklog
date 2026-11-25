@@ -199,6 +199,7 @@ ROUTES: dict[str, dict[str, str | Only]] = {
 
     "/proposals": {"GET": READ, "POST": PROPOSE},
     "/proposals/{identity}": {"GET": READ, "PATCH": PROPOSE},
+    "/proposals/{identity}/guardrails": {"GET": READ},
     "/proposals/{identity}/{verb}": {"POST": Only(PROPOSE, "verb", frozenset({"submit", "withdraw", "reopen"}))},
 
     "/questions": {"POST": HUMAN},
@@ -218,6 +219,8 @@ ROUTES: dict[str, dict[str, str | Only]] = {
     "/repositories/{identity}/base-lock": {"POST": HUMAN},
     "/repositories/{identity}/confirm": {"POST": HUMAN},
     "/repositories/{identity}/merge": {"POST": HUMAN},
+    "/repositories/{identity}/queue": {"GET": READ},
+    "/repositories/{identity}/queue/reorder": {"POST": HUMAN},
     "/repositories/{identity}/slot-policy": {"GET": READ, "PATCH": HUMAN},
     "/repositories/{identity}/slots": {"GET": READ},
     "/repositories/{identity}/{verb}": {"POST": HUMAN},
@@ -230,12 +233,15 @@ ROUTES: dict[str, dict[str, str | Only]] = {
     "/roadmaps/{identity}": {"GET": READ},
     "/roadmaps/{identity}/agents": {"GET": HUMAN},
     "/roadmaps/{identity}/board": {"GET": HUMAN},
+    "/roadmaps/{identity}/dispatch": {"GET": READ},
     "/roadmaps/{identity}/move": {"POST": HUMAN},
     "/roadmaps/{identity}/outline": {"GET": READ},
     "/roadmaps/{identity}/proposals": {"GET": READ},
     "/roadmaps/{identity}/restore": {"POST": HUMAN},
     "/roadmaps/{identity}/revisions": {"POST": HUMAN},
     "/roadmaps/{identity}/revisions/{number}": {"GET": READ},
+    "/roadmaps/{identity}/steps": {"POST": HUMAN},
+    "/roadmaps/{identity}/waves": {"GET": READ, "POST": HUMAN},
     "/roadmaps/{identity}/{verb}": {"POST": HUMAN},
 
     "/search": {"GET": READ},
@@ -246,7 +252,9 @@ ROUTES: dict[str, dict[str, str | Only]] = {
 
     "/steps/{identity}": {"GET": READ, "PATCH": HUMAN},
     "/steps/{identity}/history": {"GET": READ},
+    "/steps/{identity}/move": {"POST": HUMAN},
     "/steps/{identity}/progress": {"PATCH": HUMAN},
+    "/steps/{identity}/split": {"POST": HUMAN},
 
     "/tickets": {"GET": READ, "POST": TICKET},
     "/tickets/{ref}": {"GET": READ, "PATCH": TICKET},
@@ -254,6 +262,14 @@ ROUTES: dict[str, dict[str, str | Only]] = {
     "/tickets/{ref}/{verb}": {"POST": HUMAN},
 
     "/usage": {"GET": HUMAN},
+
+    "/waves/{identity}": {"GET": READ, "PATCH": HUMAN},
+    "/waves/{identity}/freeze": {"POST": HUMAN},
+    "/waves/{identity}/repins/report": {"POST": COORDINATE},
+    "/waves/{identity}/repins/verify": {"POST": HUMAN},
+    "/waves/{identity}/status": {"POST": HUMAN},
+    "/waves/{identity}/steps": {"POST": HUMAN},
+    "/waves/{identity}/{verb}": {"POST": HUMAN},
 
     "/work-items": {"GET": READ, "POST": HUMAN},
     "/work-items/reorder": {"POST": HUMAN},

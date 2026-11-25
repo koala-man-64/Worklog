@@ -196,7 +196,8 @@
             },
             "runId": "<id4>",
             "runName": "Builder",
-            "stale": false
+            "stale": false,
+            "stepId": null
           }
         ]
       }

@@ -388,7 +388,7 @@ def test_the_route_reads_the_count_of_registered_repositories_and_pull_requests(
     with closing(sqlite3.connect(client.app.state.db.path)) as conn, conn:
         conn.execute("INSERT INTO agent_runs VALUES('run',?,?,'run','Run','codex',NULL,1,?,?,NULL,NULL)",
                      (issued["agentId"], issued["id"], stamp, stamp))
-        conn.execute("INSERT INTO participations VALUES('part','run',NULL,'',1,?,?,?,NULL,NULL)", (stamp, stamp, stamp))
+        conn.execute("INSERT INTO participations VALUES('part','run',NULL,'',1,?,?,?,NULL,NULL,NULL)", (stamp, stamp, stamp))
         conn.execute("INSERT INTO participation_contexts VALUES('part',0,?,?,'','main')",
                      (repository["id"], str(repo.checkout)))
 

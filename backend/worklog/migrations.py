@@ -14,10 +14,10 @@ import sqlite3
 
 from .common import now, setting, today, uid
 
-SCHEMA_VERSION = 34
+SCHEMA_VERSION = 35
 # Older versions that startup and offline restore upgrade in one transaction.
 UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
-                                 24, 25, 26, 27, 28, 29, 30, 31, 32, 33})
+                                 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34})
 
 # v1 grew in place before versions were counted: _upgrade_v1 adds whichever of these a v1 database
 # lacks. People as v1 had them; v10 renames role to team, adds person details and lets links name
@@ -943,6 +943,29 @@ CREATE INDEX dispatch_queue_item ON dispatch_queue(item_id,created_at);
 """
 
 
+# v35: repository WIP/tier/dependencies, step-repository links & work classification, direct step
+# participation linkage, and synchronized release/contract waves with upstream freezes and re-pins.
+REPO_WAVE_EXECUTION_SCHEMA = """
+ALTER TABLE repositories ADD COLUMN wip_cap INTEGER CHECK(wip_cap IS NULL OR wip_cap>=1);
+ALTER TABLE repositories ADD COLUMN tier INTEGER CHECK(tier IS NULL OR tier BETWEEN 1 AND 9);
+ALTER TABLE steps ADD COLUMN work_class TEXT NOT NULL DEFAULT '' CHECK(work_class IN('','stabilization','critical_path','standard','refactor','gate'));
+ALTER TABLE participations ADD COLUMN step_id TEXT REFERENCES steps(id);
+CREATE INDEX participations_step ON participations(step_id,released_at);
+CREATE TABLE repository_dependencies(upstream_id TEXT NOT NULL REFERENCES repositories(id),downstream_id TEXT NOT NULL REFERENCES repositories(id),created_at TEXT NOT NULL,PRIMARY KEY(upstream_id,downstream_id),CHECK(upstream_id<>downstream_id));
+CREATE INDEX repository_dependencies_downstream ON repository_dependencies(downstream_id,upstream_id);
+CREATE TABLE step_repositories(step_id TEXT NOT NULL REFERENCES steps(id),repository_id TEXT NOT NULL REFERENCES repositories(id),position INTEGER,created_at TEXT NOT NULL,PRIMARY KEY(step_id,repository_id));
+CREATE INDEX step_repositories_repository ON step_repositories(repository_id,position,step_id);
+CREATE TABLE waves(id TEXT PRIMARY KEY,roadmap_id TEXT NOT NULL REFERENCES roadmaps(id),name TEXT NOT NULL,summary TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT 'planning' CHECK(status IN('planning','active','completed','cancelled')),position INTEGER NOT NULL DEFAULT 0,discussion_id TEXT REFERENCES discussions(id),archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL,activated_at TEXT,completed_at TEXT);
+CREATE INDEX waves_roadmap ON waves(roadmap_id,archived,position);
+CREATE TABLE wave_steps(wave_id TEXT NOT NULL REFERENCES waves(id),step_id TEXT NOT NULL REFERENCES steps(id),position INTEGER NOT NULL DEFAULT 0,added_at TEXT NOT NULL,PRIMARY KEY(wave_id,step_id));
+CREATE INDEX wave_steps_step ON wave_steps(step_id);
+CREATE TABLE wave_repositories(wave_id TEXT NOT NULL REFERENCES waves(id),repository_id TEXT NOT NULL REFERENCES repositories(id),tier INTEGER NOT NULL DEFAULT 2 CHECK(tier BETWEEN 1 AND 9),freeze_status TEXT NOT NULL DEFAULT 'open' CHECK(freeze_status IN('open','batching','frozen')),frozen_ref TEXT NOT NULL DEFAULT '',frozen_at TEXT,frozen_by_label TEXT NOT NULL DEFAULT '',notes TEXT NOT NULL DEFAULT '',revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),updated_at TEXT NOT NULL,PRIMARY KEY(wave_id,repository_id));
+CREATE INDEX wave_repositories_repo ON wave_repositories(repository_id,wave_id);
+CREATE TABLE wave_repins(wave_id TEXT NOT NULL REFERENCES waves(id),upstream_repo_id TEXT NOT NULL REFERENCES repositories(id),consumer_repo_id TEXT NOT NULL REFERENCES repositories(id),status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN('pending','in_progress','verified','waived')),pinned_ref TEXT NOT NULL DEFAULT '',pr_url TEXT NOT NULL DEFAULT '',commit_sha TEXT NOT NULL DEFAULT '',reported_by_label TEXT NOT NULL DEFAULT '',verified_at TEXT,revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),updated_at TEXT NOT NULL,PRIMARY KEY(wave_id,upstream_repo_id,consumer_repo_id),CHECK(upstream_repo_id<>consumer_repo_id));
+CREATE INDEX wave_repins_consumer ON wave_repins(consumer_repo_id,wave_id);
+"""
+
+
 def execute_schema(conn: sqlite3.Connection, schema: str) -> None:
     """Unlike executescript, preserve the caller's transaction and rollback boundary."""
     for statement in filter(str.strip, schema.split(";")):
@@ -1056,6 +1079,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
         execute_schema(conn, REACHABILITY_SCHEMA)
     if version < 34:
         execute_schema(conn, LEASE_SLOT_SCHEMA)
+    if version < 35:
+        execute_schema(conn, REPO_WAVE_EXECUTION_SCHEMA)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 

@@ -13,6 +13,7 @@ import type {
   Attachment,
   Day,
   Detail,
+  DispatchAdvisories,
   Operation,
   Proposal,
   ProposalSummary,
@@ -132,6 +133,17 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
   >(null);
   const [staleByOp, setStaleByOp] = useState<Record<string, string>>({});
   const p = query.data;
+  const guardrails = useQuery({
+    queryKey: [getDataContext(), "proposal-guardrails", id, p?.revision],
+    enabled: p?.status === "submitted",
+    queryFn: async () => {
+      try {
+        return await request<DispatchAdvisories>(`/proposals/${id}/guardrails`);
+      } catch {
+        return null;
+      }
+    },
+  });
   const scope = p ? `${id}:${p.revision}` : id;
   const reportStale = useCallback(
     (number: number, detail: string | null) => {
@@ -202,6 +214,7 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
       <ErrorMessage error={action.error} />
       {p.status === "submitted" && (
         <div className="decision">
+          {guardrails.data && <ProposalGuardrails data={guardrails.data} />}
           {staleList.length > 0 && (
             <p className="warning">
               Target record changed since this proposal was drafted:{" "}
@@ -320,11 +333,15 @@ const NAME_FIELDS = new Set([
   "id",
   "itemId",
   "roadmapId",
+  "stepId",
+  "waveId",
   "parentId",
   "personId",
   "ownerId",
   "targetId",
   "repositoryIds",
+  "stepIds",
+  "upstreamIds",
 ]);
 function namesIn(key: string, value: unknown): string[] {
   if (!NAME_FIELDS.has(key)) return [];
@@ -373,6 +390,7 @@ function currentPath(
     return DATE.test(date) ? "/days/" + encodeURIComponent(date) : null;
   }
   if (action === "progress.set" || action.startsWith("step.")) return "/steps/" + id;
+  if (action.startsWith("wave.")) return "/waves/" + id;
   if (action.startsWith("repository.")) return "/repositories/" + id;
   const collection = action.startsWith("roadmap.")
     ? "roadmaps"
@@ -652,6 +670,73 @@ function Registered({ holder, name }: { holder: Repository; name: string }) {
       Already registered as {link}: approval links to it and adds nothing
       {name && <>, so {name} stands for it in later changes</>}.
     </p>
+  );
+}
+function ProposalGuardrails({ data }: { data: DispatchAdvisories }) {
+  const flaggedRepos = (data.repositories ?? []).filter(
+    (r) =>
+      r.overWipCap ||
+      r.frozenWaves.length > 0 ||
+      r.pendingRepins.length > 0,
+  );
+  const multiRepo = data.multiRepoSteps ?? [];
+  const competing = data.competingWaveSteps ?? [];
+  if (
+    flaggedRepos.length === 0 &&
+    multiRepo.length === 0 &&
+    competing.length === 0
+  ) {
+    return null;
+  }
+  return (
+    <aside
+      className="warning exec-guardrails"
+      role="region"
+      aria-label="Execution guardrails"
+    >
+      <strong>Execution guardrails</strong>
+      <ul>
+        {flaggedRepos.map((repo) => (
+          <li key={repo.repositoryId}>
+            <a href={"#repositories/" + repo.repositoryId}>
+              {repo.repositoryName}
+            </a>
+            :{" "}
+            {[
+              repo.overWipCap && repo.effectiveWipCap !== null
+                ? `over WIP cap (${repo.doingSteps} doing, ${repo.activeWriters} writers, cap ${repo.effectiveWipCap})`
+                : null,
+              ...repo.frozenWaves.map(
+                (w) =>
+                  `${w.freezeStatus} in ${w.waveName}${w.frozenRef ? ` (${w.frozenRef})` : ""}`,
+              ),
+              repo.pendingRepins.length > 0
+                ? `${repo.pendingRepins.length} pending re-pin${repo.pendingRepins.length === 1 ? "" : "s"}`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </li>
+        ))}
+        {multiRepo.map((st) => (
+          <li key={"multi-" + st.stepId}>
+            <a href={`#roadmaps/${st.roadmapId}/${st.stepId}`}>
+              {st.stepTitle}
+            </a>{" "}
+            touches {st.repositoryIds.length} repositories; consider splitting
+            into single-repo child steps.
+          </li>
+        ))}
+        {competing.map((st) => (
+          <li key={"comp-" + st.stepId}>
+            <a href={`#roadmaps/${st.roadmapId}/${st.stepId}`}>
+              {st.stepTitle}
+            </a>{" "}
+            is outside active wave <strong>{st.activeWaveName}</strong>.
+          </li>
+        ))}
+      </ul>
+    </aside>
   );
 }
 function display(value: unknown) {

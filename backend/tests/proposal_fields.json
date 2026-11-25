@@ -7,7 +7,10 @@
       "description",
       "id",
       "name",
-      "url"
+      "tier",
+      "upstreamIds",
+      "url",
+      "wipCap"
     ]
   },
   "repository.update": {
@@ -20,7 +23,10 @@
       "id",
       "name",
       "revision",
-      "url"
+      "tier",
+      "upstreamIds",
+      "url",
+      "wipCap"
     ]
   },
   "repository.archive": {
@@ -198,8 +204,97 @@
       "description",
       "id",
       "outcome",
+      "repositoryIds",
       "revision",
+      "title",
+      "workClass"
+    ]
+  },
+  "step.create": {
+    "required": [
+      "revision",
+      "roadmapId",
       "title"
+    ],
+    "allowed": [
+      "description",
+      "id",
+      "outcome",
+      "parentId",
+      "position",
+      "repositoryIds",
+      "revision",
+      "roadmapId",
+      "title",
+      "workClass"
+    ]
+  },
+  "step.split": {
+    "required": [
+      "children",
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "children",
+      "clearParentRepositories",
+      "id",
+      "inheritWaves",
+      "rehomeToChildIndex",
+      "revision"
+    ]
+  },
+  "step.move": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "parentId",
+      "position",
+      "revision"
+    ]
+  },
+  "wave.create": {
+    "required": [
+      "name",
+      "roadmapId"
+    ],
+    "allowed": [
+      "id",
+      "name",
+      "openDiscussion",
+      "repositories",
+      "roadmapId",
+      "stepIds",
+      "summary"
+    ]
+  },
+  "wave.update": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "name",
+      "position",
+      "repositories",
+      "revision",
+      "summary"
+    ]
+  },
+  "wave.steps": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "mode",
+      "revision",
+      "stepIds"
     ]
   },
   "person.create": {

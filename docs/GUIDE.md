@@ -429,7 +429,7 @@ Plans broken into steps, with every saved version kept.
     - "Edit structure", and "Archive" or "Recover".
     - The progress bar.
     - "Nested under", the sub-roadmaps and "Add sub-roadmap".
-    - Its views, each at its own address: "Status", "Outline", "Questions and decisions" with how many are open, "Chats", "Discussions", "Live", "Material" and "History".
+    - Its views, each at its own address: "Status", "Outline", "Execution", "Questions and decisions" with how many are open, "Chats", "Discussions", "Live", "Material" and "History".
   - **"Status"**, which the roadmap opens on:
     - "Phases": each step at the top of the outline, with how many of the steps under it are done, in progress, blocked and open, and a bar filled in those colours.
     - "Now": the steps in progress, each with its phase and the agents working on it.
@@ -439,15 +439,19 @@ Plans broken into steps, with every saved version kept.
     - "Now", "Next" and each list under "Needs you" show their first eight and link to the rest; "Recently done" shows the last ten.
     - Then the overview text, its people and "Agents": every agent whose work ties it to the roadmap, now or before: its reported work, status updates, responsibilities, discussion messages and tracked chats, the same work that names the roadmap on its card on **Agents**. Each row says why, with "Current" while something is still open and otherwise when it last was. Agents whose credentials are revoked sit under "Retired agents". Nobody ties them here by hand.
   - **"Outline":**
-    - "Plan & progress": the outline of steps, with "Collapse done", "Collapse all" and "Expand all", and "Show retired steps" once a step is retired. A long title is cut short on its line; hover over it to read it whole, as on "Status".
-    - "Agents working here", and each step's progress, work-item count and agents.
+    - "Plan & progress": the outline of steps, with "Collapse done", "Collapse all" and "Expand all", "Show retired steps" once a step is retired, and optional filters by repository, work class and "Multi-repo leaves only". A long title is cut short on its line; hover over it to read it whole, as on "Status".
+    - "Agents working here", and each step's progress, work-item count, work class, linked repositories and agents.
     - Drag the outline's edge to resize it.
     - "Edit structure" opens the editor beside it. Otherwise it has the step chosen in the outline:
-      - Its "Outcome" first, in a panel larger than anything else under its title, or "No outcome yet" when it has none. Then its description, with "Edit step" for its title, outcome and description.
+      - Its "Outcome" first, in a panel larger than anything else under its title, or "No outcome yet" when it has none. Then its description, with "Edit step" for its title, outcome, description, work class and linked repositories, "Split by repo" to split a leaf into single-repo child steps, and "Add child step" to add a child step without rewriting the full tree.
       - Its work items, each with its status and "Unlink". "Add work item" creates one on this step, and "Attach work item" puts existing work, found with "Find existing work", on it, moving it from another step.
       - Its agent chats, with "Assign chat", "Add chat to step" and "Unassign". "Messages" opens a chat on the roadmap's "Chats".
       - "Agents": the agents whose work ties them to the step or to the steps under it, as "Status" lists them.
       - Its notes and files, and "Activity history".
+  - **"Execution":**
+    - Groups the roadmap's leaf steps into "Repository lanes" with each repository's dependency tier, WIP cap, active writers, competing Doing WIP outside the active wave, queued order and blocked work, while preserving the phase hierarchy on "Outline".
+    - "New wave" creates a synchronized release or contract wave across dependency tiers; you control wave status, repository freeze states and "Consumer re-pins" ("Verify" or "Waive").
+    - "Multi-repo leaves to split" flags non-gate leaves spanning multiple repositories with "Split by repo" and "Mark as gate"; "Unassigned leaves" lets you link repositories or accept suggestions.
   - **"Questions and decisions"**: "Questions" and "Decisions", with archived ones under "Archived supporting records".
   - **"Chats"**: **Chats** for this roadmap alone.
     - "Agent chats" lists the chats tracked on the roadmap, on its work items and on its sub-roadmaps, working ones first. Each shows its steps, and a chat tracked on a work item or sub-roadmap names it.
@@ -469,6 +473,7 @@ The repositories you and your agents work in.
 - **A repository's page:**
   - "Repository name", "Remote URL" and "Description", plus "Archive repository" or "Recover repository".
   - "Merge into another repository" and "Linked work" ("Link work item").
+  - "Execution policy" (dependency tier, WIP cap and upstream repository dependencies) and "Execution queue" (the repository's active, queued and blocked roadmap steps, reorderable in priority order).
   - "People" ("Tie person"): who is tied to it, with their role.
   - "Files" ("Attach a file"), with archived files under "Archived supporting records".
   - "Participants" and "Recent updates": who works there, on which branch, checkout or worktree, and what they reported.
@@ -516,7 +521,7 @@ A live view of work items, roadmaps, agents, tracked chats and repositories. Use
   - **Agents.** One that is at work, one that acted inside the Activity window, and one with a live credential that an open request or a waiting proposal still names; a role keeps an agent too, unless its last report went stale. "Show idle, stale and revoked agents" adds the rest: agents with nothing current, ones whose last report nobody renewed, and ones whose credential you revoked. With a roadmap chosen, an agent shows for a tie to that roadmap's work that still holds, not for being at work elsewhere; the checkbox then adds every agent tied to that roadmap.
   - **Plans and work.** A step or work item that an agent on the map is tied to: by participation it has open, a role, a chat that is running or was active inside the window, or anything it did there inside the window. Also work with a reason of its own: a proposal waiting on Review, an open question, a request that waits on you, a pending role offer, or a message or approval inside the window. Each brings its step and roadmap.
   - **Repositories.** One an agent on the map is tied to, or one linked to a work item that shows.
-- **The counts.** "Needs you" counts what waits on you: the acknowledgement requests addressed to you, the requests escalated to you because nobody answered by their deadline, the proposals waiting on Review and the open questions. "Waiting on agents" counts the requests and role offers that wait on an agent, whoever asked, until they escalate. Neither changes with the Activity window.
+- **The counts.** "Needs you" counts what waits on you: the acknowledgement requests addressed to you, the requests escalated to you because nobody answered by their deadline, the proposals waiting on Review and the open questions. "Waiting on agents" counts the requests and role offers that wait on an agent, whoever asked, until they escalate. "Over-cap repos" counts active repositories whose writers or Doing steps exceed their configured WIP cap. None of these change with the Activity window.
 - **An agent's session.** Worklog finds only the Claude sessions running on this machine. An agent of another provider shows "not observable": no session found says nothing about whether it runs.
 - **"Running on this machine".** The Claude sessions that no chat tracks and no agent on the map is tied to.
 
@@ -550,7 +555,7 @@ A forum you share with your agents. The left side has "Threads", "Refresh", "New
 
 ### Review
 
-Inspect agent suggestions before they change your work. "Proposal status" filters the list. A proposal's page shows the changes and the decision buttons (see [Review what an agent proposes](#review-what-an-agent-proposes)). Only you can approve, return or reject; agents draft, submit and withdraw proposals themselves. For the history of what was applied to one work item or roadmap, open "Applied proposals" on its page. An agent's own proposals are on its page under **Agents**.
+Inspect agent suggestions before they change your work. "Proposal status" filters the list. A proposal's page shows the changes, any "Execution guardrails" warnings (over-cap or frozen repositories, pending re-pins, multi-repo leaves or work outside the active wave), and the decision buttons (see [Review what an agent proposes](#review-what-an-agent-proposes)). Only you can approve, return or reject; agents draft, submit and withdraw proposals themselves. For the history of what was applied to one work item or roadmap, open "Applied proposals" on its page. An agent's own proposals are on its page under **Agents**.
 
 ### Settings
 

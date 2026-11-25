@@ -40,6 +40,14 @@ import { DecisionsSection, QuestionsSection } from "./QuestionsDecisions";
 import { AgentChips, AgentRoster, rosterOn, workersOn } from "./RoadmapAgents";
 import { AppliedProposals } from "./ProposalHistory";
 import { RoadmapChats } from "./RoadmapChats";
+import {
+  RoadmapExecution,
+  StepSplitDialog,
+  WORK_CLASS_OPTIONS,
+  workClassLabel,
+  type WorkClassValue,
+} from "./RoadmapExecution";
+import { RepositoryBadges, RepositoryPicker } from "./RepositoryControls";
 import { Discussions } from "./Discussions";
 import { Live } from "./Live";
 import type {
@@ -222,6 +230,7 @@ export function Roadmaps({
 const VIEWS = [
   { id: "status", label: "Status" },
   { id: "outline", label: "Outline" },
+  { id: "execution", label: "Execution" },
   { id: "questions", label: "Questions and decisions" },
   { id: "chats", label: "Chats" },
   { id: "discussions", label: "Discussions" },
@@ -288,6 +297,11 @@ export function RoadmapDetail({
   const [editing, setEditing] = useState(false);
   // The step whose own text is being edited, alone, apart from the structure editor.
   const [editingStep, setEditingStep] = useState<string | null>(null);
+  const [addingChildStep, setAddingChildStep] = useState<string | null>(null);
+  const [splittingStep, setSplittingStep] = useState<Step | null>(null);
+  const [outlineRepoFilter, setOutlineRepoFilter] = useState("");
+  const [outlineClassFilter, setOutlineClassFilter] = useState("");
+  const [outlineMultiRepoOnly, setOutlineMultiRepoOnly] = useState(false);
   const [address, setAddress] = useState(sub);
   const [showRetired, setShowRetired] = useState(false);
   // Collapsed steps persist per roadmap so a large plan reopens as it was left.
@@ -298,6 +312,9 @@ export function RoadmapDetail({
   const [revealed, setRevealed] = useState<string | undefined>();
   const [subTitle, setSubTitle] = useState("");
   const roads = useData<Answer<"/api/v1/roadmaps">>("/roadmaps?archived=false");
+  const reposCatalog = useData<Answer<"/api/v1/repositories">>(
+    "/repositories?archived=false&limit=200",
+  );
   const outlineRef = useRef<HTMLDivElement>(null);
   const splitRef = useRef<HTMLDivElement>(null);
   const outlinePanelRef = useRef<HTMLDivElement>(null);
@@ -453,8 +470,37 @@ export function RoadmapDetail({
     </div>
   );
   const hasRetired = road.steps.some((s) => s.retired);
+  const catalogRepos = reposCatalog.data?.items ?? [];
+  const repoNames = new Map(catalogRepos.map((r) => [r.id, r.name]));
+  const outlineFiltered = Boolean(
+    outlineRepoFilter || outlineClassFilter || outlineMultiRepoOnly,
+  );
   // Asked for, retired steps show at their old places in the outline.
-  const shownTree = showRetired && hasRetired ? stepTree(road.steps) : tree;
+  const baseTree = showRetired && hasRetired ? stepTree(road.steps) : tree;
+  const visibleStepIds = (() => {
+    if (!outlineFiltered) return null;
+    const byId = new Map(road.steps.map((s) => [s.id, s]));
+    const keep = new Set<string>();
+    for (const s of active) {
+      const repos = s.repositoryIds ?? [];
+      const isLeaf = !tree.has(s.id);
+      const matchRepo = !outlineRepoFilter || repos.includes(outlineRepoFilter);
+      const matchClass =
+        !outlineClassFilter || (s.workClass ?? "") === outlineClassFilter;
+      const matchMulti =
+        !outlineMultiRepoOnly ||
+        (isLeaf && repos.length >= 2 && s.workClass !== "gate");
+      if (matchRepo && matchClass && matchMulti) {
+        let cur: Step | undefined = s;
+        while (cur && !keep.has(cur.id)) {
+          keep.add(cur.id);
+          cur = cur.parentId ? byId.get(cur.parentId) : undefined;
+        }
+      }
+    }
+    return keep;
+  })();
+  const shownTree = baseTree;
   // The steps the outline can fold: those it shows steps under.
   const foldable = [...shownTree.keys()].filter(
     (key): key is string => key !== null,
@@ -476,88 +522,112 @@ export function RoadmapDetail({
     </button>
   );
   const render = (parent: string | null): React.ReactNode =>
-    (shownTree.get(parent) ?? []).map((s) => {
-      const kids = shownTree.get(s.id)?.length ?? 0;
-      const closed = kids > 0 && collapsed.has(s.id);
-      const head =
-        kids > 0 ? toggle(s, closed) : <span className="tree-spacer" />;
-      const below = kids > 0 && !closed && <ul>{render(s.id)}</ul>;
-      if (s.retired)
+    (shownTree.get(parent) ?? [])
+      .filter((s) => !visibleStepIds || visibleStepIds.has(s.id))
+      .map((s) => {
+        const kids = (shownTree.get(s.id) ?? []).filter(
+          (k) => !visibleStepIds || visibleStepIds.has(k.id),
+        ).length;
+        const closed = !outlineFiltered && kids > 0 && collapsed.has(s.id);
+        const head =
+          kids > 0 ? toggle(s, closed) : <span className="tree-spacer" />;
+        const below = kids > 0 && !closed && <ul>{render(s.id)}</ul>;
+        if (s.retired)
+          return (
+            <li key={s.id} className="step retired">
+              <div className="step-row">
+                {head}
+                <span className={"status-dot " + s.status} aria-hidden="true" />
+                <span className="step-text">
+                  <span className="step-name" title={s.title}>
+                    {s.title}
+                  </span>
+                  <span className="step-meta">
+                    <small>Retired · {statusLabel(s.status)}</small>
+                  </span>
+                </span>
+              </div>
+              {below}
+            </li>
+          );
+        const items = roadWorkItems.filter((w) => w.stepId === s.id).length;
+        const placed = workers.length
+          ? workersOn(workers, closed ? subtree(s.id) : new Set([s.id]))
+          : [];
+        const stepRepos = s.repositoryIds ?? [];
+        const isMultiRepoLeaf =
+          !tree.has(s.id) && stepRepos.length >= 2 && s.workClass !== "gate";
+        const current = s.id === selected?.id;
         return (
-          <li key={s.id} className="step retired">
-            <div className="step-row">
+          <li key={s.id} className={"step status-" + s.status}>
+            <div className={"step-row" + (current ? " selected" : "")}>
               {head}
               <span className={"status-dot " + s.status} aria-hidden="true" />
               <span className="step-text">
-                <span className="step-name" title={s.title}>
+                <a
+                  className="step-link"
+                  href={`#roadmaps/${id}/${s.id}`}
+                  title={s.title}
+                  aria-current={current ? "true" : undefined}
+                >
                   {s.title}
-                </span>
-                <span className="step-meta">
-                  <small>Retired · {statusLabel(s.status)}</small>
-                </span>
+                </a>
+                {(closed ||
+                  items > 0 ||
+                  placed.length > 0 ||
+                  stepRepos.length > 0 ||
+                  Boolean(s.workClass)) && (
+                  <span className="step-meta">
+                    {closed && (
+                      <small>
+                        ({kids} sub-step{kids === 1 ? "" : "s"} hidden)
+                      </small>
+                    )}
+                    {items > 0 && (
+                      <small>
+                        {items} work item{items === 1 ? "" : "s"}
+                      </small>
+                    )}
+                    {s.workClass && (
+                      <span className={`exec-pill wc-${s.workClass}`}>
+                        {workClassLabel(s.workClass)}
+                      </span>
+                    )}
+                    {stepRepos.map((rid) => (
+                      <span className="exec-pill" key={rid}>
+                        {repoNames.get(rid) ?? rid.slice(0, 8)}
+                      </span>
+                    ))}
+                    {isMultiRepoLeaf && (
+                      <span className="exec-pill is-warning">Multi-repo</span>
+                    )}
+                    <AgentChips
+                      placed={placed}
+                      stepTitle={stepTitle}
+                      here={s.id}
+                    />
+                  </span>
+                )}
               </span>
+              <StatusSelect
+                disabled={road.archived || tree.has(s.id)}
+                label={"Progress for " + s.title}
+                value={s.status}
+                options={STATUSES}
+                onChange={(status) =>
+                  action.mutate(() =>
+                    commands.setStepProgress(s.id, {
+                      revision: s.revision,
+                      status,
+                    }),
+                  )
+                }
+              />
             </div>
             {below}
           </li>
         );
-      const items = roadWorkItems.filter((w) => w.stepId === s.id).length;
-      const placed = workers.length
-        ? workersOn(workers, closed ? subtree(s.id) : new Set([s.id]))
-        : [];
-      const current = s.id === selected?.id;
-      return (
-        <li key={s.id} className={"step status-" + s.status}>
-          <div className={"step-row" + (current ? " selected" : "")}>
-            {head}
-            <span className={"status-dot " + s.status} aria-hidden="true" />
-            <span className="step-text">
-              <a
-                className="step-link"
-                href={`#roadmaps/${id}/${s.id}`}
-                title={s.title}
-                aria-current={current ? "true" : undefined}
-              >
-                {s.title}
-              </a>
-              {(closed || items > 0 || placed.length > 0) && (
-                <span className="step-meta">
-                  {closed && (
-                    <small>
-                      ({kids} sub-step{kids === 1 ? "" : "s"} hidden)
-                    </small>
-                  )}
-                  {items > 0 && (
-                    <small>
-                      {items} work item{items === 1 ? "" : "s"}
-                    </small>
-                  )}
-                  <AgentChips
-                    placed={placed}
-                    stepTitle={stepTitle}
-                    here={s.id}
-                  />
-                </span>
-              )}
-            </span>
-            <StatusSelect
-              disabled={road.archived || tree.has(s.id)}
-              label={"Progress for " + s.title}
-              value={s.status}
-              options={STATUSES}
-              onChange={(status) =>
-                action.mutate(() =>
-                  commands.setStepProgress(s.id, {
-                    revision: s.revision,
-                    status,
-                  }),
-                )
-              }
-            />
-          </div>
-          {below}
-        </li>
-      );
-    });
+      });
   const stepDetail = selected && (
     <>
       {editingStep === selected.id && !road.archived ? (
@@ -573,6 +643,30 @@ export function RoadmapDetail({
             >
               Edit step
             </button>
+            {!road.archived && !tree.has(selected.id) && (
+              <button
+                type="button"
+                className="quiet"
+                onClick={() => setSplittingStep(selected)}
+              >
+                Split by repo
+              </button>
+            )}
+            {!road.archived && (
+              <button
+                type="button"
+                className="quiet"
+                onClick={() =>
+                  setAddingChildStep((cur) =>
+                    cur === selected.id ? null : selected.id,
+                  )
+                }
+              >
+                {addingChildStep === selected.id
+                  ? "Cancel child step"
+                  : "Add child step"}
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -581,6 +675,24 @@ export function RoadmapDetail({
           Part of{" "}
           <a href={`#roadmaps/${id}/${parentStep.id}`}>{parentStep.title}</a>
         </p>
+      )}
+      {(selected.workClass || (selected.repositoryIds?.length ?? 0) > 0) && (
+        <div className="exec-pills">
+          {selected.workClass && (
+            <span className={`exec-pill wc-${selected.workClass}`}>
+              {workClassLabel(selected.workClass)}
+            </span>
+          )}
+          <RepositoryBadges ids={selected.repositoryIds ?? []} />
+        </div>
+      )}
+      {addingChildStep === selected.id && !road.archived && (
+        <AddChildStepForm
+          roadmapId={id}
+          roadmapRevision={road.revision}
+          parentId={selected.id}
+          onDone={() => setAddingChildStep(null)}
+        />
       )}
       {editingStep === selected.id && !road.archived ? null : (
         <StepOutcome outcome={selected.outcome} />
@@ -1007,6 +1119,63 @@ export function RoadmapDetail({
             </div>
             <div className="panel-body" ref={outlineRef}>
               <ErrorMessage error={stepAgents.error} />
+              {active.length > 0 && (
+                <div className="outline-filters" aria-label="Filter outline">
+                  <label>
+                    <span className="visually-hidden">Repository</span>
+                    <select
+                      aria-label="Filter outline by repository"
+                      value={outlineRepoFilter}
+                      onChange={(e) => setOutlineRepoFilter(e.target.value)}
+                    >
+                      <option value="">All repositories</option>
+                      {catalogRepos.map((repo) => (
+                        <option key={repo.id} value={repo.id}>
+                          {repo.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span className="visually-hidden">Work class</span>
+                    <select
+                      aria-label="Filter outline by work class"
+                      value={outlineClassFilter}
+                      onChange={(e) => setOutlineClassFilter(e.target.value)}
+                    >
+                      <option value="">All work classes</option>
+                      {WORK_CLASS_OPTIONS.filter((o) => o.value !== "").map(
+                        (opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  </label>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={outlineMultiRepoOnly}
+                      onChange={(e) => setOutlineMultiRepoOnly(e.target.checked)}
+                    />{" "}
+                    Multi-repo leaves only
+                  </label>
+                  {outlineFiltered && (
+                    <button
+                      type="button"
+                      className="quiet"
+                      onClick={() => {
+                        setOutlineRepoFilter("");
+                        setOutlineClassFilter("");
+                        setOutlineMultiRepoOnly(false);
+                      }}
+                    >
+                      Clear filters
+                    </button>
+                  )}
+                </div>
+              )}
               {workers.length > 0 && (
                 <p className="agents-here">
                   <small className="muted">Agents working here</small>
@@ -1066,6 +1235,8 @@ export function RoadmapDetail({
             )}
           </div>
         </div>
+      ) : view === "execution" ? (
+        <RoadmapExecution roadmapId={id} archived={road.archived} />
       ) : view === "chats" ? (
         <RoadmapChats road={road} chat={chat} />
       ) : view === "discussions" ? (
@@ -1092,6 +1263,19 @@ export function RoadmapDetail({
                 ? materialView
                 : historyView}
         </div>
+      )}
+      {splittingStep && (
+        <StepSplitDialog
+          step={{
+            id: splittingStep.id,
+            title: splittingStep.title,
+            revision: splittingStep.revision,
+            workClass: splittingStep.workClass ?? "",
+            repositoryIds: splittingStep.repositoryIds ?? [],
+          }}
+          repositories={catalogRepos}
+          onClose={() => setSplittingStep(null)}
+        />
       )}
     </div>
   );
@@ -1497,6 +1681,10 @@ function StepTextForm({ step, onDone }: { step: Step; onDone: () => void }) {
   const [title, setTitle] = useState(step.title);
   const [outcome, setOutcome] = useState(step.outcome);
   const [description, setDescription] = useState(step.description);
+  const initialWorkClass = (step.workClass ?? "") as WorkClassValue;
+  const initialRepos = step.repositoryIds ?? [];
+  const [workClass, setWorkClass] = useState<WorkClassValue>(initialWorkClass);
+  const [repositoryIds, setRepositoryIds] = useState<string[]>(initialRepos);
   // The text this edit started from. Progress set meanwhile changes the step's revision but not
   // its text, so only new text elsewhere asks before it is replaced.
   const [opened] = useState({
@@ -1508,10 +1696,15 @@ function StepTextForm({ step, onDone }: { step: Step; onDone: () => void }) {
     step.title !== opened.title ||
     step.outcome !== opened.outcome ||
     step.description !== opened.description;
+  const reposChanged =
+    repositoryIds.length !== initialRepos.length ||
+    repositoryIds.some((rid, index) => rid !== initialRepos[index]);
   const changed =
     title.trim() !== step.title ||
     outcome !== step.outcome ||
-    description !== step.description;
+    description !== step.description ||
+    workClass !== initialWorkClass ||
+    reposChanged;
   return (
     <form
       className="roadmap-record-form"
@@ -1526,6 +1719,8 @@ function StepTextForm({ step, onDone }: { step: Step; onDone: () => void }) {
               title: title.trim(),
               outcome,
               description,
+              ...(workClass !== initialWorkClass ? { workClass } : {}),
+              ...(reposChanged ? { repositoryIds } : {}),
             }),
           )
           .then(onDone)
@@ -1562,6 +1757,25 @@ function StepTextForm({ step, onDone }: { step: Step; onDone: () => void }) {
           onChange={(e) => setDescription(e.target.value)}
         />
       </label>
+      <label>
+        Work class
+        <select
+          aria-label="Work class"
+          value={workClass}
+          onChange={(e) => setWorkClass(e.target.value as WorkClassValue)}
+        >
+          {WORK_CLASS_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <RepositoryPicker
+        label="Step repositories"
+        value={repositoryIds}
+        onChange={setRepositoryIds}
+      />
       {replaced && (
         <div className="warning" role="alert">
           <p>
@@ -1589,6 +1803,98 @@ function StepTextForm({ step, onDone }: { step: Step; onDone: () => void }) {
         </button>
       </div>
       <ErrorMessage error={action.error} />
+    </form>
+  );
+}
+function AddChildStepForm({
+  roadmapId,
+  roadmapRevision,
+  parentId,
+  onDone,
+}: {
+  roadmapId: string;
+  roadmapRevision: number;
+  parentId: string;
+  onDone: () => void;
+}) {
+  const action = useWrites();
+  const [title, setTitle] = useState("");
+  const [outcome, setOutcome] = useState("");
+  const [workClass, setWorkClass] = useState<WorkClassValue>("");
+  const [repositoryIds, setRepositoryIds] = useState<string[]>([]);
+  return (
+    <form
+      className="exec-card roadmap-record-form"
+      aria-label="Add child step"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (!title.trim() || action.isPending) return;
+        await action
+          .mutateAsync(() =>
+            commands.createStep(roadmapId, {
+              revision: roadmapRevision,
+              parentId,
+              title: title.trim(),
+              outcome,
+              description: "",
+              workClass,
+              repositoryIds,
+            }),
+          )
+          .then(onDone)
+          .catch(() => undefined);
+      }}
+    >
+      <h4>New child step</h4>
+      <label>
+        Title
+        <input
+          required
+          maxLength={1000}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          autoFocus
+        />
+      </label>
+      <label>
+        Outcome (optional)
+        <input
+          maxLength={2000}
+          value={outcome}
+          onChange={(e) => setOutcome(e.target.value)}
+        />
+      </label>
+      <label>
+        Work class
+        <select
+          value={workClass}
+          onChange={(e) => setWorkClass(e.target.value as WorkClassValue)}
+        >
+          {WORK_CLASS_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <RepositoryPicker
+        label="Child step repositories"
+        value={repositoryIds}
+        onChange={setRepositoryIds}
+      />
+      <ErrorMessage error={action.error} />
+      <div className="toolbar">
+        <button
+          type="submit"
+          className="primary"
+          disabled={!title.trim() || action.isPending}
+        >
+          Create child step
+        </button>
+        <button type="button" className="quiet" onClick={onDone}>
+          Cancel
+        </button>
+      </div>
     </form>
   );
 }
@@ -1804,6 +2110,8 @@ export function StructureEditor({
                 description: s.description,
                 parentId: s.parentId,
                 position: index,
+                workClass: (s.workClass ?? "") as WorkClassValue,
+                repositoryIds: s.repositoryIds,
               })),
               note,
             }),
@@ -1992,6 +2300,9 @@ export function StructureEditor({
               status: "open",
               revision: 0,
               retired: false,
+              workClass: "",
+              repositoryIds: [],
+              waveIds: [],
             },
           ];
           setSteps(next);

@@ -343,6 +343,7 @@ it("links each view at its own address and marks the one shown", async () => {
   expect(links.map((a) => [a.textContent, a.getAttribute("href")])).toEqual([
     ["Status", `#roadmaps/${ROADMAP}`],
     ["Outline", `#roadmaps/${ROADMAP}/outline`],
+    ["Execution", `#roadmaps/${ROADMAP}/execution`],
     // Beside it, how many questions are open, which its name says in words.
     ["Questions and decisions1", `#roadmaps/${ROADMAP}/questions`],
     ["Chats", `#roadmaps/${ROADMAP}/chats`],
@@ -351,7 +352,7 @@ it("links each view at its own address and marks the one shown", async () => {
     ["Material", `#roadmaps/${ROADMAP}/material`],
     ["History", `#roadmaps/${ROADMAP}/history`],
   ]);
-  expect(links[2]).toHaveAccessibleName("Questions and decisions, 1 open");
+  expect(links[3]).toHaveAccessibleName("Questions and decisions, 1 open");
   const current = () =>
     within(views)
       .getAllByRole("link")

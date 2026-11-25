@@ -69,7 +69,7 @@ def reports(c, issued, key, item, at, *, repository=None, released=False):
         ),
     )
     c.execute(
-        "INSERT INTO participations VALUES(?,?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO participations VALUES(?,?,?,?,?,?,?,?,?,?,?)",
         (
             f"{key}-part",
             f"{key}-run",
@@ -81,6 +81,7 @@ def reports(c, issued, key, item, at, *, repository=None, released=False):
             at,
             done,
             "finished" if released else None,
+            None,
         ),
     )
     if repository:
@@ -128,8 +129,8 @@ def base_graph(client):
             ("road", "Delivery", "", 1, 0, at, at, None),
         )
         c.execute(
-            "INSERT INTO steps VALUES(?,?,?,?,?,?,?,?,?,?)",
-            ("step", "road", "Build", "", None, 0, "doing", 1, 0, ""),
+            "INSERT INTO steps VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            ("step", "road", "Build", "", None, 0, "doing", 1, 0, "", ""),
         )
         c.execute(
             "INSERT INTO work_items VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
@@ -160,7 +161,7 @@ def base_graph(client):
                 ),
             )
             c.execute(
-                "INSERT INTO participations VALUES(?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO participations VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     participation_id,
                     run_id,
@@ -170,6 +171,7 @@ def base_graph(client):
                     at,
                     at,
                     at,
+                    None,
                     None,
                     None,
                 ),
@@ -503,7 +505,7 @@ def test_live_scopes_subtree_rejects_unknown_and_controls_idle_agents(client):
                 ),
             )
             c.execute(
-                "INSERT INTO participations VALUES(?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO participations VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     f"scope-part-{number}",
                     f"scope-run-{number}",
@@ -513,6 +515,7 @@ def test_live_scopes_subtree_rejects_unknown_and_controls_idle_agents(client):
                     at,
                     at,
                     at,
+                    None,
                     None,
                     None,
                 ),
@@ -618,8 +621,8 @@ def test_live_shows_work_for_an_agent_on_the_map_or_a_reason_of_its_own(client):
             )
         ):
             c.execute(
-                "INSERT INTO steps VALUES(?,?,?,?,?,?,?,?,?,?)",
-                (identity, "road", identity, "", None, position, status, 1, 0, ""),
+                "INSERT INTO steps VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (identity, "road", identity, "", None, position, status, 1, 0, "", ""),
             )
         c.execute(
             "INSERT INTO work_items VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
@@ -749,8 +752,8 @@ def road(c, at, *items, steps=()):
     )
     for position, (identity, retired) in enumerate(steps):
         c.execute(
-            "INSERT INTO steps VALUES(?,?,?,?,?,?,?,?,?,?)",
-            (identity, "road", identity, "", None, position, "doing", 1, retired, ""),
+            "INSERT INTO steps VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            (identity, "road", identity, "", None, position, "doing", 1, retired, "", ""),
         )
     for entry in items:
         identity, step = entry if isinstance(entry, tuple) else (entry, None)

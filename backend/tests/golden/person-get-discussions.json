@@ -157,6 +157,38 @@
             },
             "archived": false,
             "home": true,
+            "id": "<id12>",
+            "mergedInto": null,
+            "title": "worklog-ui",
+            "type": "repository"
+          }
+        ],
+        "createdAt": "<time.ffffff+hh:mm>",
+        "id": "<id11>",
+        "pendingCount": 0,
+        "pinned": false,
+        "pinnedAt": null,
+        "repos": [],
+        "repository": {
+          "id": "<id12>",
+          "name": "worklog-ui"
+        },
+        "revision": 1,
+        "title": "Repository: worklog-ui",
+        "updatedAt": "<time.ffffff+hh:mm>"
+      },
+      {
+        "archived": false,
+        "contexts": [
+          {
+            "addedAt": "<time.ffffff+hh:mm>",
+            "addedBy": {
+              "id": "local-user",
+              "kind": "human",
+              "label": "You"
+            },
+            "archived": false,
+            "home": true,
             "id": "<id5>",
             "mergedInto": null,
             "title": "worklog",
@@ -164,7 +196,7 @@
           }
         ],
         "createdAt": "<time.ffffff+hh:mm>",
-        "id": "<id11>",
+        "id": "<id13>",
         "pendingCount": 0,
         "pinned": false,
         "pinnedAt": null,
@@ -180,7 +212,7 @@
     ],
     "limit": 50,
     "offset": 0,
-    "total": 2
+    "total": 3
   },
   "status": 200
 }

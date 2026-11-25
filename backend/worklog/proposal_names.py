@@ -23,10 +23,11 @@ from .common import AppError
 from .operations import CREATE_ID, NAME_RULE, NAMED, is_name
 
 # The fields that name one record, by the kind of record each takes. ownerId and targetId take the
-# kind their payload's ownerType or targetType gives, and an existing record's change its own `id`.
-KINDS = {"itemId": "item", "roadmapId": "roadmap", "parentId": "roadmap", "personId": "person"}
+# kind their payload's ownerType or targetType gives, parentId takes step on step.* actions and
+# roadmap otherwise, and an existing record's change takes its own `id`.
+KINDS = {"itemId": "item", "roadmapId": "roadmap", "personId": "person", "stepId": "step", "waveId": "wave"}
 TYPED = {"ownerId": "ownerType", "targetId": "targetType"}
-LISTS = {"repositoryIds": "repository"}
+LISTS = {"repositoryIds": "repository", "stepIds": "step", "upstreamIds": "repository"}
 # The kind of record a change names by `id`, where it isn't the one its action starts with.
 OWN = {"progress": "step"}
 NAMEABLE = frozenset(action.partition(".")[0] for action in NAMED)
@@ -42,6 +43,8 @@ def _uses(action: str, payload: dict) -> Iterator[tuple[str, Any, Any]]:
     if action not in NAMED and "id" in payload:
         kind = action.partition(".")[0]
         yield "id", payload["id"], OWN.get(kind, kind)
+    if "parentId" in payload:
+        yield "parentId", payload["parentId"], "step" if action.startswith("step.") else "roadmap"
     for field, kind in KINDS.items():
         if field in payload:
             yield field, payload[field], kind
@@ -52,6 +55,15 @@ def _uses(action: str, payload: dict) -> Iterator[tuple[str, Any, Any]]:
         if isinstance(payload.get(field), list):
             for value in payload[field]:
                 yield field, value, kind
+    if action == "step.split" and isinstance(payload.get("children"), list):
+        for child in payload["children"]:
+            if isinstance(child, dict) and isinstance(child.get("repositoryIds"), list):
+                for value in child["repositoryIds"]:
+                    yield "repositoryIds", value, "repository"
+    if action in {"wave.create", "wave.update"} and isinstance(payload.get("repositories"), list):
+        for entry in payload["repositories"]:
+            if isinstance(entry, dict) and "repositoryId" in entry:
+                yield "repositoryId", entry["repositoryId"], "repository"
 
 
 def first_problem(operations: list[dict]) -> tuple[int, str, AppError] | None:
@@ -118,10 +130,22 @@ def resolve(action: str, payload: dict, names: dict[str, str]) -> tuple[dict, st
                            {field: "unknown_name"})
         return names[value]
 
-    for field in (*KINDS, *TYPED, *(() if action in NAMED else ("id",))):
+    for field in ("parentId", *KINDS, *TYPED, *(() if action in NAMED else ("id",))):
         if field in resolved:
             resolved[field] = known(field, resolved[field])
     for field in LISTS:
         if isinstance(resolved.get(field), list):
             resolved[field] = [known(field, value) for value in resolved[field]]
+    if action == "step.split" and isinstance(resolved.get("children"), list):
+        resolved["children"] = [
+            {**child, "repositoryIds": [known("repositoryIds", v) for v in child["repositoryIds"]]}
+            if isinstance(child, dict) and isinstance(child.get("repositoryIds"), list) else child
+            for child in resolved["children"]
+        ]
+    if action in {"wave.create", "wave.update"} and isinstance(resolved.get("repositories"), list):
+        resolved["repositories"] = [
+            {**entry, "repositoryId": known("repositoryId", entry["repositoryId"])}
+            if isinstance(entry, dict) and "repositoryId" in entry else entry
+            for entry in resolved["repositories"]
+        ]
     return resolved, declared

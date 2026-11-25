@@ -11,20 +11,63 @@
           "outcome": "",
           "parentId": "<id3>",
           "position": 1,
+          "repositoryIds": [
+            "<id4>"
+          ],
+          "retired": false,
+          "revision": 2,
+          "status": "open",
+          "title": "Child",
+          "waveIds": [],
+          "workClass": "critical_path"
+        },
+        "before": {
+          "description": "",
+          "id": "<id2>",
+          "outcome": "",
+          "parentId": "<id3>",
+          "position": 1,
+          "repositoryIds": [],
           "retired": false,
           "revision": 1,
           "status": "open",
-          "title": "Child"
+          "title": "Child",
+          "waveIds": [],
+          "workClass": ""
+        },
+        "createdAt": "<time.ffffff+hh:mm>",
+        "entityId": "<id2>",
+        "id": "<id1>",
+        "kind": "step.update",
+        "localDate": "<today>"
+      },
+      {
+        "actorId": "local-user",
+        "actorKind": "human",
+        "actorLabel": "You",
+        "after": {
+          "description": "",
+          "id": "<id2>",
+          "outcome": "",
+          "parentId": "<id3>",
+          "position": 1,
+          "repositoryIds": [],
+          "retired": false,
+          "revision": 1,
+          "status": "open",
+          "title": "Child",
+          "waveIds": [],
+          "workClass": ""
         },
         "before": null,
         "createdAt": "<time.ffffff+hh:mm>",
         "entityId": "<id2>",
-        "id": "<id1>",
+        "id": "<id5>",
         "kind": "step.create",
         "localDate": "<today>"
       }
     ],
-    "total": 1
+    "total": 2
   },
   "status": 200
 }

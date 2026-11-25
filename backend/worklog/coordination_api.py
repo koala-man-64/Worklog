@@ -105,10 +105,10 @@ def install_coordination_routes(app: FastAPI, db: Database, mutate: Callable) ->
         return result
 
     @app.get("/api/v1/participations", response_model=out.Participations)
-    def participations(itemId: str | None = None, repositoryId: str | None = None,
+    def participations(itemId: str | None = None, stepId: str | None = None, repositoryId: str | None = None,
                        runId: str | None = None, includeReleased: bool = False,
                        limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
-        return read(lambda c: service.participations(c, itemId, repositoryId, runId, includeReleased, limit, offset))
+        return read(lambda c: service.participations(c, itemId, repositoryId, runId, includeReleased, limit, offset, step_id=stepId))
 
     @app.get("/api/v1/participations/{identity}", response_model=out.Participation)
     def participation(identity: str) -> dict:

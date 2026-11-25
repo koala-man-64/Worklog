@@ -73,8 +73,14 @@ OPERATIONS: dict[str, Spec] = {
     "roadmap.revise": _existing(m.RoadmapRevision, also_required=frozenset({"steps"})),
     "roadmap.move": _existing(m.RoadmapMove),
     "progress.set": _existing(m.Progress),
-    # One step's text, without the whole plan a revise states.
+    # One step's text, repositories or work class, without the whole plan a revise states.
     "step.update": _existing(m.StepUpdate),
+    "step.create": Spec(m.StepCreate, frozenset({"roadmapId"})),
+    "step.split": _existing(m.StepSplit),
+    "step.move": _existing(m.StepMove),
+    "wave.create": Spec(m.WaveCreate, frozenset({"roadmapId"})),
+    "wave.update": _existing(m.WaveUpdate),
+    "wave.steps": _existing(m.WaveStepsUpdate),
     "person.create": _new(m.PersonCreate),
     "person.update": _existing(m.PersonUpdate),
     "person.archive": _existing(m.Expected),
@@ -120,11 +126,14 @@ SERVER_ONLY = frozenset({
     "note.archive", "note.recover",
     "roadmap.restore", "roadmap.archive", "roadmap.recover",
     "ticket.archive", "ticket.recover",
+    "wave.archive", "wave.recover", "wave.status", "wave.freeze", "wave.repin.verify",
+    "repository.queue.reorder",
 })
 
-# The creates that may name the record they make: every one but a file's, a copy of the proposal's
-# own evidence that no later change can name. A person link is a tie, not a record a change names.
-NAMED = frozenset(action for action in OPERATIONS if action.endswith(".create") and action != "attachment.create")
+# The creates that may name the record they make: every one but a file's (a copy of the proposal's
+# own evidence) and a step's (steps keep the UUIDs callers choose for them). A person link is a tie.
+NAMED = frozenset(action for action in OPERATIONS
+                  if action.endswith(".create") and action not in {"attachment.create", "step.create"})
 # A name: "@" and up to 100 letters, digits, '.', '_' or '-', the first a letter or digit. No ID
 # starts with "@", so a name can't be mistaken for one.
 NAME = re.compile(r"@[A-Za-z0-9][A-Za-z0-9._-]{0,99}")

@@ -90,6 +90,12 @@ export type RepositorySlots = Schema["RepositorySlots"];
 export type RepositorySlotSummary = Schema["RepositorySlotSummary"];
 export type DispatchItem = Schema["DispatchItem"];
 export type DispatchQueue = Schema["DispatchQueue"];
+export type RepositoryQueue = Schema["RepositoryQueue"];
+export type RepositoryQueueFreeze = Schema["RepositoryQueueFreeze"];
+export type RepositoryQueueRepin = Schema["RepositoryQueueRepin"];
+export type RepositoryQueueStep = Schema["RepositoryQueueStep"];
+export type DispatchAdvisories = Schema["DispatchAdvisories"];
+export type RepoAdvisory = Schema["RepoAdvisory"];
 
 // The agent registry. `/agents` lists each agent as its card on the Agents page shows it.
 export type AgentSummary = Schema["AgentCard"];
@@ -183,6 +189,20 @@ export type RoadmapWorkItem = Schema["RoadmapWorkItem"];
 export type RoadmapRef = Schema["FamilyRoadmap"];
 export type RoadmapQuestion = Schema["Question"];
 export type RoadmapDecision = Schema["Decision"];
+export type CreatedStep = Schema["CreatedStep"];
+export type SplitStepResult = Schema["SplitStepResult"];
+export type WaveSummary = Schema["WaveSummary"];
+export type WaveDetail = Schema["WaveDetail"];
+export type WaveRepository = Schema["WaveRepository"];
+export type WaveRepin = Schema["WaveRepin"];
+export type WaveTierRepo = Schema["WaveTierRepo"];
+export type WaveTierGroup = Schema["WaveTierGroup"];
+export type RoadmapDispatch = Schema["RoadmapDispatch"];
+export type DispatchRepoLane = Schema["DispatchRepoLane"];
+export type DispatchStepCard = Schema["DispatchStepCard"];
+export type DispatchUnassignedStepCard = Schema["DispatchUnassignedStepCard"];
+export type DispatchParticipation = Schema["DispatchParticipation"];
+export type DispatchPhaseRollup = Schema["DispatchPhaseRollup"];
 
 // People.
 /** A person tied to a work item, roadmap or repository; relationship is their role there. */

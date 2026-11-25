@@ -1158,6 +1158,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/roadmaps/{identity}/steps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Step Create */
+        post: operations["step_create_api_v1_roadmaps__identity__steps_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/steps/{identity}/progress": {
         parameters: {
             query?: never;
@@ -1173,6 +1190,40 @@ export interface paths {
         head?: never;
         /** Progress */
         patch: operations["progress_api_v1_steps__identity__progress_patch"];
+        trace?: never;
+    };
+    "/api/v1/steps/{identity}/split": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Step Split */
+        post: operations["step_split_api_v1_steps__identity__split_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/steps/{identity}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Step Move */
+        post: operations["step_move_api_v1_steps__identity__move_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/steps/{identity}": {
@@ -1552,6 +1603,212 @@ export interface paths {
         put?: never;
         /** Person Link Remove */
         post: operations["person_link_remove_api_v1_person_links_unlink_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/roadmaps/{identity}/dispatch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Roadmap Dispatch */
+        get: operations["roadmap_dispatch_api_v1_roadmaps__identity__dispatch_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/roadmaps/{identity}/waves": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Roadmap Waves */
+        get: operations["roadmap_waves_api_v1_roadmaps__identity__waves_get"];
+        put?: never;
+        /** Wave Create */
+        post: operations["wave_create_api_v1_roadmaps__identity__waves_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/waves/{identity}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Wave Detail */
+        get: operations["wave_detail_api_v1_waves__identity__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Wave Update */
+        patch: operations["wave_update_api_v1_waves__identity__patch"];
+        trace?: never;
+    };
+    "/api/v1/waves/{identity}/steps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Wave Steps */
+        post: operations["wave_steps_api_v1_waves__identity__steps_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/waves/{identity}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Wave Status */
+        post: operations["wave_status_api_v1_waves__identity__status_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/waves/{identity}/freeze": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Wave Freeze */
+        post: operations["wave_freeze_api_v1_waves__identity__freeze_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/waves/{identity}/repins/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Wave Repin Report */
+        post: operations["wave_repin_report_api_v1_waves__identity__repins_report_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/waves/{identity}/repins/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Wave Repin Verify */
+        post: operations["wave_repin_verify_api_v1_waves__identity__repins_verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/waves/{identity}/{verb}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Wave Archive */
+        post: operations["wave_archive_api_v1_waves__identity___verb__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/repositories/{identity}/queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Repository Queue */
+        get: operations["repository_queue_api_v1_repositories__identity__queue_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/repositories/{identity}/queue/reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Repository Queue Reorder */
+        post: operations["repository_queue_reorder_api_v1_repositories__identity__queue_reorder_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/proposals/{identity}/guardrails": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Proposal Guardrails */
+        get: operations["proposal_guardrails_api_v1_proposals__identity__guardrails_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3532,7 +3789,7 @@ export interface components {
         };
         /**
          * AgentWork
-         * @description Open participation an agent reports: the work and the repositories it is at now.
+         * @description Open participation an agent reports: the work, step, and the repositories it is at now.
          */
         AgentWork: {
             /** Participationid */
@@ -3548,6 +3805,8 @@ export interface components {
             /** Stale */
             stale: boolean;
             item: components["schemas"]["RegistryWorkItem"] | null;
+            /** Stepid */
+            stepId: string | null;
             roadmap: components["schemas"]["RecordSummary"] | null;
             /** Contexts */
             contexts: components["schemas"]["ParticipationRepository"][];
@@ -4122,6 +4381,19 @@ export interface components {
             /** Items */
             items: components["schemas"]["ClaudeSession"][];
         };
+        /** CompetingWaveStepRef */
+        CompetingWaveStepRef: {
+            /** Stepid */
+            stepId: string;
+            /** Steptitle */
+            stepTitle: string;
+            /** Roadmapid */
+            roadmapId: string;
+            /** Activewaveid */
+            activeWaveId: string;
+            /** Activewavename */
+            activeWaveName: string;
+        };
         /**
          * Context
          * @description A tag: a record of one kind by its id, or a ticket by its key or number.
@@ -4389,6 +4661,40 @@ export interface components {
             /** Offset */
             offset: number;
         };
+        /**
+         * CreatedStep
+         * @description A step as step.create or step.move returns it, with its updated roadmap revision.
+         */
+        CreatedStep: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /** Outcome */
+            outcome: string;
+            /** Parentid */
+            parentId: string | null;
+            /** Position */
+            position: number;
+            /** Status */
+            status: string;
+            /** Revision */
+            revision: number;
+            /** Retired */
+            retired: boolean;
+            /** Workclass */
+            workClass: string;
+            /** Repositoryids */
+            repositoryIds: string[];
+            /** Waveids */
+            waveIds: string[];
+            /** Roadmapid */
+            roadmapId: string;
+            /** Roadmaprevision */
+            roadmapRevision: number;
+        };
         /** CredentialCreate */
         CredentialCreate: {
             /** Label */
@@ -4619,7 +4925,7 @@ export interface components {
         };
         /**
          * DiscussedRepository
-         * @description A repository with its own discussion's id (v22) and checkout slot summary (v34).
+         * @description A repository with its own discussion's id (v22), slot summary (v34), and direct catalog dependencies (v35).
          */
         DiscussedRepository: {
             /** Id */
@@ -4636,6 +4942,10 @@ export interface components {
             mergedInto: string | null;
             /** Description */
             description: string;
+            /** Wipcap */
+            wipCap: number | null;
+            /** Tier */
+            tier: number | null;
             /** Archived */
             archived: boolean;
             registeredBy: components["schemas"]["RegisteredBy"] | null;
@@ -4649,6 +4959,10 @@ export interface components {
             updatedAt: string;
             /** Discussionid */
             discussionId: string | null;
+            /** Upstreamids */
+            upstreamIds: string[];
+            /** Downstreamids */
+            downstreamIds: string[];
             slotSummary: components["schemas"]["RepositorySlotSummary"];
         };
         /**
@@ -4881,6 +5195,18 @@ export interface components {
             offset: number;
         };
         /**
+         * DispatchAdvisories
+         * @description Execution guardrails for overlaps and proposal review: WIP caps, freezes, re-pins, and multi-repo leaves.
+         */
+        DispatchAdvisories: {
+            /** Repositories */
+            repositories: components["schemas"]["RepoAdvisory"][];
+            /** Multireposteps */
+            multiRepoSteps: components["schemas"]["MultiRepoStepRef"][];
+            /** Competingwavesteps */
+            competingWaveSteps: components["schemas"]["CompetingWaveStepRef"][];
+        };
+        /**
          * DispatchCancel
          * @description Cancel a queued dispatch and its linked lease.
          */
@@ -4890,6 +5216,13 @@ export interface components {
              * @default
              */
             reason: string;
+        };
+        /** DispatchGates */
+        DispatchGates: {
+            /** Gatesteps */
+            gateSteps: components["schemas"]["DispatchStepCard"][];
+            /** Phases */
+            phases: components["schemas"]["DispatchPhaseRollup"][];
         };
         /**
          * DispatchItem
@@ -4945,6 +5278,59 @@ export interface components {
             /** Updatedat */
             updatedAt: string;
         };
+        /** DispatchParticipation */
+        DispatchParticipation: {
+            /** Participationid */
+            participationId: string;
+            /** Agentid */
+            agentId: string;
+            /** Agentlabel */
+            agentLabel: string;
+            /** Avatar */
+            avatar: string | null;
+            /** Runname */
+            runName: string;
+            /** Itemid */
+            itemId: string | null;
+            /** Stepid */
+            stepId: string | null;
+            /** Description */
+            description: string;
+            /** Branch */
+            branch: string;
+            /** Worktreepath */
+            worktreePath: string;
+            /** Lastseenat */
+            lastSeenAt: string;
+            /** Stale */
+            stale: boolean;
+        };
+        /** DispatchPhaseLink */
+        DispatchPhaseLink: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+        };
+        /** DispatchPhaseRollup */
+        DispatchPhaseRollup: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Status */
+            status: string;
+            /** Totalleaves */
+            totalLeaves: number;
+            /** Doneleaves */
+            doneLeaves: number;
+            /** Doingleaves */
+            doingLeaves: number;
+            /** Blockedleaves */
+            blockedLeaves: number;
+            /** Openleaves */
+            openLeaves: number;
+        };
         /** DispatchQueue */
         DispatchQueue: {
             /** Items */
@@ -4955,6 +5341,152 @@ export interface components {
             limit: number;
             /** Offset */
             offset: number;
+        };
+        /** DispatchRepoLane */
+        DispatchRepoLane: {
+            /** Repositoryid */
+            repositoryId: string;
+            /** Repositoryname */
+            repositoryName: string;
+            /** Url */
+            url: string;
+            /** Discussionid */
+            discussionId: string | null;
+            /** Wipcap */
+            wipCap: number | null;
+            /** Effectivewipcap */
+            effectiveWipCap: number | null;
+            /** Tier */
+            tier: number | null;
+            /** Upstreamids */
+            upstreamIds: string[];
+            /** Downstreamids */
+            downstreamIds: string[];
+            slotSummary: components["schemas"]["RepositorySlotSummary"];
+            /** Activewriters */
+            activeWriters: number;
+            /** Doingcount */
+            doingCount: number;
+            /** Overwipcap */
+            overWipCap: boolean;
+            freezeState: components["schemas"]["WaveRepository"] | null;
+            /** Repins */
+            repins: components["schemas"]["WaveRepin"][];
+            /** Doing */
+            doing: components["schemas"]["DispatchStepCard"][];
+            /** Competingwip */
+            competingWip: components["schemas"]["DispatchStepCard"][];
+            /** Queued */
+            queued: components["schemas"]["DispatchStepCard"][];
+            /** Blocked */
+            blocked: components["schemas"]["DispatchStepCard"][];
+            /** Done */
+            done: components["schemas"]["DispatchStepCard"][];
+            /** Blockedcount */
+            blockedCount: number;
+            /** Donecount */
+            doneCount: number;
+            /** Participations */
+            participations: components["schemas"]["DispatchParticipation"][];
+        };
+        /** DispatchRoadmapRef */
+        DispatchRoadmapRef: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Revision */
+            revision: number;
+            /** Archived */
+            archived: boolean;
+        };
+        /** DispatchStepAgent */
+        DispatchStepAgent: {
+            /** Agentid */
+            agentId: string;
+            /** Label */
+            label: string;
+            /** Avatar */
+            avatar: string | null;
+            /** Stale */
+            stale: boolean;
+        };
+        /** DispatchStepCard */
+        DispatchStepCard: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Status */
+            status: string;
+            /** Revision */
+            revision: number;
+            /** Workclass */
+            workClass: string;
+            /** Repositoryids */
+            repositoryIds: string[];
+            /** Multirepo */
+            multiRepo: boolean;
+            /** Waveid */
+            waveId: string | null;
+            /** Inactivewave */
+            inActiveWave: boolean;
+            /** Queueposition */
+            queuePosition: number | null;
+            /** Phasepath */
+            phasePath: components["schemas"]["DispatchPhaseLink"][];
+            /** Activeagents */
+            activeAgents: components["schemas"]["DispatchStepAgent"][];
+        };
+        /** DispatchSummary */
+        DispatchSummary: {
+            /** Totalleaves */
+            totalLeaves: number;
+            /** Doingleaves */
+            doingLeaves: number;
+            /** Blockedleaves */
+            blockedLeaves: number;
+            /** Doneleaves */
+            doneLeaves: number;
+            /** Overcaprepos */
+            overCapRepos: number;
+            /** Competingdoingcount */
+            competingDoingCount: number;
+            /** Multirepoleafcount */
+            multiRepoLeafCount: number;
+            /** Unassignedleafcount */
+            unassignedLeafCount: number;
+            /** Pendingrepincount */
+            pendingRepinCount: number;
+        };
+        /** DispatchUnassignedStepCard */
+        DispatchUnassignedStepCard: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Status */
+            status: string;
+            /** Revision */
+            revision: number;
+            /** Workclass */
+            workClass: string;
+            /** Repositoryids */
+            repositoryIds: string[];
+            /** Multirepo */
+            multiRepo: boolean;
+            /** Waveid */
+            waveId: string | null;
+            /** Inactivewave */
+            inActiveWave: boolean;
+            /** Queueposition */
+            queuePosition: number | null;
+            /** Phasepath */
+            phasePath: components["schemas"]["DispatchPhaseLink"][];
+            /** Activeagents */
+            activeAgents: components["schemas"]["DispatchStepAgent"][];
+            /** Suggestedrepoids */
+            suggestedRepoIds: string[];
         };
         /**
          * Done
@@ -5000,6 +5532,10 @@ export interface components {
             mergedInto: string | null;
             /** Description */
             description: string;
+            /** Wipcap */
+            wipCap: number | null;
+            /** Tier */
+            tier: number | null;
             /** Archived */
             archived: boolean;
             registeredBy: components["schemas"]["RegisteredBy"] | null;
@@ -5013,6 +5549,10 @@ export interface components {
             updatedAt: string;
             /** Discussionid */
             discussionId: string | null;
+            /** Upstreamids */
+            upstreamIds: string[];
+            /** Downstreamids */
+            downstreamIds: string[];
             slotSummary: components["schemas"]["RepositorySlotSummary"];
             /** Created */
             created: boolean;
@@ -5085,6 +5625,22 @@ export interface components {
             revision: number;
             /** Createdat */
             createdAt: string;
+        };
+        /** FrozenWaveRef */
+        FrozenWaveRef: {
+            /** Waveid */
+            waveId: string;
+            /** Wavename */
+            waveName: string;
+            /** Roadmapid */
+            roadmapId: string;
+            /**
+             * Freezestatus
+             * @enum {string}
+             */
+            freezeStatus: "open" | "batching" | "frozen";
+            /** Frozenref */
+            frozenRef: string;
         };
         /** GithubRefCreate */
         GithubRefCreate: {
@@ -5785,6 +6341,20 @@ export interface components {
             agentCount: number;
             /** Overlapcount */
             overlapCount: number;
+            /** Wipcap */
+            wipCap: number | null;
+            /** Effectivewipcap */
+            effectiveWipCap: number | null;
+            /** Tier */
+            tier: number | null;
+            /** Doingstepcount */
+            doingStepCount: number;
+            /** Overwipcap */
+            overWipCap: boolean;
+            /** Frozenwavename */
+            frozenWaveName: string | null;
+            /** Pendingrepinscount */
+            pendingRepinsCount: number;
             /** Maxactiveleases */
             maxActiveLeases: number;
             /** Activeleases */
@@ -5862,6 +6432,8 @@ export interface components {
             activeRepos: number;
             /** Repooverlaps */
             repoOverlaps: number;
+            /** Overcaprepos */
+            overCapRepos: number;
             /** Pendingrequests */
             pendingRequests: number;
             /** Waitingonagents */
@@ -6032,6 +6604,17 @@ export interface components {
              */
             direction: "up" | "down";
         };
+        /** MultiRepoStepRef */
+        MultiRepoStepRef: {
+            /** Stepid */
+            stepId: string;
+            /** Steptitle */
+            stepTitle: string;
+            /** Roadmapid */
+            roadmapId: string;
+            /** Repositoryids */
+            repositoryIds: string[];
+        };
         /** Named */
         Named: {
             /** Id */
@@ -6144,7 +6727,7 @@ export interface components {
              * Action
              * @enum {string}
              */
-            action: "repository.create" | "repository.update" | "repository.archive" | "repository.recover" | "item.create" | "item.update" | "item.archive" | "item.recover" | "entry.upsert" | "note.create" | "note.update" | "roadmap.create" | "roadmap.revise" | "roadmap.move" | "progress.set" | "step.update" | "person.create" | "person.update" | "person.archive" | "person.recover" | "person.link" | "person.unlink" | "link.create" | "link.update" | "link.archive" | "link.recover" | "attachment.create" | "chat.create" | "chat.update" | "chat.archive" | "chat.recover" | "github.create" | "github.update" | "github.archive" | "github.recover" | "question.create" | "question.update" | "question.archive" | "question.recover" | "decision.create" | "decision.update" | "decision.archive" | "decision.recover" | "resource.create" | "resource.update" | "resource.archive" | "resource.recover" | "ticket.create" | "ticket.update";
+            action: "repository.create" | "repository.update" | "repository.archive" | "repository.recover" | "item.create" | "item.update" | "item.archive" | "item.recover" | "entry.upsert" | "note.create" | "note.update" | "roadmap.create" | "roadmap.revise" | "roadmap.move" | "progress.set" | "step.update" | "step.create" | "step.split" | "step.move" | "wave.create" | "wave.update" | "wave.steps" | "person.create" | "person.update" | "person.archive" | "person.recover" | "person.link" | "person.unlink" | "link.create" | "link.update" | "link.archive" | "link.recover" | "attachment.create" | "chat.create" | "chat.update" | "chat.archive" | "chat.recover" | "github.create" | "github.update" | "github.archive" | "github.recover" | "question.create" | "question.update" | "question.archive" | "question.recover" | "decision.create" | "decision.update" | "decision.archive" | "decision.recover" | "resource.create" | "resource.update" | "resource.archive" | "resource.recover" | "ticket.create" | "ticket.update";
             /** Payload */
             payload: {
                 [key: string]: unknown;
@@ -6165,6 +6748,12 @@ export interface components {
             parentId: string | null;
             /** Position */
             position: number;
+            /** Workclass */
+            workClass: string;
+            /** Repositoryids */
+            repositoryIds: string[];
+            /** Waveid */
+            waveId: string | null;
         };
         /** OutputNamed */
         OutputNamed: {
@@ -6213,6 +6802,8 @@ export interface components {
             /** Stale */
             stale: boolean;
             item: components["schemas"]["OverlapWorkItem"] | null;
+            /** Stepid */
+            stepId: string | null;
             /** Contexts */
             contexts: components["schemas"]["ParticipationRepository"][];
         };
@@ -6315,6 +6906,7 @@ export interface components {
             roles: components["schemas"]["OverlapRole"][];
             /** Tickets */
             tickets: components["schemas"]["OverlapTicket"][];
+            dispatchAdvisories: components["schemas"]["DispatchAdvisories"];
         };
         /**
          * OwnerAgent
@@ -6503,7 +7095,7 @@ export interface components {
         };
         /**
          * Participation
-         * @description What a run reports working on: a work item or none, and the repositories it works in.
+         * @description What a run reports working on: a work item, step, or none, and the repositories it works in.
          */
         Participation: {
             /** Id */
@@ -6512,6 +7104,8 @@ export interface components {
             runId: string;
             /** Itemid */
             itemId: string | null;
+            /** Stepid */
+            stepId: string | null;
             /** Description */
             description: string;
             /** Contexts */
@@ -6565,6 +7159,8 @@ export interface components {
             description: string;
             /** Itemid */
             itemId?: string | null;
+            /** Stepid */
+            stepId?: string | null;
             /** Contexts */
             contexts?: components["schemas"]["ParticipationContext"][];
         };
@@ -6642,6 +7238,8 @@ export interface components {
             description?: string | null;
             /** Itemid */
             itemId?: string | null;
+            /** Stepid */
+            stepId?: string | null;
             /** Contexts */
             contexts?: components["schemas"]["ParticipationContext"][] | null;
         };
@@ -6655,6 +7253,26 @@ export interface components {
             limit: number;
             /** Offset */
             offset: number;
+        };
+        /** PendingRepinRef */
+        PendingRepinRef: {
+            /** Waveid */
+            waveId: string;
+            /** Wavename */
+            waveName: string;
+            /** Upstreamrepoid */
+            upstreamRepoId: string;
+            /** Upstreamreponame */
+            upstreamRepoName: string;
+            /** Consumerrepoid */
+            consumerRepoId: string;
+            /** Consumerreponame */
+            consumerRepoName: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "in_progress" | "verified" | "waived";
         };
         /** People */
         People: {
@@ -7027,6 +7645,12 @@ export interface components {
             revision: number;
             /** Retired */
             retired: boolean;
+            /** Workclass */
+            workClass: string;
+            /** Repositoryids */
+            repositoryIds: string[];
+            /** Waveids */
+            waveIds: string[];
         };
         /**
          * Presence
@@ -7506,6 +8130,29 @@ export interface components {
             /** Ids */
             ids: string[];
         };
+        /** RepoAdvisory */
+        RepoAdvisory: {
+            /** Repositoryid */
+            repositoryId: string;
+            /** Repositoryname */
+            repositoryName: string;
+            /** Wipcap */
+            wipCap: number | null;
+            /** Effectivewipcap */
+            effectiveWipCap: number | null;
+            /** Tier */
+            tier: number | null;
+            /** Activewriters */
+            activeWriters: number;
+            /** Doingsteps */
+            doingSteps: number;
+            /** Overwipcap */
+            overWipCap: boolean;
+            /** Frozenwaves */
+            frozenWaves: components["schemas"]["FrozenWaveRef"][];
+            /** Pendingrepins */
+            pendingRepins: components["schemas"]["PendingRepinRef"][];
+        };
         /** Repositories */
         Repositories: {
             /** Items */
@@ -7536,6 +8183,10 @@ export interface components {
             mergedInto: string | null;
             /** Description */
             description: string;
+            /** Wipcap */
+            wipCap: number | null;
+            /** Tier */
+            tier: number | null;
             /** Archived */
             archived: boolean;
             registeredBy: components["schemas"]["RegisteredBy"] | null;
@@ -7583,6 +8234,12 @@ export interface components {
              * @default
              */
             description: string;
+            /** Wipcap */
+            wipCap?: number | null;
+            /** Tier */
+            tier?: number | null;
+            /** Upstreamids */
+            upstreamIds?: string[];
         };
         /**
          * RepositoryDetail
@@ -7603,6 +8260,10 @@ export interface components {
             mergedInto: string | null;
             /** Description */
             description: string;
+            /** Wipcap */
+            wipCap: number | null;
+            /** Tier */
+            tier: number | null;
             /** Archived */
             archived: boolean;
             registeredBy: components["schemas"]["RegisteredBy"] | null;
@@ -7616,6 +8277,10 @@ export interface components {
             updatedAt: string;
             /** Discussionid */
             discussionId: string | null;
+            /** Upstreamids */
+            upstreamIds: string[];
+            /** Downstreamids */
+            downstreamIds: string[];
             slotSummary: components["schemas"]["RepositorySlotSummary"];
             /** People */
             people: components["schemas"]["RecordPerson"][];
@@ -7646,6 +8311,135 @@ export interface components {
             intoId: string;
             /** Intorevision */
             intoRevision: number;
+        };
+        /** RepositoryQueue */
+        RepositoryQueue: {
+            /** Repositoryid */
+            repositoryId: string;
+            /** Repositoryname */
+            repositoryName: string;
+            /** Wipcap */
+            wipCap: number | null;
+            /** Effectivewipcap */
+            effectiveWipCap: number | null;
+            /** Tier */
+            tier: number | null;
+            /** Upstreamids */
+            upstreamIds: string[];
+            /** Downstreamids */
+            downstreamIds: string[];
+            /** Activewriters */
+            activeWriters: number;
+            /** Doingcount */
+            doingCount: number;
+            /** Overwipcap */
+            overWipCap: boolean;
+            /** Freezes */
+            freezes: components["schemas"]["RepositoryQueueFreeze"][];
+            /** Repins */
+            repins: components["schemas"]["RepositoryQueueRepin"][];
+            /** Participations */
+            participations: components["schemas"]["DispatchParticipation"][];
+            /** Doing */
+            doing: components["schemas"]["RepositoryQueueStep"][];
+            /** Queued */
+            queued: components["schemas"]["RepositoryQueueStep"][];
+            /** Blocked */
+            blocked: components["schemas"]["RepositoryQueueStep"][];
+            /** Done */
+            done: components["schemas"]["RepositoryQueueStep"][];
+            /** Donecount */
+            doneCount: number;
+        };
+        /** RepositoryQueueFreeze */
+        RepositoryQueueFreeze: {
+            /** Waveid */
+            waveId: string;
+            /** Wavename */
+            waveName: string;
+            /** Roadmapid */
+            roadmapId: string;
+            /** Roadmaptitle */
+            roadmapTitle: string;
+            /** Tier */
+            tier: number | null;
+            /**
+             * Freezestatus
+             * @enum {string}
+             */
+            freezeStatus: "open" | "batching" | "frozen";
+            /** Frozenref */
+            frozenRef: string;
+            /** Frozenat */
+            frozenAt: string | null;
+            /** Notes */
+            notes: string;
+        };
+        /** RepositoryQueueReorder */
+        RepositoryQueueReorder: {
+            /** Stepids */
+            stepIds?: string[];
+        };
+        /** RepositoryQueueRepin */
+        RepositoryQueueRepin: {
+            /** Waveid */
+            waveId: string;
+            /** Wavename */
+            waveName: string;
+            /** Upstreamrepoid */
+            upstreamRepoId: string;
+            /** Upstreamreponame */
+            upstreamRepoName: string;
+            /** Consumerrepoid */
+            consumerRepoId: string;
+            /** Consumerreponame */
+            consumerRepoName: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "in_progress" | "verified" | "waived";
+            /** Pinnedref */
+            pinnedRef: string;
+            /** Prurl */
+            prUrl: string;
+            /** Commitsha */
+            commitSha: string;
+            /** Reportedbylabel */
+            reportedByLabel: string;
+            /** Verifiedat */
+            verifiedAt: string | null;
+            /** Revision */
+            revision: number;
+            /** Updatedat */
+            updatedAt: string;
+        };
+        /** RepositoryQueueStep */
+        RepositoryQueueStep: {
+            /** Id */
+            id: string;
+            /** Roadmapid */
+            roadmapId: string;
+            /** Roadmaptitle */
+            roadmapTitle: string;
+            /** Title */
+            title: string;
+            /** Status */
+            status: string;
+            /** Revision */
+            revision: number;
+            /** Workclass */
+            workClass: string;
+            /** Queueposition */
+            queuePosition: number | null;
+            /** Waveid */
+            waveId: string | null;
+            /** Wavename */
+            waveName: string | null;
+            /** Wavestatus */
+            waveStatus: string | null;
+            /** Multirepo */
+            multiRepo: boolean;
         };
         /**
          * RepositoryResolution
@@ -7725,6 +8519,12 @@ export interface components {
             url?: string | null;
             /** Description */
             description?: string | null;
+            /** Wipcap */
+            wipCap?: number | null;
+            /** Tier */
+            tier?: number | null;
+            /** Upstreamids */
+            upstreamIds?: string[] | null;
         };
         /**
          * RequestListed
@@ -7961,6 +8761,21 @@ export interface components {
             /** Parentid */
             parentId?: string | null;
         };
+        /** RoadmapDispatch */
+        RoadmapDispatch: {
+            roadmap: components["schemas"]["DispatchRoadmapRef"];
+            summary: components["schemas"]["DispatchSummary"];
+            /** Waves */
+            waves: components["schemas"]["WaveSummary"][];
+            activeWave: components["schemas"]["WaveDetail"] | null;
+            /** Repolanes */
+            repoLanes: components["schemas"]["DispatchRepoLane"][];
+            /** Multirepoleaves */
+            multiRepoLeaves: components["schemas"]["DispatchStepCard"][];
+            /** Unassignedleaves */
+            unassignedLeaves: components["schemas"]["DispatchUnassignedStepCard"][];
+            gates: components["schemas"]["DispatchGates"];
+        };
         /** RoadmapListed */
         RoadmapListed: {
             /** Id */
@@ -8097,6 +8912,12 @@ export interface components {
             revision: number;
             /** Retired */
             retired: boolean;
+            /** Workclass */
+            workClass: string;
+            /** Repositoryids */
+            repositoryIds: string[];
+            /** Waveids */
+            waveIds: string[];
             /** Notes */
             notes: components["schemas"]["Note"][];
             /** Attachments */
@@ -8377,6 +9198,12 @@ export interface components {
             revision: number;
             /** Retired */
             retired: boolean;
+            /** Workclass */
+            workClass: string;
+            /** Repositoryids */
+            repositoryIds: string[];
+            /** Waveids */
+            waveIds: string[];
             /** Roadmapid */
             roadmapId: string;
         };
@@ -8617,6 +9444,42 @@ export interface components {
             /** Autorescuedirty */
             autoRescueDirty?: boolean | null;
         };
+        /** SplitChild */
+        SplitChild: {
+            /** Id */
+            id?: string | null;
+            /** Title */
+            title: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Outcome
+             * @default
+             */
+            outcome: string;
+            /** Repositoryids */
+            repositoryIds?: string[];
+            /** Workclass */
+            workClass?: ("" | "stabilization" | "critical_path" | "standard" | "refactor" | "gate") | null;
+            /** Status */
+            status?: ("open" | "doing" | "blocked" | "done") | null;
+        };
+        /**
+         * SplitStepResult
+         * @description A split leaf step and its newly created single-repo child steps.
+         */
+        SplitStepResult: {
+            parent: components["schemas"]["PlanStep"];
+            /** Children */
+            children: components["schemas"]["PlanStep"][];
+            /** Roadmapid */
+            roadmapId: string;
+            /** Roadmaprevision */
+            roadmapRevision: number;
+        };
         /**
          * StatusContextTag
          * @description A work item's tag.
@@ -8665,6 +9528,12 @@ export interface components {
             revision: number;
             /** Retired */
             retired: boolean;
+            /** Workclass */
+            workClass: string;
+            /** Repositoryids */
+            repositoryIds: string[];
+            /** Waveids */
+            waveIds: string[];
             /** Notes */
             notes: components["schemas"]["Note"][];
             /** Attachments */
@@ -8707,8 +9576,77 @@ export interface components {
             roadmapTitle: string;
         };
         /**
+         * StepCreate
+         * @description revision is the roadmap's own. Inserts one step without rewriting the full tree.
+         */
+        StepCreate: {
+            /** Revision */
+            revision: number;
+            /** Id */
+            id?: string | null;
+            /** Parentid */
+            parentId?: string | null;
+            /** Title */
+            title: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Outcome
+             * @default
+             */
+            outcome: string;
+            /** Position */
+            position?: number | null;
+            /** Repositoryids */
+            repositoryIds?: string[];
+            /**
+             * Workclass
+             * @default
+             * @enum {string}
+             */
+            workClass: "" | "stabilization" | "critical_path" | "standard" | "refactor" | "gate";
+        };
+        /**
+         * StepMove
+         * @description revision is the roadmap's own. Moves one step to another parent or position.
+         */
+        StepMove: {
+            /** Revision */
+            revision: number;
+            /** Parentid */
+            parentId?: string | null;
+            /** Position */
+            position?: number | null;
+        };
+        /**
+         * StepSplit
+         * @description revision is the target leaf step's own. Creates single-repo child steps under it.
+         */
+        StepSplit: {
+            /** Revision */
+            revision: number;
+            /** Children */
+            children: components["schemas"]["SplitChild"][];
+            /**
+             * Clearparentrepositories
+             * @default true
+             */
+            clearParentRepositories: boolean;
+            /**
+             * Inheritwaves
+             * @default true
+             */
+            inheritWaves: boolean;
+            /** Rehometochildindex */
+            rehomeToChildIndex?: number | null;
+        };
+        /**
          * StepUpdate
-         * @description revision is the step's own. A field given replaces the step's text; one left out keeps it.
+         * @description revision is the step's own. A field given replaces the step's text, repositories or work class;
+         *     one left out keeps it.
          */
         StepUpdate: {
             /** Revision */
@@ -8719,6 +9657,10 @@ export interface components {
             description?: string | null;
             /** Outcome */
             outcome?: string | null;
+            /** Repositoryids */
+            repositoryIds?: string[] | null;
+            /** Workclass */
+            workClass?: ("" | "stabilization" | "critical_path" | "standard" | "refactor" | "gate") | null;
         };
         /** Storage */
         Storage: {
@@ -9451,6 +10393,347 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /** WaveCreate */
+        WaveCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Summary
+             * @default
+             */
+            summary: string;
+            /** Stepids */
+            stepIds?: string[];
+            /** Repositories */
+            repositories?: components["schemas"]["WaveRepoSpec"][];
+            /**
+             * Opendiscussion
+             * @default false
+             */
+            openDiscussion: boolean;
+        };
+        /** WaveDetail */
+        WaveDetail: {
+            /** Id */
+            id: string;
+            /** Roadmapid */
+            roadmapId: string;
+            /** Name */
+            name: string;
+            /** Summary */
+            summary: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "planning" | "active" | "completed" | "cancelled";
+            /** Position */
+            position: number;
+            /** Discussionid */
+            discussionId: string | null;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Activatedat */
+            activatedAt: string | null;
+            /** Completedat */
+            completedAt: string | null;
+            /** Stepcount */
+            stepCount: number;
+            /** Donestepcount */
+            doneStepCount: number;
+            /** Frozenrepocount */
+            frozenRepoCount: number;
+            /** Pendingrepincount */
+            pendingRepinCount: number;
+            /** Stepids */
+            stepIds: string[];
+            /** Steps */
+            steps: components["schemas"]["WaveStep"][];
+            /** Repositories */
+            repositories: components["schemas"]["WaveRepository"][];
+            /** Repins */
+            repins: components["schemas"]["WaveRepin"][];
+            /** Tierpipeline */
+            tierPipeline: components["schemas"]["WaveTierGroup"][];
+        };
+        /** WaveFreezeUpdate */
+        WaveFreezeUpdate: {
+            /** Revision */
+            revision: number;
+            /** Repositoryid */
+            repositoryId: string;
+            /**
+             * Freezestatus
+             * @enum {string}
+             */
+            freezeStatus: "open" | "batching" | "frozen";
+            /**
+             * Frozenref
+             * @default
+             */
+            frozenRef: string;
+            /**
+             * Notes
+             * @default
+             */
+            notes: string;
+        };
+        /** WaveRepin */
+        WaveRepin: {
+            /** Waveid */
+            waveId: string;
+            /** Upstreamrepoid */
+            upstreamRepoId: string;
+            /** Upstreamreponame */
+            upstreamRepoName: string;
+            /** Consumerrepoid */
+            consumerRepoId: string;
+            /** Consumerreponame */
+            consumerRepoName: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "in_progress" | "verified" | "waived";
+            /** Pinnedref */
+            pinnedRef: string;
+            /** Prurl */
+            prUrl: string;
+            /** Commitsha */
+            commitSha: string;
+            /** Reportedbylabel */
+            reportedByLabel: string;
+            /** Verifiedat */
+            verifiedAt: string | null;
+            /** Revision */
+            revision: number;
+            /** Updatedat */
+            updatedAt: string;
+        };
+        /** WaveRepinReport */
+        WaveRepinReport: {
+            /** Upstreamrepoid */
+            upstreamRepoId: string;
+            /** Consumerrepoid */
+            consumerRepoId: string;
+            /**
+             * Pinnedref
+             * @default
+             */
+            pinnedRef: string;
+            /**
+             * Prurl
+             * @default
+             */
+            prUrl: string;
+            /**
+             * Commitsha
+             * @default
+             */
+            commitSha: string;
+        };
+        /** WaveRepinVerify */
+        WaveRepinVerify: {
+            /** Revision */
+            revision: number;
+            /** Upstreamrepoid */
+            upstreamRepoId: string;
+            /** Consumerrepoid */
+            consumerRepoId: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "in_progress" | "verified" | "waived";
+            /** Pinnedref */
+            pinnedRef?: string | null;
+            /** Prurl */
+            prUrl?: string | null;
+            /** Commitsha */
+            commitSha?: string | null;
+        };
+        /** WaveRepoSpec */
+        WaveRepoSpec: {
+            /** Repositoryid */
+            repositoryId: string;
+            /** Tier */
+            tier?: number | null;
+        };
+        /** WaveRepository */
+        WaveRepository: {
+            /** Repositoryid */
+            repositoryId: string;
+            /** Repositoryname */
+            repositoryName: string;
+            /** Tier */
+            tier: number | null;
+            /**
+             * Freezestatus
+             * @enum {string}
+             */
+            freezeStatus: "open" | "batching" | "frozen";
+            /** Frozenref */
+            frozenRef: string;
+            /** Frozenat */
+            frozenAt: string | null;
+            /** Frozenbylabel */
+            frozenByLabel: string;
+            /** Notes */
+            notes: string;
+            /** Revision */
+            revision: number;
+            /** Updatedat */
+            updatedAt: string;
+        };
+        /** WaveStatusChange */
+        WaveStatusChange: {
+            /** Revision */
+            revision: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "planning" | "active" | "completed" | "cancelled";
+        };
+        /** WaveStep */
+        WaveStep: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Status */
+            status: string;
+            /** Workclass */
+            workClass: string;
+            /** Parentid */
+            parentId: string | null;
+            /** Repositoryids */
+            repositoryIds: string[];
+        };
+        /** WaveStepsUpdate */
+        WaveStepsUpdate: {
+            /** Revision */
+            revision: number;
+            /**
+             * Mode
+             * @default replace
+             * @enum {string}
+             */
+            mode: "replace" | "add" | "remove";
+            /** Stepids */
+            stepIds?: string[];
+        };
+        /** WaveSummary */
+        WaveSummary: {
+            /** Id */
+            id: string;
+            /** Roadmapid */
+            roadmapId: string;
+            /** Name */
+            name: string;
+            /** Summary */
+            summary: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "planning" | "active" | "completed" | "cancelled";
+            /** Position */
+            position: number;
+            /** Discussionid */
+            discussionId: string | null;
+            /** Archived */
+            archived: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Activatedat */
+            activatedAt: string | null;
+            /** Completedat */
+            completedAt: string | null;
+            /** Stepcount */
+            stepCount: number;
+            /** Donestepcount */
+            doneStepCount: number;
+            /** Frozenrepocount */
+            frozenRepoCount: number;
+            /** Pendingrepincount */
+            pendingRepinCount: number;
+        };
+        /** WaveTierGroup */
+        WaveTierGroup: {
+            /** Tier */
+            tier: number | null;
+            /** Repositories */
+            repositories: components["schemas"]["WaveTierRepo"][];
+        };
+        /** WaveTierRepo */
+        WaveTierRepo: {
+            /** Repositoryid */
+            repositoryId: string;
+            /** Repositoryname */
+            repositoryName: string;
+            /** Tier */
+            tier: number | null;
+            /**
+             * Freezestatus
+             * @enum {string}
+             */
+            freezeStatus: "open" | "batching" | "frozen";
+            /** Frozenref */
+            frozenRef: string;
+            /** Frozenat */
+            frozenAt: string | null;
+            /** Frozenbylabel */
+            frozenByLabel: string;
+            /** Notes */
+            notes: string;
+            /** Revision */
+            revision: number;
+            /** Updatedat */
+            updatedAt: string;
+            /** Stepcount */
+            stepCount: number;
+            /** Doingcount */
+            doingCount: number;
+            /** Donecount */
+            doneCount: number;
+            /** Blockedcount */
+            blockedCount: number;
+            /** Pendingdownstreamrepins */
+            pendingDownstreamRepins: number;
+            /** Pendingupstreamrepins */
+            pendingUpstreamRepins: number;
+        };
+        /** WaveUpdate */
+        WaveUpdate: {
+            /** Revision */
+            revision: number;
+            /** Name */
+            name?: string | null;
+            /** Summary */
+            summary?: string | null;
+            /** Position */
+            position?: number | null;
+            /** Repositories */
+            repositories?: components["schemas"]["WaveRepoSpec"][] | null;
+        };
+        /** Waves */
+        Waves: {
+            /** Items */
+            items: components["schemas"]["WaveSummary"][];
+            /** Total */
+            total: number;
         };
         /** WebLink */
         WebLink: {
@@ -12243,6 +13526,41 @@ export interface operations {
             };
         };
     };
+    step_create_api_v1_roadmaps__identity__steps_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedStep"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     progress_api_v1_steps__identity__progress_patch: {
         parameters: {
             query?: never;
@@ -12265,6 +13583,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlanStep"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    step_split_api_v1_steps__identity__split_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepSplit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitStepResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    step_move_api_v1_steps__identity__move_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepMove"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedStep"];
                 };
             };
             /** @description Validation Error */
@@ -13147,6 +14535,486 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PersonUntied"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    roadmap_dispatch_api_v1_roadmaps__identity__dispatch_get: {
+        parameters: {
+            query?: {
+                waveId?: string | null;
+                repositoryId?: string | null;
+                includeDone?: boolean;
+            };
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoadmapDispatch"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    roadmap_waves_api_v1_roadmaps__identity__waves_get: {
+        parameters: {
+            query?: {
+                status?: string | null;
+                archived?: boolean;
+            };
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Waves"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    wave_create_api_v1_roadmaps__identity__waves_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaveCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaveDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    wave_detail_api_v1_waves__identity__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaveDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    wave_update_api_v1_waves__identity__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaveUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaveDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    wave_steps_api_v1_waves__identity__steps_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaveStepsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaveDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    wave_status_api_v1_waves__identity__status_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaveStatusChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaveDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    wave_freeze_api_v1_waves__identity__freeze_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaveFreezeUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaveDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    wave_repin_report_api_v1_waves__identity__repins_report_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaveRepinReport"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaveRepin"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    wave_repin_verify_api_v1_waves__identity__repins_verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaveRepinVerify"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaveRepin"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    wave_archive_api_v1_waves__identity___verb__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+                verb: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Expected"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaveDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    repository_queue_api_v1_repositories__identity__queue_get: {
+        parameters: {
+            query?: {
+                includeDone?: boolean;
+            };
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositoryQueue"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    repository_queue_reorder_api_v1_repositories__identity__queue_reorder_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepositoryQueueReorder"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositoryQueue"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    proposal_guardrails_api_v1_proposals__identity__guardrails_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DispatchAdvisories"];
                 };
             };
             /** @description Validation Error */
@@ -14045,6 +15913,7 @@ export interface operations {
         parameters: {
             query?: {
                 itemId?: string | null;
+                stepId?: string | null;
                 repositoryId?: string | null;
                 runId?: string | null;
                 includeReleased?: boolean;

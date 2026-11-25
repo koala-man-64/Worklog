@@ -267,9 +267,13 @@ worklog agent --as NAME retire
 |---|---|---|
 | `context` | `[--date DATE] [--repo REPOSITORY_ID] [--item ITEM_ID] [--full]` | `{day,workItems,roadmaps,people,proposals,repositories,runs,participations,updates,tickets,resources}`, a summary by default: work items as `{id,title,status,rank}`, roadmaps as `{id,title,openQuestions}`, people as `{id,name}`, and the latest 10 updates as `{id,kind,text,authorLabel,participationId,createdAt}` with `text` cut to its first line (200 characters). `--full` answers the whole context instead: each work item, roadmap (without its steps), person and update whole, up to 100 of each. Either way: the day's entries, up to 100 of each other list, open proposals (yours in draft and those submitted for review) by title, status and `operationCount` without their changes, open tickets, and resources by title and summary without their text |
 | `search QUERY` | `[--limit 50] [--archived]` | `{items:[{id,type,title,snippet,ownerId,routeType,routeId}],total}`; 220-character snippets; the first 30 words of QUERY count |
-| `roadmap outline ID` | - | `{id,title,archived,revision,steps:[{id,title,status,parentId,position}]}`: each step in the plan, retired ones aside, depth-first in outline order, without its text; a parent's status comes from its leaves |
+| `roadmap outline ID` | - | `{id,title,archived,revision,steps:[{id,title,status,parentId,position,workClass,repositoryIds,waveId}]}`: each step in the plan, retired ones aside, depth-first in outline order, without its text; a parent's status comes from its leaves |
+| `roadmap dispatch ID` | `[--wave WAVE_ID] [--repo REPOSITORY_ID] [--include-done]` | Repo + Wave execution view: `summary`, `waves`, `activeWave`, `repoLanes` (per-repo WIP cap, active writers, doing/competing/queued/blocked steps, freeze state, re-pins), `multiRepoLeaves`, `unassignedLeaves` and `gates` |
 | `roadmap show ID` | - | the roadmap with every step's full text, progress, revision and `retired` flag, its versions, work items, notes, links, tracked chats, GitHub references, questions and decisions; without its history |
-| `step show ID` | - | the step with its full text, `roadmapId`, notes and attachments; `ancestors`, the steps above it from the top down, and `siblings`, the others under its parent in outline order, each `{id,title,status}` (siblings with `position`); and `chats`, the roadmap's tracked chats on it, archived ones included, in the order they were put there |
+| `step show ID` | - | the step with its full text, `roadmapId`, `workClass`, `repositoryIds`, `waveIds`, notes and attachments; `ancestors`, the steps above it from the top down, and `siblings`, the others under its parent in outline order, each `{id,title,status}` (siblings with `position`); and `chats`, the roadmap's tracked chats on it, archived ones included, in the order they were put there |
+| `waves list` | `--roadmap ROADMAP_ID [--status planning\|active\|completed\|cancelled] [--archived]` | `{items,total}`: synchronized release/contract waves on a roadmap |
+| `waves show ID` | - | one wave with its `tierPipeline`, `repositories` (freeze state and `frozenRef`), `steps` and consumer `repins` |
+| `waves repin ID` | `--upstream REPO_ID --consumer REPO_ID [--ref REF] [--pr URL\|NUMBER] [--commit SHA]` | reports consumer re-pin progress (`in_progress`) against a frozen upstream repo (requires `--request-id`); only the person verifies or waives |
 | `resources list` | `[--q WORDS] [--archived] [--limit 50] [--offset 0]` | `{items:[{id,title,summary,archived,revision,createdAt,updatedAt}],total,limit,offset}` by title, without the pages' text; `--q` searches titles, summaries and text; `--archived` lists archived pages only |
 | `resources show ID` | - | one page with its whole Markdown `body`, and its latest 100 changes without their records |
 | `proposals` | `[--status draft\|submitted\|approved\|rejected\|withdrawn] [--limit 50] [--offset 0]` | `{items,total}`: yours, and other agents' once submitted, oldest first, up to 200 a page; `total` counts them all. Each is `{id,title,status,revision,autoApproved,supersedesId,actorId,actorLabel,actorDirectory,createdAt,submittedAt,updatedAt,operationCount}`, without its changes, rationale or evidence: `proposal show ID` reads those |
@@ -283,8 +287,13 @@ To find your way in a roadmap, read its outline, then the steps you work on with
 worklog agent --as NAME context --date 2026-11-04 --repo REPOSITORY_ID --item ITEM_ID
 worklog agent --as NAME search 'deploy steps' --limit 20 --archived
 worklog agent --as NAME roadmap outline ROADMAP_ID
+worklog agent --as NAME roadmap dispatch ROADMAP_ID --wave WAVE_ID --repo REPOSITORY_ID --include-done
 worklog agent --as NAME roadmap show ROADMAP_ID
 worklog agent --as NAME step show STEP_ID
+worklog agent --as NAME waves list --roadmap ROADMAP_ID --status active
+worklog agent --as NAME waves show WAVE_ID
+worklog agent --as NAME waves repin WAVE_ID --upstream REPOSITORY_ID --consumer CONSUMER_REPO_ID --ref v1.0.0 --pr https://github.com/team/repo/pull/51 --commit 43b69ae9 --request-id repin-CHAT_ID-1
+worklog agent --as NAME repositories queue REPOSITORY_ID --include-done
 worklog agent --as NAME resources list --q 'deploy steps' --limit 20 --archived
 worklog agent --as NAME resources show RESOURCE_ID
 worklog agent --as NAME proposals --status submitted --limit 20 --offset 20
@@ -318,16 +327,17 @@ worklog agent --as NAME proposal withdraw PROPOSAL_ID --revision 4
 | Command | Arguments and options | Rev | Request ID | Notes |
 |---|---|---|---|---|
 | `repositories list` | `[--q TEXT] [--archived] [--limit 50] [--offset 0]` | - | - | the catalog; `--archived` lists archived records only |
-| `repositories show ID` | - | - | - | one record |
+| `repositories show ID` | - | - | - | one record, including `wipCap`, `tier`, `upstreamIds` and `downstreamIds` |
+| `repositories queue ID` | `[--include-done]` | - | - | this repository's prioritized execution queue across roadmaps, active freezes and pending re-pins |
 | `repositories ensure` | `--remote URL` or `--checkout PATH`; `[--name NAME] [--description TEXT]` | - | required | registers the remote, or returns the record that holds it, with `created`; reports no work |
 | `runs list` | `[--include-ended] [--limit 50] [--offset 0]` | - | - | open runs unless `--include-ended` |
 | `runs show ID` | - | - | - | one run |
 | `runs start` | `--client-run-key KEY --display-name NAME [--provider PROVIDER] [--chat CHAT_ID]` | - | required | a key already used by this credential returns that run; without `--chat`, the run reports the chat you registered with |
 | `runs end ID` | `--revision N` | yes | required | ends the run and releases its participation |
-| `participation list` | `[--repo ID] [--item ID] [--run ID] [--include-released] [--limit 50] [--offset 0]` | - | - | active participation unless `--include-released` |
+| `participation list` | `[--repo ID] [--item ID] [--step ID] [--run ID] [--include-released] [--limit 50] [--offset 0]` | - | - | active participation unless `--include-released` |
 | `participation show ID` | - | - | - | one participation |
-| `participation start` | `--run RUN_ID`, contexts from `--checkout PATH` or `--repo REPOSITORY_ID` (each repeatable); `[--item ITEM_ID] [--description TEXT] [--file FILE]` | - | required | flags override the file's keys |
-| `participation update ID` | `--revision N` and either `--description TEXT` or `--file FILE` | yes | required | the file holds `{itemId,description,contexts}`; omitted fields stay; `itemId: null` unlinks the work |
+| `participation start` | `--run RUN_ID`, contexts from `--checkout PATH` or `--repo REPOSITORY_ID` (each repeatable); `[--item ITEM_ID] [--step STEP_ID] [--description TEXT] [--file FILE]` | - | required | flags override the file's keys; `--step` also tracks your registered chat on that step |
+| `participation update ID` | `--revision N` and `--file FILE`, `--description TEXT`, or `--step STEP_ID\|none` | yes | required | the file holds `{itemId,stepId,description,contexts}`; omitted fields stay; `itemId: null` or `stepId: null` unlinks |
 | `participation check-in ID` | `--revision N` | yes | required | refreshes reported activity; no heartbeat is required |
 | `participation release ID` | `--revision N` | yes | required | stops reporting |
 | `participation rejoin ID` | `--revision N` | yes | required | reports again after a release |
@@ -647,8 +657,8 @@ A proposal is a JSON file with a title (up to 1,000 bytes), a rationale for the 
 
 | Action | Required fields | Optional fields |
 |---|---|---|
-| `repository.create` | `name` | `id`, `url`, `description` |
-| `repository.update` | `id`, `revision` | `name`, `url`, `description` |
+| `repository.create` | `name` | `id`, `url`, `description`, `wipCap`, `tier`, `upstreamIds` |
+| `repository.update` | `id`, `revision` | `name`, `url`, `description`, `wipCap`, `tier`, `upstreamIds` |
 | `repository.archive` | `id`, `revision` | - |
 | `repository.recover` | `id`, `revision` | - |
 | `item.create` | `title` | `id`, `description`, `adoUrl`, `roadmapId`, `stepId`, `day`, `worked`, `repositoryIds` |
@@ -662,7 +672,13 @@ A proposal is a JSON file with a title (up to 1,000 bytes), a rationale for the 
 | `roadmap.revise` | `id`, `revision`, `title`, `steps` | `overview`, `note` |
 | `roadmap.move` | `id`, `revision`, `parentId` | - |
 | `progress.set` | `id`, `revision`, `status` | - |
-| `step.update` | `id`, `revision` | `title`, `description`, `outcome` |
+| `step.update` | `id`, `revision` | `title`, `description`, `outcome`, `repositoryIds`, `workClass` |
+| `step.create` | `roadmapId`, `revision`, `title` | `id`, `parentId`, `description`, `outcome`, `position`, `repositoryIds`, `workClass` |
+| `step.split` | `id`, `revision`, `children` | `clearParentRepositories`, `inheritWaves`, `rehomeToChildIndex` |
+| `step.move` | `id`, `revision` | `parentId`, `position` |
+| `wave.create` | `roadmapId`, `name` | `id`, `summary`, `stepIds`, `repositories`, `openDiscussion` |
+| `wave.update` | `id`, `revision` | `name`, `summary`, `position`, `repositories` |
+| `wave.steps` | `id`, `revision` | `mode`, `stepIds` |
 | `person.create` | `name` | `id`, `title`, `team`, `description`, `email`, `phone`, `chat`, `location`, `notes` |
 | `person.update` | `id`, `revision` | `name`, `title`, `team`, `description`, `email`, `phone`, `chat`, `location`, `notes` |
 | `person.archive` | `id`, `revision` | - |

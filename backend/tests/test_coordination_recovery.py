@@ -236,8 +236,8 @@ def test_populated_current_main_upgrades_without_losing_records(tmp_path, operat
     after["discussions"] = before["discussions"]
     assert after["discussion_contexts"] == [(*row, 0, "credential", "agent", STAMP) for row in before["discussion_contexts"]]
     after["discussion_contexts"] = before["discussion_contexts"]
-    # v31 gives each step an outcome, empty.
-    assert after["steps"] == [(*row, "") for row in before["steps"]]
+    # v31 gives each step an outcome, empty; v35 adds work_class, empty.
+    assert after["steps"] == [(*row, "", "") for row in before["steps"]]
     after["steps"] = before["steps"]
     assert after == before
     recovery.validate_database(target)
@@ -307,8 +307,8 @@ def test_v6_upgrade_keys_repositories_by_remote_and_flags_records_that_share_one
         assert recovery._schema_signature(conn) == sealed.current()
         keys = {row["id"]: (row["remote_identity"], row["duplicate_of"]) for row in conn.execute("SELECT * FROM repositories")}
         # Records keep everything they had; the upgrades only append their key, any flag, an empty merge
-        # pointer and, with no creation events to read, an unknown registrant.
-        assert [tuple(row)[:-7] for row in conn.execute("SELECT * FROM repositories ORDER BY 1")] == before["repositories"]
+        # pointer, an unknown registrant, and v35's null execution policy (wip_cap, tier).
+        assert [tuple(row)[:-9] for row in conn.execute("SELECT * FROM repositories ORDER BY 1")] == before["repositories"]
         assert {tuple(row) for row in conn.execute("SELECT registered_by_kind,registered_by_label,registered_by_agent,reviewed FROM repositories")} == {("", "", None, 1)}
         assert conn.execute("SELECT count(*) FROM repositories WHERE merged_into IS NOT NULL").fetchone()[0] == 0
     assert keys == {"archived": ("github.com/team/shared", "ssh"), "ssh": ("github.com/team/shared", None),

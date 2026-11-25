@@ -1,8 +1,8 @@
 """Contracts for declared coordination, separate from reviewed canonical work."""
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import Field
+from pydantic import Field, StrictInt
 
 from .models import Command, Expected, Revision
 
@@ -11,12 +11,22 @@ class RepositoryCreate(Command):
     name: str
     url: str = ""
     description: str = ""
+    wipCap: Annotated[StrictInt, Field(ge=1, le=100)] | None = None
+    tier: Annotated[StrictInt, Field(ge=1, le=9)] | None = None
+    upstreamIds: list[str] = Field(default_factory=list, max_length=100)
 
 
 class RepositoryUpdate(Expected):
     name: str | None = None
     url: str | None = None
     description: str | None = None
+    wipCap: Annotated[StrictInt, Field(ge=1, le=100)] | None = None
+    tier: Annotated[StrictInt, Field(ge=1, le=9)] | None = None
+    upstreamIds: list[str] | None = Field(default=None, max_length=100)
+
+
+class RepositoryQueueReorder(Command):
+    stepIds: list[str] = Field(default_factory=list, max_length=2000)
 
 
 class RepositoryEnsure(Command):
@@ -52,12 +62,14 @@ class ParticipationCreate(Command):
     runId: str
     description: str = ""
     itemId: str | None = None
+    stepId: str | None = None
     contexts: list[ParticipationContext] = Field(default_factory=list, max_length=40)
 
 
 class ParticipationUpdate(Expected):
     description: str | None = None
     itemId: str | None = None
+    stepId: str | None = None
     contexts: list[ParticipationContext] | None = Field(default=None, max_length=40)
 
 

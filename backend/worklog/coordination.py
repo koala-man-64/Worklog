@@ -20,7 +20,13 @@ from .leases import (
     repository_slot_summaries,
     touch_agent_leases,
 )
-from .repository_links import _repository_url, repository_identity
+from .repository_links import (
+    _repository_url,
+    merge_repository_dependencies,
+    replace_repository_dependencies,
+    repository_dependencies,
+    repository_identity,
+)
 
 # Step 5.6 (A-09): a role's offer hands work on and moves its pending requests with it, so an
 # update is no longer a handoff. Handoffs posted before stay readable.
@@ -71,24 +77,37 @@ def _get(c: sqlite3.Connection, table: str, identity: str) -> sqlite3.Row:
     return row
 
 
+def _int_bound(value: Any, field: str, lo: int, hi: int) -> int | None:
+    if value is None:
+        return None
+    if type(value) is not int or value < lo or value > hi:
+        raise AppError(422, "validation", f"{field} must be an integer between {lo} and {hi}", {field: "range"})
+    return value
+
+
 def repository_record(row: Any) -> dict:
     registrant = ({"kind": row["registered_by_kind"], "label": row["registered_by_label"], "agentId": row["registered_by_agent"]}
                   if row["registered_by_kind"] else None)
     return {"id": row["id"], "name": row["name"], "url": row["url"],
             "remoteIdentity": row["remote_identity"], "duplicateOf": row["duplicate_of"], "mergedInto": row["merged_into"],
-            "description": row["description"], "archived": bool(row["archived"]),
+            "description": row["description"], "wipCap": row["wip_cap"], "tier": row["tier"],
+            "archived": bool(row["archived"]),
             "registeredBy": registrant, "reviewed": bool(row["reviewed"]),
             "revision": row["revision"], "createdAt": row["created_at"], "updatedAt": row["updated_at"]}
 
 
 def with_discussion(c: sqlite3.Connection, record: dict) -> dict:
-    """A repository record as the API returns it, with its own discussion's id (v22) and slot summary (v34).
-    A merged one, whose discussion is tagged with the survivor now, gives null, as does one archived when
-    the upgrade opened the others' and not recovered since. History keeps the record as repository_record gives it."""
+    """A repository record as the API returns it, with its own discussion's id (v22), slot summary (v34),
+    and direct catalog dependencies (v35). A merged one, whose discussion is tagged with the survivor now,
+    gives null, as does one archived when the upgrade opened the others' and not recovered since.
+    History keeps the record as repository_record gives it."""
     summary = repository_slot_summaries(c, [record["id"]])[record["id"]]
+    deps = repository_dependencies(c, [record["id"]])[record["id"]]
     return {
         **record,
         "discussionId": DiscussionService.home_discussions(c, [record["id"]]).get(record["id"]),
+        "upstreamIds": deps["upstreamIds"],
+        "downstreamIds": deps["downstreamIds"],
         "slotSummary": {
             "maxActiveLeases": summary["maxActiveLeases"],
             "activeCount": summary["activeCount"],
@@ -202,7 +221,7 @@ def repository_resolution(c: sqlite3.Connection, url: str) -> dict:
 
 # Tables that link other records to a repository; each keys on its owner and the repository.
 _REPOSITORY_LINKS = {"items": "item_repositories", "chats": "chat_repositories", "tickets": "ticket_repositories",
-                     "updates": "coordination_update_repositories"}
+                     "updates": "coordination_update_repositories", "steps": "step_repositories"}
 
 
 def repository_merge(c: sqlite3.Connection, actor: dict, identity: str, p: dict) -> dict:
@@ -249,6 +268,23 @@ def repository_merge(c: sqlite3.Connection, actor: dict, identity: str, p: dict)
                                      (survivor["id"], source["id"])).rowcount
     # Move checkout slot policies, leases and queued dispatches to the survivor.
     moved["leases"] = merge_repository_leases(c, source["id"], survivor["id"])
+    # Move catalog dependencies, wave freeze records, and consumer re-pins (dropping self-edges/cycles).
+    moved["dependencies"] = merge_repository_dependencies(c, source["id"], survivor["id"])
+    moved["waves"] = c.execute("SELECT count(*) FROM wave_repositories WHERE repository_id=?", (source["id"],)).fetchone()[0]
+    c.execute("UPDATE OR IGNORE wave_repositories SET repository_id=? WHERE repository_id=?", (survivor["id"], source["id"]))
+    c.execute("DELETE FROM wave_repositories WHERE repository_id=?", (source["id"],))
+    moved["repins"] = c.execute(
+        "SELECT count(*) FROM wave_repins WHERE upstream_repo_id=? OR consumer_repo_id=?",
+        (source["id"], source["id"]),
+    ).fetchone()[0]
+    c.execute(
+        "DELETE FROM wave_repins WHERE (upstream_repo_id=? AND consumer_repo_id=?) OR (upstream_repo_id=? AND consumer_repo_id=?)",
+        (source["id"], survivor["id"], survivor["id"], source["id"]),
+    )
+    c.execute("UPDATE OR IGNORE wave_repins SET upstream_repo_id=? WHERE upstream_repo_id=?", (survivor["id"], source["id"]))
+    c.execute("DELETE FROM wave_repins WHERE upstream_repo_id=?", (source["id"],))
+    c.execute("UPDATE OR IGNORE wave_repins SET consumer_repo_id=? WHERE consumer_repo_id=?", (survivor["id"], source["id"]))
+    c.execute("DELETE FROM wave_repins WHERE consumer_repo_id=?", (source["id"],))
     before = repository_record(source)
     c.execute("UPDATE repositories SET archived=1,duplicate_of=NULL,merged_into=?,revision=revision+1,updated_at=? WHERE id=?",
               (survivor["id"], now(), source["id"]))
@@ -274,14 +310,15 @@ def _registered(c: sqlite3.Connection, key: str) -> Any:
     return holder
 
 
-def _register(c: sqlite3.Connection, actor: dict, name: str, url: str, description: str, *, reviewed: bool) -> str:
+def _register(c: sqlite3.Connection, actor: dict, name: str, url: str, description: str, *, reviewed: bool,
+              wip_cap: int | None = None, tier: int | None = None) -> str:
     # An agent is recorded by its identity, which outlives the credential that registered.
     agent = c.execute("SELECT a.id,a.label FROM communication_agents a JOIN communication_credentials cc ON cc.agent_id=a.id"
                       " WHERE cc.credential_id=?", (actor["id"],)).fetchone() if actor["kind"] == "agent" else None
     identity, stamp = uid(), now()
-    c.execute("INSERT INTO repositories(id,name,url,remote_identity,description,archived,revision,created_at,updated_at,"
-              "registered_by_kind,registered_by_label,registered_by_agent,reviewed) VALUES(?,?,?,?,?,0,1,?,?,?,?,?,?)",
-              (identity, name, url, repository_identity(url), description, stamp, stamp, actor["kind"],
+    c.execute("INSERT INTO repositories(id,name,url,remote_identity,description,wip_cap,tier,archived,revision,created_at,updated_at,"
+              "registered_by_kind,registered_by_label,registered_by_agent,reviewed) VALUES(?,?,?,?,?,?,?,0,1,?,?,?,?,?,?)",
+              (identity, name, url, repository_identity(url), description, wip_cap, tier, stamp, stamp, actor["kind"],
                agent["label"] if agent else actor["label"], agent["id"] if agent else None, int(reviewed)))
     # Every new repository gets its own discussion, whoever registers it and however (v22).
     DiscussionService(None).open_repository_discussion(c, identity, name)
@@ -343,8 +380,12 @@ def repository_apply(c: sqlite3.Connection, actor: dict, action: str, p: dict) -
             rows = c.execute("SELECT DISTINCT p.* FROM participations p JOIN participation_contexts pc ON pc.participation_id=p.id WHERE pc.repository_id=? AND p.released_at IS NULL", (before["id"],)).fetchall()
             for row in rows:
                 live_item = row["item_id"] and c.execute("SELECT 1 FROM work_items WHERE id=? AND archived=0", (row["item_id"],)).fetchone()
+                live_step = row["step_id"] and c.execute(
+                    "SELECT 1 FROM steps s JOIN roadmaps r ON r.id=s.roadmap_id WHERE s.id=? AND s.retired=0 AND r.archived=0",
+                    (row["step_id"],),
+                ).fetchone()
                 live_repo = c.execute("SELECT 1 FROM participation_contexts pc JOIN repositories r ON r.id=pc.repository_id WHERE pc.participation_id=? AND r.archived=0", (row["id"],)).fetchone()
-                if not live_item and not live_repo:
+                if not live_item and not live_step and not live_repo:
                     _release(c, actor, row, "repository_archived")
             release_repository_leases(c, actor, before["id"], "repository_archived")
         else:
@@ -352,13 +393,15 @@ def repository_apply(c: sqlite3.Connection, actor: dict, action: str, p: dict) -
             DiscussionService(None).open_repository_discussion(c, before["id"], before["name"])
         identity = before["id"]
     else:
-        values = {"name": "", "url": "", "description": ""} if before is None else dict(before)
-        for field in ("name", "url", "description"):
+        values = {"name": "", "url": "", "description": "", "wipCap": None, "tier": None} if before is None else dict(before)
+        for field in ("name", "url", "description", "wipCap", "tier"):
             if field in p:
                 values[field] = p[field]
         name = text(values["name"], "name", required=True, limit=200)
         url = _repository_url(values["url"])
         description = text(values["description"], "description", limit=10000)
+        wip_cap = _int_bound(values["wipCap"], "wipCap", 1, 100)
+        tier = _int_bound(values["tier"], "tier", 1, 9)
         key = repository_identity(url)
         old_key = before["remoteIdentity"] if before else None
         if before is None:
@@ -366,15 +409,20 @@ def repository_apply(c: sqlite3.Connection, actor: dict, action: str, p: dict) -
             if holder:
                 # Registering a repository again links to the record it already has.
                 return {**with_discussion(c, repository_record(holder)), "created": False}
-            identity = _register(c, actor, name, url, description, reviewed=True)
+            identity = _register(c, actor, name, url, description, reviewed=True, wip_cap=wip_cap, tier=tier)
+            if p.get("upstreamIds"):
+                replace_repository_dependencies(c, identity, p["upstreamIds"])
         else:
             holder = repository_holder(c, key, before["id"]) if key != old_key else None
             if holder:
                 raise AppError(409, "repository_duplicate", f"That repository is already registered as {holder['name']}"
                                + (" (archived)" if holder["archived"] else ""), {"repositoryId": holder["id"]})
             identity, duplicate_of = before["id"], before["duplicateOf"] if key == old_key else None
-            c.execute("UPDATE repositories SET name=?,url=?,remote_identity=?,duplicate_of=?,description=?,reviewed=1,"
-                      "revision=revision+1,updated_at=? WHERE id=?", (name, url, key, duplicate_of, description, now(), identity))
+            c.execute("UPDATE repositories SET name=?,url=?,remote_identity=?,duplicate_of=?,description=?,wip_cap=?,tier=?,reviewed=1,"
+                      "revision=revision+1,updated_at=? WHERE id=?",
+                      (name, url, key, duplicate_of, description, wip_cap, tier, now(), identity))
+            if "upstreamIds" in p and p["upstreamIds"] is not None:
+                replace_repository_dependencies(c, identity, p["upstreamIds"])
             if old_key and key != old_key and before["duplicateOf"] is None:
                 _hand_over(c, actor, identity, old_key)
             if name != before["name"]:
@@ -484,20 +532,31 @@ class CoordinationService:
 
     def participation_record(self, c, row) -> dict:
         stale = datetime.fromisoformat(row["last_seen_at"]) < datetime.now(UTC) - timedelta(hours=2)
-        return {"id": row["id"], "runId": row["run_id"], "itemId": row["item_id"], "description": row["description"],
+        return {"id": row["id"], "runId": row["run_id"], "itemId": row["item_id"], "stepId": row["step_id"],
+                "description": row["description"],
                 "contexts": self._contexts(c, row["id"]), "revision": row["revision"],
                 "createdAt": row["created_at"], "updatedAt": row["updated_at"], "lastSeenAt": row["last_seen_at"],
                 "releasedAt": row["released_at"], "releaseReason": row["release_reason"], "stale": stale,
                 "run": self.run_record(_get(c, "agent_runs", row["run_id"]))}
 
     @staticmethod
-    def _validate_targets(c, actor, item_id, contexts, prior_contexts=None) -> list[dict]:
+    def _validate_targets(c, actor, item_id, contexts, prior_contexts=None, step_id=None) -> list[dict]:
         if not isinstance(contexts, list) or len(contexts) > 40:
             raise AppError(422, "validation", "contexts must contain at most 40 repository contexts")
         if item_id is not None:
             item_id = text(item_id, "itemId", required=True, limit=200)
             if _get(c, "work_items", item_id)["archived"]:
                 raise AppError(409, "archived", "Archived work cannot receive new participation")
+        if step_id is not None:
+            step_id = text(step_id, "stepId", required=True, limit=200)
+            step = c.execute(
+                "SELECT s.id,s.retired,r.archived FROM steps s JOIN roadmaps r ON r.id=s.roadmap_id WHERE s.id=?",
+                (step_id,),
+            ).fetchone()
+            if step is None:
+                raise AppError(404, "not_found", "Step not found")
+            if step["retired"] or step["archived"]:
+                raise AppError(409, "archived", "Retired or archived steps cannot receive new participation")
         result = []
         for context in contexts:
             if context.get("repositoryUrl") is not None:
@@ -514,9 +573,9 @@ class CoordinationService:
                 _refuse_merged(c, repository)
                 raise AppError(409, "archived", "Archived repositories cannot receive new contexts")
             result.append(value)
-        if item_id is None and not result:
+        if item_id is None and step_id is None and not result:
             raise AppError(422, "validation", "Participation requires work or a repository")
-        if item_id is None and not any(not _get(c, "repositories", v["repositoryId"])["archived"] for v in result):
+        if item_id is None and step_id is None and not any(not _get(c, "repositories", v["repositoryId"])["archived"] for v in result):
             raise AppError(409, "archived", "Participation requires an active target")
         return result
 
@@ -527,14 +586,14 @@ class CoordinationService:
             c.execute("INSERT INTO participation_contexts(participation_id,position,repository_id,checkout_path,worktree_path,branch) VALUES(?,?,?,?,?,?)",
                       (identity, position, context["repositoryId"], context["checkoutPath"], context["worktreePath"], context["branch"]))
 
-    def _track_chat(self, c, actor, run_id, item_id) -> None:
-        """Track a registered identity's chat on the work item its run reports, once, so the
-        agent's chat appears with its work without anyone tracking it by hand. The person asked
+    def _track_chat(self, c, actor, run_id, item_id, step_id=None) -> None:
+        """Track a registered identity's chat on the work item or roadmap step its run reports, once,
+        so the agent's chat appears with its work without anyone tracking it by hand. The person asked
         for this to happen without a proposal. Only the chat the identity registered with
         counts: any other chat ID a run reports stays provenance, so an agent cannot fill work
         with chats by naming them. A chat already tracked on that item, archived there
         included, is left as the person keeps it."""
-        if item_id is None:
+        if item_id is None and step_id is None:
             return
         run = _get(c, "agent_runs", run_id)
         chat_id = run["external_chat_id"]
@@ -542,26 +601,45 @@ class CoordinationService:
             return
         if identity_chat(c, run["agent_id"]) != chat_id:
             return
-        if c.execute("SELECT 1 FROM agent_chats WHERE owner_type='item' AND owner_id=? AND chat_id=?", (item_id, chat_id)).fetchone():
-            return
         # The one import up the layers (test_layering.py): supporting records check repositories
         # with this module, and a tracked chat is a supporting record like any other.
         from . import support
 
-        support.apply(c, actor, "chat.create", {
-            "ownerType": "item", "ownerId": item_id, "chatId": chat_id,
-            "title": run["display_name"], "provider": run["provider"]})
+        if item_id is not None and not c.execute(
+            "SELECT 1 FROM agent_chats WHERE owner_type='item' AND owner_id=? AND chat_id=?",
+            (item_id, chat_id),
+        ).fetchone():
+            support.apply(c, actor, "chat.create", {
+                "ownerType": "item", "ownerId": item_id, "chatId": chat_id,
+                "title": run["display_name"], "provider": run["provider"]})
+        if step_id is not None:
+            step = c.execute("SELECT roadmap_id FROM steps WHERE id=?", (step_id,)).fetchone()
+            if step is not None:
+                roadmap_id = step["roadmap_id"]
+                existing = c.execute(
+                    "SELECT id,archived FROM agent_chats WHERE owner_type='roadmap' AND owner_id=? AND chat_id=?",
+                    (roadmap_id, chat_id),
+                ).fetchone()
+                if existing is None:
+                    support.apply(c, actor, "chat.create", {
+                        "ownerType": "roadmap", "ownerId": roadmap_id, "chatId": chat_id,
+                        "title": run["display_name"], "provider": run["provider"], "stepIds": [step_id]})
+                elif not existing["archived"]:
+                    c.execute("INSERT OR IGNORE INTO chat_steps(chat_id,step_id) VALUES(?,?)",
+                              (existing["id"], step_id))
 
     def create_participation(self, c, actor, p) -> dict:
         self._own_run(c, actor, p["runId"])
         item_id = text(p["itemId"], "itemId", required=True, limit=200) if p.get("itemId") is not None else None
-        contexts = self._validate_targets(c, actor, item_id, p.get("contexts", []))
+        step_id = text(p["stepId"], "stepId", required=True, limit=200) if p.get("stepId") is not None else None
+        contexts = self._validate_targets(c, actor, item_id, p.get("contexts", []), step_id=step_id)
         identity, stamp = uid(), now()
-        c.execute("INSERT INTO participations(id,run_id,item_id,description,revision,created_at,updated_at,last_seen_at) VALUES(?,?,?,?,1,?,?,?)", (identity, p["runId"], item_id, text(p.get("description", ""), "description", limit=2000), stamp, stamp, stamp))
+        c.execute("INSERT INTO participations(id,run_id,item_id,step_id,description,revision,created_at,updated_at,last_seen_at) VALUES(?,?,?,?,?,1,?,?,?)",
+                  (identity, p["runId"], item_id, step_id, text(p.get("description", ""), "description", limit=2000), stamp, stamp, stamp))
         self._replace_contexts(c, identity, contexts)
         result = self.participation_record(c, _get(c, "participations", identity))
         event(c, actor, "participation.create", identity, None, result)
-        self._track_chat(c, actor, p["runId"], item_id)
+        self._track_chat(c, actor, p["runId"], item_id, step_id)
         return result
 
     def change_participation(self, c, actor, identity, p, verb="update") -> dict:
@@ -578,24 +656,28 @@ class CoordinationService:
         item_id = p.get("itemId", row["item_id"])
         if item_id is not None:
             item_id = text(item_id, "itemId", required=True, limit=200)
-        contexts = self._validate_targets(c, actor, item_id, p.get("contexts", prior), prior if verb != "rejoin" else None)
+        step_id = p.get("stepId", row["step_id"])
+        if step_id is not None:
+            step_id = text(step_id, "stepId", required=True, limit=200)
+        contexts = self._validate_targets(c, actor, item_id, p.get("contexts", prior), prior if verb != "rejoin" else None, step_id=step_id)
         stamp = now()
         description = text(p.get("description", row["description"]), "description", limit=2000)
-        c.execute("UPDATE participations SET item_id=?,description=?,last_seen_at=?,updated_at=?,revision=revision+1,released_at=NULL,release_reason=NULL WHERE id=?", (item_id, description, stamp, stamp, identity))
+        c.execute("UPDATE participations SET item_id=?,step_id=?,description=?,last_seen_at=?,updated_at=?,revision=revision+1,released_at=NULL,release_reason=NULL WHERE id=?",
+                  (item_id, step_id, description, stamp, stamp, identity))
         self._replace_contexts(c, identity, contexts)
         if verb == "check-in":
             run = _get(c, "agent_runs", row["run_id"])
             touch_agent_leases(c, run["agent_id"], [ctx["repositoryId"] for ctx in contexts])
         result = self.participation_record(c, _get(c, "participations", identity))
         event(c, actor, "participation." + verb, identity, before, result)
-        self._track_chat(c, actor, row["run_id"], item_id)
+        self._track_chat(c, actor, row["run_id"], item_id, step_id)
         return result
 
-    def participations(self, c, item_id=None, repository_id=None, run_id=None, include_released=False, limit=50, offset=0) -> dict:
+    def participations(self, c, item_id=None, repository_id=None, run_id=None, include_released=False, limit=50, offset=0, step_id=None) -> dict:
         conditions, args = ["1=1"], []
         if not include_released:
             conditions.append("p.released_at IS NULL")
-        for column, value in (("p.item_id", item_id), ("p.run_id", run_id)):
+        for column, value in (("p.item_id", item_id), ("p.step_id", step_id), ("p.run_id", run_id)):
             if value is not None:
                 conditions.append(column + "=?")
                 args.append(value)

@@ -61,6 +61,8 @@ const sampleRepository = (id: string, name: string): Repository => ({
   duplicateOf: null,
   mergedInto: null,
   description: "",
+  wipCap: null,
+  tier: null,
   registeredBy: null,
   reviewed: true,
   archived: false,

@@ -15,7 +15,7 @@ from test_discussion_tags import credential, error, ok, person, read, start, wri
 from test_repository_discussions import repository
 from worklog import cli
 
-KEYS = {"repositories", "participations", "announcements", "discussions", "roles", "tickets"}
+KEYS = {"repositories", "participations", "announcements", "discussions", "roles", "tickets", "dispatchAdvisories"}
 
 
 @pytest.fixture

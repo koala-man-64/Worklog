@@ -36,6 +36,7 @@
         },
         "runId": "<id2>",
         "stale": false,
+        "stepId": null,
         "updatedAt": "<time.ffffff+hh:mm>"
       }
     ],

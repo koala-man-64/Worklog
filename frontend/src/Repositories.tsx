@@ -10,13 +10,15 @@ import { statusLabel } from "./ui/Status";
 import { Pager } from "./ui/Pager";
 import { Coordination, OpenRuns } from "./Coordination";
 import { LinkPicker } from "./LinkPicker";
-import { RepositoryName } from "./RepositoryControls";
+import { RepositoryName, RepositoryPicker } from "./RepositoryControls";
 import { RepositorySlotsSection, SlotSummaryPills } from "./RepositorySlots";
+import { workClassLabel } from "./RoadmapExecution";
 import type {
   Answer,
   Item,
   Repository,
   RepositoryDetail,
+  RepositoryQueue,
   RepositoryRegistration,
 } from "./apiTypes";
 
@@ -138,7 +140,19 @@ function RepositoryList() {
                 {repo.name}
               </a>
               {!repo.mergedInto && (
-                <SlotSummaryPills summary={repo.slotSummary} />
+                <>
+                  <SlotSummaryPills summary={repo.slotSummary} />
+                  {(repo.tier != null || repo.wipCap != null) && (
+                    <span className="exec-pills">
+                      {repo.tier != null && (
+                        <span className="exec-pill">Tier {repo.tier}</span>
+                      )}
+                      {repo.wipCap != null && (
+                        <span className="exec-pill">WIP cap {repo.wipCap}</span>
+                      )}
+                    </span>
+                  )}
+                </>
               )}
               <small>{repo.url || "No remote URL"}</small>
               {repo.mergedInto ? (
@@ -518,6 +532,8 @@ function RepositoryDetail({ id }: { id: string }) {
       )}
       <LinkedWork repo={repo} />
       {!repo.mergedInto && <RepositorySlotsSection repo={repo} />}
+      {!repo.mergedInto && <RepositoryExecutionPolicy repo={repo} />}
+      {!repo.mergedInto && <RepositoryQueueSection repo={repo} />}
       {/* A merge moves every tie and file to the record that answers for this one. An archived
           record keeps its ties, and their roles, but takes no new one until it is recovered. */}
       {!repo.mergedInto && (
@@ -532,5 +548,264 @@ function RepositoryDetail({ id }: { id: string }) {
       {!repo.mergedInto && <RepositoryFiles repo={repo} />}
       <Coordination repositoryId={id} />
     </>
+  );
+}
+
+function RepositoryExecutionPolicy({ repo }: { repo: RepositoryDetail }) {
+  const action = useWrites();
+  const [tier, setTier] = useState(repo.tier != null ? String(repo.tier) : "");
+  const [wipCap, setWipCap] = useState(
+    repo.wipCap != null ? String(repo.wipCap) : "",
+  );
+  const initialUpstreams = repo.upstreamIds ?? [];
+  const [upstreamIds, setUpstreamIds] = useState<string[]>(initialUpstreams);
+  const downstreams = repo.downstreamIds ?? [];
+  const parsedTier = tier === "" ? null : Number.parseInt(tier, 10);
+  const parsedCap = wipCap === "" ? null : Number.parseInt(wipCap, 10);
+  const upstreamsChanged =
+    upstreamIds.length !== initialUpstreams.length ||
+    upstreamIds.some((uid, idx) => uid !== initialUpstreams[idx]);
+  const changed =
+    parsedTier !== (repo.tier ?? null) ||
+    parsedCap !== (repo.wipCap ?? null) ||
+    upstreamsChanged;
+
+  return (
+    <section aria-label="Execution policy">
+      <h2>Execution policy</h2>
+      <form
+        className="roadmap-record-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!changed || action.isPending || repo.archived) return;
+          action.mutate(() =>
+            commands.updateRepository(repo.id, {
+              revision: repo.revision,
+              tier: parsedTier,
+              wipCap: parsedCap,
+              upstreamIds: upstreamIds.filter((uid) => uid !== repo.id),
+            }),
+          );
+        }}
+      >
+        <div className="exec-inline-fields">
+          <label>
+            Dependency tier
+            <select
+              aria-label="Dependency tier"
+              disabled={repo.archived || action.isPending}
+              value={tier}
+              onChange={(e) => setTier(e.target.value)}
+            >
+              <option value="">Unset</option>
+              <option value="1">Tier 1 (Foundation / Contracts)</option>
+              <option value="2">Tier 2 (Services)</option>
+              <option value="3">Tier 3 (Edge / UI)</option>
+              <option value="4">Tier 4</option>
+              <option value="5">Tier 5</option>
+              <option value="6">Tier 6</option>
+              <option value="7">Tier 7</option>
+              <option value="8">Tier 8</option>
+              <option value="9">Tier 9</option>
+            </select>
+          </label>
+          <label>
+            WIP cap (blank inherits slot cap)
+            <input
+              aria-label="WIP cap"
+              type="number"
+              min={1}
+              max={99}
+              placeholder="Inherit slot cap"
+              disabled={repo.archived || action.isPending}
+              value={wipCap}
+              onChange={(e) => setWipCap(e.target.value)}
+            />
+          </label>
+        </div>
+        <RepositoryPicker
+          label="Upstream repositories"
+          value={upstreamIds}
+          onChange={(ids) => setUpstreamIds(ids.filter((uid) => uid !== repo.id))}
+          disabled={repo.archived || action.isPending}
+        />
+        {downstreams.length > 0 && (
+          <p className="muted">
+            Downstream consumers:{" "}
+            {downstreams.map((cid, idx) => (
+              <span key={cid}>
+                {idx > 0 && ", "}
+                <a href={"#repositories/" + cid}>
+                  <RepositoryName id={cid} />
+                </a>
+              </span>
+            ))}
+          </p>
+        )}
+        <ErrorMessage error={action.error} />
+        {!repo.archived && (
+          <div className="toolbar">
+            <button
+              type="submit"
+              className="primary"
+              disabled={!changed || action.isPending}
+            >
+              Save execution policy
+            </button>
+          </div>
+        )}
+      </form>
+    </section>
+  );
+}
+
+function RepositoryQueueSection({ repo }: { repo: RepositoryDetail }) {
+  const queueQuery = useData<RepositoryQueue>(
+    `/repositories/${repo.id}/queue`,
+    30_000,
+  );
+  const action = useWrites();
+  const queue = queueQuery.data;
+  if (!queue || !Array.isArray(queue.doing)) return null;
+
+  const reorder = (index: number, delta: number) => {
+    const ids = queue.queued.map((s) => s.id);
+    const swap = index + delta;
+    if (swap < 0 || swap >= ids.length) return;
+    [ids[index], ids[swap]] = [ids[swap], ids[index]];
+    action.mutate(() =>
+      commands.reorderRepositoryQueue(repo.id, { stepIds: ids }),
+    );
+  };
+
+  return (
+    <section aria-label="Execution queue">
+      <h2>Execution queue</h2>
+      <div className="exec-pills">
+        <span className={"exec-pill" + (queue.overWipCap ? " is-warning" : "")}>
+          {queue.effectiveWipCap !== null
+            ? `WIP ${queue.doingCount}/${queue.effectiveWipCap} doing · ${queue.activeWriters}/${queue.effectiveWipCap} writers`
+            : `${queue.doingCount} doing · ${queue.activeWriters} writers`}
+        </span>
+        {queue.freezes
+          .filter((f) => f.freezeStatus !== "open")
+          .map((f) => (
+            <span
+              key={f.waveId}
+              className={`exec-pill freeze-${f.freezeStatus}`}
+            >
+              {f.waveName}: {f.freezeStatus}
+              {f.frozenRef ? ` @ ${f.frozenRef}` : ""}
+            </span>
+          ))}
+      </div>
+      <ErrorMessage error={action.error} />
+      {queue.doing.length === 0 &&
+      queue.queued.length === 0 &&
+      queue.blocked.length === 0 ? (
+        <Empty>No active roadmap steps are linked to this repository.</Empty>
+      ) : (
+        <>
+          {queue.doing.length > 0 && (
+            <>
+              <h3>
+                Doing <span className="count">{queue.doing.length}</span>
+              </h3>
+              <ul className="exec-step-list">
+                {queue.doing.map((s) => (
+                  <li className="exec-step-item" key={s.id}>
+                    <div className="exec-step-main">
+                      <span className="status-dot doing" aria-hidden="true" />
+                      <div className="exec-step-text">
+                        <a href={`#roadmaps/${s.roadmapId}/${s.id}`}>
+                          {s.title}
+                        </a>
+                        <small className="muted">
+                          {s.roadmapTitle}
+                          {s.workClass ? ` · ${workClassLabel(s.workClass)}` : ""}
+                          {s.waveName ? ` · ${s.waveName}` : ""}
+                        </small>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          {queue.queued.length > 0 && (
+            <>
+              <h3>
+                Queued <span className="count">{queue.queued.length}</span>
+              </h3>
+              <ul className="exec-step-list">
+                {queue.queued.map((s, idx) => (
+                  <li className="exec-step-item" key={s.id}>
+                    <div className="exec-step-main">
+                      <span className="status-dot open" aria-hidden="true" />
+                      <div className="exec-step-text">
+                        <a href={`#roadmaps/${s.roadmapId}/${s.id}`}>
+                          {s.title}
+                        </a>
+                        <small className="muted">
+                          {s.roadmapTitle}
+                          {s.workClass ? ` · ${workClassLabel(s.workClass)}` : ""}
+                          {s.waveName ? ` · ${s.waveName}` : ""}
+                        </small>
+                      </div>
+                    </div>
+                    {!repo.archived && (
+                      <div className="toolbar">
+                        <button
+                          type="button"
+                          className="quiet"
+                          aria-label={`Move ${s.title} up`}
+                          disabled={idx === 0 || action.isPending}
+                          onClick={() => reorder(idx, -1)}
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          className="quiet"
+                          aria-label={`Move ${s.title} down`}
+                          disabled={
+                            idx === queue.queued.length - 1 || action.isPending
+                          }
+                          onClick={() => reorder(idx, 1)}
+                        >
+                          ↓
+                        </button>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          {queue.blocked.length > 0 && (
+            <>
+              <h3>
+                Blocked <span className="count">{queue.blocked.length}</span>
+              </h3>
+              <ul className="exec-step-list">
+                {queue.blocked.map((s) => (
+                  <li className="exec-step-item" key={s.id}>
+                    <div className="exec-step-main">
+                      <span className="status-dot blocked" aria-hidden="true" />
+                      <div className="exec-step-text">
+                        <a href={`#roadmaps/${s.roadmapId}/${s.id}`}>
+                          {s.title}
+                        </a>
+                        <small className="muted">{s.roadmapTitle}</small>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </>
+      )}
+    </section>
   );
 }
