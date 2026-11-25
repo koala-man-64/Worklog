@@ -117,7 +117,6 @@ const snapshot: LiveSnapshot = {
   ],
   untrackedSessions: [
     {
-      pid: 123,
       sessionId: "untracked-1",
       hostSessionId: null,
       name: "Local Claude session",

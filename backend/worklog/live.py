@@ -1799,7 +1799,6 @@ class LiveService:
             }.get(session.get("status") or session.get("state"), "idle")
             untracked.append(
                 {
-                    "pid": int(session.get("pid") or 0),
                     "sessionId": session["sessionId"],
                     "hostSessionId": session.get("hostSessionId"),
                     "name": session.get("name")
@@ -1817,7 +1816,7 @@ class LiveService:
             key=lambda session: (
                 ORDER[session["state"]],
                 -(_parse(session["startedAt"]) or datetime.min.replace(tzinfo=UTC)).timestamp(),
-                int(session["pid"]),
+                session["sessionId"],
             )
         )
 

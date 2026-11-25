@@ -2687,7 +2687,6 @@ class LiveAgentNode(Answer):
 
 
 class LiveUntrackedSession(Answer):
-    pid: int
     sessionId: str
     hostSessionId: str | None
     name: str
