@@ -263,7 +263,7 @@ def test_with_approval_off_names_and_resource_changes_apply_on_submit_and_stay_i
     assert (changed["body"], changed["revision"]) == ("Run the tests twice.", 2)
     assert [(e["kind"], e["actorKind"]) for e in changed["history"]] == [("resource.update", "agent"), ("resource.create", "human")]
     # The whole page before the agent's change stays in its history.
-    (update, _) = ok(call(client, "GET", f"/history?entityId={page['id']}"))["items"]
+    (update, _) = ok(call(client, "GET", f"/history?entityId={page['id']}&payloads=true"))["items"]
     assert (update["before"]["body"], update["after"]["body"]) == ("Run the tests.", "Run the tests twice.")
     (created,) = [r for r in ok(call(client, "GET", "/resources"))["items"] if r["title"] == "Hotfix checklist"]
     assert (created["archived"], created["revision"]) == (False, 3)

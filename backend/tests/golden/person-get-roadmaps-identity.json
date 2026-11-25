@@ -7,7 +7,7 @@
     "children": [
       {
         "archived": false,
-        "id": "<id12>",
+        "id": "<id7>",
         "title": "Sub-plan"
       }
     ],
@@ -26,64 +26,6 @@
       }
     ],
     "github": [],
-    "history": [
-      {
-        "actorId": "local-user",
-        "actorKind": "human",
-        "actorLabel": "You",
-        "after": {
-          "archived": false,
-          "createdAt": "<time.ffffff+hh:mm>",
-          "id": "<id8>",
-          "name": "Ada",
-          "personId": "<id9>",
-          "personTeam": "",
-          "personTitle": "Engineer",
-          "relationship": "Reviewer",
-          "targetId": "<id1>",
-          "targetType": "roadmap"
-        },
-        "before": null,
-        "createdAt": "<time.ffffff+hh:mm>",
-        "entityId": "<id1>",
-        "id": "<id7>",
-        "kind": "person.link",
-        "localDate": "<today>"
-      },
-      {
-        "actorId": "local-user",
-        "actorKind": "human",
-        "actorLabel": "You",
-        "after": {
-          "changedStepIds": [],
-          "versionNumber": 2
-        },
-        "before": null,
-        "createdAt": "<time.ffffff+hh:mm>",
-        "entityId": "<id1>",
-        "id": "<id10>",
-        "kind": "roadmap.revise",
-        "localDate": "<today>"
-      },
-      {
-        "actorId": "local-user",
-        "actorKind": "human",
-        "actorLabel": "You",
-        "after": {
-          "changedStepIds": [
-            "<id2>",
-            "<id3>"
-          ],
-          "versionNumber": 1
-        },
-        "before": null,
-        "createdAt": "<time.ffffff+hh:mm>",
-        "entityId": "<id1>",
-        "id": "<id11>",
-        "kind": "roadmap.create",
-        "localDate": "<today>"
-      }
-    ],
     "id": "<id1>",
     "links": [],
     "notes": [],
@@ -93,9 +35,9 @@
       {
         "archived": false,
         "createdAt": "<time.ffffff+hh:mm>",
-        "id": "<id8>",
+        "id": "<id11>",
         "name": "Ada",
-        "personId": "<id9>",
+        "personId": "<id10>",
         "personTeam": "",
         "personTitle": "Engineer",
         "relationship": "Reviewer"
@@ -177,14 +119,14 @@
         "backlogOrder": 1,
         "createdAt": "<time.ffffff+hh:mm>",
         "description": "Parse the plan",
-        "id": "<id13>",
+        "id": "<id8>",
         "people": [
           {
             "archived": false,
             "createdAt": "<time.ffffff+hh:mm>",
-            "id": "<id14>",
+            "id": "<id9>",
             "name": "Ada",
-            "personId": "<id9>",
+            "personId": "<id10>",
             "personTeam": "",
             "personTitle": "Engineer",
             "relationship": "Reviewer"

@@ -98,7 +98,8 @@ def test_rescheduling_work_that_was_only_planned_takes_it_off_the_day_it_left(cl
     assert [(e["itemId"], e["planned"]) for e in moved] == [(w["id"], True)]
     detail = client.get(f"/api/v1/work-items/{w['id']}").json()
     assert [e["date"] for e in detail["dailyEntries"]] == ["2026-10-29"]
-    removals = [e["before"]["date"] for e in detail["history"] if e["kind"] == "entry.remove"]
+    history = client.get(f"/api/v1/history?entityId={w['id']}&payloads=true").json()["items"]
+    removals = [e["before"]["date"] for e in history if e["kind"] == "entry.remove"]
     assert removals == ["2026-10-28"]
     # An outcome of blank space records nothing either; a day it isn't on has no entry to move.
     blank = write(client, "PUT", f"/days/2026-10-29/entries/{w['id']}", {"revision": moved[0]["revision"], "outcome": " \n "})
@@ -140,7 +141,7 @@ def test_work_taken_off_its_day_leaves_no_entry_and_rejoins_the_backlog(client):
     assert client.get(f"/api/v1/work-items/{w['id']}").json()["dailyEntries"] == []
     assert w["id"] in backlog()
     # History keeps the entry as it was.
-    history = client.get(f"/api/v1/history?entityId={w['id']}").json()["items"]
+    history = client.get(f"/api/v1/history?entityId={w['id']}&payloads=true").json()["items"]
     removal = next(e for e in history if e["kind"] == "entry.remove")
     assert removal["before"]["date"] == date and removal["before"]["planned"] is True
     assert removal["after"] is None

@@ -1065,6 +1065,33 @@
               "default": 100,
               "title": "Limit"
             }
+          },
+          {
+            "name": "eventId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Eventid"
+            }
+          },
+          {
+            "name": "payloads",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Payloads"
+            }
           }
         ],
         "responses": {
@@ -19181,13 +19208,6 @@
             },
             "type": "array",
             "title": "Repositories"
-          },
-          "history": {
-            "items": {
-              "$ref": "#/components/schemas/Event"
-            },
-            "type": "array",
-            "title": "History"
           }
         },
         "additionalProperties": false,
@@ -19209,8 +19229,7 @@
           "updatedAt",
           "roadmaps",
           "workItems",
-          "repositories",
-          "history"
+          "repositories"
         ],
         "title": "Person",
         "description": "A person with what they are tied to and their history."
@@ -20912,11 +20931,68 @@
         "title": "RankResult",
         "description": "A work item's stack rank after a move, 1 first, among how many ranked items."
       },
+      "RecordChange": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "entityId": {
+            "type": "string",
+            "title": "Entityid"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "actorId": {
+            "type": "string",
+            "title": "Actorid"
+          },
+          "actorLabel": {
+            "type": "string",
+            "title": "Actorlabel"
+          },
+          "actorKind": {
+            "type": "string",
+            "title": "Actorkind"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "localDate": {
+            "type": "string",
+            "title": "Localdate"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "entityId",
+          "kind",
+          "actorId",
+          "actorLabel",
+          "actorKind",
+          "createdAt",
+          "localDate"
+        ],
+        "title": "RecordChange",
+        "description": "One entry of a record's history: who made the change, its kind and when."
+      },
       "RecordHistory": {
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/Event"
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Event"
+                },
+                {
+                  "$ref": "#/components/schemas/RecordChange"
+                }
+              ]
             },
             "type": "array",
             "title": "Items"
@@ -20928,7 +21004,7 @@
           "items"
         ],
         "title": "RecordHistory",
-        "description": "A record's latest history entries the reader may see."
+        "description": "A record's latest history entries the reader may see: each change without its before and after,\nunless one change was asked for by its ID or every one with payloads."
       },
       "RecordPerson": {
         "properties": {
@@ -22190,13 +22266,6 @@
             "type": "array",
             "title": "Decisions"
           },
-          "history": {
-            "items": {
-              "$ref": "#/components/schemas/Event"
-            },
-            "type": "array",
-            "title": "History"
-          },
           "ancestors": {
             "items": {
               "$ref": "#/components/schemas/FamilyRoadmap"
@@ -22246,7 +22315,6 @@
           "github",
           "questions",
           "decisions",
-          "history",
           "ancestors",
           "children",
           "workItems",
@@ -23447,13 +23515,6 @@
             },
             "type": "array",
             "title": "Decisions"
-          },
-          "history": {
-            "items": {
-              "$ref": "#/components/schemas/Event"
-            },
-            "type": "array",
-            "title": "History"
           }
         },
         "additionalProperties": false,
@@ -23475,8 +23536,7 @@
           "chats",
           "github",
           "questions",
-          "decisions",
-          "history"
+          "decisions"
         ],
         "title": "SavedRoadmap",
         "description": "A roadmap as its commands return it: its steps, retired ones included, and versions. The\nsupporting lists are always empty here; its read fills them."
@@ -26849,13 +26909,6 @@
             "type": "array",
             "title": "Dailyentries"
           },
-          "history": {
-            "items": {
-              "$ref": "#/components/schemas/Event"
-            },
-            "type": "array",
-            "title": "History"
-          },
           "linkedRoadmap": {
             "anyOf": [
               {
@@ -26903,7 +26956,6 @@
           "references",
           "people",
           "dailyEntries",
-          "history",
           "linkedRoadmap",
           "linkedStep"
         ],

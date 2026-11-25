@@ -118,10 +118,19 @@ def test_an_agents_history_page_fills_up_past_entries_it_may_not_see(client, tmp
              (now + timedelta(minutes=minute)).isoformat(), kind)
 
     def page(agent=None):
-        entries = read(client, f"/history?entityId={author['agentId']}&limit=2", agent)["items"]
+        entries = read(client, f"/history?entityId={author['agentId']}&limit=2&payloads=true", agent)["items"]
         return [(e["kind"], (e["after"] or e["before"])["relationship"]) for e in entries]
 
+    def listed(agent=None):
+        # Without payloads, the same check leaves the same entries out.
+        entries = read(client, f"/history?entityId={author['agentId']}&limit=2", agent)["items"]
+        assert all("after" not in e and "before" not in e for e in entries)
+        return [e["id"] for e in entries]
+
     assert page(other) == [("agent.link", "Three"), ("agent.link", "One")]
+    assert listed(other) == [e["id"] for e in read(client, f"/history?entityId={author['agentId']}&limit=2&payloads=true",
+                                                   other)["items"]]
+    assert len(listed()) == 2 and listed() != listed(other)
     assert page() == [("agent.unlink", "Hidden"), ("agent.link", "Three")]
     # Once submitted, the draft is no longer hidden.
     ok(write(client, "POST", f"/proposals/{draft['id']}/submit", {"revision": draft["revision"]}, author))

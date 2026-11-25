@@ -18,7 +18,6 @@ from .common import (
     event,
     item_status,
     now,
-    read_events,
     require_revision,
     setting,
     text,
@@ -128,7 +127,6 @@ class Items:
             result.update(support.for_owner(c, "item", item_id))
             result["people"] = people_on(c, "item", [item_id]).get(item_id, [])
             result["dailyEntries"] = [entry_record(r) for r in c.execute("SELECT * FROM daily_entries WHERE item_id=? ORDER BY date DESC", (item_id,))]
-            result["history"] = read_events(c, item_id)
             result["linkedRoadmap"] = None
             result["linkedStep"] = None
             if result["stepId"]:

@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { commands } from "./commands";
 import { useCommand, useData, useWrites } from "./hooks";
-import { History } from "./sections/History";
+import { ChangeHistory } from "./sections/History";
 import { personLine, TieRole } from "./sections/PeopleLinks";
 import { DraftField } from "./ui/DraftField";
 import { Empty, ErrorMessage } from "./ui/Messages";
@@ -495,7 +495,7 @@ export function PersonDetailView({ id }: { id: string }) {
           </div>
         )}
       </section>
-      <History items={person.history} />
+      <ChangeHistory id={person.id} />
     </>
   );
 }

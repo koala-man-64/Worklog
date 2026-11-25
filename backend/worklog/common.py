@@ -148,6 +148,38 @@ def read_events(conn: sqlite3.Connection, entity_id: str, limit: int = 100) -> l
              "after": json.loads(r["after_json"])} for r in rows]
 
 
+# Kinds whose payload decides who may see the change (proposals._visible_events): their summaries
+# keep it, for that check alone.
+JUDGED_KINDS = ("agent.link", "agent.unlink")
+
+
+def read_changes(conn: sqlite3.Connection, entity_id: str, limit: int = 100) -> list[dict]:
+    """A record's latest changes as read_events orders them: who made each, its kind and when, without
+    the before and after records, which can repeat a whole record and are never read. Only a kind in
+    JUDGED_KINDS selects them, for the visibility check, which leaves them out of what it returns."""
+    rows = conn.execute(
+        "SELECT id,entity_id,kind,actor_id,actor_label,actor_kind,created_at,local_date,"
+        f"CASE WHEN kind IN {JUDGED_KINDS} THEN before_json END AS before_json,"
+        f"CASE WHEN kind IN {JUDGED_KINDS} THEN after_json END AS after_json "
+        "FROM events WHERE entity_id=? ORDER BY created_at DESC,id DESC LIMIT ?", (entity_id, limit)).fetchall()
+    return [{"id": r["id"], "entityId": r["entity_id"], "kind": r["kind"], "actorId": r["actor_id"],
+             "actorLabel": r["actor_label"], "actorKind": r["actor_kind"], "createdAt": r["created_at"],
+             "localDate": r["local_date"],
+             **({"before": json.loads(r["before_json"]), "after": json.loads(r["after_json"])}
+                if r["kind"] in JUDGED_KINDS else {})} for r in rows]
+
+
+def read_event(conn: sqlite3.Connection, entity_id: str, event_id: str) -> dict | None:
+    """One of a record's changes in full, or None when the record has no change by that ID."""
+    row = conn.execute("SELECT * FROM events WHERE entity_id=? AND id=?", (entity_id, event_id)).fetchone()
+    if row is None:
+        return None
+    return {"id": row["id"], "entityId": row["entity_id"], "kind": row["kind"], "actorId": row["actor_id"],
+            "actorLabel": row["actor_label"], "actorKind": row["actor_kind"], "createdAt": row["created_at"],
+            "localDate": row["local_date"], "before": json.loads(row["before_json"]),
+            "after": json.loads(row["after_json"])}
+
+
 def unpack(row: Any) -> dict | None:
     return dict(row) if row is not None else None
 

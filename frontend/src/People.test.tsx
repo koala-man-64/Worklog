@@ -108,7 +108,6 @@ const detail: PersonDetail = {
       repository: sampleRepository(REPO_ID, "ingest"),
     },
   ],
-  history: [],
 };
 
 type Call = { url: string; method: string; body: unknown };
