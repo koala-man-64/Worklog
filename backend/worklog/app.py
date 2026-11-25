@@ -34,6 +34,7 @@ from .common import (
     AppError,
     event,
     now,
+    rows_in,
     setting,
     text,
     today,
@@ -518,7 +519,13 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def chat_list(archived: bool = False) -> dict:
         with db.read() as c:
             chats = support.chat_overview(c, archived)
-        return {"items": [{**chat, "transcript": transcripts.summary(chat["chatId"])} for chat in chats]}
+            # Each chat's open runs, in one query: the page polls this list alone (audit finding P4).
+            open_runs: dict[str, list[dict]] = {}
+            for row in rows_in(c, "SELECT * FROM agent_runs WHERE ended_at IS NULL AND external_chat_id IN ({}) "
+                                  "ORDER BY created_at DESC,id DESC", [chat["chatId"] for chat in chats]):
+                open_runs.setdefault(row["external_chat_id"], []).append(CoordinationService.run_record(row))
+        return {"items": [{**chat, "openRuns": open_runs.get(chat["chatId"], []),
+                           "transcript": transcripts.summary(chat["chatId"])} for chat in chats]}
 
     @app.get("/api/v1/claude-sessions", response_model=out.ClaudeSessions)
     def claude_sessions() -> dict:
@@ -537,13 +544,22 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         return {"items": items}
 
     @app.get("/api/v1/chats/{identity}/transcript", response_model=out.Transcript, response_model_exclude_unset=True)
-    def chat_transcript(identity: str, limit: int = Query(200, ge=1, le=MESSAGE_LIMIT), thread: str | None = None) -> dict:
+    def chat_transcript(identity: str, request: Request, response: Response,
+                        limit: int = Query(200, ge=1, le=MESSAGE_LIMIT), thread: str | None = None) -> Any:
         with db.read() as c:
             row = c.execute("SELECT * FROM agent_chats WHERE id=?", (identity,)).fetchone()
             if row is None:
                 raise AppError(404, "not_found", "Agent chat not found")
             chat = support.chat_records(c, [row])[0]
             labels = {r["chat_id"].strip().lower(): r["title"] for r in c.execute("SELECT chat_id,title FROM agent_chats WHERE archived=0")}
+        # The page reads the open transcript every few seconds: one whose files, chat record, page and
+        # agent have not changed answers 304 to the tag it was given, without being read (audit P4).
+        basis = [chat, sorted(labels.items()), limit, thread, transcripts.fingerprint(chat["chatId"])]
+        tag = '"' + hashlib.sha256(json.dumps(basis, default=str).encode()).hexdigest()[:32] + '"'
+        given = {part.strip().removeprefix("W/") for part in request.headers.get("if-none-match", "").split(",")}
+        if tag in given:
+            return Response(status_code=304, headers={"ETag": tag})
+        response.headers["ETag"] = tag
         return {"chat": chat, **transcripts.messages(chat["chatId"], limit=limit, thread=thread, labels=labels)}
 
     @app.post("/api/v1/chats", response_model=out.TrackedChat)

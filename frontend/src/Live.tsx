@@ -16,6 +16,9 @@ import type {
   LiveSwimlaneSpan,
 } from "./apiTypes";
 
+// Each poll reads the whole live picture: every 15 seconds is current enough (audit 3.7, P7).
+const LIVE_REFRESH_MS = 15_000;
+
 type WindowMinutes = 15 | 60 | 360 | 1440;
 type Mode = "flow" | "lanes";
 type Focus = { kind: "work" | "agent" | "repo" | "person" | "pulse"; id: string };
@@ -212,7 +215,7 @@ export function Live({
   if (roadmapId) params.set("roadmapId", roadmapId);
   const query = useData<LiveSnapshot>(
     `/live?${params.toString()}`,
-    paused ? undefined : 5_000,
+    paused ? undefined : LIVE_REFRESH_MS,
     { keepPrevious: true },
   );
   const snapshot = query.data;

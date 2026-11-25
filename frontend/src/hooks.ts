@@ -41,10 +41,13 @@ export async function refreshAfterWrite(client: QueryClient) {
   await client.invalidateQueries({ predicate: notSession });
 }
 /** The read `useData` makes of a path, for reading several at once with `useQueries`. */
-export function dataQuery<T>(path: string) {
+export function dataQuery<T>(path: string, conditional = false) {
   return {
     queryKey: [getDataContext(), path],
-    queryFn: () => request<T>(path),
+    queryFn: () =>
+      conditional
+        ? request<T>(path, "GET", undefined, { conditional })
+        : request<T>(path),
   };
 }
 /**
@@ -56,10 +59,17 @@ export function useData<T>(
   path: string,
   /** How often to read again, in ms; or, from the latest answer, how often until the next. */
   refreshMs?: number | ((data: T | undefined) => number),
-  { keepPrevious = false }: { keepPrevious?: boolean } = {},
+  {
+    keepPrevious = false,
+    conditional = false,
+  }: {
+    keepPrevious?: boolean;
+    /** Send the last answer's tag, and keep that answer when the server says it is unchanged. */
+    conditional?: boolean;
+  } = {},
 ) {
   return useQuery({
-    ...dataQuery<T>(path),
+    ...dataQuery<T>(path, conditional),
     refetchInterval:
       typeof refreshMs === "function"
         ? (query) => refreshMs(query.state.data as T | undefined)

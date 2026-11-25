@@ -200,6 +200,8 @@ class TranscriptReader:
         self.codex_names: dict[Path, tuple[tuple[int, int], dict[str, str]]] = {}
         self.desktop: dict[str, tuple[Path | None, float]] = {}
         self.index: tuple[float, dict[str, list[Path]], dict[str, tuple[Path, Path]]] | None = None
+        # Each Codex session's rollout files by home and session ID, for one listing of the index.
+        self.codex_shared: tuple[float, dict[tuple[Path, str], list[Path]]] | None = None
 
     def _file_lock(self, path: Path) -> threading.Lock:
         with self.lock:
@@ -379,6 +381,24 @@ class TranscriptReader:
                 self.codex_names[home] = cached
         return cached[1].get(ident, "")
 
+    def _codex_sessions(self) -> dict[tuple[Path, str], list[Path]]:
+        """Each Codex session's rollout files by its home and session ID, found once for each listing
+        of the index: a session's threads were looked for among every rollout file, again for each
+        Codex chat (audit finding P7)."""
+        _, codex = self._index()
+        with self.lock:
+            stamp = self.index[0] if self.index else 0.0
+            if self.codex_shared and self.codex_shared[0] == stamp:
+                return self.codex_shared[1]
+        shared: dict[tuple[Path, str], list[Path]] = {}
+        for path, home in codex.values():
+            session = self._codex_session(path).get("session_id")
+            if isinstance(session, str):
+                shared.setdefault((home, session), []).append(path)
+        with self.lock:
+            self.codex_shared = (stamp, shared)
+        return shared
+
     def _codex_threads(self, ident: str, path: Path, home: Path) -> list[Thread]:
         def thread(file: Path, meta: dict) -> Thread:
             key = codex_id(file) or ""
@@ -391,8 +411,8 @@ class TranscriptReader:
         threads = [thread(path, meta)]
         # A thread that started others is the session they all share.
         if meta.get("session_id") == ident:
-            for other, other_home in self._index()[1].values():
-                if other != path and other_home == home and self._codex_session(other).get("session_id") == ident:
+            for other in self._codex_sessions().get((home, ident), []):
+                if other != path:
                     threads.append(thread(other, self._codex_session(other)))
         return threads
 
@@ -630,6 +650,36 @@ class TranscriptReader:
         except Exception as exc:  # as in summary: one unreadable transcript never fails a list
             logger.warning("Agent chat transcript could not be read for its title (%s)", type(exc).__name__)
             return "", ""
+
+    def fingerprint(self, chat_id: str) -> list:
+        """What a chat's transcript answer depends on outside the database (audit finding P4): the
+        tool that keeps it; each of its agents' transcript files by size and modification time, and
+        whether that file was written within WORKING_SECONDS, which decides "working" without a write;
+        each Claude subagent's sidecar, which names it; and each Codex home's session index, which
+        names its threads. A read whose fingerprint, chat record, page and agent are unchanged would
+        answer the same. A peer session renamed in the desktop app shows by its new name on the next
+        change."""
+        def stat(path: Path) -> list:
+            try:
+                found = path.stat()
+                return [str(path), found.st_size, found.st_mtime_ns]
+            except OSError:
+                return [str(path), None, None]
+
+        source, threads = self.threads(chat_id)
+        now = time.time()
+        found: list = [source]
+        homes: set[Path] = set()
+        for thread in threads:
+            file = stat(thread.path)
+            recent = file[2] is not None and now - file[2] / 1e9 < WORKING_SECONDS
+            found.append([thread.key, *file, recent])
+            if thread.format == "claude" and thread.parent is not None:
+                found.append(stat(thread.path.with_name(thread.path.stem + ".meta.json")))
+            elif thread.format == "codex":
+                homes.update(home for home in self.roots.codex if home in thread.path.parents)
+        found.extend(stat(home / "session_index.jsonl") for home in sorted(homes))
+        return found
 
     def summary(self, chat_id: str) -> dict:
         """A chat's agents and their latest activity. One unreadable transcript never fails a list of chats."""

@@ -13001,6 +13001,13 @@
             "type": "array",
             "title": "Agents"
           },
+          "openRuns": {
+            "items": {
+              "$ref": "#/components/schemas/AgentRun"
+            },
+            "type": "array",
+            "title": "Openruns"
+          },
           "transcript": {
             "anyOf": [
               {
@@ -13035,6 +13042,7 @@
           "roadmaps",
           "steps",
           "agents",
+          "openRuns",
           "transcript"
         ],
         "title": "ChatListed",
@@ -18798,10 +18806,6 @@
       },
       "LiveUntrackedSession": {
         "properties": {
-          "pid": {
-            "type": "integer",
-            "title": "Pid"
-          },
           "sessionId": {
             "type": "string",
             "title": "Sessionid"
@@ -18850,7 +18854,6 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "pid",
           "sessionId",
           "hostSessionId",
           "name",

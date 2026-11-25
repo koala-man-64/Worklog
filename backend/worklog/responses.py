@@ -2303,6 +2303,8 @@ class ChatListed(TrackedChat):
     steps: list[ChatStep]
     # The agent identities tied to its own chat ID, compared exactly, as runs report it.
     agents: list[ChatAgent]
+    # The runs reported on its chat ID that have not ended, the latest first.
+    openRuns: list[AgentRun]
     transcript: TranscriptSummary | UnreadTranscript
 
 
@@ -2855,7 +2857,6 @@ class LiveAgentNode(Answer):
 
 
 class LiveUntrackedSession(Answer):
-    pid: int
     sessionId: str
     hostSessionId: str | None
     name: str

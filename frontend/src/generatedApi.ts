@@ -3947,6 +3947,8 @@ export interface components {
             steps: components["schemas"]["ChatStep"][];
             /** Agents */
             agents: components["schemas"]["ChatAgent"][];
+            /** Openruns */
+            openRuns: components["schemas"]["AgentRun"][];
             /** Transcript */
             transcript: components["schemas"]["TranscriptSummary"] | components["schemas"]["UnreadTranscript"];
         };
@@ -5902,8 +5904,6 @@ export interface components {
         };
         /** LiveUntrackedSession */
         LiveUntrackedSession: {
-            /** Pid */
-            pid: number;
             /** Sessionid */
             sessionId: string;
             /** Hostsessionid */

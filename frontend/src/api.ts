@@ -55,12 +55,19 @@ async function failure(result: Response) {
     data.error?.code || "request_failed",
   );
 }
+// The latest answer and tag of each conditional read, by data folder and path: a read sent again
+// with its tag that the server answers 304 returns the same answer (audit finding P4).
+const tagged = new Map<string, { tag: string; data: unknown }>();
+const TAGGED_LIMIT = 20;
 export async function request<T>(
   path: string,
   method = "GET",
   body?: unknown,
+  { conditional = false }: { conditional?: boolean } = {},
 ): Promise<T> {
   const expectedContext = getDataContext();
+  const tagKey = expectedContext + " " + path;
+  const held = conditional && method === "GET" ? tagged.get(tagKey) : undefined;
   const requestCsrf = csrf;
   const pending =
     method !== "GET" && path !== "/session/bootstrap"
@@ -73,6 +80,7 @@ export async function request<T>(
       if (pending) headers["Idempotency-Key"] = pending.key;
     }
     if (path === "/session/bootstrap") headers["X-Worklog-Bootstrap"] = "1";
+    if (held) headers["If-None-Match"] = held.tag;
     if (body !== undefined)
       headers["Content-Type"] =
         body instanceof File
@@ -107,6 +115,7 @@ export async function request<T>(
     await renewSession();
     result = await send(csrf);
   }
+  if (result.status === 304 && held) return held.data as T;
   if (!result.ok) {
     if (pending && result.status >= 400 && result.status < 500)
       sessionStore.remove(pending.storageKey);
@@ -114,6 +123,12 @@ export async function request<T>(
   }
   const data = result.status === 204 ? (undefined as T) : await result.json();
   if (pending) sessionStore.remove(pending.storageKey);
+  const tag = conditional ? result.headers.get("ETag") : null;
+  if (tag) {
+    tagged.delete(tagKey);
+    tagged.set(tagKey, { tag, data });
+    if (tagged.size > TAGGED_LIMIT) tagged.delete(tagged.keys().next().value!);
+  }
   return data;
 }
 let renewal: Promise<void> | null = null;

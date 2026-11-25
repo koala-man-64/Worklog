@@ -439,3 +439,81 @@ def test_a_tool_call_too_nested_to_decode_is_still_listed(client, roots):
     assert client.get("/api/v1/chats").status_code == 200
     last = client.get(f"/api/v1/chats/{record['id']}/transcript").json()["messages"][-1]
     assert last["kind"] == "tools" and last["tools"][0]["name"] == "shell"
+
+
+def test_an_unchanged_transcript_answers_304_to_its_tag(client, roots):
+    # Audit 3.6 (P4): the open transcript was read whole every 5 seconds; one was 591 KB.
+    work = write(client, "POST", "/work-items", {"title": "API"}).json()
+    record = chat(client, "item", work["id"], CLAUDE, "API builder")
+    path = f"/api/v1/chats/{record['id']}/transcript"
+    first = client.get(path)
+    tag = first.headers["etag"]
+    assert first.status_code == 200 and tag.startswith('"') and first.json()["found"]
+    again = client.get(path, headers={"If-None-Match": tag})
+    assert (again.status_code, again.content, again.headers["etag"]) == (304, b"", tag)
+    # Another page, thread or limit is another answer.
+    assert client.get(path + "?limit=5", headers={"If-None-Match": tag}).status_code == 200
+    assert client.get(path + "?thread=a1b2c3", headers={"If-None-Match": tag}).status_code == 200
+    # A transcript that grew answers in full, with a new tag.
+    session = next(roots.claude_projects[0].glob(f"*/{CLAUDE}.jsonl"))
+    lines(session, [human(14, "One more thing")])
+    grown = client.get(path, headers={"If-None-Match": tag})
+    assert grown.status_code == 200 and grown.headers["etag"] != tag
+    assert grown.json()["messages"][-1]["text"] == "One more thing"
+    # So does a change to the chat's own record.
+    tag = grown.headers["etag"]
+    write(client, "PATCH", f"/chats/{record['id']}", {"revision": record["revision"], "title": "Renamed"})
+    renamed = client.get(path, headers={"If-None-Match": tag})
+    assert renamed.status_code == 200 and renamed.json()["chat"]["title"] == "Renamed"
+
+
+def test_the_chat_list_carries_each_chats_open_runs(client):
+    # Audit 3.6: each row ran its own polled query for its chat's runs, ended ones included.
+    work = write(client, "POST", "/work-items", {"title": "API"}).json()
+    record = chat(client, "item", work["id"], CLAUDE, "API builder")
+    other = chat(client, "item", work["id"], CODEX, "Codex")
+    agent = write(client, "POST", "/credentials", {"label": "Runner"}).json()
+    bearer = {"Authorization": "Bearer " + agent["token"], "Idempotency-Key": str(uuid.uuid4())}
+
+    def start(key):
+        response = client.post("/api/v1/agent-runs", json={"clientRunKey": key, "displayName": key, "externalChatId": CLAUDE},
+                               headers={**bearer, "Idempotency-Key": str(uuid.uuid4())})
+        assert response.status_code == 200, response.text
+        return response.json()
+
+    running, ended = start("running"), start("ended")
+    response = client.post(f"/api/v1/agent-runs/{ended['id']}/end", json={"revision": ended["revision"]},
+                           headers={**bearer, "Idempotency-Key": str(uuid.uuid4())})
+    assert response.status_code == 200, response.text
+    items = {c["id"]: c for c in client.get("/api/v1/chats").json()["items"]}
+    assert [r["id"] for r in items[record["id"]]["openRuns"]] == [running["id"]]
+    assert items[other["id"]]["openRuns"] == []
+
+
+def test_a_working_chat_that_goes_quiet_answers_in_full_not_304(client, roots, monkeypatch):
+    # From the review of #231: "working" is an open turn written to in the last 15 minutes, so the
+    # answer changes when that time passes even if no file does; a tag over files alone kept it.
+    work = write(client, "POST", "/work-items", {"title": "API"}).json()
+    record = chat(client, "item", work["id"], CLAUDE, "API builder")
+    session = next(roots.claude_projects[0].glob(f"*/{CLAUDE}.jsonl"))
+    lines(session, [human(14, "Keep going")])
+    path = f"/api/v1/chats/{record['id']}/transcript"
+    first = client.get(path)
+    assert first.json()["state"] == "working"
+    later = time.time() + transcripts.WORKING_SECONDS + 60
+    monkeypatch.setattr(transcripts.time, "time", lambda: later)
+    quiet = client.get(path, headers={"If-None-Match": first.headers["etag"]})
+    assert quiet.status_code == 200 and quiet.json()["state"] == "idle"
+
+
+def test_a_renamed_subagent_answers_in_full_not_304(client, roots):
+    # A subagent's name and task come from its sidecar, which no transcript line changes.
+    work = write(client, "POST", "/work-items", {"title": "API"}).json()
+    record = chat(client, "item", work["id"], CLAUDE, "API builder")
+    path = f"/api/v1/chats/{record['id']}/transcript"
+    tag = client.get(path).headers["etag"]
+    sidecar = next(roots.claude_projects[0].glob(f"*/{CLAUDE}/subagents/agent-a1b2c3.meta.json"))
+    sidecar.write_text(json.dumps({"agentType": "Explore", "description": "Review the API again, in depth"}), encoding="utf-8")
+    renamed = client.get(path, headers={"If-None-Match": tag})
+    assert renamed.status_code == 200
+    assert any(t["task"] == "Review the API again, in depth" for t in renamed.json()["threads"])
