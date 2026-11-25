@@ -81,6 +81,15 @@ export type AgentRun = Schema["AgentRun"];
 export type Participation = Schema["Participation"];
 export type ParticipationRepository = Schema["ParticipationRepository"];
 export type CoordinationUpdate = Schema["CoordinationUpdate"];
+export type SlotPolicy = Schema["SlotPolicy"];
+export type BaseLockResult = Schema["BaseLockResult"];
+export type Lease = Schema["Lease"];
+export type Leases = Schema["Leases"];
+export type RepositorySlot = Schema["RepositorySlot"];
+export type RepositorySlots = Schema["RepositorySlots"];
+export type RepositorySlotSummary = Schema["RepositorySlotSummary"];
+export type DispatchItem = Schema["DispatchItem"];
+export type DispatchQueue = Schema["DispatchQueue"];
 
 // The agent registry. `/agents` lists each agent as its card on the Agents page shows it.
 export type AgentSummary = Schema["AgentCard"];

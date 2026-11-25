@@ -6,12 +6,13 @@ restores.
 
 ## Upgrade
 
-For an upgrade, stop Worklog, make a manual backup with the installed version, update the checkout, run `Setup.ps1`, then start and check the application. Use the same data directory and port throughout. The first startup snapshots a supported version 1 to 32 database and upgrades it to version 33 in one transaction.
+For an upgrade, stop Worklog, make a manual backup with the installed version, update the checkout, run `Setup.ps1`, then start and check the application. Use the same data directory and port throughout. The first startup snapshots a supported version 1 to 33 database and upgrades it to version 34 in one transaction.
 
 `./scripts/Run.ps1` does the stop, backup, setup and start in one step after you update the checkout, passing the same `-DataDir` and `-Port` to each. Its backup is taken before the new version first starts, so it is the pre-upgrade backup; if the stop or backup fails, it ends before setup. It runs Setup's shared-folder check first, so a refusal leaves Worklog running. It then asks `check` which checkout last served the data folder, and refuses one another checkout served before it stops anything: run it from the checkout that serves your data. After you move or re-clone that checkout, the first start from the new place needs `-Force` (`./scripts/Run.ps1 -Force`, or `./scripts/Worklog.ps1 start -Force`), which records the new checkout.
 
 ## What each version changes
 
+- **Version 34** adds per-repository checkout slot policies (`repository_slot_policies`), bounded FIFO repository checkout leases (`repository_leases`), and durable dispatch-time session queueing (`dispatch_queue`). Each table starts empty, and the upgrade changes no existing record.
 - **Version 33** lets agents say who owns a change and whether a message reached them. It adds what each agent's participation reports it produced (pull requests and commits), when a request's target first saw it, and a deadline on a request, after which it escalates to you. Each starts empty, and the upgrade changes no record.
 - **Version 32** adds a submitter field to pull requests. Existing references keep their links, titles and associated chats, with the submitter left blank.
 - **Version 31** gives each roadmap step an outcome: what the step's work produces, the goal it is done for, shown first on the step's page. Every step starts with none, and the upgrade changes no record.
@@ -41,4 +42,4 @@ For an upgrade, stop Worklog, make a manual backup with the installed version, u
 
 Keep the previous version and its manual backup until verification succeeds. To roll back, stop Worklog, switch to the previous version and run its setup, then use that version’s `restore` command with the pre-upgrade backup. Start and check Worklog again. Restoring returns the data to the time of the snapshot, creates a new data identity, and revokes the restored credentials.
 
-To return from version 33 to version 32, restore the pre-upgrade backup using version 32. To return from version 32 to version 31, restore the pre-upgrade backup using version 31.
+To return from version 34 to version 33, restore the pre-upgrade backup using version 33. To return from version 33 to version 32, restore the pre-upgrade backup using version 32. To return from version 32 to version 31, restore the pre-upgrade backup using version 31.

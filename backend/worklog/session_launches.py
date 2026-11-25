@@ -28,6 +28,7 @@ from urllib.parse import quote
 
 from .common import AppError, now
 from .db import Database
+from .leases import LeaseService, policy_record, repository_slot_summaries
 from .records import get_item
 from .registry import AgentRegistry
 from .repository_links import linked_repositories
@@ -128,9 +129,54 @@ def _child_environment(provider: str) -> dict[str, str]:
     return {name: value for name, value in os.environ.items() if name.upper() in allowed}
 
 
-def _initialization_prompt(item_id: str, title: str, task_prompt: str) -> str:
+def _slot_header(
+    *,
+    repo_name: str,
+    repo_id: str,
+    slot_index: int | None,
+    max_slots: int,
+    worktree_path: str,
+    branch: str,
+    lease_id: str,
+    revision: int,
+) -> str:
+    slot_desc = f"{slot_index}/{max_slots}" if slot_index is not None else f"?/{max_slots}"
+    lines = [
+        "Worklog Checkout Slot Assignment:",
+        f"- Repository: {repo_name} ({repo_id})",
+        f"- Slot: {slot_desc}",
+        f"- Worktree Path: {worktree_path or '(logical lease)'}",
+        f"- Branch: {branch or '(unassigned)'}",
+        f"- Lease ID: {lease_id}",
+    ]
+    if worktree_path:
+        lines.append(f"- Edit files strictly inside {worktree_path}; never edit the read-only base checkout.")
+    lines.append(
+        f"- Renew if needed: worklog agent --as NAME leases renew {lease_id} --revision {revision} --request-id lease-renew-{lease_id[:8]}"
+    )
+    lines.append(
+        f"- Release after pushing PR: worklog agent --as NAME leases release {lease_id} --revision {revision} --request-id lease-rel-{lease_id[:8]}"
+    )
+    return "\n".join(lines)
+
+
+def _antigravity_brief(
+    item_id: str,
+    item_title: str,
+    task_prompt: str,
+    slot_header: str,
+) -> str:
     return (
-        f"This desktop chat is being prepared for Worklog item {item_id}: {title}\n\n"
+        f"Worklog item {item_id}: {item_title}\n\n"
+        f"{slot_header}\n\n"
+        f"Task request:\n{task_prompt}\n"
+    )
+
+
+def _initialization_prompt(item_id: str, title: str, task_prompt: str, slot_header: str = "") -> str:
+    header = f"\n\n{slot_header}" if slot_header else ""
+    return (
+        f"This desktop chat is being prepared for Worklog item {item_id}: {title}{header}\n\n"
         f"Task request to retain as context:\n{task_prompt}\n\n"
         "This is preparation only. Do not inspect files, use tools, run commands, or begin task work. "
         "Respond exactly WORKLOG_READY, then wait. Begin only after the user sends a separate "
@@ -362,10 +408,10 @@ def _open_desktop(provider: str, cwd: str, chat_id: str) -> None:
     raise _ProviderFailure("Unsupported provider")
 
 class SessionLauncher:
-    """Durable launch receipts and at most two preparations, with no automatic provider retries."""
+    """Durable launch receipts, repo-slot dispatch queueing, and at most two concurrent preparations."""
 
-    def __init__(self, db: Database, work: WorkService):
-        self.db, self.work = db, work
+    def __init__(self, db: Database, work: WorkService, leases: LeaseService | None = None):
+        self.db, self.work, self.leases = db, work, leases
         self.token = uuid.uuid4().hex
         self.lock = threading.RLock()
         self.workers: dict[str, threading.Thread] = {}
@@ -393,16 +439,34 @@ class SessionLauncher:
             raise AppError(404, "not_found", "Session launch not found")
 
     @staticmethod
-    def _validate(payload: dict) -> tuple[str, str, str]:
-        provider, cwd, prompt = payload.get("provider"), payload.get("cwd"), payload.get("prompt")
-        if provider not in {"codex", "claude"}:
-            raise AppError(422, "validation", "Choose Codex or Claude")
-        if (not isinstance(cwd, str) or len(cwd) > 2000 or "\0" in cwd or
-                not re.match(r"^[A-Za-z]:[\\/]", cwd)):
-            raise AppError(422, "validation", "Choose an absolute local drive working folder")
+    def _validate(payload: dict) -> tuple[str, str | None, str | None, str, str, str, str]:
+        provider = payload.get("provider")
+        repository_id = payload.get("repositoryId")
+        cwd = payload.get("cwd")
+        branch = str(payload.get("branch") or "").strip()
+        mode = str(payload.get("mode") or "shared")
+        priority = str(payload.get("priority") or "normal")
+        prompt = payload.get("prompt")
+        if provider not in {"codex", "claude", "antigravity"}:
+            raise AppError(422, "validation", "Choose Codex, Claude, or Antigravity")
+        if repository_id is not None:
+            if not isinstance(repository_id, str) or not repository_id.strip() or len(repository_id) > 200:
+                raise AppError(422, "validation", "Invalid repositoryId", {"repositoryId": "invalid"})
+            repository_id = repository_id.strip()
+        if cwd is not None:
+            if (not isinstance(cwd, str) or not cwd or len(cwd) > 2000 or "\0" in cwd or
+                    not re.match(r"^[A-Za-z]:[\\/]", cwd)):
+                raise AppError(422, "validation", "Choose an absolute local drive working folder")
+        elif repository_id is None:
+            # May auto-infer a single linked repository with a slot policy below; otherwise validated there.
+            pass
+        if mode not in {"shared", "exclusive"}:
+            raise AppError(422, "validation", "Choose shared or exclusive mode", {"mode": "invalid"})
+        if priority not in {"normal", "pr_fixup", "wave", "incident"}:
+            raise AppError(422, "validation", "Invalid priority", {"priority": "invalid"})
         if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > 12000:
             raise AppError(422, "validation", "Enter a task prompt of at most 12,000 characters")
-        return provider, cwd, prompt
+        return provider, repository_id, cwd, branch, mode, priority, prompt
 
     @staticmethod
     def _folder(cwd: str) -> str:
@@ -414,13 +478,116 @@ class SessionLauncher:
             raise AppError(422, "validation", "Choose an existing local drive working folder") from exc
         return str(path)
 
+    def _infer_repository(self, c: sqlite3.Connection, item_id: str) -> str | None:
+        linked = linked_repositories(c, "item", [item_id]).get(item_id, [])
+        if len(linked) != 1:
+            return None
+        rid = linked[0]
+        pol = c.execute(
+            "SELECT base_checkout_path FROM repository_slot_policies WHERE repository_id=?",
+            (rid,),
+        ).fetchone()
+        if pol is not None and pol["base_checkout_path"]:
+            return rid
+        return None
+
+    def _dispatch_record(self, c: sqlite3.Connection, dq: sqlite3.Row) -> dict[str, Any]:
+        lease = c.execute("SELECT * FROM repository_leases WHERE id=?", (dq["lease_id"],)).fetchone()
+        repo = c.execute("SELECT id,name FROM repositories WHERE id=?", (dq["repository_id"],)).fetchone()
+        item = c.execute("SELECT id,title FROM work_items WHERE id=?", (dq["item_id"],)).fetchone()
+        pol = policy_record(c, dq["repository_id"])
+        summary = repository_slot_summaries(c, [dq["repository_id"]]).get(dq["repository_id"], {})
+        queue_position: int | None = None
+        if lease is not None and lease["state"] == "queued":
+            rows = c.execute(
+                "SELECT id FROM repository_leases WHERE repository_id=? AND state='queued' "
+                "ORDER BY CASE priority WHEN 'incident' THEN 0 WHEN 'wave' THEN 1 WHEN 'pr_fixup' THEN 2 ELSE 3 END, queue_seq ASC",
+                (dq["repository_id"],),
+            ).fetchall()
+            queue_position = next((idx for idx, r in enumerate(rows, 1) if r["id"] == lease["id"]), None)
+        chat: dict[str, Any] | None = None
+        if dq["chat_record_id"]:
+            chat_row = c.execute("SELECT * FROM agent_chats WHERE id=?", (dq["chat_record_id"],)).fetchone()
+            if chat_row is not None:
+                steps = [r[0] for r in c.execute("SELECT step_id FROM chat_steps WHERE chat_id=? ORDER BY created_at,step_id", (chat_row["id"],))]
+                repos = linked_repositories(c, "chat", [chat_row["id"]]).get(chat_row["id"], [])
+                chat = {
+                    "id": chat_row["id"], "ownerType": chat_row["owner_type"], "ownerId": chat_row["owner_id"],
+                    "chatId": chat_row["chat_id"], "title": chat_row["title"], "createdDate": chat_row["created_date"],
+                    "archived": bool(chat_row["archived"]), "revision": int(chat_row["revision"]),
+                    "createdAt": chat_row["created_at"], "updatedAt": chat_row["updated_at"],
+                    "provider": chat_row["provider"], "model": chat_row["model"],
+                    "repos": json.loads(chat_row["repos"]), "stepIds": steps, "repositoryIds": repos,
+                }
+        repo_name = repo["name"] if repo else dq["repository_id"]
+        item_title = item["title"] if item else dq["item_id"]
+        worktree_path = lease["worktree_path"] if lease else ""
+        branch = (lease["branch"] if lease and lease["branch"] else dq["requested_branch"])
+        slot_index = lease["slot_index"] if lease else None
+        copyable_prompt: str | None = None
+        if dq["status"] == "ready_manual" and lease is not None:
+            header = _slot_header(
+                repo_name=repo_name,
+                repo_id=dq["repository_id"],
+                slot_index=slot_index,
+                max_slots=pol["maxActiveLeases"],
+                worktree_path=worktree_path,
+                branch=branch,
+                lease_id=lease["id"],
+                revision=int(lease["revision"]),
+            )
+            copyable_prompt = _antigravity_brief(dq["item_id"], item_title, dq["prompt"], header)
+        return {
+            "launch": {
+                "id": dq["id"],
+                "provider": dq["provider"],
+                "status": dq["status"],
+                "chat": chat,
+                "message": dq["message"],
+                "sessionId": dq["session_id"],
+                "dispatchId": dq["id"],
+                "repositoryId": dq["repository_id"],
+                "repositoryName": repo_name,
+                "leaseId": dq["lease_id"],
+                "slotIndex": slot_index,
+                "worktreePath": worktree_path,
+                "branch": branch,
+                "queuePosition": queue_position,
+                "activeHolders": summary.get("activeLeases", []),
+                "copyablePrompt": copyable_prompt,
+            },
+            "item": {
+                "id": dq["id"],
+                "itemId": dq["item_id"],
+                "itemTitle": item_title,
+                "repositoryId": dq["repository_id"],
+                "repositoryName": repo_name,
+                "leaseId": dq["lease_id"],
+                "provider": dq["provider"],
+                "requestedBranch": dq["requested_branch"],
+                "branch": branch,
+                "slotIndex": slot_index,
+                "worktreePath": worktree_path,
+                "queuePosition": queue_position,
+                "status": dq["status"],
+                "sessionId": dq["session_id"],
+                "chatRecordId": dq["chat_record_id"],
+                "model": dq["model"],
+                "message": dq["message"],
+                "copyablePrompt": copyable_prompt,
+                "revision": int(dq["revision"]),
+                "createdAt": dq["created_at"],
+                "updatedAt": dq["updated_at"],
+            },
+        }
+
     def start(self, item_id: str, payload: dict, actor: dict, key: str | None) -> dict:
         namespace = self._namespace(actor)
         if not key:
             raise AppError(428, "idempotency", "An Idempotency-Key is required for this command")
         if not 8 <= len(key) <= 200:
             raise AppError(422, "idempotency", "Use an idempotency key between 8 and 200 characters")
-        provider, cwd, prompt = self._validate(payload)
+        provider, repository_id, cwd, branch, mode, priority, prompt = self._validate(payload)
         identity = hashlib.sha256(key.encode()).hexdigest()
         digest = hashlib.sha256(json.dumps({"item": item_id, "payload": payload}, sort_keys=True).encode()).hexdigest()
         with self.lock:
@@ -431,6 +598,38 @@ class SessionLauncher:
                 if row["request_hash"] != digest:
                     raise AppError(409, "idempotency_conflict", "This key was already used for a different session request")
                 return self.get(identity, actor)
+
+            # Decide whether this launch uses repo-slot admission queueing or legacy raw cwd.
+            effective_repo = repository_id
+            if effective_repo is None and cwd is None and self.leases is not None:
+                with self.db.read() as c:
+                    effective_repo = self._infer_repository(c, item_id)
+
+            if effective_repo is not None and self.leases is not None:
+                return self._start_dispatched(
+                    identity, namespace, digest, item_id, effective_repo,
+                    provider, cwd, branch, mode, priority, prompt, actor,
+                )
+
+            # Legacy raw-cwd launch path (or Antigravity with custom folder).
+            if cwd is None:
+                raise AppError(422, "validation", "Choose a repository or an absolute local drive working folder")
+            if provider == "antigravity":
+                folder = self._folder(cwd)
+                with self.db.transaction() as c:
+                    item = get_item(c, item_id, active=True)
+                    brief = f"Worklog item {item_id}: {item['title']}\nFolder: {folder}\n\nTask request:\n{prompt}\n"
+                    result = {
+                        "id": identity, "provider": provider, "status": "ready_manual", "chat": None,
+                        "sessionId": None, "worktreePath": folder, "copyablePrompt": brief,
+                        "message": "Copy the brief below into your Antigravity session.",
+                    }
+                    record = {"kind": "session-launch", "processToken": self.token, "cwd": folder,
+                              "itemId": item_id, "itemTitle": item["title"], "result": result}
+                    c.execute("INSERT INTO receipts(actor_id,key,request_hash,response_json,created_at) VALUES(?,?,?,?,?)",
+                              (namespace, identity, digest, json.dumps(record), now()))
+                return result
+
             if len(self.workers) >= 2:
                 raise AppError(429, "session_limit", "Two chats are being prepared. Wait for one to finish.")
             folder = self._folder(cwd)
@@ -452,8 +651,427 @@ class SessionLauncher:
                 self._state(identity, actor, "failed", "Preparation could not be started. No provider session was requested.")
             return self.get(identity, actor)
 
+    def _start_dispatched(
+        self,
+        identity: str,
+        namespace: str,
+        digest: str,
+        item_id: str,
+        repo_id: str,
+        provider: str,
+        cwd: str | None,
+        branch: str,
+        mode: str,
+        priority: str,
+        prompt: str,
+        actor: dict,
+    ) -> dict:
+        assert self.leases is not None
+        self.leases.sweep()
+        fallback_cwd = self._folder(cwd) if cwd else ""
+        with self.db.read() as c:
+            pol = policy_record(c, repo_id)
+        if not pol["baseCheckoutPath"] and not fallback_cwd and provider in {"codex", "claude"}:
+            raise AppError(
+                422,
+                "validation",
+                "Configure baseCheckoutPath on this repository or provide a local working folder",
+                {"cwd": "required"},
+            )
+        stamp = now()
+        with self.db.transaction() as c:
+            item = get_item(c, item_id, active=True)
+            lease = self.leases.acquire_for_dispatch(
+                c,
+                actor,
+                repo_id=repo_id,
+                provider=provider,
+                holder_label=f"{provider.title()}: {item['title'][:80]}",
+                branch=branch,
+                mode=mode,
+                priority=priority,
+                reason=f"Worklog dispatch for {item['title'][:120]}",
+            )
+            if lease["state"] == "queued":
+                dq_status = "queued"
+                msg = f"Queued at #{lease['queuePosition']} for {lease['repositoryName']}. No provider process started."
+            else:
+                dq_status = "provisioning"
+                msg = f"Slot {lease['slotIndex']} reserved for {lease['repositoryName']}; provisioning worktree…"
+            c.execute(
+                "INSERT INTO dispatch_queue(id,item_id,repository_id,lease_id,provider,requested_branch,prompt,"
+                "status,session_id,chat_record_id,model,message,process_token,revision,created_at,updated_at) "
+                "VALUES(?,?,?,?,?,?,?,?,NULL,NULL,'',?,?,1,?,?)",
+                (identity, item_id, repo_id, lease["id"], provider, branch, prompt, dq_status, msg, self.token, stamp, stamp),
+            )
+            receipt_record = {
+                "kind": "dispatch-launch", "dispatchId": identity, "cwd": fallback_cwd,
+                "itemId": item_id, "itemTitle": item["title"],
+            }
+            c.execute("INSERT INTO receipts(actor_id,key,request_hash,response_json,created_at) VALUES(?,?,?,?,?)",
+                      (namespace, identity, digest, json.dumps(receipt_record), stamp))
+        self.leases.write_snapshot()
+
+        if lease["state"] == "queued":
+            return self.get(identity, actor)
+
+        if provider == "antigravity":
+            return self._finish_antigravity_dispatch(identity, lease["id"], branch, actor)
+
+        self._spawn_dispatch_worker(identity, dict(actor), fallback_cwd=fallback_cwd, auto_open=True)
+        return self.get(identity, actor)
+
+    def _finish_antigravity_dispatch(
+        self,
+        dispatch_id: str,
+        lease_id: str,
+        branch: str,
+        actor: dict,
+    ) -> dict:
+        assert self.leases is not None
+        try:
+            activated = self.leases.activate_dispatch_lease(lease_id, actor, requested_branch=branch)
+            with self.db.transaction() as c:
+                stamp = now()
+                c.execute(
+                    "UPDATE dispatch_queue SET status='ready_manual',message=?,updated_at=?,revision=revision+1 WHERE id=?",
+                    (
+                        f"Slot {activated['slotIndex']} ready for Antigravity. Copy the slot brief into your session.",
+                        stamp,
+                        dispatch_id,
+                    ),
+                )
+        except Exception as exc:
+            logger.warning("Antigravity slot provisioning failed (%s)", type(exc).__name__)
+            self.leases.cancel_dispatch_lease(lease_id, actor, reason="provision_failed")
+            with self.db.transaction() as c:
+                c.execute(
+                    "UPDATE dispatch_queue SET status='failed',message=?,updated_at=?,revision=revision+1 WHERE id=?",
+                    ("Slot provisioning failed; check the repository base checkout and retry.", now(), dispatch_id),
+                )
+        return self.get(dispatch_id, actor)
+
+    def _spawn_dispatch_worker(
+        self,
+        dispatch_id: str,
+        actor: dict,
+        *,
+        fallback_cwd: str = "",
+        auto_open: bool,
+    ) -> bool:
+        with self.lock:
+            if dispatch_id in self.workers or len(self.workers) >= 2:
+                return False
+            worker = threading.Thread(
+                target=self._run_dispatch_worker,
+                args=(dispatch_id, actor, fallback_cwd, auto_open),
+                name="worklog-dispatch-prepare",
+                daemon=True,
+            )
+            self.workers[dispatch_id] = worker
+            try:
+                worker.start()
+            except Exception:
+                self.workers.pop(dispatch_id, None)
+                return False
+            return True
+
+    def _run_dispatch_worker(
+        self,
+        dispatch_id: str,
+        actor: dict,
+        fallback_cwd: str,
+        auto_open: bool,
+    ) -> None:
+        assert self.leases is not None
+        lease_id = ""
+        session_saved = False
+        try:
+            with self.db.read() as c:
+                dq = c.execute("SELECT * FROM dispatch_queue WHERE id=?", (dispatch_id,)).fetchone()
+                if dq is None or dq["status"] in {"cancelled", "ready", "ready_manual"}:
+                    return
+                lease_id = dq["lease_id"]
+                item = get_item(c, dq["item_id"], active=True)
+                pol = policy_record(c, dq["repository_id"])
+                provider = dq["provider"]
+                branch = dq["requested_branch"]
+                prompt = dq["prompt"]
+                repo_id = dq["repository_id"]
+                item_id = dq["item_id"]
+                item_title = item["title"]
+
+            activated = self.leases.activate_dispatch_lease(lease_id, actor, requested_branch=branch)
+            folder = activated["worktreePath"] or fallback_cwd
+            if not folder:
+                raise RuntimeError("No working folder available for dispatch")
+
+            with self.db.transaction() as c:
+                c.execute(
+                    "UPDATE dispatch_queue SET status='preparing',process_token=?,message=?,updated_at=?,revision=revision+1 WHERE id=?",
+                    (self.token, "Preparing a linked desktop chat in read-only mode…", now(), dispatch_id),
+                )
+            header = _slot_header(
+                repo_name=activated["repositoryName"],
+                repo_id=repo_id,
+                slot_index=activated["slotIndex"],
+                max_slots=pol["maxActiveLeases"],
+                worktree_path=activated["worktreePath"],
+                branch=activated["branch"],
+                lease_id=activated["id"],
+                revision=activated["revision"],
+            )
+            chat_id, model = _prepare_session(
+                provider,
+                folder,
+                _initialization_prompt(item_id, item_title, prompt, header),
+            )
+            safe_id = _safe_session_id(chat_id)
+            clean_model = _clean_model(model)
+            session_saved = True
+            self.leases.bind_dispatch_chat(lease_id, safe_id)
+            with self.db.transaction() as c:
+                c.execute(
+                    "UPDATE dispatch_queue SET session_id=?,model=?,updated_at=?,revision=revision+1 WHERE id=?",
+                    (safe_id, clean_model, now(), dispatch_id),
+                )
+            with self.db.transaction() as c:
+                dq_now = c.execute("SELECT * FROM dispatch_queue WHERE id=?", (dispatch_id,)).fetchone()
+                if dq_now is not None and not dq_now["chat_record_id"]:
+                    repo_ids = sorted(set(linked_repositories(c, "item", [item_id]).get(item_id, [])) | {repo_id})
+                    chat_rec = self.work.apply(c, actor, "chat.create", {
+                        "ownerType": "item", "ownerId": item_id, "chatId": safe_id,
+                        "title": _chat_title(provider, item_title),
+                        "provider": provider, "model": clean_model,
+                        "repositoryIds": repo_ids,
+                    })
+                    c.execute(
+                        "UPDATE dispatch_queue SET chat_record_id=?,updated_at=?,revision=revision+1 WHERE id=?",
+                        (chat_rec["id"], now(), dispatch_id),
+                    )
+            if auto_open:
+                _open_desktop(provider, folder, safe_id)
+                ready_msg = "Chat prepared in slot and linked. Open request sent. Send Continue in the desktop app to begin work."
+            else:
+                ready_msg = "Promoted and prepared in read-only mode. Click Open in app and send Continue to begin work."
+            with self.db.transaction() as c:
+                c.execute(
+                    "UPDATE dispatch_queue SET status='ready',message=?,updated_at=?,revision=revision+1 WHERE id=?",
+                    (ready_msg, now(), dispatch_id),
+                )
+        except Exception as exc:
+            logger.warning("Dispatched session preparation/handoff failed (%s)", type(exc).__name__)
+            if lease_id and not session_saved:
+                try:
+                    self.leases.cancel_dispatch_lease(lease_id, actor, reason="dispatch_failed")
+                except Exception:
+                    logger.warning("Failed to release lease after dispatch error", exc_info=True)
+            with self.db.transaction() as c:
+                dq_now = c.execute("SELECT session_id,chat_record_id FROM dispatch_queue WHERE id=?", (dispatch_id,)).fetchone()
+                if dq_now is not None and dq_now["chat_record_id"]:
+                    msg = "The linked chat could not be opened. Use Open in app to retry this same chat."
+                elif dq_now is not None and dq_now["session_id"]:
+                    msg = "The provider chat is saved, but its Worklog link could not be saved. Retry opening this session."
+                elif isinstance(exc, FileNotFoundError):
+                    msg = "The provider CLI could not be found. Check its installation before starting another session."
+                else:
+                    msg = "Preparation could not be confirmed. It was not retried; check repository slot status before retrying."
+                c.execute(
+                    "UPDATE dispatch_queue SET status='failed',message=?,updated_at=?,revision=revision+1 WHERE id=?",
+                    (msg, now(), dispatch_id),
+                )
+        finally:
+            with self.lock:
+                self.workers.pop(dispatch_id, None)
+            # If another promoted dispatch was waiting on the 2-worker prep cap, pick it up now.
+            self.drain_promoted()
+
+    def drain_promoted(self) -> int:
+        """Auto-prepare promoted queued dispatches whose lease is now offered/active."""
+        if self.leases is None:
+            return 0
+        started = 0
+        with self.db.read() as c:
+            rows = c.execute(
+                "SELECT dq.id,dq.lease_id,dq.provider,dq.requested_branch,dq.status "
+                "FROM dispatch_queue dq JOIN repository_leases l ON l.id=dq.lease_id "
+                "WHERE dq.status IN ('queued','provisioning') AND l.state IN ('offered','active') "
+                "ORDER BY dq.created_at ASC, dq.id ASC"
+            ).fetchall()
+        actor = {"id": "local-user", "label": "You", "kind": "human"}
+        for row in rows:
+            with self.lock:
+                if row["id"] in self.workers:
+                    continue
+                if row["provider"] != "antigravity" and len(self.workers) >= 2:
+                    break
+            fallback_cwd = ""
+            with self.db.read() as c:
+                rec_row = c.execute("SELECT response_json FROM receipts WHERE key=?", (row["id"],)).fetchone()
+                if rec_row is not None:
+                    try:
+                        fallback_cwd = str(json.loads(rec_row["response_json"]).get("cwd") or "")
+                    except (TypeError, ValueError):
+                        fallback_cwd = ""
+            if row["provider"] == "antigravity":
+                with self.db.transaction() as c:
+                    cur = c.execute("SELECT status FROM dispatch_queue WHERE id=?", (row["id"],)).fetchone()
+                    if cur is None or cur["status"] not in {"queued", "provisioning"}:
+                        continue
+                    c.execute(
+                        "UPDATE dispatch_queue SET status='provisioning',process_token=?,message=?,updated_at=?,revision=revision+1 WHERE id=?",
+                        (self.token, "Slot granted; provisioning worktree…", now(), row["id"]),
+                    )
+                self._finish_antigravity_dispatch(row["id"], row["lease_id"], row["requested_branch"], actor)
+                started += 1
+            else:
+                with self.lock:
+                    if row["id"] in self.workers:
+                        continue
+                    if len(self.workers) >= 2:
+                        break
+                    with self.db.transaction() as c:
+                        cur = c.execute("SELECT status FROM dispatch_queue WHERE id=?", (row["id"],)).fetchone()
+                        if cur is None or cur["status"] not in {"queued", "provisioning"}:
+                            continue
+                        c.execute(
+                            "UPDATE dispatch_queue SET status='provisioning',process_token=?,message=?,updated_at=?,revision=revision+1 WHERE id=?",
+                            (self.token, "Slot granted; provisioning worktree…", now(), row["id"]),
+                        )
+                    if self._spawn_dispatch_worker(row["id"], actor, fallback_cwd=fallback_cwd, auto_open=False):
+                        started += 1
+        return started
+
+    def list_dispatch_queue(
+        self,
+        *,
+        repository_id: str | None = None,
+        item_id: str | None = None,
+        status: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> dict[str, Any]:
+        with self.db.read() as c:
+            where = ["1=1"]
+            args: list[Any] = []
+            if repository_id:
+                where.append("repository_id=?")
+                args.append(repository_id)
+            if item_id:
+                where.append("item_id=?")
+                args.append(item_id)
+            if status:
+                where.append("status=?")
+                args.append(status)
+            sql = "SELECT * FROM dispatch_queue WHERE " + " AND ".join(where) + " ORDER BY created_at DESC, id DESC"
+            total = int(c.execute("SELECT COUNT(*) FROM (" + sql + ")", args).fetchone()[0])
+            rows = c.execute(sql + " LIMIT ? OFFSET ?", [*args, limit, offset]).fetchall()
+            return {
+                "items": [self._dispatch_record(c, r)["item"] for r in rows],
+                "total": total,
+                "limit": limit,
+                "offset": offset,
+            }
+
+    def cancel_dispatch(self, dispatch_id: str, actor: dict, reason: str = "") -> dict[str, Any]:
+        self._namespace(actor)
+        with self.db.read() as c:
+            dq = c.execute("SELECT * FROM dispatch_queue WHERE id=?", (dispatch_id,)).fetchone()
+            if dq is None:
+                raise AppError(404, "not_found", "Queued dispatch not found")
+            if dq["status"] in {"cancelled", "ready", "ready_manual"}:
+                raise AppError(409, "conflict", f"Dispatch is already {dq['status']}")
+            lease_id = dq["lease_id"]
+        if self.leases is not None:
+            self.leases.cancel_dispatch_lease(lease_id, actor, reason=reason or "dispatch_cancelled")
+        with self.db.transaction() as c:
+            c.execute(
+                "UPDATE dispatch_queue SET status='cancelled',message=?,updated_at=?,revision=revision+1 WHERE id=?",
+                (reason or "Cancelled by user.", now(), dispatch_id),
+            )
+            updated = c.execute("SELECT * FROM dispatch_queue WHERE id=?", (dispatch_id,)).fetchone()
+            return self._dispatch_record(c, updated)["item"]
+
+    def open_dispatch(self, dispatch_id: str, actor: dict) -> dict[str, Any]:
+        self._namespace(actor)
+        with self.lock:
+            with self.db.read() as c:
+                dq = c.execute("SELECT * FROM dispatch_queue WHERE id=?", (dispatch_id,)).fetchone()
+                if dq is None:
+                    raise AppError(404, "not_found", "Dispatch entry not found")
+                if dq["provider"] == "antigravity":
+                    return self._dispatch_record(c, dq)["launch"]
+                if dq["status"] in {"queued", "provisioning", "preparing"} or dispatch_id in self.opening:
+                    return self._dispatch_record(c, dq)["launch"]
+                if not dq["session_id"]:
+                    raise AppError(409, "session_launch", "No saved provider session is available to reopen")
+                lease = c.execute("SELECT worktree_path FROM repository_leases WHERE id=?", (dq["lease_id"],)).fetchone()
+                folder = lease["worktree_path"] if lease and lease["worktree_path"] else ""
+                if not folder:
+                    rec_row = c.execute("SELECT response_json FROM receipts WHERE key=?", (dispatch_id,)).fetchone()
+                    if rec_row is not None:
+                        folder = str(json.loads(rec_row["response_json"]).get("cwd") or "")
+                provider = dq["provider"]
+                session_id = dq["session_id"]
+                item_id = dq["item_id"]
+                repo_id = dq["repository_id"]
+                model = dq["model"]
+                chat_record_id = dq["chat_record_id"]
+            self.opening.add(dispatch_id)
+        try:
+            if not chat_record_id:
+                with self.db.transaction() as c:
+                    item = get_item(c, item_id, active=True)
+                    repo_ids = sorted(set(linked_repositories(c, "item", [item_id]).get(item_id, [])) | {repo_id})
+                    chat_rec = self.work.apply(c, actor, "chat.create", {
+                        "ownerType": "item", "ownerId": item_id, "chatId": _safe_session_id(session_id),
+                        "title": _chat_title(provider, item["title"]),
+                        "provider": provider, "model": model,
+                        "repositoryIds": repo_ids,
+                    })
+                    c.execute(
+                        "UPDATE dispatch_queue SET chat_record_id=?,updated_at=?,revision=revision+1 WHERE id=?",
+                        (chat_rec["id"], now(), dispatch_id),
+                    )
+            _open_desktop(provider, folder, session_id)
+            with self.db.transaction() as c:
+                c.execute(
+                    "UPDATE dispatch_queue SET status='ready',message=?,updated_at=?,revision=revision+1 WHERE id=?",
+                    ("Chat opened in desktop app. Send Continue to begin work.", now(), dispatch_id),
+                )
+        except Exception as exc:
+            logger.warning("Opening dispatched chat failed (%s)", type(exc).__name__)
+            with self.db.transaction() as c:
+                c.execute(
+                    "UPDATE dispatch_queue SET status='failed',message=?,updated_at=?,revision=revision+1 WHERE id=?",
+                    ("The linked chat could not be opened. Use Open in app to retry this same chat.", now(), dispatch_id),
+                )
+        finally:
+            with self.lock:
+                self.opening.discard(dispatch_id)
+        with self.db.read() as c:
+            updated = c.execute("SELECT * FROM dispatch_queue WHERE id=?", (dispatch_id,)).fetchone()
+            return self._dispatch_record(c, updated)["launch"]
+
     def get(self, identity: str, actor: dict) -> dict:
+        self._namespace(actor)
         with self.lock, self.db.transaction() as c:
+            dq = c.execute("SELECT * FROM dispatch_queue WHERE id=?", (identity,)).fetchone()
+            if dq is not None:
+                worker = self.workers.get(identity)
+                alive = identity in self.opening or (worker is not None and worker.is_alive())
+                if dq["status"] == "preparing" and (dq["process_token"] != self.token or not alive):
+                    c.execute(
+                        "UPDATE dispatch_queue SET status='failed',message=?,updated_at=?,revision=revision+1 WHERE id=?",
+                        (
+                            "Preparation was interrupted. It was not retried. Reopen the saved session if available; "
+                            "otherwise check provider history before starting another.",
+                            now(),
+                            identity,
+                        ),
+                    )
+                    dq = c.execute("SELECT * FROM dispatch_queue WHERE id=?", (identity,)).fetchone()
+                return self._dispatch_record(c, dq)["launch"]
             record = self._load(c, identity, actor)
             result = record["result"]
             worker = self.workers.get(identity)
@@ -539,6 +1157,9 @@ class SessionLauncher:
                 self.workers.pop(job.identity, None)
 
     def open(self, identity: str, actor: dict) -> dict:
+        with self.db.read() as c:
+            if c.execute("SELECT 1 FROM dispatch_queue WHERE id=?", (identity,)).fetchone() is not None:
+                return self.open_dispatch(identity, actor)
         with self.lock:
             result = self.get(identity, actor)
             if result["status"] == "starting" or identity in self.opening:

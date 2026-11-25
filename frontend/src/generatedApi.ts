@@ -72,6 +72,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dispatch-queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Dispatch Queue */
+        get: operations["dispatch_queue_api_v1_dispatch_queue_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dispatch-queue/{identity}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Dispatch */
+        post: operations["cancel_dispatch_api_v1_dispatch_queue__identity__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dispatch-queue/{identity}/open": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Open Dispatch */
+        post: operations["open_dispatch_api_v1_dispatch_queue__identity__open_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -1541,6 +1592,177 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/repositories/{identity}/slot-policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Repository Slot Policy */
+        get: operations["repository_slot_policy_api_v1_repositories__identity__slot_policy_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Repository Slot Policy Update */
+        patch: operations["repository_slot_policy_update_api_v1_repositories__identity__slot_policy_patch"];
+        trace?: never;
+    };
+    "/api/v1/repositories/{identity}/base-lock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Repository Base Lock */
+        post: operations["repository_base_lock_api_v1_repositories__identity__base_lock_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/repositories/{identity}/slots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Repository Slots */
+        get: operations["repository_slots_api_v1_repositories__identity__slots_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/leases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Leases */
+        get: operations["list_leases_api_v1_leases_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/leases/acquire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Acquire Lease */
+        post: operations["acquire_lease_api_v1_leases_acquire_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/leases/{identity}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Lease */
+        get: operations["get_lease_api_v1_leases__identity__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/leases/{identity}/poll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Poll Lease */
+        post: operations["poll_lease_api_v1_leases__identity__poll_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/leases/{identity}/renew": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Renew Lease */
+        post: operations["renew_lease_api_v1_leases__identity__renew_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/leases/{identity}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Release Lease */
+        post: operations["release_lease_api_v1_leases__identity__release_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/leases/{identity}/rescue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rescue Lease */
+        post: operations["rescue_lease_api_v1_leases__identity__rescue_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/repositories": {
         parameters: {
             query?: never;
@@ -2804,6 +3026,38 @@ export interface components {
             presence?: components["schemas"]["Presence"] | null;
         };
         /**
+         * ActiveLeaseSummary
+         * @description Compact summary of an active or offered checkout lease.
+         */
+        ActiveLeaseSummary: {
+            /** Leaseid */
+            leaseId: string;
+            /** Agentid */
+            agentId: string | null;
+            /** Holderlabel */
+            holderLabel: string;
+            /** Provider */
+            provider: string;
+            /** Slotindex */
+            slotIndex: number | null;
+            /** Branch */
+            branch: string;
+            /** Worktreepath */
+            worktreePath: string;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "shared" | "exclusive";
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "offered" | "active";
+            /** Expiresat */
+            expiresAt: string | null;
+        };
+        /**
          * ActivityDay
          * @description One day on the default branches: commits (merge commits left out), the lines they added and
          *     removed, and the pull request merges among the branches' own commits.
@@ -3527,6 +3781,31 @@ export interface components {
         BackupsPruned: {
             /** Removed */
             removed: string[];
+        };
+        /**
+         * BaseLockRequest
+         * @description Lock or unlock a repository's canonical base checkout read-only.
+         */
+        BaseLockRequest: {
+            /** Locked */
+            locked: boolean;
+        };
+        /**
+         * BaseLockResult
+         * @description Result of locking or unlocking a repository's canonical base checkout.
+         */
+        BaseLockResult: {
+            /** Repositoryid */
+            repositoryId: string;
+            /** Basepath */
+            basePath: string;
+            /** Basereadonly */
+            baseReadonly: boolean;
+            /** Filesaffected */
+            filesAffected: number;
+            /** Detachedat */
+            detachedAt: string;
+            policy: components["schemas"]["SlotPolicy"];
         };
         /** CallUnused */
         CallUnused: {
@@ -4340,7 +4619,7 @@ export interface components {
         };
         /**
          * DiscussedRepository
-         * @description A repository with its own discussion's id (v22), as the list, its read and a resolved address show it.
+         * @description A repository with its own discussion's id (v22) and checkout slot summary (v34).
          */
         DiscussedRepository: {
             /** Id */
@@ -4370,6 +4649,7 @@ export interface components {
             updatedAt: string;
             /** Discussionid */
             discussionId: string | null;
+            slotSummary: components["schemas"]["RepositorySlotSummary"];
         };
         /**
          * DiscussionChange
@@ -4601,6 +4881,82 @@ export interface components {
             offset: number;
         };
         /**
+         * DispatchCancel
+         * @description Cancel a queued dispatch and its linked lease.
+         */
+        DispatchCancel: {
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+        };
+        /**
+         * DispatchItem
+         * @description A durable dispatch-time session queue entry linked 1:1 to a repository lease.
+         */
+        DispatchItem: {
+            /** Id */
+            id: string;
+            /** Itemid */
+            itemId: string;
+            /** Itemtitle */
+            itemTitle: string;
+            /** Repositoryid */
+            repositoryId: string;
+            /** Repositoryname */
+            repositoryName: string;
+            /** Leaseid */
+            leaseId: string;
+            /**
+             * Provider
+             * @enum {string}
+             */
+            provider: "codex" | "claude" | "antigravity";
+            /** Requestedbranch */
+            requestedBranch: string;
+            /** Branch */
+            branch: string;
+            /** Slotindex */
+            slotIndex: number | null;
+            /** Worktreepath */
+            worktreePath: string;
+            /** Queueposition */
+            queuePosition: number | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "provisioning" | "preparing" | "ready" | "ready_manual" | "failed" | "cancelled";
+            /** Sessionid */
+            sessionId: string | null;
+            /** Chatrecordid */
+            chatRecordId: string | null;
+            /** Model */
+            model: string;
+            /** Message */
+            message: string;
+            /** Copyableprompt */
+            copyablePrompt: string | null;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+        };
+        /** DispatchQueue */
+        DispatchQueue: {
+            /** Items */
+            items: components["schemas"]["DispatchItem"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /**
          * Done
          * @description A command that changed what it was asked to, or found nothing to change, and names nothing back.
          */
@@ -4657,6 +5013,7 @@ export interface components {
             updatedAt: string;
             /** Discussionid */
             discussionId: string | null;
+            slotSummary: components["schemas"]["RepositorySlotSummary"];
             /** Created */
             created: boolean;
         };
@@ -4943,6 +5300,188 @@ export interface components {
             roadmapId?: string | null;
             /** Stepid */
             stepId?: string | null;
+        };
+        /**
+         * Lease
+         * @description A bounded repository checkout slot lease (active, offered, queued, or closed).
+         */
+        Lease: {
+            /** Id */
+            id: string;
+            /** Repositoryid */
+            repositoryId: string;
+            /** Repositoryname */
+            repositoryName: string;
+            /** Agentid */
+            agentId: string | null;
+            /** Credentialid */
+            credentialId: string | null;
+            /** Runid */
+            runId: string | null;
+            /** Provider */
+            provider: string;
+            /** Chatid */
+            chatId: string;
+            /** Holderlabel */
+            holderLabel: string;
+            /** Slotindex */
+            slotIndex: number | null;
+            /** Worktreepath */
+            worktreePath: string;
+            /** Branch */
+            branch: string;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "shared" | "exclusive";
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "queued" | "offered" | "active" | "released" | "expired" | "expired_dirty" | "revoked" | "cancelled";
+            /**
+             * Priority
+             * @enum {string}
+             */
+            priority: "normal" | "pr_fixup" | "wave" | "incident";
+            /** Queueseq */
+            queueSeq: number;
+            /** Queueposition */
+            queuePosition: number | null;
+            /** Reason */
+            reason: string;
+            /** Requestedat */
+            requestedAt: string;
+            /** Offeredat */
+            offeredAt: string | null;
+            /** Acquiredat */
+            acquiredAt: string | null;
+            /** Lastheartbeatat */
+            lastHeartbeatAt: string;
+            /** Expiresat */
+            expiresAt: string | null;
+            /** Releasedat */
+            releasedAt: string | null;
+            /** Releasereason */
+            releaseReason: string | null;
+            /** Rescueref */
+            rescueRef: string;
+            /** Revision */
+            revision: number;
+            /** Fetchwarning */
+            fetchWarning: string;
+        };
+        /**
+         * LeaseAcquire
+         * @description Request a repository checkout slot lease (grants immediately or enters FIFO queue).
+         */
+        LeaseAcquire: {
+            /** Repositoryid */
+            repositoryId?: string | null;
+            /** Repositoryurl */
+            repositoryUrl?: string | null;
+            /**
+             * Branch
+             * @default
+             */
+            branch: string;
+            /**
+             * Mode
+             * @default shared
+             * @enum {string}
+             */
+            mode: "shared" | "exclusive";
+            /** Ttlseconds */
+            ttlSeconds?: number | null;
+            /**
+             * Priority
+             * @default normal
+             * @enum {string}
+             */
+            priority: "normal" | "pr_fixup" | "wave" | "incident";
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /** Runid */
+            runId?: string | null;
+            /**
+             * Provider
+             * @default
+             */
+            provider: string;
+            /**
+             * Chatid
+             * @default
+             */
+            chatId: string;
+        };
+        /**
+         * LeasePoll
+         * @description Refresh waiter heartbeat and confirm/provision an offered slot.
+         */
+        LeasePoll: {
+            /** Branch */
+            branch?: string | null;
+        };
+        /**
+         * LeaseRelease
+         * @description Release an active/offered lease or cancel a queued lease.
+         */
+        LeaseRelease: {
+            /** Revision */
+            revision: number;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /**
+             * Rescue
+             * @default false
+             */
+            rescue: boolean;
+            /**
+             * Force
+             * @default false
+             */
+            force: boolean;
+        };
+        /**
+         * LeaseRenew
+         * @description Extend an active lease's TTL.
+         */
+        LeaseRenew: {
+            /** Revision */
+            revision: number;
+            /** Ttlseconds */
+            ttlSeconds?: number | null;
+        };
+        /**
+         * LeaseRescue
+         * @description Rescue dirty changes in an expired_dirty (or active) slot and recycle it.
+         */
+        LeaseRescue: {
+            /** Revision */
+            revision: number;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+        };
+        /** Leases */
+        Leases: {
+            /** Items */
+            items: components["schemas"]["Lease"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
         };
         /** LinkCreate */
         LinkCreate: {
@@ -5246,6 +5785,18 @@ export interface components {
             agentCount: number;
             /** Overlapcount */
             overlapCount: number;
+            /** Maxactiveleases */
+            maxActiveLeases: number;
+            /** Activeleases */
+            activeLeases: number;
+            /** Queuedleases */
+            queuedLeases: number;
+            /** Dirtyslots */
+            dirtySlots: number;
+            /** Rescuedleases */
+            rescuedLeases: number;
+            /** Basereadonly */
+            baseReadonly: boolean;
             /** Lastat */
             lastAt: string | null;
             /** Href */
@@ -5673,6 +6224,9 @@ export interface components {
             name: string;
             /** Discussionid */
             discussionId: string | null;
+            slotPolicy: components["schemas"]["OverlapSlotPolicy"];
+            /** Activeleases */
+            activeLeases: components["schemas"]["ActiveLeaseSummary"][];
         };
         /** OverlapRole */
         OverlapRole: {
@@ -5688,6 +6242,21 @@ export interface components {
             /** Contextid */
             contextId: string;
             owner: components["schemas"]["Participant"] | null;
+        };
+        /** OverlapSlotPolicy */
+        OverlapSlotPolicy: {
+            /** Maxactiveleases */
+            maxActiveLeases: number;
+            /** Activecount */
+            activeCount: number;
+            /** Queuedcount */
+            queuedCount: number;
+            /** Dirtycount */
+            dirtyCount: number;
+            /** Basereadonly */
+            baseReadonly: boolean;
+            /** Configured */
+            configured: boolean;
         };
         /**
          * OverlapTag
@@ -7047,6 +7616,7 @@ export interface components {
             updatedAt: string;
             /** Discussionid */
             discussionId: string | null;
+            slotSummary: components["schemas"]["RepositorySlotSummary"];
             /** People */
             people: components["schemas"]["RecordPerson"][];
         };
@@ -7087,6 +7657,63 @@ export interface components {
             /** Remoteidentity */
             remoteIdentity: string;
             repository: components["schemas"]["DiscussedRepository"] | null;
+        };
+        /** RepositorySlot */
+        RepositorySlot: {
+            /** Slotindex */
+            slotIndex: number;
+            /** Expectedworktreepath */
+            expectedWorktreePath: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "free" | "offered" | "active" | "expired_dirty";
+            lease: components["schemas"]["Lease"] | null;
+        };
+        /**
+         * RepositorySlotSummary
+         * @description Compact checkout slot occupancy and policy flags for lists and badges.
+         */
+        RepositorySlotSummary: {
+            /** Maxactiveleases */
+            maxActiveLeases: number;
+            /** Activecount */
+            activeCount: number;
+            /** Queuedcount */
+            queuedCount: number;
+            /** Dirtycount */
+            dirtyCount: number;
+            /** Rescuedcount */
+            rescuedCount: number;
+            /** Basereadonly */
+            baseReadonly: boolean;
+            /** Configured */
+            configured: boolean;
+        };
+        /** RepositorySlots */
+        RepositorySlots: {
+            /** Repositoryid */
+            repositoryId: string;
+            /** Repositoryname */
+            repositoryName: string;
+            policy: components["schemas"]["SlotPolicy"];
+            /** Activecount */
+            activeCount: number;
+            /** Queuedcount */
+            queuedCount: number;
+            /** Dirtycount */
+            dirtyCount: number;
+            /** Availableslots */
+            availableSlots: number;
+            /** Slots */
+            slots: components["schemas"]["RepositorySlot"][];
+            /** Activeleases */
+            activeLeases: components["schemas"]["Lease"][];
+            /** Queuedleases */
+            queuedLeases: components["schemas"]["Lease"][];
+            /** Recentleases */
+            recentLeases: components["schemas"]["Lease"][];
         };
         /** RepositoryUpdate */
         RepositoryUpdate: {
@@ -7812,17 +8439,37 @@ export interface components {
              * Provider
              * @enum {string}
              */
-            provider: "codex" | "claude";
+            provider: "codex" | "claude" | "antigravity";
             /**
              * Status
              * @enum {string}
              */
-            status: "starting" | "ready" | "failed";
+            status: "queued" | "provisioning" | "starting" | "preparing" | "ready" | "ready_manual" | "failed" | "cancelled";
             chat: components["schemas"]["TrackedChat"] | null;
             /** Message */
             message: string;
             /** Sessionid */
             sessionId?: string | null;
+            /** Dispatchid */
+            dispatchId?: string | null;
+            /** Repositoryid */
+            repositoryId?: string | null;
+            /** Repositoryname */
+            repositoryName?: string | null;
+            /** Leaseid */
+            leaseId?: string | null;
+            /** Slotindex */
+            slotIndex?: number | null;
+            /** Worktreepath */
+            worktreePath?: string | null;
+            /** Branch */
+            branch?: string | null;
+            /** Queueposition */
+            queuePosition?: number | null;
+            /** Activeholders */
+            activeHolders?: components["schemas"]["ActiveLeaseSummary"][] | null;
+            /** Copyableprompt */
+            copyablePrompt?: string | null;
         };
         /** SessionStart */
         SessionStart: {
@@ -7830,9 +8477,28 @@ export interface components {
              * Provider
              * @enum {string}
              */
-            provider: "codex" | "claude";
+            provider: "codex" | "claude" | "antigravity";
+            /** Repositoryid */
+            repositoryId?: string | null;
             /** Cwd */
-            cwd: string;
+            cwd?: string | null;
+            /**
+             * Branch
+             * @default
+             */
+            branch: string;
+            /**
+             * Mode
+             * @default shared
+             * @enum {string}
+             */
+            mode: "shared" | "exclusive";
+            /**
+             * Priority
+             * @default normal
+             * @enum {string}
+             */
+            priority: "normal" | "pr_fixup" | "wave" | "incident";
             /** Prompt */
             prompt: string;
         };
@@ -7902,6 +8568,54 @@ export interface components {
             status: string;
             /** Position */
             position: number;
+        };
+        /**
+         * SlotPolicy
+         * @description A repository's checkout slot policy (or effective defaults when unconfigured).
+         */
+        SlotPolicy: {
+            /** Repositoryid */
+            repositoryId: string;
+            /** Maxactiveleases */
+            maxActiveLeases: number;
+            /** Defaultttlseconds */
+            defaultTtlSeconds: number;
+            /** Basecheckoutpath */
+            baseCheckoutPath: string;
+            /** Slotrootpath */
+            slotRootPath: string;
+            /** Defaultbranch */
+            defaultBranch: string;
+            /** Basereadonly */
+            baseReadonly: boolean;
+            /** Autorescuedirty */
+            autoRescueDirty: boolean;
+            /** Revision */
+            revision: number;
+            /** Updatedat */
+            updatedAt: string | null;
+            /** Configured */
+            configured: boolean;
+        };
+        /**
+         * SlotPolicyUpdate
+         * @description Create or update a repository's checkout slot policy.
+         */
+        SlotPolicyUpdate: {
+            /** Revision */
+            revision?: number | null;
+            /** Maxactiveleases */
+            maxActiveLeases?: number | null;
+            /** Defaultttlseconds */
+            defaultTtlSeconds?: number | null;
+            /** Basecheckoutpath */
+            baseCheckoutPath?: string | null;
+            /** Slotrootpath */
+            slotRootPath?: string | null;
+            /** Defaultbranch */
+            defaultBranch?: string | null;
+            /** Autorescuedirty */
+            autoRescueDirty?: boolean | null;
         };
         /**
          * StatusContextTag
@@ -9043,6 +9757,107 @@ export interface operations {
         };
     };
     open_session_api_v1_session_launches__identity__open_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionLaunch"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dispatch_queue_api_v1_dispatch_queue_get: {
+        parameters: {
+            query?: {
+                repositoryId?: string | null;
+                itemId?: string | null;
+                status?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DispatchQueue"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_dispatch_api_v1_dispatch_queue__identity__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DispatchCancel"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DispatchItem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    open_dispatch_api_v1_dispatch_queue__identity__open_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -12404,6 +13219,379 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProposalListed"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    repository_slot_policy_api_v1_repositories__identity__slot_policy_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlotPolicy"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    repository_slot_policy_update_api_v1_repositories__identity__slot_policy_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SlotPolicyUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlotPolicy"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    repository_base_lock_api_v1_repositories__identity__base_lock_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BaseLockRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BaseLockResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    repository_slots_api_v1_repositories__identity__slots_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositorySlots"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_leases_api_v1_leases_get: {
+        parameters: {
+            query?: {
+                repositoryId?: string | null;
+                agentId?: string | null;
+                mine?: boolean;
+                state?: string | null;
+                includeClosed?: boolean;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Leases"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    acquire_lease_api_v1_leases_acquire_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LeaseAcquire"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Lease"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_lease_api_v1_leases__identity__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Lease"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    poll_lease_api_v1_leases__identity__poll_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LeasePoll"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Lease"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    renew_lease_api_v1_leases__identity__renew_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LeaseRenew"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Lease"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    release_lease_api_v1_leases__identity__release_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LeaseRelease"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Lease"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rescue_lease_api_v1_leases__identity__rescue_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LeaseRescue"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Lease"];
                 };
             };
             /** @description Validation Error */

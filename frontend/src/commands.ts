@@ -294,6 +294,50 @@ export const commands = {
       "POST",
       body,
     ),
+  updateSlotPolicy: (id: string, body: Schema["SlotPolicyUpdate"]) =>
+    request<Answer<"/api/v1/repositories/{identity}/slot-policy", "patch">>(
+      `/repositories/${id}/slot-policy`,
+      "PATCH",
+      body,
+    ),
+  setRepositoryBaseLock: (id: string, body: Schema["BaseLockRequest"]) =>
+    request<Answer<"/api/v1/repositories/{identity}/base-lock", "post">>(
+      `/repositories/${id}/base-lock`,
+      "POST",
+      body,
+    ),
+  releaseLease: (
+    id: string,
+    body: Pick<Schema["LeaseRelease"], "revision"> &
+      Partial<Schema["LeaseRelease"]>,
+  ) =>
+    request<Answer<"/api/v1/leases/{identity}/release", "post">>(
+      `/leases/${id}/release`,
+      "POST",
+      body,
+    ),
+  rescueLease: (
+    id: string,
+    body: Pick<Schema["LeaseRescue"], "revision"> &
+      Partial<Schema["LeaseRescue"]>,
+  ) =>
+    request<Answer<"/api/v1/leases/{identity}/rescue", "post">>(
+      `/leases/${id}/rescue`,
+      "POST",
+      body,
+    ),
+  cancelDispatch: (id: string, body: Partial<Schema["DispatchCancel"]> = {}) =>
+    request<Answer<"/api/v1/dispatch-queue/{identity}/cancel", "post">>(
+      `/dispatch-queue/${id}/cancel`,
+      "POST",
+      body,
+    ),
+  openDispatch: (id: string) =>
+    request<Answer<"/api/v1/dispatch-queue/{identity}/open", "post">>(
+      `/dispatch-queue/${id}/open`,
+      "POST",
+      {},
+    ),
 
   // Agents, their runs and ties, and chats.
   endAgentRun: (id: string, body: Schema["Expected"]) =>

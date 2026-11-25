@@ -76,7 +76,12 @@ def install_coordination_routes(app: FastAPI, db: Database, mutate: Callable) ->
     def repository_archive(identity: str, verb: str, request: Request, body: Expected) -> dict:
         if verb not in {"archive", "recover"}:
             raise AppError(404, "not_found", "Unknown repository command")
-        return write(request, body, lambda c, a: repository_apply(c, a, "repository." + verb, {"id": identity, **body.model_dump()}))
+        result = write(request, body, lambda c, a: repository_apply(c, a, "repository." + verb, {"id": identity, **body.model_dump()}))
+        if verb == "archive":
+            leases_svc = getattr(app.state, "leases", None)
+            if leases_svc is not None:
+                leases_svc.reap_deferred()
+        return result
 
     @app.get("/api/v1/agent-runs", response_model=out.AgentRuns)
     def runs(includeEnded: bool = False, externalChatId: str | None = None,
@@ -93,7 +98,11 @@ def install_coordination_routes(app: FastAPI, db: Database, mutate: Callable) ->
 
     @app.post("/api/v1/agent-runs/{identity}/end", response_model=out.AgentRun)
     def run_end(identity: str, request: Request, body: Expected) -> dict:
-        return write(request, body, lambda c, a: service.end_run(c, a, identity, body.model_dump()))
+        result = write(request, body, lambda c, a: service.end_run(c, a, identity, body.model_dump()))
+        leases_svc = getattr(app.state, "leases", None)
+        if leases_svc is not None:
+            leases_svc.reap_deferred()
+        return result
 
     @app.get("/api/v1/participations", response_model=out.Participations)
     def participations(itemId: str | None = None, repositoryId: str | None = None,

@@ -901,3 +901,205 @@ it("shows immutable update context names and paths instead of the repository's c
   expect(screen.getByText("C:/original")).toBeVisible();
   expect(screen.getByText("old-branch")).toBeVisible();
 });
+
+it("shows repository slot summary badges on the list and manages policy, base lock, force release, and rescue on detail", async () => {
+  const slotSummary = {
+    maxActiveLeases: 2,
+    activeCount: 2,
+    queuedCount: 1,
+    dirtyCount: 1,
+    rescuedCount: 0,
+    baseReadonly: true,
+    configured: true,
+  };
+  const slotsPayload = {
+    repositoryId: repo.id,
+    repositoryName: repo.name,
+    policy: {
+      repositoryId: repo.id,
+      maxActiveLeases: 2,
+      defaultTtlSeconds: 1800,
+      baseCheckoutPath: "C:\\Projects\\service",
+      slotRootPath: "",
+      defaultBranch: "main",
+      baseReadonly: false,
+      autoRescueDirty: true,
+      revision: 1,
+      updatedAt: "2026-11-24T00:00:00Z",
+      configured: true,
+    },
+    activeCount: 1,
+    queuedCount: 1,
+    dirtyCount: 1,
+    availableSlots: 0,
+    slots: [
+      {
+        slotIndex: 1,
+        expectedWorktreePath: "C:\\Projects\\.worklog-slots\\service\\slot-1",
+        state: "active" as const,
+        lease: {
+          id: "lease-1",
+          repositoryId: repo.id,
+          repositoryName: repo.name,
+          agentId: "agent-1",
+          credentialId: "cred-1",
+          runId: null,
+          provider: "claude",
+          chatId: "chat-1",
+          holderLabel: "Claude Worker",
+          slotIndex: 1,
+          worktreePath: "C:\\Projects\\.worklog-slots\\service\\slot-1",
+          branch: "claude/fix",
+          mode: "shared" as const,
+          state: "active" as const,
+          priority: "normal" as const,
+          queueSeq: 1,
+          queuePosition: null,
+          reason: "Fix bug",
+          requestedAt: "2026-11-24T00:00:00Z",
+          offeredAt: "2026-11-24T00:00:00Z",
+          acquiredAt: "2026-11-24T00:00:00Z",
+          lastHeartbeatAt: "2026-11-24T00:00:00Z",
+          expiresAt: "2099-11-24T01:00:00Z",
+          releasedAt: null,
+          releaseReason: null,
+          rescueRef: "",
+          revision: 3,
+          fetchWarning: "",
+        },
+      },
+      {
+        slotIndex: 2,
+        expectedWorktreePath: "C:\\Projects\\.worklog-slots\\service\\slot-2",
+        state: "expired_dirty" as const,
+        lease: {
+          id: "lease-2",
+          repositoryId: repo.id,
+          repositoryName: repo.name,
+          agentId: "agent-2",
+          credentialId: "cred-2",
+          runId: null,
+          provider: "codex",
+          chatId: "chat-2",
+          holderLabel: "Codex Worker",
+          slotIndex: 2,
+          worktreePath: "C:\\Projects\\.worklog-slots\\service\\slot-2",
+          branch: "codex/wip",
+          mode: "shared" as const,
+          state: "expired_dirty" as const,
+          priority: "normal" as const,
+          queueSeq: 2,
+          queuePosition: null,
+          reason: "",
+          requestedAt: "2026-11-24T00:00:00Z",
+          offeredAt: "2026-11-24T00:00:00Z",
+          acquiredAt: "2026-11-24T00:00:00Z",
+          lastHeartbeatAt: "2026-11-24T00:00:00Z",
+          expiresAt: "2020-01-01T00:00:00Z",
+          releasedAt: null,
+          releaseReason: "ttl_expired",
+          rescueRef: "",
+          revision: 4,
+          fetchWarning: "",
+        },
+      },
+    ],
+    activeLeases: [],
+    queuedLeases: [
+      {
+        id: "lease-3",
+        repositoryId: repo.id,
+        repositoryName: repo.name,
+        agentId: "agent-3",
+        credentialId: "cred-3",
+        runId: null,
+        provider: "antigravity",
+        chatId: "chat-3",
+        holderLabel: "Antigravity Waiter",
+        slotIndex: null,
+        worktreePath: "",
+        branch: "ag/next",
+        mode: "shared" as const,
+        state: "queued" as const,
+        priority: "normal" as const,
+        queueSeq: 3,
+        queuePosition: 1,
+        reason: "",
+        requestedAt: "2026-11-24T00:05:00Z",
+        offeredAt: null,
+        acquiredAt: null,
+        lastHeartbeatAt: "2026-11-24T00:05:00Z",
+        expiresAt: null,
+        releasedAt: null,
+        releaseReason: null,
+        rescueRef: "",
+        revision: 1,
+        fetchWarning: "",
+      },
+    ],
+    recentLeases: [],
+  };
+  const writes: { path: string; method: string; body: unknown }[] = [];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const path = String(input);
+    const method = init?.method ?? "GET";
+    if (method !== "GET") {
+      writes.push({ path, method, body: JSON.parse(String(init?.body)) });
+      return json({});
+    }
+    if (path.includes("/repositories?"))
+      return json({ items: [{ ...repo, slotSummary }], total: 1 });
+    if (path.endsWith("/repositories/repo-1"))
+      return json({ ...repo, slotSummary, people: [] });
+    if (path.endsWith("/repositories/repo-1/slots")) return json(slotsPayload);
+    return json({ items: [], total: 0 });
+  });
+
+  const listView = show(<Repositories />);
+  expect(await screen.findByText("Slots 2/2")).toBeVisible();
+  expect(screen.getByText("+1 queued")).toBeVisible();
+  expect(screen.getByText("1 dirty")).toBeVisible();
+  expect(screen.getByText("Base locked")).toBeVisible();
+  listView.unmount();
+
+  show(<Repositories selected={repo.id} />);
+  const section = await screen.findByRole("region", {
+    name: "Checkout slots and queue",
+  });
+  expect(within(section).getByText("Claude Worker")).toBeVisible();
+  expect(within(section).getByText("Codex Worker")).toBeVisible();
+  expect(within(section).getByText("Antigravity Waiter")).toBeVisible();
+
+  await userEvent.click(
+    within(section).getByRole("button", { name: "Lock base read-only" }),
+  );
+  await userEvent.click(
+    within(section).getByRole("button", { name: "Force release" }),
+  );
+  await userEvent.click(
+    within(section).getByRole("button", { name: "Rescue & release" }),
+  );
+  await waitFor(() => expect(writes).toHaveLength(3));
+  expect(writes[0]).toEqual({
+    path: "/api/v1/repositories/repo-1/base-lock",
+    method: "POST",
+    body: { locked: true },
+  });
+  expect(writes[1]).toEqual({
+    path: "/api/v1/leases/lease-1/release",
+    method: "POST",
+    body: {
+      revision: 3,
+      force: true,
+      reason: "Force-released from Worklog UI",
+    },
+  });
+  expect(writes[2]).toEqual({
+    path: "/api/v1/leases/lease-2/rescue",
+    method: "POST",
+    body: {
+      revision: 4,
+      reason: "Rescued from Worklog UI",
+    },
+  });
+});

@@ -9,6 +9,7 @@ from contextlib import closing, contextmanager
 import pytest
 import sealed
 from fastapi.testclient import TestClient
+from test_leases import V34_TABLES
 from test_ownership_reachability import V33_TABLES, before_v33
 from worklog import migrations, recovery
 from worklog.app import create_app
@@ -165,7 +166,7 @@ def test_the_upgrade_from_v18_snapshots_first_and_changes_no_record(tmp_path):
     before, search = rows(path, names), search_rows(path, "1")
     Database(path).initialize()
     assert state(path) == (migrations.SCHEMA_VERSION, sealed.current())
-    assert set(tables(path)) == set(names) | set(V33_TABLES)
+    assert set(tables(path)) == set(names) | set(V33_TABLES) | set(V34_TABLES)
     assert before_v33(rows(path, names)) == {**before, "github_refs": [(*ref, "") for ref in before["github_refs"]]}
     assert search_rows(path, "1") == search
     snapshots = sorted((path.parent / "backups").glob("worklog-pre-migration-*.sqlite3"))

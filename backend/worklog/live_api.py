@@ -1,5 +1,7 @@
 """The person's read-only view of work moving across agents, chats and repositories."""
 
+from pathlib import Path
+
 from fastapi import FastAPI, Query
 
 from . import responses as out
@@ -9,8 +11,19 @@ from .live import LiveService
 from .transcripts import TranscriptReader
 
 
-def install_live_routes(app: FastAPI, db: Database, transcripts: TranscriptReader) -> None:
-    service = LiveService(transcripts)
+def install_live_routes(
+    app: FastAPI,
+    db: Database,
+    transcripts: TranscriptReader,
+    *,
+    antigravity_brain_root: Path | None = None,
+    check_antigravity: bool = True,
+) -> None:
+    service = LiveService(
+        transcripts,
+        antigravity_brain_root=antigravity_brain_root,
+        check_antigravity=check_antigravity,
+    )
 
     @app.get("/api/v1/live", response_model=out.LiveSnapshot)
     def live(

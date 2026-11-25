@@ -181,6 +181,195 @@
         }
       }
     },
+    "/api/v1/dispatch-queue": {
+      "get": {
+        "summary": "Dispatch Queue",
+        "operationId": "dispatch_queue_api_v1_dispatch_queue_get",
+        "parameters": [
+          {
+            "name": "repositoryId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Repositoryid"
+            }
+          },
+          {
+            "name": "itemId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Itemid"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DispatchQueue"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dispatch-queue/{identity}/cancel": {
+      "post": {
+        "summary": "Cancel Dispatch",
+        "operationId": "cancel_dispatch_api_v1_dispatch_queue__identity__cancel_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DispatchCancel"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DispatchItem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dispatch-queue/{identity}/open": {
+      "post": {
+        "summary": "Open Dispatch",
+        "operationId": "open_dispatch_api_v1_dispatch_queue__identity__open_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionLaunch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health",
@@ -5009,6 +5198,574 @@
         }
       }
     },
+    "/api/v1/repositories/{identity}/slot-policy": {
+      "get": {
+        "summary": "Repository Slot Policy",
+        "operationId": "repository_slot_policy_api_v1_repositories__identity__slot_policy_get",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlotPolicy"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Repository Slot Policy Update",
+        "operationId": "repository_slot_policy_update_api_v1_repositories__identity__slot_policy_patch",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SlotPolicyUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlotPolicy"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/repositories/{identity}/base-lock": {
+      "post": {
+        "summary": "Repository Base Lock",
+        "operationId": "repository_base_lock_api_v1_repositories__identity__base_lock_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BaseLockRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseLockResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/repositories/{identity}/slots": {
+      "get": {
+        "summary": "Repository Slots",
+        "operationId": "repository_slots_api_v1_repositories__identity__slots_get",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepositorySlots"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/leases": {
+      "get": {
+        "summary": "List Leases",
+        "operationId": "list_leases_api_v1_leases_get",
+        "parameters": [
+          {
+            "name": "repositoryId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Repositoryid"
+            }
+          },
+          {
+            "name": "agentId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Agentid"
+            }
+          },
+          {
+            "name": "mine",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Mine"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "name": "includeClosed",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Includeclosed"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Leases"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/leases/acquire": {
+      "post": {
+        "summary": "Acquire Lease",
+        "operationId": "acquire_lease_api_v1_leases_acquire_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeaseAcquire"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Lease"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/leases/{identity}": {
+      "get": {
+        "summary": "Get Lease",
+        "operationId": "get_lease_api_v1_leases__identity__get",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Lease"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/leases/{identity}/poll": {
+      "post": {
+        "summary": "Poll Lease",
+        "operationId": "poll_lease_api_v1_leases__identity__poll_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeasePoll"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Lease"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/leases/{identity}/renew": {
+      "post": {
+        "summary": "Renew Lease",
+        "operationId": "renew_lease_api_v1_leases__identity__renew_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeaseRenew"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Lease"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/leases/{identity}/release": {
+      "post": {
+        "summary": "Release Lease",
+        "operationId": "release_lease_api_v1_leases__identity__release_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeaseRelease"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Lease"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/leases/{identity}/rescue": {
+      "post": {
+        "summary": "Rescue Lease",
+        "operationId": "rescue_lease_api_v1_leases__identity__rescue_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeaseRescue"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Lease"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/repositories": {
       "get": {
         "summary": "Repositories",
@@ -9623,6 +10380,95 @@
         "title": "AcknowledgementTarget",
         "description": "One slot of an acknowledgement request: a named participant, a role, or any agent or anyone."
       },
+      "ActiveLeaseSummary": {
+        "properties": {
+          "leaseId": {
+            "type": "string",
+            "title": "Leaseid"
+          },
+          "agentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agentid"
+          },
+          "holderLabel": {
+            "type": "string",
+            "title": "Holderlabel"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "slotIndex": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slotindex"
+          },
+          "branch": {
+            "type": "string",
+            "title": "Branch"
+          },
+          "worktreePath": {
+            "type": "string",
+            "title": "Worktreepath"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "shared",
+              "exclusive"
+            ],
+            "title": "Mode"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "offered",
+              "active"
+            ],
+            "title": "State"
+          },
+          "expiresAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expiresat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "leaseId",
+          "agentId",
+          "holderLabel",
+          "provider",
+          "slotIndex",
+          "branch",
+          "worktreePath",
+          "mode",
+          "state",
+          "expiresAt"
+        ],
+        "title": "ActiveLeaseSummary",
+        "description": "Compact summary of an active or offered checkout lease."
+      },
       "ActivityDay": {
         "properties": {
           "day": {
@@ -11757,6 +12603,60 @@
         ],
         "title": "BackupsPruned",
         "description": "What confirming the rule for manual backups removed."
+      },
+      "BaseLockRequest": {
+        "properties": {
+          "locked": {
+            "type": "boolean",
+            "title": "Locked"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "locked"
+        ],
+        "title": "BaseLockRequest",
+        "description": "Lock or unlock a repository's canonical base checkout read-only."
+      },
+      "BaseLockResult": {
+        "properties": {
+          "repositoryId": {
+            "type": "string",
+            "title": "Repositoryid"
+          },
+          "basePath": {
+            "type": "string",
+            "title": "Basepath"
+          },
+          "baseReadonly": {
+            "type": "boolean",
+            "title": "Basereadonly"
+          },
+          "filesAffected": {
+            "type": "integer",
+            "title": "Filesaffected"
+          },
+          "detachedAt": {
+            "type": "string",
+            "title": "Detachedat"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/SlotPolicy"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "repositoryId",
+          "basePath",
+          "baseReadonly",
+          "filesAffected",
+          "detachedAt",
+          "policy"
+        ],
+        "title": "BaseLockResult",
+        "description": "Result of locking or unlocking a repository's canonical base checkout."
       },
       "CallUnused": {
         "properties": {
@@ -14154,6 +15054,9 @@
               }
             ],
             "title": "Discussionid"
+          },
+          "slotSummary": {
+            "$ref": "#/components/schemas/RepositorySlotSummary"
           }
         },
         "additionalProperties": false,
@@ -14172,10 +15075,11 @@
           "revision",
           "createdAt",
           "updatedAt",
-          "discussionId"
+          "discussionId",
+          "slotSummary"
         ],
         "title": "DiscussedRepository",
-        "description": "A repository with its own discussion's id (v22), as the list, its read and a resolved address show it."
+        "description": "A repository with its own discussion's id (v22) and checkout slot summary (v34)."
       },
       "DiscussionChange": {
         "properties": {
@@ -14901,6 +15805,216 @@
         ],
         "title": "Discussions"
       },
+      "DispatchCancel": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Reason",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DispatchCancel",
+        "description": "Cancel a queued dispatch and its linked lease."
+      },
+      "DispatchItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "itemId": {
+            "type": "string",
+            "title": "Itemid"
+          },
+          "itemTitle": {
+            "type": "string",
+            "title": "Itemtitle"
+          },
+          "repositoryId": {
+            "type": "string",
+            "title": "Repositoryid"
+          },
+          "repositoryName": {
+            "type": "string",
+            "title": "Repositoryname"
+          },
+          "leaseId": {
+            "type": "string",
+            "title": "Leaseid"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "codex",
+              "claude",
+              "antigravity"
+            ],
+            "title": "Provider"
+          },
+          "requestedBranch": {
+            "type": "string",
+            "title": "Requestedbranch"
+          },
+          "branch": {
+            "type": "string",
+            "title": "Branch"
+          },
+          "slotIndex": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slotindex"
+          },
+          "worktreePath": {
+            "type": "string",
+            "title": "Worktreepath"
+          },
+          "queuePosition": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queueposition"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "provisioning",
+              "preparing",
+              "ready",
+              "ready_manual",
+              "failed",
+              "cancelled"
+            ],
+            "title": "Status"
+          },
+          "sessionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sessionid"
+          },
+          "chatRecordId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chatrecordid"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "copyablePrompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Copyableprompt"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "itemId",
+          "itemTitle",
+          "repositoryId",
+          "repositoryName",
+          "leaseId",
+          "provider",
+          "requestedBranch",
+          "branch",
+          "slotIndex",
+          "worktreePath",
+          "queuePosition",
+          "status",
+          "sessionId",
+          "chatRecordId",
+          "model",
+          "message",
+          "copyablePrompt",
+          "revision",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "DispatchItem",
+        "description": "A durable dispatch-time session queue entry linked 1:1 to a repository lease."
+      },
+      "DispatchQueue": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DispatchItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "DispatchQueue"
+      },
       "Done": {
         "properties": {
           "ok": {
@@ -15033,6 +16147,9 @@
             ],
             "title": "Discussionid"
           },
+          "slotSummary": {
+            "$ref": "#/components/schemas/RepositorySlotSummary"
+          },
           "created": {
             "type": "boolean",
             "title": "Created"
@@ -15055,6 +16172,7 @@
           "createdAt",
           "updatedAt",
           "discussionId",
+          "slotSummary",
           "created"
         ],
         "title": "EnsuredRepository",
@@ -15886,6 +17004,485 @@
           "revision"
         ],
         "title": "ItemUpdate"
+      },
+      "Lease": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "repositoryId": {
+            "type": "string",
+            "title": "Repositoryid"
+          },
+          "repositoryName": {
+            "type": "string",
+            "title": "Repositoryname"
+          },
+          "agentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agentid"
+          },
+          "credentialId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credentialid"
+          },
+          "runId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runid"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "chatId": {
+            "type": "string",
+            "title": "Chatid"
+          },
+          "holderLabel": {
+            "type": "string",
+            "title": "Holderlabel"
+          },
+          "slotIndex": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slotindex"
+          },
+          "worktreePath": {
+            "type": "string",
+            "title": "Worktreepath"
+          },
+          "branch": {
+            "type": "string",
+            "title": "Branch"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "shared",
+              "exclusive"
+            ],
+            "title": "Mode"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "offered",
+              "active",
+              "released",
+              "expired",
+              "expired_dirty",
+              "revoked",
+              "cancelled"
+            ],
+            "title": "State"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "pr_fixup",
+              "wave",
+              "incident"
+            ],
+            "title": "Priority"
+          },
+          "queueSeq": {
+            "type": "integer",
+            "title": "Queueseq"
+          },
+          "queuePosition": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queueposition"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "requestedAt": {
+            "type": "string",
+            "title": "Requestedat"
+          },
+          "offeredAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offeredat"
+          },
+          "acquiredAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acquiredat"
+          },
+          "lastHeartbeatAt": {
+            "type": "string",
+            "title": "Lastheartbeatat"
+          },
+          "expiresAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expiresat"
+          },
+          "releasedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Releasedat"
+          },
+          "releaseReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Releasereason"
+          },
+          "rescueRef": {
+            "type": "string",
+            "title": "Rescueref"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "fetchWarning": {
+            "type": "string",
+            "title": "Fetchwarning"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "repositoryId",
+          "repositoryName",
+          "agentId",
+          "credentialId",
+          "runId",
+          "provider",
+          "chatId",
+          "holderLabel",
+          "slotIndex",
+          "worktreePath",
+          "branch",
+          "mode",
+          "state",
+          "priority",
+          "queueSeq",
+          "queuePosition",
+          "reason",
+          "requestedAt",
+          "offeredAt",
+          "acquiredAt",
+          "lastHeartbeatAt",
+          "expiresAt",
+          "releasedAt",
+          "releaseReason",
+          "rescueRef",
+          "revision",
+          "fetchWarning"
+        ],
+        "title": "Lease",
+        "description": "A bounded repository checkout slot lease (active, offered, queued, or closed)."
+      },
+      "LeaseAcquire": {
+        "properties": {
+          "repositoryId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repositoryid"
+          },
+          "repositoryUrl": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repositoryurl"
+          },
+          "branch": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Branch",
+            "default": ""
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "shared",
+              "exclusive"
+            ],
+            "title": "Mode",
+            "default": "shared"
+          },
+          "ttlSeconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 14400.0,
+                "minimum": 300.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ttlseconds"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "pr_fixup",
+              "wave",
+              "incident"
+            ],
+            "title": "Priority",
+            "default": "normal"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Reason",
+            "default": ""
+          },
+          "runId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runid"
+          },
+          "provider": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Provider",
+            "default": ""
+          },
+          "chatId": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Chatid",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "LeaseAcquire",
+        "description": "Request a repository checkout slot lease (grants immediately or enters FIFO queue)."
+      },
+      "LeasePoll": {
+        "properties": {
+          "branch": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "LeasePoll",
+        "description": "Refresh waiter heartbeat and confirm/provision an offered slot."
+      },
+      "LeaseRelease": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Reason",
+            "default": ""
+          },
+          "rescue": {
+            "type": "boolean",
+            "title": "Rescue",
+            "default": false
+          },
+          "force": {
+            "type": "boolean",
+            "title": "Force",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision"
+        ],
+        "title": "LeaseRelease",
+        "description": "Release an active/offered lease or cancel a queued lease."
+      },
+      "LeaseRenew": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "ttlSeconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 14400.0,
+                "minimum": 300.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ttlseconds"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision"
+        ],
+        "title": "LeaseRenew",
+        "description": "Extend an active lease's TTL."
+      },
+      "LeaseRescue": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Reason",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision"
+        ],
+        "title": "LeaseRescue",
+        "description": "Rescue dirty changes in an expired_dirty (or active) slot and recycle it."
+      },
+      "Leases": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Lease"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Leases"
       },
       "LinkCreate": {
         "properties": {
@@ -16803,6 +18400,30 @@
             "type": "integer",
             "title": "Overlapcount"
           },
+          "maxActiveLeases": {
+            "type": "integer",
+            "title": "Maxactiveleases"
+          },
+          "activeLeases": {
+            "type": "integer",
+            "title": "Activeleases"
+          },
+          "queuedLeases": {
+            "type": "integer",
+            "title": "Queuedleases"
+          },
+          "dirtySlots": {
+            "type": "integer",
+            "title": "Dirtyslots"
+          },
+          "rescuedLeases": {
+            "type": "integer",
+            "title": "Rescuedleases"
+          },
+          "baseReadonly": {
+            "type": "boolean",
+            "title": "Basereadonly"
+          },
           "lastAt": {
             "anyOf": [
               {
@@ -16830,6 +18451,12 @@
           "branches",
           "agentCount",
           "overlapCount",
+          "maxActiveLeases",
+          "activeLeases",
+          "queuedLeases",
+          "dirtySlots",
+          "rescuedLeases",
+          "baseReadonly",
           "lastAt",
           "href"
         ],
@@ -18123,6 +19750,16 @@
               }
             ],
             "title": "Discussionid"
+          },
+          "slotPolicy": {
+            "$ref": "#/components/schemas/OverlapSlotPolicy"
+          },
+          "activeLeases": {
+            "items": {
+              "$ref": "#/components/schemas/ActiveLeaseSummary"
+            },
+            "type": "array",
+            "title": "Activeleases"
           }
         },
         "additionalProperties": false,
@@ -18130,7 +19767,9 @@
         "required": [
           "id",
           "name",
-          "discussionId"
+          "discussionId",
+          "slotPolicy",
+          "activeLeases"
         ],
         "title": "OverlapRepository"
       },
@@ -18177,6 +19816,45 @@
           "owner"
         ],
         "title": "OverlapRole"
+      },
+      "OverlapSlotPolicy": {
+        "properties": {
+          "maxActiveLeases": {
+            "type": "integer",
+            "title": "Maxactiveleases"
+          },
+          "activeCount": {
+            "type": "integer",
+            "title": "Activecount"
+          },
+          "queuedCount": {
+            "type": "integer",
+            "title": "Queuedcount"
+          },
+          "dirtyCount": {
+            "type": "integer",
+            "title": "Dirtycount"
+          },
+          "baseReadonly": {
+            "type": "boolean",
+            "title": "Basereadonly"
+          },
+          "configured": {
+            "type": "boolean",
+            "title": "Configured"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "maxActiveLeases",
+          "activeCount",
+          "queuedCount",
+          "dirtyCount",
+          "baseReadonly",
+          "configured"
+        ],
+        "title": "OverlapSlotPolicy"
       },
       "OverlapTag": {
         "properties": {
@@ -21996,6 +23674,9 @@
             ],
             "title": "Discussionid"
           },
+          "slotSummary": {
+            "$ref": "#/components/schemas/RepositorySlotSummary"
+          },
           "people": {
             "items": {
               "$ref": "#/components/schemas/RecordPerson"
@@ -22021,6 +23702,7 @@
           "createdAt",
           "updatedAt",
           "discussionId",
+          "slotSummary",
           "people"
         ],
         "title": "RepositoryDetail",
@@ -22114,6 +23796,167 @@
         ],
         "title": "RepositoryResolution",
         "description": "What registering an address would do: link to the record holding its remote, or add one."
+      },
+      "RepositorySlot": {
+        "properties": {
+          "slotIndex": {
+            "type": "integer",
+            "title": "Slotindex"
+          },
+          "expectedWorktreePath": {
+            "type": "string",
+            "title": "Expectedworktreepath"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "free",
+              "offered",
+              "active",
+              "expired_dirty"
+            ],
+            "title": "State"
+          },
+          "lease": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Lease"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "slotIndex",
+          "expectedWorktreePath",
+          "state",
+          "lease"
+        ],
+        "title": "RepositorySlot"
+      },
+      "RepositorySlotSummary": {
+        "properties": {
+          "maxActiveLeases": {
+            "type": "integer",
+            "title": "Maxactiveleases"
+          },
+          "activeCount": {
+            "type": "integer",
+            "title": "Activecount"
+          },
+          "queuedCount": {
+            "type": "integer",
+            "title": "Queuedcount"
+          },
+          "dirtyCount": {
+            "type": "integer",
+            "title": "Dirtycount"
+          },
+          "rescuedCount": {
+            "type": "integer",
+            "title": "Rescuedcount"
+          },
+          "baseReadonly": {
+            "type": "boolean",
+            "title": "Basereadonly"
+          },
+          "configured": {
+            "type": "boolean",
+            "title": "Configured"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "maxActiveLeases",
+          "activeCount",
+          "queuedCount",
+          "dirtyCount",
+          "rescuedCount",
+          "baseReadonly",
+          "configured"
+        ],
+        "title": "RepositorySlotSummary",
+        "description": "Compact checkout slot occupancy and policy flags for lists and badges."
+      },
+      "RepositorySlots": {
+        "properties": {
+          "repositoryId": {
+            "type": "string",
+            "title": "Repositoryid"
+          },
+          "repositoryName": {
+            "type": "string",
+            "title": "Repositoryname"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/SlotPolicy"
+          },
+          "activeCount": {
+            "type": "integer",
+            "title": "Activecount"
+          },
+          "queuedCount": {
+            "type": "integer",
+            "title": "Queuedcount"
+          },
+          "dirtyCount": {
+            "type": "integer",
+            "title": "Dirtycount"
+          },
+          "availableSlots": {
+            "type": "integer",
+            "title": "Availableslots"
+          },
+          "slots": {
+            "items": {
+              "$ref": "#/components/schemas/RepositorySlot"
+            },
+            "type": "array",
+            "title": "Slots"
+          },
+          "activeLeases": {
+            "items": {
+              "$ref": "#/components/schemas/Lease"
+            },
+            "type": "array",
+            "title": "Activeleases"
+          },
+          "queuedLeases": {
+            "items": {
+              "$ref": "#/components/schemas/Lease"
+            },
+            "type": "array",
+            "title": "Queuedleases"
+          },
+          "recentLeases": {
+            "items": {
+              "$ref": "#/components/schemas/Lease"
+            },
+            "type": "array",
+            "title": "Recentleases"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "repositoryId",
+          "repositoryName",
+          "policy",
+          "activeCount",
+          "queuedCount",
+          "dirtyCount",
+          "availableSlots",
+          "slots",
+          "activeLeases",
+          "queuedLeases",
+          "recentLeases"
+        ],
+        "title": "RepositorySlots"
       },
       "RepositoryUpdate": {
         "properties": {
@@ -24144,16 +25987,22 @@
             "type": "string",
             "enum": [
               "codex",
-              "claude"
+              "claude",
+              "antigravity"
             ],
             "title": "Provider"
           },
           "status": {
             "type": "string",
             "enum": [
+              "queued",
+              "provisioning",
               "starting",
+              "preparing",
               "ready",
-              "failed"
+              "ready_manual",
+              "failed",
+              "cancelled"
             ],
             "title": "Status"
           },
@@ -24181,6 +26030,119 @@
               }
             ],
             "title": "Sessionid"
+          },
+          "dispatchId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dispatchid"
+          },
+          "repositoryId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repositoryid"
+          },
+          "repositoryName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repositoryname"
+          },
+          "leaseId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Leaseid"
+          },
+          "slotIndex": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slotindex"
+          },
+          "worktreePath": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worktreepath"
+          },
+          "branch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch"
+          },
+          "queuePosition": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queueposition"
+          },
+          "activeHolders": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ActiveLeaseSummary"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activeholders"
+          },
+          "copyablePrompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Copyableprompt"
           }
         },
         "additionalProperties": false,
@@ -24200,15 +26162,61 @@
             "type": "string",
             "enum": [
               "codex",
-              "claude"
+              "claude",
+              "antigravity"
             ],
             "title": "Provider"
           },
+          "repositoryId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repositoryid"
+          },
           "cwd": {
-            "type": "string",
-            "maxLength": 2000,
-            "minLength": 1,
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Cwd"
+          },
+          "branch": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Branch",
+            "default": ""
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "shared",
+              "exclusive"
+            ],
+            "title": "Mode",
+            "default": "shared"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "pr_fixup",
+              "wave",
+              "incident"
+            ],
+            "title": "Priority",
+            "default": "normal"
           },
           "prompt": {
             "type": "string",
@@ -24221,7 +26229,6 @@
         "type": "object",
         "required": [
           "provider",
-          "cwd",
           "prompt"
         ],
         "title": "SessionStart"
@@ -24456,6 +26463,172 @@
           "position"
         ],
         "title": "SiblingStep"
+      },
+      "SlotPolicy": {
+        "properties": {
+          "repositoryId": {
+            "type": "string",
+            "title": "Repositoryid"
+          },
+          "maxActiveLeases": {
+            "type": "integer",
+            "title": "Maxactiveleases"
+          },
+          "defaultTtlSeconds": {
+            "type": "integer",
+            "title": "Defaultttlseconds"
+          },
+          "baseCheckoutPath": {
+            "type": "string",
+            "title": "Basecheckoutpath"
+          },
+          "slotRootPath": {
+            "type": "string",
+            "title": "Slotrootpath"
+          },
+          "defaultBranch": {
+            "type": "string",
+            "title": "Defaultbranch"
+          },
+          "baseReadonly": {
+            "type": "boolean",
+            "title": "Basereadonly"
+          },
+          "autoRescueDirty": {
+            "type": "boolean",
+            "title": "Autorescuedirty"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "updatedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updatedat"
+          },
+          "configured": {
+            "type": "boolean",
+            "title": "Configured"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "repositoryId",
+          "maxActiveLeases",
+          "defaultTtlSeconds",
+          "baseCheckoutPath",
+          "slotRootPath",
+          "defaultBranch",
+          "baseReadonly",
+          "autoRescueDirty",
+          "revision",
+          "updatedAt",
+          "configured"
+        ],
+        "title": "SlotPolicy",
+        "description": "A repository's checkout slot policy (or effective defaults when unconfigured)."
+      },
+      "SlotPolicyUpdate": {
+        "properties": {
+          "revision": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
+          },
+          "maxActiveLeases": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 32.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maxactiveleases"
+          },
+          "defaultTtlSeconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 14400.0,
+                "minimum": 300.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Defaultttlseconds"
+          },
+          "baseCheckoutPath": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Basecheckoutpath"
+          },
+          "slotRootPath": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slotrootpath"
+          },
+          "defaultBranch": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Defaultbranch"
+          },
+          "autoRescueDirty": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Autorescuedirty"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SlotPolicyUpdate",
+        "description": "Create or update a repository's checkout slot policy."
       },
       "StatusContextTag": {
         "properties": {

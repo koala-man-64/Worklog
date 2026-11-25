@@ -203,6 +203,8 @@ class World:
         ids["run"] = run["id"]
         ids["participation"] = self.write(a, "POST", "/participations", {
             "runId": run["id"], "itemId": item["id"], "contexts": [{"repositoryId": ids["repository"]}]})["id"]
+        ids["lease"] = self.write(a, "POST", "/leases/acquire", {
+            "repositoryId": ids["repository"], "branch": "claude/golden", "reason": "Golden test"})["id"]
         ids["proposal"] = self.write(a, "POST", "/proposals", {"title": "Rename", "rationale": "Clearer",
                                                                "operations": []})["id"]
         # The ticket names the work item, a label and the repository and is the agent's, which
@@ -269,7 +271,7 @@ def concrete(template: str, ids: dict[str, str], today: str) -> str:
                  ("/repositories/", "repository"),
                  ("/discussions/messages/", "message"),
                  ("/discussions/participants/", "agent"), ("/discussions/", "discussion"), ("/agents/", "agent"),
-                 ("/agent-runs/", "run"), ("/participations/", "participation"), ("/proposals/", "proposal")]
+                 ("/agent-runs/", "run"), ("/participations/", "participation"), ("/leases/", "lease"), ("/proposals/", "proposal")]
     path = template
     if "{identity}" in path:
         name = next((key for prefix, key in by_prefix if path.startswith(prefix)), None)

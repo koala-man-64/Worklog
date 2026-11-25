@@ -19,6 +19,7 @@ from . import record_kinds
 from .common import LIVE_AGENT, AppError, rows_in, text
 from .coordination import CoordinationService, commit_sha, pull_request, repository_holder
 from .discussions import LISTED, DiscussionService, registered_by, registered_chats
+from .leases import repository_slot_summaries
 from .tickets import TicketService
 
 STALE_AFTER = timedelta(hours=2)
@@ -891,8 +892,25 @@ class AgentRegistry:
         def who(identity: str, kind: str = "agent") -> dict | None:
             return person if kind == "human" or identity == "local-user" else agents.get(identity)
 
+        slot_summaries = repository_slot_summaries(c, repos)
         return {
-            "repositories": [{"id": r, "name": names[r], "discussionId": homes.get(r)} for r in repos],
+            "repositories": [
+                {
+                    "id": r,
+                    "name": names[r],
+                    "discussionId": homes.get(r),
+                    "slotPolicy": {
+                        "maxActiveLeases": slot_summaries[r]["maxActiveLeases"],
+                        "activeCount": slot_summaries[r]["activeCount"],
+                        "queuedCount": slot_summaries[r]["queuedCount"],
+                        "dirtyCount": slot_summaries[r]["dirtyCount"],
+                        "baseReadonly": slot_summaries[r]["baseReadonly"],
+                        "configured": slot_summaries[r]["configured"],
+                    },
+                    "activeLeases": slot_summaries[r]["activeLeases"],
+                }
+                for r in repos
+            ],
             "participations": [{
                 "participationId": r["id"], "agent": who(r["agent_id"]), "runId": r["run_id"], "runName": r["display_name"],
                 "description": r["description"], "lastSeenAt": r["last_seen_at"], "stale": _stale(r["last_seen_at"]),

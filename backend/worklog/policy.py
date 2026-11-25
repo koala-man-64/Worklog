@@ -92,6 +92,9 @@ ROUTES: dict[str, dict[str, str | Only]] = {
     "/work-items/{identity}/sessions": {"POST": HUMAN},
     "/session-launches/{identity}": {"GET": HUMAN},
     "/session-launches/{identity}/open": {"POST": HUMAN},
+    "/dispatch-queue": {"GET": HUMAN},
+    "/dispatch-queue/{identity}/cancel": {"POST": HUMAN},
+    "/dispatch-queue/{identity}/open": {"POST": HUMAN},
 
     "/context": {"GET": READ},
 
@@ -153,6 +156,14 @@ ROUTES: dict[str, dict[str, str | Only]] = {
 
     "/history": {"GET": READ},
 
+    "/leases": {"GET": READ},
+    "/leases/acquire": {"POST": COORDINATE},
+    "/leases/{identity}": {"GET": READ},
+    "/leases/{identity}/poll": {"POST": COORDINATE},
+    "/leases/{identity}/renew": {"POST": COORDINATE},
+    "/leases/{identity}/release": {"POST": COORDINATE},
+    "/leases/{identity}/rescue": {"POST": HUMAN},
+
     "/links": {"POST": HUMAN},
     "/links/{identity}": {"GET": READ, "PATCH": HUMAN},
     "/links/{identity}/archive": {"POST": HUMAN},
@@ -204,8 +215,11 @@ ROUTES: dict[str, dict[str, str | Only]] = {
     "/repositories/ensure": {"POST": COORDINATE},
     "/repositories/resolve": {"GET": READ},
     "/repositories/{identity}": {"GET": READ, "PATCH": HUMAN},
+    "/repositories/{identity}/base-lock": {"POST": HUMAN},
     "/repositories/{identity}/confirm": {"POST": HUMAN},
     "/repositories/{identity}/merge": {"POST": HUMAN},
+    "/repositories/{identity}/slot-policy": {"GET": READ, "PATCH": HUMAN},
+    "/repositories/{identity}/slots": {"GET": READ},
     "/repositories/{identity}/{verb}": {"POST": HUMAN},
 
     "/resources": {"GET": READ, "POST": HUMAN},

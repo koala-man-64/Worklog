@@ -1,14 +1,37 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, contextStorageKey, getDataContext, request } from "./api";
-import type { Schema } from "./apiTypes";
+import type { RepositorySlots, Schema } from "./apiTypes";
+import { commands } from "./commands";
 import { sessionStore } from "./storage";
+import { CopyButton } from "./ui/CopyButton";
 import { ErrorMessage } from "./ui/Messages";
 
 export type SessionLaunch = Schema["SessionLaunch"];
 type SessionStart = Schema["SessionStart"];
+type SessionStartBody = Pick<SessionStart, "provider" | "prompt"> &
+  Partial<SessionStart>;
 
 type Provider = SessionStart["provider"];
+
+const POLLING_STATUSES = new Set<SessionLaunch["status"]>([
+  "starting",
+  "queued",
+  "provisioning",
+  "preparing",
+]);
+
+const VALID_PROVIDERS = new Set(["codex", "claude", "antigravity"]);
+const VALID_STATUSES = new Set([
+  "queued",
+  "provisioning",
+  "starting",
+  "preparing",
+  "ready",
+  "ready_manual",
+  "failed",
+  "cancelled",
+]);
 
 function isLocalWindowsPath(path: string) {
   return /^[a-zA-Z]:[\\/]/.test(path);
@@ -23,10 +46,10 @@ function isSessionLaunch(value: unknown): value is SessionLaunch {
   const candidate = value as Partial<SessionLaunch>;
   return (
     typeof candidate.id === "string" &&
-    (candidate.provider === "codex" || candidate.provider === "claude") &&
-    (candidate.status === "starting" ||
-      candidate.status === "ready" ||
-      candidate.status === "failed") &&
+    typeof candidate.provider === "string" &&
+    VALID_PROVIDERS.has(candidate.provider) &&
+    typeof candidate.status === "string" &&
+    VALID_STATUSES.has(candidate.status) &&
     typeof candidate.message === "string" &&
     (candidate.sessionId === undefined ||
       candidate.sessionId === null ||
@@ -41,6 +64,12 @@ function isSessionLaunch(value: unknown): value is SessionLaunch {
 function providerSessionId(launch: SessionLaunch) {
   const sessionId = launch.sessionId?.trim();
   return sessionId || null;
+}
+
+function providerTitle(provider: Provider) {
+  if (provider === "codex") return "Codex";
+  if (provider === "claude") return "Claude";
+  return "Antigravity";
 }
 
 function storedLaunch(itemId: string): SessionLaunch | null {
@@ -93,15 +122,22 @@ export function StartSession({
   title,
   description,
   archived,
+  repositoryIds = [],
 }: {
   itemId: string;
   title: string;
   description: string;
   archived: boolean;
+  repositoryIds?: string[];
 }) {
   const client = useQueryClient();
+  const briefId = useId();
   const [formOpen, setFormOpen] = useState(false);
   const [provider, setProvider] = useState<Provider>("codex");
+  const [selectedRepoId, setSelectedRepoId] = useState(
+    () => repositoryIds[0] ?? "",
+  );
+  const [branch, setBranch] = useState("");
   const [cwd, setCwd] = useState("");
   const [prompt, setPrompt] = useState(() =>
     description.trim() ? `${title}\n\n${description}` : title,
@@ -109,6 +145,7 @@ export function StartSession({
   const [promptEdited, setPromptEdited] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [opening, setOpening] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [formError, setFormError] = useState<unknown>(null);
   const [openError, setOpenError] = useState<unknown>(null);
   const [launch, setLaunch] = useState<SessionLaunch | null>(() =>
@@ -119,9 +156,33 @@ export function StartSession({
   const openingInFlight = useRef(false);
   const lastRefresh = useRef("");
 
+  const linkedRepoIds = repositoryIds;
+  const repoSlotsQueries = useQueries({
+    queries: linkedRepoIds.map((rid) => ({
+      queryKey: [getDataContext(), `/repositories/${rid}/slots`],
+      queryFn: () => request<RepositorySlots>(`/repositories/${rid}/slots`),
+      enabled: formOpen && linkedRepoIds.length > 0,
+    })),
+  });
+  const slotsByRepo = new Map<string, RepositorySlots>();
+  linkedRepoIds.forEach((rid, idx) => {
+    const data = repoSlotsQueries[idx]?.data;
+    if (data?.policy) slotsByRepo.set(rid, data);
+  });
+  const effectiveRepoId =
+    selectedRepoId && linkedRepoIds.includes(selectedRepoId)
+      ? selectedRepoId
+      : "";
+  const selectedSlots = effectiveRepoId
+    ? slotsByRepo.get(effectiveRepoId) ?? null
+    : null;
+  const needsManualFolder =
+    !effectiveRepoId || (!!selectedSlots && !selectedSlots.policy.baseCheckoutPath);
+
   const launchPath = launch
     ? `/session-launches/${launch.id}`
     : "/session-launches";
+  const isPolling = !!launch && POLLING_STATUSES.has(launch.status);
   const status = useQuery<SessionLaunch>({
     queryKey: [getDataContext(), launchPath],
     queryFn: async () => {
@@ -137,13 +198,16 @@ export function StartSession({
         throw error;
       }
     },
-    enabled: !expiredSaved && launch?.status === "starting",
-    refetchInterval: (query) =>
-      !expiredSaved &&
-      !query.state.error &&
-      (query.state.data ?? launch)?.status === "starting"
+    enabled: !expiredSaved && isPolling,
+    refetchInterval: (query) => {
+      const latest = query.state.data ?? launch;
+      return !expiredSaved &&
+        !query.state.error &&
+        !!latest &&
+        POLLING_STATUSES.has(latest.status)
         ? 1000
-        : false,
+        : false;
+    },
   });
   const current = status.data ?? launch;
   const expired =
@@ -158,7 +222,13 @@ export function StartSession({
   }, [description, promptEdited, title]);
 
   useEffect(() => {
-    if (!current || (current.status !== "ready" && !current.chat)) return;
+    if (
+      !current ||
+      (current.status !== "ready" &&
+        current.status !== "ready_manual" &&
+        !current.chat)
+    )
+      return;
     const signature = `${current.id}:${current.status}:${current.chat?.id ?? ""}`;
     if (lastRefresh.current === signature) return;
     lastRefresh.current = signature;
@@ -172,7 +242,9 @@ export function StartSession({
           (path === `/work-items/${itemId}` ||
             path === "/chats" ||
             path.startsWith("/chats?") ||
-            path.startsWith("/chats/"))
+            path.startsWith("/chats/") ||
+            path.startsWith("/repositories/") ||
+            path.startsWith("/dispatch-queue"))
         );
       },
     });
@@ -182,11 +254,28 @@ export function StartSession({
     e.preventDefault();
     if (archived || submissionInFlight.current) return;
     const workingFolder = cwd.trim();
-    if (!workingFolder) {
-      setFormError(errorMessage("Enter a working folder path."));
-      return;
-    }
-    if (!isLocalWindowsPath(workingFolder)) {
+    if (!effectiveRepoId) {
+      if (provider === "antigravity") {
+        setFormError(
+          errorMessage(
+            "Link a repository to this work item to reserve an Antigravity checkout slot.",
+          ),
+        );
+        return;
+      }
+      if (!workingFolder) {
+        setFormError(errorMessage("Enter a working folder path."));
+        return;
+      }
+      if (!isLocalWindowsPath(workingFolder)) {
+        setFormError(
+          errorMessage(
+            "Enter an absolute local Windows path, such as C:\\Projects\\repo.",
+          ),
+        );
+        return;
+      }
+    } else if (workingFolder && !isLocalWindowsPath(workingFolder)) {
       setFormError(
         errorMessage(
           "Enter an absolute local Windows path, such as C:\\Projects\\repo.",
@@ -209,7 +298,15 @@ export function StartSession({
     setSubmitting(true);
     setFormError(null);
     try {
-      const body: SessionStart = { provider, cwd: workingFolder, prompt };
+      const body: SessionStartBody = effectiveRepoId
+        ? {
+            provider,
+            repositoryId: effectiveRepoId,
+            prompt,
+            ...(branch.trim() ? { branch: branch.trim() } : {}),
+            ...(workingFolder ? { cwd: workingFolder } : {}),
+          }
+        : { provider, cwd: workingFolder, prompt };
       const next = await request<SessionLaunch>(
         `/work-items/${itemId}/sessions`,
         "POST",
@@ -256,16 +353,60 @@ export function StartSession({
     }
   }
 
+  async function cancelQueued() {
+    if (!current || cancelling) return;
+    setCancelling(true);
+    setOpenError(null);
+    try {
+      const dispatchId = current.dispatchId ?? current.id;
+      await commands.cancelDispatch(dispatchId, {
+        reason: "Cancelled from Worklog UI",
+      });
+      const updated: SessionLaunch = {
+        ...current,
+        status: "cancelled",
+        queuePosition: null,
+        message: "Queued dispatch cancelled.",
+      };
+      saveLaunch(itemId, updated);
+      client.setQueryData(
+        [getDataContext(), `/session-launches/${current.id}`],
+        updated,
+      );
+      setLaunch(updated);
+    } catch (error) {
+      setOpenError(error);
+    } finally {
+      setCancelling(false);
+    }
+  }
+
+  function availabilityLine(slots: RepositorySlots) {
+    if (slots.policy.maxActiveLeases === 0) {
+      return "Frozen (0/0) — session will queue until slots are unfrozen.";
+    }
+    if (slots.availableSlots > 0) {
+      return `${slots.availableSlots}/${slots.policy.maxActiveLeases} slots free — will assign next open slot.`;
+    }
+    return `${slots.activeCount}/${slots.policy.maxActiveLeases} slots full — will queue at #${slots.queuedCount + 1}.`;
+  }
+
   return (
     <section className="session-launch">
       <h3>Start a session</h3>
       {!current && !expired && (
         <p className="muted">
-          Preparation sends your prompt to the selected provider.{" "}
-          {provider === "codex"
-            ? "Codex preparation is read-only; shell tools, web search, apps, and plugins are disabled. User config is skipped, but workspace context may still load. Trusted project settings may supply other tools."
-            : "Claude tools are disabled during preparation."}{" "}
-          Send Continue in the desktop app to begin work.
+          {provider === "antigravity" ? (
+            "Antigravity reserves a repository checkout slot and generates a ready-to-paste slot brief for your Antigravity conversation."
+          ) : (
+            <>
+              Preparation sends your prompt to the selected provider.{" "}
+              {provider === "codex"
+                ? "Codex preparation is read-only; shell tools, web search, apps, and plugins are disabled. User config is skipped, but workspace context may still load. Trusted project settings may supply other tools."
+                : "Claude tools are disabled during preparation."}{" "}
+              Send Continue in the desktop app to begin work.
+            </>
+          )}
         </p>
       )}
       {!formOpen && !current && !expired && (
@@ -295,31 +436,79 @@ export function StartSession({
               >
                 <option value="codex">Codex</option>
                 <option value="claude">Claude</option>
+                <option value="antigravity">Antigravity</option>
               </select>
             </label>
-            <label htmlFor={`session-cwd-${itemId}`}>
-              Working folder
-              <input
-                id={`session-cwd-${itemId}`}
-                aria-label="Working folder"
-                aria-required="true"
-                aria-invalid={
-                  formError instanceof Error && /path/i.test(formError.message)
-                    ? true
-                    : undefined
-                }
-                value={cwd}
-                onChange={(e) => {
-                  setCwd(e.target.value);
-                  setFormError(null);
-                }}
-                disabled={archived || submitting}
-                placeholder="C:\\Projects\\my-repo"
-                maxLength={2000}
-                autoComplete="off"
-              />
-            </label>
+            {linkedRepoIds.length > 0 && (
+              <label htmlFor={`session-repo-${itemId}`}>
+                Repository
+                <select
+                  id={`session-repo-${itemId}`}
+                  aria-label="Repository"
+                  value={effectiveRepoId}
+                  disabled={archived || submitting}
+                  onChange={(e) => {
+                    setSelectedRepoId(e.target.value);
+                    setFormError(null);
+                  }}
+                >
+                  {linkedRepoIds.map((rid) => (
+                    <option key={rid} value={rid}>
+                      {slotsByRepo.get(rid)?.repositoryName ?? rid}
+                    </option>
+                  ))}
+                  <option value="">Custom folder (no slot)</option>
+                </select>
+              </label>
+            )}
+            {effectiveRepoId && (
+              <label htmlFor={`session-branch-${itemId}`}>
+                Branch (optional)
+                <input
+                  id={`session-branch-${itemId}`}
+                  aria-label="Branch"
+                  value={branch}
+                  onChange={(e) => {
+                    setBranch(e.target.value);
+                    setFormError(null);
+                  }}
+                  disabled={archived || submitting}
+                  placeholder="e.g. codex/task-name"
+                  maxLength={200}
+                  autoComplete="off"
+                />
+              </label>
+            )}
+            {needsManualFolder && (
+              <label htmlFor={`session-cwd-${itemId}`}>
+                Working folder
+                <input
+                  id={`session-cwd-${itemId}`}
+                  aria-label="Working folder"
+                  aria-required={!effectiveRepoId ? "true" : undefined}
+                  aria-invalid={
+                    formError instanceof Error && /path/i.test(formError.message)
+                      ? true
+                      : undefined
+                  }
+                  value={cwd}
+                  onChange={(e) => {
+                    setCwd(e.target.value);
+                    setFormError(null);
+                  }}
+                  disabled={archived || submitting}
+                  placeholder="C:\\Projects\\my-repo"
+                  maxLength={2000}
+                  autoComplete="off"
+                />
+              </label>
+            )}
           </div>
+          {selectedSlots && (
+            <p className="session-launch-availability">
+              {availabilityLine(selectedSlots)}
+            </p>
+          )}
           <label
             className="session-launch-prompt"
             htmlFor={`session-prompt-${itemId}`}
@@ -374,12 +563,8 @@ export function StartSession({
           {expired ? (
             <p>
               This saved launch receipt is no longer available. Check{" "}
-              {current
-                ? current.provider === "codex"
-                  ? "Codex"
-                  : "Claude"
-                : "provider"}{" "}
-              history first; the provider session may still exist.
+              {current ? providerTitle(current.provider) : "provider"} history
+              first; the provider session may still exist.
               {current?.sessionId && (
                 <>
                   {" "}
@@ -391,14 +576,68 @@ export function StartSession({
             </p>
           ) : (
             <>
+              {current?.status === "queued" && (
+                <>
+                  <p>
+                    Queued for{" "}
+                    <strong>{current.repositoryName || "repository"}</strong> at
+                    position <strong>#{current.queuePosition ?? 1}</strong>.
+                  </p>
+                  {!!current.activeHolders?.length && (
+                    <p className="muted">
+                      Active slots:{" "}
+                      {current.activeHolders
+                        .map(
+                          (h) =>
+                            `slot-${h.slotIndex ?? "?"} (${h.holderLabel}${h.branch ? ` · ${h.branch}` : ""})`,
+                        )
+                        .join(", ")}
+                    </p>
+                  )}
+                </>
+              )}
+              {(current?.status === "provisioning" ||
+                current?.status === "preparing") && (
+                <p>{current.message || "Provisioning checkout slot…"}</p>
+              )}
               {current?.status === "starting" && (
                 <p>Preparing a linked chat…</p>
               )}
               {current?.status === "ready" && (
                 <p>
-                  Chat prepared and linked. Open request sent. Send Continue in
-                  the desktop app to begin work.
+                  {current.dispatchId && current.message
+                    ? current.message
+                    : "Chat prepared and linked. Open request sent. Send Continue in the desktop app to begin work."}
                 </p>
+              )}
+              {current?.status === "ready_manual" && (
+                <>
+                  <p>
+                    Checkout slot reserved for Antigravity. Copy the brief below
+                    and paste it into an Antigravity conversation.
+                  </p>
+                  {current.copyablePrompt && (
+                    <div className="session-launch-brief">
+                      <textarea
+                        id={briefId}
+                        aria-label="Antigravity slot brief"
+                        readOnly
+                        rows={9}
+                        value={current.copyablePrompt}
+                      />
+                      <div>
+                        <CopyButton
+                          targetId={briefId}
+                          label="Copy slot brief"
+                          className="primary"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+              {current?.status === "cancelled" && (
+                <p>{current.message || "Queued dispatch cancelled."}</p>
               )}
               {current?.status === "failed" && (
                 <p>{current.message || "The session could not be prepared."}</p>
@@ -413,79 +652,113 @@ export function StartSession({
                 )}
             </>
           )}
+          {!expired && current?.slotIndex != null && (
+            <p className="muted">
+              Slot #{current.slotIndex}
+              {current.branch && (
+                <>
+                  {" "}
+                  · <code>{current.branch}</code>
+                </>
+              )}
+              {current.worktreePath && (
+                <>
+                  {" "}
+                  · <code>{current.worktreePath}</code>
+                </>
+              )}
+            </p>
+          )}
           {current?.chat && (
             <p>
               Linked chat: <strong>{current.chat.title}</strong>
             </p>
           )}
-          {!expired && current?.chat && (
-            <button
-              type="button"
-              disabled={opening}
-              onClick={() => void openLinkedChat()}
-            >
-              {opening ? "Opening…" : "Open in app"}
-            </button>
-          )}
-          {!expired && current?.status === "starting" && status.error && (
-            <button
-              type="button"
-              disabled={status.isFetching}
-              onClick={() => {
-                void status.refetch();
-              }}
-            >
-              {status.isFetching ? "Checking…" : "Retry status check"}
-            </button>
-          )}
-          {!expired &&
-            current?.status === "failed" &&
-            !current.chat &&
-            providerSessionId(current) && (
+          <div className="toolbar">
+            {!expired && current?.status === "queued" && (
+              <button
+                type="button"
+                className="danger"
+                disabled={cancelling}
+                onClick={() => void cancelQueued()}
+              >
+                {cancelling ? "Cancelling…" : "Cancel queued dispatch"}
+              </button>
+            )}
+            {!expired && current?.chat && (
               <button
                 type="button"
                 disabled={opening}
                 onClick={() => void openLinkedChat()}
               >
-                {opening ? "Retrying…" : "Retry linking and opening"}
+                {opening ? "Opening…" : "Open in app"}
               </button>
             )}
-          {expired && (
-            <button
-              type="button"
-              className="quiet"
-              onClick={() => {
-                clearLaunch(itemId);
-                clearExpired(itemId);
-                setExpiredSaved(false);
-                setLaunch(null);
-                setOpenError(null);
-                setFormError(null);
-                setFormOpen(!archived);
-              }}
-            >
-              Clear expired launch to prepare another
-            </button>
-          )}
-          {!expired &&
-            (current?.status === "ready" ||
-              (current?.status === "failed" &&
-                (current.chat || !providerSessionId(current)))) && (
+            {!expired &&
+              current &&
+              POLLING_STATUSES.has(current.status) &&
+              status.error && (
+                <button
+                  type="button"
+                  disabled={status.isFetching}
+                  onClick={() => {
+                    void status.refetch();
+                  }}
+                >
+                  {status.isFetching ? "Checking…" : "Retry status check"}
+                </button>
+              )}
+            {!expired &&
+              current?.status === "failed" &&
+              !current.chat &&
+              providerSessionId(current) && (
+                <button
+                  type="button"
+                  disabled={opening}
+                  onClick={() => void openLinkedChat()}
+                >
+                  {opening ? "Retrying…" : "Retry linking and opening"}
+                </button>
+              )}
+            {expired && (
               <button
                 type="button"
                 className="quiet"
-                disabled={archived}
                 onClick={() => {
                   clearLaunch(itemId);
+                  clearExpired(itemId);
+                  setExpiredSaved(false);
                   setLaunch(null);
                   setOpenError(null);
                   setFormError(null);
-                  setFormOpen(true);
+                  setFormOpen(!archived);
                 }}
               >
-                Start another session
+                Clear expired launch to prepare another
               </button>
             )}
+            {!expired &&
+              (current?.status === "ready" ||
+                current?.status === "ready_manual" ||
+                current?.status === "cancelled" ||
+                (current?.status === "failed" &&
+                  (current.chat || !providerSessionId(current)))) && (
+                <button
+                  type="button"
+                  className="quiet"
+                  disabled={archived}
+                  onClick={() => {
+                    clearLaunch(itemId);
+                    setLaunch(null);
+                    setOpenError(null);
+                    setFormError(null);
+                    setFormOpen(true);
+                  }}
+                >
+                  Start another session
+                </button>
+              )}
+          </div>
           <ErrorMessage error={displayedError} />
         </div>
       )}
