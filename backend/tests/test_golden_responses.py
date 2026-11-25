@@ -253,6 +253,10 @@ class World:
                                                                "deadlineSeconds": 3600}})
 
 
+# A read's other forms, each its own golden file: the context's summary is its default (audit 3.5).
+VARIANTS = {"/context": ("detail=full",)}
+
+
 def concrete(template: str, ids: dict[str, str], today: str) -> str:
     """The template with this world's records in it, and the query parameters a read needs."""
     owner = {"/attachments": f"?ownerType=item&ownerId={ids['item']}", "/history": f"?entityId={ids['item']}",
@@ -311,9 +315,13 @@ def answers(world: World) -> dict[str, dict]:
         if "get" not in operations or not template.startswith("/api/v1") or route in NOT_JSON | COUNTED | DATED:
             continue
         for actor, client in (("person", world.person), ("agent", world.agent)):
-            response = client.get("/api/v1" + concrete(route, world.ids, world.today))
-            body = response.json() if "json" in response.headers.get("content-type", "") else response.text
-            result[f"{actor} GET {route}"] = {"status": response.status_code, "body": normalized(body, {}, world.today)}
+            for variant in ("", *VARIANTS.get(route, ())):
+                path = concrete(route, world.ids, world.today)
+                path += ("&" if "?" in path else "?") + variant if variant else ""
+                response = client.get("/api/v1" + path)
+                body = response.json() if "json" in response.headers.get("content-type", "") else response.text
+                result[f"{actor} GET {route}" + (f" {variant}" if variant else "")] = {
+                    "status": response.status_code, "body": normalized(body, {}, world.today)}
     return result
 
 

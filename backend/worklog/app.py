@@ -15,7 +15,7 @@ import time
 from collections.abc import Callable
 from datetime import date
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import quote
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -101,6 +101,17 @@ BACKUP_RATIO = 40
 RECEIPT_LIMIT = 64 * 1024
 # The key of such a receipt: no response model has it, so a stored answer never holds it.
 RECEIPT_MARK = "_receipt"
+# The summary context's updates (audit finding P3): the latest ten, each its first line cut to this.
+CONTEXT_UPDATES = 10
+CONTEXT_LINE = 200
+
+
+def first_line(value: str, limit: int) -> str:
+    """The text's first line that holds anything, cut to limit characters with an ellipsis."""
+    line = next((part.strip() for part in value.splitlines() if part.strip()), "")
+    return line if len(line) <= limit else line[:limit - 1].rstrip() + "…"
+
+
 BACKUP_FAILED = "Automatic backup failed. Check free disk space and retry a manual backup."
 
 
@@ -749,10 +760,13 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         with db.read() as c:
             return global_search(c, q, archived, limit, offset, types)
 
-    @app.get("/api/v1/context", response_model=out.WorkContext)
+    @app.get("/api/v1/context", response_model=out.ContextSummary | out.WorkContext)
     def context(request: Request, date: str | None = None, itemId: str | None = None,
                 repositoryId: str | None = None, limit: int = Query(100, ge=1, le=200),
-                offset: int = Query(0, ge=0)) -> dict:
+                offset: int = Query(0, ge=0), detail: Literal["summary", "full"] = "summary") -> dict:
+        # The summary by default (audit finding P3, Rudy's answer of 2026-11-24): the whole context ran
+        # to 80,000 tokens, most of it updates, overviews and descriptions an agent reads when it needs
+        # them. detail=full answers it whole.
         coordination = CoordinationService(db)
         actor = request.state.actor
         with db.read() as c:
@@ -760,16 +774,33 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             current = today(setting(c, "timezone", "America/Chicago"))
             activity = {**coordination.context_summaries(c, item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset),
                         "participations": coordination.participations(c, item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset),
-                        "updates": coordination.updates(c, item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset),
+                        "updates": coordination.updates(c, item_id=itemId, repository_id=repositoryId,
+                                                        limit=limit if detail == "full" else CONTEXT_UPDATES,
+                                                        offset=offset if detail == "full" else 0),
                         # Open, doing and blocked tickets, so an agent sees known issues before it starts.
                         "tickets": TicketService().list(c, item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset),
                         # The person's reference pages by title and summary; `resources show` reads one.
                         "resources": ResourceService().list(c, limit=limit, offset=offset),
                         # Open proposals as summaries (K18); `proposal show` reads one whole.
                         "proposals": open_proposals(c, actor, limit, offset)}
+            asked = dict(c.execute("SELECT roadmap_id,count(*) FROM roadmap_questions WHERE status='open' AND archived=0 "
+                                   "GROUP BY roadmap_id").fetchall()) if detail == "summary" else {}
         items_result = work.items.list(item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset)
-        return {"day": work.items.day(date or current), "workItems": items_result,
-                "roadmaps": plans.list(), "people": work.people.list(), **activity}
+        whole = {"day": work.items.day(date or current), "workItems": items_result,
+                 "roadmaps": plans.list(), "people": work.people.list(), **activity}
+        if detail == "full":
+            return whole
+        return {**whole,
+                "workItems": {"items": [{key: item[key] for key in ("id", "title", "status", "rank")}
+                                        for item in items_result["items"]], "total": items_result["total"]},
+                "roadmaps": {"items": [{"id": r["id"], "title": r["title"], "openQuestions": asked.get(r["id"], 0)}
+                                       for r in whole["roadmaps"]["items"]], "total": whole["roadmaps"]["total"]},
+                "people": {"items": [{"id": p["id"], "name": p["name"]} for p in whole["people"]["items"]],
+                           "total": whole["people"]["total"]},
+                "updates": {"items": [{"id": u["id"], "kind": u["kind"], "text": first_line(u["text"], CONTEXT_LINE),
+                                       "authorLabel": u["authorLabel"], "participationId": u["participationId"],
+                                       "createdAt": u["createdAt"]} for u in activity["updates"]["items"]],
+                            "total": activity["updates"]["total"]}}
 
     @app.get("/api/v1/settings", dependencies=[Depends(person_only)], response_model=out.Settings)
     def settings() -> dict:

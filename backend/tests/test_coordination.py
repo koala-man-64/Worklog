@@ -399,7 +399,7 @@ def test_context_preserves_work_default_and_uses_bounded_list_records(client, mo
         for index in range(101):
             client.app.state.work.apply(c, human, "item.create", {"title": f"Context work {index}"})
     baseline = ok(request(client, "GET", "/work-items"))
-    context = ok(request(client, "GET", "/context"))
+    context = ok(request(client, "GET", "/context?detail=full"))
     assert context["workItems"] == baseline
     assert len(context["workItems"]["items"]) == 100
     target = baseline["items"][0]["id"]
@@ -408,12 +408,12 @@ def test_context_preserves_work_default_and_uses_bounded_list_records(client, mo
         pytest.fail("Context must not materialize work detail/history")
 
     monkeypatch.setattr(client.app.state.work.items, "detail", no_detail)
-    selected = ok(request(client, "GET", f"/context?itemId={target}"))
+    selected = ok(request(client, "GET", f"/context?itemId={target}&detail=full"))
     assert selected["workItems"]["items"] == [baseline["items"][0]]
     assert selected["workItems"]["total"] == 1
     assert "collectionRevision" in selected["workItems"]
     assert "history" not in selected["workItems"]["items"][0]
-    page = ok(request(client, "GET", f"/context?itemId={target}&limit=1&offset=1"))
+    page = ok(request(client, "GET", f"/context?itemId={target}&limit=1&offset=1&detail=full"))
     assert page["workItems"]["items"] == [] and page["workItems"]["total"] == 1
 
 
@@ -430,7 +430,9 @@ def test_context_scopes_catalog_runs_and_keeps_reported_work_separate(client):
     assert {r["id"] for r in scoped["repositories"]["items"]} == {linked["id"], reported["id"]}
     assert [r["id"] for r in scoped["runs"]["items"]] == [related_report["runId"]]
     assert [r["id"] for r in scoped["participations"]["items"]] == [related_report["id"]]
-    assert scoped["workItems"]["items"][0]["repositoryIds"] == [linked["id"]]
+    assert [i["id"] for i in scoped["workItems"]["items"]] == [work["id"]]
+    full = ok(request(client, "GET", f"/context?itemId={work['id']}&detail=full"))
+    assert full["workItems"]["items"][0]["repositoryIds"] == [linked["id"]]
 
     repo_scope = ok(request(client, "GET", f"/context?repositoryId={reported['id']}"))
     assert [r["id"] for r in repo_scope["repositories"]["items"]] == [reported["id"]]

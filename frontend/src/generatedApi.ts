@@ -3854,6 +3854,56 @@ export interface components {
             /** Id */
             id: string;
         };
+        /** ContextPeople */
+        ContextPeople: {
+            /** Items */
+            items: components["schemas"]["ContextPerson"][];
+            /** Total */
+            total: number;
+        };
+        /** ContextPerson */
+        ContextPerson: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /** ContextRoadmap */
+        ContextRoadmap: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Openquestions */
+            openQuestions: number;
+        };
+        /** ContextRoadmaps */
+        ContextRoadmaps: {
+            /** Items */
+            items: components["schemas"]["ContextRoadmap"][];
+            /** Total */
+            total: number;
+        };
+        /**
+         * ContextSummary
+         * @description What an agent reads first, by default (audit finding P3): titles, IDs and states. The work,
+         *     plans and people by name; the latest ten updates, one line each; the day, who is at work where,
+         *     the open proposals, tickets and resources as the whole context gives them. detail=full answers
+         *     the whole context, and each record's own read its text.
+         */
+        ContextSummary: {
+            day: components["schemas"]["Day"];
+            workItems: components["schemas"]["ContextWorkItems"];
+            roadmaps: components["schemas"]["ContextRoadmaps"];
+            people: components["schemas"]["ContextPeople"];
+            proposals: components["schemas"]["OpenProposals"];
+            repositories: components["schemas"]["Repositories"];
+            runs: components["schemas"]["AgentRuns"];
+            participations: components["schemas"]["Participations"];
+            updates: components["schemas"]["ContextUpdates"];
+            tickets: components["schemas"]["Tickets"];
+            resources: components["schemas"]["Resources"];
+        };
         /**
          * ContextTag
          * @description A record a discussion is tagged with, or that a role in it brings in, as record_kinds.summary
@@ -3876,6 +3926,49 @@ export interface components {
             addedBy: components["schemas"]["Actor"] | null;
             /** Addedat */
             addedAt: string | null;
+        };
+        /**
+         * ContextUpdate
+         * @description A status update as the summary lists it: its first line, cut to CONTEXT_LINE characters.
+         */
+        ContextUpdate: {
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Text */
+            text: string;
+            /** Authorlabel */
+            authorLabel: string;
+            /** Participationid */
+            participationId: string;
+            /** Createdat */
+            createdAt: string;
+        };
+        /** ContextUpdates */
+        ContextUpdates: {
+            /** Items */
+            items: components["schemas"]["ContextUpdate"][];
+            /** Total */
+            total: number;
+        };
+        /** ContextWorkItem */
+        ContextWorkItem: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Status */
+            status: string;
+            /** Rank */
+            rank: number | null;
+        };
+        /** ContextWorkItems */
+        ContextWorkItems: {
+            /** Items */
+            items: components["schemas"]["ContextWorkItem"][];
+            /** Total */
+            total: number;
         };
         /**
          * Continuation
@@ -11744,6 +11837,7 @@ export interface operations {
                 repositoryId?: string | null;
                 limit?: number;
                 offset?: number;
+                detail?: "summary" | "full";
             };
             header?: never;
             path?: never;
@@ -11757,7 +11851,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WorkContext"];
+                    "application/json": components["schemas"]["ContextSummary"] | components["schemas"]["WorkContext"];
                 };
             };
             /** @description Validation Error */
