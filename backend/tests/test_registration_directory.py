@@ -134,7 +134,7 @@ def test_registration_records_the_directory_the_agent_registers_from(clients):
     assert placed["directory"] == DIRECTORY
     assert directories(client.app.state.db.path)[placed["id"]] == DIRECTORY
     # The registration's history says where the agent registered from, as it says the chat.
-    history = ok(client.get("/api/v1/history", params={"entityId": placed["id"]}))["items"]
+    history = ok(client.get("/api/v1/history", params={"entityId": placed["id"], "payloads": "true"}))["items"]
     assert [(e["kind"], e["after"]["directory"]) for e in history] == [("credential.register", DIRECTORY)]
     # An agent that sends none, such as one calling the API from an older command line, registers
     # with its directory unknown.
@@ -198,7 +198,7 @@ def test_each_proposal_names_the_directory_its_agent_registered_from(clients):
     assert {p["title"]: p["actorDirectory"] for p in seen}["From the worktree"] == DIRECTORY
     # The proposal's history records it as the proposal was, where it records the whole proposal:
     # status changes record only a summary (audit step 2.3).
-    history = ok(client.get("/api/v1/history", params={"entityId": proposals[DIRECTORY]["id"]}))["items"]
+    history = ok(client.get("/api/v1/history", params={"entityId": proposals[DIRECTORY]["id"], "payloads": "true"}))["items"]
     whole = [e for e in history if e["kind"] == "proposal.create"]
     assert whole and {e["after"]["actorDirectory"] for e in whole} == {DIRECTORY}
 

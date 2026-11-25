@@ -75,7 +75,7 @@ def test_registration_needs_the_chat_and_records_it(client, agent_http):
     assert settings[sponsor["id"]]["chatId"] is None
     detail = ok(client.get(f"/api/v1/agents/{registered['agentId']}"))
     assert [c["chatId"] for c in detail["credentials"]] == [CHAT]
-    history = ok(client.get("/api/v1/history", params={"entityId": registered["id"]}))["items"]
+    history = ok(client.get("/api/v1/history", params={"entityId": registered["id"], "payloads": "true"}))["items"]
     assert history[0]["after"]["chatId"] == CHAT
 
 
@@ -140,7 +140,7 @@ def test_reported_work_tracks_the_runs_chat_on_that_item_once(client, agent_http
     [chat] = tracked(client, item["id"])
     assert (chat["chatId"], chat["title"], chat["provider"], chat["archived"]) == (CHAT, "Parser fix", "claude", False)
     # The chat's history says which agent's report tracked it.
-    history = ok(client.get("/api/v1/history", params={"entityId": chat["id"]}))["items"]
+    history = ok(client.get("/api/v1/history", params={"entityId": chat["id"], "payloads": "true"}))["items"]
     assert [(e["kind"], e["actorKind"], e["actorId"]) for e in history] == [("chat.create", "agent", registered["id"])]
     # Chats lists it with the work, and names the agent registered with it.
     listed = [c for c in ok(client.get("/api/v1/chats"))["items"] if c["id"] == chat["id"]]
