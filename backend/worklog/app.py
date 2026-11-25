@@ -47,7 +47,7 @@ from .discussions import bind_credential, communication_actor, registered_by, re
 from .guard import RequestGuard, error_response, read_body
 from .live_api import install_live_routes
 from .maintenance import prune_receipts
-from .plans import PlanService, recently_done, step_place
+from .plans import PlanService, recently_done, step_family, step_place
 from .proposals import (
     ProposalService,
     approval_required,
@@ -645,8 +645,9 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         result = plans.detail(identity)
         with db.read() as c:
             result.update(support.for_owner(c, "roadmap", identity))
+            held = support.for_steps(c, identity)
             for step in result["steps"]:
-                step.update(support.for_owner(c, "step", step["id"]))
+                step.update(held.get(step["id"]) or {"notes": [], "attachments": []})
             result["workItems"] = work.items.roadmap_items(c, identity)
             result["people"] = people_on(c, "roadmap", [identity]).get(identity, [])
         return result
@@ -689,8 +690,9 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def step_detail(identity: str) -> dict:
         with db.read() as c:
             row = plans.get_step(c, identity)
-            # Every step of the roadmap, retired ones included, so this one is among them.
-            steps = plans._detail(c, row["roadmap_id"])["steps"]
+            # Every step of the roadmap, retired ones included, so this one is among them: its own text
+            # in full, and only the others' places and states, from which its progress and place come.
+            steps = step_family(c, row["roadmap_id"], identity)
             current = next(s for s in steps if s["id"] == identity)
             # The roadmap's tracked chats on this step, in the order they were put there.
             chats = support.chat_records(c, c.execute(

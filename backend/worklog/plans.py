@@ -269,9 +269,19 @@ def rewrites(row, payload):
     return any(value is not None and value != row[key] for key, value in given.items())
 
 
-def _steps(conn, identifier, retired=False):
-    rows = conn.execute("SELECT * FROM steps WHERE roadmap_id=? ORDER BY position,id",
-                        (identifier,)).fetchall()
+def _steps(conn, identifier, retired=False, text_of=None):
+    """A roadmap's steps in (position, id) order, each parent's status derived from its leaves. With
+    text_of, only that step's description and outcome are read; the others' come back empty, for a
+    read that returns one step and only places the rest."""
+    if text_of is None:
+        rows = conn.execute("SELECT * FROM steps WHERE roadmap_id=? ORDER BY position,id",
+                            (identifier,)).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT id,title,parent_id,position,status,revision,retired,"
+            "CASE WHEN id=? THEN description ELSE '' END AS description,"
+            "CASE WHEN id=? THEN outcome ELSE '' END AS outcome "
+            "FROM steps WHERE roadmap_id=? ORDER BY position,id", (text_of, text_of, identifier)).fetchall()
     steps = [_step(row) for row in rows if retired or not row["retired"]]
     active = {s["id"]: s for s in steps if not s["retired"]}
     children: dict[str | None, list[dict]] = {}
@@ -290,6 +300,12 @@ def _steps(conn, identifier, retired=False):
     for root in children.get(None, []):
         derive(root)
     return steps
+
+
+def step_family(conn, roadmap_id, identity):
+    """A roadmap's steps, retired ones included, as a read of one step needs them: that step's text in
+    full and the others' titles, places and states, each parent's derived from its leaves."""
+    return _steps(conn, roadmap_id, retired=True, text_of=identity)
 
 
 def step_tree(conn, roadmap_id):
@@ -367,9 +383,10 @@ class PlanService:
     def _detail(self, conn, identifier):
         result = _roadmap(_row(conn, identifier))
         result["steps"] = _steps(conn, identifier, retired=True)
+        # The three columns the list shows: each version's snapshot holds the whole plan.
         result["versions"] = [{"number": r["number"], "createdAt": r["created_at"],
                                "note": r["note"]} for r in conn.execute(
-            "SELECT * FROM roadmap_versions WHERE roadmap_id=? ORDER BY number", (identifier,))]
+            "SELECT number,created_at,note FROM roadmap_versions WHERE roadmap_id=? ORDER BY number", (identifier,))]
         result.update(notes=[], attachments=[], links=[], chats=[], github=[], questions=[], decisions=[])
         return result
 
