@@ -728,3 +728,38 @@ it("warns at the decision bar when a target changed and can return the proposal 
     ),
   );
 });
+it("counts each listed proposal's changes from the list's operationCount", async () => {
+  // Audit 3.4 (P2): the list answered every proposal whole, 12.6 MB a page, for this count.
+  requestMock.mockImplementation(async (path: string) => {
+    if (path === "/settings") return { requireProposalApproval: true };
+    if (path === "/proposals?status=submitted&limit=50&offset=0")
+      return {
+        items: [
+          {
+            id: ID,
+            title: "Seven changes",
+            status: "submitted",
+            revision: 2,
+            autoApproved: false,
+            supersedesId: null,
+            actorId: "credential-1",
+            actorLabel: "Parser agent",
+            actorDirectory: null,
+            createdAt: "2026-11-20T10:00:00Z",
+            submittedAt: "2026-11-20T11:00:00Z",
+            updatedAt: "2026-11-20T11:00:00Z",
+            operationCount: 7,
+          },
+        ],
+        total: 1,
+      };
+    throw new ApiError(404, "Not found", "not_found");
+  });
+  renderWithClient(<Review />);
+  const row = (
+    await screen.findByRole("link", { name: "Seven changes" })
+  ).closest("article") as HTMLElement;
+  expect(
+    within(row).getByText("Parser agent, 7 proposed changes"),
+  ).toBeInTheDocument();
+});
