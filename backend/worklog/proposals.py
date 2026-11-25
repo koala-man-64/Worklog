@@ -411,8 +411,9 @@ class ProposalService:
     def list(self, actor, status=None, limit=None, offset=0):
         """The proposals the caller may see, oldest first: a page of `limit` from `offset`, or with no
         limit every one, each by its title, status, dates, author and number of changes. Visibility is
-        decided on each row's status and owner alone, before the page's proposals are read. Both reads see one snapshot, so a proposal that
-        turns back into a draft between them is never shown whole to another agent."""
+        decided on each row's status and owner alone, before the page's proposals are read. Both reads
+        see one snapshot, so a proposal that turns back into a draft between them is never shown to
+        another agent."""
         if status is not None and status not in {"draft", "submitted", "approved", "rejected", "withdrawn"}:
             raise AppError(422, "validation", "Invalid proposal status")
 
