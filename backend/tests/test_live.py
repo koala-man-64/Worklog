@@ -975,9 +975,9 @@ def test_live_surfaces_untracked_running_session(client, monkeypatch):
         ],
     )
     answer = client.get("/api/v1/live").json()
+    # No pid: since audit 3.7 nothing reads the records that gave one, and nothing showed it.
     assert answer["untrackedSessions"] == [
         {
-            "pid": 321,
             "sessionId": "session-1",
             "hostSessionId": None,
             "name": "Local task",
