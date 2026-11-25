@@ -656,7 +656,7 @@ This guide, and the one your agents read:
 | Repository lane | One repository's execution stream on a roadmap's "Execution" view: active work, competing in-progress work, queued order and blocked steps, governed by its dependency tier and WIP cap |
 | Wave | A synchronized release or contract batch across dependency tiers on a roadmap, with wave steps, per-repository freeze states and consumer re-pins |
 | Work class | A step's execution category: Stabilization, Critical path, Standard, Refactor or Readiness gate |
-| WIP cap | The limit on concurrent Doing steps or active writers in a repository stream; defaults to the repository's checkout slot cap when left blank |
+| WIP cap | The limit on concurrent Doing steps or active writers in a repository stream; defaults to the repository's checkout slot cap when left blank. Active writers are agents with a checkout lease or a participation that reported within 2 hours; a stale participation is still listed but doesn't count |
 | Freeze | A wave repository's lock state (Open, Batching or Frozen with a pinned ref, tag or commit SHA) used to hold upstream contract changes while downstream repositories re-pin |
 | Re-pin | A downstream repository's tracked update to consume a frozen upstream repository's ref in a wave, reported by agents and verified or waived by you |
 | Ticket | An issue with a key such as T-12, closed with a resolution |

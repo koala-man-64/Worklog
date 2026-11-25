@@ -44,7 +44,10 @@ def _effective_wip_cap(wip_cap: int | None, slot_summary: dict[str, Any]) -> int
 
 
 def _active_writers_by_repo(conn: sqlite3.Connection, repo_ids: list[str]) -> tuple[dict[str, int], dict[str, list[dict[str, Any]]]]:
-    """Open participations per repository plus distinct active writers combining participations and leases."""
+    """Open participations per repository, stale ones included and marked, plus distinct active writers:
+    agents with a fresh participation or an offered or active lease. A participation with no report for
+    STALE_AFTER is listed but no longer counts toward a WIP cap, so an agent that never released one
+    cannot hold a repository over its cap."""
     unique = list(dict.fromkeys(repo_ids))
     participations_by_repo: dict[str, list[dict[str, Any]]] = {rid: [] for rid in unique}
     writer_keys: dict[str, set[str]] = {rid: set() for rid in unique}
@@ -64,7 +67,9 @@ def _active_writers_by_repo(conn: sqlite3.Connection, repo_ids: list[str]) -> tu
         unique,
     ):
         rid = r["repository_id"]
-        writer_keys[rid].add(f"agent:{r['agent_id']}")
+        stale = _stale(r["last_seen_at"])
+        if not stale:
+            writer_keys[rid].add(f"agent:{r['agent_id']}")
         participations_by_repo[rid].append({
             "participationId": r["id"],
             "agentId": r["agent_id"],
@@ -77,7 +82,7 @@ def _active_writers_by_repo(conn: sqlite3.Connection, repo_ids: list[str]) -> tu
             "branch": r["branch"],
             "worktreePath": r["worktree_path"] or r["checkout_path"],
             "lastSeenAt": r["last_seen_at"],
-            "stale": _stale(r["last_seen_at"]),
+            "stale": stale,
         })
     for r in rows_in(
         conn,
