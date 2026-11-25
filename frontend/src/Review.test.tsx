@@ -342,6 +342,7 @@ it("says when approval is off and marks automatic approvals", async () => {
     revision: 3,
     actorLabel: "Parser agent",
     operations: [],
+    operationCount: 0,
     attachments: [],
   });
   requestMock.mockImplementation(async (path: string) => {
@@ -412,6 +413,7 @@ function fromAgent(id: string, title: string, actorDirectory: string | null) {
     actorLabel: "Parser agent",
     actorDirectory,
     operations: [],
+    operationCount: 0,
     attachments: [],
   };
 }
@@ -530,6 +532,7 @@ function dated(
     revision: 2,
     actorLabel: "Engineer",
     operations: [],
+    operationCount: 0,
     attachments: [],
     createdAt: STARTED,
     submittedAt,
