@@ -988,7 +988,11 @@ def agent_command(args: argparse.Namespace, port: int, redact: list[str]) -> Any
             return client.request("GET", "/resources" + _coordination_query(args, "q", "archived", "limit", "offset"))
         return client.request("GET", "/resources/" + args.id)
     if args.agent_action == "context":
-        return client.request("GET", "/context" + _coordination_query(args, "date", "repositoryId", "itemId"))
+        wanted = _coordination_query(args, "date", "repositoryId", "itemId")
+        if args.full:
+            # The whole context; by default it is a summary of titles, IDs and states (audit finding P3).
+            wanted += ("&" if wanted else "?") + "detail=full"
+        return client.request("GET", "/context" + wanted)
     if args.agent_action == "overlaps":
         return overlaps_command(client, args)
     if args.agent_action == "owners":
@@ -1983,6 +1987,8 @@ def parser() -> argparse.ArgumentParser:
     context.add_argument("--date")
     context.add_argument("--repo", dest="repositoryId", help="Canonical repository ID")
     context.add_argument("--item", dest="itemId", help="Work item ID")
+    context.add_argument("--full", action="store_true",
+                         help="The whole context: every description, overview and update in full, not the summary")
     overlaps = actions.add_parser("overlaps", help="Who else works on these repositories, work items, steps or tickets, "
                                                    "and what they announced; check before you change them")
     overlaps.add_argument("--repo", action="append", help="A repository's catalog ID; repeat for more")

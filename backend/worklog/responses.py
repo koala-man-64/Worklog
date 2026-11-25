@@ -2453,6 +2453,77 @@ class WorkContext(Answer):
     resources: Resources
 
 
+class ContextWorkItem(Answer):
+    id: str
+    title: str
+    status: str
+    # The person's stack rank, 1 first; null when the item is done or archived.
+    rank: int | None
+
+
+class ContextWorkItems(Answer):
+    items: list[ContextWorkItem]
+    total: int
+
+
+class ContextRoadmap(Answer):
+    id: str
+    title: str
+    # Its questions still open, archived ones aside.
+    openQuestions: int
+
+
+class ContextRoadmaps(Answer):
+    items: list[ContextRoadmap]
+    total: int
+
+
+class ContextPerson(Answer):
+    id: str
+    name: str
+
+
+class ContextPeople(Answer):
+    items: list[ContextPerson]
+    total: int
+
+
+class ContextUpdate(Answer):
+    """A status update as the summary lists it: its first line, cut to CONTEXT_LINE characters."""
+
+    id: str
+    kind: str
+    text: str
+    authorLabel: str
+    participationId: str
+    createdAt: str
+
+
+class ContextUpdates(Answer):
+    # The latest ten; total counts every one the filters match.
+    items: list[ContextUpdate]
+    total: int
+
+
+class ContextSummary(Answer):
+    """What an agent reads first, by default (audit finding P3): titles, IDs and states. The work,
+    plans and people by name; the latest ten updates, one line each; the day, who is at work where,
+    the open proposals, tickets and resources as the whole context gives them. detail=full answers
+    the whole context, and each record's own read its text."""
+
+    day: Day
+    workItems: ContextWorkItems
+    roadmaps: ContextRoadmaps
+    people: ContextPeople
+    proposals: OpenProposals
+    repositories: Repositories
+    runs: AgentRuns
+    participations: Participations
+    updates: ContextUpdates
+    tickets: Tickets
+    resources: Resources
+
+
 class Done(Answer):
     """A command that changed what it was asked to, or found nothing to change, and names nothing back."""
 

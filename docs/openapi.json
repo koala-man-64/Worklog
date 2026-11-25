@@ -4446,6 +4446,20 @@
               "default": 0,
               "title": "Offset"
             }
+          },
+          {
+            "name": "detail",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "summary",
+                "full"
+              ],
+              "type": "string",
+              "default": "summary",
+              "title": "Detail"
+            }
           }
         ],
         "responses": {
@@ -4454,7 +4468,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/WorkContext"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ContextSummary"
+                    },
+                    {
+                      "$ref": "#/components/schemas/WorkContext"
+                    }
+                  ],
+                  "title": "Response Context Api V1 Context Get"
                 }
               }
             }
@@ -13528,6 +13550,147 @@
         "title": "Context",
         "description": "A tag: a record of one kind by its id, or a ticket by its key or number."
       },
+      "ContextPeople": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ContextPerson"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "ContextPeople"
+      },
+      "ContextPerson": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ContextPerson"
+      },
+      "ContextRoadmap": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "openQuestions": {
+            "type": "integer",
+            "title": "Openquestions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "openQuestions"
+        ],
+        "title": "ContextRoadmap"
+      },
+      "ContextRoadmaps": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ContextRoadmap"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "ContextRoadmaps"
+      },
+      "ContextSummary": {
+        "properties": {
+          "day": {
+            "$ref": "#/components/schemas/Day"
+          },
+          "workItems": {
+            "$ref": "#/components/schemas/ContextWorkItems"
+          },
+          "roadmaps": {
+            "$ref": "#/components/schemas/ContextRoadmaps"
+          },
+          "people": {
+            "$ref": "#/components/schemas/ContextPeople"
+          },
+          "proposals": {
+            "$ref": "#/components/schemas/OpenProposals"
+          },
+          "repositories": {
+            "$ref": "#/components/schemas/Repositories"
+          },
+          "runs": {
+            "$ref": "#/components/schemas/AgentRuns"
+          },
+          "participations": {
+            "$ref": "#/components/schemas/Participations"
+          },
+          "updates": {
+            "$ref": "#/components/schemas/ContextUpdates"
+          },
+          "tickets": {
+            "$ref": "#/components/schemas/Tickets"
+          },
+          "resources": {
+            "$ref": "#/components/schemas/Resources"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "day",
+          "workItems",
+          "roadmaps",
+          "people",
+          "proposals",
+          "repositories",
+          "runs",
+          "participations",
+          "updates",
+          "tickets",
+          "resources"
+        ],
+        "title": "ContextSummary",
+        "description": "What an agent reads first, by default (audit finding P3): titles, IDs and states. The work,\nplans and people by name; the latest ten updates, one line each; the day, who is at work where,\nthe open proposals, tickets and resources as the whole context gives them. detail=full answers\nthe whole context, and each record's own read its text."
+      },
       "ContextTag": {
         "properties": {
           "type": {
@@ -13603,6 +13766,126 @@
         ],
         "title": "ContextTag",
         "description": "A record a discussion is tagged with, or that a role in it brings in, as record_kinds.summary\ngives it, with who added the tag and when. A missing record has a null title."
+      },
+      "ContextUpdate": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "authorLabel": {
+            "type": "string",
+            "title": "Authorlabel"
+          },
+          "participationId": {
+            "type": "string",
+            "title": "Participationid"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "text",
+          "authorLabel",
+          "participationId",
+          "createdAt"
+        ],
+        "title": "ContextUpdate",
+        "description": "A status update as the summary lists it: its first line, cut to CONTEXT_LINE characters."
+      },
+      "ContextUpdates": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ContextUpdate"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "ContextUpdates"
+      },
+      "ContextWorkItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "status",
+          "rank"
+        ],
+        "title": "ContextWorkItem"
+      },
+      "ContextWorkItems": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ContextWorkItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "ContextWorkItems"
       },
       "Continuation": {
         "properties": {
