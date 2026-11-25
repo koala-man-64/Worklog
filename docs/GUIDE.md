@@ -221,7 +221,32 @@ A ticket filed from the browser starts open. An agent can file a past incident a
 5. To change one step's title, outcome or description, open the step, press "Edit step", then "Save step". It saves that step alone, without a new version, so agents working on other steps carry on undisturbed. Agents propose the same change for one step.
 6. To nest a roadmap under another, use "Add sub-roadmap" at the top of the parent's page, or choose its parent in "Nested under" beside it.
 
-The editor opens beside the outline, and keeps your unsaved structure as a browser draft. If the roadmap changed in the meantime, choose "Rebase onto current" to keep your edits on the newest version: a title, outcome, description or parent you didn't change takes the newest one, so a step edited elsewhere keeps its new text, and a step retired elsewhere stays retired unless you changed it. Or choose "Discard draft". A save changes only the steps you changed: adding or retiring a step leaves the others as they were. Retired steps keep their history; "Show retired steps" shows them in the outline, where they were.
+The editor opens beside the outline, and keeps your unsaved structure as a browser draft. If the roadmap changed in the meantime, choose "Rebase onto current" to keep your edits on the newest version: a title, outcome, description or parent you didn't change takes the newest one, so a step edited elsewhere keeps its new text, and a step retired elsewhere stays retired unless you changed it. Or choose "Discard draft". A save changes only the steps you changed: adding or retiring a step leaves the others as they were. Retired steps keep their history; "Show retired steps" shows them in the outline, where they were. Once your phases are in place, run day-to-day delivery across repositories and release waves as described in [Execute a roadmap by repository stream and wave](#execute-a-roadmap-by-repository-stream-and-wave).
+
+### Execute a roadmap by repository stream and wave
+
+Keep phases, milestones and end-to-end readiness gates on the roadmap's "Outline" for planning, and run execution from its "Execution" view, where leaf steps group into "Repository lanes" (one stream per repository) and synchronize across dependency tiers in waves.
+
+1. **Configure each repository stream.** Open **Repositories**, choose a repository, and under "Execution policy" set:
+   - "Dependency tier" (for example, Tier 1 for foundation/contracts, Tier 2 for services, Tier 3 for edge/UI)
+   - "WIP cap" (leave blank to inherit the repository's checkout slot cap; use 1 for hot serial-writer repositories and higher values for independent streams)
+   - "Upstream repositories" (the upstream libraries or contracts this repository consumes, which drives consumer re-pins when an upstream repository freezes)
+
+   Press "Save execution policy".
+2. **Map leaf steps to repository streams.** Open the roadmap's "Execution" view. Under "Unassigned leaves", press "Apply suggestion" where Worklog inferred repositories from linked work items or tracked chats, or pick repositories and press "Assign". To classify work inside a stream (Stabilization, Critical path, Standard, Refactor or Readiness gate), open a step on "Outline", press "Edit step", choose its work class and linked repositories, and press "Save step".
+3. **Split multi-repo implementation leaves and mark readiness gates.** Under "Multi-repo leaves to split" (or on "Outline" with "Multi-repo leaves only"):
+   - For cross-repo verification milestones (such as an end-to-end canary or golden-path gate), press "Mark as gate" so the step stays intact under "Readiness gates & phase progress" instead of being flagged to split.
+   - For implementation leaves touching several repositories, press "Split by repo". Worklog drafts one single-repo child step per linked repository, leaves "Clear parent step repository links" and "Move active/planning wave membership to children" ticked, and lets you re-home linked work items and active participations to a chosen child. The parent stays in its phase on "Outline" and rolls up child progress automatically, while each child lands in its own repository lane.
+4. **Create waves and order each stream's queue.** On "Execution", press "New wave", enter a "Wave name" and "Summary", pick the participating "Wave repositories" (optionally tick "Open a dedicated coordination discussion for this wave"), and press "Create wave". Waves start in Planning so you can prepare upcoming waves ahead of time. Choose a wave in "Active wave", then on each repository lane:
+   - press "Add to wave" (or "Leave wave") on the steps belonging to that wave
+   - use the up and down buttons under "Queued" (or under "Execution queue" on the repository's page) to sequence work inside that stream (for example, stabilization before critical-path wave work and refactors)
+5. **Activate, freeze tiers and verify consumer re-pins.** Change "Wave status" from Planning to Active:
+   - Each repository lane separates active-wave and stabilization work from non-wave work, where "Pause to open" returns competing in-progress steps to the queue and "Add to wave" pulls them into the wave.
+   - Pressing "Start" on a queued step warns and asks for "Confirm start" whenever the repository is frozen or already at its WIP cap.
+   - When an upstream repository finishes batching contract or library changes, press "Freeze / batch" on its tile in the tier pipeline, set "Freeze state" to Batching or Frozen with its "Frozen ref / tag / SHA", and press "Save freeze".
+   - Freezing an upstream repository opens rows under "Consumer re-pins" for every downstream repository in the wave. As agents report their re-pin pull requests or commits, press "Verify" (or "Waive", or "Reopen"). When wave steps and re-pins finish, set "Wave status" to Completed and activate the next wave.
+
+For a large roadmap, agents can submit batched proposals on **Review** to set repository execution policies, link steps to repositories, split multi-repo leaves and assign steps to planning waves, with "Execution guardrails" flagging any WIP-cap, freeze or re-pin conflicts before you approve. Changing wave status, freezing or unfreezing repositories, verifying re-pins and reordering repository queues always stay yours.
 
 ### Record questions and decisions
 
@@ -628,6 +653,12 @@ This guide, and the one your agents read:
 | Scratchpad | A work item's one running Markdown note |
 | Roadmap | A plan of nested steps, saved as immutable versions |
 | Step | One part of a roadmap, with the outcome its work produces; leaf steps carry progress |
+| Repository lane | One repository's execution stream on a roadmap's "Execution" view: active work, competing in-progress work, queued order and blocked steps, governed by its dependency tier and WIP cap |
+| Wave | A synchronized release or contract batch across dependency tiers on a roadmap, with wave steps, per-repository freeze states and consumer re-pins |
+| Work class | A step's execution category: Stabilization, Critical path, Standard, Refactor or Readiness gate |
+| WIP cap | The limit on concurrent Doing steps or active writers in a repository stream; defaults to the repository's checkout slot cap when left blank |
+| Freeze | A wave repository's lock state (Open, Batching or Frozen with a pinned ref, tag or commit SHA) used to hold upstream contract changes while downstream repositories re-pin |
+| Re-pin | A downstream repository's tracked update to consume a frozen upstream repository's ref in a wave, reported by agents and verified or waived by you |
 | Ticket | An issue with a key such as T-12, closed with a resolution |
 | Resource | A reference page you write for yourself and your agents: a title, a summary and Markdown text |
 | Revision | A record's change counter; it lets Worklog refuse a stale save instead of overwriting |
