@@ -68,6 +68,21 @@ export function NamedRuns({ chatId }: { chatId: string }) {
     </div>
   );
 }
+/** A chat's runs that have not ended, as the chat list carries them: no query of its own. */
+export function ChatOpenRuns({ runs }: { runs: AgentRun[] }) {
+  if (!runs.length) return null;
+  return (
+    <div className="named-runs">
+      {runs.map((run) => (
+        <div key={run.id}>
+          <strong>{run.displayName}</strong>{" "}
+          <small>Reported run · {run.provider || "Provider unspecified"}</small>{" "}
+          <EndRun run={run} />
+        </div>
+      ))}
+    </div>
+  );
+}
 export function OpenRuns() {
   const [offset, setOffset] = useState(0);
   const query = useData<Answer<"/api/v1/agent-runs">>(

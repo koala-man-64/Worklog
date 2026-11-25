@@ -631,6 +631,36 @@ class TranscriptReader:
             logger.warning("Agent chat transcript could not be read for its title (%s)", type(exc).__name__)
             return "", ""
 
+    def fingerprint(self, chat_id: str) -> list:
+        """What a chat's transcript answer depends on outside the database (audit finding P4): the
+        tool that keeps it; each of its agents' transcript files by size and modification time, and
+        whether that file was written within WORKING_SECONDS, which decides "working" without a write;
+        each Claude subagent's sidecar, which names it; and each Codex home's session index, which
+        names its threads. A read whose fingerprint, chat record, page and agent are unchanged would
+        answer the same. A peer session renamed in the desktop app shows by its new name on the next
+        change."""
+        def stat(path: Path) -> list:
+            try:
+                found = path.stat()
+                return [str(path), found.st_size, found.st_mtime_ns]
+            except OSError:
+                return [str(path), None, None]
+
+        source, threads = self.threads(chat_id)
+        now = time.time()
+        found: list = [source]
+        homes: set[Path] = set()
+        for thread in threads:
+            file = stat(thread.path)
+            recent = file[2] is not None and now - file[2] / 1e9 < WORKING_SECONDS
+            found.append([thread.key, *file, recent])
+            if thread.format == "claude" and thread.parent is not None:
+                found.append(stat(thread.path.with_name(thread.path.stem + ".meta.json")))
+            elif thread.format == "codex":
+                homes.update(home for home in self.roots.codex if home in thread.path.parents)
+        found.extend(stat(home / "session_index.jsonl") for home in sorted(homes))
+        return found
+
     def summary(self, chat_id: str) -> dict:
         """A chat's agents and their latest activity. One unreadable transcript never fails a list of chats."""
         try:

@@ -179,3 +179,37 @@ it("isolates pending idempotency keys between datasets for identical requests", 
   expect(fetch.mock.calls[1][1].headers["Idempotency-Key"]).not.toBe(keyA);
   expect(sessionStorage.length).toBe(2);
 });
+it("reads a tagged answer again with its tag, and keeps it when the server says 304", async () => {
+  // Audit 3.6 (P4): the open transcript was fetched whole every 5 seconds.
+  setDataContext("conditional-" + crypto.randomUUID());
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce(
+      new Response(JSON.stringify({ messages: ["one"] }), {
+        headers: { ETag: '"t1"' },
+      }),
+    )
+    .mockResolvedValueOnce(new Response(null, { status: 304 }))
+    .mockResolvedValueOnce(
+      new Response(JSON.stringify({ messages: ["one", "two"] }), {
+        headers: { ETag: '"t2"' },
+      }),
+    );
+  vi.stubGlobal("fetch", fetch);
+  const path = "/chats/c1/transcript?limit=50";
+  const first = await request(path, "GET", undefined, { conditional: true });
+  const unchanged = await request(path, "GET", undefined, {
+    conditional: true,
+  });
+  const grown = await request(path, "GET", undefined, { conditional: true });
+  expect(fetch.mock.calls[0][1].headers["If-None-Match"]).toBeUndefined();
+  expect(fetch.mock.calls[1][1].headers["If-None-Match"]).toBe('"t1"');
+  expect(fetch.mock.calls[2][1].headers["If-None-Match"]).toBe('"t1"');
+  // The same object: nothing on the page renders again.
+  expect(unchanged).toBe(first);
+  expect(grown).toEqual({ messages: ["one", "two"] });
+  // A read that is not conditional sends no tag.
+  fetch.mockResolvedValueOnce(new Response(JSON.stringify({})));
+  await request(path);
+  expect(fetch.mock.calls[3][1].headers["If-None-Match"]).toBeUndefined();
+});

@@ -1,4 +1,5 @@
 import {
+  memo,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -8,7 +9,7 @@ import {
 import { contextStorageKey } from "./api";
 import { useCollapsed, useData } from "./hooks";
 import { RepositoryBadges } from "./RepositoryControls";
-import { NamedRuns } from "./Coordination";
+import { ChatOpenRuns, NamedRuns } from "./Coordination";
 import { ChatAgents, RunningSessions } from "./ChatTies";
 import { Markdown } from "./ui/Markdown";
 import { Empty, ErrorMessage } from "./ui/Messages";
@@ -576,7 +577,7 @@ export function ChatListItem({
       <div className="chat-row chat-meta">
         <RepositoryBadges ids={chat.repositoryIds} legacy={chat.repos} />
       </div>
-      <NamedRuns chatId={chat.chatId} />
+      <ChatOpenRuns runs={chat.openRuns} />
       {chat.steps.length > 0 && (
         <div className="chat-row chat-meta">
           <small>Working on</small>
@@ -605,6 +606,8 @@ export function ChatHistory({
     `/chats/${chat.id}/transcript?limit=${limit}` +
       (thread ? "&thread=" + encodeURIComponent(thread) : ""),
     TRANSCRIPT_REFRESH_MS,
+    // Unchanged since the last read, the transcript answers 304 and the page keeps what it shows.
+    { conditional: true },
   );
   const data = transcript.data;
   const threads = data?.threads ?? chat.transcript.threads;
@@ -624,6 +627,7 @@ export function ChatHistory({
         </div>
         {actions}
         <ChatAgents chat={chat} />
+        <NamedRuns chatId={chat.chatId} />
         {threads.length > 1 && (
           <div
             className="thread-filter"
@@ -780,77 +784,83 @@ function scroller(node: HTMLElement): HTMLElement | null {
   return null;
 }
 
-function Message({ message: m }: { message: ChatMessage }) {
-  const time = m.at ? (
-    <time dateTime={m.at} title={new Date(m.at).toLocaleString()}>
-      {clock(m.at)}
-    </time>
-  ) : null;
-  if (m.kind === "tools") {
-    const names = Object.entries(
-      (m.tools ?? []).reduce<Record<string, number>>(
-        (counts, t) => ({ ...counts, [t.name]: (counts[t.name] ?? 0) + 1 }),
-        {},
-      ),
-    )
-      .map(([name, n]) => (n > 1 ? `${name} ×${n}` : name))
-      .join(", ");
+const Message = memo(
+  function Message({ message: m }: { message: ChatMessage }) {
+    const time = m.at ? (
+      <time dateTime={m.at} title={new Date(m.at).toLocaleString()}>
+        {clock(m.at)}
+      </time>
+    ) : null;
+    if (m.kind === "tools") {
+      const names = Object.entries(
+        (m.tools ?? []).reduce<Record<string, number>>(
+          (counts, t) => ({ ...counts, [t.name]: (counts[t.name] ?? 0) + 1 }),
+          {},
+        ),
+      )
+        .map(([name, n]) => (n > 1 ? `${name} ×${n}` : name))
+        .join(", ");
+      return (
+        <li className="message tools">
+          <details>
+            <summary>
+              <span>
+                {m.author} ran {m.count === 1 ? "1 tool" : `${m.count} tools`}
+                {names && <span className="muted">: {names}</span>}
+              </span>
+              {time}
+            </summary>
+            <ul>
+              {(m.tools ?? []).map((t, i) => (
+                <li key={i}>
+                  <code>{t.name}</code> {t.summary}
+                </li>
+              ))}
+              {(m.count ?? 0) > (m.tools?.length ?? 0) && (
+                <li className="muted">
+                  and {(m.count ?? 0) - (m.tools?.length ?? 0)} more
+                </li>
+              )}
+            </ul>
+          </details>
+        </li>
+      );
+    }
     return (
-      <li className="message tools">
-        <details>
-          <summary>
-            <span>
-              {m.author} ran {m.count === 1 ? "1 tool" : `${m.count} tools`}
-              {names && <span className="muted">: {names}</span>}
+      <li className={"message " + m.kind}>
+        <div className="message-head">
+          <strong>{m.author}</strong>
+          {m.kind === "agent" && m.recipient && (
+            <>
+              <span className="muted">to</span>
+              <strong>{m.recipient}</strong>
+            </>
+          )}
+          {m.messageType && m.messageType !== "MESSAGE" && (
+            <span className="muted">
+              · {m.messageType.toLowerCase().replace(/_/g, " ")}
             </span>
-            {time}
-          </summary>
-          <ul>
-            {(m.tools ?? []).map((t, i) => (
-              <li key={i}>
-                <code>{t.name}</code> {t.summary}
-              </li>
-            ))}
-            {(m.count ?? 0) > (m.tools?.length ?? 0) && (
-              <li className="muted">
-                and {(m.count ?? 0) - (m.tools?.length ?? 0)} more
-              </li>
-            )}
-          </ul>
-        </details>
+          )}
+          {time}
+        </div>
+        {m.encrypted ? (
+          <p className="message-encrypted muted">
+            Encrypted by Codex. The transcript keeps no readable copy of this
+            message.
+          </p>
+        ) : (
+          <Markdown text={m.text ?? ""} untrusted />
+        )}
+        {m.truncated && (
+          <small className="muted">
+            Shortened here; the full message is in the transcript.
+          </small>
+        )}
       </li>
     );
-  }
-  return (
-    <li className={"message " + m.kind}>
-      <div className="message-head">
-        <strong>{m.author}</strong>
-        {m.kind === "agent" && m.recipient && (
-          <>
-            <span className="muted">to</span>
-            <strong>{m.recipient}</strong>
-          </>
-        )}
-        {m.messageType && m.messageType !== "MESSAGE" && (
-          <span className="muted">
-            · {m.messageType.toLowerCase().replace(/_/g, " ")}
-          </span>
-        )}
-        {time}
-      </div>
-      {m.encrypted ? (
-        <p className="message-encrypted muted">
-          Encrypted by Codex. The transcript keeps no readable copy of this
-          message.
-        </p>
-      ) : (
-        <Markdown text={m.text ?? ""} untrusted />
-      )}
-      {m.truncated && (
-        <small className="muted">
-          Shortened here; the full message is in the transcript.
-        </small>
-      )}
-    </li>
-  );
-}
+  },
+  // A transcript read again re-renders only the messages that changed: each parses its Markdown.
+  (before, after) =>
+    before.message === after.message ||
+    JSON.stringify(before.message) === JSON.stringify(after.message),
+);

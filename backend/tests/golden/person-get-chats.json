@@ -18,6 +18,22 @@
         "createdDate": "<today>",
         "id": "<id1>",
         "model": "",
+        "openRuns": [
+          {
+            "agentId": "<id4>",
+            "clientRunKey": "golden",
+            "createdAt": "<time.ffffff+hh:mm>",
+            "credentialId": "<id4>",
+            "displayName": "Builder",
+            "endReason": null,
+            "endedAt": null,
+            "externalChatId": "chat-1",
+            "id": "<id5>",
+            "provider": "",
+            "revision": 1,
+            "updatedAt": "<time.ffffff+hh:mm>"
+          }
+        ],
         "owner": {
           "archived": false,
           "id": "<id2>",

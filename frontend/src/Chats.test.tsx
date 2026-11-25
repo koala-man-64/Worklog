@@ -68,6 +68,7 @@ function overview(
     roadmaps: [PLATFORM],
     steps: [],
     agents: [],
+    openRuns: [],
     transcript: {
       found: true,
       source: "codex",
@@ -664,4 +665,43 @@ it("offers the sessions running untracked above the chats, and names each chat's
       within(list).queryByRole("region", { name: "Running on this machine" }),
     ).toBeNull(),
   );
+});
+
+it("opens with a handful of requests for a hundred chats, each row showing its open runs", async () => {
+  // Audit 3.6 (P4): each row ran its own polled query for its chat's runs, ended ones included.
+  const many = Array.from({ length: 100 }, (_, n) =>
+    overview(`chat-${n}`, `Chat ${n}`, {
+      openRuns:
+        n === 7
+          ? [
+              {
+                id: "run-7",
+                agentId: "agent-7",
+                credentialId: "credential-7",
+                clientRunKey: "key-7",
+                displayName: "Reviewing release",
+                provider: "claude",
+                externalChatId: `chat-${n}-chat`,
+                revision: 1,
+                createdAt: minutesAgo(3),
+                updatedAt: minutesAgo(3),
+                endedAt: null,
+                endReason: null,
+              },
+            ]
+          : [],
+    }),
+  );
+  const urls = serve(() => ({ items: many }));
+  const list = await screen.findByRole("region", {
+    name: "Who is working on what",
+  });
+  await within(list).findByText("Chat 99");
+  expect(within(list).getByText("Reviewing release")).toBeInTheDocument();
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  expect(urls.length).toBeLessThan(10);
+  // Runs are read on their own only for the chat opened, ended ones included.
+  const runReads = urls.filter((url) => url.includes("/agent-runs"));
+  expect(runReads.length).toBeLessThanOrEqual(1);
+  expect(runReads.every((url) => url.includes("includeEnded=true"))).toBe(true);
 });

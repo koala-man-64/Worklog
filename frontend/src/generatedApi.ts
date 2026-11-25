@@ -3668,6 +3668,8 @@ export interface components {
             steps: components["schemas"]["ChatStep"][];
             /** Agents */
             agents: components["schemas"]["ChatAgent"][];
+            /** Openruns */
+            openRuns: components["schemas"]["AgentRun"][];
             /** Transcript */
             transcript: components["schemas"]["TranscriptSummary"] | components["schemas"]["UnreadTranscript"];
         };
