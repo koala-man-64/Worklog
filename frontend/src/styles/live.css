@@ -2,10 +2,10 @@
   --live-gap: clamp(12px, 1.8vw, 24px);
   /* The summary tiles lay out by the room this page has, on its own or inside a roadmap. */
   container-type: inline-size;
-  padding: clamp(18px, 3vw, 38px);
+  padding: 0;
 }
 .live-page.is-embedded {
-  padding: 18px 0 4px;
+  padding: 8px 0 4px;
 }
 .live-heading,
 .live-pulses > header,
@@ -14,7 +14,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
+  gap: 12px 18px;
+}
+.live-heading > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  min-width: 0;
 }
 .live-heading h1,
 .live-pulses h2,
@@ -24,11 +31,12 @@
   line-height: 1.08;
 }
 .live-heading h1 {
-  font-size: clamp(2rem, 5vw, 4.25rem);
+  font-size: clamp(24px, 2.2vw, 30px);
+  line-height: 1.18;
   letter-spacing: -0.04em;
 }
 .live-kicker {
-  margin: 0 0 2px;
+  margin: 0;
   color: var(--muted);
   font-size: 0.72rem;
   font-weight: 700;
@@ -62,9 +70,9 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  margin: 18px 0 12px;
-  padding: 10px 12px;
+  gap: 8px;
+  margin: 10px 0;
+  padding: 6px 10px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--paper);
@@ -775,7 +783,7 @@
 }
 @media (max-width: 640px) {
   .live-page {
-    padding: 14px;
+    padding: 0;
   }
   /* One card to a row: lines would run straight through the cards below them. */
   .live-canvas {

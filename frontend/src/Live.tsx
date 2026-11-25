@@ -249,8 +249,8 @@ export function Live({
       {!embedded && (
         <header className="live-heading">
           <div>
-            <p className="live-kicker">Coordination, in motion</p>
             <h1>Live</h1>
+            <p className="live-kicker">Coordination, in motion</p>
           </div>
           <span className={`live-beacon${paused ? " is-paused" : ""}`}>
             {paused ? "Paused" : "Updating"}

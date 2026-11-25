@@ -269,8 +269,9 @@ h2 {
   text-wrap: balance;
 }
 h1 {
-  font-size: clamp(38px, 4vw, 56px);
-  margin-bottom: 14px;
+  font-size: clamp(24px, 2.2vw, 30px);
+  line-height: 1.18;
+  margin-bottom: 6px;
 }
 h2 {
   font-size: 29px;
@@ -530,20 +531,22 @@ small {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 20px;
-  min-height: 80px;
+  gap: 16px;
+  min-height: 44px;
   border-bottom: 1px solid var(--line);
   /* Inset like main below, so the bar's ends line up with the page's. */
-  padding: 0 clamp(24px, 5vw, 72px);
+  padding: 6px clamp(24px, 5vw, 72px);
   font-size: 12px;
 }
 .search {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
 }
 .search input[type="search"] {
   max-width: 220px;
+  height: 30px;
+  padding: 3px 10px;
   margin: 0;
   font-size: 13px;
 }
@@ -552,22 +555,34 @@ small {
 }
 /* Every page spends the whole window beside the sidebar, however wide. */
 main {
-  padding: 48px clamp(24px, 5vw, 72px) 80px;
+  padding: 20px clamp(24px, 5vw, 72px) 64px;
   outline: none;
 }
 header {
-  margin-bottom: 32px;
+  margin-bottom: 16px;
 }
-/* A record's title with its controls beside it on one row, the first line's baselines aligned; a long title or a narrow window drops the controls under it, as on a Today entry. */
-.title-row {
+/* Standard list/overview page headers keep the heading and lede on one baseline row. */
+main > header:not(.title-row):not(.day-header):not(.roadmap-head):not(.live-heading),
+.bounded-screen > header:not(.roadmap-head) {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
+  gap: 4px 16px;
+}
+main > header:not(.title-row):not(.day-header):not(.roadmap-head):not(.live-heading) > h1,
+.bounded-screen > header:not(.roadmap-head) > h1 {
+  margin-bottom: 0;
+}
+/* A record's title with its controls beside it on one row; a long title or narrow window wraps the controls cleanly below. */
+.title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: safe center;
   justify-content: space-between;
-  gap: 8px 16px;
+  gap: 6px 14px;
 }
 .title-row > :first-child {
-  flex: 1 1 320px;
+  flex: 1 1 280px;
   min-width: 0;
 }
 .title-row > h1 {
@@ -575,13 +590,32 @@ header {
 }
 .title-row > .toolbar {
   margin: 0;
-  gap: 8px;
+  gap: 6px;
+}
+.title-row > .toolbar button,
+.title-row > .toolbar select {
+  min-height: 30px;
+  height: 30px;
+  padding: 3px 10px;
+  font-size: 13px;
+}
+.title-row > .rank-picker {
+  flex-basis: 100%;
+  margin-top: 6px;
 }
 .lede {
-  font-size: 15px;
+  font-size: 13.5px;
   color: var(--muted);
   margin-bottom: 0;
-  line-height: 1.7;
+  line-height: 1.45;
+}
+@media (pointer: coarse) {
+  .search input[type="search"],
+  .title-row > .toolbar button,
+  .title-row > .toolbar select {
+    min-height: 36px;
+    height: auto;
+  }
 }
 .quick-add {
   display: flex;
@@ -659,23 +693,29 @@ header {
 .day-heading h2 {
   margin: 0;
 }
-/* Tabs: a row of names over the one panel that shows. */
+/* Tabs: one horizontally scrollable row of names over the panel that shows. */
 .tab-list {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-snap-type: inline proximity;
   gap: 2px;
   border-bottom: 1px solid var(--line);
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 .tab-list > [role="tab"] {
+  flex: none;
+  scroll-snap-align: start;
   border: 0;
   border-bottom: 2px solid transparent;
   border-radius: 0;
   background: transparent;
   color: var(--muted);
-  padding: 5px 12px;
-  min-height: 34px;
+  padding: 4px 10px;
+  min-height: 30px;
   margin-bottom: -1px;
+  white-space: nowrap;
 }
 .tab-list > [role="tab"]:hover {
   background: transparent;
@@ -975,15 +1015,6 @@ select.status-select option {
 .work-screen select {
   padding-block: 4px;
 }
-/* Work's, kept here: .bounded-screen > header, further down, sets the same flex on the work
-   screen's header and must still win. */
-/* The lede sits on the heading's baseline, so the sheet starts a line higher. */
-.work-screen > header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  column-gap: 16px;
-}
 /* Work's, kept here: the filter row is a .toolbar too, and .toolbar, further down, must still win
    where the two set the same gap. */
 /* Two groups at fixed widths share one line from a 1440px window; narrower, the second moves under
@@ -1056,7 +1087,7 @@ section:not(.draft) > h3 {
 .back {
   display: inline-block;
   font-size: 12px;
-  margin-bottom: 30px;
+  margin-bottom: 6px;
 }
 .roadmap-row {
   border-top: 1px solid var(--line);
@@ -1552,8 +1583,8 @@ code {
     width: 100%;
   }
   .topbar {
-    padding: 0 22px;
-    min-height: 60px;
+    padding: 6px 22px;
+    min-height: 44px;
     gap: 10px;
   }
   .topbar > span {
@@ -1565,7 +1596,7 @@ code {
     font-size: 12px;
   }
   main {
-    padding: 32px 22px 50px;
+    padding: 16px 22px 48px;
   }
   .two-column {
     grid-template-columns: 1fr;
@@ -1601,7 +1632,7 @@ code {
     gap: 12px;
   }
   h1 {
-    font-size: 39px;
+    font-size: 24px;
   }
   .toolbar {
     gap: 10px;
@@ -1636,7 +1667,7 @@ code {
     min-height: 0;
     display: flex;
     flex-direction: column;
-    padding: 24px clamp(16px, 3vw, 48px);
+    padding: 12px clamp(16px, 3vw, 48px) 16px;
     overflow-y: auto;
   }
   .bounded-screen {
@@ -1647,7 +1678,7 @@ code {
   }
   .bounded-screen > header {
     flex-shrink: 0;
-    margin-bottom: 16px;
+    margin-bottom: 10px;
   }
   .bounded-screen > .error {
     flex-shrink: 0;
