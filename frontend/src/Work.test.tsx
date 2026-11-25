@@ -773,3 +773,58 @@ it("links a work item directly to a roadmap without requiring a step", async () 
     "22222222-2222-4222-8222-222222222222",
   );
 });
+it("fills the step picker from the roadmap's outline, and still names a retired linked step", async () => {
+  // Audit 3.2 (P1): the picker read the whole roadmap, 41 MB on the largest, for step titles.
+  const ROAD = "22222222-2222-4222-8222-222222222222";
+  const RETIRED = "33333333-3333-4333-8333-333333333333";
+  state.item = item({
+    roadmapId: ROAD,
+    stepId: RETIRED,
+    linkedRoadmap: { id: ROAD, title: "Platform roadmap", archived: false },
+    linkedStep: {
+      id: RETIRED,
+      title: "Old approach",
+      roadmapId: ROAD,
+      roadmapTitle: "Platform roadmap",
+      retired: true,
+    },
+  });
+  const step = (id: string, title: string, position: number) => ({
+    id,
+    title,
+    status: "open",
+    parentId: null,
+    position,
+  });
+  const network = vi.spyOn(globalThis, "fetch").mockImplementation(
+    async (url) =>
+      new Response(
+        JSON.stringify(
+          String(url).endsWith(`/roadmaps/${ROAD}/outline`)
+            ? {
+                id: ROAD,
+                title: "Platform roadmap",
+                archived: false,
+                revision: 4,
+                steps: [step("s1", "Design", 0), step("s2", "Build", 1)],
+              }
+            : {},
+        ),
+        { status: 200 },
+      ),
+  );
+  render(view(newClient()));
+  const picker = screen.getByRole("combobox", { name: "Roadmap step" });
+  await waitFor(() =>
+    expect(within(picker).getByRole("option", { name: "Build" })).toBeTruthy(),
+  );
+  expect(
+    within(picker)
+      .getAllByRole("option")
+      .map((option) => option.textContent),
+  ).toEqual(["No linked step", "Old approach", "Design", "Build"]);
+  expect(picker).toHaveValue(RETIRED);
+  const urls = network.mock.calls.map(([url]) => String(url));
+  expect(urls).toContain(`/api/v1/roadmaps/${ROAD}/outline`);
+  expect(urls).not.toContain(`/api/v1/roadmaps/${ROAD}`);
+});
