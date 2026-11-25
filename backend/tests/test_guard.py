@@ -4,6 +4,7 @@ every response, and checks the path the router matches."""
 
 import asyncio
 import json
+import sqlite3
 import uuid
 
 from fastapi.testclient import TestClient
@@ -180,3 +181,48 @@ def test_the_guard_checks_the_path_the_router_matches_under_a_root_path(tmp_path
     assert status == 403 and json.loads(body)["error"]["code"] == "agent_scope"
     status, _, _ = call(app, "GET", "/r/api/v1/context", [(b"authorization", b"Bearer " + token.encode())], receive, root_path="/r")
     assert status == 200
+
+
+def test_a_busy_database_while_the_credential_is_read_answers_503_with_retry_after(tmp_path, monkeypatch):
+    # Audit 3.8 (P6): the wait for a locked database ran out inside the guard, outside the handlers
+    # that map it, and came back as 500 internal_error, which an agent reports instead of retrying.
+    _, person, token = started(tmp_path)
+
+    def locked(db, digest):
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(guard, "find_credential", locked)
+    response = person.get("/api/v1/context", headers={"Authorization": "Bearer " + token})
+    assert response.status_code == 503 and response.json()["error"]["code"] == "database_busy"
+    assert response.headers["retry-after"] == "1"
+    for header, value in guard.SECURITY_HEADERS.items():
+        assert response.headers.get(header) == value
+
+
+def test_another_database_failure_while_the_credential_is_read_stays_an_incident(tmp_path, monkeypatch):
+    _, person, token = started(tmp_path)
+
+    def broken(db, digest):
+        raise sqlite3.OperationalError("disk I/O error")
+
+    monkeypatch.setattr(guard, "find_credential", broken)
+    response = person.get("/api/v1/context", headers={"Authorization": "Bearer " + token})
+    assert response.status_code == 500 and response.json()["error"]["code"] == "internal_error"
+
+
+def test_the_credential_is_read_off_the_event_loop(tmp_path, monkeypatch):
+    # A blocking read on the loop holds every other request for as long as SQLite waits (3 s).
+    _, person, token = started(tmp_path)
+    real, loops = guard.find_credential, []
+
+    def watched(db, digest):
+        try:
+            asyncio.get_running_loop()
+            loops.append(True)
+        except RuntimeError:
+            loops.append(False)
+        return real(db, digest)
+
+    monkeypatch.setattr(guard, "find_credential", watched)
+    assert person.get("/api/v1/context", headers={"Authorization": "Bearer " + token}).status_code == 200
+    assert loops == [False]

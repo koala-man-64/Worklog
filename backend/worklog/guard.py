@@ -14,10 +14,12 @@ from __future__ import annotations
 import hashlib
 import logging
 import secrets
+import sqlite3
 import time
 from collections.abc import Iterable
 from typing import Any
 
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.requests import cookie_parser
@@ -47,6 +49,13 @@ def error_response(exc: AppError) -> JSONResponse:
     return JSONResponse({"error": {"code": exc.code, "message": exc.message,
                                   **({"fields": exc.fields} if exc.fields is not None else {})}},
                         status_code=exc.status, headers={"Retry-After": "1"} if exc.code == "database_busy" else None)
+
+
+def find_credential(db: Database, digest: str) -> Any:
+    """The live credential whose token hashes to digest, or None. It blocks on SQLite, for up to the
+    busy timeout when the database is locked, so the guard runs it in the thread pool."""
+    with db.read() as conn:
+        return conn.execute("SELECT * FROM credentials WHERE token_hash=? AND revoked=0", (digest,)).fetchone()
 
 
 def route_path(scope: Scope) -> str:
@@ -178,8 +187,14 @@ class RequestGuard:
             if not authorization.startswith("Bearer "):
                 raise AppError(401, "authentication", "Use a valid credential")
             digest = hashlib.sha256(authorization[7:].encode()).hexdigest()
-            with self.db.read() as conn:
-                credential = conn.execute("SELECT * FROM credentials WHERE token_hash=? AND revoked=0", (digest,)).fetchone()
+            try:
+                credential = await run_in_threadpool(find_credential, self.db, digest)
+            except sqlite3.OperationalError as exc:
+                # Raised here, outside the app's handlers: a locked database answers as they would,
+                # with 503 and Retry-After, so the agent retries.
+                if "locked" in str(exc) or "busy" in str(exc):
+                    raise AppError(503, "database_busy", "Database is busy; retry this request") from exc
+                raise
             if credential is None:
                 raise AppError(401, "authentication", "Credential is invalid or revoked")
             actor = {"id": credential["id"], "label": credential["label"], "kind": "agent"}
