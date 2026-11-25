@@ -17179,10 +17179,6 @@
       },
       "LiveUntrackedSession": {
         "properties": {
-          "pid": {
-            "type": "integer",
-            "title": "Pid"
-          },
           "sessionId": {
             "type": "string",
             "title": "Sessionid"
@@ -17231,7 +17227,6 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "pid",
           "sessionId",
           "hostSessionId",
           "name",

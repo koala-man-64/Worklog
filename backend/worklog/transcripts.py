@@ -200,6 +200,8 @@ class TranscriptReader:
         self.codex_names: dict[Path, tuple[tuple[int, int], dict[str, str]]] = {}
         self.desktop: dict[str, tuple[Path | None, float]] = {}
         self.index: tuple[float, dict[str, list[Path]], dict[str, tuple[Path, Path]]] | None = None
+        # Each Codex session's rollout files by home and session ID, for one listing of the index.
+        self.codex_shared: tuple[float, dict[tuple[Path, str], list[Path]]] | None = None
 
     def _file_lock(self, path: Path) -> threading.Lock:
         with self.lock:
@@ -379,6 +381,24 @@ class TranscriptReader:
                 self.codex_names[home] = cached
         return cached[1].get(ident, "")
 
+    def _codex_sessions(self) -> dict[tuple[Path, str], list[Path]]:
+        """Each Codex session's rollout files by its home and session ID, found once for each listing
+        of the index: a session's threads were looked for among every rollout file, again for each
+        Codex chat (audit finding P7)."""
+        _, codex = self._index()
+        with self.lock:
+            stamp = self.index[0] if self.index else 0.0
+            if self.codex_shared and self.codex_shared[0] == stamp:
+                return self.codex_shared[1]
+        shared: dict[tuple[Path, str], list[Path]] = {}
+        for path, home in codex.values():
+            session = self._codex_session(path).get("session_id")
+            if isinstance(session, str):
+                shared.setdefault((home, session), []).append(path)
+        with self.lock:
+            self.codex_shared = (stamp, shared)
+        return shared
+
     def _codex_threads(self, ident: str, path: Path, home: Path) -> list[Thread]:
         def thread(file: Path, meta: dict) -> Thread:
             key = codex_id(file) or ""
@@ -391,8 +411,8 @@ class TranscriptReader:
         threads = [thread(path, meta)]
         # A thread that started others is the session they all share.
         if meta.get("session_id") == ident:
-            for other, other_home in self._index()[1].values():
-                if other != path and other_home == home and self._codex_session(other).get("session_id") == ident:
+            for other in self._codex_sessions().get((home, ident), []):
+                if other != path:
                     threads.append(thread(other, self._codex_session(other)))
         return threads
 

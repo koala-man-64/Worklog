@@ -5353,8 +5353,6 @@ export interface components {
         };
         /** LiveUntrackedSession */
         LiveUntrackedSession: {
-            /** Pid */
-            pid: number;
             /** Sessionid */
             sessionId: string;
             /** Hostsessionid */

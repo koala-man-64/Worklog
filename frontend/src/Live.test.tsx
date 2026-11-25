@@ -117,7 +117,6 @@ const snapshot: LiveSnapshot = {
   ],
   untrackedSessions: [
     {
-      pid: 123,
       sessionId: "untracked-1",
       hostSessionId: null,
       name: "Local Claude session",
@@ -346,23 +345,24 @@ describe("Live", () => {
   });
 
   it("changes activity filters and polling state", async () => {
+    // Every 15 seconds, not 5 (audit 3.7, P7): each poll reads the whole live picture.
     const user = userEvent.setup();
     render(<Live />);
     expect(mocks.useData).toHaveBeenLastCalledWith(
       "/live?windowMinutes=60&includeIdle=false",
-      5_000,
+      15_000,
       { keepPrevious: true },
     );
     await user.click(screen.getByRole("button", { name: "15m" }));
     expect(mocks.useData).toHaveBeenLastCalledWith(
       "/live?windowMinutes=15&includeIdle=false",
-      5_000,
+      15_000,
       { keepPrevious: true },
     );
     await user.click(screen.getByRole("button", { name: "6h" }));
     expect(mocks.useData).toHaveBeenLastCalledWith(
       "/live?windowMinutes=360&includeIdle=false",
-      5_000,
+      15_000,
       { keepPrevious: true },
     );
     await user.click(screen.getByRole("checkbox", { name: "Show idle, stale and revoked agents" }));
@@ -370,7 +370,7 @@ describe("Live", () => {
     await user.click(screen.getByRole("button", { name: "Pause live updates" }));
     expect(mocks.useData.mock.calls.at(-1)?.[1]).toBeUndefined();
     await user.click(screen.getByRole("button", { name: "Resume live updates" }));
-    expect(mocks.useData.mock.calls.at(-1)?.[1]).toBe(5_000);
+    expect(mocks.useData.mock.calls.at(-1)?.[1]).toBe(15_000);
   });
 
   it("pins embedded mode to its roadmap without a selector", () => {
