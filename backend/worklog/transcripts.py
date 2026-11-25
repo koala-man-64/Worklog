@@ -631,6 +631,22 @@ class TranscriptReader:
             logger.warning("Agent chat transcript could not be read for its title (%s)", type(exc).__name__)
             return "", ""
 
+    def fingerprint(self, chat_id: str) -> list:
+        """What a chat's transcript answer depends on among this computer's files: the tool that keeps
+        it, and each of its agents' transcript files by size and modification time. A read of it whose
+        fingerprint, chat record, page and agent are unchanged would answer the same messages (audit
+        finding P4). A peer session renamed in the desktop app shows by its new name on the next
+        change."""
+        source, threads = self.threads(chat_id)
+        found: list = [source]
+        for thread in threads:
+            try:
+                stat = thread.path.stat()
+                found.append([thread.key, str(thread.path), stat.st_size, stat.st_mtime_ns])
+            except OSError:
+                found.append([thread.key, str(thread.path), None, None])
+        return found
+
     def summary(self, chat_id: str) -> dict:
         """A chat's agents and their latest activity. One unreadable transcript never fails a list of chats."""
         try:

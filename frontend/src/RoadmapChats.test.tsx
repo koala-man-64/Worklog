@@ -37,6 +37,7 @@ function listed(
     roadmaps: [summary(TOP, "Platform"), summary(ROADMAP, "Plan")],
     steps: [],
     agents: [],
+    openRuns: [],
     transcript: {
       found: false,
       source: null,

@@ -12101,6 +12101,13 @@
             "type": "array",
             "title": "Agents"
           },
+          "openRuns": {
+            "items": {
+              "$ref": "#/components/schemas/AgentRun"
+            },
+            "type": "array",
+            "title": "Openruns"
+          },
           "transcript": {
             "anyOf": [
               {
@@ -12135,6 +12142,7 @@
           "roadmaps",
           "steps",
           "agents",
+          "openRuns",
           "transcript"
         ],
         "title": "ChatListed",

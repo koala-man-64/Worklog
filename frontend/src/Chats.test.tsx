@@ -68,6 +68,7 @@ function overview(
     roadmaps: [PLATFORM],
     steps: [],
     agents: [],
+    openRuns: [],
     transcript: {
       found: true,
       source: "codex",
@@ -699,5 +700,8 @@ it("opens with a handful of requests for a hundred chats, each row showing its o
   expect(within(list).getByText("Reviewing release")).toBeInTheDocument();
   await new Promise((resolve) => setTimeout(resolve, 50));
   expect(urls.length).toBeLessThan(10);
-  expect(urls.some((url) => url.includes("/agent-runs"))).toBe(false);
+  // Runs are read on their own only for the chat opened, ended ones included.
+  const runReads = urls.filter((url) => url.includes("/agent-runs"));
+  expect(runReads.length).toBeLessThanOrEqual(1);
+  expect(runReads.every((url) => url.includes("includeEnded=true"))).toBe(true);
 });
