@@ -101,6 +101,9 @@ def test_the_v22_upgrade_keeps_every_tag_links_exact_labels_and_opens_each_activ
     Database(path).initialize()
     version, signature, after = contents(path)
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
+    from test_repo_execution_schema import before_v35
+
+    after = before_v35(after)
     # Every table v22 doesn't touch is as it was, the search index's aside, which gains the new threads,
     # and the plan import, task, reminder, release, ties and chat message tables, empty here, which
     # v25 to v30 drop.

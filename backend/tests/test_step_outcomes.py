@@ -205,10 +205,12 @@ def test_the_way_back_leaves_every_version_saved_at_v31_readable_by_v30(tmp_path
     with closing(sqlite3.connect(database)) as conn:
         after = [json.loads(row[0]) for row in conn.execute("SELECT snapshot FROM roadmap_versions ORDER BY rowid")]
     assert len(after) == 3 and all(set(step) == V30_STEP_KEYS for snapshot in after for step in snapshot["steps"])
-    # Nothing but the outcomes goes.
+    # Nothing but the outcomes (and v35 step fields dropped on the way through v34) goes.
     for snapshot in before:
         for step in snapshot["steps"]:
             del step["outcome"]
+            for key in ("workClass", "repositoryIds", "waveIds"):
+                step.pop(key, None)
     assert after == before
 
 

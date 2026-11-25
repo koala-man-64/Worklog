@@ -20,10 +20,13 @@
         "outcome": "",
         "parentId": null,
         "position": 0,
+        "repositoryIds": [],
         "retired": false,
         "revision": 1,
         "status": "open",
-        "title": "Parent"
+        "title": "Parent",
+        "waveIds": [],
+        "workClass": ""
       },
       {
         "description": "",
@@ -31,10 +34,13 @@
         "outcome": "",
         "parentId": "<id2>",
         "position": 1,
+        "repositoryIds": [],
         "retired": false,
         "revision": 1,
         "status": "open",
-        "title": "Child"
+        "title": "Child",
+        "waveIds": [],
+        "workClass": ""
       }
     ],
     "title": "Plan",

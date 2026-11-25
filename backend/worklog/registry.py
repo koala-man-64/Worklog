@@ -19,6 +19,7 @@ from . import record_kinds
 from .common import LIVE_AGENT, AppError, rows_in, text
 from .coordination import CoordinationService, commit_sha, pull_request, repository_holder
 from .discussions import LISTED, DiscussionService, registered_by, registered_chats
+from .dispatch import dispatch_advisories
 from .leases import repository_slot_summaries
 from .tickets import TicketService
 
@@ -145,18 +146,23 @@ class AgentRegistry:
         return result
 
     def _working(self, c: sqlite3.Connection, agent_id: str | None) -> dict[str, list[dict]]:
-        """Open participation per agent: the work and repositories it currently reports."""
+        """Open participation per agent: the work, step, and repositories it currently reports."""
         clause, args = (" AND ar.agent_id=?", [agent_id]) if agent_id else ("", [])
         rows = c.execute("SELECT p.*,ar.agent_id,ar.display_name FROM participations p JOIN agent_runs ar ON ar.id=p.run_id WHERE p.released_at IS NULL" + clause + " ORDER BY p.last_seen_at DESC,p.id DESC", args).fetchall()
         items = self._work_titles(c, [r["item_id"] for r in rows if r["item_id"]])
-        roadmaps = self._roadmap_titles(c, [v["roadmapId"] for v in items.values() if v["roadmapId"]])
+        steps = self._step_roadmaps(c, [r["step_id"] for r in rows if r["step_id"]])
+        roadmap_ids = {v["roadmapId"] for v in items.values() if v["roadmapId"]} | {v["roadmapId"] for v in steps.values() if v["roadmapId"]}
+        roadmaps = self._roadmap_titles(c, roadmap_ids)
         result: dict[str, list[dict]] = {}
         for r in rows:
             item = items.get(r["item_id"]) if r["item_id"] else None
+            step_info = steps.get(r["step_id"]) if r["step_id"] else None
+            roadmap_id = (item["roadmapId"] if item and item["roadmapId"] else None) or (step_info["roadmapId"] if step_info else None)
             result.setdefault(r["agent_id"], []).append({
                 "participationId": r["id"], "runId": r["run_id"], "runName": r["display_name"],
                 "description": r["description"], "lastSeenAt": r["last_seen_at"], "stale": _stale(r["last_seen_at"]),
-                "item": item, "roadmap": roadmaps.get(item["roadmapId"]) if item and item["roadmapId"] else None,
+                "item": item, "stepId": r["step_id"],
+                "roadmap": roadmaps.get(roadmap_id) if roadmap_id else None,
                 "contexts": CoordinationService._contexts(c, r["id"])})
         return result
 
@@ -216,11 +222,13 @@ class AgentRegistry:
         Also gives the tracked chats those agents' runs and messages name, those chats by chat ID,
         and each work item tied, with its roadmap."""
         tied = {identity: _Tied() for identity in roles}
-        for r in rows_in(c, "SELECT ar.agent_id,p.item_id,p.last_seen_at,p.released_at,pc.repository_id FROM participations p "
+        for r in rows_in(c, "SELECT ar.agent_id,p.item_id,p.step_id,p.last_seen_at,p.released_at,pc.repository_id FROM participations p "
                             "JOIN agent_runs ar ON ar.id=p.run_id LEFT JOIN participation_contexts pc ON pc.participation_id=p.id "
                             "WHERE ar.agent_id IN ({})", tied):
             agent, current = tied[r["agent_id"]], r["released_at"] is None
             agent.items.add(r["item_id"], "participation", r["last_seen_at"], current)
+            if r["step_id"]:
+                agent.steps.append((r["step_id"], "participation", r["last_seen_at"], current))
             agent.repositories.add(r["repository_id"], "participation", r["last_seen_at"], current)
         for r in rows_in(c, "SELECT u.agent_id,u.item_id,u.created_at,ur.repository_id FROM coordination_updates u "
                             "LEFT JOIN coordination_update_repositories ur ON ur.update_id=u.id WHERE u.agent_id IN ({})", tied):
@@ -376,6 +384,8 @@ class AgentRegistry:
         for r in rows_in(c, "SELECT p.item_id,p.last_seen_at,ar.agent_id FROM participations p JOIN agent_runs ar ON ar.id=p.run_id WHERE p.released_at IS NULL AND p.item_id IN ({})", items):
             tie("agent", r["agent_id"], step(items[r["item_id"]]["step_id"]), "participation", r["last_seen_at"],
                 _stale(r["last_seen_at"]), item=titled(r["item_id"]))
+        for r in rows_in(c, "SELECT p.step_id,p.last_seen_at,ar.agent_id FROM participations p JOIN agent_runs ar ON ar.id=p.run_id WHERE p.released_at IS NULL AND p.step_id IN ({})", retired):
+            tie("agent", r["agent_id"], step(r["step_id"]), "participation", r["last_seen_at"], _stale(r["last_seen_at"]))
         for r in c.execute("SELECT id,label,context_type,context_id,owner_id,updated_at FROM discussion_roles WHERE owner_id IS NOT NULL"):
             kind, context = r["context_type"], r["context_id"]
             if kind == "roadmap" and context == roadmap_id:
@@ -830,8 +840,8 @@ class AgentRegistry:
             scopes.append(f"p.item_id IN ({marks(work)})")
             args += work
         if step_ids:
-            scopes.append(f"p.item_id IN (SELECT id FROM work_items WHERE step_id IN ({marks(step_ids)}))")
-            args += step_ids
+            scopes.append(f"(p.step_id IN ({marks(step_ids)}) OR p.item_id IN (SELECT id FROM work_items WHERE step_id IN ({marks(step_ids)})))")
+            args += step_ids + step_ids
         participating = c.execute(
             "SELECT p.*,ar.agent_id,ar.display_name FROM participations p JOIN agent_runs ar ON ar.id=p.run_id "
             "WHERE p.released_at IS NULL AND ar.agent_id<>? AND (" + " OR ".join(scopes) + ") "
@@ -915,6 +925,7 @@ class AgentRegistry:
                 "participationId": r["id"], "agent": who(r["agent_id"]), "runId": r["run_id"], "runName": r["display_name"],
                 "description": r["description"], "lastSeenAt": r["last_seen_at"], "stale": _stale(r["last_seen_at"]),
                 "item": {k: titles[r["item_id"]][k] for k in ("id", "title", "status")} if r["item_id"] in titles else None,
+                "stepId": r["step_id"],
                 "contexts": CoordinationService._contexts(c, r["id"])} for r in participating],
             "announcements": [{
                 "repositoryId": repository, "discussionId": m["discussion_id"], "messageId": m["id"],
@@ -928,4 +939,5 @@ class AgentRegistry:
                        "owner": who(r["owner_id"])} for r in roles],
             "tickets": [{"id": r["id"], "number": r["number"], "title": r["title"], "status": r["status"],
                          "assignee": who(r["assignee_id"]) if r["assignee_id"] else None} for r in ticket_rows],
+            "dispatchAdvisories": dispatch_advisories(c, repos, step_ids),
         }

@@ -27,8 +27,8 @@ ORDER = [
     "resources", "tickets", "discussions",
     # Reusable slot worktrees and bounded repository checkout leases.
     "slot_worktrees", "leases",
-    # Agent runs and participations with the repository catalog, then agent registration.
-    "coordination", "registration", "registry",
+    # Agent runs and participations with the repository catalog, waves and dispatch, then agent registration.
+    "coordination", "waves", "dispatch", "registration", "registry",
     # Schema history, proposals, then backup and restore, offline compaction and the read-only doctor.
     "migrations", "proposals", "recovery", "compaction", "doctor",
     # Work: the shapes the domains share, supporting records, work items, people, and the router;
@@ -36,7 +36,7 @@ ORDER = [
     "records", "support", "items", "people", "services", "session_launches", "live", "git_activity",
     # HTTP: the routes of each domain, the request guard in front of them all, the usage counts kept
     # inside it, and the app.
-    "coordination_api", "lease_api", "discussion_api", "registry_api",
+    "coordination_api", "lease_api", "wave_api", "discussion_api", "registry_api",
     "resource_api", "ticket_api", "session_api", "live_api", "guard", "usage", "app",
     # The command line.
     "cli",

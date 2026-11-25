@@ -288,6 +288,7 @@ class LiveService:
 
         for participation in participations:
             item_id = participation["item_id"]
+            step_id = participation["step_id"]
             active = participation["released_at"] is None
             stale = (
                 _parse(participation["last_seen_at"]) < datetime.now(UTC) - STALE_AFTER
@@ -320,6 +321,25 @@ class LiveService:
                     participation["agent_id"],
                     "roadmap",
                     _work_roadmap(item, steps),
+                    "participation",
+                    touched,
+                    active,
+                    stale,
+                )
+            if step_id and step_id in steps:
+                add_work(
+                    participation["agent_id"],
+                    "step",
+                    step_id,
+                    "participation",
+                    touched,
+                    active,
+                    stale,
+                )
+                add_work(
+                    participation["agent_id"],
+                    "roadmap",
+                    steps[step_id]["roadmap_id"],
                     "participation",
                     touched,
                     active,
@@ -869,7 +889,7 @@ class LiveService:
                 edge["branch"], edge["worktree"] = branch, worktree
 
         for participation in participations:
-            if scoped is not None and participation["item_id"] not in included_work_ids:
+            if scoped is not None and participation["item_id"] not in included_work_ids and participation["step_id"] not in included_work_ids:
                 continue
             stale = (
                 _parse(participation["last_seen_at"]) < datetime.now(UTC) - STALE_AFTER
@@ -937,6 +957,42 @@ class LiveService:
 
         home_discussions = DiscussionService.home_discussions(c, include_repo_ids)
         slot_summaries = repository_slot_summaries(c, include_repo_ids)
+        doing_by_repo: dict[str, int] = defaultdict(int)
+        frozen_wave_by_repo: dict[str, str] = {}
+        pending_repins_by_repo: dict[str, int] = defaultdict(int)
+        if include_repo_ids:
+            parent_step_ids = {s["parent_id"] for s in steps_list if not s["retired"] and s["parent_id"]}
+            doing_leaf_ids = {
+                s["id"]
+                for s in steps_list
+                if not s["retired"]
+                and s["status"] == "doing"
+                and s["id"] not in parent_step_ids
+                and not roadmaps.get(s["roadmap_id"], {}).get("archived")
+                and (scoped is None or s["roadmap_id"] in scoped)
+            }
+            for row in c.execute("SELECT step_id,repository_id FROM step_repositories"):
+                if row["repository_id"] in include_repo_ids and row["step_id"] in doing_leaf_ids:
+                    doing_by_repo[row["repository_id"]] += 1
+            for row in c.execute(
+                "SELECT wr.repository_id,w.name,w.roadmap_id FROM wave_repositories wr "
+                "JOIN waves w ON w.id=wr.wave_id "
+                "WHERE wr.freeze_status='frozen' AND w.archived=0 AND w.status IN ('active','planning') "
+                "ORDER BY w.status='active' DESC,w.position,w.id"
+            ):
+                if row["repository_id"] in include_repo_ids and (scoped is None or row["roadmap_id"] in scoped):
+                    frozen_wave_by_repo.setdefault(row["repository_id"], row["name"])
+            for row in c.execute(
+                "SELECT rp.upstream_repo_id,rp.consumer_repo_id,w.roadmap_id FROM wave_repins rp "
+                "JOIN waves w ON w.id=rp.wave_id "
+                "WHERE rp.status IN ('pending','in_progress') AND w.archived=0 AND w.status IN ('active','planning')"
+            ):
+                if scoped is not None and row["roadmap_id"] not in scoped:
+                    continue
+                if row["upstream_repo_id"] in include_repo_ids:
+                    pending_repins_by_repo[row["upstream_repo_id"]] += 1
+                if row["consumer_repo_id"] in include_repo_ids and row["consumer_repo_id"] != row["upstream_repo_id"]:
+                    pending_repins_by_repo[row["consumer_repo_id"]] += 1
         open_branches: dict[str, set[str]] = defaultdict(set)
         overlap_by_repo: dict[str, set[str]] = defaultdict(set)
         for participation in participations:
@@ -960,6 +1016,11 @@ class LiveService:
             )
             overlap_agents = overlap_by_repo[rid]
             slot_info = slot_summaries.get(rid, {})
+            wip_cap = repository["wip_cap"]
+            eff_cap = int(wip_cap) if wip_cap is not None else (int(slot_info["maxActiveLeases"]) if slot_info.get("configured") else None)
+            doing_steps = int(doing_by_repo.get(rid, 0))
+            active_leases = int(slot_info.get("activeCount", 0))
+            over_cap = bool(eff_cap is not None and (len(overlap_agents) > eff_cap or active_leases > eff_cap or doing_steps > eff_cap))
             repo_nodes.append(
                 {
                     "id": rid,
@@ -970,8 +1031,15 @@ class LiveService:
                     "branches": list(branches),
                     "agentCount": int(len({edge["agentId"] for edge in related})),
                     "overlapCount": int(len(overlap_agents)),
+                    "wipCap": wip_cap,
+                    "effectiveWipCap": eff_cap,
+                    "tier": repository["tier"],
+                    "doingStepCount": doing_steps,
+                    "overWipCap": over_cap,
+                    "frozenWaveName": frozen_wave_by_repo.get(rid),
+                    "pendingRepinsCount": int(pending_repins_by_repo.get(rid, 0)),
                     "maxActiveLeases": int(slot_info.get("maxActiveLeases", 2)),
-                    "activeLeases": int(slot_info.get("activeCount", 0)),
+                    "activeLeases": active_leases,
                     "queuedLeases": int(slot_info.get("queuedCount", 0)),
                     "dirtySlots": int(slot_info.get("dirtyCount", 0)),
                     "rescuedLeases": int(slot_info.get("rescuedCount", 0)),
@@ -1277,7 +1345,7 @@ class LiveService:
         for participation in participations:
             if participation["agent_id"] not in candidate_agent_ids:
                 continue
-            if scoped is not None and participation["item_id"] not in included_work_ids:
+            if scoped is not None and participation["item_id"] not in included_work_ids and participation["step_id"] not in included_work_ids:
                 continue
             if not (
                 participation["released_at"] is None
@@ -1293,6 +1361,7 @@ class LiveService:
                 if repository_id is not None and repository_id not in include_repo_ids:
                     continue
                 item = items.get(participation["item_id"])
+                step = steps.get(participation["step_id"]) if participation["step_id"] else None
                 stale = (
                     _parse(participation["last_seen_at"]) < datetime.now(UTC) - STALE_AFTER
                     if _parse(participation["last_seen_at"])
@@ -1303,8 +1372,8 @@ class LiveService:
                         "id": f"participation:{participation['id']}:{position}",
                         "agentId": participation["agent_id"],
                         "label": participation["description"] or run["display_name"],
-                        "workId": participation["item_id"],
-                        "workKind": "item" if item else None,
+                        "workId": participation["item_id"] if item else (participation["step_id"] if step else None),
+                        "workKind": "item" if item else ("step" if step else None),
                         "repositoryId": repository_id,
                         "repositoryName": context["repository_name"] if context else None,
                         "branch": context["branch"] if context else "",
@@ -1314,7 +1383,7 @@ class LiveService:
                         "stale": bool(stale),
                         "href": _href("work", participation["item_id"])
                         if item
-                        else _href("agents", participation["agent_id"]),
+                        else (_href("step", participation["step_id"], step["roadmap_id"]) if step else _href("agents", participation["agent_id"])),
                         "_rowid": int(participation["_rowid"]),
                     }
                 )
@@ -1544,11 +1613,13 @@ class LiveService:
             )
         participation_seconds = {(p["run_id"], p["created_at"][:19]) for p in participations}
         for participation in participations:
+            target_work_id = participation["item_id"] or participation["step_id"]
             if (
                 recent(participation["created_at"])
                 and participation["agent_id"] in candidate_agent_ids
-                and pulse_allowed(participation["item_id"])
+                and pulse_allowed(target_work_id)
             ):
+                step = steps.get(participation["step_id"]) if participation["step_id"] else None
                 pulses.append(
                     {
                         "id": f"participation:{participation['id']}",
@@ -1561,8 +1632,8 @@ class LiveService:
                         ),
                         "targetActorId": None,
                         "targetActorLabel": None,
-                        "workId": participation["item_id"],
-                        "workTitle": work_title.get(participation["item_id"]),
+                        "workId": target_work_id,
+                        "workTitle": work_title.get(target_work_id),
                         "repositoryId": None,
                         "repositoryName": None,
                         "discussionId": None,
@@ -1570,7 +1641,7 @@ class LiveService:
                         "summary": participation["description"] or "Participation started",
                         "href": _href("work", participation["item_id"])
                         if participation["item_id"]
-                        else _href("agents", participation["agent_id"]),
+                        else (_href("step", participation["step_id"], step["roadmap_id"]) if step else _href("agents", participation["agent_id"])),
                         "_rank": PULSE_RANK["participation"],
                         "_rowid": int(participation["_rowid"]),
                     }
@@ -1756,6 +1827,15 @@ class LiveService:
             ]
             repository["agentCount"] = int(len({edge["agentId"] for edge in edges}))
             repository["overlapCount"] = int(len(repository["_overlapAgents"] & agent_ids))
+            eff_cap = repository["effectiveWipCap"]
+            repository["overWipCap"] = bool(
+                eff_cap is not None
+                and (
+                    repository["overlapCount"] > eff_cap
+                    or repository["activeLeases"] > eff_cap
+                    or repository["doingStepCount"] > eff_cap
+                )
+            )
             repository["branches"] = list(
                 sorted(
                     repository["_branches"],
@@ -1765,6 +1845,7 @@ class LiveService:
             repository["lastAt"] = _latest(*[edge["lastAt"] for edge in edges])
         draft["repositories"].sort(
             key=lambda r: (
+                0 if r["overWipCap"] else 1,
                 -int(r["overlapCount"]),
                 -int(r["agentCount"]),
                 r["name"].casefold(),
@@ -1881,6 +1962,9 @@ class LiveService:
             "activeRepos": int(len(draft["repositories"])),
             "repoOverlaps": int(
                 sum(repository["overlapCount"] > 1 for repository in draft["repositories"])
+            ),
+            "overCapRepos": int(
+                sum(bool(repository["overWipCap"]) for repository in draft["repositories"])
             ),
             "pendingRequests": int(pending),
             "waitingOnAgents": int(draft["_waitingOnAgents"]),

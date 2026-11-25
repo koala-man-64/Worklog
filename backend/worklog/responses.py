@@ -564,6 +564,8 @@ class Repository(Answer):
     duplicateOf: str | None
     mergedInto: str | None
     description: str
+    wipCap: int | None
+    tier: int | None
     archived: bool
     # Null when no registrant is recorded: coordination.repository_record gives none for an empty kind.
     registeredBy: RegisteredBy | None
@@ -574,11 +576,13 @@ class Repository(Answer):
 
 
 class DiscussedRepository(Repository):
-    """A repository with its own discussion's id (v22) and checkout slot summary (v34)."""
+    """A repository with its own discussion's id (v22), slot summary (v34), and direct catalog dependencies (v35)."""
 
     # Null for a merged repository, whose discussion is tagged with the survivor now, and for one
     # archived before v22 and not recovered since (coordination.with_discussion).
     discussionId: str | None
+    upstreamIds: list[str]
+    downstreamIds: list[str]
     slotSummary: RepositorySlotSummary
 
 
@@ -687,6 +691,9 @@ class PlanStep(Answer):
     status: str
     revision: int
     retired: bool
+    workClass: str
+    repositoryIds: list[str]
+    waveIds: list[str]
 
 
 class RoadmapStep(PlanStep):
@@ -794,6 +801,9 @@ class OutlineStep(Answer):
     status: str
     parentId: str | None
     position: int
+    workClass: str
+    repositoryIds: list[str]
+    waveId: str | None
 
 
 class RoadmapOutline(Answer):
@@ -1330,11 +1340,12 @@ class ParticipationRepository(Answer):
 
 
 class Participation(Answer):
-    """What a run reports working on: a work item or none, and the repositories it works in."""
+    """What a run reports working on: a work item, step, or none, and the repositories it works in."""
 
     id: str
     runId: str
     itemId: str | None
+    stepId: str | None
     description: str
     contexts: list[ParticipationRepository]
     revision: int
@@ -1392,7 +1403,7 @@ class RegistryWorkItem(Answer):
 
 
 class AgentWork(Answer):
-    """Open participation an agent reports: the work and the repositories it is at now."""
+    """Open participation an agent reports: the work, step, and the repositories it is at now."""
 
     participationId: str
     runId: str
@@ -1402,6 +1413,7 @@ class AgentWork(Answer):
     # Not seen for two hours.
     stale: bool
     item: RegistryWorkItem | None
+    stepId: str | None
     roadmap: RecordSummary | None
     contexts: list[ParticipationRepository]
 
@@ -1701,6 +1713,7 @@ class OverlapParticipation(Answer):
     lastSeenAt: str
     stale: bool
     item: OverlapWorkItem | None
+    stepId: str | None
     contexts: list[ParticipationRepository]
 
 
@@ -1755,6 +1768,60 @@ class OverlapTicket(Answer):
     assignee: Participant | None
 
 
+class FrozenWaveRef(Answer):
+    waveId: str
+    waveName: str
+    roadmapId: str
+    freezeStatus: Literal["open", "batching", "frozen"]
+    frozenRef: str
+
+
+class PendingRepinRef(Answer):
+    waveId: str
+    waveName: str
+    upstreamRepoId: str
+    upstreamRepoName: str
+    consumerRepoId: str
+    consumerRepoName: str
+    status: Literal["pending", "in_progress", "verified", "waived"]
+
+
+class RepoAdvisory(Answer):
+    repositoryId: str
+    repositoryName: str
+    wipCap: int | None
+    effectiveWipCap: int | None
+    tier: int | None
+    activeWriters: int
+    doingSteps: int
+    overWipCap: bool
+    frozenWaves: list[FrozenWaveRef]
+    pendingRepins: list[PendingRepinRef]
+
+
+class MultiRepoStepRef(Answer):
+    stepId: str
+    stepTitle: str
+    roadmapId: str
+    repositoryIds: list[str]
+
+
+class CompetingWaveStepRef(Answer):
+    stepId: str
+    stepTitle: str
+    roadmapId: str
+    activeWaveId: str
+    activeWaveName: str
+
+
+class DispatchAdvisories(Answer):
+    """Execution guardrails for overlaps and proposal review: WIP caps, freezes, re-pins, and multi-repo leaves."""
+
+    repositories: list[RepoAdvisory]
+    multiRepoSteps: list[MultiRepoStepRef]
+    competingWaveSteps: list[CompetingWaveStepRef]
+
+
 class Overlaps(Answer):
     """Who else is on the named records and what they said there, leaving out the caller's own."""
 
@@ -1764,6 +1831,7 @@ class Overlaps(Answer):
     discussions: list[OverlapDiscussion]
     roles: list[OverlapRole]
     tickets: list[OverlapTicket]
+    dispatchAdvisories: DispatchAdvisories
 
 
 class AgentOpenRun(Answer):
@@ -2561,6 +2629,289 @@ class SavedStep(PlanStep):
     roadmapId: str
 
 
+class CreatedStep(SavedStep):
+    """A step as step.create or step.move returns it, with its updated roadmap revision."""
+
+    roadmapRevision: int
+
+
+class SplitStepResult(Answer):
+    """A split leaf step and its newly created single-repo child steps."""
+
+    parent: PlanStep
+    children: list[PlanStep]
+    roadmapId: str
+    roadmapRevision: int
+
+
+class WaveSummary(Answer):
+    id: str
+    roadmapId: str
+    name: str
+    summary: str
+    status: Literal["planning", "active", "completed", "cancelled"]
+    position: int
+    discussionId: str | None
+    archived: bool
+    revision: int
+    createdAt: str
+    updatedAt: str
+    activatedAt: str | None
+    completedAt: str | None
+    stepCount: int
+    doneStepCount: int
+    frozenRepoCount: int
+    pendingRepinCount: int
+
+
+class Waves(Answer):
+    items: list[WaveSummary]
+    total: int
+
+
+class WaveStep(Answer):
+    id: str
+    title: str
+    status: str
+    workClass: str
+    parentId: str | None
+    repositoryIds: list[str]
+
+
+class WaveRepository(Answer):
+    repositoryId: str
+    repositoryName: str
+    tier: int | None
+    freezeStatus: Literal["open", "batching", "frozen"]
+    frozenRef: str
+    frozenAt: str | None
+    frozenByLabel: str
+    notes: str
+    revision: int
+    updatedAt: str
+
+
+class WaveRepin(Answer):
+    waveId: str
+    upstreamRepoId: str
+    upstreamRepoName: str
+    consumerRepoId: str
+    consumerRepoName: str
+    status: Literal["pending", "in_progress", "verified", "waived"]
+    pinnedRef: str
+    prUrl: str
+    commitSha: str
+    reportedByLabel: str
+    verifiedAt: str | None
+    revision: int
+    updatedAt: str
+
+
+class WaveTierRepo(WaveRepository):
+    stepCount: int
+    doingCount: int
+    doneCount: int
+    blockedCount: int
+    pendingDownstreamRepins: int
+    pendingUpstreamRepins: int
+
+
+class WaveTierGroup(Answer):
+    tier: int | None
+    repositories: list[WaveTierRepo]
+
+
+class WaveDetail(WaveSummary):
+    stepIds: list[str]
+    steps: list[WaveStep]
+    repositories: list[WaveRepository]
+    repins: list[WaveRepin]
+    tierPipeline: list[WaveTierGroup]
+
+
+class DispatchRoadmapRef(Answer):
+    id: str
+    title: str
+    revision: int
+    archived: bool
+
+
+class DispatchSummary(Answer):
+    totalLeaves: int
+    doingLeaves: int
+    blockedLeaves: int
+    doneLeaves: int
+    overCapRepos: int
+    competingDoingCount: int
+    multiRepoLeafCount: int
+    unassignedLeafCount: int
+    pendingRepinCount: int
+
+
+class DispatchPhaseLink(Answer):
+    id: str
+    title: str
+
+
+class DispatchStepAgent(Answer):
+    agentId: str
+    label: str
+    avatar: str | None
+    stale: bool
+
+
+class DispatchStepCard(Answer):
+    id: str
+    title: str
+    status: str
+    revision: int
+    workClass: str
+    repositoryIds: list[str]
+    multiRepo: bool
+    waveId: str | None
+    inActiveWave: bool
+    queuePosition: int | None
+    phasePath: list[DispatchPhaseLink]
+    activeAgents: list[DispatchStepAgent]
+
+
+class DispatchUnassignedStepCard(DispatchStepCard):
+    suggestedRepoIds: list[str]
+
+
+class DispatchParticipation(Answer):
+    participationId: str
+    agentId: str
+    agentLabel: str
+    avatar: str | None
+    runName: str
+    itemId: str | None
+    stepId: str | None
+    description: str
+    branch: str
+    worktreePath: str
+    lastSeenAt: str
+    stale: bool
+
+
+class DispatchRepoLane(Answer):
+    repositoryId: str
+    repositoryName: str
+    url: str
+    discussionId: str | None
+    wipCap: int | None
+    effectiveWipCap: int | None
+    tier: int | None
+    upstreamIds: list[str]
+    downstreamIds: list[str]
+    slotSummary: RepositorySlotSummary
+    activeWriters: int
+    doingCount: int
+    overWipCap: bool
+    freezeState: WaveRepository | None
+    repins: list[WaveRepin]
+    doing: list[DispatchStepCard]
+    competingWip: list[DispatchStepCard]
+    queued: list[DispatchStepCard]
+    blocked: list[DispatchStepCard]
+    done: list[DispatchStepCard]
+    blockedCount: int
+    doneCount: int
+    participations: list[DispatchParticipation]
+
+
+class DispatchPhaseRollup(Answer):
+    id: str
+    title: str
+    status: str
+    totalLeaves: int
+    doneLeaves: int
+    doingLeaves: int
+    blockedLeaves: int
+    openLeaves: int
+
+
+class DispatchGates(Answer):
+    gateSteps: list[DispatchStepCard]
+    phases: list[DispatchPhaseRollup]
+
+
+class RoadmapDispatch(Answer):
+    roadmap: DispatchRoadmapRef
+    summary: DispatchSummary
+    waves: list[WaveSummary]
+    activeWave: WaveDetail | None
+    repoLanes: list[DispatchRepoLane]
+    multiRepoLeaves: list[DispatchStepCard]
+    unassignedLeaves: list[DispatchUnassignedStepCard]
+    gates: DispatchGates
+
+
+class RepositoryQueueFreeze(Answer):
+    waveId: str
+    waveName: str
+    roadmapId: str
+    roadmapTitle: str
+    tier: int | None
+    freezeStatus: Literal["open", "batching", "frozen"]
+    frozenRef: str
+    frozenAt: str | None
+    notes: str
+
+
+class RepositoryQueueRepin(Answer):
+    waveId: str
+    waveName: str
+    upstreamRepoId: str
+    upstreamRepoName: str
+    consumerRepoId: str
+    consumerRepoName: str
+    status: Literal["pending", "in_progress", "verified", "waived"]
+    pinnedRef: str
+    prUrl: str
+    commitSha: str
+    reportedByLabel: str
+    verifiedAt: str | None
+    revision: int
+    updatedAt: str
+
+
+class RepositoryQueueStep(Answer):
+    id: str
+    roadmapId: str
+    roadmapTitle: str
+    title: str
+    status: str
+    revision: int
+    workClass: str
+    queuePosition: int | None
+    waveId: str | None
+    waveName: str | None
+    waveStatus: str | None
+    multiRepo: bool
+
+
+class RepositoryQueue(Answer):
+    repositoryId: str
+    repositoryName: str
+    wipCap: int | None
+    effectiveWipCap: int | None
+    tier: int | None
+    upstreamIds: list[str]
+    downstreamIds: list[str]
+    activeWriters: int
+    doingCount: int
+    overWipCap: bool
+    freezes: list[RepositoryQueueFreeze]
+    repins: list[RepositoryQueueRepin]
+    participations: list[DispatchParticipation]
+    doing: list[RepositoryQueueStep]
+    queued: list[RepositoryQueueStep]
+    blocked: list[RepositoryQueueStep]
+    done: list[RepositoryQueueStep]
+    doneCount: int
+
+
 class PersonTie(RecordPerson):
     """A person's tie to a work item, roadmap or repository, as setting it returns it."""
 
@@ -2799,6 +3150,7 @@ class LiveSummary(Answer):
     activeSteps: int
     activeRepos: int
     repoOverlaps: int
+    overCapRepos: int
     pendingRequests: int
     waitingOnAgents: int
     waitingProposals: int
@@ -2876,6 +3228,13 @@ class LiveRepoNode(Answer):
     branches: list[str]
     agentCount: int
     overlapCount: int
+    wipCap: int | None
+    effectiveWipCap: int | None
+    tier: int | None
+    doingStepCount: int
+    overWipCap: bool
+    frozenWaveName: str | None
+    pendingRepinsCount: int
     maxActiveLeases: int
     activeLeases: int
     queuedLeases: int

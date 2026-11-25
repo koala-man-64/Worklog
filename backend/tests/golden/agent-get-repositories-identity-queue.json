@@ -1,0 +1,84 @@
+{
+  "body": {
+    "activeWriters": 1,
+    "blocked": [],
+    "doing": [],
+    "doingCount": 0,
+    "done": [],
+    "doneCount": 0,
+    "downstreamIds": [
+      "<id2>"
+    ],
+    "effectiveWipCap": 1,
+    "freezes": [
+      {
+        "freezeStatus": "frozen",
+        "frozenAt": "<time.ffffff+hh:mm>",
+        "frozenRef": "v1.0.0",
+        "notes": "",
+        "roadmapId": "<id4>",
+        "roadmapTitle": "Plan 2",
+        "tier": 1,
+        "waveId": "<id3>",
+        "waveName": "Wave 1"
+      }
+    ],
+    "overWipCap": false,
+    "participations": [
+      {
+        "agentId": "<id6>",
+        "agentLabel": "Builder",
+        "avatar": "red-dots-antenna",
+        "branch": "",
+        "description": "",
+        "itemId": "<id7>",
+        "lastSeenAt": "<time.ffffff+hh:mm>",
+        "participationId": "<id5>",
+        "runName": "Builder",
+        "stale": false,
+        "stepId": null,
+        "worktreePath": ""
+      }
+    ],
+    "queued": [
+      {
+        "id": "<id8>",
+        "multiRepo": false,
+        "queuePosition": null,
+        "revision": 2,
+        "roadmapId": "<id4>",
+        "roadmapTitle": "Plan 2",
+        "status": "open",
+        "title": "Child",
+        "waveId": "<id3>",
+        "waveName": "Wave 1",
+        "waveStatus": "active",
+        "workClass": "critical_path"
+      }
+    ],
+    "repins": [
+      {
+        "commitSha": "",
+        "consumerRepoId": "<id2>",
+        "consumerRepoName": "worklog-ui",
+        "pinnedRef": "",
+        "prUrl": "",
+        "reportedByLabel": "",
+        "revision": 1,
+        "status": "pending",
+        "updatedAt": "<time.ffffff+hh:mm>",
+        "upstreamRepoId": "<id1>",
+        "upstreamRepoName": "worklog",
+        "verifiedAt": null,
+        "waveId": "<id3>",
+        "waveName": "Wave 1"
+      }
+    ],
+    "repositoryId": "<id1>",
+    "repositoryName": "worklog",
+    "tier": 1,
+    "upstreamIds": [],
+    "wipCap": 1
+  },
+  "status": 200
+}

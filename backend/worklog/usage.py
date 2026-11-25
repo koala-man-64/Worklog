@@ -55,6 +55,7 @@ VERBS: dict[str, tuple[str, ...]] = {
     policy.PREFIX + "/resources/{identity}/{verb}": ("archive", "recover"),
     policy.PREFIX + "/roadmaps/{identity}/{verb}": ("archive", "recover"),
     policy.PREFIX + "/tickets/{ref}/{verb}": ("archive", "recover"),
+    policy.PREFIX + "/waves/{identity}/{verb}": ("archive", "recover"),
     policy.PREFIX + "/work-items/{identity}/{verb}": ("archive", "recover"),
 }
 SCHEMA = """

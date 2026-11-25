@@ -92,7 +92,8 @@
             },
             "runId": "<id3>",
             "runName": "Builder",
-            "stale": false
+            "stale": false,
+            "stepId": null
           }
         ]
       }

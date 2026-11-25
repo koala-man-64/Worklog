@@ -221,7 +221,32 @@ A ticket filed from the browser starts open. An agent can file a past incident a
 5. To change one step's title, outcome or description, open the step, press "Edit step", then "Save step". It saves that step alone, without a new version, so agents working on other steps carry on undisturbed. Agents propose the same change for one step.
 6. To nest a roadmap under another, use "Add sub-roadmap" at the top of the parent's page, or choose its parent in "Nested under" beside it.
 
-The editor opens beside the outline, and keeps your unsaved structure as a browser draft. If the roadmap changed in the meantime, choose "Rebase onto current" to keep your edits on the newest version: a title, outcome, description or parent you didn't change takes the newest one, so a step edited elsewhere keeps its new text, and a step retired elsewhere stays retired unless you changed it. Or choose "Discard draft". A save changes only the steps you changed: adding or retiring a step leaves the others as they were. Retired steps keep their history; "Show retired steps" shows them in the outline, where they were.
+The editor opens beside the outline, and keeps your unsaved structure as a browser draft. If the roadmap changed in the meantime, choose "Rebase onto current" to keep your edits on the newest version: a title, outcome, description or parent you didn't change takes the newest one, so a step edited elsewhere keeps its new text, and a step retired elsewhere stays retired unless you changed it. Or choose "Discard draft". A save changes only the steps you changed: adding or retiring a step leaves the others as they were. Retired steps keep their history; "Show retired steps" shows them in the outline, where they were. Once your phases are in place, run day-to-day delivery across repositories and release waves as described in [Execute a roadmap by repository stream and wave](#execute-a-roadmap-by-repository-stream-and-wave).
+
+### Execute a roadmap by repository stream and wave
+
+Keep phases, milestones and end-to-end readiness gates on the roadmap's "Outline" for planning, and run execution from its "Execution" view, where leaf steps group into "Repository lanes" (one stream per repository) and synchronize across dependency tiers in waves.
+
+1. **Configure each repository stream.** Open **Repositories**, choose a repository, and under "Execution policy" set:
+   - "Dependency tier" (for example, Tier 1 for foundation/contracts, Tier 2 for services, Tier 3 for edge/UI)
+   - "WIP cap" (leave blank to inherit the repository's checkout slot cap; use 1 for hot serial-writer repositories and higher values for independent streams)
+   - "Upstream repositories" (the upstream libraries or contracts this repository consumes, which drives consumer re-pins when an upstream repository freezes)
+
+   Press "Save execution policy".
+2. **Map leaf steps to repository streams.** Open the roadmap's "Execution" view. Under "Unassigned leaves", press "Apply suggestion" where Worklog inferred repositories from linked work items or tracked chats, or pick repositories and press "Assign". To classify work inside a stream (Stabilization, Critical path, Standard, Refactor or Readiness gate), open a step on "Outline", press "Edit step", choose its work class and linked repositories, and press "Save step".
+3. **Split multi-repo implementation leaves and mark readiness gates.** Under "Multi-repo leaves to split" (or on "Outline" with "Multi-repo leaves only"):
+   - For cross-repo verification milestones (such as an end-to-end canary or golden-path gate), press "Mark as gate" so the step stays intact under "Readiness gates & phase progress" instead of being flagged to split.
+   - For implementation leaves touching several repositories, press "Split by repo". Worklog drafts one single-repo child step per linked repository, leaves "Clear parent step repository links" and "Move active/planning wave membership to children" ticked, and lets you re-home linked work items and active participations to a chosen child. The parent stays in its phase on "Outline" and rolls up child progress automatically, while each child lands in its own repository lane.
+4. **Create waves and order each stream's queue.** On "Execution", press "New wave", enter a "Wave name" and "Summary", pick the participating "Wave repositories" (optionally tick "Open a dedicated coordination discussion for this wave"), and press "Create wave". Waves start in Planning so you can prepare upcoming waves ahead of time. Choose a wave in "Active wave", then on each repository lane:
+   - press "Add to wave" (or "Leave wave") on the steps belonging to that wave
+   - use the up and down buttons under "Queued" (or under "Execution queue" on the repository's page) to sequence work inside that stream (for example, stabilization before critical-path wave work and refactors)
+5. **Activate, freeze tiers and verify consumer re-pins.** Change "Wave status" from Planning to Active:
+   - Each repository lane separates active-wave and stabilization work from non-wave work, where "Pause to open" returns competing in-progress steps to the queue and "Add to wave" pulls them into the wave.
+   - Pressing "Start" on a queued step warns and asks for "Confirm start" whenever the repository is frozen or already at its WIP cap.
+   - When an upstream repository finishes batching contract or library changes, press "Freeze / batch" on its tile in the tier pipeline, set "Freeze state" to Batching or Frozen with its "Frozen ref / tag / SHA", and press "Save freeze".
+   - Freezing an upstream repository opens rows under "Consumer re-pins" for every downstream repository in the wave. As agents report their re-pin pull requests or commits, press "Verify" (or "Waive", or "Reopen"). When wave steps and re-pins finish, set "Wave status" to Completed and activate the next wave.
+
+For a large roadmap, agents can submit batched proposals on **Review** to set repository execution policies, link steps to repositories, split multi-repo leaves and assign steps to planning waves, with "Execution guardrails" flagging any WIP-cap, freeze or re-pin conflicts before you approve. Changing wave status, freezing or unfreezing repositories, verifying re-pins and reordering repository queues always stay yours.
 
 ### Record questions and decisions
 
@@ -429,7 +454,7 @@ Plans broken into steps, with every saved version kept.
     - "Edit structure", and "Archive" or "Recover".
     - The progress bar.
     - "Nested under", the sub-roadmaps and "Add sub-roadmap".
-    - Its views, each at its own address: "Status", "Outline", "Questions and decisions" with how many are open, "Chats", "Discussions", "Live", "Material" and "History".
+    - Its views, each at its own address: "Status", "Outline", "Execution", "Questions and decisions" with how many are open, "Chats", "Discussions", "Live", "Material" and "History".
   - **"Status"**, which the roadmap opens on:
     - "Phases": each step at the top of the outline, with how many of the steps under it are done, in progress, blocked and open, and a bar filled in those colours.
     - "Now": the steps in progress, each with its phase and the agents working on it.
@@ -439,15 +464,19 @@ Plans broken into steps, with every saved version kept.
     - "Now", "Next" and each list under "Needs you" show their first eight and link to the rest; "Recently done" shows the last ten.
     - Then the overview text, its people and "Agents": every agent whose work ties it to the roadmap, now or before: its reported work, status updates, responsibilities, discussion messages and tracked chats, the same work that names the roadmap on its card on **Agents**. Each row says why, with "Current" while something is still open and otherwise when it last was. Agents whose credentials are revoked sit under "Retired agents". Nobody ties them here by hand.
   - **"Outline":**
-    - "Plan & progress": the outline of steps, with "Collapse done", "Collapse all" and "Expand all", and "Show retired steps" once a step is retired. A long title is cut short on its line; hover over it to read it whole, as on "Status".
-    - "Agents working here", and each step's progress, work-item count and agents.
+    - "Plan & progress": the outline of steps, with "Collapse done", "Collapse all" and "Expand all", "Show retired steps" once a step is retired, and optional filters by repository, work class and "Multi-repo leaves only". A long title is cut short on its line; hover over it to read it whole, as on "Status".
+    - "Agents working here", and each step's progress, work-item count, work class, linked repositories and agents.
     - Drag the outline's edge to resize it.
     - "Edit structure" opens the editor beside it. Otherwise it has the step chosen in the outline:
-      - Its "Outcome" first, in a panel larger than anything else under its title, or "No outcome yet" when it has none. Then its description, with "Edit step" for its title, outcome and description.
+      - Its "Outcome" first, in a panel larger than anything else under its title, or "No outcome yet" when it has none. Then its description, with "Edit step" for its title, outcome, description, work class and linked repositories, "Split by repo" to split a leaf into single-repo child steps, and "Add child step" to add a child step without rewriting the full tree.
       - Its work items, each with its status and "Unlink". "Add work item" creates one on this step, and "Attach work item" puts existing work, found with "Find existing work", on it, moving it from another step.
       - Its agent chats, with "Assign chat", "Add chat to step" and "Unassign". "Messages" opens a chat on the roadmap's "Chats".
       - "Agents": the agents whose work ties them to the step or to the steps under it, as "Status" lists them.
       - Its notes and files, and "Activity history".
+  - **"Execution":**
+    - Groups the roadmap's leaf steps into "Repository lanes" with each repository's dependency tier, WIP cap, active writers, competing Doing WIP outside the active wave, queued order and blocked work, while preserving the phase hierarchy on "Outline".
+    - "New wave" creates a synchronized release or contract wave across dependency tiers; you control wave status, repository freeze states and "Consumer re-pins" ("Verify" or "Waive").
+    - "Multi-repo leaves to split" flags non-gate leaves spanning multiple repositories with "Split by repo" and "Mark as gate"; "Unassigned leaves" lets you link repositories or accept suggestions.
   - **"Questions and decisions"**: "Questions" and "Decisions", with archived ones under "Archived supporting records".
   - **"Chats"**: **Chats** for this roadmap alone.
     - "Agent chats" lists the chats tracked on the roadmap, on its work items and on its sub-roadmaps, working ones first. Each shows its steps, and a chat tracked on a work item or sub-roadmap names it.
@@ -469,6 +498,7 @@ The repositories you and your agents work in.
 - **A repository's page:**
   - "Repository name", "Remote URL" and "Description", plus "Archive repository" or "Recover repository".
   - "Merge into another repository" and "Linked work" ("Link work item").
+  - "Execution policy" (dependency tier, WIP cap and upstream repository dependencies) and "Execution queue" (the repository's active, queued and blocked roadmap steps, reorderable in priority order).
   - "People" ("Tie person"): who is tied to it, with their role.
   - "Files" ("Attach a file"), with archived files under "Archived supporting records".
   - "Participants" and "Recent updates": who works there, on which branch, checkout or worktree, and what they reported.
@@ -516,7 +546,7 @@ A live view of work items, roadmaps, agents, tracked chats and repositories. Use
   - **Agents.** One that is at work, one that acted inside the Activity window, and one with a live credential that an open request or a waiting proposal still names; a role keeps an agent too, unless its last report went stale. "Show idle, stale and revoked agents" adds the rest: agents with nothing current, ones whose last report nobody renewed, and ones whose credential you revoked. With a roadmap chosen, an agent shows for a tie to that roadmap's work that still holds, not for being at work elsewhere; the checkbox then adds every agent tied to that roadmap.
   - **Plans and work.** A step or work item that an agent on the map is tied to: by participation it has open, a role, a chat that is running or was active inside the window, or anything it did there inside the window. Also work with a reason of its own: a proposal waiting on Review, an open question, a request that waits on you, a pending role offer, or a message or approval inside the window. Each brings its step and roadmap.
   - **Repositories.** One an agent on the map is tied to, or one linked to a work item that shows.
-- **The counts.** "Needs you" counts what waits on you: the acknowledgement requests addressed to you, the requests escalated to you because nobody answered by their deadline, the proposals waiting on Review and the open questions. "Waiting on agents" counts the requests and role offers that wait on an agent, whoever asked, until they escalate. Neither changes with the Activity window.
+- **The counts.** "Needs you" counts what waits on you: the acknowledgement requests addressed to you, the requests escalated to you because nobody answered by their deadline, the proposals waiting on Review and the open questions. "Waiting on agents" counts the requests and role offers that wait on an agent, whoever asked, until they escalate. "Over-cap repos" counts active repositories whose writers or Doing steps exceed their configured WIP cap. None of these change with the Activity window.
 - **An agent's session.** Worklog finds only the Claude sessions running on this machine. An agent of another provider shows "not observable": no session found says nothing about whether it runs.
 - **"Running on this machine".** The Claude sessions that no chat tracks and no agent on the map is tied to.
 
@@ -550,7 +580,7 @@ A forum you share with your agents. The left side has "Threads", "Refresh", "New
 
 ### Review
 
-Inspect agent suggestions before they change your work. "Proposal status" filters the list. A proposal's page shows the changes and the decision buttons (see [Review what an agent proposes](#review-what-an-agent-proposes)). Only you can approve, return or reject; agents draft, submit and withdraw proposals themselves. For the history of what was applied to one work item or roadmap, open "Applied proposals" on its page. An agent's own proposals are on its page under **Agents**.
+Inspect agent suggestions before they change your work. "Proposal status" filters the list. A proposal's page shows the changes, any "Execution guardrails" warnings (over-cap or frozen repositories, pending re-pins, multi-repo leaves or work outside the active wave), and the decision buttons (see [Review what an agent proposes](#review-what-an-agent-proposes)). Only you can approve, return or reject; agents draft, submit and withdraw proposals themselves. For the history of what was applied to one work item or roadmap, open "Applied proposals" on its page. An agent's own proposals are on its page under **Agents**.
 
 ### Settings
 
@@ -623,6 +653,12 @@ This guide, and the one your agents read:
 | Scratchpad | A work item's one running Markdown note |
 | Roadmap | A plan of nested steps, saved as immutable versions |
 | Step | One part of a roadmap, with the outcome its work produces; leaf steps carry progress |
+| Repository lane | One repository's execution stream on a roadmap's "Execution" view: active work, competing in-progress work, queued order and blocked steps, governed by its dependency tier and WIP cap |
+| Wave | A synchronized release or contract batch across dependency tiers on a roadmap, with wave steps, per-repository freeze states and consumer re-pins |
+| Work class | A step's execution category: Stabilization, Critical path, Standard, Refactor or Readiness gate |
+| WIP cap | The limit on concurrent Doing steps or active writers in a repository stream; defaults to the repository's checkout slot cap when left blank. Active writers are agents with a checkout lease or a participation that reported within 2 hours; a stale participation is still listed but doesn't count |
+| Freeze | A wave repository's lock state (Open, Batching or Frozen with a pinned ref, tag or commit SHA) used to hold upstream contract changes while downstream repositories re-pin |
+| Re-pin | A downstream repository's tracked update to consume a frozen upstream repository's ref in a wave, reported by agents and verified or waived by you |
 | Ticket | An issue with a key such as T-12, closed with a resolution |
 | Resource | A reference page you write for yourself and your agents: a title, a summary and Markdown text |
 | Revision | A record's change counter; it lets Worklog refuse a stale save instead of overwriting |

@@ -15,17 +15,18 @@ from .items import Items
 from .people import People
 from .resources import ResourceService
 from .tickets import TicketService
+from .waves import WaveService
 
 
 class WorkService:
     """Runs each command on the records it names: work items and their days, people, supporting
-    records, repositories and roadmaps. Approved proposals reach every one of them through apply, and
-    resources and tickets as well, which the person's own routes write directly."""
+    records, repositories, roadmaps and waves. Approved proposals reach every one of them through
+    apply, and resources and tickets as well, which the person's own routes write directly."""
 
     def __init__(self, db: Database, plans: Any, proposals: Any = None):
         self.db, self.plans, self.proposals = db, plans, proposals
         self.items, self.people = Items(db), People(db)
-        self.resources, self.tickets = ResourceService(), TicketService()
+        self.resources, self.tickets, self.waves = ResourceService(), TicketService(), WaveService(db)
 
     def apply(self, c: sqlite3.Connection, actor: dict, action: str, p: dict, *, proposed: bool = False) -> dict:
         """`proposed` is true only for a change an approved proposal makes (app.dispatch)."""
@@ -47,17 +48,21 @@ class WorkService:
             return support.apply(c, actor, action, p)
         if action.startswith(("roadmap.", "progress.", "step.")):
             result = self.plans.apply(c, actor, action, p)
-            if action == "step.update":
+            if action in {"step.update", "step.create"}:
                 # One step's text: index that step alone. Only an active step of an active roadmap changes.
                 search.put(c, result["id"], "step", result["title"], search.step_body(result["description"], result["outcome"]),
                            result["roadmapId"])
+            elif action == "step.split":
+                search.index_plans(c, result["roadmapId"])
             # Moving changes no indexed text or archive state.
-            elif action not in {"progress.set", "roadmap.move"}:
+            elif action not in {"progress.set", "roadmap.move", "step.move"}:
                 search.index_plans(c, result["id"])
             if self.proposals is not None and action != "roadmap.create":
                 self.proposals.notify_stale_proposals(
-                    c, result.get("roadmapId") if action in {"progress.set", "step.update"} else result.get("id"))
+                    c, result.get("roadmapId") if action in {"progress.set", "step.update", "step.create", "step.split", "step.move"} else result.get("id"))
             return result
+        if action.startswith("wave."):
+            return self.waves.apply(c, actor, action, p)
         if action.startswith("person."):
             return self.people.apply(c, actor, action, p)
         raise AppError(422, "operation", "Unsupported operation")

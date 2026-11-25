@@ -15,12 +15,19 @@
     "outcome": "",
     "parentId": "<id2>",
     "position": 1,
+    "repositoryIds": [
+      "<id3>"
+    ],
     "retired": false,
-    "revision": 1,
-    "roadmapId": "<id3>",
+    "revision": 2,
+    "roadmapId": "<id5>",
     "siblings": [],
     "status": "open",
-    "title": "Child"
+    "title": "Child",
+    "waveIds": [
+      "<id4>"
+    ],
+    "workClass": "critical_path"
   },
   "status": 200
 }

@@ -666,11 +666,12 @@ class ProposalService:
         currentRevision is that revision."""
         operations = json.loads(row["operations"])
         forecast = Forecast(conn)
+        waves: dict[str, dict | None] = {}
         conflicts = []
         for number, op in enumerate(operations, 1):
             action, payload = op["action"], op["payload"]
-            if action in {"roadmap.revise", "roadmap.move", "roadmap.archive", "roadmap.recover"}:
-                rm = forecast.roadmap(payload.get("id") or payload.get("roadmapId"))
+            if action in {"roadmap.revise", "roadmap.move", "roadmap.archive", "roadmap.recover", "step.create"}:
+                rm = forecast.roadmap(payload.get("roadmapId") if action == "step.create" else (payload.get("id") or payload.get("roadmapId")))
                 if rm is None:
                     continue
                 if rm["revision"] != payload.get("revision"):
@@ -687,9 +688,32 @@ class ProposalService:
                         })
                 elif action == "roadmap.revise":
                     forecast.revise(rm, payload)
+                elif action == "step.create":
+                    forecast.create_step(rm, payload)
                 else:
                     forecast.change_roadmap(rm, action)
-            elif action in {"progress.set", "step.update"}:
+            elif action == "step.move":
+                st = forecast.step(payload.get("id") or payload.get("stepId"))
+                if st is None:
+                    continue
+                rm = forecast.roadmap(st["roadmap_id"])
+                if rm is None:
+                    continue
+                if rm["revision"] != payload.get("revision"):
+                    if roadmap_id is None or rm["id"] == roadmap_id:
+                        conflicts.append({
+                            "operation": number,
+                            "action": action,
+                            "targetType": "roadmap",
+                            "targetId": rm["id"],
+                            "targetTitle": rm["title"],
+                            "roadmapId": rm["id"],
+                            "expectedRevision": payload.get("revision"),
+                            "currentRevision": rm["revision"],
+                        })
+                else:
+                    forecast.move_step(rm, st, payload)
+            elif action in {"progress.set", "step.update", "step.split"}:
                 st = forecast.step(payload.get("id") or payload.get("stepId"))
                 if st is None:
                     continue
@@ -707,8 +731,34 @@ class ProposalService:
                         })
                 elif action == "progress.set":
                     forecast.set_progress(st)
+                elif action == "step.split":
+                    forecast.split_step(st, payload)
                 else:
                     forecast.update_step(st, payload)
+            elif action in {"wave.update", "wave.steps"}:
+                wid = payload.get("id")
+                if not isinstance(wid, str):
+                    continue
+                if wid not in waves:
+                    wrow = conn.execute("SELECT id,roadmap_id,name,revision,archived FROM waves WHERE id=?", (wid,)).fetchone()
+                    waves[wid] = dict(wrow) if wrow else None
+                wave = waves[wid]
+                if wave is None or wave["archived"]:
+                    continue
+                if wave["revision"] != payload.get("revision"):
+                    if roadmap_id is None or wave["roadmap_id"] == roadmap_id:
+                        conflicts.append({
+                            "operation": number,
+                            "action": action,
+                            "targetType": "roadmap",
+                            "targetId": wave["id"],
+                            "targetTitle": wave["name"],
+                            "roadmapId": wave["roadmap_id"],
+                            "expectedRevision": payload.get("revision"),
+                            "currentRevision": wave["revision"],
+                        })
+                else:
+                    wave["revision"] += 1
         return conflicts
 
     def notify_stale_proposals(self, conn, roadmap_id=None):

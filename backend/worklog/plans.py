@@ -7,11 +7,33 @@ import uuid
 from bisect import bisect_left
 
 from .common import AppError, event, now, read_events, require_revision, uid
+from .repository_links import (
+    linked_repositories,
+    replace_repository_associations,
+    roadmap_step_repositories,
+)
 
 STATUSES = {"open", "doing", "blocked", "done"}
+WORK_CLASSES = {"", "stabilization", "critical_path", "standard", "refactor", "gate"}
 # A step's text: what a save, a step.update or a restore writes, and what counts as changing it.
 TEXT = ("title", "description", "outcome")
 OUTCOME_LIMIT = 100_000
+
+
+def _work_class(value, default=""):
+    if value is None:
+        return default
+    if not isinstance(value, str) or value not in WORK_CLASSES:
+        raise AppError(422, "validation", "Invalid workClass")
+    return value
+
+
+def _step_repo_ids(value):
+    if value is None:
+        return None
+    if not isinstance(value, list) or len(value) > 100 or not all(isinstance(i, str) and i for i in value):
+        raise AppError(422, "validation", "Choose up to 100 repositories")
+    return sorted(set(value))
 
 
 def _text(value, field, default=None, maximum=1_000_000):
@@ -67,7 +89,39 @@ def _step(row):
     return {"id": row["id"], "title": row["title"], "description": row["description"],
             "outcome": row["outcome"], "parentId": row["parent_id"], "position": row["position"],
             "status": row["status"], "revision": row["revision"],
-            "retired": bool(row["retired"])}
+            "retired": bool(row["retired"]), "workClass": row["work_class"],
+            "repositoryIds": [], "waveIds": []}
+
+
+def _roadmap_step_waves(conn, roadmap_id):
+    """All non-archived wave memberships on a roadmap, plus each step's active/planning wave ID, in 1 query."""
+    waves_by_step: dict[str, list[str]] = {}
+    active_wave: dict[str, str] = {}
+    for step_id, wave_id, status in conn.execute(
+        "SELECT ws.step_id,ws.wave_id,w.status FROM wave_steps ws "
+        "JOIN waves w ON w.id=ws.wave_id "
+        "WHERE w.roadmap_id=? AND w.archived=0 "
+        "ORDER BY w.status='active' DESC,w.position,w.created_at,w.id",
+        (roadmap_id,),
+    ):
+        waves_by_step.setdefault(step_id, []).append(wave_id)
+        if status in {"active", "planning"} and step_id not in active_wave:
+            active_wave[step_id] = wave_id
+    return waves_by_step, active_wave
+
+
+def _hydrate_step(conn, step):
+    """Attach repositoryIds and waveIds to one step record."""
+    repos = linked_repositories(conn, "step", [step["id"]]).get(step["id"], [])
+    waves = [
+        r[0]
+        for r in conn.execute(
+            "SELECT ws.wave_id FROM wave_steps ws JOIN waves w ON w.id=ws.wave_id "
+            "WHERE ws.step_id=? AND w.archived=0 ORDER BY w.status='active' DESC,w.position,w.created_at,w.id",
+            (step["id"],),
+        )
+    ]
+    return {**step, "repositoryIds": repos, "waveIds": waves}
 
 
 def _kept_in_order(values):
@@ -119,20 +173,22 @@ def _moved(rows, steps):
 
 
 def keep_outcomes(rows, steps):
-    """Give each step of a save that names no outcome the one stored for it, or none for a new step,
-    so a save drafted without outcomes, such as a proposal from before steps had them or a version
-    saved before then, leaves each step's outcome as it is. Returns the steps."""
+    """Give each step of a save that names no outcome or workClass the one stored for it, or none for a
+    new step, so a save drafted without them leaves each step's stored value as it is. Returns the steps."""
     stored = {row["id"]: row for row in rows}
     for step in steps:
         if step["outcome"] is None:
             step["outcome"] = stored[step["id"]]["outcome"] if step["id"] in stored else ""
+        if step.get("workClass") is None:
+            step["workClass"] = stored[step["id"]]["work_class"] if step["id"] in stored else ""
     return steps
 
 
-def changed_by(rows, steps):
+def changed_by(rows, steps, stored_repos=None):
     """The stored steps a save with these steps changes (K4): each it retires or restores, gives a
-    new title, description or outcome, or moves (_moved). Every other step keeps its revision and gets no
-    event, whatever its position number becomes: the roadmap's revision guards the order."""
+    new title, description, outcome, workClass or repositoryIds, or moves (_moved). Every other step
+    keeps its revision and gets no event, whatever its position number becomes: the roadmap's revision
+    guards the order."""
     wanted = {step["id"]: step for step in steps}
     changed = _moved(rows, steps)
     for row in rows:
@@ -140,7 +196,16 @@ def changed_by(rows, steps):
         if step is None:
             if not row["retired"]:
                 changed.add(row["id"])
-        elif row["retired"] or any(row[key] != step[key] for key in TEXT):
+        elif (
+            row["retired"]
+            or any(row[key] != step[key] for key in TEXT)
+            or row["work_class"] != step.get("workClass", "")
+            or (
+                stored_repos is not None
+                and step.get("repositoryIds") is not None
+                and step["repositoryIds"] != stored_repos.get(row["id"], [])
+            )
+        ):
             changed.add(row["id"])
     return changed
 
@@ -156,6 +221,7 @@ class Forecast:
         self.conn = conn
         self._roadmaps: dict[str, dict | None] = {}
         self._steps: dict[str, dict[str, dict]] = {}  # roadmap ID -> step ID -> row
+        self._step_repos: dict[str, dict[str, list[str]]] = {}  # roadmap ID -> step ID -> repo IDs
 
     def roadmap(self, identifier):
         """The roadmap as the earlier changes leave it, or None when there is none."""
@@ -172,6 +238,11 @@ class Forecast:
             self._steps[roadmap_id] = {row["id"]: dict(row) for row in self.conn.execute(
                 "SELECT * FROM steps WHERE roadmap_id=?", (roadmap_id,))}
         return self._steps[roadmap_id]
+
+    def _repos(self, roadmap_id):
+        if roadmap_id not in self._step_repos:
+            self._step_repos[roadmap_id] = roadmap_step_repositories(self.conn, roadmap_id)
+        return self._step_repos[roadmap_id]
 
     def step(self, identifier):
         """The step as the earlier changes leave it, a new one among them, or None."""
@@ -191,12 +262,13 @@ class Forecast:
         if not self._open(roadmap):
             return
         rows = self._rows(roadmap["id"])
+        repos = self._repos(roadmap["id"])
         try:
             title, overview = _title(payload.get("title")), _text(payload.get("overview"), "overview", "")
             steps = keep_outcomes(rows.values(), PlanService.validate_steps(self.conn, roadmap["id"], payload.get("steps")))
         except AppError:
             return
-        changed = changed_by(list(rows.values()), steps)
+        changed = changed_by(list(rows.values()), steps, repos)
         wanted = {step["id"] for step in steps}
         for sid, row in rows.items():
             if sid not in wanted and not row["retired"]:
@@ -207,29 +279,126 @@ class Forecast:
             if row is None:
                 rows[step["id"]] = {"id": step["id"], "roadmap_id": roadmap["id"], "title": step["title"],
                                     "description": step["description"], "outcome": step["outcome"],
-                                    "parent_id": step["parentId"],
+                                    "parent_id": step["parentId"], "work_class": step["workClass"],
                                     "position": step["position"], "status": "open", "revision": 1, "retired": 0}
+                if step.get("repositoryIds") is not None:
+                    repos[step["id"]] = list(step["repositoryIds"])
                 added = True
             elif step["id"] in changed:
                 row.update(title=step["title"], description=step["description"], outcome=step["outcome"],
-                           parent_id=step["parentId"],
+                           parent_id=step["parentId"], work_class=step["workClass"],
                            position=step["position"], retired=0, revision=row["revision"] + 1)
+                if step.get("repositoryIds") is not None:
+                    repos[step["id"]] = list(step["repositoryIds"])
             else:
                 row["position"] = step["position"]
         if changed or added or (title, overview) != (roadmap["title"], roadmap["overview"]):
             roadmap.update(title=title, overview=overview, revision=roadmap["revision"] + 1)
 
     def update_step(self, step, payload):
-        """A step.update whose revision checks: new text raises the step's revision and its roadmap's."""
+        """A step.update whose revision checks: new text, repos or workClass raises the step's and roadmap's revision."""
         roadmap = self.roadmap(step["roadmap_id"])
         if step["retired"] or not self._open(roadmap):
             return
         try:
             text = step_text(step, payload)
+            wc = _work_class(payload.get("workClass"), step["work_class"]) if payload.get("workClass") is not None else step["work_class"]
+            rids = _step_repo_ids(payload.get("repositoryIds"))
         except AppError:
             return
-        if rewrites(step, text):
-            step.update(**text, revision=step["revision"] + 1)
+        repos = self._repos(step["roadmap_id"])
+        current_repos = repos.get(step["id"], [])
+        if rewrites(step, text) or wc != step["work_class"] or (rids is not None and rids != current_repos):
+            step.update(**text, work_class=wc, revision=step["revision"] + 1)
+            if rids is not None:
+                repos[step["id"]] = list(rids)
+            roadmap["revision"] += 1
+
+    def create_step(self, roadmap, payload):
+        """A step.create whose revision checks: adds the step and bumps the roadmap's revision."""
+        if not self._open(roadmap):
+            return
+        rows = self._rows(roadmap["id"])
+        repos = self._repos(roadmap["id"])
+        try:
+            title = _title(payload.get("title"))
+            description = _text(payload.get("description"), "description", "")
+            outcome = _text(payload.get("outcome"), "outcome", "", maximum=OUTCOME_LIMIT)
+            wc = _work_class(payload.get("workClass"), "")
+            rids = _step_repo_ids(payload.get("repositoryIds")) or []
+        except AppError:
+            return
+        parent_id = payload.get("parentId")
+        if parent_id is not None and (parent_id not in rows or rows[parent_id]["retired"]):
+            return
+        sid = payload.get("id") or uid()
+        if sid in rows:
+            return
+        pos = payload.get("position")
+        if pos is None:
+            pos = max((r["position"] for r in rows.values() if r["parent_id"] == parent_id and not r["retired"]), default=-1) + 1
+        rows[sid] = {"id": sid, "roadmap_id": roadmap["id"], "title": title, "description": description,
+                     "outcome": outcome, "parent_id": parent_id, "position": pos, "status": "open",
+                     "work_class": wc, "revision": 1, "retired": 0}
+        repos[sid] = list(rids)
+        roadmap["revision"] += 1
+
+    def split_step(self, step, payload):
+        """A step.split whose revision checks on an active leaf: inserts children and bumps parent & roadmap revisions."""
+        roadmap = self.roadmap(step["roadmap_id"])
+        rows = self._rows(step["roadmap_id"])
+        repos = self._repos(step["roadmap_id"])
+        leaf = not any(row["parent_id"] == step["id"] and not row["retired"] for row in rows.values())
+        children = payload.get("children")
+        if step["retired"] or not self._open(roadmap) or not leaf or not isinstance(children, list) or len(children) < 2:
+            return
+        for idx, child in enumerate(children):
+            if not isinstance(child, dict):
+                return
+            cid = child.get("id") or uid()
+            if cid in rows:
+                return
+            try:
+                title = _title(child.get("title"))
+                description = _text(child.get("description"), "description", "")
+                outcome = _text(child.get("outcome"), "outcome", "", maximum=OUTCOME_LIMIT)
+                wc = _work_class(child.get("workClass"), step["work_class"])
+                rids = _step_repo_ids(child.get("repositoryIds")) or []
+            except AppError:
+                return
+            rows[cid] = {"id": cid, "roadmap_id": step["roadmap_id"], "title": title, "description": description,
+                         "outcome": outcome, "parent_id": step["id"], "position": idx,
+                         "status": child.get("status") or "open", "work_class": wc, "revision": 1, "retired": 0}
+            repos[cid] = list(rids)
+        if payload.get("clearParentRepositories", True):
+            repos[step["id"]] = []
+        step["revision"] += 1
+        roadmap["revision"] += 1
+
+    def move_step(self, roadmap, step, payload):
+        """A step.move whose revision checks: updates parent/position and bumps step & roadmap revisions."""
+        if step["retired"] or not self._open(roadmap):
+            return
+        rows = self._rows(roadmap["id"])
+        parent_id = payload["parentId"] if "parentId" in payload else step["parent_id"]
+        if parent_id is not None:
+            if parent_id not in rows or rows[parent_id]["retired"]:
+                return
+            cur = parent_id
+            seen = {step["id"]}
+            while cur is not None:
+                if cur in seen:
+                    return
+                seen.add(cur)
+                cur = rows[cur]["parent_id"] if cur in rows else None
+        pos = payload.get("position")
+        if pos is None:
+            pos = (max((r["position"] for r in rows.values() if r["parent_id"] == parent_id and not r["retired"]), default=-1) + 1
+                   if parent_id != step["parent_id"] else step["position"])
+        if (parent_id, pos) != (step["parent_id"], step["position"]):
+            step["parent_id"] = parent_id
+            step["position"] = pos
+            step["revision"] += 1
             roadmap["revision"] += 1
 
     def set_progress(self, step):
@@ -278,11 +447,19 @@ def _steps(conn, identifier, retired=False, text_of=None):
                             (identifier,)).fetchall()
     else:
         rows = conn.execute(
-            "SELECT id,title,parent_id,position,status,revision,retired,"
+            "SELECT id,title,parent_id,position,status,revision,retired,work_class,"
             "CASE WHEN id=? THEN description ELSE '' END AS description,"
             "CASE WHEN id=? THEN outcome ELSE '' END AS outcome "
             "FROM steps WHERE roadmap_id=? ORDER BY position,id", (text_of, text_of, identifier)).fetchall()
-    steps = [_step(row) for row in rows if retired or not row["retired"]]
+    repos = roadmap_step_repositories(conn, identifier)
+    waves, _ = _roadmap_step_waves(conn, identifier)
+    steps = []
+    for row in rows:
+        if retired or not row["retired"]:
+            st = _step(row)
+            st["repositoryIds"] = repos.get(st["id"], [])
+            st["waveIds"] = waves.get(st["id"], [])
+            steps.append(st)
     active = {s["id"]: s for s in steps if not s["retired"]}
     children: dict[str | None, list[dict]] = {}
     for step in active.values():
@@ -399,11 +576,20 @@ class PlanService:
     def outline(self, identifier):
         """A roadmap's plan without its text, small enough for an agent to read whole: each step in
         it, retired ones aside, in outline order, with its title, status (a parent's derived from its
-        leaves, as the page shows it), parent and position."""
+        leaves, as the page shows it), parent, position, workClass, repositoryIds, and active waveId."""
         with self.db.read() as conn:
             roadmap = _roadmap(_row(conn, identifier))
-            steps = [{key: step[key] for key in ("id", "title", "status", "parentId", "position")}
-                     for step in outline_order(_steps(conn, identifier))]
+            _, active_wave = _roadmap_step_waves(conn, identifier)
+            steps = [{
+                "id": step["id"],
+                "title": step["title"],
+                "status": step["status"],
+                "parentId": step["parentId"],
+                "position": step["position"],
+                "workClass": step["workClass"],
+                "repositoryIds": step["repositoryIds"],
+                "waveId": active_wave.get(step["id"]),
+            } for step in outline_order(_steps(conn, identifier))]
             return {"id": roadmap["id"], "title": roadmap["title"], "archived": roadmap["archived"],
                     "revision": roadmap["revision"], "steps": steps}
 
@@ -432,6 +618,9 @@ class PlanService:
             snapshot = json.loads(row["snapshot"])
             for step in snapshot.get("steps", []):
                 step.setdefault("outcome", "")  # saved before steps had outcomes (v31)
+                step.setdefault("workClass", "")  # saved before steps had work classes (v35)
+                step.setdefault("repositoryIds", [])
+                step.setdefault("waveIds", [])
             return {"number": row["number"], "createdAt": row["created_at"],
                     "note": row["note"], **snapshot}
 
@@ -439,7 +628,8 @@ class PlanService:
         """A step as progress.set answers it, or step.update with its roadmap's ID: what a replayed
         receipt of either reads back (audit step 2.5)."""
         row = self.get_step(conn, identifier)
-        return {**_step(row), "roadmapId": row["roadmap_id"]} if with_roadmap else _step(row)
+        hydrated = _hydrate_step(conn, _step(row))
+        return {**hydrated, "roadmapId": row["roadmap_id"]} if with_roadmap else hydrated
 
     def saved(self, conn, identifier):
         """A roadmap as a save, move, archive or recovery answers it."""
@@ -499,6 +689,9 @@ class PlanService:
                                "description": _text(data.get("description"), "description", ""),
                                "outcome": None if data.get("outcome") is None
                                else _text(data["outcome"], "outcome", maximum=OUTCOME_LIMIT),
+                               "workClass": None if data.get("workClass") is None
+                               else _work_class(data["workClass"]),
+                               "repositoryIds": _step_repo_ids(data.get("repositoryIds")),
                                "parentId": parent, "position": position})
         parents = {s["id"]: s["parentId"] for s in normalized}
         for sid, parent in parents.items():
@@ -530,14 +723,16 @@ class PlanService:
         gets no event. Returns the IDs of the steps changed."""
         rows = conn.execute("SELECT * FROM steps WHERE roadmap_id=?", (identifier,)).fetchall()
         stored = {row["id"]: row for row in rows}
+        stored_repos = roadmap_step_repositories(conn, identifier)
         keep_outcomes(rows, steps)
-        changes = changed_by(rows, steps)
+        changes = changed_by(rows, steps, stored_repos)
         wanted = {s["id"] for s in steps}
         changed = []
         for old in rows:
             if old["id"] not in wanted and not old["retired"]:
                 conn.execute("UPDATE steps SET retired=1,revision=revision+1 WHERE id=?", (old["id"],))
-                event(conn, actor, "step.retire", old["id"], _step(old), _step(self.get_step(conn, old["id"])))
+                event(conn, actor, "step.retire", old["id"], _hydrate_step(conn, _step(old)),
+                      _hydrate_step(conn, _step(self.get_step(conn, old["id"]))))
                 changed.append(old["id"])
         for step in steps:
             old = stored.get(step["id"])
@@ -545,39 +740,295 @@ class PlanService:
                 if old["position"] != step["position"]:
                     conn.execute("UPDATE steps SET position=? WHERE id=?", (step["position"], step["id"]))
                 continue
+            before = _hydrate_step(conn, _step(old)) if old else None
             if old:
-                conn.execute("UPDATE steps SET title=?,description=?,outcome=?,parent_id=?,position=?,retired=0,"
+                conn.execute("UPDATE steps SET title=?,description=?,outcome=?,work_class=?,parent_id=?,position=?,retired=0,"
                              "revision=revision+1 WHERE id=?",
-                             (step["title"], step["description"], step["outcome"], step["parentId"], step["position"], step["id"]))
+                             (step["title"], step["description"], step["outcome"], step["workClass"],
+                              step["parentId"], step["position"], step["id"]))
             else:
-                conn.execute("INSERT INTO steps(id,roadmap_id,title,description,outcome,parent_id,position,status,revision,retired) "
-                             "VALUES(?,?,?,?,?,?,?,?,?,?)",
+                conn.execute("INSERT INTO steps(id,roadmap_id,title,description,outcome,parent_id,position,status,revision,retired,work_class) "
+                             "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                              (step["id"], identifier, step["title"], step["description"], step["outcome"], step["parentId"],
-                              step["position"], "open", 1, 0))
+                              step["position"], "open", 1, 0, step["workClass"]))
+            if step.get("repositoryIds") is not None:
+                replace_repository_associations(conn, "step", step["id"], step["repositoryIds"])
             event(conn, actor, "step.restore" if old and old["retired"] else "step.revise" if old else "step.create",
-                  step["id"], _step(old) if old else None, _step(self.get_step(conn, step["id"])))
+                  step["id"], before, _hydrate_step(conn, _step(self.get_step(conn, step["id"]))))
             changed.append(step["id"])
         return changed
 
     def _update_step(self, conn, actor, payload):
-        """One step's own title, description and outcome, checked against the step's revision, touching no
-        other step and recording no version. The roadmap's revision guards its title, overview and
-        step tree, step text included, so it rises as well: a structure save drafted before this
-        change would otherwise write the old text back. Returns the step with its roadmap's ID."""
+        """One step's own title, description, outcome, repositoryIds, and workClass, checked against
+        the step's revision, touching no other step and recording no version. The roadmap's revision
+        guards its title, overview and step tree, step text included, so it rises as well. Returns
+        the step with its roadmap's ID."""
         identifier = payload.get("id")
         row = self.get_step(conn, identifier)
         require_revision(row, payload.get("revision"))
         if row["retired"] or _row(conn, row["roadmap_id"])["archived"]:
             raise AppError(409, "conflict", "Retired or archived steps cannot change")
-        if all(payload.get(key) is None for key in TEXT):
-            raise AppError(422, "validation", "Give the step's title, description or outcome")
+        if (all(payload.get(key) is None for key in TEXT)
+                and payload.get("repositoryIds") is None and payload.get("workClass") is None):
+            raise AppError(422, "validation", "Give the step's title, description, outcome, repositoryIds or workClass")
         text = step_text(row, payload)
-        if rewrites(row, text):
-            conn.execute("UPDATE steps SET title=?,description=?,outcome=?,revision=revision+1 WHERE id=?",
-                         (text["title"], text["description"], text["outcome"], identifier))
+        wc = _work_class(payload.get("workClass"), row["work_class"]) if payload.get("workClass") is not None else row["work_class"]
+        repo_ids = _step_repo_ids(payload.get("repositoryIds"))
+        before = _hydrate_step(conn, _step(row))
+        repos_changed = repo_ids is not None and repo_ids != before["repositoryIds"]
+        if rewrites(row, text) or wc != row["work_class"] or repos_changed:
+            if repo_ids is not None:
+                replace_repository_associations(conn, "step", identifier, repo_ids)
+            conn.execute("UPDATE steps SET title=?,description=?,outcome=?,work_class=?,revision=revision+1 WHERE id=?",
+                         (text["title"], text["description"], text["outcome"], wc, identifier))
             conn.execute("UPDATE roadmaps SET revision=revision+1,updated_at=? WHERE id=?", (now(), row["roadmap_id"]))
-            event(conn, actor, "step.update", identifier, _step(row), _step(self.get_step(conn, identifier)))
-        return {**_step(self.get_step(conn, identifier)), "roadmapId": row["roadmap_id"]}
+            after = _hydrate_step(conn, _step(self.get_step(conn, identifier)))
+            event(conn, actor, "step.update", identifier, before, after)
+            return {**after, "roadmapId": row["roadmap_id"]}
+        return {**before, "roadmapId": row["roadmap_id"]}
+
+    def _create_step(self, conn, actor, payload):
+        """Insert a single step without rewriting the full roadmap tree or cutting a snapshot (K15)."""
+        roadmap_id = payload.get("roadmapId") or payload.get("id")
+        rm = _row(conn, roadmap_id)
+        require_revision(rm, payload.get("revision"))
+        if rm["archived"]:
+            raise AppError(409, "conflict", "Archived roadmaps must be recovered before editing")
+        parent_id = payload.get("parentId")
+        if parent_id is not None:
+            if not isinstance(parent_id, str):
+                raise AppError(422, "validation", "Step parentId must be a step id or null")
+            parent = conn.execute("SELECT roadmap_id,retired FROM steps WHERE id=?", (parent_id,)).fetchone()
+            if parent is None or parent["roadmap_id"] != roadmap_id or parent["retired"]:
+                raise AppError(422, "validation", "Parent step does not exist on this roadmap")
+        sid = payload.get("id") if payload.get("roadmapId") else None
+        if sid is not None:
+            try:
+                uuid.UUID(sid)
+            except (ValueError, TypeError, AttributeError):
+                raise AppError(422, "validation", "Invalid step id") from None
+            if conn.execute("SELECT 1 FROM steps WHERE id=?", (sid,)).fetchone():
+                raise AppError(409, "conflict", "Step id already exists")
+        else:
+            sid = uid()
+        title = _title(payload.get("title"))
+        description = _text(payload.get("description"), "description", "")
+        outcome = _text(payload.get("outcome"), "outcome", "", maximum=OUTCOME_LIMIT)
+        wc = _work_class(payload.get("workClass"), "")
+        repo_ids = _step_repo_ids(payload.get("repositoryIds")) or []
+        pos = payload.get("position")
+        if pos is None:
+            if parent_id is None:
+                pos = conn.execute(
+                    "SELECT COALESCE(MAX(position),-1)+1 FROM steps WHERE roadmap_id=? AND parent_id IS NULL AND retired=0",
+                    (roadmap_id,),
+                ).fetchone()[0]
+            else:
+                pos = conn.execute(
+                    "SELECT COALESCE(MAX(position),-1)+1 FROM steps WHERE roadmap_id=? AND parent_id=? AND retired=0",
+                    (roadmap_id, parent_id),
+                ).fetchone()[0]
+        else:
+            if type(pos) is not int or pos < 0:
+                raise AppError(422, "validation", "Invalid step position")
+            if parent_id is None:
+                conn.execute(
+                    "UPDATE steps SET position=position+1 WHERE roadmap_id=? AND parent_id IS NULL AND retired=0 AND position>=?",
+                    (roadmap_id, pos),
+                )
+            else:
+                conn.execute(
+                    "UPDATE steps SET position=position+1 WHERE roadmap_id=? AND parent_id=? AND retired=0 AND position>=?",
+                    (roadmap_id, parent_id, pos),
+                )
+        conn.execute(
+            "INSERT INTO steps(id,roadmap_id,title,description,outcome,parent_id,position,status,revision,retired,work_class) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            (sid, roadmap_id, title, description, outcome, parent_id, pos, "open", 1, 0, wc),
+        )
+        if repo_ids:
+            replace_repository_associations(conn, "step", sid, repo_ids)
+        conn.execute("UPDATE roadmaps SET revision=revision+1,updated_at=? WHERE id=?", (now(), roadmap_id))
+        created = _hydrate_step(conn, _step(self.get_step(conn, sid)))
+        event(conn, actor, "step.create", sid, None, created)
+        return {**created, "roadmapId": roadmap_id, "roadmapRevision": rm["revision"] + 1}
+
+    def _split_step(self, conn, actor, payload):
+        """Split an active leaf step into 2+ single-repo child steps, preserving phase placement and
+        inheriting active/planning wave membership cleanly without cutting a roadmap_versions snapshot."""
+        identifier = payload.get("id") or payload.get("stepId")
+        row = self.get_step(conn, identifier)
+        require_revision(row, payload.get("revision"))
+        rm = _row(conn, row["roadmap_id"])
+        if row["retired"] or rm["archived"]:
+            raise AppError(409, "conflict", "Retired or archived steps cannot be split")
+        if conn.execute("SELECT 1 FROM steps WHERE parent_id=? AND retired=0", (identifier,)).fetchone():
+            raise AppError(422, "validation", "Only a leaf step can be split into child steps")
+        children_raw = payload.get("children")
+        if not isinstance(children_raw, list) or len(children_raw) < 2 or len(children_raw) > 50:
+            raise AppError(422, "validation", "Provide between 2 and 50 child steps")
+        rehome_idx = payload.get("rehomeToChildIndex")
+        if rehome_idx is not None and (type(rehome_idx) is not int or rehome_idx < 0 or rehome_idx >= len(children_raw)):
+            raise AppError(422, "validation", "rehomeToChildIndex must point to one of the new child steps")
+        normalized_children = []
+        seen_ids: set[str] = {identifier}
+        for idx, child in enumerate(children_raw):
+            if not isinstance(child, dict):
+                raise AppError(422, "validation", "Each child step must be an object")
+            cid = child.get("id") or uid()
+            try:
+                uuid.UUID(cid)
+            except (ValueError, TypeError, AttributeError):
+                raise AppError(422, "validation", "Invalid child step id") from None
+            if cid in seen_ids or conn.execute("SELECT 1 FROM steps WHERE id=?", (cid,)).fetchone():
+                raise AppError(409, "conflict", "Duplicate or existing child step id")
+            seen_ids.add(cid)
+            status = child.get("status") or "open"
+            if status not in STATUSES:
+                raise AppError(422, "validation", "Invalid child step status")
+            normalized_children.append({
+                "id": cid,
+                "title": _title(child.get("title")),
+                "description": _text(child.get("description"), "description", ""),
+                "outcome": _text(child.get("outcome"), "outcome", "", maximum=OUTCOME_LIMIT),
+                "workClass": _work_class(child.get("workClass"), row["work_class"]),
+                "repositoryIds": _step_repo_ids(child.get("repositoryIds")) or [],
+                "status": status,
+                "position": idx,
+            })
+        before = _hydrate_step(conn, _step(row))
+        created_children = []
+        created_ids = []
+        for child in normalized_children:
+            conn.execute(
+                "INSERT INTO steps(id,roadmap_id,title,description,outcome,parent_id,position,status,revision,retired,work_class) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (child["id"], row["roadmap_id"], child["title"], child["description"], child["outcome"],
+                 identifier, child["position"], child["status"], 1, 0, child["workClass"]),
+            )
+            if child["repositoryIds"]:
+                replace_repository_associations(conn, "step", child["id"], child["repositoryIds"])
+            created_ids.append(child["id"])
+        if payload.get("clearParentRepositories", True):
+            replace_repository_associations(conn, "step", identifier, [])
+        if payload.get("inheritWaves", True):
+            stamp = now()
+            wave_ids = [
+                r[0]
+                for r in conn.execute(
+                    "SELECT ws.wave_id FROM wave_steps ws JOIN waves w ON w.id=ws.wave_id "
+                    "WHERE ws.step_id=? AND w.archived=0 AND w.status IN ('planning','active')",
+                    (identifier,),
+                )
+            ]
+            for wid in wave_ids:
+                conn.execute("DELETE FROM wave_steps WHERE wave_id=? AND step_id=?", (wid, identifier))
+                conn.executemany(
+                    "INSERT OR IGNORE INTO wave_steps(wave_id,step_id,position,added_at) VALUES(?,?,?,?)",
+                    [(wid, cid, idx, stamp) for idx, cid in enumerate(created_ids)],
+                )
+                # Ensure every child's active repositories appear in the inherited wave's tier pipeline.
+                for child in normalized_children:
+                    for rid in child["repositoryIds"]:
+                        if not conn.execute(
+                            "SELECT 1 FROM wave_repositories WHERE wave_id=? AND repository_id=?", (wid, rid)
+                        ).fetchone():
+                            repo_tier = conn.execute("SELECT tier FROM repositories WHERE id=?", (rid,)).fetchone()
+                            eff_tier = repo_tier["tier"] if (repo_tier and repo_tier["tier"] is not None) else 2
+                            conn.execute(
+                                "INSERT INTO wave_repositories(wave_id,repository_id,tier,freeze_status,frozen_ref,"
+                                "frozen_at,frozen_by_label,notes,revision,updated_at) VALUES(?,?,?,'open','',NULL,'','',1,?)",
+                                (wid, rid, eff_tier, stamp),
+                            )
+        if rehome_idx is not None:
+            target_child = created_ids[rehome_idx]
+            conn.execute("UPDATE work_items SET step_id=? WHERE step_id=? AND archived=0", (target_child, identifier))
+            conn.execute("UPDATE OR IGNORE chat_steps SET step_id=? WHERE step_id=?", (target_child, identifier))
+            conn.execute("DELETE FROM chat_steps WHERE step_id=?", (identifier,))
+            conn.execute("UPDATE participations SET step_id=? WHERE step_id=? AND released_at IS NULL", (target_child, identifier))
+        conn.execute("UPDATE steps SET revision=revision+1 WHERE id=?", (identifier,))
+        conn.execute("UPDATE roadmaps SET revision=revision+1,updated_at=? WHERE id=?", (now(), row["roadmap_id"]))
+        for cid in created_ids:
+            ch = _hydrate_step(conn, _step(self.get_step(conn, cid)))
+            created_children.append(ch)
+            event(conn, actor, "step.create", cid, None, ch)
+        after_parent = _hydrate_step(conn, _step(self.get_step(conn, identifier)))
+        states = [ch["status"] for ch in created_children]
+        after_parent["status"] = (
+            "done" if all(s == "done" for s in states)
+            else "blocked" if "blocked" in states
+            else "doing" if any(s in {"doing", "done"} for s in states)
+            else "open"
+        )
+        event(conn, actor, "step.split", identifier, before, {**after_parent, "childIds": created_ids})
+        return {
+            "parent": after_parent,
+            "children": created_children,
+            "roadmapId": row["roadmap_id"],
+            "roadmapRevision": rm["revision"] + 1,
+        }
+
+    def _move_step(self, conn, actor, payload):
+        """Move a single step to another parent and/or sibling position without rewriting the full tree."""
+        identifier = payload.get("id") or payload.get("stepId")
+        row = self.get_step(conn, identifier)
+        rm = _row(conn, row["roadmap_id"])
+        require_revision(rm, payload.get("revision"))
+        if row["retired"] or rm["archived"]:
+            raise AppError(409, "conflict", "Retired or archived steps cannot move")
+        parent_id = payload["parentId"] if "parentId" in payload else row["parent_id"]
+        if parent_id is not None:
+            if not isinstance(parent_id, str):
+                raise AppError(422, "validation", "Step parentId must be a step id or null")
+            parent = conn.execute("SELECT id,roadmap_id,parent_id,retired FROM steps WHERE id=?", (parent_id,)).fetchone()
+            if parent is None or parent["roadmap_id"] != row["roadmap_id"] or parent["retired"]:
+                raise AppError(422, "validation", "Parent step does not exist on this roadmap")
+            ancestor: str | None = parent_id
+            seen = {identifier}
+            while ancestor is not None:
+                if ancestor in seen:
+                    raise AppError(422, "validation", "Step cannot be moved under itself or its descendants")
+                seen.add(ancestor)
+                if len(seen) > 100:
+                    raise AppError(422, "validation", "Step trees support at most 100 nested levels")
+                anc_row = conn.execute("SELECT parent_id FROM steps WHERE id=?", (ancestor,)).fetchone()
+                ancestor = anc_row["parent_id"] if anc_row else None
+        pos = payload.get("position")
+        if pos is None:
+            if parent_id != row["parent_id"]:
+                if parent_id is None:
+                    pos = conn.execute(
+                        "SELECT COALESCE(MAX(position),-1)+1 FROM steps WHERE roadmap_id=? AND parent_id IS NULL AND retired=0",
+                        (row["roadmap_id"],),
+                    ).fetchone()[0]
+                else:
+                    pos = conn.execute(
+                        "SELECT COALESCE(MAX(position),-1)+1 FROM steps WHERE roadmap_id=? AND parent_id=? AND retired=0",
+                        (row["roadmap_id"], parent_id),
+                    ).fetchone()[0]
+            else:
+                pos = row["position"]
+        elif type(pos) is not int or pos < 0:
+            raise AppError(422, "validation", "Invalid step position")
+        before = _hydrate_step(conn, _step(row))
+        if (parent_id, pos) == (row["parent_id"], row["position"]):
+            return {**before, "roadmapId": row["roadmap_id"], "roadmapRevision": rm["revision"]}
+        if payload.get("position") is not None:
+            if parent_id is None:
+                conn.execute(
+                    "UPDATE steps SET position=position+1 WHERE roadmap_id=? AND parent_id IS NULL AND retired=0 AND id<>? AND position>=?",
+                    (row["roadmap_id"], identifier, pos),
+                )
+            else:
+                conn.execute(
+                    "UPDATE steps SET position=position+1 WHERE roadmap_id=? AND parent_id=? AND retired=0 AND id<>? AND position>=?",
+                    (row["roadmap_id"], parent_id, identifier, pos),
+                )
+        conn.execute("UPDATE steps SET parent_id=?,position=?,revision=revision+1 WHERE id=?", (parent_id, pos, identifier))
+        conn.execute("UPDATE roadmaps SET revision=revision+1,updated_at=? WHERE id=?", (now(), row["roadmap_id"]))
+        after = _hydrate_step(conn, _step(self.get_step(conn, identifier)))
+        event(conn, actor, "step.move", identifier, before, after)
+        return {**after, "roadmapId": row["roadmap_id"], "roadmapRevision": rm["revision"] + 1}
 
     def apply(self, conn, actor, action, payload):
         if actor.get("kind") not in {"human", "agent"}:
@@ -594,16 +1045,22 @@ class PlanService:
             status = payload.get("status")
             if status not in STATUSES:
                 raise AppError(422, "validation", "Invalid progress status")
-            before = _step(row)
+            before = _hydrate_step(conn, _step(row))
             conn.execute("UPDATE steps SET status=?,revision=revision+1 WHERE id=?", (status, identifier))
             # Progress is the step's, guarded by its revision: the roadmap's revision guards its
             # title, overview and step tree, which progress leaves alone (K4).
             conn.execute("UPDATE roadmaps SET updated_at=? WHERE id=?", (now(), row["roadmap_id"]))
-            result = _step(self.get_step(conn, identifier))
+            result = _hydrate_step(conn, _step(self.get_step(conn, identifier)))
             event(conn, actor, action, identifier, before, result)
             return result
         if action == "step.update":
             return self._update_step(conn, actor, payload)
+        if action == "step.create":
+            return self._create_step(conn, actor, payload)
+        if action == "step.split":
+            return self._split_step(conn, actor, payload)
+        if action == "step.move":
+            return self._move_step(conn, actor, payload)
         identifier = payload.get("id") or payload.get("roadmapId")
         if action == "roadmap.create":
             identifier = uid()

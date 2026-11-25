@@ -351,6 +351,7 @@ function Summary({ snapshot }: { snapshot: LiveSnapshot }) {
     ["Work in flight", snapshot.summary.activeWorkItems + snapshot.summary.activeSteps],
     ["Repositories", snapshot.summary.activeRepos],
     ["Overlaps", snapshot.summary.repoOverlaps],
+    ["Over-cap repos", snapshot.summary.overCapRepos],
     ["Needs you", snapshot.summary.needsYou],
     ["Waiting on agents", snapshot.summary.waitingOnAgents],
   ];
@@ -679,7 +680,38 @@ function FlowMap({
                     )}
                   </div>
                 )}
-                {repo.overlapCount >= 2 && <strong className="live-warning">Overlap: {repo.overlapCount} agents</strong>}
+                {(repo.tier != null ||
+                  repo.effectiveWipCap != null ||
+                  repo.frozenWaveName ||
+                  repo.pendingRepinsCount > 0) && (
+                  <div className="live-chips">
+                    {repo.tier != null && <span>Tier {repo.tier}</span>}
+                    {repo.effectiveWipCap != null && (
+                      <span className={repo.overWipCap ? "live-warning" : undefined}>
+                        {repo.overWipCap ? "Over cap: " : "WIP "}
+                        {repo.agentCount}/{repo.effectiveWipCap}
+                      </span>
+                    )}
+                    {repo.doingStepCount > 0 && (
+                      <span>{repo.doingStepCount} doing</span>
+                    )}
+                    {repo.frozenWaveName && (
+                      <span className="live-warning">
+                        Frozen: {repo.frozenWaveName}
+                      </span>
+                    )}
+                    {repo.pendingRepinsCount > 0 && (
+                      <span className="live-warning">
+                        {repo.pendingRepinsCount} re-pin pending
+                      </span>
+                    )}
+                  </div>
+                )}
+                {repo.overlapCount >= 2 && repo.effectiveWipCap == null && (
+                  <strong className="live-warning">
+                    Overlap: {repo.overlapCount} agents
+                  </strong>
+                )}
                 {repo.branches.length > 0 && <div className="live-branches">{repo.branches.map((branch) => <code key={branch}>{branch}</code>)}</div>}
                 <footer className="live-links">
                   <a href={repo.href} onClick={(event) => event.stopPropagation()}>Open repository</a>

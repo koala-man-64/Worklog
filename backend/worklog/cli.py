@@ -638,6 +638,32 @@ def _ticket_route_allowed(method: str, route: str) -> bool:
     return method == "POST" and parts[3] == "comments"
 
 
+def _wave_route_allowed(method: str, route: str) -> bool:
+    """Agents read dispatch/waves/queues/guardrails and report consumer re-pin progress;
+    wave freezes, lifecycle changes, verification and queue reorders stay with the person."""
+    if not route.startswith("/") or route.endswith("/"):
+        return False
+    parts = route.strip("/").split("/")
+    if len(parts) < 2:
+        return False
+    try:
+        if str(uuid.UUID(parts[1])) != parts[1].lower():
+            return False
+    except ValueError:
+        return False
+    if len(parts) == 2 and parts[0] == "waves":
+        return method == "GET"
+    if len(parts) == 3 and parts[0] == "roadmaps" and parts[2] in {"dispatch", "waves"}:
+        return method == "GET"
+    if len(parts) == 3 and parts[0] == "repositories" and parts[2] == "queue":
+        return method == "GET"
+    if len(parts) == 3 and parts[0] == "proposals" and parts[2] == "guardrails":
+        return method == "GET"
+    if len(parts) == 4 and parts[0] == "waves" and parts[2:] == ["repins", "report"]:
+        return method == "POST"
+    return False
+
+
 def _agent_url(base_url: str) -> str:
     parsed = urlsplit(base_url)
     if (parsed.scheme != "http" or parsed.hostname != HOST or parsed.username
@@ -684,7 +710,8 @@ class AgentClient:
             ids = query.get("ownerId", [])
             allowed = query.get("ownerType") == ["proposal"] and len(ids) == 1 and valid_id(ids[0])
         allowed = (allowed or _discussion_route_allowed(method, route) or _coordination_route_allowed(method, route)
-                   or _lease_route_allowed(method, route) or _ticket_route_allowed(method, route))
+                   or _lease_route_allowed(method, route) or _ticket_route_allowed(method, route)
+                   or _wave_route_allowed(method, route))
         if not allowed:
             raise ValueError("Agent command is outside proposal/read scope")
         headers = {"Authorization": "Bearer " + self.token, "Accept": "application/json"}
@@ -695,7 +722,7 @@ class AgentClient:
             data = json.dumps(payload).encode("utf-8")
             headers["Content-Type"] = "application/json"
         coordination_write = method in {"POST", "PATCH"} and route.startswith(("/repositories", "/agent-runs", "/participations",
-                                                                               "/tickets", "/chats/track", "/leases"))
+                                                                               "/tickets", "/chats/track", "/leases", "/waves"))
         if method == "POST" or coordination_write:
             request_id = request_id or str(uuid.uuid4())
             if not 8 <= len(request_id) <= 200 or not request_id.isascii() or any(ord(c) < 33 or ord(c) > 126 for c in request_id):
@@ -1012,12 +1039,29 @@ def agent_command(args: argparse.Namespace, port: int, redact: list[str]) -> Any
     if args.agent_action == "roadmap":
         if args.roadmap_action == "outline":
             return client.request("GET", f"/roadmaps/{args.id}/outline")
+        if args.roadmap_action == "dispatch":
+            query = _coordination_query(args, "waveId", "repositoryId", "includeDone")
+            return client.request("GET", f"/roadmaps/{args.id}/dispatch" + query)
         return client.request("GET", "/roadmaps/" + args.id)
+    if args.agent_action == "waves":
+        if args.wave_action == "list":
+            wave_query = _coordination_query(args, "status", "archived")
+            return client.request("GET", f"/roadmaps/{args.roadmap}/waves" + wave_query)
+        if args.wave_action == "show":
+            return client.request("GET", "/waves/" + args.id)
+        payload = {"upstreamRepoId": args.upstream, "consumerRepoId": args.consumer}
+        if args.ref:
+            payload["pinnedRef"] = args.ref
+        if args.pr:
+            payload["prUrl"] = args.pr
+        if args.commit:
+            payload["commitSha"] = args.commit
+        return client.request("POST", f"/waves/{args.id}/repins/report", payload, request_id=args.request_id)
     if args.agent_action == "step":
         return client.request("GET", "/steps/" + args.id)
     if args.agent_action == "proposals":
-        query = {**({"status": args.status} if args.status else {}), "limit": args.limit, "offset": args.offset}
-        return client.request("GET", "/proposals?" + urlencode(query))
+        proposal_query = {**({"status": args.status} if args.status else {}), "limit": args.limit, "offset": args.offset}
+        return client.request("GET", "/proposals?" + urlencode(proposal_query))
     action = args.proposal_action
     if action == "draft":
         return client.request("POST", "/proposals", _payload(args.file))
@@ -1096,9 +1140,11 @@ def coordination_command(client: AgentClient, args: argparse.Namespace) -> Any:
             "updates": "/coordination-updates", "chats": "/chats"}[group]
     if action == "list":
         return client.request("GET", base + _coordination_query(
-            args, "repositoryId", "itemId", "runId", "participationId", "q", "archived", "includeEnded", "includeReleased", "limit", "offset"))
+            args, "repositoryId", "itemId", "stepId", "runId", "participationId", "q", "archived", "includeEnded", "includeReleased", "limit", "offset"))
     if action == "show":
         return client.request("GET", base + "/" + args.id)
+    if group == "repositories" and action == "queue":
+        return client.request("GET", f"/repositories/{args.id}/queue" + _coordination_query(args, "includeDone"))
     payload = _payload(args.file) if getattr(args, "file", None) else {}
     route = base
     method = "POST"
@@ -1121,6 +1167,8 @@ def coordination_command(client: AgentClient, args: argparse.Namespace) -> Any:
             payload["contexts"] = contexts
         if args.item:
             payload["itemId"] = args.item
+        if args.step:
+            payload["stepId"] = args.step
         if args.description is not None:
             payload["description"] = args.description
     elif group == "chats":
@@ -1155,8 +1203,14 @@ def coordination_command(client: AgentClient, args: argparse.Namespace) -> Any:
         payload["revision"] = args.revision
         if group == "participation" and action == "update":
             method = "PATCH"
+            if args.file and (args.description is not None or args.step is not None):
+                raise ValueError("Give --file alone, or --description / --step")
+            if not args.file and args.description is None and args.step is None:
+                raise ValueError("Give --file, --description, or --step")
             if args.description is not None:
                 payload["description"] = args.description
+            if args.step is not None:
+                payload["stepId"] = None if args.step == "none" else args.step
         else:
             route += "/" + action
     return client.request(method, route, payload, request_id=args.request_id)
@@ -1178,6 +1232,9 @@ def _coordination_parser(actions: Any) -> None:
     listing.add_argument("--q", help="Search catalog name, URL and description")
     pages(listing)
     repositories.add_parser("show").add_argument("id")
+    repo_queue = repositories.add_parser("queue", help="Show this repository's prioritized execution queue across roadmaps")
+    repo_queue.add_argument("id")
+    repo_queue.add_argument("--include-done", dest="includeDone", action="store_true")
     ensure = repositories.add_parser("ensure", help="Register a remote, or find the record that already holds it")
     source = ensure.add_mutually_exclusive_group(required=True)
     # Not --url: the agent command's own --url names the Worklog instance.
@@ -1205,18 +1262,19 @@ def _coordination_parser(actions: Any) -> None:
     participation = actions.add_parser("participation", help="Report repository activity and optional work context").add_subparsers(
         dest="coordination_action", required=True)
     listing = participation.add_parser("list")
-    for name, destination in (("repo", "repositoryId"), ("item", "itemId"), ("run", "runId")):
+    for name, destination in (("repo", "repositoryId"), ("item", "itemId"), ("step", "stepId"), ("run", "runId")):
         listing.add_argument("--" + name, dest=destination)
     listing.add_argument("--include-released", dest="includeReleased", action="store_true")
     pages(listing)
     participation.add_parser("show").add_argument("id")
     start = participation.add_parser("start")
-    start.add_argument("--file", help="JSON {runId,itemId?,contexts:[{repositoryId or repositoryUrl,checkoutPath?,worktreePath?,branch?}]}")
+    start.add_argument("--file", help="JSON {runId,itemId?,stepId?,contexts:[{repositoryId or repositoryUrl,checkoutPath?,worktreePath?,branch?}]}")
     start.add_argument("--run")
     start.add_argument("--repo", action="append", help="Catalog repository ID; repeat for multiple contexts")
     start.add_argument("--checkout", action="append",
                        help="Local checkout to report by its origin remote, branch and path, registering the remote if needed; repeatable")
     start.add_argument("--item", help="Optional work item ID")
+    start.add_argument("--step", help="Optional roadmap step ID")
     start.add_argument("--description", help="What this participation is doing")
     write(start)
     for verb in ("update", "check-in", "release", "rejoin"):
@@ -1224,9 +1282,9 @@ def _coordination_parser(actions: Any) -> None:
         command.add_argument("id")
         command.add_argument("--revision", type=int, required=True)
         if verb == "update":
-            source = command.add_mutually_exclusive_group(required=True)
-            source.add_argument("--file", help="JSON object with itemId, description and/or replacement contexts")
-            source.add_argument("--description", help="Replace the participation's activity description")
+            command.add_argument("--file", help="JSON object with itemId, stepId, description and/or replacement contexts")
+            command.add_argument("--description", help="Replace the participation's activity description")
+            command.add_argument("--step", help="Link or change the roadmap step ID, or 'none' to unlink")
         write(command)
     output = participation.add_parser("output", help="Report the pull requests you opened and the commits you pushed, "
                                                      "so `owners` finds you by them")
@@ -2037,10 +2095,31 @@ def parser() -> argparse.ArgumentParser:
     listing.add_argument("--offset", type=int, default=0)
     resources.add_parser("show", help="One page with its full Markdown text").add_argument("id")
     # context lists roadmaps without their steps and search shows snippets; these read the whole text.
-    roadmap = actions.add_parser("roadmap", help="Read a roadmap: its outline, or the full text of every step")
+    roadmap = actions.add_parser("roadmap", help="Read a roadmap: its outline, execution dispatch board, or full text")
     roadmap_actions = roadmap.add_subparsers(dest="roadmap_action", required=True)
-    roadmap_actions.add_parser("outline", help="Each step's ID, title, status, parent and position, without text").add_argument("id")
+    roadmap_actions.add_parser("outline", help="Each step's ID, title, status, parent, position, workClass, repos and wave").add_argument("id")
     roadmap_actions.add_parser("show", help="The roadmap with the full text of every step").add_argument("id")
+    dispatch_p = roadmap_actions.add_parser("dispatch", help="Repo + Wave execution dispatch view: WIP caps, freezes, re-pins, and queues")
+    dispatch_p.add_argument("id")
+    dispatch_p.add_argument("--wave", dest="waveId", help="Focus on a specific wave ID")
+    dispatch_p.add_argument("--repo", dest="repositoryId", help="Filter to one repository ID")
+    dispatch_p.add_argument("--include-done", dest="includeDone", action="store_true")
+    waves_p = actions.add_parser("waves", help="Inspect synchronized release/contract waves and report consumer re-pins")
+    wave_actions = waves_p.add_subparsers(dest="wave_action", required=True)
+    wave_list = wave_actions.add_parser("list", help="List waves on a roadmap")
+    wave_list.add_argument("--roadmap", required=True, help="Roadmap ID")
+    wave_list.add_argument("--status", choices=("planning", "active", "completed", "cancelled"))
+    wave_list.add_argument("--archived", action="store_true")
+    wave_actions.add_parser("show", help="Show wave tier pipeline, freezes, steps and consumer re-pins").add_argument("id")
+    wave_repin = wave_actions.add_parser("repin", help="Report consumer re-pin progress against a frozen upstream repo")
+    wave_repin.add_argument("id", help="Wave ID")
+    wave_repin.add_argument("--upstream", required=True, help="Frozen upstream repository ID")
+    wave_repin.add_argument("--consumer", required=True, help="Consumer repository ID being re-pinned")
+    wave_repin.add_argument("--ref", help="Pinned ref, version or tag")
+    wave_repin.add_argument("--pr", help="Pull request URL or number")
+    wave_repin.add_argument("--commit", help="Commit SHA")
+    wave_repin.add_argument("--request-id", required=True,
+                            help="Stable operation key; reuse with the same payload after an uncertain result")
     step = actions.add_parser("step", help="Read one step's full text, progress and notes, the steps around it and its tracked chats")
     step.add_subparsers(dest="step_action", required=True).add_parser("show").add_argument("id")
     proposals = actions.add_parser("proposals", help="Proposals you may see, oldest first, 50 at a time by default")

@@ -65,7 +65,7 @@
           ],
           "createdAt": "<time.ffffff+hh:mm>",
           "description": "",
-          "id": "<id14>",
+          "id": "<id16>",
           "itemId": "<id2>",
           "lastSeenAt": "<time.ffffff+hh:mm>",
           "releaseReason": null,
@@ -80,13 +80,14 @@
             "endReason": null,
             "endedAt": null,
             "externalChatId": "chat-1",
-            "id": "<id13>",
+            "id": "<id15>",
             "provider": "",
             "revision": 1,
             "updatedAt": "<time.ffffff+hh:mm>"
           },
-          "runId": "<id13>",
+          "runId": "<id15>",
           "stale": false,
+          "stepId": null,
           "updatedAt": "<time.ffffff+hh:mm>"
         }
       ],
@@ -142,6 +143,9 @@
           "createdAt": "<time.ffffff+hh:mm>",
           "description": "",
           "discussionId": "<id12>",
+          "downstreamIds": [
+            "<id13>"
+          ],
           "duplicateOf": null,
           "id": "<id11>",
           "mergedInto": null,
@@ -163,20 +167,58 @@
             "queuedCount": 0,
             "rescuedCount": 0
           },
+          "tier": 1,
           "updatedAt": "<time.ffffff+hh:mm>",
-          "url": "https://github.com/example/worklog"
+          "upstreamIds": [],
+          "url": "https://github.com/example/worklog",
+          "wipCap": 1
+        },
+        {
+          "archived": false,
+          "createdAt": "<time.ffffff+hh:mm>",
+          "description": "",
+          "discussionId": "<id14>",
+          "downstreamIds": [],
+          "duplicateOf": null,
+          "id": "<id13>",
+          "mergedInto": null,
+          "name": "worklog-ui",
+          "registeredBy": {
+            "agentId": null,
+            "kind": "human",
+            "label": "You"
+          },
+          "remoteIdentity": "github.com/example/worklog-ui",
+          "reviewed": true,
+          "revision": 1,
+          "slotSummary": {
+            "activeCount": 0,
+            "baseReadonly": false,
+            "configured": false,
+            "dirtyCount": 0,
+            "maxActiveLeases": 2,
+            "queuedCount": 0,
+            "rescuedCount": 0
+          },
+          "tier": 2,
+          "updatedAt": "<time.ffffff+hh:mm>",
+          "upstreamIds": [
+            "<id11>"
+          ],
+          "url": "https://github.com/example/worklog-ui",
+          "wipCap": 2
         }
       ],
       "limit": 100,
       "offset": 0,
-      "total": 1
+      "total": 2
     },
     "resources": {
       "items": [
         {
           "archived": false,
           "createdAt": "<time.ffffff+hh:mm>",
-          "id": "<id17>",
+          "id": "<id19>",
           "revision": 1,
           "summary": "How we write",
           "title": "Style",
@@ -195,7 +237,7 @@
           "id": "<id3>",
           "overview": "",
           "parentId": null,
-          "revision": 2,
+          "revision": 3,
           "title": "Plan 2",
           "updatedAt": "<time.ffffff+hh:mm>"
         },
@@ -223,7 +265,7 @@
           "endReason": null,
           "endedAt": null,
           "externalChatId": "chat-1",
-          "id": "<id13>",
+          "id": "<id15>",
           "provider": "",
           "revision": 1,
           "updatedAt": "<time.ffffff+hh:mm>"
@@ -255,7 +297,7 @@
           "commentCount": 1,
           "createdAt": "<time.ffffff+hh:mm>",
           "description": "",
-          "id": "<id16>",
+          "id": "<id18>",
           "item": {
             "archived": false,
             "id": "<id2>",
@@ -303,11 +345,11 @@
           ],
           "createdAt": "<time.ffffff+hh:mm>",
           "credentialId": "<id10>",
-          "id": "<id15>",
+          "id": "<id17>",
           "itemId": "<id2>",
           "kind": "update",
-          "participationId": "<id14>",
-          "runId": "<id13>",
+          "participationId": "<id16>",
+          "runId": "<id15>",
           "text": "Parser half done"
         }
       ],

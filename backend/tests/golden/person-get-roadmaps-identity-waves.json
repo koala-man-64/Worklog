@@ -1,0 +1,27 @@
+{
+  "body": {
+    "items": [
+      {
+        "activatedAt": "<time.ffffff+hh:mm>",
+        "archived": false,
+        "completedAt": null,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "discussionId": null,
+        "doneStepCount": 0,
+        "frozenRepoCount": 1,
+        "id": "<id1>",
+        "name": "Wave 1",
+        "pendingRepinCount": 1,
+        "position": 0,
+        "revision": 3,
+        "roadmapId": "<id2>",
+        "status": "active",
+        "stepCount": 1,
+        "summary": "Contract freeze",
+        "updatedAt": "<time.ffffff+hh:mm>"
+      }
+    ],
+    "total": 1
+  },
+  "status": 200
+}

@@ -73,7 +73,10 @@ def test_the_outline_gives_every_step_in_outline_order_without_its_text(client):
         (ROOT_B, "Ship it", "blocked", None), (B1, "Release notes", "doing", ROOT_B), (B2, "Announce", "blocked", ROOT_B),
         (ROOT_A, "Build it", "doing", None), (A1, "Parser", "done", ROOT_A), (A1A, "Tokenizer", "done", A1),
         (A2, "Writer", "open", ROOT_A)]
-    assert all(set(step) == {"id", "title", "status", "parentId", "position"} for step in outline["steps"])
+    assert all(
+        set(step) == {"id", "title", "status", "parentId", "position", "workClass", "repositoryIds", "waveId"}
+        for step in outline["steps"]
+    )
     positions = {step["id"]: step["position"] for step in roadmap["steps"]}
     assert all(step["position"] == positions[step["id"]] for step in outline["steps"])
     # The text stays with each step's own read.

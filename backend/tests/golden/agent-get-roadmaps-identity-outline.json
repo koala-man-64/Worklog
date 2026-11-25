@@ -2,21 +2,29 @@
   "body": {
     "archived": false,
     "id": "<id1>",
-    "revision": 2,
+    "revision": 3,
     "steps": [
       {
         "id": "<id2>",
         "parentId": null,
         "position": 0,
+        "repositoryIds": [],
         "status": "open",
-        "title": "Parent"
+        "title": "Parent",
+        "waveId": null,
+        "workClass": ""
       },
       {
         "id": "<id3>",
         "parentId": "<id2>",
         "position": 1,
+        "repositoryIds": [
+          "<id4>"
+        ],
         "status": "open",
-        "title": "Child"
+        "title": "Child",
+        "waveId": "<id5>",
+        "workClass": "critical_path"
       }
     ],
     "title": "Plan 2"

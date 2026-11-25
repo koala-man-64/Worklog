@@ -311,19 +311,118 @@ class Progress(Expected):
     status: State
 
 
+WorkClass = Literal["", "stabilization", "critical_path", "standard", "refactor", "gate"]
+WaveStatus = Literal["planning", "active", "completed", "cancelled"]
+FreezeStatus = Literal["open", "batching", "frozen"]
+RepinStatus = Literal["pending", "in_progress", "verified", "waived"]
+
+
 class StepUpdate(Expected):
-    """revision is the step's own. A field given replaces the step's text; one left out keeps it."""
+    """revision is the step's own. A field given replaces the step's text, repositories or work class;
+    one left out keeps it."""
     title: str | None = None
     description: str | None = None
     # What the step's work produces: the goal it is done for.
     outcome: str | None = None
+    repositoryIds: list[str] | None = Field(default=None, max_length=100)
+    workClass: WorkClass | None = None
 
     @model_validator(mode="after")
     def _gives_text(self):
-        # Checked by the model, a change with no text is refused at submit, not only at approve.
-        if self.title is None and self.description is None and self.outcome is None:
-            raise ValueError("Give the step's title, description or outcome")
+        # Checked by the model, a change with no fields is refused at submit, not only at approve.
+        if (self.title is None and self.description is None and self.outcome is None
+                and self.repositoryIds is None and self.workClass is None):
+            raise ValueError("Give the step's title, description, outcome, repositoryIds or workClass")
         return self
+
+
+class StepCreate(Expected):
+    """revision is the roadmap's own. Inserts one step without rewriting the full tree."""
+    id: str | None = None
+    parentId: str | None = None
+    title: str
+    description: str = ""
+    outcome: str = ""
+    position: Annotated[StrictInt, Field(ge=0)] | None = None
+    repositoryIds: list[str] = Field(default_factory=list, max_length=100)
+    workClass: WorkClass = ""
+
+
+class SplitChild(Command):
+    id: str | None = None
+    title: str
+    description: str = ""
+    outcome: str = ""
+    repositoryIds: list[str] = Field(default_factory=list, max_length=100)
+    workClass: WorkClass | None = None
+    status: State | None = None
+
+
+class StepSplit(Expected):
+    """revision is the target leaf step's own. Creates single-repo child steps under it."""
+    children: list[SplitChild] = Field(min_length=2, max_length=50)
+    clearParentRepositories: StrictBool = True
+    inheritWaves: StrictBool = True
+    rehomeToChildIndex: Annotated[StrictInt, Field(ge=0)] | None = None
+
+
+class StepMove(Expected):
+    """revision is the roadmap's own. Moves one step to another parent or position."""
+    parentId: str | None = None
+    position: Annotated[StrictInt, Field(ge=0)] | None = None
+
+
+class WaveRepoSpec(Command):
+    repositoryId: str
+    tier: Annotated[StrictInt, Field(ge=1, le=9)] | None = None
+
+
+class WaveCreate(Command):
+    name: str
+    summary: str = ""
+    stepIds: list[str] = Field(default_factory=list, max_length=2000)
+    repositories: list[WaveRepoSpec] = Field(default_factory=list, max_length=100)
+    openDiscussion: StrictBool = False
+
+
+class WaveUpdate(Expected):
+    name: str | None = None
+    summary: str | None = None
+    position: Annotated[StrictInt, Field(ge=0)] | None = None
+    repositories: list[WaveRepoSpec] | None = Field(default=None, max_length=100)
+
+
+class WaveStepsUpdate(Expected):
+    mode: Literal["replace", "add", "remove"] = "replace"
+    stepIds: list[str] = Field(default_factory=list, max_length=2000)
+
+
+class WaveStatusChange(Expected):
+    status: WaveStatus
+
+
+class WaveFreezeUpdate(Expected):
+    repositoryId: str
+    freezeStatus: FreezeStatus
+    frozenRef: str = ""
+    notes: str = ""
+
+
+class WaveRepinReport(Command):
+    upstreamRepoId: str
+    consumerRepoId: str
+    pinnedRef: str = ""
+    prUrl: str = ""
+    commitSha: str = ""
+
+
+class WaveRepinVerify(Expected):
+    upstreamRepoId: str
+    consumerRepoId: str
+    status: RepinStatus
+    pinnedRef: str | None = None
+    prUrl: str | None = None
+    commitSha: str | None = None
 
 
 class Operation(Command):
@@ -331,6 +430,8 @@ class Operation(Command):
                     "item.create", "item.update", "item.archive", "item.recover", "entry.upsert",
                     "note.create", "note.update",
                     "roadmap.create", "roadmap.revise", "roadmap.move", "progress.set", "step.update",
+                    "step.create", "step.split", "step.move",
+                    "wave.create", "wave.update", "wave.steps",
                     "person.create", "person.update", "person.archive", "person.recover",
                     "person.link", "person.unlink",
                     "link.create", "link.update", "link.archive", "link.recover", "attachment.create",

@@ -38,12 +38,18 @@ V34_TABLES = ("repository_slot_policies", "repository_leases", "dispatch_queue")
 
 def to_v33(path):
     """Take a current database back to v33 the documented way."""
+    from test_repo_execution_schema import to_v34
+
+    to_v34(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK)
 
 
 def before_v34(rows):
-    """A database's rows as they read before v34: its three additive tables left out while empty."""
+    """A database's rows as they read before v34: its three additive tables (and v35's) left out while empty."""
+    from test_repo_execution_schema import before_v35
+
+    rows = before_v35(rows)
     return {table: values for table, values in rows.items() if table not in V34_TABLES or values}
 
 

@@ -34,6 +34,7 @@ const summary: AgentSummary = {
         archived: false,
         roadmapId: "roadmap-1",
       },
+      stepId: null,
       roadmap,
       contexts: [
         {

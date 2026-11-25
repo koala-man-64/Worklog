@@ -79,7 +79,7 @@ def doctor_database(db_path: Path | str) -> dict[str, Any]:
                                  f"to version {SCHEMA_VERSION}, then check it")
             checks = {"integrity": _integrity(conn), "references": _references(conn), "steps": _steps(conn),
                       "trackedChats": _tracked_chats(conn), "searchIndex": _search_index(conn),
-                      "searchKeys": _search_keys(conn), "leases": _leases(conn)}
+                      "searchKeys": _search_keys(conn), "leases": _leases(conn), "waves": _waves(conn)}
     return {"ok": not any(check["problems"] for check in checks.values()), "checks": checks}
 
 
@@ -209,4 +209,43 @@ def _leases(conn: sqlite3.Connection) -> dict[str, Any]:
             "WHERE l.state IN('queued','offered','active') AND (r.archived=1 OR r.merged_into IS NOT NULL) ORDER BY l.id"):
         found.add({"leaseId": lease_id, "repositoryId": repo_id,
                    "problem": "open lease belongs to an archived or merged repository"})
+    return found.report()
+
+
+def _waves(conn: sqlite3.Connection) -> dict[str, Any]:
+    found = _Found()
+    # A wave step must belong to the same roadmap as its wave.
+    for wave_id, step_id in conn.execute(
+            "SELECT ws.wave_id,ws.step_id FROM wave_steps ws JOIN waves w ON w.id=ws.wave_id "
+            "JOIN steps s ON s.id=ws.step_id WHERE s.roadmap_id<>w.roadmap_id ORDER BY ws.wave_id,ws.step_id"):
+        found.add({"waveId": wave_id, "stepId": step_id, "problem": "wave step belongs to another roadmap"})
+    # A step may belong to at most one active or planning non-archived wave at a time.
+    for step_id, count in conn.execute(
+            "SELECT ws.step_id,count(*) FROM wave_steps ws JOIN waves w ON w.id=ws.wave_id "
+            "WHERE w.archived=0 AND w.status IN('planning','active') GROUP BY ws.step_id HAVING count(*)>1 ORDER BY ws.step_id"):
+        found.add({"stepId": step_id, "waves": count, "problem": "step belongs to multiple active or planning waves"})
+    # Repository dependency graph must be acyclic.
+    edges: dict[str, list[str]] = {}
+    for upstream, downstream in conn.execute("SELECT upstream_id,downstream_id FROM repository_dependencies ORDER BY upstream_id,downstream_id"):
+        edges.setdefault(upstream, []).append(downstream)
+    state: dict[str, int] = {}
+    for node in sorted(edges):
+        if state.get(node, 0) != 0:
+            continue
+        stack: list[tuple[str, int]] = [(node, 0)]
+        state[node] = 1
+        while stack:
+            cur, idx = stack[-1]
+            neighbors = edges.get(cur, ())
+            if idx < len(neighbors):
+                stack[-1] = (cur, idx + 1)
+                nxt = neighbors[idx]
+                if state.get(nxt, 0) == 1:
+                    found.add({"upstreamId": cur, "downstreamId": nxt, "problem": "repository dependency cycle"})
+                elif state.get(nxt, 0) == 0:
+                    state[nxt] = 1
+                    stack.append((nxt, 0))
+            else:
+                state[cur] = 2
+                stack.pop()
     return found.report()

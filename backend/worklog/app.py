@@ -87,6 +87,7 @@ from .tickets import TicketService
 from .transcripts import MESSAGE_LIMIT, TranscriptReader, TranscriptRoots
 from .usage import FILE as USAGE_FILE
 from .usage import Usage, UsageMiddleware, catalog, live_report
+from .wave_api import install_wave_routes
 
 logger = logging.getLogger("worklog")
 
@@ -716,9 +717,21 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def roadmap_move(identity: str, request: Request, body: m.RoadmapMove) -> dict:
         return apply(request, "roadmap.move", {"id": identity, **body.model_dump()})
 
+    @app.post("/api/v1/roadmaps/{identity}/steps", response_model=out.CreatedStep)
+    def step_create(identity: str, request: Request, body: m.StepCreate) -> dict:
+        return apply(request, "step.create", {"roadmapId": identity, **body.model_dump(exclude_unset=True)}, create=True)
+
     @app.patch("/api/v1/steps/{identity}/progress", response_model=out.PlanStep)
     def progress(identity: str, request: Request, body: m.Progress) -> dict:
         return apply(request, "progress.set", {"id": identity, **body.model_dump()})
+
+    @app.post("/api/v1/steps/{identity}/split", response_model=out.SplitStepResult)
+    def step_split(identity: str, request: Request, body: m.StepSplit) -> dict:
+        return apply(request, "step.split", {"id": identity, **body.model_dump()}, create=True)
+
+    @app.post("/api/v1/steps/{identity}/move", response_model=out.CreatedStep)
+    def step_move(identity: str, request: Request, body: m.StepMove) -> dict:
+        return apply(request, "step.move", {"id": identity, **body.model_dump(exclude_unset=True)})
 
     @app.patch("/api/v1/steps/{identity}", response_model=out.SavedStep)
     def update_step(identity: str, request: Request, body: m.StepUpdate) -> dict:
@@ -1012,6 +1025,9 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     @app.post("/api/v1/person-links/unlink", response_model=out.PersonUntied)
     def person_link_remove(request: Request, body: m.PersonLinkRemove) -> dict:
         return apply(request, "person.unlink", body.model_dump())
+
+    # Install wave routes before /{verb} routes on roadmaps, proposals, and repositories.
+    install_wave_routes(app, db, mutate, proposals)
 
     @app.post("/api/v1/roadmaps/{identity}/{verb}", response_model=out.SavedRoadmap)
     def roadmap_archive(identity: str, verb: str, request: Request, body: m.Expected) -> dict:

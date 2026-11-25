@@ -6,6 +6,9 @@
       "createdAt": "<time.ffffff+hh:mm>",
       "description": "",
       "discussionId": "<id2>",
+      "downstreamIds": [
+        "<id3>"
+      ],
       "duplicateOf": null,
       "id": "<id1>",
       "mergedInto": null,
@@ -27,8 +30,11 @@
         "queuedCount": 0,
         "rescuedCount": 0
       },
+      "tier": 1,
       "updatedAt": "<time.ffffff+hh:mm>",
-      "url": "https://github.com/example/worklog"
+      "upstreamIds": [],
+      "url": "https://github.com/example/worklog",
+      "wipCap": 1
     },
     "url": "https://github.com/example/worklog"
   },

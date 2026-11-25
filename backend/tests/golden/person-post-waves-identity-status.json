@@ -1,0 +1,112 @@
+{
+  "body": {
+    "activatedAt": "<time.ffffff+hh:mm>",
+    "archived": false,
+    "completedAt": null,
+    "createdAt": "<time.ffffff+hh:mm>",
+    "discussionId": null,
+    "doneStepCount": 0,
+    "frozenRepoCount": 0,
+    "id": "<id1>",
+    "name": "Wave 1",
+    "pendingRepinCount": 0,
+    "position": 0,
+    "repins": [],
+    "repositories": [
+      {
+        "freezeStatus": "open",
+        "frozenAt": null,
+        "frozenByLabel": "",
+        "frozenRef": "",
+        "notes": "",
+        "repositoryId": "<id5>",
+        "repositoryName": "worklog",
+        "revision": 1,
+        "tier": 1,
+        "updatedAt": "<time.ffffff+hh:mm>"
+      },
+      {
+        "freezeStatus": "open",
+        "frozenAt": null,
+        "frozenByLabel": "",
+        "frozenRef": "",
+        "notes": "",
+        "repositoryId": "<id6>",
+        "repositoryName": "worklog-ui",
+        "revision": 1,
+        "tier": 2,
+        "updatedAt": "<time.ffffff+hh:mm>"
+      }
+    ],
+    "revision": 2,
+    "roadmapId": "<id2>",
+    "status": "active",
+    "stepCount": 1,
+    "stepIds": [
+      "<id3>"
+    ],
+    "steps": [
+      {
+        "id": "<id3>",
+        "parentId": "<id4>",
+        "repositoryIds": [
+          "<id5>"
+        ],
+        "status": "open",
+        "title": "Child",
+        "workClass": "critical_path"
+      }
+    ],
+    "summary": "Contract freeze",
+    "tierPipeline": [
+      {
+        "repositories": [
+          {
+            "blockedCount": 0,
+            "doingCount": 0,
+            "doneCount": 0,
+            "freezeStatus": "open",
+            "frozenAt": null,
+            "frozenByLabel": "",
+            "frozenRef": "",
+            "notes": "",
+            "pendingDownstreamRepins": 0,
+            "pendingUpstreamRepins": 0,
+            "repositoryId": "<id5>",
+            "repositoryName": "worklog",
+            "revision": 1,
+            "stepCount": 1,
+            "tier": 1,
+            "updatedAt": "<time.ffffff+hh:mm>"
+          }
+        ],
+        "tier": 1
+      },
+      {
+        "repositories": [
+          {
+            "blockedCount": 0,
+            "doingCount": 0,
+            "doneCount": 0,
+            "freezeStatus": "open",
+            "frozenAt": null,
+            "frozenByLabel": "",
+            "frozenRef": "",
+            "notes": "",
+            "pendingDownstreamRepins": 0,
+            "pendingUpstreamRepins": 0,
+            "repositoryId": "<id6>",
+            "repositoryName": "worklog-ui",
+            "revision": 1,
+            "stepCount": 0,
+            "tier": 2,
+            "updatedAt": "<time.ffffff+hh:mm>"
+          }
+        ],
+        "tier": 2
+      }
+    ],
+    "updatedAt": "<time.ffffff+hh:mm>"
+  },
+  "status": 200
+}

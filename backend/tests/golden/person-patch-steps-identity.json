@@ -1,0 +1,20 @@
+{
+  "body": {
+    "description": "",
+    "id": "<id1>",
+    "outcome": "",
+    "parentId": "<id2>",
+    "position": 1,
+    "repositoryIds": [
+      "<id3>"
+    ],
+    "retired": false,
+    "revision": 2,
+    "roadmapId": "<id4>",
+    "status": "open",
+    "title": "Child",
+    "waveIds": [],
+    "workClass": "critical_path"
+  },
+  "status": 200
+}

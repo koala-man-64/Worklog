@@ -240,10 +240,77 @@ export const commands = {
       "PATCH",
       body,
     ),
+  createStep: (roadmapId: string, body: Schema["StepCreate"]) =>
+    request<Answer<"/api/v1/roadmaps/{identity}/steps", "post">>(
+      `/roadmaps/${roadmapId}/steps`,
+      "POST",
+      body,
+    ),
+  splitStep: (id: string, body: Schema["StepSplit"]) =>
+    request<Answer<"/api/v1/steps/{identity}/split", "post">>(
+      `/steps/${id}/split`,
+      "POST",
+      body,
+    ),
+  moveStep: (id: string, body: Schema["StepMove"]) =>
+    request<Answer<"/api/v1/steps/{identity}/move", "post">>(
+      `/steps/${id}/move`,
+      "POST",
+      body,
+    ),
   setStepProgress: (id: string, body: Schema["Progress"]) =>
     request<Answer<"/api/v1/steps/{identity}/progress", "patch">>(
       `/steps/${id}/progress`,
       "PATCH",
+      body,
+    ),
+  // Synchronized release waves.
+  createWave: (roadmapId: string, body: Schema["WaveCreate"]) =>
+    request<Answer<"/api/v1/roadmaps/{identity}/waves", "post">>(
+      `/roadmaps/${roadmapId}/waves`,
+      "POST",
+      body,
+    ),
+  updateWave: (id: string, body: Schema["WaveUpdate"]) =>
+    request<Answer<"/api/v1/waves/{identity}", "patch">>(
+      `/waves/${id}`,
+      "PATCH",
+      body,
+    ),
+  setWaveSteps: (id: string, body: Schema["WaveStepsUpdate"]) =>
+    request<Answer<"/api/v1/waves/{identity}/steps", "post">>(
+      `/waves/${id}/steps`,
+      "POST",
+      body,
+    ),
+  setWaveStatus: (id: string, body: Schema["WaveStatusChange"]) =>
+    request<Answer<"/api/v1/waves/{identity}/status", "post">>(
+      `/waves/${id}/status`,
+      "POST",
+      body,
+    ),
+  setWaveFreeze: (id: string, body: Schema["WaveFreezeUpdate"]) =>
+    request<Answer<"/api/v1/waves/{identity}/freeze", "post">>(
+      `/waves/${id}/freeze`,
+      "POST",
+      body,
+    ),
+  reportWaveRepin: (id: string, body: Schema["WaveRepinReport"]) =>
+    request<Answer<"/api/v1/waves/{identity}/repins/report", "post">>(
+      `/waves/${id}/repins/report`,
+      "POST",
+      body,
+    ),
+  verifyWaveRepin: (id: string, body: Schema["WaveRepinVerify"]) =>
+    request<Answer<"/api/v1/waves/{identity}/repins/verify", "post">>(
+      `/waves/${id}/repins/verify`,
+      "POST",
+      body,
+    ),
+  setWaveArchived: (id: string, archived: boolean, body: Schema["Expected"]) =>
+    request<Answer<"/api/v1/waves/{identity}/{verb}", "post">>(
+      `/waves/${id}/${verb(archived)}`,
+      "POST",
       body,
     ),
   // People.
@@ -303,6 +370,15 @@ export const commands = {
   setRepositoryBaseLock: (id: string, body: Schema["BaseLockRequest"]) =>
     request<Answer<"/api/v1/repositories/{identity}/base-lock", "post">>(
       `/repositories/${id}/base-lock`,
+      "POST",
+      body,
+    ),
+  reorderRepositoryQueue: (
+    id: string,
+    body: Schema["RepositoryQueueReorder"],
+  ) =>
+    request<Answer<"/api/v1/repositories/{identity}/queue/reorder", "post">>(
+      `/repositories/${id}/queue/reorder`,
       "POST",
       body,
     ),

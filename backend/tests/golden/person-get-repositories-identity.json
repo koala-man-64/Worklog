@@ -4,6 +4,9 @@
     "createdAt": "<time.ffffff+hh:mm>",
     "description": "",
     "discussionId": "<id2>",
+    "downstreamIds": [
+      "<id3>"
+    ],
     "duplicateOf": null,
     "id": "<id1>",
     "mergedInto": null,
@@ -12,9 +15,9 @@
       {
         "archived": false,
         "createdAt": "<time.ffffff+hh:mm>",
-        "id": "<id3>",
+        "id": "<id4>",
         "name": "Ada",
-        "personId": "<id4>",
+        "personId": "<id5>",
         "personTeam": "",
         "personTitle": "Engineer",
         "relationship": "Reviewer"
@@ -37,8 +40,11 @@
       "queuedCount": 0,
       "rescuedCount": 0
     },
+    "tier": 1,
     "updatedAt": "<time.ffffff+hh:mm>",
-    "url": "https://github.com/example/worklog"
+    "upstreamIds": [],
+    "url": "https://github.com/example/worklog",
+    "wipCap": 1
   },
   "status": 200
 }

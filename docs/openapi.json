@@ -3717,6 +3717,55 @@
         }
       }
     },
+    "/api/v1/roadmaps/{identity}/steps": {
+      "post": {
+        "summary": "Step Create",
+        "operationId": "step_create_api_v1_roadmaps__identity__steps_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StepCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedStep"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/steps/{identity}/progress": {
       "patch": {
         "summary": "Progress",
@@ -3749,6 +3798,104 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PlanStep"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/steps/{identity}/split": {
+      "post": {
+        "summary": "Step Split",
+        "operationId": "step_split_api_v1_steps__identity__split_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StepSplit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SplitStepResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/steps/{identity}/move": {
+      "post": {
+        "summary": "Step Move",
+        "operationId": "step_move_api_v1_steps__identity__move_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StepMove"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedStep"
                 }
               }
             }
@@ -5065,6 +5212,725 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PersonUntied"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roadmaps/{identity}/dispatch": {
+      "get": {
+        "summary": "Roadmap Dispatch",
+        "operationId": "roadmap_dispatch_api_v1_roadmaps__identity__dispatch_get",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          },
+          {
+            "name": "waveId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Waveid"
+            }
+          },
+          {
+            "name": "repositoryId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Repositoryid"
+            }
+          },
+          {
+            "name": "includeDone",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Includedone"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoadmapDispatch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roadmaps/{identity}/waves": {
+      "get": {
+        "summary": "Roadmap Waves",
+        "operationId": "roadmap_waves_api_v1_roadmaps__identity__waves_get",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Archived"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Waves"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Wave Create",
+        "operationId": "wave_create_api_v1_roadmaps__identity__waves_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WaveCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaveDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/waves/{identity}": {
+      "get": {
+        "summary": "Wave Detail",
+        "operationId": "wave_detail_api_v1_waves__identity__get",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaveDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Wave Update",
+        "operationId": "wave_update_api_v1_waves__identity__patch",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WaveUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaveDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/waves/{identity}/steps": {
+      "post": {
+        "summary": "Wave Steps",
+        "operationId": "wave_steps_api_v1_waves__identity__steps_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WaveStepsUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaveDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/waves/{identity}/status": {
+      "post": {
+        "summary": "Wave Status",
+        "operationId": "wave_status_api_v1_waves__identity__status_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WaveStatusChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaveDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/waves/{identity}/freeze": {
+      "post": {
+        "summary": "Wave Freeze",
+        "operationId": "wave_freeze_api_v1_waves__identity__freeze_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WaveFreezeUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaveDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/waves/{identity}/repins/report": {
+      "post": {
+        "summary": "Wave Repin Report",
+        "operationId": "wave_repin_report_api_v1_waves__identity__repins_report_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WaveRepinReport"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaveRepin"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/waves/{identity}/repins/verify": {
+      "post": {
+        "summary": "Wave Repin Verify",
+        "operationId": "wave_repin_verify_api_v1_waves__identity__repins_verify_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WaveRepinVerify"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaveRepin"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/waves/{identity}/{verb}": {
+      "post": {
+        "summary": "Wave Archive",
+        "operationId": "wave_archive_api_v1_waves__identity___verb__post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          },
+          {
+            "name": "verb",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Verb"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Expected"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaveDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/repositories/{identity}/queue": {
+      "get": {
+        "summary": "Repository Queue",
+        "operationId": "repository_queue_api_v1_repositories__identity__queue_get",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          },
+          {
+            "name": "includeDone",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Includedone"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepositoryQueue"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/repositories/{identity}/queue/reorder": {
+      "post": {
+        "summary": "Repository Queue Reorder",
+        "operationId": "repository_queue_reorder_api_v1_repositories__identity__queue_reorder_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepositoryQueueReorder"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepositoryQueue"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/proposals/{identity}/guardrails": {
+      "get": {
+        "summary": "Proposal Guardrails",
+        "operationId": "proposal_guardrails_api_v1_proposals__identity__guardrails_get",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DispatchAdvisories"
                 }
               }
             }
@@ -6417,6 +7283,22 @@
                 }
               ],
               "title": "Itemid"
+            }
+          },
+          {
+            "name": "stepId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Stepid"
             }
           },
           {
@@ -11948,6 +12830,17 @@
               }
             ]
           },
+          "stepId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stepid"
+          },
           "roadmap": {
             "anyOf": [
               {
@@ -11976,11 +12869,12 @@
           "lastSeenAt",
           "stale",
           "item",
+          "stepId",
           "roadmap",
           "contexts"
         ],
         "title": "AgentWork",
-        "description": "Open participation an agent reports: the work and the repositories it is at now."
+        "description": "Open participation an agent reports: the work, step, and the repositories it is at now."
       },
       "Agents": {
         "properties": {
@@ -13525,6 +14419,40 @@
         ],
         "title": "ClaudeSessions"
       },
+      "CompetingWaveStepRef": {
+        "properties": {
+          "stepId": {
+            "type": "string",
+            "title": "Stepid"
+          },
+          "stepTitle": {
+            "type": "string",
+            "title": "Steptitle"
+          },
+          "roadmapId": {
+            "type": "string",
+            "title": "Roadmapid"
+          },
+          "activeWaveId": {
+            "type": "string",
+            "title": "Activewaveid"
+          },
+          "activeWaveName": {
+            "type": "string",
+            "title": "Activewavename"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "stepId",
+          "stepTitle",
+          "roadmapId",
+          "activeWaveId",
+          "activeWaveName"
+        ],
+        "title": "CompetingWaveStepRef"
+      },
       "Context": {
         "properties": {
           "type": {
@@ -14273,6 +15201,99 @@
         ],
         "title": "CoordinationUpdates"
       },
+      "CreatedStep": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "outcome": {
+            "type": "string",
+            "title": "Outcome"
+          },
+          "parentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parentid"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "retired": {
+            "type": "boolean",
+            "title": "Retired"
+          },
+          "workClass": {
+            "type": "string",
+            "title": "Workclass"
+          },
+          "repositoryIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Repositoryids"
+          },
+          "waveIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Waveids"
+          },
+          "roadmapId": {
+            "type": "string",
+            "title": "Roadmapid"
+          },
+          "roadmapRevision": {
+            "type": "integer",
+            "title": "Roadmaprevision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "description",
+          "outcome",
+          "parentId",
+          "position",
+          "status",
+          "revision",
+          "retired",
+          "workClass",
+          "repositoryIds",
+          "waveIds",
+          "roadmapId",
+          "roadmapRevision"
+        ],
+        "title": "CreatedStep",
+        "description": "A step as step.create or step.move returns it, with its updated roadmap revision."
+      },
       "CredentialCreate": {
         "properties": {
           "label": {
@@ -15014,6 +16035,28 @@
             "type": "string",
             "title": "Description"
           },
+          "wipCap": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wipcap"
+          },
+          "tier": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier"
+          },
           "archived": {
             "type": "boolean",
             "title": "Archived"
@@ -15055,6 +16098,20 @@
             ],
             "title": "Discussionid"
           },
+          "upstreamIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Upstreamids"
+          },
+          "downstreamIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Downstreamids"
+          },
           "slotSummary": {
             "$ref": "#/components/schemas/RepositorySlotSummary"
           }
@@ -15069,6 +16126,8 @@
           "duplicateOf",
           "mergedInto",
           "description",
+          "wipCap",
+          "tier",
           "archived",
           "registeredBy",
           "reviewed",
@@ -15076,10 +16135,12 @@
           "createdAt",
           "updatedAt",
           "discussionId",
+          "upstreamIds",
+          "downstreamIds",
           "slotSummary"
         ],
         "title": "DiscussedRepository",
-        "description": "A repository with its own discussion's id (v22) and checkout slot summary (v34)."
+        "description": "A repository with its own discussion's id (v22), slot summary (v34), and direct catalog dependencies (v35)."
       },
       "DiscussionChange": {
         "properties": {
@@ -15805,6 +16866,40 @@
         ],
         "title": "Discussions"
       },
+      "DispatchAdvisories": {
+        "properties": {
+          "repositories": {
+            "items": {
+              "$ref": "#/components/schemas/RepoAdvisory"
+            },
+            "type": "array",
+            "title": "Repositories"
+          },
+          "multiRepoSteps": {
+            "items": {
+              "$ref": "#/components/schemas/MultiRepoStepRef"
+            },
+            "type": "array",
+            "title": "Multireposteps"
+          },
+          "competingWaveSteps": {
+            "items": {
+              "$ref": "#/components/schemas/CompetingWaveStepRef"
+            },
+            "type": "array",
+            "title": "Competingwavesteps"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "repositories",
+          "multiRepoSteps",
+          "competingWaveSteps"
+        ],
+        "title": "DispatchAdvisories",
+        "description": "Execution guardrails for overlaps and proposal review: WIP caps, freezes, re-pins, and multi-repo leaves."
+      },
       "DispatchCancel": {
         "properties": {
           "reason": {
@@ -15818,6 +16913,31 @@
         "type": "object",
         "title": "DispatchCancel",
         "description": "Cancel a queued dispatch and its linked lease."
+      },
+      "DispatchGates": {
+        "properties": {
+          "gateSteps": {
+            "items": {
+              "$ref": "#/components/schemas/DispatchStepCard"
+            },
+            "type": "array",
+            "title": "Gatesteps"
+          },
+          "phases": {
+            "items": {
+              "$ref": "#/components/schemas/DispatchPhaseRollup"
+            },
+            "type": "array",
+            "title": "Phases"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "gateSteps",
+          "phases"
+        ],
+        "title": "DispatchGates"
       },
       "DispatchItem": {
         "properties": {
@@ -15983,6 +17103,164 @@
         "title": "DispatchItem",
         "description": "A durable dispatch-time session queue entry linked 1:1 to a repository lease."
       },
+      "DispatchParticipation": {
+        "properties": {
+          "participationId": {
+            "type": "string",
+            "title": "Participationid"
+          },
+          "agentId": {
+            "type": "string",
+            "title": "Agentid"
+          },
+          "agentLabel": {
+            "type": "string",
+            "title": "Agentlabel"
+          },
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          },
+          "runName": {
+            "type": "string",
+            "title": "Runname"
+          },
+          "itemId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Itemid"
+          },
+          "stepId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stepid"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "branch": {
+            "type": "string",
+            "title": "Branch"
+          },
+          "worktreePath": {
+            "type": "string",
+            "title": "Worktreepath"
+          },
+          "lastSeenAt": {
+            "type": "string",
+            "title": "Lastseenat"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "participationId",
+          "agentId",
+          "agentLabel",
+          "avatar",
+          "runName",
+          "itemId",
+          "stepId",
+          "description",
+          "branch",
+          "worktreePath",
+          "lastSeenAt",
+          "stale"
+        ],
+        "title": "DispatchParticipation"
+      },
+      "DispatchPhaseLink": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "DispatchPhaseLink"
+      },
+      "DispatchPhaseRollup": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "totalLeaves": {
+            "type": "integer",
+            "title": "Totalleaves"
+          },
+          "doneLeaves": {
+            "type": "integer",
+            "title": "Doneleaves"
+          },
+          "doingLeaves": {
+            "type": "integer",
+            "title": "Doingleaves"
+          },
+          "blockedLeaves": {
+            "type": "integer",
+            "title": "Blockedleaves"
+          },
+          "openLeaves": {
+            "type": "integer",
+            "title": "Openleaves"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "status",
+          "totalLeaves",
+          "doneLeaves",
+          "doingLeaves",
+          "blockedLeaves",
+          "openLeaves"
+        ],
+        "title": "DispatchPhaseRollup"
+      },
       "DispatchQueue": {
         "properties": {
           "items": {
@@ -16014,6 +17292,501 @@
           "offset"
         ],
         "title": "DispatchQueue"
+      },
+      "DispatchRepoLane": {
+        "properties": {
+          "repositoryId": {
+            "type": "string",
+            "title": "Repositoryid"
+          },
+          "repositoryName": {
+            "type": "string",
+            "title": "Repositoryname"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "discussionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discussionid"
+          },
+          "wipCap": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wipcap"
+          },
+          "effectiveWipCap": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effectivewipcap"
+          },
+          "tier": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier"
+          },
+          "upstreamIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Upstreamids"
+          },
+          "downstreamIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Downstreamids"
+          },
+          "slotSummary": {
+            "$ref": "#/components/schemas/RepositorySlotSummary"
+          },
+          "activeWriters": {
+            "type": "integer",
+            "title": "Activewriters"
+          },
+          "doingCount": {
+            "type": "integer",
+            "title": "Doingcount"
+          },
+          "overWipCap": {
+            "type": "boolean",
+            "title": "Overwipcap"
+          },
+          "freezeState": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WaveRepository"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "repins": {
+            "items": {
+              "$ref": "#/components/schemas/WaveRepin"
+            },
+            "type": "array",
+            "title": "Repins"
+          },
+          "doing": {
+            "items": {
+              "$ref": "#/components/schemas/DispatchStepCard"
+            },
+            "type": "array",
+            "title": "Doing"
+          },
+          "competingWip": {
+            "items": {
+              "$ref": "#/components/schemas/DispatchStepCard"
+            },
+            "type": "array",
+            "title": "Competingwip"
+          },
+          "queued": {
+            "items": {
+              "$ref": "#/components/schemas/DispatchStepCard"
+            },
+            "type": "array",
+            "title": "Queued"
+          },
+          "blocked": {
+            "items": {
+              "$ref": "#/components/schemas/DispatchStepCard"
+            },
+            "type": "array",
+            "title": "Blocked"
+          },
+          "done": {
+            "items": {
+              "$ref": "#/components/schemas/DispatchStepCard"
+            },
+            "type": "array",
+            "title": "Done"
+          },
+          "blockedCount": {
+            "type": "integer",
+            "title": "Blockedcount"
+          },
+          "doneCount": {
+            "type": "integer",
+            "title": "Donecount"
+          },
+          "participations": {
+            "items": {
+              "$ref": "#/components/schemas/DispatchParticipation"
+            },
+            "type": "array",
+            "title": "Participations"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "repositoryId",
+          "repositoryName",
+          "url",
+          "discussionId",
+          "wipCap",
+          "effectiveWipCap",
+          "tier",
+          "upstreamIds",
+          "downstreamIds",
+          "slotSummary",
+          "activeWriters",
+          "doingCount",
+          "overWipCap",
+          "freezeState",
+          "repins",
+          "doing",
+          "competingWip",
+          "queued",
+          "blocked",
+          "done",
+          "blockedCount",
+          "doneCount",
+          "participations"
+        ],
+        "title": "DispatchRepoLane"
+      },
+      "DispatchRoadmapRef": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "revision",
+          "archived"
+        ],
+        "title": "DispatchRoadmapRef"
+      },
+      "DispatchStepAgent": {
+        "properties": {
+          "agentId": {
+            "type": "string",
+            "title": "Agentid"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "agentId",
+          "label",
+          "avatar",
+          "stale"
+        ],
+        "title": "DispatchStepAgent"
+      },
+      "DispatchStepCard": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "workClass": {
+            "type": "string",
+            "title": "Workclass"
+          },
+          "repositoryIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Repositoryids"
+          },
+          "multiRepo": {
+            "type": "boolean",
+            "title": "Multirepo"
+          },
+          "waveId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waveid"
+          },
+          "inActiveWave": {
+            "type": "boolean",
+            "title": "Inactivewave"
+          },
+          "queuePosition": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queueposition"
+          },
+          "phasePath": {
+            "items": {
+              "$ref": "#/components/schemas/DispatchPhaseLink"
+            },
+            "type": "array",
+            "title": "Phasepath"
+          },
+          "activeAgents": {
+            "items": {
+              "$ref": "#/components/schemas/DispatchStepAgent"
+            },
+            "type": "array",
+            "title": "Activeagents"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "status",
+          "revision",
+          "workClass",
+          "repositoryIds",
+          "multiRepo",
+          "waveId",
+          "inActiveWave",
+          "queuePosition",
+          "phasePath",
+          "activeAgents"
+        ],
+        "title": "DispatchStepCard"
+      },
+      "DispatchSummary": {
+        "properties": {
+          "totalLeaves": {
+            "type": "integer",
+            "title": "Totalleaves"
+          },
+          "doingLeaves": {
+            "type": "integer",
+            "title": "Doingleaves"
+          },
+          "blockedLeaves": {
+            "type": "integer",
+            "title": "Blockedleaves"
+          },
+          "doneLeaves": {
+            "type": "integer",
+            "title": "Doneleaves"
+          },
+          "overCapRepos": {
+            "type": "integer",
+            "title": "Overcaprepos"
+          },
+          "competingDoingCount": {
+            "type": "integer",
+            "title": "Competingdoingcount"
+          },
+          "multiRepoLeafCount": {
+            "type": "integer",
+            "title": "Multirepoleafcount"
+          },
+          "unassignedLeafCount": {
+            "type": "integer",
+            "title": "Unassignedleafcount"
+          },
+          "pendingRepinCount": {
+            "type": "integer",
+            "title": "Pendingrepincount"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "totalLeaves",
+          "doingLeaves",
+          "blockedLeaves",
+          "doneLeaves",
+          "overCapRepos",
+          "competingDoingCount",
+          "multiRepoLeafCount",
+          "unassignedLeafCount",
+          "pendingRepinCount"
+        ],
+        "title": "DispatchSummary"
+      },
+      "DispatchUnassignedStepCard": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "workClass": {
+            "type": "string",
+            "title": "Workclass"
+          },
+          "repositoryIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Repositoryids"
+          },
+          "multiRepo": {
+            "type": "boolean",
+            "title": "Multirepo"
+          },
+          "waveId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waveid"
+          },
+          "inActiveWave": {
+            "type": "boolean",
+            "title": "Inactivewave"
+          },
+          "queuePosition": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queueposition"
+          },
+          "phasePath": {
+            "items": {
+              "$ref": "#/components/schemas/DispatchPhaseLink"
+            },
+            "type": "array",
+            "title": "Phasepath"
+          },
+          "activeAgents": {
+            "items": {
+              "$ref": "#/components/schemas/DispatchStepAgent"
+            },
+            "type": "array",
+            "title": "Activeagents"
+          },
+          "suggestedRepoIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Suggestedrepoids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "status",
+          "revision",
+          "workClass",
+          "repositoryIds",
+          "multiRepo",
+          "waveId",
+          "inActiveWave",
+          "queuePosition",
+          "phasePath",
+          "activeAgents",
+          "suggestedRepoIds"
+        ],
+        "title": "DispatchUnassignedStepCard"
       },
       "Done": {
         "properties": {
@@ -16106,6 +17879,28 @@
             "type": "string",
             "title": "Description"
           },
+          "wipCap": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wipcap"
+          },
+          "tier": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier"
+          },
           "archived": {
             "type": "boolean",
             "title": "Archived"
@@ -16147,6 +17942,20 @@
             ],
             "title": "Discussionid"
           },
+          "upstreamIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Upstreamids"
+          },
+          "downstreamIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Downstreamids"
+          },
           "slotSummary": {
             "$ref": "#/components/schemas/RepositorySlotSummary"
           },
@@ -16165,6 +17974,8 @@
           "duplicateOf",
           "mergedInto",
           "description",
+          "wipCap",
+          "tier",
           "archived",
           "registeredBy",
           "reviewed",
@@ -16172,6 +17983,8 @@
           "createdAt",
           "updatedAt",
           "discussionId",
+          "upstreamIds",
+          "downstreamIds",
           "slotSummary",
           "created"
         ],
@@ -16362,6 +18175,45 @@
           "createdAt"
         ],
         "title": "FileReference"
+      },
+      "FrozenWaveRef": {
+        "properties": {
+          "waveId": {
+            "type": "string",
+            "title": "Waveid"
+          },
+          "waveName": {
+            "type": "string",
+            "title": "Wavename"
+          },
+          "roadmapId": {
+            "type": "string",
+            "title": "Roadmapid"
+          },
+          "freezeStatus": {
+            "type": "string",
+            "enum": [
+              "open",
+              "batching",
+              "frozen"
+            ],
+            "title": "Freezestatus"
+          },
+          "frozenRef": {
+            "type": "string",
+            "title": "Frozenref"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "waveId",
+          "waveName",
+          "roadmapId",
+          "freezeStatus",
+          "frozenRef"
+        ],
+        "title": "FrozenWaveRef"
       },
       "GithubRefCreate": {
         "properties": {
@@ -18400,6 +20252,62 @@
             "type": "integer",
             "title": "Overlapcount"
           },
+          "wipCap": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wipcap"
+          },
+          "effectiveWipCap": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effectivewipcap"
+          },
+          "tier": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier"
+          },
+          "doingStepCount": {
+            "type": "integer",
+            "title": "Doingstepcount"
+          },
+          "overWipCap": {
+            "type": "boolean",
+            "title": "Overwipcap"
+          },
+          "frozenWaveName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frozenwavename"
+          },
+          "pendingRepinsCount": {
+            "type": "integer",
+            "title": "Pendingrepinscount"
+          },
           "maxActiveLeases": {
             "type": "integer",
             "title": "Maxactiveleases"
@@ -18451,6 +20359,13 @@
           "branches",
           "agentCount",
           "overlapCount",
+          "wipCap",
+          "effectiveWipCap",
+          "tier",
+          "doingStepCount",
+          "overWipCap",
+          "frozenWaveName",
+          "pendingRepinsCount",
           "maxActiveLeases",
           "activeLeases",
           "queuedLeases",
@@ -18652,6 +20567,10 @@
             "type": "integer",
             "title": "Repooverlaps"
           },
+          "overCapRepos": {
+            "type": "integer",
+            "title": "Overcaprepos"
+          },
           "pendingRequests": {
             "type": "integer",
             "title": "Pendingrequests"
@@ -18682,6 +20601,7 @@
           "activeSteps",
           "activeRepos",
           "repoOverlaps",
+          "overCapRepos",
           "pendingRequests",
           "waitingOnAgents",
           "waitingProposals",
@@ -19211,6 +21131,38 @@
         ],
         "title": "Move"
       },
+      "MultiRepoStepRef": {
+        "properties": {
+          "stepId": {
+            "type": "string",
+            "title": "Stepid"
+          },
+          "stepTitle": {
+            "type": "string",
+            "title": "Steptitle"
+          },
+          "roadmapId": {
+            "type": "string",
+            "title": "Roadmapid"
+          },
+          "repositoryIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Repositoryids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "stepId",
+          "stepTitle",
+          "roadmapId",
+          "repositoryIds"
+        ],
+        "title": "MultiRepoStepRef"
+      },
       "Named": {
         "properties": {
           "id": {
@@ -19502,6 +21454,12 @@
               "roadmap.move",
               "progress.set",
               "step.update",
+              "step.create",
+              "step.split",
+              "step.move",
+              "wave.create",
+              "wave.update",
+              "wave.steps",
               "person.create",
               "person.update",
               "person.archive",
@@ -19580,6 +21538,28 @@
           "position": {
             "type": "integer",
             "title": "Position"
+          },
+          "workClass": {
+            "type": "string",
+            "title": "Workclass"
+          },
+          "repositoryIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Repositoryids"
+          },
+          "waveId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waveid"
           }
         },
         "additionalProperties": false,
@@ -19589,7 +21569,10 @@
           "title",
           "status",
           "parentId",
-          "position"
+          "position",
+          "workClass",
+          "repositoryIds",
+          "waveId"
         ],
         "title": "OutlineStep",
         "description": "A step as a roadmap's outline gives it: no text."
@@ -19706,6 +21689,17 @@
               }
             ]
           },
+          "stepId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stepid"
+          },
           "contexts": {
             "items": {
               "$ref": "#/components/schemas/ParticipationRepository"
@@ -19725,6 +21719,7 @@
           "lastSeenAt",
           "stale",
           "item",
+          "stepId",
           "contexts"
         ],
         "title": "OverlapParticipation",
@@ -20002,6 +21997,9 @@
             },
             "type": "array",
             "title": "Tickets"
+          },
+          "dispatchAdvisories": {
+            "$ref": "#/components/schemas/DispatchAdvisories"
           }
         },
         "additionalProperties": false,
@@ -20012,7 +22010,8 @@
           "announcements",
           "discussions",
           "roles",
-          "tickets"
+          "tickets",
+          "dispatchAdvisories"
         ],
         "title": "Overlaps",
         "description": "Who else is on the named records and what they said there, leaving out the caller's own."
@@ -20663,6 +22662,17 @@
             ],
             "title": "Itemid"
           },
+          "stepId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stepid"
+          },
           "description": {
             "type": "string",
             "title": "Description"
@@ -20726,6 +22736,7 @@
           "id",
           "runId",
           "itemId",
+          "stepId",
           "description",
           "contexts",
           "revision",
@@ -20738,7 +22749,7 @@
           "run"
         ],
         "title": "Participation",
-        "description": "What a run reports working on: a work item or none, and the repositories it works in."
+        "description": "What a run reports working on: a work item, step, or none, and the repositories it works in."
       },
       "ParticipationContext": {
         "properties": {
@@ -20805,6 +22816,17 @@
               }
             ],
             "title": "Itemid"
+          },
+          "stepId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stepid"
           },
           "contexts": {
             "items": {
@@ -21017,6 +23039,17 @@
             ],
             "title": "Itemid"
           },
+          "stepId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stepid"
+          },
           "contexts": {
             "anyOf": [
               {
@@ -21071,6 +23104,56 @@
           "offset"
         ],
         "title": "Participations"
+      },
+      "PendingRepinRef": {
+        "properties": {
+          "waveId": {
+            "type": "string",
+            "title": "Waveid"
+          },
+          "waveName": {
+            "type": "string",
+            "title": "Wavename"
+          },
+          "upstreamRepoId": {
+            "type": "string",
+            "title": "Upstreamrepoid"
+          },
+          "upstreamRepoName": {
+            "type": "string",
+            "title": "Upstreamreponame"
+          },
+          "consumerRepoId": {
+            "type": "string",
+            "title": "Consumerrepoid"
+          },
+          "consumerRepoName": {
+            "type": "string",
+            "title": "Consumerreponame"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "in_progress",
+              "verified",
+              "waived"
+            ],
+            "title": "Status"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "waveId",
+          "waveName",
+          "upstreamRepoId",
+          "upstreamRepoName",
+          "consumerRepoId",
+          "consumerRepoName",
+          "status"
+        ],
+        "title": "PendingRepinRef"
       },
       "People": {
         "properties": {
@@ -21967,6 +24050,24 @@
           "retired": {
             "type": "boolean",
             "title": "Retired"
+          },
+          "workClass": {
+            "type": "string",
+            "title": "Workclass"
+          },
+          "repositoryIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Repositoryids"
+          },
+          "waveIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Waveids"
           }
         },
         "additionalProperties": false,
@@ -21980,7 +24081,10 @@
           "position",
           "status",
           "revision",
-          "retired"
+          "retired",
+          "workClass",
+          "repositoryIds",
+          "waveIds"
         ],
         "title": "PlanStep",
         "description": "A step's own fields, as a roadmap's steps and its saved revisions give them. A parent's\nstatus is derived from its leaves."
@@ -23351,6 +25455,92 @@
         ],
         "title": "Reorder"
       },
+      "RepoAdvisory": {
+        "properties": {
+          "repositoryId": {
+            "type": "string",
+            "title": "Repositoryid"
+          },
+          "repositoryName": {
+            "type": "string",
+            "title": "Repositoryname"
+          },
+          "wipCap": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wipcap"
+          },
+          "effectiveWipCap": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effectivewipcap"
+          },
+          "tier": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier"
+          },
+          "activeWriters": {
+            "type": "integer",
+            "title": "Activewriters"
+          },
+          "doingSteps": {
+            "type": "integer",
+            "title": "Doingsteps"
+          },
+          "overWipCap": {
+            "type": "boolean",
+            "title": "Overwipcap"
+          },
+          "frozenWaves": {
+            "items": {
+              "$ref": "#/components/schemas/FrozenWaveRef"
+            },
+            "type": "array",
+            "title": "Frozenwaves"
+          },
+          "pendingRepins": {
+            "items": {
+              "$ref": "#/components/schemas/PendingRepinRef"
+            },
+            "type": "array",
+            "title": "Pendingrepins"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "repositoryId",
+          "repositoryName",
+          "wipCap",
+          "effectiveWipCap",
+          "tier",
+          "activeWriters",
+          "doingSteps",
+          "overWipCap",
+          "frozenWaves",
+          "pendingRepins"
+        ],
+        "title": "RepoAdvisory"
+      },
       "Repositories": {
         "properties": {
           "items": {
@@ -23427,6 +25617,28 @@
             "type": "string",
             "title": "Description"
           },
+          "wipCap": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wipcap"
+          },
+          "tier": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier"
+          },
           "archived": {
             "type": "boolean",
             "title": "Archived"
@@ -23468,6 +25680,8 @@
           "duplicateOf",
           "mergedInto",
           "description",
+          "wipCap",
+          "tier",
           "archived",
           "registeredBy",
           "reviewed",
@@ -23580,6 +25794,40 @@
             "type": "string",
             "title": "Description",
             "default": ""
+          },
+          "wipCap": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wipcap"
+          },
+          "tier": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 9.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier"
+          },
+          "upstreamIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Upstreamids"
           }
         },
         "additionalProperties": false,
@@ -23633,6 +25881,28 @@
             "type": "string",
             "title": "Description"
           },
+          "wipCap": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wipcap"
+          },
+          "tier": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier"
+          },
           "archived": {
             "type": "boolean",
             "title": "Archived"
@@ -23674,6 +25944,20 @@
             ],
             "title": "Discussionid"
           },
+          "upstreamIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Upstreamids"
+          },
+          "downstreamIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Downstreamids"
+          },
           "slotSummary": {
             "$ref": "#/components/schemas/RepositorySlotSummary"
           },
@@ -23695,6 +25979,8 @@
           "duplicateOf",
           "mergedInto",
           "description",
+          "wipCap",
+          "tier",
           "archived",
           "registeredBy",
           "reviewed",
@@ -23702,6 +25988,8 @@
           "createdAt",
           "updatedAt",
           "discussionId",
+          "upstreamIds",
+          "downstreamIds",
           "slotSummary",
           "people"
         ],
@@ -23765,6 +26053,430 @@
         ],
         "title": "RepositoryMerge",
         "description": "Merge the addressed repository into `intoId`; both revisions must be current."
+      },
+      "RepositoryQueue": {
+        "properties": {
+          "repositoryId": {
+            "type": "string",
+            "title": "Repositoryid"
+          },
+          "repositoryName": {
+            "type": "string",
+            "title": "Repositoryname"
+          },
+          "wipCap": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wipcap"
+          },
+          "effectiveWipCap": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effectivewipcap"
+          },
+          "tier": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier"
+          },
+          "upstreamIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Upstreamids"
+          },
+          "downstreamIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Downstreamids"
+          },
+          "activeWriters": {
+            "type": "integer",
+            "title": "Activewriters"
+          },
+          "doingCount": {
+            "type": "integer",
+            "title": "Doingcount"
+          },
+          "overWipCap": {
+            "type": "boolean",
+            "title": "Overwipcap"
+          },
+          "freezes": {
+            "items": {
+              "$ref": "#/components/schemas/RepositoryQueueFreeze"
+            },
+            "type": "array",
+            "title": "Freezes"
+          },
+          "repins": {
+            "items": {
+              "$ref": "#/components/schemas/RepositoryQueueRepin"
+            },
+            "type": "array",
+            "title": "Repins"
+          },
+          "participations": {
+            "items": {
+              "$ref": "#/components/schemas/DispatchParticipation"
+            },
+            "type": "array",
+            "title": "Participations"
+          },
+          "doing": {
+            "items": {
+              "$ref": "#/components/schemas/RepositoryQueueStep"
+            },
+            "type": "array",
+            "title": "Doing"
+          },
+          "queued": {
+            "items": {
+              "$ref": "#/components/schemas/RepositoryQueueStep"
+            },
+            "type": "array",
+            "title": "Queued"
+          },
+          "blocked": {
+            "items": {
+              "$ref": "#/components/schemas/RepositoryQueueStep"
+            },
+            "type": "array",
+            "title": "Blocked"
+          },
+          "done": {
+            "items": {
+              "$ref": "#/components/schemas/RepositoryQueueStep"
+            },
+            "type": "array",
+            "title": "Done"
+          },
+          "doneCount": {
+            "type": "integer",
+            "title": "Donecount"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "repositoryId",
+          "repositoryName",
+          "wipCap",
+          "effectiveWipCap",
+          "tier",
+          "upstreamIds",
+          "downstreamIds",
+          "activeWriters",
+          "doingCount",
+          "overWipCap",
+          "freezes",
+          "repins",
+          "participations",
+          "doing",
+          "queued",
+          "blocked",
+          "done",
+          "doneCount"
+        ],
+        "title": "RepositoryQueue"
+      },
+      "RepositoryQueueFreeze": {
+        "properties": {
+          "waveId": {
+            "type": "string",
+            "title": "Waveid"
+          },
+          "waveName": {
+            "type": "string",
+            "title": "Wavename"
+          },
+          "roadmapId": {
+            "type": "string",
+            "title": "Roadmapid"
+          },
+          "roadmapTitle": {
+            "type": "string",
+            "title": "Roadmaptitle"
+          },
+          "tier": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier"
+          },
+          "freezeStatus": {
+            "type": "string",
+            "enum": [
+              "open",
+              "batching",
+              "frozen"
+            ],
+            "title": "Freezestatus"
+          },
+          "frozenRef": {
+            "type": "string",
+            "title": "Frozenref"
+          },
+          "frozenAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frozenat"
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "waveId",
+          "waveName",
+          "roadmapId",
+          "roadmapTitle",
+          "tier",
+          "freezeStatus",
+          "frozenRef",
+          "frozenAt",
+          "notes"
+        ],
+        "title": "RepositoryQueueFreeze"
+      },
+      "RepositoryQueueReorder": {
+        "properties": {
+          "stepIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 2000,
+            "title": "Stepids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "RepositoryQueueReorder"
+      },
+      "RepositoryQueueRepin": {
+        "properties": {
+          "waveId": {
+            "type": "string",
+            "title": "Waveid"
+          },
+          "waveName": {
+            "type": "string",
+            "title": "Wavename"
+          },
+          "upstreamRepoId": {
+            "type": "string",
+            "title": "Upstreamrepoid"
+          },
+          "upstreamRepoName": {
+            "type": "string",
+            "title": "Upstreamreponame"
+          },
+          "consumerRepoId": {
+            "type": "string",
+            "title": "Consumerrepoid"
+          },
+          "consumerRepoName": {
+            "type": "string",
+            "title": "Consumerreponame"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "in_progress",
+              "verified",
+              "waived"
+            ],
+            "title": "Status"
+          },
+          "pinnedRef": {
+            "type": "string",
+            "title": "Pinnedref"
+          },
+          "prUrl": {
+            "type": "string",
+            "title": "Prurl"
+          },
+          "commitSha": {
+            "type": "string",
+            "title": "Commitsha"
+          },
+          "reportedByLabel": {
+            "type": "string",
+            "title": "Reportedbylabel"
+          },
+          "verifiedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verifiedat"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "waveId",
+          "waveName",
+          "upstreamRepoId",
+          "upstreamRepoName",
+          "consumerRepoId",
+          "consumerRepoName",
+          "status",
+          "pinnedRef",
+          "prUrl",
+          "commitSha",
+          "reportedByLabel",
+          "verifiedAt",
+          "revision",
+          "updatedAt"
+        ],
+        "title": "RepositoryQueueRepin"
+      },
+      "RepositoryQueueStep": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "roadmapId": {
+            "type": "string",
+            "title": "Roadmapid"
+          },
+          "roadmapTitle": {
+            "type": "string",
+            "title": "Roadmaptitle"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "workClass": {
+            "type": "string",
+            "title": "Workclass"
+          },
+          "queuePosition": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queueposition"
+          },
+          "waveId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waveid"
+          },
+          "waveName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wavename"
+          },
+          "waveStatus": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wavestatus"
+          },
+          "multiRepo": {
+            "type": "boolean",
+            "title": "Multirepo"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "roadmapId",
+          "roadmapTitle",
+          "title",
+          "status",
+          "revision",
+          "workClass",
+          "queuePosition",
+          "waveId",
+          "waveName",
+          "waveStatus",
+          "multiRepo"
+        ],
+        "title": "RepositoryQueueStep"
       },
       "RepositoryResolution": {
         "properties": {
@@ -23997,6 +26709,47 @@
               }
             ],
             "title": "Description"
+          },
+          "wipCap": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wipcap"
+          },
+          "tier": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 9.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier"
+          },
+          "upstreamIds": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upstreamids"
           }
         },
         "additionalProperties": false,
@@ -24633,6 +27386,70 @@
         ],
         "title": "RoadmapCreate"
       },
+      "RoadmapDispatch": {
+        "properties": {
+          "roadmap": {
+            "$ref": "#/components/schemas/DispatchRoadmapRef"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/DispatchSummary"
+          },
+          "waves": {
+            "items": {
+              "$ref": "#/components/schemas/WaveSummary"
+            },
+            "type": "array",
+            "title": "Waves"
+          },
+          "activeWave": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WaveDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "repoLanes": {
+            "items": {
+              "$ref": "#/components/schemas/DispatchRepoLane"
+            },
+            "type": "array",
+            "title": "Repolanes"
+          },
+          "multiRepoLeaves": {
+            "items": {
+              "$ref": "#/components/schemas/DispatchStepCard"
+            },
+            "type": "array",
+            "title": "Multirepoleaves"
+          },
+          "unassignedLeaves": {
+            "items": {
+              "$ref": "#/components/schemas/DispatchUnassignedStepCard"
+            },
+            "type": "array",
+            "title": "Unassignedleaves"
+          },
+          "gates": {
+            "$ref": "#/components/schemas/DispatchGates"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "roadmap",
+          "summary",
+          "waves",
+          "activeWave",
+          "repoLanes",
+          "multiRepoLeaves",
+          "unassignedLeaves",
+          "gates"
+        ],
+        "title": "RoadmapDispatch"
+      },
       "RoadmapListed": {
         "properties": {
           "id": {
@@ -24960,6 +27777,24 @@
             "type": "boolean",
             "title": "Retired"
           },
+          "workClass": {
+            "type": "string",
+            "title": "Workclass"
+          },
+          "repositoryIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Repositoryids"
+          },
+          "waveIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Waveids"
+          },
           "notes": {
             "items": {
               "$ref": "#/components/schemas/Note"
@@ -24987,6 +27822,9 @@
           "status",
           "revision",
           "retired",
+          "workClass",
+          "repositoryIds",
+          "waveIds",
           "notes",
           "attachments"
         ],
@@ -25811,6 +28649,24 @@
             "type": "boolean",
             "title": "Retired"
           },
+          "workClass": {
+            "type": "string",
+            "title": "Workclass"
+          },
+          "repositoryIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Repositoryids"
+          },
+          "waveIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Waveids"
+          },
           "roadmapId": {
             "type": "string",
             "title": "Roadmapid"
@@ -25828,6 +28684,9 @@
           "status",
           "revision",
           "retired",
+          "workClass",
+          "repositoryIds",
+          "waveIds",
           "roadmapId"
         ],
         "title": "SavedStep",
@@ -26630,6 +29489,117 @@
         "title": "SlotPolicyUpdate",
         "description": "Create or update a repository's checkout slot policy."
       },
+      "SplitChild": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "outcome": {
+            "type": "string",
+            "title": "Outcome",
+            "default": ""
+          },
+          "repositoryIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Repositoryids"
+          },
+          "workClass": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "",
+                  "stabilization",
+                  "critical_path",
+                  "standard",
+                  "refactor",
+                  "gate"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workclass"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "open",
+                  "doing",
+                  "blocked",
+                  "done"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "SplitChild"
+      },
+      "SplitStepResult": {
+        "properties": {
+          "parent": {
+            "$ref": "#/components/schemas/PlanStep"
+          },
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/PlanStep"
+            },
+            "type": "array",
+            "title": "Children"
+          },
+          "roadmapId": {
+            "type": "string",
+            "title": "Roadmapid"
+          },
+          "roadmapRevision": {
+            "type": "integer",
+            "title": "Roadmaprevision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "parent",
+          "children",
+          "roadmapId",
+          "roadmapRevision"
+        ],
+        "title": "SplitStepResult",
+        "description": "A split leaf step and its newly created single-repo child steps."
+      },
       "StatusContextTag": {
         "properties": {
           "type": {
@@ -26756,6 +29726,24 @@
             "type": "boolean",
             "title": "Retired"
           },
+          "workClass": {
+            "type": "string",
+            "title": "Workclass"
+          },
+          "repositoryIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Repositoryids"
+          },
+          "waveIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Waveids"
+          },
           "notes": {
             "items": {
               "$ref": "#/components/schemas/Note"
@@ -26808,6 +29796,9 @@
           "status",
           "revision",
           "retired",
+          "workClass",
+          "repositoryIds",
+          "waveIds",
           "notes",
           "attachments",
           "roadmapId",
@@ -26909,6 +29900,179 @@
         "title": "StepContextTag",
         "description": "A step's or a question's tag, with the roadmap it opens on."
       },
+      "StepCreate": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "parentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parentid"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "outcome": {
+            "type": "string",
+            "title": "Outcome",
+            "default": ""
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position"
+          },
+          "repositoryIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Repositoryids"
+          },
+          "workClass": {
+            "type": "string",
+            "enum": [
+              "",
+              "stabilization",
+              "critical_path",
+              "standard",
+              "refactor",
+              "gate"
+            ],
+            "title": "Workclass",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision",
+          "title"
+        ],
+        "title": "StepCreate",
+        "description": "revision is the roadmap's own. Inserts one step without rewriting the full tree."
+      },
+      "StepMove": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "parentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parentid"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision"
+        ],
+        "title": "StepMove",
+        "description": "revision is the roadmap's own. Moves one step to another parent or position."
+      },
+      "StepSplit": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/SplitChild"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 2,
+            "title": "Children"
+          },
+          "clearParentRepositories": {
+            "type": "boolean",
+            "title": "Clearparentrepositories",
+            "default": true
+          },
+          "inheritWaves": {
+            "type": "boolean",
+            "title": "Inheritwaves",
+            "default": true
+          },
+          "rehomeToChildIndex": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rehometochildindex"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision",
+          "children"
+        ],
+        "title": "StepSplit",
+        "description": "revision is the target leaf step's own. Creates single-repo child steps under it."
+      },
       "StepUpdate": {
         "properties": {
           "revision": {
@@ -26948,6 +30112,40 @@
               }
             ],
             "title": "Outcome"
+          },
+          "repositoryIds": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repositoryids"
+          },
+          "workClass": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "",
+                  "stabilization",
+                  "critical_path",
+                  "standard",
+                  "refactor",
+                  "gate"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workclass"
           }
         },
         "additionalProperties": false,
@@ -26956,7 +30154,7 @@
           "revision"
         ],
         "title": "StepUpdate",
-        "description": "revision is the step's own. A field given replaces the step's text; one left out keeps it."
+        "description": "revision is the step's own. A field given replaces the step's text, repositories or work class;\none left out keeps it."
       },
       "Storage": {
         "properties": {
@@ -29190,6 +32388,994 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "WaveCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary",
+            "default": ""
+          },
+          "stepIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 2000,
+            "title": "Stepids"
+          },
+          "repositories": {
+            "items": {
+              "$ref": "#/components/schemas/WaveRepoSpec"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Repositories"
+          },
+          "openDiscussion": {
+            "type": "boolean",
+            "title": "Opendiscussion",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "WaveCreate"
+      },
+      "WaveDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "roadmapId": {
+            "type": "string",
+            "title": "Roadmapid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planning",
+              "active",
+              "completed",
+              "cancelled"
+            ],
+            "title": "Status"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
+          "discussionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discussionid"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "activatedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activatedat"
+          },
+          "completedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completedat"
+          },
+          "stepCount": {
+            "type": "integer",
+            "title": "Stepcount"
+          },
+          "doneStepCount": {
+            "type": "integer",
+            "title": "Donestepcount"
+          },
+          "frozenRepoCount": {
+            "type": "integer",
+            "title": "Frozenrepocount"
+          },
+          "pendingRepinCount": {
+            "type": "integer",
+            "title": "Pendingrepincount"
+          },
+          "stepIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stepids"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/WaveStep"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "repositories": {
+            "items": {
+              "$ref": "#/components/schemas/WaveRepository"
+            },
+            "type": "array",
+            "title": "Repositories"
+          },
+          "repins": {
+            "items": {
+              "$ref": "#/components/schemas/WaveRepin"
+            },
+            "type": "array",
+            "title": "Repins"
+          },
+          "tierPipeline": {
+            "items": {
+              "$ref": "#/components/schemas/WaveTierGroup"
+            },
+            "type": "array",
+            "title": "Tierpipeline"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "roadmapId",
+          "name",
+          "summary",
+          "status",
+          "position",
+          "discussionId",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "activatedAt",
+          "completedAt",
+          "stepCount",
+          "doneStepCount",
+          "frozenRepoCount",
+          "pendingRepinCount",
+          "stepIds",
+          "steps",
+          "repositories",
+          "repins",
+          "tierPipeline"
+        ],
+        "title": "WaveDetail"
+      },
+      "WaveFreezeUpdate": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "repositoryId": {
+            "type": "string",
+            "title": "Repositoryid"
+          },
+          "freezeStatus": {
+            "type": "string",
+            "enum": [
+              "open",
+              "batching",
+              "frozen"
+            ],
+            "title": "Freezestatus"
+          },
+          "frozenRef": {
+            "type": "string",
+            "title": "Frozenref",
+            "default": ""
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision",
+          "repositoryId",
+          "freezeStatus"
+        ],
+        "title": "WaveFreezeUpdate"
+      },
+      "WaveRepin": {
+        "properties": {
+          "waveId": {
+            "type": "string",
+            "title": "Waveid"
+          },
+          "upstreamRepoId": {
+            "type": "string",
+            "title": "Upstreamrepoid"
+          },
+          "upstreamRepoName": {
+            "type": "string",
+            "title": "Upstreamreponame"
+          },
+          "consumerRepoId": {
+            "type": "string",
+            "title": "Consumerrepoid"
+          },
+          "consumerRepoName": {
+            "type": "string",
+            "title": "Consumerreponame"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "in_progress",
+              "verified",
+              "waived"
+            ],
+            "title": "Status"
+          },
+          "pinnedRef": {
+            "type": "string",
+            "title": "Pinnedref"
+          },
+          "prUrl": {
+            "type": "string",
+            "title": "Prurl"
+          },
+          "commitSha": {
+            "type": "string",
+            "title": "Commitsha"
+          },
+          "reportedByLabel": {
+            "type": "string",
+            "title": "Reportedbylabel"
+          },
+          "verifiedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verifiedat"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "waveId",
+          "upstreamRepoId",
+          "upstreamRepoName",
+          "consumerRepoId",
+          "consumerRepoName",
+          "status",
+          "pinnedRef",
+          "prUrl",
+          "commitSha",
+          "reportedByLabel",
+          "verifiedAt",
+          "revision",
+          "updatedAt"
+        ],
+        "title": "WaveRepin"
+      },
+      "WaveRepinReport": {
+        "properties": {
+          "upstreamRepoId": {
+            "type": "string",
+            "title": "Upstreamrepoid"
+          },
+          "consumerRepoId": {
+            "type": "string",
+            "title": "Consumerrepoid"
+          },
+          "pinnedRef": {
+            "type": "string",
+            "title": "Pinnedref",
+            "default": ""
+          },
+          "prUrl": {
+            "type": "string",
+            "title": "Prurl",
+            "default": ""
+          },
+          "commitSha": {
+            "type": "string",
+            "title": "Commitsha",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "upstreamRepoId",
+          "consumerRepoId"
+        ],
+        "title": "WaveRepinReport"
+      },
+      "WaveRepinVerify": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "upstreamRepoId": {
+            "type": "string",
+            "title": "Upstreamrepoid"
+          },
+          "consumerRepoId": {
+            "type": "string",
+            "title": "Consumerrepoid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "in_progress",
+              "verified",
+              "waived"
+            ],
+            "title": "Status"
+          },
+          "pinnedRef": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pinnedref"
+          },
+          "prUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prurl"
+          },
+          "commitSha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commitsha"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision",
+          "upstreamRepoId",
+          "consumerRepoId",
+          "status"
+        ],
+        "title": "WaveRepinVerify"
+      },
+      "WaveRepoSpec": {
+        "properties": {
+          "repositoryId": {
+            "type": "string",
+            "title": "Repositoryid"
+          },
+          "tier": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 9.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "repositoryId"
+        ],
+        "title": "WaveRepoSpec"
+      },
+      "WaveRepository": {
+        "properties": {
+          "repositoryId": {
+            "type": "string",
+            "title": "Repositoryid"
+          },
+          "repositoryName": {
+            "type": "string",
+            "title": "Repositoryname"
+          },
+          "tier": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier"
+          },
+          "freezeStatus": {
+            "type": "string",
+            "enum": [
+              "open",
+              "batching",
+              "frozen"
+            ],
+            "title": "Freezestatus"
+          },
+          "frozenRef": {
+            "type": "string",
+            "title": "Frozenref"
+          },
+          "frozenAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frozenat"
+          },
+          "frozenByLabel": {
+            "type": "string",
+            "title": "Frozenbylabel"
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "repositoryId",
+          "repositoryName",
+          "tier",
+          "freezeStatus",
+          "frozenRef",
+          "frozenAt",
+          "frozenByLabel",
+          "notes",
+          "revision",
+          "updatedAt"
+        ],
+        "title": "WaveRepository"
+      },
+      "WaveStatusChange": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planning",
+              "active",
+              "completed",
+              "cancelled"
+            ],
+            "title": "Status"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision",
+          "status"
+        ],
+        "title": "WaveStatusChange"
+      },
+      "WaveStep": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "workClass": {
+            "type": "string",
+            "title": "Workclass"
+          },
+          "parentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parentid"
+          },
+          "repositoryIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Repositoryids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "status",
+          "workClass",
+          "parentId",
+          "repositoryIds"
+        ],
+        "title": "WaveStep"
+      },
+      "WaveStepsUpdate": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "replace",
+              "add",
+              "remove"
+            ],
+            "title": "Mode",
+            "default": "replace"
+          },
+          "stepIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 2000,
+            "title": "Stepids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision"
+        ],
+        "title": "WaveStepsUpdate"
+      },
+      "WaveSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "roadmapId": {
+            "type": "string",
+            "title": "Roadmapid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planning",
+              "active",
+              "completed",
+              "cancelled"
+            ],
+            "title": "Status"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
+          "discussionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discussionid"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "activatedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activatedat"
+          },
+          "completedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completedat"
+          },
+          "stepCount": {
+            "type": "integer",
+            "title": "Stepcount"
+          },
+          "doneStepCount": {
+            "type": "integer",
+            "title": "Donestepcount"
+          },
+          "frozenRepoCount": {
+            "type": "integer",
+            "title": "Frozenrepocount"
+          },
+          "pendingRepinCount": {
+            "type": "integer",
+            "title": "Pendingrepincount"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "roadmapId",
+          "name",
+          "summary",
+          "status",
+          "position",
+          "discussionId",
+          "archived",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "activatedAt",
+          "completedAt",
+          "stepCount",
+          "doneStepCount",
+          "frozenRepoCount",
+          "pendingRepinCount"
+        ],
+        "title": "WaveSummary"
+      },
+      "WaveTierGroup": {
+        "properties": {
+          "tier": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier"
+          },
+          "repositories": {
+            "items": {
+              "$ref": "#/components/schemas/WaveTierRepo"
+            },
+            "type": "array",
+            "title": "Repositories"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tier",
+          "repositories"
+        ],
+        "title": "WaveTierGroup"
+      },
+      "WaveTierRepo": {
+        "properties": {
+          "repositoryId": {
+            "type": "string",
+            "title": "Repositoryid"
+          },
+          "repositoryName": {
+            "type": "string",
+            "title": "Repositoryname"
+          },
+          "tier": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier"
+          },
+          "freezeStatus": {
+            "type": "string",
+            "enum": [
+              "open",
+              "batching",
+              "frozen"
+            ],
+            "title": "Freezestatus"
+          },
+          "frozenRef": {
+            "type": "string",
+            "title": "Frozenref"
+          },
+          "frozenAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frozenat"
+          },
+          "frozenByLabel": {
+            "type": "string",
+            "title": "Frozenbylabel"
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "stepCount": {
+            "type": "integer",
+            "title": "Stepcount"
+          },
+          "doingCount": {
+            "type": "integer",
+            "title": "Doingcount"
+          },
+          "doneCount": {
+            "type": "integer",
+            "title": "Donecount"
+          },
+          "blockedCount": {
+            "type": "integer",
+            "title": "Blockedcount"
+          },
+          "pendingDownstreamRepins": {
+            "type": "integer",
+            "title": "Pendingdownstreamrepins"
+          },
+          "pendingUpstreamRepins": {
+            "type": "integer",
+            "title": "Pendingupstreamrepins"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "repositoryId",
+          "repositoryName",
+          "tier",
+          "freezeStatus",
+          "frozenRef",
+          "frozenAt",
+          "frozenByLabel",
+          "notes",
+          "revision",
+          "updatedAt",
+          "stepCount",
+          "doingCount",
+          "doneCount",
+          "blockedCount",
+          "pendingDownstreamRepins",
+          "pendingUpstreamRepins"
+        ],
+        "title": "WaveTierRepo"
+      },
+      "WaveUpdate": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position"
+          },
+          "repositories": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/WaveRepoSpec"
+                },
+                "type": "array",
+                "maxItems": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repositories"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision"
+        ],
+        "title": "WaveUpdate"
+      },
+      "Waves": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WaveSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "Waves"
       },
       "WebLink": {
         "properties": {

@@ -21,6 +21,8 @@ const repo: Repository = {
   duplicateOf: null,
   mergedInto: null,
   description: "Shared API",
+  wipCap: null,
+  tier: null,
   registeredBy: null,
   reviewed: true,
   revision: 1,
@@ -48,6 +50,7 @@ const report: Participation = {
   run,
   description: "Reviewing transactions",
   itemId: null,
+  stepId: null,
   contexts: [
     {
       repositoryId: repo.id,

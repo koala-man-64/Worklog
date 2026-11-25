@@ -181,8 +181,23 @@ class World:
         ids["person"] = self.write(p, "POST", "/people", {"name": "Ada", "title": "Engineer"})["id"]
         ids["resource"] = self.write(p, "POST", "/resources", {"title": "Style", "summary": "How we write",
                                                                "body": "Plain words"})["id"]
-        ids["repository"] = self.write(p, "POST", "/repositories", {"name": "worklog",
-                                                                    "url": "https://github.com/example/worklog"})["id"]
+        ids["repository"] = self.write(p, "POST", "/repositories", {
+            "name": "worklog", "url": "https://github.com/example/worklog", "tier": 1, "wipCap": 1})["id"]
+        ids["consumer_repo"] = self.write(p, "POST", "/repositories", {
+            "name": "worklog-ui", "url": "https://github.com/example/worklog-ui", "tier": 2, "wipCap": 2,
+            "upstreamIds": [ids["repository"]]})["id"]
+        step_now = self.write(p, "GET", f"/steps/{child}")
+        self.write(p, "PATCH", f"/steps/{child}", {
+            "revision": step_now["revision"], "repositoryIds": [ids["repository"]], "workClass": "critical_path"})
+        wave = self.write(p, "POST", f"/roadmaps/{roadmap['id']}/waves", {
+            "name": "Wave 1", "summary": "Contract freeze", "stepIds": [child],
+            "repositories": [{"repositoryId": ids["repository"], "tier": 1},
+                             {"repositoryId": ids["consumer_repo"], "tier": 2}]})
+        ids["wave"] = wave["id"]
+        wave = self.write(p, "POST", f"/waves/{wave['id']}/status", {"revision": wave["revision"], "status": "active"})
+        self.write(p, "POST", f"/waves/{wave['id']}/freeze", {
+            "revision": wave["revision"], "repositoryId": ids["repository"],
+            "freezeStatus": "frozen", "frozenRef": "v1.0.0"})
         # The person tied to a work item, a roadmap and a repository, so each side's lists hold one.
         for kind, target in (("item", item["id"]), ("roadmap", roadmap["id"]), ("repository", ids["repository"])):
             self.write(p, "POST", "/person-links", {"personId": ids["person"], "targetType": kind, "targetId": target,
@@ -268,7 +283,7 @@ def concrete(template: str, ids: dict[str, str], today: str) -> str:
                  ("/references/", "reference"), ("/attachments/", "attachment"), ("/roadmaps/", "roadmap"),
                  ("/steps/", "step"), ("/questions/", "question"), ("/decisions/", "decision"),
                  ("/github/", "github"), ("/chats/", "chat"), ("/people/", "person"), ("/resources/", "resource"),
-                 ("/repositories/", "repository"),
+                 ("/repositories/", "repository"), ("/waves/", "wave"),
                  ("/discussions/messages/", "message"),
                  ("/discussions/participants/", "agent"), ("/discussions/", "discussion"), ("/agents/", "agent"),
                  ("/agent-runs/", "run"), ("/participations/", "participation"), ("/leases/", "lease"), ("/proposals/", "proposal")]
