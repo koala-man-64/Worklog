@@ -29718,6 +29718,28 @@
             "type": "string",
             "title": "Message"
           },
+          "requestedModel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requestedmodel"
+          },
+          "reasoningEffort": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reasoningeffort"
+          },
           "sessionId": {
             "anyOf": [
               {
@@ -29921,6 +29943,41 @@
             "maxLength": 12000,
             "minLength": 1,
             "title": "Prompt"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/+\\[\\]-]*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "reasoningEffort": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "minimal",
+                  "low",
+                  "medium",
+                  "high",
+                  "xhigh",
+                  "max",
+                  "ultra",
+                  "persistent"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reasoningeffort"
           }
         },
         "additionalProperties": false,

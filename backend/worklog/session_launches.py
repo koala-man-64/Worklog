@@ -62,7 +62,8 @@ class _LaunchJob:
     item_title: str
     cwd: str
     prompt: str
-    prepare: Callable[[str, str, str], tuple[str, str]]
+    requested_options: dict[str, str]
+    prepare: Callable[[str, str, str, dict[str, str]], tuple[str, str]]
 
 
 def _safe_session_id(value: Any) -> str:
@@ -300,8 +301,14 @@ def _run_cli(
             _ACTIVE_PROCESSES.discard(process)
 
 
-def _prepare_session(provider: str, cwd: str, prompt: str, *, allow_non_git: bool = False) -> tuple[str, str]:
+def _prepare_session(
+    provider: str, cwd: str, prompt: str, requested_options: dict[str, str] | None = None,
+    *, allow_non_git: bool = False,
+) -> tuple[str, str]:
     """Create one completed, ready-only provider turn and return its durable session ID and model."""
+    options = requested_options or {}
+    requested_model = options.get("requestedModel")
+    reasoning_effort = options.get("reasoningEffort")
     if provider == "codex":
         command = [
             *_codex_executable(), "exec", "--json", "--sandbox", "read-only",
@@ -311,6 +318,10 @@ def _prepare_session(provider: str, cwd: str, prompt: str, *, allow_non_git: boo
         ]
         if allow_non_git:
             command.append("--skip-git-repo-check")
+        if requested_model:
+            command.extend(["--model", requested_model])
+        if reasoning_effort:
+            command.extend(["-c", f"model_reasoning_effort={json.dumps(reasoning_effort)}"])
         command.append("-")
         completed = _run_cli(
             command,
@@ -358,6 +369,10 @@ def _prepare_session(provider: str, cwd: str, prompt: str, *, allow_non_git: boo
             _cli_executable("claude"), "-p", "--session-id", session_id,
             "--output-format", "json", "--max-turns", "1", "--tools", "",
         ]
+        if requested_model:
+            command.extend(["--model", requested_model])
+        if reasoning_effort:
+            command.extend(["--effort", reasoning_effort])
         completed = _run_cli(
             command,
             cwd=cwd,
@@ -440,6 +455,26 @@ class SessionLauncher:
                             (json.dumps(record), self._namespace(actor), identity))
         if changed.rowcount != 1:
             raise AppError(404, "not_found", "Session launch not found")
+
+    @staticmethod
+    def _dispatch_receipt(c: sqlite3.Connection, identity: str) -> dict:
+        row = c.execute(
+            "SELECT response_json FROM receipts WHERE actor_id=? AND key=?",
+            (RECEIPT_PREFIX + "local-user", identity),
+        ).fetchone()
+        return json.loads(row["response_json"]) if row is not None else {}
+
+    @staticmethod
+    def _requested_options(provider: str, payload: dict) -> dict[str, str]:
+        model = payload.get("model")
+        effort = payload.get("reasoningEffort")
+        if provider == "antigravity" and (model is not None or effort is not None):
+            raise AppError(422, "validation", "Model and reasoning settings are available for Codex and Claude")
+        if provider == "claude" and effort is not None and effort not in {"low", "medium", "high", "xhigh", "max"}:
+            raise AppError(422, "validation", "Choose low, medium, high, xhigh, or max for Claude",
+                           {"reasoningEffort": "invalid"})
+        return {key: value for key, value in (("requestedModel", model), ("reasoningEffort", effort))
+                if value is not None}
 
     @staticmethod
     def _validate(payload: dict) -> tuple[str, str | None, str | None, str, str, str, str]:
@@ -558,6 +593,7 @@ class SessionLauncher:
                 "queuePosition": queue_position,
                 "activeHolders": summary.get("activeLeases", []),
                 "copyablePrompt": copyable_prompt,
+                **self._dispatch_receipt(c, dq["id"]).get("requestedOptions", {}),
             },
             "item": {
                 "id": dq["id"],
@@ -591,6 +627,7 @@ class SessionLauncher:
         if not 8 <= len(key) <= 200:
             raise AppError(422, "idempotency", "Use an idempotency key between 8 and 200 characters")
         provider, repository_id, cwd, branch, mode, priority, prompt = self._validate(payload)
+        requested_options = self._requested_options(provider, payload)
         identity = hashlib.sha256(key.encode()).hexdigest()
         digest = hashlib.sha256(json.dumps({"item": item_id, "payload": payload}, sort_keys=True).encode()).hexdigest()
         with self.lock:
@@ -611,7 +648,7 @@ class SessionLauncher:
             if effective_repo is not None and self.leases is not None:
                 return self._start_dispatched(
                     identity, namespace, digest, item_id, effective_repo,
-                    provider, cwd, branch, mode, priority, prompt, actor,
+                    provider, cwd, branch, mode, priority, prompt, requested_options, actor,
                 )
 
             # Legacy raw-cwd launch path (or Antigravity with custom folder).
@@ -639,12 +676,13 @@ class SessionLauncher:
             with self.db.transaction() as c:
                 item = get_item(c, item_id, active=True)
                 result = {"id": identity, "provider": provider, "status": "starting", "chat": None,
-                          "sessionId": None, "message": "Preparing a linked desktop chat…"}
+                          "sessionId": None, "message": "Preparing a linked desktop chat…", **requested_options}
                 record = {"kind": "session-launch", "processToken": self.token, "cwd": folder,
                           "itemId": item_id, "itemTitle": item["title"], "result": result}
                 c.execute("INSERT INTO receipts(actor_id,key,request_hash,response_json,created_at) VALUES(?,?,?,?,?)",
                           (namespace, identity, digest, json.dumps(record), now()))
-            job = _LaunchJob(self, identity, dict(actor), provider, item_id, item["title"], folder, prompt, _prepare_session)
+            job = _LaunchJob(self, identity, dict(actor), provider, item_id, item["title"],
+                             folder, prompt, requested_options, _prepare_session)
             worker = threading.Thread(target=self._run_launch, args=(job,), name="worklog-session-prepare", daemon=True)
             self.workers[identity] = worker
             try:
@@ -667,6 +705,7 @@ class SessionLauncher:
         mode: str,
         priority: str,
         prompt: str,
+        requested_options: dict[str, str],
         actor: dict,
     ) -> dict:
         assert self.leases is not None
@@ -709,7 +748,7 @@ class SessionLauncher:
             )
             receipt_record = {
                 "kind": "dispatch-launch", "dispatchId": identity, "cwd": fallback_cwd,
-                "itemId": item_id, "itemTitle": item["title"],
+                "itemId": item_id, "itemTitle": item["title"], "requestedOptions": requested_options,
             }
             c.execute("INSERT INTO receipts(actor_id,key,request_hash,response_json,created_at) VALUES(?,?,?,?,?)",
                       (namespace, identity, digest, json.dumps(receipt_record), stamp))
@@ -721,7 +760,7 @@ class SessionLauncher:
         if provider == "antigravity":
             return self._finish_antigravity_dispatch(identity, lease["id"], branch, actor)
 
-        self._spawn_dispatch_worker(identity, dict(actor), fallback_cwd=fallback_cwd, auto_open=True)
+        self._spawn_dispatch_worker(identity, dict(actor), auto_open=True)
         return self.get(identity, actor)
 
     def _finish_antigravity_dispatch(
@@ -759,7 +798,6 @@ class SessionLauncher:
         dispatch_id: str,
         actor: dict,
         *,
-        fallback_cwd: str = "",
         auto_open: bool,
     ) -> bool:
         with self.lock:
@@ -767,7 +805,7 @@ class SessionLauncher:
                 return False
             worker = threading.Thread(
                 target=self._run_dispatch_worker,
-                args=(dispatch_id, actor, fallback_cwd, auto_open),
+                args=(dispatch_id, actor, auto_open),
                 name="worklog-dispatch-prepare",
                 daemon=True,
             )
@@ -783,7 +821,6 @@ class SessionLauncher:
         self,
         dispatch_id: str,
         actor: dict,
-        fallback_cwd: str,
         auto_open: bool,
     ) -> None:
         assert self.leases is not None
@@ -803,9 +840,10 @@ class SessionLauncher:
                 repo_id = dq["repository_id"]
                 item_id = dq["item_id"]
                 item_title = item["title"]
+                receipt = self._dispatch_receipt(c, dispatch_id)
 
             activated = self.leases.activate_dispatch_lease(lease_id, actor, requested_branch=branch)
-            folder = activated["worktreePath"] or fallback_cwd
+            folder = activated["worktreePath"] or receipt.get("cwd", "")
             if not folder:
                 raise RuntimeError("No working folder available for dispatch")
 
@@ -828,6 +866,7 @@ class SessionLauncher:
                 provider,
                 folder,
                 _initialization_prompt(item_id, item_title, prompt, header),
+                receipt.get("requestedOptions", {}),
             )
             safe_id = _safe_session_id(chat_id)
             clean_model = _clean_model(model)
@@ -908,14 +947,6 @@ class SessionLauncher:
                     continue
                 if row["provider"] != "antigravity" and len(self.workers) >= 2:
                     break
-            fallback_cwd = ""
-            with self.db.read() as c:
-                rec_row = c.execute("SELECT response_json FROM receipts WHERE key=?", (row["id"],)).fetchone()
-                if rec_row is not None:
-                    try:
-                        fallback_cwd = str(json.loads(rec_row["response_json"]).get("cwd") or "")
-                    except (TypeError, ValueError):
-                        fallback_cwd = ""
             if row["provider"] == "antigravity":
                 with self.db.transaction() as c:
                     cur = c.execute("SELECT status FROM dispatch_queue WHERE id=?", (row["id"],)).fetchone()
@@ -941,7 +972,7 @@ class SessionLauncher:
                             "UPDATE dispatch_queue SET status='provisioning',process_token=?,message=?,updated_at=?,revision=revision+1 WHERE id=?",
                             (self.token, "Slot granted; provisioning worktree…", now(), row["id"]),
                         )
-                    if self._spawn_dispatch_worker(row["id"], actor, fallback_cwd=fallback_cwd, auto_open=False):
+                    if self._spawn_dispatch_worker(row["id"], actor, auto_open=False):
                         started += 1
         return started
 
@@ -1011,9 +1042,7 @@ class SessionLauncher:
                 lease = c.execute("SELECT worktree_path FROM repository_leases WHERE id=?", (dq["lease_id"],)).fetchone()
                 folder = lease["worktree_path"] if lease and lease["worktree_path"] else ""
                 if not folder:
-                    rec_row = c.execute("SELECT response_json FROM receipts WHERE key=?", (dispatch_id,)).fetchone()
-                    if rec_row is not None:
-                        folder = str(json.loads(rec_row["response_json"]).get("cwd") or "")
+                    folder = self._dispatch_receipt(c, dispatch_id).get("cwd", "")
                 provider = dq["provider"]
                 session_id = dq["session_id"]
                 item_id = dq["item_id"]
@@ -1145,7 +1174,8 @@ class SessionLauncher:
             with self.db.read() as c:
                 get_item(c, job.item_id, active=True)
             chat_id, model = job.prepare(job.provider, job.cwd,
-                                         _initialization_prompt(job.item_id, job.item_title, job.prompt))
+                                         _initialization_prompt(job.item_id, job.item_title, job.prompt),
+                                         job.requested_options)
             self._record_session(job, chat_id, model)
             self._handoff(job.identity, job.actor)
         except Exception as exc:

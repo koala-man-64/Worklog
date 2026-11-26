@@ -15,4 +15,9 @@ def prune_receipts(conn: sqlite3.Connection, *, now: datetime | None = None, day
     receipts.created_at (v11) holds common.now() text, which sorts in time order.
     """
     cutoff = ((now or datetime.now(UTC)) - timedelta(days=days)).isoformat()
-    return conn.execute("DELETE FROM receipts WHERE created_at<?", (cutoff,)).rowcount
+    # Pending dispatches still need their launch options when a checkout becomes available.
+    return conn.execute(
+        "DELETE FROM receipts WHERE created_at<? AND (actor_id NOT LIKE 'session-launch:%' OR key NOT IN ("
+        "SELECT id FROM dispatch_queue WHERE status IN ('queued','provisioning','preparing')))",
+        (cutoff,),
+    ).rowcount

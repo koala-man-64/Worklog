@@ -19,8 +19,8 @@ SESSION = "903fb118-fbe8-4241-85bf-d6270a0bfaee"
 def browser(tmp_path, monkeypatch):
     calls = []
 
-    def prepare(provider, cwd, prompt):
-        calls.append((provider, cwd, prompt))
+    def prepare(provider, cwd, prompt, requested_options):
+        calls.append((provider, cwd, prompt, requested_options))
         return SESSION, ""
 
     monkeypatch.setattr(session_launches, "_prepare_session", prepare)
@@ -36,9 +36,9 @@ def browser(tmp_path, monkeypatch):
         yield client, response.json(), tmp_path, calls
 
 
-def start(client, item, cwd, *, provider="codex", key="start-session-test", prompt="Fix the parser"):
+def start(client, item, cwd, *, provider="codex", key="start-session-test", prompt="Fix the parser", **options):
     return client.post(f"/api/v1/work-items/{item['id']}/sessions",
-                       json={"provider": provider, "cwd": str(cwd), "prompt": prompt},
+                       json={"provider": provider, "cwd": str(cwd), "prompt": prompt, **options},
                        headers={"Idempotency-Key": key})
 
 
@@ -57,20 +57,24 @@ def finished(client, identity):
 @pytest.mark.parametrize("provider", ["codex", "claude"])
 def test_prepares_links_and_replays_without_a_second_session(browser, provider):
     client, item, cwd, calls = browser
-    initial = start(client, item, cwd, provider=provider)
+    options = {"model": "example-model", "reasoningEffort": "high"}
+    initial = start(client, item, cwd, provider=provider, **options)
     assert initial.status_code == 200, initial.text
     ready = finished(client, initial.json()["id"])
     assert ready["status"] == "ready", ready
     assert ready["chat"]["ownerId"] == item["id"]
     assert ready["chat"]["chatId"] == SESSION
     assert ready["chat"]["provider"] == provider
+    expected = {"requestedModel": "example-model", "reasoningEffort": "high"}
+    assert {key: ready[key] for key in expected} == expected
+    assert calls[0][3] == expected
     saved = client.get(f"/api/v1/work-items/{item['id']}").json()
     assert [c["chatId"] for c in saved["chats"]] == [SESSION]
-    replay = start(client, item, cwd, provider=provider)
+    replay = start(client, item, cwd, provider=provider, **options)
     assert replay.status_code == 200
     assert replay.json()["id"] == ready["id"]
     assert len(calls) == 1
-    conflict = start(client, item, cwd, provider=provider, prompt="Another task")
+    conflict = start(client, item, cwd, provider=provider, model="example-model", reasoningEffort="low")
     assert conflict.status_code == 409
 
 
@@ -215,6 +219,19 @@ def test_invalid_launch_input_never_executes(browser, provider, cwd, prompt):
     response = start(client, item, cwd, provider=provider, prompt=prompt)
     assert response.status_code == 422, response.text
     assert not calls
+
+
+@pytest.mark.parametrize("provider,options", [
+    ("claude", {"reasoningEffort": "ultra"}),
+    ("codex", {"reasoningEffort": "invalid"}),
+    ("codex", {"model": "model with spaces"}),
+    ("antigravity", {"model": "example-model"}),
+])
+def test_invalid_model_selection_does_not_start_a_provider(browser, provider, options):
+    client, item, cwd, calls = browser
+    response = start(client, item, cwd, provider=provider, **options)
+    assert response.status_code == 422, response.text
+    assert calls == []
 
 
 def test_agent_and_foreign_origin_cannot_launch(browser):

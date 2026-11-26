@@ -13,6 +13,22 @@ type SessionStartBody = Pick<SessionStart, "provider" | "prompt"> &
   Partial<SessionStart>;
 
 type Provider = SessionStart["provider"];
+type ReasoningEffort = NonNullable<SessionStart["reasoningEffort"]>;
+
+const REASONING_EFFORTS = {
+  codex: [
+    "none",
+    "minimal",
+    "low",
+    "medium",
+    "high",
+    "xhigh",
+    "max",
+    "ultra",
+    "persistent",
+  ],
+  claude: ["low", "medium", "high", "xhigh", "max"],
+} satisfies Record<Exclude<Provider, "antigravity">, ReasoningEffort[]>;
 
 const POLLING_STATUSES = new Set<SessionLaunch["status"]>([
   "starting",
@@ -51,9 +67,14 @@ function isSessionLaunch(value: unknown): value is SessionLaunch {
     typeof candidate.status === "string" &&
     VALID_STATUSES.has(candidate.status) &&
     typeof candidate.message === "string" &&
-    (candidate.sessionId === undefined ||
-      candidate.sessionId === null ||
-      typeof candidate.sessionId === "string") &&
+    [
+      candidate.sessionId,
+      candidate.requestedModel,
+      candidate.reasoningEffort,
+    ].every(
+      (value) =>
+        value === undefined || value === null || typeof value === "string",
+    ) &&
     (candidate.chat === null ||
       (!!candidate.chat &&
         typeof candidate.chat.id === "string" &&
@@ -134,6 +155,10 @@ export function StartSession({
   const briefId = useId();
   const [formOpen, setFormOpen] = useState(false);
   const [provider, setProvider] = useState<Provider>("codex");
+  const [model, setModel] = useState("");
+  const [reasoningEffort, setReasoningEffort] = useState<ReasoningEffort | "">(
+    "",
+  );
   const [selectedRepoId, setSelectedRepoId] = useState(
     () => repositoryIds[0] ?? "",
   );
@@ -307,6 +332,11 @@ export function StartSession({
             ...(workingFolder ? { cwd: workingFolder } : {}),
           }
         : { provider, cwd: workingFolder, prompt };
+      if (provider !== "antigravity") {
+        const modelId = model.trim();
+        if (modelId) body.model = modelId;
+        if (reasoningEffort) body.reasoningEffort = reasoningEffort;
+      }
       const next = await request<SessionLaunch>(
         `/work-items/${itemId}/sessions`,
         "POST",
@@ -432,13 +462,50 @@ export function StartSession({
                 aria-label="Provider"
                 value={provider}
                 disabled={archived || submitting}
-                onChange={(e) => setProvider(e.target.value as Provider)}
+                onChange={(e) => {
+                  setProvider(e.target.value as Provider);
+                  setModel("");
+                  setReasoningEffort("");
+                  setFormError(null);
+                }}
               >
                 <option value="codex">Codex</option>
                 <option value="claude">Claude</option>
                 <option value="antigravity">Antigravity</option>
               </select>
             </label>
+            {provider !== "antigravity" && (
+              <>
+                <label>
+                  Model
+                  <input
+                    value={model}
+                    onChange={(e) => setModel(e.target.value)}
+                    placeholder="Provider default"
+                    title="Enter a model ID or alias"
+                    maxLength={200}
+                    disabled={archived || submitting}
+                  />
+                </label>
+                <label>
+                  Reasoning effort
+                  <select
+                    value={reasoningEffort}
+                    onChange={(e) =>
+                      setReasoningEffort(e.target.value as ReasoningEffort | "")
+                    }
+                    disabled={archived || submitting}
+                  >
+                    <option value="">Provider default</option>
+                    {REASONING_EFFORTS[provider].map((effort) => (
+                      <option key={effort} value={effort}>
+                        {effort}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </>
+            )}
             {linkedRepoIds.length > 0 && (
               <label htmlFor={`session-repo-${itemId}`}>
                 Repository
@@ -576,6 +643,25 @@ export function StartSession({
             </p>
           ) : (
             <>
+              {current &&
+                (current.requestedModel || current.reasoningEffort) && (
+                  <p>
+                    {current.requestedModel && (
+                      <>
+                        Requested model{" "}
+                        <strong>{current.requestedModel}</strong>.{" "}
+                      </>
+                    )}
+                    {current.reasoningEffort && (
+                      <>
+                        Requested effort{" "}
+                        <strong>{current.reasoningEffort}</strong>.{" "}
+                      </>
+                    )}
+                    {current.status === "ready" &&
+                      "Verify your selections in the desktop app before sending Continue."}
+                  </p>
+                )}
               {current?.status === "queued" && (
                 <>
                   <p>

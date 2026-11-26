@@ -9575,6 +9575,10 @@ export interface components {
             chat: components["schemas"]["TrackedChat"] | null;
             /** Message */
             message: string;
+            /** Requestedmodel */
+            requestedModel?: string | null;
+            /** Reasoningeffort */
+            reasoningEffort?: string | null;
             /** Sessionid */
             sessionId?: string | null;
             /** Dispatchid */
@@ -9628,6 +9632,10 @@ export interface components {
             priority: "normal" | "pr_fixup" | "wave" | "incident";
             /** Prompt */
             prompt: string;
+            /** Model */
+            model?: string | null;
+            /** Reasoningeffort */
+            reasoningEffort?: ("none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max" | "ultra" | "persistent") | null;
         };
         /** Settings */
         Settings: {

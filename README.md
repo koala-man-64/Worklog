@@ -91,7 +91,10 @@ for addressing the new recipient. [Local CLI setup and examples](docs/AGENT-GUID
 
 On a work item, **Start session** prepares a Codex or Claude chat in an existing local working folder,
 links the saved chat to the item, and requests that the desktop app open it. Send **Continue** in the
-desktop app to begin the task. Preparation uses the installed CLI and your local provider profile;
+desktop app to begin the task. For Codex and Claude, **Model** accepts an ID or alias and
+**Reasoning effort** selects a provider effort level. Worklog passes these optional settings to the
+CLI during preparation. Check the selections in the desktop app before sending Continue.
+Preparation uses the installed CLI and your local provider profile;
 Claude uses its desktop subscription login. The prompt is sent to that provider during preparation.
 The CLI exits before the desktop handoff, so it does not keep working in the background.
 Claude prepares with tools disabled. Codex prepares in its read-only sandbox with shell tools, web
@@ -104,8 +107,9 @@ Neither launcher changes the provider's saved configuration or bypasses its appr
 
 Both desktop apps and their CLIs must already be installed and signed in on Windows. Worklog reports
 preparation failures and keeps a successfully linked chat if opening the app fails; **Open in app**
-retries that handoff without creating another session. Launch status and retry receipts last 14 days;
-the tracked chat remains with the work item. After an interrupted preparation or expired receipt, inspect provider history
+retries that handoff without creating another session. Launch receipts last 14 days. Worklog keeps a
+receipt while its repository dispatch is pending. The tracked chat remains with the work item.
+After an interrupted preparation or expired receipt, inspect provider history
 before starting another session. An accepted handoff means the operating system or CLI accepted the
 open request; it does not prove that the desktop window has finished loading.
 
