@@ -67,14 +67,14 @@ class Items:
 
     def list(self, *, view: str = "all", archived: bool = False, states: builtins.list[str] | None = None,
              roadmap_id: str | None = None, person_id: str | None = None, repository_id: str | None = None,
-             limit: int = 100, offset: int = 0, q: str = "", item_id: str | None = None) -> dict:
+             limit: int = 100, offset: int = 0, q: str = "", item_id: str | None = None, summary: bool = False) -> dict:
         # Any of the given states matches; none, or only empty values, means every state. "active",
         # the calculated status, matches the work that shows Active, whatever else is chosen.
         wanted = {value for value in states or [] if value != ""}
         with_active = "active" in wanted
         chosen = sorted({item_status(value) for value in wanted - {"active"}})
         with self.db.read() as c:
-            active = active_work(c)
+            active = None if summary else active_work(c)
             where = ["w.archived=?"]
             args: builtins.list[Any] = [int(archived)]
             if item_id is not None:
@@ -86,7 +86,7 @@ class Items:
                     matches.append("w.status IN(" + ",".join("?" for _ in chosen) + ")")
                     args.extend(chosen)
                 if with_active:
-                    shown = active_item_ids(active, c)
+                    shown = active_item_ids(active if active is not None else active_work(c), c)
                     matches.append("w.id IN(" + ",".join("?" for _ in shown) + ")" if shown else "0")
                     args.extend(shown)
                 where.append("(" + " OR ".join(matches) + ")")
@@ -110,9 +110,20 @@ class Items:
                 args.append(match)
             clause = " AND ".join(where)
             total = c.execute(f"SELECT count(*) FROM work_items w WHERE {clause}", args).fetchone()[0]
-            current = today(setting(c, "timezone", "America/Chicago"))
             # Ranked work comes first, in stack rank order; done and archived work follows it.
-            rows = c.execute(f"SELECT w.*, r.stack_rank, (w.archived=0 AND w.status!='done' AND NOT EXISTS(SELECT 1 FROM daily_entries de WHERE de.item_id=w.id AND de.planned=1 AND de.date>=?)) AS is_backlog FROM work_items w LEFT JOIN ({RANKS}) r ON r.id=w.id WHERE {clause} ORDER BY r.stack_rank IS NULL,w.backlog_order,w.id LIMIT ? OFFSET ?", [current, *args, limit, offset]).fetchall()
+            page = (f"FROM work_items w LEFT JOIN ({RANKS}) r ON r.id=w.id WHERE {clause} "
+                    "ORDER BY r.stack_rank IS NULL,w.backlog_order,w.id LIMIT ? OFFSET ?")
+            page_args = [*args, limit, offset]
+            if summary:
+                summary_rows = c.execute(f"SELECT w.id,w.title,w.status,r.stack_rank AS rank {page}", page_args)
+                return {"items": [dict(r) for r in summary_rows], "total": total}
+            assert active is not None  # Full records include the calculated agent activity.
+            current = today(setting(c, "timezone", "America/Chicago"))
+            rows = c.execute(
+                "SELECT w.*,r.stack_rank,(w.archived=0 AND w.status!='done' AND NOT EXISTS("
+                f"SELECT 1 FROM daily_entries de WHERE de.item_id=w.id AND de.planned=1 AND de.date>=?)) AS is_backlog {page}",
+                [current, *page_args],
+            ).fetchall()
             people_map = people_on(c, "item", [r["id"] for r in rows])
             repos = linked_repositories(c, "item", [r["id"] for r in rows])
             return {"items": [{**(record := item_record(r)), "rank": r["stack_rank"], "repositoryIds": repos.get(r["id"], []), "isBacklog": bool(r["is_backlog"]), "people": people_map.get(r["id"], []),

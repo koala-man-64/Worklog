@@ -551,10 +551,14 @@ class PlanService:
     def __init__(self, db):
         self.db = db
 
-    def list(self, archived=False):
+    def list(self, archived=False, *, summary=False):
         with self.db.read() as conn:
-            items = [_roadmap(row) for row in conn.execute(
-                "SELECT * FROM roadmaps WHERE archived=? ORDER BY created_at,id", (int(archived),))]
+            columns = ("r.id,r.title,(SELECT count(*) FROM roadmap_questions q WHERE q.roadmap_id=r.id "
+                       "AND q.status='open' AND q.archived=0) AS openQuestions") if summary else "r.*"
+            rows = conn.execute(f"SELECT {columns} FROM roadmaps r WHERE r.archived=? ORDER BY r.created_at,r.id",
+                                (int(archived),))
+            render = dict if summary else _roadmap
+            items = [render(row) for row in rows]
             return {"items": items, "total": len(items)}
 
     def _detail(self, conn, identifier):

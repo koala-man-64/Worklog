@@ -8,6 +8,7 @@ open questions; people by id and name; the latest ten updates cut to one line. d
 today's shape."""
 
 import json
+import sqlite3
 import uuid
 
 import pytest
@@ -86,6 +87,36 @@ def test_detail_full_answers_the_whole_context(world):
     assert full["workItems"]["items"][0]["description"].strip() == LONG.strip()
     assert {r["overview"].strip() for r in full["roadmaps"]["items"]} == {LONG.strip()}
     assert len(full["updates"]["items"]) == 100 and full["updates"]["items"][0]["text"].endswith(LONG.strip())
+
+
+def test_summary_skips_detail_columns_and_preserves_the_work_page(world, monkeypatch):
+    # This fixture has no day entries. A planned day's entry includes its own full work item.
+    detail_columns = {("work_items", "description"), ("roadmaps", "overview"), ("people", "notes")}
+    reads = set()
+    db = world.app.state.db
+    connect = db.connect
+
+    def observe(action, table, column, database, trigger):
+        if action == sqlite3.SQLITE_READ and (table, column) in detail_columns:
+            reads.add((table, column))
+        return sqlite3.SQLITE_OK
+
+    def observed_connect():
+        connection = connect()
+        connection.set_authorizer(observe)
+        return connection
+
+    monkeypatch.setattr(db, "connect", observed_connect)
+    query = "?limit=2&offset=1"
+    full, _ = read(world, query + "&detail=full")
+    assert reads == detail_columns
+    reads.clear()
+    summary, _ = read(world, query)
+    assert not reads
+    assert summary["workItems"] == {
+        "items": [{key: item[key] for key in ("id", "title", "status", "rank")} for item in full["workItems"]["items"]],
+        "total": full["workItems"]["total"],
+    }
 
 
 def test_an_unknown_detail_is_refused(world):
