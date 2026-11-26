@@ -300,15 +300,18 @@ def _run_cli(
             _ACTIVE_PROCESSES.discard(process)
 
 
-def _prepare_session(provider: str, cwd: str, prompt: str) -> tuple[str, str]:
+def _prepare_session(provider: str, cwd: str, prompt: str, *, allow_non_git: bool = False) -> tuple[str, str]:
     """Create one completed, ready-only provider turn and return its durable session ID and model."""
     if provider == "codex":
         command = [
             *_codex_executable(), "exec", "--json", "--sandbox", "read-only",
             "--ignore-user-config", "--disable", "shell_tool", "--disable", "apps",
             "--disable", "plugins", "--disable", "skill_mcp_dependency_install",
-            "-c", 'web_search="disabled"', "-",
+            "-c", 'web_search="disabled"',
         ]
+        if allow_non_git:
+            command.append("--skip-git-repo-check")
+        command.append("-")
         completed = _run_cli(
             command,
             cwd=cwd,

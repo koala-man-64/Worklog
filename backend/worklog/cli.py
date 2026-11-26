@@ -900,16 +900,27 @@ def _chat_name(args: argparse.Namespace) -> str:
         raise ValueError("This chat ID cannot name the agent; give --name as well") from None
 
 
-def register_command(client: AgentClient, args: argparse.Namespace, redact: list[str]) -> dict:
-    """Register a new identity for this chat, with a token generated here and never printed."""
-    name = _chat_name(args)
-    path = _token_store(args, client.base) / (name + ".json")
+def _registration_token(args: argparse.Namespace, base: str, name: str, redact: list[str], *,
+                        require_existing: bool = False) -> str:
+    """Load or create the local credential used to register NAME."""
+    path = _token_store(args, base) / (name + ".json")
     token = _stored_token(path)
     if token is None:
+        if require_existing:
+            raise ValueError(f"The saved credential for {name} is missing after a provider chat may have been created; "
+                             "reconcile that Worklog registration before retrying")
         token = secrets.token_urlsafe(32)
         _store_new_token(path, name, token)
     redact.append(token)
-    directory = _registering_directory()
+    return token
+
+
+def register_command(client: AgentClient, args: argparse.Namespace, redact: list[str], *,
+                     directory_override: str | None = None, require_existing_token: bool = False) -> dict:
+    """Register a new identity for this chat, with a token generated here and never printed."""
+    name = _chat_name(args)
+    token = _registration_token(args, client.base, name, redact, require_existing=require_existing_token)
+    directory = directory_override if directory_override is not None else _registering_directory()
     payload = {"label": args.label, "token": token, "chatId": args.chat, **({"avatar": args.avatar} if args.avatar else {}),
                **({"directory": directory} if directory else {})}
     try:
@@ -924,6 +935,101 @@ def register_command(client: AgentClient, args: argparse.Namespace, redact: list
             raise AgentRequestError(f"{exc}; result uncertain; run the same register command again", exc.status) from None
         raise
     return {"name": name, **registration}
+
+
+def _canonical_uuid(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        return str(uuid.UUID(value))
+    except ValueError:
+        return None
+
+
+def start_local_chat_command(client: AgentClient, args: argparse.Namespace, redact: list[str]) -> Any:
+    """Start one local provider session beneath this named, registered agent."""
+    parent = client.request("GET", "/agent-registrations/self")
+    if not isinstance(parent, dict):
+        raise ValueError("Worklog did not return this agent's registration")
+    parent_id = parent.get("agentId")
+    normalized_parent_id = _canonical_uuid(parent_id)
+    chat_id = parent.get("chatId")
+    sponsor = parent.get("registeredBy")
+    if (normalized_parent_id is None or not isinstance(chat_id, str) or not chat_id
+            or not isinstance(sponsor, dict) or not isinstance(sponsor.get("id"), str) or not sponsor["id"]):
+        raise ValueError("Only a named, registered Worklog parent agent can start a child session")
+    parent_id = normalized_parent_id
+    cwd = Path(args.cwd) if args.cwd is not None else Path.cwd()
+    default_label = "Codex Worklog agent" if args.provider == "codex" else "Claude Worklog agent"
+    label = (args.label if args.label is not None else default_label).strip()
+    worklog_directory = data_directory(args.data_dir)
+    receipt_dir = worklog_directory / "agent-session-launches" / str(urlsplit(client.base).port or 80)
+    worklog_command = [sys.executable, "-m", "worklog.cli", "--data-dir", str(worklog_directory),
+                       "agent", "--url", client.base]
+
+    def prepare_credential(child_name: str) -> None:
+        name = _agent_name(child_name)
+        _registration_token(args, client.base, name, redact)
+
+    def register_child(child_name: str, child_chat_id: str, resolved_cwd: str) -> dict[str, str]:
+        name = _agent_name(child_name)
+        if not isinstance(child_chat_id, str) or not child_chat_id:
+            raise ValueError("The provider returned an invalid child chat ID")
+        if (not isinstance(resolved_cwd, str) or not resolved_cwd
+                or not shows_as_written(resolved_cwd) or len(resolved_cwd.encode("utf-8")) > 2_000):
+            raise ValueError("The provider returned an invalid child working directory")
+        child_args = argparse.Namespace(
+            name=name,
+            chat=child_chat_id,
+            label=label,
+            avatar=None,
+            data_dir=args.data_dir,
+        )
+        child = register_command(client, child_args, redact, directory_override=resolved_cwd,
+                                 require_existing_token=True)
+        registered_parent = child.get("registeredBy")
+        child_agent_id = child.get("agentId")
+        normalized_child_id = _canonical_uuid(child_agent_id)
+        if (normalized_child_id is None or child.get("chatId") != child_chat_id
+                or not isinstance(registered_parent, dict) or registered_parent.get("id") != parent_id
+                or child.get("directory") != resolved_cwd or child.get("label") != label
+                or child.get("name") != name):
+            raise ValueError("Worklog returned a child registration that does not match this launch")
+        return {"agentId": normalized_child_id, "name": name}
+
+    from worklog.local_sessions import start_local_session
+
+    result = start_local_session(
+        receipt_dir=receipt_dir,
+        parent_id=parent_id,
+        provider=args.provider,
+        cwd=cwd,
+        label=label,
+        request_id=args.request_id,
+        worklog_command=worklog_command,
+        prepare_credential=prepare_credential,
+        register_child=register_child,
+    )
+    child_id = result.get("agentId") if isinstance(result, dict) else None
+    child_chat = result.get("chatId") if isinstance(result, dict) else None
+    normalized_child_id = _canonical_uuid(child_id)
+    if normalized_child_id is None or not isinstance(child_chat, str) or not child_chat:
+        raise ValueError("Worklog's local launch receipt has no registered child identity")
+    try:
+        profile = client.request("GET", "/discussions/participants/" + normalized_child_id)
+    except AgentRequestError as exc:
+        if exc.status in {404, 422}:
+            raise ValueError(f"This launch's recipient {normalized_child_id} is no longer active in chat {child_chat}; "
+                             "the provider chat was not relaunched") from None
+        if exc.status is None or exc.status == 429 or exc.status >= 500:
+            raise AgentRequestError(f"{exc}; retry this command with the same --request-id {args.request_id}",
+                                    exc.status, exc.code) from None
+        raise
+    if (not isinstance(profile, dict) or profile.get("kind") != "agent" or profile.get("active") is not True
+            or profile.get("chatId") != child_chat):
+        raise ValueError(f"This launch's recipient {normalized_child_id} is no longer active in chat {child_chat}; "
+                         "the provider chat was not relaunched")
+    return result
 
 
 def continue_command(args: argparse.Namespace, base: str, redact: list[str]) -> dict:
@@ -1026,6 +1132,8 @@ def retire_command(client: AgentClient, args: argparse.Namespace) -> dict:
 
 def agent_command(args: argparse.Namespace, port: int, redact: list[str]) -> Any:
     base = _agent_url(args.url or local_url(port))
+    if args.agent_action == "chats" and args.coordination_action == "start" and args.as_name is None:
+        raise ValueError("Start a provider chat as a named Worklog agent with: worklog agent --as NAME chats start ...")
     if args.agent_action == "retire" and args.as_name is None:
         # WORKLOG_AGENT_TOKEN may be shared by other agents; only the person revokes it.
         raise ValueError("Retire an agent you registered with `worklog agent --as NAME retire`; revoke other credentials in Settings")
@@ -1050,6 +1158,8 @@ def agent_command(args: argparse.Namespace, port: int, redact: list[str]) -> Any
     if args.agent_action == "push":
         from worklog.push_cli import command as push_command
         return push_command(client, args)
+    if args.agent_action == "chats" and args.coordination_action == "start":
+        return start_local_chat_command(client, args, redact)
     if args.agent_action == "leases":
         return lease_command(client, args)
     if args.agent_action in {"repositories", "runs", "participation", "updates", "chats"}:
@@ -1366,6 +1476,11 @@ def _coordination_parser(actions: Any) -> None:
     track.add_argument("--provider", help="Your provider, such as claude or codex")
     track.add_argument("--model", help="Your model")
     write(track)
+    start = chats.add_parser("start", help="Start a local Codex or Claude child session and register it under this agent")
+    start.add_argument("--provider", choices=("codex", "claude"), required=True)
+    start.add_argument("--cwd", metavar="DIR", help="Working directory for the provider session (default: current directory)")
+    start.add_argument("--label", help="How the child agent appears in Worklog")
+    write(start)
 
 
 def _self_id(client: AgentClient) -> str:

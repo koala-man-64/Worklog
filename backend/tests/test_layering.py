@@ -41,7 +41,7 @@ ORDER = [
     "coordination_api", "lease_api", "wave_api", "discussion_api", "registry_api",
     "resource_api", "ticket_api", "session_api", "live_api", "push_api", "guard", "usage", "app",
     # The command line.
-    "push_notice", "push_providers", "push_channel", "push_cli", "cli",
+    "push_notice", "push_providers", "push_channel", "push_cli", "local_sessions", "cli",
 ]
 
 EXCEPTIONS = {

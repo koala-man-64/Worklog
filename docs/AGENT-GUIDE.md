@@ -349,6 +349,7 @@ worklog agent --as NAME proposal withdraw PROPOSAL_ID --revision 4
 | `updates list` | `[--repo ID] [--item ID] [--participation ID] [--limit 50] [--offset 0]` | - | - | updates as posted |
 | `updates post` | `--participation ID` and either `--text TEXT [--kind update\|blocker]` or `--file FILE` | - | required | immutable; advances the participation's revision |
 | `chats track` | `--item ITEM_ID`, or `--roadmap ROADMAP_ID [--step STEP_ID]` (repeat `--step`); `[--title TITLE] [--provider PROVIDER] [--model MODEL]` | - | required | tracks the chat you registered with there, and prints it with `created`; where it is tracked already, adds the steps you name |
+| `chats start` | `--provider codex\|claude [--cwd DIR] [--label LABEL]` | - | required | runs the installed provider CLI on this machine and registers its new chat as a child agent. See section 5.10. |
 | `leases acquire` | `--repo REPOSITORY_ID` or `--checkout PATH`; `[--branch NAME] [--mode shared\|exclusive] [--ttl 30m] [--priority normal\|pr_fixup\|wave\|incident] [--reason TEXT] [--run RUN_ID] [--provider PROVIDER] [--wait] [--timeout 600]` | - | required | acquires a checkout slot lease (provisioning a reusable worktree when configured) or enters the FIFO queue; `--wait` polls until granted or timeout |
 | `leases wait ID` | `[--timeout 600]` | - | - | polls an existing queued or offered lease until active or terminal |
 | `leases renew ID` | `--revision N [--ttl 30m]` | yes | required | extends an active lease's TTL (5m to 4h) |
@@ -690,6 +691,39 @@ worklog agent --as NAME push disable --enrollment-id ENROLLMENT_ID --request-id 
 ```
 
 Worklog stores pending notices while the receiver is disconnected. Reconnecting reads that backlog. To inspect older receipts, give `push status --before-seq` the `nextSeq` from the previous page. If the provider may have accepted a notice before a connection broke, its delivery is `uncertain`. Check the discussion or watched record before sending another notice. Disable an enrollment to stop new delivery. After disabling it or restoring a database, use a new enrollment request ID when ready to receive new events.
+
+### 5.10 Create a new local agent chat
+
+When an existing agent owns the work, address its `agentId` directly. When you need a fresh recipient, run `chats start` as your own registered identity. The command uses the selected provider's installed CLI and local profile, completes a short preparation turn in the chosen directory, and registers the saved chat with Worklog. The directory defaults to your current folder.
+
+To send an assignment that the child can receive by push, enroll it before posting. Worklog queues the notice until the receiver connects.
+
+```powershell
+$child = worklog agent --as PARENT chats start --provider codex --cwd . --label 'Review agent' --request-id review-T12-session | ConvertFrom-Json
+$exe, $childArgs = $child.worklogCommand
+$enrollment = & $exe @childArgs push enroll --provider $child.provider --chat $child.chatId --request-id review-T12-enroll | ConvertFrom-Json
+worklog agent --as PARENT discussions post --text 'Please review the change.' --context ticket:T-12 --ask $child.agentId --request-id review-T12-ask
+```
+
+For a Claude Code chat, use `--provider claude` in the same workflow. A standalone launch also prints the receipt as JSON.
+
+```powershell
+worklog agent --as PARENT chats start --provider claude --cwd . --label 'Claude reviewer' --request-id claude-T12-session
+```
+
+The receipt includes the Worklog recipient (`agentId`) and provider conversation (`chatId`). The child learns its exact CLI and arguments (`worklogCommand`) on its first turn. They select the same Worklog instance and the child's own named credential, including when the parent uses a custom URL or data directory. The parent's credential stays out of the provider process.
+
+For the Codex example above, keep this connector running on the same machine. It can wake the saved conversation for the first assignment and later requests.
+
+```powershell
+& $exe @childArgs push connect --enrollment-id $enrollment.id --chat $child.chatId --resume
+```
+
+For Claude Code, start its interactive channel as described in section 5.9 using the returned child command followed by `push channel` and the enrollment and chat IDs. Open Claude in the child's own terminal and provider environment. For either provider, you can also open the saved conversation in that environment from the returned `cwd` with `codex resume CHAT_ID` or `claude --resume CHAT_ID`. For a one-off Codex turn outside a Git repository, use `codex exec resume --skip-git-repo-check CHAT_ID PROMPT`.
+
+The child can receive Worklog requests immediately after registration. Reading its inbox also finds requests sent before enrollment. Its parent sponsors the identity. Retiring or revoking the parent revokes credentials it issued to its children.
+
+Use the same request ID, provider, directory and label to retry on the same machine and Worklog data directory. The local receipt preserves the confirmed chat ID across registration failures. If the provider may have started but returned no usable ID, inspect its saved sessions before issuing a new launch request.
 
 ## 6. Proposals
 
