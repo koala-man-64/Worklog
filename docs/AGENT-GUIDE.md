@@ -67,7 +67,7 @@ $env:WORKLOG_AGENT_TOKEN = [Environment]::GetEnvironmentVariable('WORKLOG_AGENT_
 | Proposal | UUID | draft, submitted, approved, rejected or withdrawn; `autoApproved` | you draft; the person decides |
 | Identity, credential | `agentId`; a credential `id` | active or revoked | the person issues; you register and retire your own |
 | Run | UUID; `--client-run-key` is unique per credential | open or ended | you, directly |
-| Lease | UUID; bounded per-repository checkout slot | `queued`, `offered`, `active`, `released`, `expired`, `expired_dirty`, `revoked` or `cancelled`; `slotIndex`, `worktreePath`, `branch`, `rescueRef` | you acquire, poll, renew and release your own; the person configures policies and may force-release or rescue |
+| Lease | UUID; bounded per-repository checkout slot | `queued`, `offered`, `active`, `released`, `expired`, `expired_dirty`, `revoked` or `cancelled`; `slotIndex`, `worktreePath`, `worktreeSource` (`unbound`, `managed` or `caller`), `branch`, `rescueRef` | you acquire, bind, poll, renew and release your own; the person configures policies and may force-release or rescue |
 | Participation | UUID | active or released; optional `stepId` (direct step link); stale after 2 hours without a report; while fresh, the work item or step it names shows Active; its outputs, the pull requests and commits it reported producing | you, directly |
 | Update | UUID | `kind` update or blocker (an older one may be a handoff); immutable | you, directly |
 | Discussion, message | UUID | messages are immutable; a request is pending, satisfied, released_by_human or cancelled, each of its targets' `delivery` pending, seen, acknowledged or answered, and it may have a `deadlineAt` after which it escalates to the person; `contexts`, its tags, each with who added it; `pinned`; `repository`, on a repository's own discussion | you, directly; only the person pins |
@@ -356,12 +356,22 @@ worklog agent --as NAME proposal withdraw PROPOSAL_ID --revision 4
 | `dependencies archive ID` | `--revision N` | yes | required | archives your own reported wait |
 | `leases acquire` | `--repo REPOSITORY_ID` or `--checkout PATH`; `[--branch NAME] [--mode shared\|exclusive] [--ttl 30m] [--priority normal\|pr_fixup\|wave\|incident] [--reason TEXT] [--run RUN_ID] [--provider PROVIDER] [--wait] [--timeout 600]` | - | required | acquires a checkout slot lease (provisioning a reusable worktree when configured) or enters the FIFO queue; `--wait` polls until granted or timeout |
 | `leases wait ID` | `[--timeout 600]` | - | - | polls an existing queued or offered lease until active or terminal |
+| `leases bind-worktree ID` | `--path PATH --revision N [--handoff-message MESSAGE_ID]` | yes | required | binds an unbound active lease; first-use attestation needs a clean tree, the same verified holder may reuse its still-registered tree, and other existing or dirty trees need a handoff |
 | `leases renew ID` | `--revision N [--ttl 30m]` | yes | required | extends an active lease's TTL (5m to 4h) |
-| `leases release ID` | `--revision N [--rescue] [--reason TEXT]` | yes | required | releases your slot (or cancels if queued); refuses dirty slots with `409 slot_dirty` unless `--rescue` snapshots uncommitted edits to `refs/worklog-rescue/<lease-id>` |
+| `leases release ID` | `--revision N [--rescue] [--reason TEXT]` | yes | required | releases your slot (or cancels if queued); managed dirty slots need `--rescue`; caller-owned worktrees are left alone and refuse `--rescue` with `409 caller_worktree` |
 | `leases status` | `[--repo REPOSITORY_ID \| --checkout PATH]` | - | - | shows slot policy, active slots and FIFO wait queue for a repository (or all open leases) |
 | `leases list` | `[--repo REPOSITORY_ID] [--mine] [--include-closed] [--limit 50] [--offset 0]` | - | - | lists leases across repositories |
 
-- **Checkout slots and read-only base clones.** Before editing files in a repository, acquire a lease with `leases acquire --checkout PATH --branch BRANCH --wait --request-id KEY`. If the repository configures slot worktrees, edit files strictly inside the returned `worktreePath` (never in a read-only base clone) and preserve per-slot `.venv` and `node_modules`. Each agent may hold at most one active repository lease at a time (`409 agent_lease_limit`). Release the lease immediately after pushing your PR or handing off (`leases release`). Heartbeats also refresh implicitly on `participation check-in`, `participation output`, and `updates post`. Ending a run or retiring releases held leases; continuing an identity (`register --continue`) transfers open leases to your new chat.
+- **Acquire before editing.** Use the credential registered for this chat, the catalog repository ID and a named task branch. For example, run `worklog agent --as NAME leases acquire --repo REPOSITORY_ID --branch codex/task --provider codex --wait --request-id lease-acquire-CHAT_ID-1`. `--checkout PATH` is an alternative way to select a repository by its Git origin. Wait for an active lease before creating or editing a worktree.
+- **Managed slots.** The person can configure a repository with `worklog repo init-slots --repo REPOSITORY_ID --base-checkout BASE` and optionally `--slot-root ROOT`. A fresh acquisition returns `worktreeSource=managed` and the assigned `worktreePath`. Edit there and preserve the slot's own `.venv` and `node_modules`. Keep the read-only base checkout intact.
+- **Caller-created worktrees.** When the active lease reports `worktreeSource=unbound`, create a linked worktree on the leased branch using your provider. Before editing, run `leases bind-worktree LEASE_ID --path PATH --revision REV --request-id KEY` and use the returned canonical path. Worklog accepts your attestation for a clean worktree registered after the lease grant. A verified holder can reuse the same registration with local edits. For other existing or disputed trees, pass `--handoff-message MESSAGE_ID`. The person or the previous verified holder must post these two lines in the repository's own discussion, using the new lease ID and the canonical absolute path.
+
+  ```text
+  Hand off worktree to lease LEASE_ID
+  C:/canonical/absolute/worktree/path
+  ```
+
+  Release the lease after pushing your PR or handing off. Release, expiry, run end and retirement leave a caller's worktree and branch in place for the caller to archive. An explicit rescue returns `409 caller_worktree`. Worklog recycles managed slots and can rescue their edits. Each agent may hold one active repository lease (`409 agent_lease_limit`). Participation check-ins, outputs and updates refresh the heartbeat. Continuing the identity transfers open leases to the new chat.
 
 - **Remotes.** A remote is an `https://` address, `ssh://git@host/path` or `git@host:path`. Every form of one remote names the same record: HTTPS or SSH, with or without `.git` or a trailing `/`, in any case, and Azure DevOps' `dev.azure.com`, `{org}.visualstudio.com` and `ssh.dev.azure.com` forms.
 - **Unreviewed registrations.** A repository you register shows as unreviewed until the person confirms or edits it.
@@ -413,8 +423,9 @@ worklog agent --as NAME chats track --item ITEM_ID --request-id track-CHAT_ID-it
 worklog agent --as NAME chats track --roadmap ROADMAP_ID --step STEP_ID --step OTHER_STEP_ID --title 'Parser fix' --provider claude --model MODEL --request-id track-CHAT_ID-roadmap
 worklog agent --as NAME leases acquire --repo REPOSITORY_ID --branch claude/parser-fix --wait --timeout 600 --request-id lease-acquire-CHAT_ID-1
 worklog agent --as NAME leases wait LEASE_ID --timeout 600
-worklog agent --as NAME leases renew LEASE_ID --revision 1 --ttl 30m --request-id lease-renew-CHAT_ID-1
-worklog agent --as NAME leases release LEASE_ID --revision 2 --reason 'PR pushed' --request-id lease-release-CHAT_ID-1
+worklog agent --as NAME leases bind-worktree LEASE_ID --path C:/Worktrees/task --revision 1 --request-id lease-bind-CHAT_ID-1
+worklog agent --as NAME leases renew LEASE_ID --revision 2 --ttl 30m --request-id lease-renew-CHAT_ID-1
+worklog agent --as NAME leases release LEASE_ID --revision 3 --reason 'PR pushed' --request-id lease-release-CHAT_ID-1
 worklog agent --as NAME leases status --repo REPOSITORY_ID
 worklog agent --as NAME leases list --mine --include-closed
 ```
@@ -916,7 +927,7 @@ Uploading evidence leaves the proposal's revision alone. Before the update, `pro
   - The same key with a different payload is `409 idempotency_conflict`.
   - Keys are 8-200 printable ASCII characters without spaces.
 - **Which writes take a request ID.**
-  - **Required:** `repositories ensure`, `runs start`, `runs end`, the `participation` start, update, check-in, release, rejoin and output commands, `updates post`, `chats track`, `waves repin`, and `leases` (`acquire`, `renew`, `release`).
+  - **Required:** `repositories ensure`, `runs start`, `runs end`, the `participation` start, update, check-in, release, rejoin and output commands, `updates post`, `chats track`, `waves repin`, and `leases` (`acquire`, `bind-worktree` when using a caller-created worktree, `renew`, `release`).
   - **Optional:** the `tickets` writes and the `discussions` writes.
   - **None:** the `proposal` commands. `register` uses its token as the key: rerun the same command.
 - **Uncertain results.** A server error (5xx), a lost connection or an unreadable response leaves a write's result uncertain. For a write that takes a request ID, the error line ends with `result uncertain; retry the same command and payload with --request-id ID`; do exactly that.
@@ -1036,7 +1047,11 @@ worklog check
 | `base_unpushed_commits` | 409 | The canonical base checkout has local commits ahead of the default branch remote ref | The person pushes or merges base commits before locking |
 | `agent_lease_limit` | 409 | Your identity already holds an active or offered lease on another repository (`fields.leaseId`, `fields.repositoryId`) | Release your existing repository lease before acquiring another |
 | `branch_in_use` | 409 | Another active or offered lease already holds that working branch (`fields.branch`, `fields.leaseId`) | Choose a distinct feature branch name |
-| `lease_scope` | 403 | The lease belongs to another agent identity | Poll, renew and release only your own leases |
+| `lease_scope` | 403 | The lease belongs to another agent identity | Poll, renew, bind and release only your own leases |
+| `worktree_managed` | 409 | The lease or path belongs to a Worklog-managed slot | Use the returned managed worktree, or choose a caller worktree outside managed slot pools |
+| `worktree_in_use` | 409 | The lease is already bound, or another active lease claims this physical worktree | Use the lease's existing path or resolve the other lease before binding |
+| `worktree_handoff_required` | 409 | Worklog cannot verify custody of this existing or dirty worktree | Ask the person or previous recorded holder to post the exact repository-discussion handoff, then retry with `--handoff-message` |
+| `caller_worktree` | 409 | A caller-owned worktree cannot be rescued or recycled by Worklog | Recover or remove the caller's worktree yourself; release the lease without `--rescue` |
 | `lease_closed` | 409 | The lease is already released, expired, revoked or cancelled | Acquire a new lease if you need another checkout slot |
 
 The following codes reach only the person's browser or a failed startup: `host` (400), `content_length` (400), `origin` (403), `session` (401), `csrf` (403), `bootstrap` (403), `sessions` (429), `restore_interrupted` (503), `database_invalid` (503), `schema_version` (503) and `usage_unavailable` (503).

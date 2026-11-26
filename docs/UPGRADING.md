@@ -6,12 +6,13 @@ restores.
 
 ## Upgrade
 
-For an upgrade, stop Worklog, make a manual backup with the installed version, update the checkout, run `Setup.ps1`, then start and check the application. Use the same data directory and port throughout. The first startup snapshots a supported version 1 to 36 database and upgrades it to version 37 in one transaction.
+For an upgrade, stop Worklog, make a manual backup with the installed version, update the checkout, run `Setup.ps1`, then start and check the application. Use the same data directory and port throughout. The first startup snapshots a supported version 1 to 37 database and upgrades it to version 38 in one transaction.
 
 `./scripts/Run.ps1` does the stop, backup, setup and start in one step after you update the checkout, passing the same `-DataDir` and `-Port` to each. Its backup is taken before the new version first starts, so it is the pre-upgrade backup; if the stop or backup fails, it ends before setup. It runs Setup's shared-folder check first, so a refusal leaves Worklog running. It then asks `check` which checkout last served the data folder, and refuses one another checkout served before it stops anything: run it from the checkout that serves your data. After you move or re-clone that checkout, the first start from the new place needs `-Force` (`./scripts/Run.ps1 -Force`, or `./scripts/Worklog.ps1 start -Force`), which records the new checkout.
 
 ## What each version changes
 
+- **Version 38** adds a caller-created worktree path and a physical path claim shared across all repositories. Existing leases keep their original paths. Worklog recognizes managed checkouts recorded before the upgrade when checking a new claim.
 - **Version 37** adds typed dependencies for repositories, roadmap steps, work items, tickets and agents. Shared prerequisites and context-scoped agent waits start empty; existing repository catalog links stay as they are, and the upgrade changes no existing record.
 - **Version 36** adds credential-bound push enrollments, explicit ticket/item/run subscriptions, a durable per-recipient delivery queue, and reply-to-request correlation for discussion messages. All push tables start empty; existing messages have no reply correlation, and no old event is backfilled into the queue.
 - **Version 35** adds repository execution policies (`wip_cap`, `tier`, and directed `repository_dependencies`), step-to-repository links with per-repo queue positions (`step_repositories`), step work classification (`steps.work_class`), direct step links on agent participations (`participations.step_id`), and synchronized release/contract waves (`waves`, `wave_steps`, `wave_repositories`, `wave_repins`) with upstream repo freezes and consumer re-pin tracking. Every new table starts empty, new columns start empty/null, and the upgrade changes no existing record.
@@ -44,6 +45,8 @@ For an upgrade, stop Worklog, make a manual backup with the installed version, u
 ## Roll back
 
 Keep the previous version and its manual backup until verification succeeds. To roll back, stop Worklog, switch to the previous version and run its setup, then use that version’s `restore` command with the pre-upgrade backup. Start and check Worklog again. Restoring returns the data to the time of the snapshot, creates a new data identity, and revokes the restored credentials.
+
+To return from version 38 to version 37, restore the pre-upgrade backup using version 37. Caller-created worktree paths and claim keys added after the upgrade are not present in that backup.
 
 To return from version 37 to version 36, restore the pre-upgrade backup using version 36. Dependency records or agent waits added after the upgrade are not present in that backup.
 

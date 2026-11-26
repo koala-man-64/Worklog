@@ -6534,6 +6534,55 @@
         }
       }
     },
+    "/api/v1/leases/{identity}/bind-worktree": {
+      "post": {
+        "summary": "Bind Lease Worktree",
+        "operationId": "bind_lease_worktree_api_v1_leases__identity__bind_worktree_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeaseBindWorktree"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Lease"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/leases/{identity}/release": {
       "post": {
         "summary": "Release Lease",
@@ -12020,6 +12069,15 @@
             "type": "string",
             "title": "Worktreepath"
           },
+          "worktreeSource": {
+            "type": "string",
+            "enum": [
+              "unbound",
+              "managed",
+              "caller"
+            ],
+            "title": "Worktreesource"
+          },
           "mode": {
             "type": "string",
             "enum": [
@@ -12058,6 +12116,7 @@
           "slotIndex",
           "branch",
           "worktreePath",
+          "worktreeSource",
           "mode",
           "state",
           "expiresAt"
@@ -19968,6 +20027,15 @@
             "type": "string",
             "title": "Worktreepath"
           },
+          "worktreeSource": {
+            "type": "string",
+            "enum": [
+              "unbound",
+              "managed",
+              "caller"
+            ],
+            "title": "Worktreesource"
+          },
           "branch": {
             "type": "string",
             "title": "Branch"
@@ -20113,6 +20181,7 @@
           "holderLabel",
           "slotIndex",
           "worktreePath",
+          "worktreeSource",
           "branch",
           "mode",
           "state",
@@ -20237,6 +20306,41 @@
         "type": "object",
         "title": "LeaseAcquire",
         "description": "Request a repository checkout slot lease (grants immediately or enters FIFO queue)."
+      },
+      "LeaseBindWorktree": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "worktreePath": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Worktreepath"
+          },
+          "handoffMessageId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Handoffmessageid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision",
+          "worktreePath"
+        ],
+        "title": "LeaseBindWorktree",
+        "description": "Bind an active logical lease to a caller-created Git worktree."
       },
       "LeasePoll": {
         "properties": {

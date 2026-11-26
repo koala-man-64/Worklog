@@ -37,6 +37,7 @@ REQUIRED_TABLES = frozenset(
 # digest against it, so a schema change needs a new version, its upgrade, the same change in
 # schema.BASELINE and a new seal.
 SEALED_SCHEMAS: dict[int, frozenset[str]] = {
+    38: frozenset({"4ba40c9a56f6d482c6e776904f88db74654b1d694196f04eadb6fe7d9b04b9c2"}),  # caller worktree lease claims
     1: frozenset({
         "c5ae7406cdd63ddfa0cd7f3a18f2cc74f898936ef42c3b72909424c2d2e5a272",  # discussions with roadmap questions and decisions, the last v1 shape
         "23aab55b497a3d6534338da7887cb6a014169ecce1d2e0b91c229f42da8f9d2c",  # discussions, before roadmap questions and decisions
