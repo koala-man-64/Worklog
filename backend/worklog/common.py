@@ -12,6 +12,8 @@ from datetime import UTC, date, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from .push_events import enqueue_event
+
 STATUSES = {"open", "doing", "blocked", "done"}
 # A work item can also wait on someone else (v15); tickets keep the four above.
 ITEM_STATUSES = STATUSES | {"waiting"}
@@ -53,6 +55,15 @@ class AppError(Exception):
     def __init__(self, status: int, code: str, message: str, fields: Any = None):
         super().__init__(message)
         self.status, self.code, self.message, self.fields = status, code, message, fields
+
+
+class AgentRequestError(RuntimeError):
+    """A transport error safe for the agent client to show and classify for retries."""
+
+    def __init__(self, message: str, status: int | None = None, code: str | None = None) -> None:
+        super().__init__(message)
+        self.status = status
+        self.code = code
 
 
 def uid() -> str:
@@ -135,6 +146,9 @@ def event(conn: sqlite3.Connection, actor: dict, kind: str, entity_id: str,
                  "VALUES(?,?,?,?,?,?,?,?,?,?)",
                  (result["id"], entity_id, kind, actor["id"], actor["label"], actor["kind"],
                   result["createdAt"], result["localDate"], json.dumps(before), json.dumps(after)))
+    # Queue eligible push references in the same transaction as the source event. Provider I/O
+    # happens later, after commit, and cannot roll back the domain change.
+    enqueue_event(conn, result, before, after)
     return result
 
 

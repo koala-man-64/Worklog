@@ -12,6 +12,10 @@ from worklog import live_api, proposal_targets
 from worklog.app import create_app
 
 ORIGIN = "http://127.0.0.1:8877"
+INSERT_MESSAGE = (
+    "INSERT INTO discussion_messages(id,discussion_id,text,author_id,author_label,author_kind,created_at,chat_id,"
+    "on_behalf_of_role_id,ownership_generation) VALUES(?,?,?,?,?,?,?,?,?,?)"
+)
 
 
 @pytest.fixture
@@ -95,7 +99,7 @@ def asks(c, message, discussion, author, targets, at):
     """A pending acknowledgement request. `author` is None for the person, else an issued
     credential; each target is ("human", "local-user") or ("agent", agent ID)."""
     c.execute(
-        "INSERT INTO discussion_messages VALUES(?,?,?,?,?,?,?,?,?,?)",
+        INSERT_MESSAGE,
         (
             message,
             discussion,
@@ -249,7 +253,7 @@ def test_live_communication_edges_pulses_sponsorship_and_waiting_proposal(client
             ("discussion", "item", "item", 0, "local-user", "human", at),
         )
         c.execute(
-            "INSERT INTO discussion_messages VALUES(?,?,?,?,?,?,?,?,?,?)",
+            INSERT_MESSAGE,
             (
                 "message",
                 "discussion",
@@ -291,7 +295,7 @@ def test_live_communication_edges_pulses_sponsorship_and_waiting_proposal(client
             ),
         )
         c.execute(
-            "INSERT INTO discussion_messages VALUES(?,?,?,?,?,?,?,?,?,?)",
+            INSERT_MESSAGE,
             (
                 "role-message",
                 "discussion",
@@ -332,7 +336,7 @@ def test_live_communication_edges_pulses_sponsorship_and_waiting_proposal(client
             ("untagged", "Open coordination", 0, 1, at, at, None),
         )
         c.execute(
-            "INSERT INTO discussion_messages VALUES(?,?,?,?,?,?,?,?,?,?)",
+            INSERT_MESSAGE,
             (
                 "thread-agent",
                 "untagged",
@@ -347,7 +351,7 @@ def test_live_communication_edges_pulses_sponsorship_and_waiting_proposal(client
             ),
         )
         c.execute(
-            "INSERT INTO discussion_messages VALUES(?,?,?,?,?,?,?,?,?,?)",
+            INSERT_MESSAGE,
             (
                 "thread-human",
                 "untagged",
@@ -676,7 +680,7 @@ def test_live_shows_work_for_an_agent_on_the_map_or_a_reason_of_its_own(client):
             ("thread", "step", "asked", 0, "local-user", "human", at),
         )
         c.execute(
-            "INSERT INTO discussion_messages VALUES(?,?,?,?,?,?,?,?,?,?)",
+            INSERT_MESSAGE,
             ("note", "thread", "Hold this", "local-user", "You", "human", stamp(), None, None, None),
         )
     noted = client.get("/api/v1/live").json()
@@ -737,7 +741,7 @@ def test_live_keeps_who_can_still_answer_and_counts_only_what_waits_on_the_perso
     # A revoked agent that acted inside the window shows for what it did.
     with client.app.state.db.transaction() as c:
         c.execute(
-            "INSERT INTO discussion_messages VALUES(?,?,?,?,?,?,?,?,?,?)",
+            INSERT_MESSAGE,
             ("parting", "thread", "Handing over", gone["agentId"], "Gone", "agent", stamp(), None, None, None),
         )
     recent = client.get("/api/v1/live").json()

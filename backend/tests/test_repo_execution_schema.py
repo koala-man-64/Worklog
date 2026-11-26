@@ -18,8 +18,22 @@ __all__ = ["client"]
 
 SCHEMAS = Path(__file__).resolve().parent / "schemas"
 
-# Version 35's documented downgrade to version 34: drop the six additive execution/wave tables,
-# the participation step index, and the four additive columns.
+# Version 36's documented downgrade to version 35. This is the only downgrade SQL kept in the
+# guide; it drops push state and reply correlation, while already submitted provider messages may
+# remain in their destination chats.
+WAY_BACK_V35 = """\
+BEGIN;
+DROP TABLE push_deliveries;
+DROP TABLE push_subscriptions;
+DROP TABLE push_enrollments;
+ALTER TABLE discussion_messages DROP COLUMN reply_to_message_id;
+PRAGMA user_version=35;
+COMMIT;
+"""
+
+# Historical version 35 to 34 downgrade: drop the six additive execution/wave tables, the
+# participation step index, and the four additive columns. Older upgrade tests still use it after
+# going through WAY_BACK_V35.
 WAY_BACK_V34 = """\
 UPDATE roadmap_versions SET snapshot=json_set(snapshot,'$.steps',json((SELECT json_group_array(json(json_remove(value,'$.workClass','$.repositoryIds','$.waveIds'))) FROM json_each(snapshot,'$.steps')))) WHERE snapshot LIKE '%"workClass"%' OR snapshot LIKE '%"repositoryIds"%';
 DROP TABLE wave_repins;
@@ -44,19 +58,41 @@ V35_TABLES = (
     "wave_repositories",
     "wave_repins",
 )
+V36_TABLES = ("push_enrollments", "push_subscriptions", "push_deliveries")
+
+
+def to_v35(path):
+    """Take a current v36 database back to the v35 shape the documented way."""
+    with closing(sqlite3.connect(path)) as conn:
+        version = conn.execute("PRAGMA user_version").fetchone()[0]
+        tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        message_columns = {row[1] for row in conn.execute("PRAGMA table_info(discussion_messages)")}
+        has_v36_shape = set(V36_TABLES) <= tables and "reply_to_message_id" in message_columns
+        has_v35_shape = not set(V36_TABLES) & tables and "reply_to_message_id" not in message_columns
+        if has_v36_shape:
+            conn.executescript(WAY_BACK_V35)
+        elif not has_v35_shape or version != 35:
+            raise ValueError(f"Expected a v35 or v36 schema shape, got version {version}")
+
+
+def test_v36_way_back_sql_matches_the_upgrade_guide():
+    guide = Path(__file__).resolve().parents[2] / "docs" / "UPGRADING.md"
+    assert WAY_BACK_V35.strip() in guide.read_text(encoding="utf-8")
 
 
 def to_v34(path):
-    """Take a current v35 database back to v34 the documented way."""
+    """Take a current v36 database back to v34 through both historical way-backs."""
+    to_v35(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK_V34)
 
 
 def before_v35(rows):
-    """A database's rows as they read before v35: its six additive tables left out while empty,
-    steps/repositories/participations trimmed back to their v34 columns, and v35 step fields
-    stripped from roadmap_versions snapshots."""
-    kept = {table: values for table, values in rows.items() if table not in V35_TABLES or values}
+    """A database's rows as they read before v35: v36 push tables and reply correlation removed,
+    v35 additive tables left out, and its step/repository/participation additions trimmed back."""
+    kept = {table: values for table, values in rows.items() if table not in V36_TABLES and table not in V35_TABLES}
+    if "discussion_messages" in kept:
+        kept["discussion_messages"] = [row[:-1] for row in kept["discussion_messages"]]
     if "steps" in kept:
         kept["steps"] = [row[:-1] for row in kept["steps"]]
     if "repositories" in kept:
@@ -81,7 +117,7 @@ def before_v35(rows):
     return kept
 
 
-def test_the_v35_upgrade_changes_no_record_and_the_way_back_gives_v34s_exact_shape(tmp_path):
+def test_the_latest_way_back_chain_gives_v34s_exact_shape_and_upgrades_again(tmp_path):
     import sealed
     from test_sealed_schemas import contents
 
@@ -98,6 +134,71 @@ def test_the_v35_upgrade_changes_no_record_and_the_way_back_gives_v34s_exact_sha
     for table in V35_TABLES:
         assert after[table] == []
     assert before_v35(after) == before
+
+
+def test_v36_way_back_drops_push_state_and_reupgrade_does_not_replay_it(tmp_path):
+    import sealed
+    from test_sealed_schemas import contents
+
+    db_path = tmp_path / "wayback-v36.sqlite3"
+    Database(db_path).initialize()
+    stamp = "2026-11-26T00:00:00+00:00"
+    with closing(sqlite3.connect(db_path)) as conn:
+        conn.execute("INSERT INTO credentials(id,label,token_hash,created_at) VALUES('credential','Agent','hash',?)", (stamp,))
+        conn.execute("INSERT INTO communication_agents(id,label,created_at,avatar) "
+                     "VALUES('agent','Agent',?,'red-dots-antenna')", (stamp,))
+        conn.execute("INSERT INTO communication_credentials(credential_id,agent_id,registered_by,registered_by_label,chat_id,directory) "
+                     "VALUES('credential','agent','sponsor','Sponsor','chat','C:/work')")
+        conn.execute("INSERT INTO discussions(id,title,created_at,updated_at) VALUES('discussion','Thread',?,?)", (stamp, stamp))
+        conn.execute("INSERT INTO discussion_messages(id,discussion_id,text,author_id,author_label,author_kind,created_at) "
+                     "VALUES('ask','discussion','Ask','agent','Agent','agent',?)", (stamp,))
+        conn.execute("INSERT INTO discussion_messages(id,discussion_id,text,author_id,author_label,author_kind,created_at,reply_to_message_id) "
+                     "VALUES('reply','discussion','Reply','agent','Agent','agent',?,'ask')", (stamp,))
+        for identity, kind in (("event-pending", "discussion.message"), ("event-submitted", "ticket.close"),
+                               ("event-uncertain", "run.end")):
+            conn.execute("INSERT INTO events(id,entity_id,kind,actor_id,actor_label,actor_kind,created_at,local_date,before_json,after_json) "
+                         "VALUES(?,?,?,?,?,?,?,?,?,?)",
+                         (identity, identity, kind, "agent", "Agent", "agent", stamp, "2026-11-26", "{}", "{}"))
+        conn.execute("INSERT INTO push_enrollments(id,credential_id,provider,chat_id,created_at,updated_at) "
+                     "VALUES('enrollment','credential','codex','chat',?,?)", (stamp, stamp))
+        conn.execute("INSERT INTO push_subscriptions(id,enrollment_id,subject_type,subject_id,created_at,updated_at) "
+                     "VALUES('watch','enrollment','run','run-id',?,?)", (stamp, stamp))
+        conn.executemany("INSERT INTO push_deliveries(id,enrollment_id,source_event_id,kind,subject_type,subject_id,"
+                         "discussion_id,message_id,state,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                         [("delivery-pending", "enrollment", "event-pending", "discussion.ask", "discussion", "discussion",
+                           "discussion", "ask", "pending", stamp, stamp),
+                          ("delivery-submitted", "enrollment", "event-submitted", "ticket.status", "ticket", "ticket-id",
+                           None, None, "submitted", stamp, stamp),
+                          ("delivery-uncertain", "enrollment", "event-uncertain", "run.end", "run", "run-id",
+                           None, None, "uncertain", stamp, stamp)])
+        conn.commit()
+    with closing(sqlite3.connect(db_path)) as conn:
+        assert conn.execute("SELECT state FROM push_deliveries ORDER BY id").fetchall() == [
+            ("pending",), ("submitted",), ("uncertain",)]
+        assert conn.execute("SELECT reply_to_message_id FROM discussion_messages WHERE id='reply'").fetchone()[0] == "ask"
+
+    to_v35(db_path)
+    _, v35_signature, v35_rows = contents(db_path)
+    assert v35_signature == sealed.shape(35)
+    with closing(sqlite3.connect(db_path)) as conn:
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 35
+        tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        assert not set(V36_TABLES) & tables
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(discussion_messages)")}
+        assert "reply_to_message_id" not in columns
+        assert conn.execute("SELECT count(*) FROM events WHERE id LIKE 'event-%'").fetchone()[0] == 3
+
+    Database(db_path).initialize()
+    version, signature, reupgraded_rows = contents(db_path)
+    assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
+    for table in V36_TABLES:
+        assert reupgraded_rows[table] == []
+    for table, rows in v35_rows.items():
+        if table == "discussion_messages":
+            assert [row[:-1] for row in reupgraded_rows[table]] == rows
+            assert [row[-1] for row in reupgraded_rows[table]] == [None] * len(rows)
+        else:
+            assert reupgraded_rows[table] == rows, table
 
 
 def test_v34_upgrades_cleanly_to_v35_and_passes_doctor(tmp_path):

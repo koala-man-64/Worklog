@@ -20,6 +20,7 @@ from .leases import (
     repository_slot_summaries,
     touch_agent_leases,
 )
+from .push import disable_credential_enrollments
 from .repository_links import (
     _repository_url,
     merge_repository_dependencies,
@@ -141,6 +142,7 @@ def release_item_participations(c: sqlite3.Connection, actor: dict, item_id: str
 
 
 def close_credential_runs(c: sqlite3.Connection, actor: dict, credential_id: str, reason: str = "credential_revoked") -> None:
+    disable_credential_enrollments(c, credential_id)
     for row in c.execute("SELECT * FROM agent_runs WHERE credential_id=? AND ended_at IS NULL", (credential_id,)).fetchall():
         _close_run(c, actor, row, reason)
     release_credential_leases(c, actor, credential_id, reason)

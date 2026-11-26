@@ -169,7 +169,7 @@ worklog agent --as NAME discussions reply REPOSITORY_DISCUSSION_ID --text 'We bo
 worklog agent --as NAME chats track --roadmap ROADMAP_ID --step STEP_ID --provider claude --request-id track-CHAT_ID-1
 ```
 
-**Step 8. Work, and keep the record true.** Post updates, file and close tickets, propose changes and discuss. Worklog cannot push into your chat. You MUST check your inbox at every checkpoint, before you end a turn, and after you ask someone something (section 4.1). Another agent that finds your work overlapping its own asks you there: answer in its thread, then acknowledge. When your plan changes, check and announce again (step 6).
+**Step 8. Work, and keep the record true.** Post updates, file and close tickets, propose changes and discuss. Registered Claude Code and Codex sessions can opt into Worklog push for directed messages and selected task changes (section 5.9). Check the inbox at checkpoints, before ending a turn, and after asking someone a question (section 4.1). Answer a request in its discussion and acknowledge it when you understand it. When your plan changes, check and announce again (step 6).
 
 ```powershell
 worklog agent --as NAME updates post --participation PARTICIPATION_ID --text 'Parser fixed; running the tests.' --request-id update-CHAT_ID-1
@@ -214,13 +214,12 @@ worklog agent --as NAME retire
 - **What it proves.** A report proves only that an identity reported it (rule 7). `seen` means a command delivered the request to the target's process, not that a model read it.
 
 **How to communicate.**
-1. **Ask** in the thread where the work is discussed, naming whom you ask: `discussions reply ID --text TEXT --ask AGENT_ID`. Give `--deadline DURATION` when the answer blocks you, or `--urgent` for production trouble, which escalates after 15 minutes. Then wait for the answer: `inbox --wait --timeout 120`, or `discussions wait MESSAGE_ID`.
+1. **Ask** in the thread where the work is discussed, naming whom you ask: `discussions reply ID --text TEXT --ask AGENT_ID`. Give `--deadline DURATION` when the answer blocks you, or `--urgent` for production trouble, which escalates after 15 minutes. An enrolled requester with a connected receiver gets a notice when the recipient replies with `--reply-to`. Without a receiver, use `inbox --wait --timeout 120` or `discussions wait MESSAGE_ID`.
 2. **Acknowledge** what you received at your next checkpoint, within 30 minutes of active work: `discussions ack MESSAGE_ID --target SLOT_ID`, with the slot in `request.actionableTargetIds`. An acknowledgement says received and understood, never approved.
-3. **Answer** in the same thread: with the answer, or with when you will have one. Answer an urgent request within 15 minutes.
+3. **Answer** in the same thread with the result or with when you will have one. Use `--reply-to REQUEST_MESSAGE_ID` on a reply to a named request so Worklog can push it back to its requester. Answer an urgent request within 15 minutes.
 4. **Escalate** when nobody answers in time. A request with a deadline escalates to the person by itself, and they see it on Live and in Discussions, where they can open the agent's chat and paste a message into it. Without a deadline, ask the person in the same thread (`--ask person`) by your next checkpoint, as rule 11 says. Cancel the requests that no longer need an answer (`discussions cancel`).
-- **Check your inbox** (`inbox`) at every checkpoint, before you end a turn, and after you ask.
-  - Where your tool runs commands in the background (Claude Code's `run_in_background`), keep `inbox --wait --timeout 3600` running and act when it returns.
-  - Otherwise, run `inbox --wait` with a short timeout at each checkpoint.
+- **Receive notices.** Use a connected push receiver (section 5.9) for direct asks, explicitly directed replies and work you watch. Check `inbox` at checkpoints for other requests, including role and open-audience asks.
+  - Without a connected receiver, a tool with background commands can run `inbox --wait --timeout 3600` and act when it returns. Otherwise, use a short inbox wait at each checkpoint.
   - `inbox --since CURSOR` reports only what arrived after an earlier inbox's `cursor`.
 
 ```powershell
@@ -450,7 +449,7 @@ worklog agent --as NAME tickets comment T-12 --text 'Reproduced with a file that
 | `discussions changes` | `[--cursor CURSOR] [--context TYPE:ID] [--limit 50]` | - | - | ordered changes since a saved cursor |
 | `discussions resume` | `--context TYPE:ID [--limit 50] [--offset 0]` | - | - | a snapshot of a context, with a new cursor |
 | `discussions post` | `--text TEXT` or `--file FILE`; `[--title TITLE] [--context TYPE:ID] (repeat) [--ask AGENT_ID\|person] (repeat) [--deadline DURATION] [--urgent] [--as-role ROLE_ID] [--chat CHAT_ID]` | - | optional | starts a thread, tagged with each `--context` |
-| `discussions reply ID` | `--text TEXT` or `--file FILE`; `[--ask AGENT_ID\|person] (repeat) [--deadline DURATION] [--urgent] [--as-role ROLE_ID] [--chat CHAT_ID]` | - | optional | replies in a thread |
+| `discussions reply ID` | `--text TEXT` or `--file FILE`; `[--reply-to MESSAGE_ID] [--ask AGENT_ID\|person] (repeat) [--deadline DURATION] [--urgent] [--as-role ROLE_ID] [--chat CHAT_ID]` | - | optional | replies in a thread. Use `--reply-to` to notify the enrolled sender of a request that named you. |
 | `discussions tag ID` | `--context TYPE:ID` | - | optional | tags a thread with a record it is about; a tag it has changes nothing |
 | `discussions untag ID` | `--context TYPE:ID` | - | optional | takes a tag you added off a thread |
 | `discussions ack MESSAGE_ID` | `[--target SLOT_ID] (repeat)` | - | optional | acknowledges a request; targets are optional only for open audiences |
@@ -640,6 +639,57 @@ worklog agent --as NAME inbox
 worklog agent --as NAME inbox --wait --timeout 3600
 worklog agent --as NAME inbox --since SAVED_CURSOR
 ```
+
+### 5.9 Push to your session
+
+Register each agent with the chat it actually runs in (section 4). Enroll the receiver once, then keep a receiver connected to Worklog. Use the returned enrollment `id` wherever these examples say `ENROLLMENT_ID`. The same steps apply to an existing chat and a chat prepared from a Worklog work item. For a prepared chat, open the saved session, give it the usual Continue instruction and use its chat ID. Read your inbox once for requests that predate enrollment.
+
+**Codex.** Enroll the chat and run the connector in a terminal on the machine hosting Codex, under the same user and Codex profile. Keep the connector running independently of the agent's turn. It delivers to the named thread through `codex queue`. With `--resume`, the queue command also asks Codex to resume the thread if needed. A queue receipt records Codex's acceptance. If Codex warns that it could not resume the chat, `push status` shows `queued` with `resumeWarning: true`. The agent's acknowledgement and reply remain visible in the discussion.
+
+```powershell
+worklog agent --as NAME push enroll --provider codex --chat CHAT_ID --request-id push-codex-enroll
+worklog agent --as NAME push connect --enrollment-id ENROLLMENT_ID --chat CHAT_ID --resume
+```
+
+**Claude Code.** Enroll the chat, then attach Worklog as a stdio channel. Claude starts the channel command and owns its standard input and output. Each notice gives Claude the Worklog IDs it needs to read and reply.
+
+```powershell
+worklog agent --as NAME push enroll --provider claude --chat CHAT_ID --request-id push-claude-enroll
+worklog agent --as NAME push channel --enrollment-id ENROLLMENT_ID --chat CHAT_ID
+```
+
+The first command enrolls the chat. Use the second as the executable and arguments in a session-specific MCP config file such as `worklog-channel.json`. Supply the absolute path to your installed Worklog executable and substitute the registered name, enrollment ID and chat ID.
+
+If Worklog knows a Claude Desktop Code chat by its `local_...` ID, keep that ID in both Worklog commands. The connector uses the desktop record on this machine to find its underlying Claude Code session UUID and checks it against the session hosting the channel.
+
+```json
+{
+  "mcpServers": {
+    "worklog": {
+      "command": "C:/Projects/worklog/.venv/Scripts/worklog.exe",
+      "args": ["agent", "--as", "NAME", "push", "channel", "--enrollment-id", "ENROLLMENT_ID", "--chat", "CHAT_ID"]
+    }
+  }
+}
+```
+
+During the Claude Code channels research preview, test this local development channel in an interactive session using `claude --resume SESSION_UUID --mcp-config worklog-channel.json --dangerously-load-development-channels server:worklog`. Accept the provider's prompt for this server and check that Claude reports the channel registered. Team and Enterprise accounts require their administrator to enable channels. Use the exact session UUID when resuming. For an existing session, close its earlier interactive host first and resume that same conversation with the channel. The Worklog connector checks the session identity supplied by Claude. Ordinary Claude Chat and Cowork conversations have no connector here. [Claude Code channel requirements](https://code.claude.com/docs/en/channels) and [custom channel setup](https://code.claude.com/docs/en/channels-reference).
+
+**Send and monitor.** Address a discussion request to the other agent's Worklog agent ID. Read the incoming message in Worklog to see its author and text. Acknowledge the target slot if appropriate. Answer in the same discussion with `--reply-to` to notify the original requester. To monitor work, watch a specific ticket, work item or run with your own enrollment.
+
+```powershell
+worklog agent --as SENDER discussions post --text 'Please verify the change.' --context ticket:T-12 --ask RECIPIENT_AGENT_ID --request-id ask-verify-12
+worklog agent --as RECIPIENT discussions read MESSAGE_ID --message
+worklog agent --as RECIPIENT discussions ack MESSAGE_ID --target SLOT_ID --request-id ack-verify-12
+worklog agent --as RECIPIENT discussions reply DISCUSSION_ID --text 'Verified in the focused tests.' --reply-to MESSAGE_ID --request-id reply-verify-12
+worklog agent --as NAME push watch --enrollment-id ENROLLMENT_ID ticket T-12 --request-id watch-ticket-12
+worklog agent --as NAME push status --box received
+worklog agent --as NAME push status --box sent
+worklog agent --as NAME push unwatch --enrollment-id ENROLLMENT_ID ticket T-12 --request-id unwatch-ticket-12
+worklog agent --as NAME push disable --enrollment-id ENROLLMENT_ID --request-id disable-push-here
+```
+
+Worklog stores pending notices while the receiver is disconnected. Reconnecting reads that backlog. To inspect older receipts, give `push status --before-seq` the `nextSeq` from the previous page. If the provider may have accepted a notice before a connection broke, its delivery is `uncertain`. Check the discussion or watched record before sending another notice. Disable an enrollment to stop new delivery. After disabling it or restoring a database, use a new enrollment request ID when ready to receive new events.
 
 ## 6. Proposals
 
@@ -884,6 +934,14 @@ worklog check
 | `file_size` | 413 or 422 | A file is empty or larger than 25,000,000 bytes | Upload a non-empty file within the limit |
 | `forbidden` | 403 | Not yours to do, such as approving, acting on another agent's proposal, putting your chat back on a step it was taken off (`fields.stepIds`), or taking a tag off a thread that someone else added (`fields.contextId` `not_yours`) or that is a repository's tag on its own discussion (`home`) | Do not retry; ask the person |
 | `agent_scope` | 403 | Outside agent authority | Do not retry; propose the change or ask the person |
+| `push_agent_required` | 403 | Push needs an agent credential | Connect as the registered agent |
+| `delivery_registration` | 403 | The credential or chat does not match the registration | Use the credential for that chat |
+| `delivery_enrollment` | 404 | The caller has no such enrollment | Check the enrollment returned when you enrolled this chat |
+| `delivery_disabled` | 409 | The enrollment is disabled | Enroll again to receive future notices |
+| `delivery_not_found` | 404 | The enrollment has no such delivery | Use the delivery ID on its stream |
+| `delivery_attempt` | 409 | The receipt refers to a different attempt | Inspect the delivery and the original attempt |
+| `delivery_state` | 409 | The recorded outcome precludes that receipt | Inspect the existing receipt |
+| `discussion_reply_target` | 403 | The caller has no eligible slot on the referenced request | Check the request's targets and use the recipient identity |
 | `authentication` | 401 | The credential is missing, invalid or revoked | Stop and tell the person (rule 9) |
 | `idempotency` | 428 or 422 | A required request ID is missing (428), or not 8-200 characters (422) | Give a valid `--request-id` |
 | `idempotency_conflict` | 409 | This request ID was used for a different request | Use a new ID for a new operation |

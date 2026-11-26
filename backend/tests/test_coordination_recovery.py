@@ -236,6 +236,9 @@ def test_populated_current_main_upgrades_without_losing_records(tmp_path, operat
     after["discussions"] = before["discussions"]
     assert after["discussion_contexts"] == [(*row, 0, "credential", "agent", STAMP) for row in before["discussion_contexts"]]
     after["discussion_contexts"] = before["discussion_contexts"]
+    # Version 36 adds reply correlation; existing messages keep every prior field and start unlinked.
+    assert after["discussion_messages"] == [(*row, None) for row in before["discussion_messages"]]
+    after["discussion_messages"] = before["discussion_messages"]
     # v31 gives each step an outcome, empty; v35 adds work_class, empty.
     assert after["steps"] == [(*row, "", "") for row in before["steps"]]
     after["steps"] = before["steps"]
@@ -243,7 +246,8 @@ def test_populated_current_main_upgrades_without_losing_records(tmp_path, operat
     recovery.validate_database(target)
     with Database(target).read() as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == migrations.SCHEMA_VERSION
-        for table in ("repositories", "item_repositories", "chat_repositories", "agent_runs", "participations", "coordination_updates"):
+        for table in ("repositories", "item_repositories", "chat_repositories", "agent_runs", "participations", "coordination_updates",
+                      "push_enrollments", "push_subscriptions", "push_deliveries"):
             assert conn.execute(f"SELECT count(*) FROM {table}").fetchone()[0] == 0
 
 

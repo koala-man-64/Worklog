@@ -442,6 +442,20 @@ class DiscussionService:
              p: dict, *, first: bool = False) -> dict:
         discussion = self._get(c, "discussions", discussion_id)
         body = text(p["text"], "text", required=True)
+        reply_to = p.get("replyToMessageId")
+        if reply_to is not None:
+            reply_to = text(reply_to, "replyToMessageId", required=True, limit=200)
+            request = c.execute("SELECT m.author_id FROM discussion_messages m "
+                                "JOIN discussion_requests r ON r.message_id=m.id "
+                                "WHERE m.id=? AND m.discussion_id=?", (reply_to, discussion_id)).fetchone()
+            if request is None:
+                raise AppError(422, "validation", "replyToMessageId must name a request in this discussion",
+                               {"replyToMessageId": "invalid"})
+            eligible = any(self._target(c, target, actor, request["author_id"])[1]
+                           for target in c.execute("SELECT * FROM discussion_targets WHERE message_id=? ORDER BY id",
+                                                   (reply_to,)).fetchall())
+            if not eligible:
+                raise AppError(403, "discussion_reply_target", "Only a target of the request may reply to it")
         chat = p.get("chatId")
         if chat is not None:
             chat = text(chat, "chatId", required=True, limit=500)
@@ -454,7 +468,9 @@ class DiscussionService:
             generation = role["generation"]
         identity, at = uid(), now()
         c.execute("INSERT INTO discussion_messages(id,discussion_id,text,author_id,author_label,author_kind,created_at,chat_id,"
-                  "on_behalf_of_role_id,ownership_generation) VALUES(?,?,?,?,?,?,?,?,?,?)", (identity, discussion_id, body, actor["id"], actor["label"], actor["kind"], at, chat, role_id, generation))
+                  "on_behalf_of_role_id,ownership_generation,reply_to_message_id) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                  (identity, discussion_id, body, actor["id"], actor["label"], actor["kind"], at, chat,
+                   role_id, generation, reply_to))
         ack = p.get("acknowledgement")
         if ack is not None:
             self._create_request(c, identity, ack, actor)
@@ -532,7 +548,7 @@ class DiscussionService:
         m = self._get(c, "discussion_messages", identity)
         result = {"id": m["id"], "discussionId": m["discussion_id"], "text": m["text"], "authorId": m["author_id"], "authorLabel": m["author_label"],
                   "authorKind": m["author_kind"], "createdAt": m["created_at"], "chatId": m["chat_id"], "onBehalfOfRoleId": m["on_behalf_of_role_id"],
-                  "ownershipGeneration": m["ownership_generation"], "request": None}
+                  "ownershipGeneration": m["ownership_generation"], "replyToMessageId": m["reply_to_message_id"], "request": None}
         r = c.execute("SELECT * FROM discussion_requests WHERE message_id=?", (identity,)).fetchone()
         if r is None:
             return result

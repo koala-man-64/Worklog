@@ -112,6 +112,88 @@ def test_restore_preserves_readonly_candidate_and_revokes_credentials(tmp_path):
         candidate.chmod(0o644)
 
 
+def test_restore_disables_push_enrollments_and_quarantines_unresolved_deliveries(tmp_path):
+    target = make_database(tmp_path / "worklog.sqlite3")
+    candidate = make_database(tmp_path / "candidate.sqlite3", "Recovered")
+    delivery_states = ("pending", "unavailable", "claimed", "submitted", "queued", "uncertain", "cancelled")
+    with closing(sqlite3.connect(candidate)) as conn:
+        conn.execute("INSERT INTO communication_agents(id,label,created_at) VALUES ('agent','Agent','2026-01-01')")
+        conn.execute(
+            "INSERT INTO communication_credentials(credential_id,agent_id,registered_by_label) "
+            "VALUES ('agent','agent','Agent')"
+        )
+        conn.execute(
+            "INSERT INTO push_enrollments(id,credential_id,provider,chat_id,created_at,updated_at) "
+            "VALUES ('enrollment','agent','codex','chat','2026-01-01','2026-01-01')"
+        )
+        conn.execute(
+            "INSERT INTO discussions(id,title,created_at,updated_at) "
+            "VALUES ('discussion','Question','2026-01-01','2026-01-01')"
+        )
+        conn.execute(
+            "INSERT INTO discussion_messages(id,discussion_id,text,author_id,author_label,author_kind,created_at) "
+            "VALUES ('message','discussion','Question?','agent','Agent','agent','2026-01-01')"
+        )
+        for state in delivery_states:
+            event_id = f"event-{state}"
+            conn.execute(
+                "INSERT INTO events(id,entity_id,kind,actor_id,actor_label,actor_kind,"
+                "created_at,local_date,before_json,after_json) "
+                "VALUES (?, 'discussion', 'discussion.ask', 'agent', 'Agent', 'agent', "
+                "'2026-01-01', '2026-01-01', '{}', '{}')",
+                (event_id,),
+            )
+            conn.execute(
+                "INSERT INTO push_deliveries(id,enrollment_id,source_event_id,kind,subject_type,"
+                "subject_id,discussion_id,message_id,state,attempt_id,attempt_count,created_at,updated_at,outcome_at) "
+                "VALUES (?, 'enrollment', ?, 'discussion.ask', 'discussion', 'discussion', "
+                "'discussion', 'message', ?, ?, ?, '2026-01-01', '2026-01-01', ?)",
+                (
+                    f"delivery-{state}", event_id, state,
+                    f"attempt-{state}" if state in {"claimed", "submitted", "queued", "uncertain"} else None,
+                    1 if state in {"claimed", "submitted", "queued", "uncertain"} else 0,
+                    "2026-01-02" if state in {"submitted", "queued", "uncertain", "cancelled"} else None,
+                ),
+            )
+        conn.commit()
+
+    recovery.restore_database(target, candidate, tmp_path / "backups")
+
+    with closing(sqlite3.connect(target)) as conn:
+        enrollment = conn.execute("SELECT disabled_at FROM push_enrollments WHERE id='enrollment'").fetchone()
+        assert enrollment is not None and enrollment[0]
+        states = dict(conn.execute("SELECT id,state FROM push_deliveries"))
+        assert states == {
+            "delivery-pending": "cancelled",
+            "delivery-unavailable": "cancelled",
+            "delivery-claimed": "uncertain",
+            "delivery-submitted": "submitted",
+            "delivery-queued": "queued",
+            "delivery-uncertain": "uncertain",
+            "delivery-cancelled": "cancelled",
+        }
+        claimed = conn.execute(
+            "SELECT state,attempt_id,attempt_count FROM push_deliveries WHERE id='delivery-claimed'"
+        ).fetchone()
+        assert claimed == ("uncertain", "attempt-claimed", 1)
+        outcomes = dict(conn.execute("SELECT id,outcome_at FROM push_deliveries WHERE outcome_at IS NOT NULL"))
+        restore_outcome = outcomes["delivery-pending"]
+        assert restore_outcome
+        assert outcomes["delivery-unavailable"] == restore_outcome
+        assert outcomes["delivery-claimed"] == restore_outcome
+        assert {
+            "delivery-submitted": outcomes["delivery-submitted"],
+            "delivery-queued": outcomes["delivery-queued"],
+            "delivery-uncertain": outcomes["delivery-uncertain"],
+            "delivery-cancelled": outcomes["delivery-cancelled"],
+        } == {
+            "delivery-submitted": "2026-01-02",
+            "delivery-queued": "2026-01-02",
+            "delivery-uncertain": "2026-01-02",
+            "delivery-cancelled": "2026-01-02",
+        }
+
+
 @pytest.mark.parametrize("problem", ["corrupt", "wrong-version", "missing-table", "foreign-key", "trigger", "column"])
 def test_invalid_restore_leaves_original_intact(tmp_path, problem):
     target = make_database(tmp_path / "worklog.sqlite3")

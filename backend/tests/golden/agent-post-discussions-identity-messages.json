@@ -9,6 +9,7 @@
     "id": "<id1>",
     "onBehalfOfRoleId": null,
     "ownershipGeneration": null,
+    "replyToMessageId": null,
     "request": null,
     "text": "Starting with the tables"
   },

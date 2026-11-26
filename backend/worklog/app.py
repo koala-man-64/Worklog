@@ -60,6 +60,7 @@ from .proposals import (
     visible_history,
     waiting_on,
 )
+from .push_api import install_push_routes
 from .records import check_owner, people_on, support_record
 from .recovery import (
     MANUAL_KEPT,
@@ -260,7 +261,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     install_session_routes(app, app.state.session_launcher, app.state.request_chats)
 
     def mutate(request: Request, payload: Any, fn: Callable, *, required_key: bool = False,
-               redact: tuple[str, ...] = (), communication: bool = False,
+               redact: tuple[str, ...] = (), communication: bool = False, check_current_on_replay: bool = False,
                replay: tuple[str, Callable[[sqlite3.Connection, dict, str], dict]] | None = None) -> dict:
         """Run a write once per Idempotency-Key, keeping its answer for a replay. `replay`, a kind and a
         reader of (connection, actor, record ID), lets an answer past RECEIPT_LIMIT be kept as what
@@ -288,6 +289,10 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
                 if receipt:
                     if receipt["request_hash"] != digest:
                         raise AppError(409, "idempotency_conflict", "This key was already used for a different request")
+                    if check_current_on_replay:
+                        # A replayed delivery claim must never authorize a new send after its
+                        # enrollment was disabled or the provider already accepted the notice.
+                        return fn(c, actor)
                     answer = json.loads(receipt["response_json"])
                     if isinstance(answer, dict) and isinstance(answer.get(RECEIPT_MARK), dict):
                         if replay is None:
@@ -1053,6 +1058,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     install_registration_routes(app, db, support.continue_chats)
     install_registry_routes(app, db, transcripts)
     install_live_routes(app, db, transcripts, antigravity_brain_root=antigravity_brain_root, check_antigravity=check_antigravity)
+    install_push_routes(app, db, mutate)
     dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
     if (dist / "assets").is_dir():
         app.mount("/assets", StaticFiles(directory=dist / "assets", follow_symlink=False), name="assets")

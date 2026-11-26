@@ -1,0 +1,9 @@
+{
+  "body": {
+    "error": {
+      "code": "delivery_enrollment",
+      "message": "Push enrollment not found"
+    }
+  },
+  "status": 404
+}

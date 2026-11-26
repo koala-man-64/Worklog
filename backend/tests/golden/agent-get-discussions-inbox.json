@@ -19,6 +19,7 @@
           "id": "<id2>",
           "onBehalfOfRoleId": null,
           "ownershipGeneration": null,
+          "replyToMessageId": null,
           "request": {
             "actionableTargetIds": [
               "<id3>"

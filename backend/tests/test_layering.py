@@ -15,7 +15,7 @@ PACKAGE = Path(__file__).resolve().parents[1] / "worklog"
 ORDER = [
     # Nothing of Worklog's below them, where the data lives, the current schema and the route policy
     # among them, then the record kinds discussion tags name.
-    "__init__", "locations", "common", "models", "responses", "avatars", "transcripts", "active_sessions", "antigravity_sessions", "maintenance", "schema", "policy",
+    "__init__", "locations", "push_events", "common", "models", "responses", "avatars", "transcripts", "active_sessions", "antigravity_sessions", "maintenance", "schema", "policy",
     "record_kinds",
     # Search, scratchpads, repository links, request shapes, the operation registry, the names a
     # proposal gives its new records, and what an applied change counts toward.
@@ -24,9 +24,9 @@ ORDER = [
     # The calculated Active status, worked out from agents' participations on each read.
     "agent_activity",
     # Roadmaps, then the database, which opens, upgrades and validates the file.
-    "plans", "db",
+    "plans", "push_signal", "db",
     # Records that stand on their own, and the agent identities that discussions and chats share.
-    "resources", "tickets", "discussions",
+    "resources", "tickets", "discussions", "push",
     # Reusable slot worktrees and bounded repository checkout leases.
     "slot_worktrees", "leases",
     # Agent runs and participations with the repository catalog, waves and dispatch, then agent registration.
@@ -39,9 +39,9 @@ ORDER = [
     # HTTP: the routes of each domain, the request guard in front of them all, the usage counts kept
     # inside it, and the app.
     "coordination_api", "lease_api", "wave_api", "discussion_api", "registry_api",
-    "resource_api", "ticket_api", "session_api", "live_api", "guard", "usage", "app",
+    "resource_api", "ticket_api", "session_api", "live_api", "push_api", "guard", "usage", "app",
     # The command line.
-    "cli",
+    "push_notice", "push_providers", "push_channel", "push_cli", "cli",
 ]
 
 EXCEPTIONS = {

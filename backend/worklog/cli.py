@@ -28,7 +28,7 @@ from urllib.parse import urlencode, urlsplit
 from urllib.request import HTTPHandler, HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
 from worklog import __version__, locations
-from worklog.common import shows_as_written
+from worklog.common import AgentRequestError, shows_as_written
 from worklog.compaction import compact_database
 from worklog.doctor import doctor_database
 from worklog.recovery import (
@@ -527,15 +527,6 @@ def serve(directory: Path, port: int = DEFAULT_PORT) -> None:
                 state_path.unlink(missing_ok=True)
 
 
-class AgentRequestError(RuntimeError):
-    """A safe transport error with enough classification for bounded waits."""
-
-    def __init__(self, message: str, status: int | None = None, code: str | None = None) -> None:
-        super().__init__(message)
-        self.status = status
-        self.code = code
-
-
 def _discussion_route_allowed(method: str, route: str) -> bool:
     """Keep the client independently unable to invoke human-only commands."""
     if route in {"/discussions", "/discussions/roles"}:
@@ -569,6 +560,27 @@ def _discussion_route_allowed(method: str, route: str) -> bool:
             return method == "POST"
         if parts[2] == "roles" and parts[4] in {"claim", "release", "offer", "accept", "decline", "withdraw"}:
             return method == "POST"
+    return False
+
+
+def _push_route_allowed(method: str, route: str) -> bool:
+    """Only the self-scoped push enrollment and durable delivery routes are reachable."""
+    parts = route.split("/")
+
+    def valid_id(value: str) -> bool:
+        try:
+            return str(uuid.UUID(value)) == value.lower()
+        except ValueError:
+            return False
+
+    if route in {"/push/enroll", "/push/disable", "/push/subscriptions"}:
+        return method == "POST"
+    if route in {"/push/status", "/push/stream"}:
+        return method == "GET"
+    if len(parts) == 4 and parts[:2] == ["", "push"] and parts[2] == "enrollments":
+        return method == "GET" and valid_id(parts[3])
+    if len(parts) == 5 and parts[:2] == ["", "push"] and parts[2] == "deliveries" and valid_id(parts[3]):
+        return method == "POST" and parts[4] in {"claim", "receipt"}
     return False
 
 
@@ -709,7 +721,8 @@ class AgentClient:
             query = parse_qs(urlsplit(path).query)
             ids = query.get("ownerId", [])
             allowed = query.get("ownerType") == ["proposal"] and len(ids) == 1 and valid_id(ids[0])
-        allowed = (allowed or _discussion_route_allowed(method, route) or _coordination_route_allowed(method, route)
+        allowed = (allowed or _discussion_route_allowed(method, route) or _push_route_allowed(method, route)
+                   or _coordination_route_allowed(method, route)
                    or _lease_route_allowed(method, route) or _ticket_route_allowed(method, route)
                    or _wave_route_allowed(method, route))
         if not allowed:
@@ -722,7 +735,8 @@ class AgentClient:
             data = json.dumps(payload).encode("utf-8")
             headers["Content-Type"] = "application/json"
         coordination_write = method in {"POST", "PATCH"} and route.startswith(("/repositories", "/agent-runs", "/participations",
-                                                                               "/tickets", "/chats/track", "/leases", "/waves"))
+                                                                               "/tickets", "/chats/track", "/leases", "/waves",
+                                                                               "/push"))
         if method == "POST" or coordination_write:
             request_id = request_id or str(uuid.uuid4())
             if not 8 <= len(request_id) <= 200 or not request_id.isascii() or any(ord(c) < 33 or ord(c) > 126 for c in request_id):
@@ -758,6 +772,35 @@ class AgentClient:
             raise AgentRequestError(("Cannot reach Worklog; run worklog check" + retry_hint).replace(self.token, "[redacted]")) from None
         except (ValueError, UnicodeError):
             raise AgentRequestError(("Invalid response from Worklog" + retry_hint).replace(self.token, "[redacted]")) from None
+
+    def open_push_stream(self, path: str) -> Any:
+        """Open one authenticated SSE stream without redirects, proxies, or JSON buffering."""
+        route = path.split("?", 1)[0]
+        if not _push_route_allowed("GET", route) or route != "/push/stream":
+            raise ValueError("Agent stream is outside push scope")
+        request = Request(self.base + "/api/v1" + path,
+                          headers={"Authorization": "Bearer " + self.token,
+                                   "Accept": "text/event-stream"}, method="GET")
+        try:
+            response = _open(request, timeout=30)
+            content_type = response.headers.get("Content-Type", "")
+            if not content_type.lower().startswith("text/event-stream"):
+                response.close()
+                raise AgentRequestError("Worklog returned an unexpected push stream response")
+            return response
+        except HTTPError as exc:
+            code = None
+            try:
+                with exc:
+                    error = _response_json(exc, None).get("error", {})
+                candidate = error.get("code") if isinstance(error, dict) else None
+                code = candidate if isinstance(candidate, str) and ERROR_CODE.fullmatch(candidate) else None
+            except (ValueError, AttributeError, OSError, HTTPException):
+                pass
+            detail = f"Worklog push stream rejected (HTTP {exc.code}" + (f" {code}" if code else "") + ")"
+            raise AgentRequestError(detail.replace(self.token, "[redacted]"), exc.code, code) from None
+        except (URLError, TimeoutError, OSError, HTTPException):
+            raise AgentRequestError("Cannot reach Worklog push stream; run worklog check") from None
 
 
 def _error_fields(fields: Any) -> str:
@@ -1004,6 +1047,9 @@ def agent_command(args: argparse.Namespace, port: int, redact: list[str]) -> Any
         return retire_command(client, args)
     if args.agent_action == "discussions":
         return discussion_command(client, args)
+    if args.agent_action == "push":
+        from worklog.push_cli import command as push_command
+        return push_command(client, args)
     if args.agent_action == "leases":
         return lease_command(client, args)
     if args.agent_action in {"repositories", "runs", "participation", "updates", "chats"}:
@@ -1604,6 +1650,12 @@ def discussion_command(client: AgentClient, args: argparse.Namespace) -> Any:
             payload["onBehalfOfRoleId"] = args.as_role
         if args.chat:
             payload["chatId"] = args.chat
+        if action == "reply" and args.reply_to:
+            try:
+                reply_to = str(uuid.UUID(args.reply_to))
+            except ValueError:
+                raise ValueError("--reply-to must be a message ID") from None
+            payload["replyToMessageId"] = reply_to
         if action == "post":
             if args.title:
                 payload["title"] = args.title
@@ -1666,6 +1718,9 @@ def _discussion_parser(actions: Any) -> None:
         source.add_argument("--text")
         command.add_argument("--as-role")
         command.add_argument("--chat")
+        if verb == "reply":
+            command.add_argument("--reply-to", metavar="MESSAGE_ID",
+                                 help="Reply to this specific message in the discussion")
         command.add_argument("--ask", action="append", metavar="AGENT_ID|person",
                              help="Ask this agent, or the person (person or local-user), to acknowledge the message; "
                                   "repeat for more")
@@ -1982,6 +2037,36 @@ def _report_days(value: str) -> int:
     return days
 
 
+def _push_parser(actions: Any) -> None:
+    push = actions.add_parser("push", help="Opt in to fixed Worklog notices for this registered provider chat")
+    commands = push.add_subparsers(dest="push_action", required=True)
+    enroll = commands.add_parser("enroll", help="Enroll this exact registered chat to receive Worklog notices")
+    enroll.add_argument("--provider", choices=("codex", "claude"), help="Provider reported by this chat's run, if available")
+    enroll.add_argument("--chat", required=True, metavar="CHAT_ID", help="Must exactly match this agent's registration")
+    enroll.add_argument("--request-id", help="Reuse this key and the same payload when retrying")
+    connect = commands.add_parser("connect", help="Run the persistent Codex push receiver in this terminal")
+    connect.add_argument("--enrollment-id", required=True)
+    connect.add_argument("--chat", required=True, metavar="CHAT_ID", help="Must match the registered enrollment")
+    connect.add_argument("--resume", action="store_true", help="Ask Codex to resume the thread if it is not open")
+    for name, enabled in (("watch", True), ("unwatch", False)):
+        subscription = commands.add_parser(name, help="Subscribe this enrollment to a ticket, item or run" if enabled
+                                            else "Remove a ticket, item or run subscription")
+        subscription.add_argument("--enrollment-id", required=True)
+        subscription.add_argument("kind", choices=("ticket", "item", "run"))
+        subscription.add_argument("ref", help="Worklog ticket key/number, item ID or run ID")
+        subscription.add_argument("--request-id", help="Reuse this key and the same payload when retrying")
+    status = commands.add_parser("status", help="Read this agent's push receipt status")
+    status.add_argument("--box", choices=("received", "sent"), default="received")
+    status.add_argument("--limit", type=int, default=50)
+    status.add_argument("--before-seq", type=int, help="Read older receipts before this sequence number")
+    disable = commands.add_parser("disable", help="Stop an enrollment and cancel notices not yet sent")
+    disable.add_argument("--enrollment-id", required=True)
+    disable.add_argument("--request-id", help="Reuse this key and the same payload when retrying")
+    channel = commands.add_parser("channel", help="Run the Claude Code MCP push channel on stdio")
+    channel.add_argument("--enrollment-id", required=True)
+    channel.add_argument("--chat", required=True, metavar="CHAT_ID", help="Must match the registered enrollment")
+
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="worklog", description=__doc__)
     root.add_argument("--data-dir", help="Override persistent data directory")
@@ -2036,6 +2121,7 @@ def parser() -> argparse.ArgumentParser:
     register.add_argument("--avatar", help="An available name from `discussions avatars`")
     actions.add_parser("retire", help="Revoke the credential of the agent given with --as and forget its token")
     _discussion_parser(actions)
+    _push_parser(actions)
     _coordination_parser(actions)
     _lease_parser(actions)
     _ticket_parser(actions)
@@ -2184,6 +2270,9 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "agent":
             result = agent_command(args, resolve_port(args.port), redact)
+            if args.agent_action == "push" and args.push_action == "channel":
+                # Claude Code owns stdout for the MCP stdio channel; only its JSON-RPC frames may use it.
+                return int(result)
         else:
             folder = locations.locate(args.data_dir)
             directory = folder.path

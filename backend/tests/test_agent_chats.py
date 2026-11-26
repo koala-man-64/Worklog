@@ -101,7 +101,8 @@ def test_it_opens_a_codex_thread_and_gives_the_person_the_commands_to_paste(tmp_
             "NAME is the name you registered with; give it as --as NAME, as in every Worklog command.",
             f"1. Read it: worklog agent --as NAME discussions read {message['id']} --message",
             f"2. Acknowledge it: worklog agent --as NAME discussions ack {message['id']} --target {target}",
-            f"3. Answer in its thread, or say when you will: worklog agent --as NAME discussions reply {thread} --text 'YOUR ANSWER'",
+            f"3. Answer in its thread, or say when you will: worklog agent --as NAME discussions reply {thread} "
+            f"--reply-to {message['id']} --text 'YOUR ANSWER'",
             "Then check your inbox: worklog agent --as NAME inbox"]
 
         # Nothing was stored: the agent's inbox still holds the request as unseen.

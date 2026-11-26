@@ -54,7 +54,7 @@ KEYED = {"suggested": "<avatar>", "cursor": "<cursor>", "token": "<token>"}
 # Numbers that differ from machine to machine: the free space on the disk that holds the data.
 KEYED_NUMBERS = {"diskFreeBytes": "<free bytes>"}
 # Reads whose answer is not JSON: files and archives, pinned by their own tests.
-NOT_JSON = {"/export"}
+NOT_JSON = {"/export", "/push/stream"}
 # Reads whose answer counts the golden world's own calls, by date: every new route or call, and every
 # new day, would change it. test_usage.py pins it, and agent_route_matrix.json pins the agent's refusal.
 COUNTED = {"/usage"}

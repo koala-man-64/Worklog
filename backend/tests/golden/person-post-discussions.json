@@ -39,6 +39,7 @@
       "id": "<id3>",
       "onBehalfOfRoleId": null,
       "ownershipGeneration": null,
+      "replyToMessageId": null,
       "request": null,
       "text": "Where do we start?"
     }

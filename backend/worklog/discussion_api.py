@@ -177,7 +177,11 @@ def install_discussion_routes(app: FastAPI, db: Database, mutate: Callable) -> N
 
     @app.post("/api/v1/discussions/{identity}/messages", response_model=out.DiscussionMessage)
     def post_message(identity: str, request: Request, body: m.MessageCreate) -> dict:
-        return write(request, body, lambda c, a: service.post(c, a, identity, body.model_dump()))
+        payload = body.model_dump()
+        if body.replyToMessageId is None:
+            # Preserve the digest for retries of replies saved before explicit reply routing.
+            del payload["replyToMessageId"]
+        return mutate(request, payload, lambda c, a: service.post(c, a, identity, payload), required_key=True)
 
     @app.post("/api/v1/discussions/{identity}/archive", response_model=out.DiscussionSummary)
     def archive_discussion(identity: str, request: Request, body: m.Archive) -> dict:

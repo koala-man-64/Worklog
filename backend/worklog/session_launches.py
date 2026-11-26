@@ -1190,7 +1190,8 @@ def _paste(discussion_id: str, message_id: str, target_id: str, acknowledged: bo
     steps = [f"Read it: worklog agent --as NAME discussions read {message_id} --message"]
     if not acknowledged:
         steps.append(f"Acknowledge it: worklog agent --as NAME discussions ack {message_id} --target {target_id}")
-    steps.append(f"Answer in its thread, or say when you will: worklog agent --as NAME discussions reply {discussion_id} --text 'YOUR ANSWER'")
+    steps.append(f"Answer in its thread, or say when you will: worklog agent --as NAME discussions reply {discussion_id} "
+                 f"--reply-to {message_id} --text 'YOUR ANSWER'")
     return "\n".join([
         f"A Worklog request waits on you: message {message_id} in thread {discussion_id}. "
         "Deal with it now, as the agent guide says (section 4.1).",
