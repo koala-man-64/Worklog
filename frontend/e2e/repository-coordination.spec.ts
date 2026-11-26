@@ -214,16 +214,22 @@ test("repositories connect work, named agent reports, chat badges and human run 
     reviewerCard.getByText("C:/review/shared-api", { exact: true }),
   ).toHaveCount(2);
   await page.goto("/#chats");
-  await expect(page.getByText(reviewerName, { exact: true })).toBeVisible();
+  const chatActivity = page.getByRole("region", {
+    name: "Who is working on what",
+  });
+  const chatRow = chatActivity.getByRole("listitem").filter({
+    has: page.getByRole("link", { name: workName, exact: true }),
+  });
+  await expect(chatRow.getByText(reviewerName, { exact: true })).toBeVisible();
   await expect(
-    page.getByRole("link", { name: repoName, exact: true }),
+    chatRow.getByRole("link", { name: repoName, exact: true }),
   ).toBeVisible();
   await expect(page.getByText(/Observed transcript activity/i)).toBeVisible();
-  await page
+  await chatActivity
     .getByRole("group", { name: "Show activity by" })
     .getByRole("button", { name: "Work item", exact: true })
     .click();
-  const group = page.getByRole("list", {
+  const group = chatActivity.getByRole("list", {
     name: "Chats in " + workName,
     exact: true,
   });

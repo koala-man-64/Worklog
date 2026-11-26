@@ -173,6 +173,57 @@ def test_exclusive_mode_freeze_priority_and_anti_deadlock(env):
     assert client.get(f"/api/v1/leases/{q_inc['id']}").json()["state"] == "offered"
 
 
+@pytest.mark.parametrize(
+    ("occupy_released_slot", "advance_remote"),
+    [(False, False), (True, False), (False, True)],
+    ids=["reused-slot", "new-slot", "newer-upstream"],
+)
+def test_reacquire_preserves_exact_feature_commit(env, occupy_released_slot, advance_remote):
+    client, tmp_path = env
+    _, base = make_repo_pair(tmp_path, "resume-feature")
+    repo = _create_repo(client, "resume-feature", url="")
+    policy = client.patch(
+        f"/api/v1/repositories/{repo['id']}/slot-policy",
+        json={"baseCheckoutPath": str(base), "maxActiveLeases": 2},
+    )
+    assert policy.status_code == 200, policy.text
+    token = _issue(client, "Feature owner")["token"]
+    branch = "feat/resume"
+    payload = {"repositoryId": repo["id"], "branch": branch}
+
+    first = _agent_post(client, token, "/leases/acquire", payload)
+    assert first.status_code == 200, first.text
+    lease = first.json()
+    slot = Path(lease["worktreePath"])
+    (slot / "app.py").write_text("VALUE = 2\n", encoding="utf-8")
+    _git(slot, "commit", "-am", "Feature checkpoint")
+    feature_tip = _git(slot, "rev-parse", "HEAD")
+    assert feature_tip != _git(base, "rev-parse", "refs/remotes/origin/main")
+
+    released = _agent_post(client, token, f"/leases/{lease['id']}/release", {"revision": lease["revision"]})
+    assert released.status_code == 200, released.text
+    assert released.json()["state"] == "released"
+    assert _git(base, "rev-parse", f"refs/heads/{branch}") == feature_tip
+    if advance_remote:
+        _git(base, "checkout", "-b", "upstream-update", feature_tip)
+        _git(base, "commit", "--allow-empty", "-m", "Published after release")
+        _git(base, "push", "origin", f"HEAD:refs/heads/{branch}")
+        _git(base, "checkout", "main")
+    if occupy_released_slot:
+        other = _issue(client, "Other slot user")["token"]
+        held = _agent_post(client, other, "/leases/acquire", {"repositoryId": repo["id"], "branch": "feat/other"})
+        assert held.status_code == 200, held.text
+        assert held.json()["slotIndex"] == lease["slotIndex"]
+
+    resumed = _agent_post(client, token, "/leases/acquire", payload)
+    assert resumed.status_code == 200, resumed.text
+    assert resumed.json()["state"] == "active"
+    resumed_slot = Path(resumed.json()["worktreePath"])
+    assert (resumed_slot != slot) == occupy_released_slot
+    assert _git(resumed_slot, "symbolic-ref", "HEAD") == f"refs/heads/{branch}"
+    assert _git(resumed_slot, "rev-parse", "HEAD") == feature_tip
+
+
 def test_ttl_expiry_auto_rescue_and_human_rescue_when_disabled(env):
     client, tmp_path = env
     _, base = make_repo_pair(tmp_path, "rescue-repo")

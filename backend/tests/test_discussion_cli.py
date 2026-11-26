@@ -261,6 +261,15 @@ def test_wait_transport_failure_has_finite_retries(monkeypatch, clock, capsys):
     assert len(calls) == 3 and clock.sleeps == [2, 5]
 
 
+def test_wait_reports_transport_failure_when_deadline_expires_during_backoff(monkeypatch, clock, capsys):
+    failure = cli.AgentRequestError("HTTP 503: service unavailable", 503)
+    calls = waiting_transport(monkeypatch, clock, [failure], durations=[0.19])
+    assert cli.main(command("wait", MESSAGE, "--timeout", "0.20")) == 0
+    assert json.loads(capsys.readouterr().out) == {"outcome": "unavailable", "error": str(failure)}
+    assert len(calls) == 1
+    assert clock.now == pytest.approx(0.20)
+
+
 def test_wait_can_recover_transport_failure(monkeypatch, clock, capsys):
     waiting_transport(monkeypatch, clock, [cli.AgentRequestError("Unavailable"), "satisfied"])
     assert cli.main(command("wait", MESSAGE)) == 0
