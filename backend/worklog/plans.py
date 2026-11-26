@@ -485,12 +485,6 @@ def step_family(conn, roadmap_id, identity):
     return _steps(conn, roadmap_id, retired=True, text_of=identity)
 
 
-def step_tree(conn, roadmap_id):
-    """A roadmap's steps, retired ones included, with each parent's progress derived from its leaves
-    as the roadmap's page shows it."""
-    return _steps(conn, roadmap_id, retired=True)
-
-
 def recently_done(conn, roadmap_id, limit=10):
     """The roadmap's steps in the plan that are done, the latest marked done first, with when: its
     leaves, since a parent's progress is derived from them. A step counts from its latest change to
@@ -551,10 +545,14 @@ class PlanService:
     def __init__(self, db):
         self.db = db
 
-    def list(self, archived=False):
+    def list(self, archived=False, *, summary=False):
         with self.db.read() as conn:
-            items = [_roadmap(row) for row in conn.execute(
-                "SELECT * FROM roadmaps WHERE archived=? ORDER BY created_at,id", (int(archived),))]
+            columns = ("r.id,r.title,(SELECT count(*) FROM roadmap_questions q WHERE q.roadmap_id=r.id "
+                       "AND q.status='open' AND q.archived=0) AS openQuestions") if summary else "r.*"
+            rows = conn.execute(f"SELECT {columns} FROM roadmaps r WHERE r.archived=? ORDER BY r.created_at,r.id",
+                                (int(archived),))
+            render = dict if summary else _roadmap
+            items = [render(row) for row in rows]
             return {"items": items, "total": len(items)}
 
     def _detail(self, conn, identifier):

@@ -812,38 +812,30 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
         # them. detail=full answers it whole.
         coordination = CoordinationService(db)
         actor = request.state.actor
+        summary = detail == "summary"
         with db.read() as c:
             c.execute("BEGIN")
             current = today(setting(c, "timezone", "America/Chicago"))
             activity = {**coordination.context_summaries(c, item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset),
                         "participations": coordination.participations(c, item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset),
                         "updates": coordination.updates(c, item_id=itemId, repository_id=repositoryId,
-                                                        limit=limit if detail == "full" else CONTEXT_UPDATES,
-                                                        offset=offset if detail == "full" else 0),
+                                                        limit=CONTEXT_UPDATES if summary else limit,
+                                                        offset=0 if summary else offset),
                         # Open, doing and blocked tickets, so an agent sees known issues before it starts.
                         "tickets": TicketService().list(c, item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset),
                         # The person's reference pages by title and summary; `resources show` reads one.
                         "resources": ResourceService().list(c, limit=limit, offset=offset),
                         # Open proposals as summaries (K18); `proposal show` reads one whole.
                         "proposals": open_proposals(c, actor, limit, offset)}
-            asked = dict(c.execute("SELECT roadmap_id,count(*) FROM roadmap_questions WHERE status='open' AND archived=0 "
-                                   "GROUP BY roadmap_id").fetchall()) if detail == "summary" else {}
-        items_result = work.items.list(item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset)
-        whole = {"day": work.items.day(date or current), "workItems": items_result,
-                 "roadmaps": plans.list(), "people": work.people.list(), **activity}
-        if detail == "full":
-            return whole
-        return {**whole,
-                "workItems": {"items": [{key: item[key] for key in ("id", "title", "status", "rank")}
-                                        for item in items_result["items"]], "total": items_result["total"]},
-                "roadmaps": {"items": [{"id": r["id"], "title": r["title"], "openQuestions": asked.get(r["id"], 0)}
-                                       for r in whole["roadmaps"]["items"]], "total": whole["roadmaps"]["total"]},
-                "people": {"items": [{"id": p["id"], "name": p["name"]} for p in whole["people"]["items"]],
-                           "total": whole["people"]["total"]},
-                "updates": {"items": [{"id": u["id"], "kind": u["kind"], "text": first_line(u["text"], CONTEXT_LINE),
-                                       "authorLabel": u["authorLabel"], "participationId": u["participationId"],
-                                       "createdAt": u["createdAt"]} for u in activity["updates"]["items"]],
-                            "total": activity["updates"]["total"]}}
+        if summary:
+            updates = activity["updates"]
+            activity["updates"] = {"items": [{"id": u["id"], "kind": u["kind"], "text": first_line(u["text"], CONTEXT_LINE),
+                                              "authorLabel": u["authorLabel"], "participationId": u["participationId"],
+                                              "createdAt": u["createdAt"]} for u in updates["items"]],
+                                   "total": updates["total"]}
+        return {"day": work.items.day(date or current),
+                "workItems": work.items.list(item_id=itemId, repository_id=repositoryId, limit=limit, offset=offset, summary=summary),
+                "roadmaps": plans.list(summary=summary), "people": work.people.list(summary=summary), **activity}
 
     @app.get("/api/v1/settings", dependencies=[Depends(person_only)], response_model=out.Settings)
     def settings() -> dict:
