@@ -208,6 +208,21 @@ def test_active_is_never_stored_in_history_or_saved_versions(client):
     assert not any("agentActive" in e for e in events)
 
 
+def test_archived_work_never_shows_active(client):
+    agent, run = _agent(client)
+    item = _item(client, "Put away", day="2026-11-20", worked=True)
+    _participate(client, agent, run, item=item["id"])
+    # Archiving releases participation and Worklog refuses new participation on archived work, so only
+    # older data holds an archived item with a fresh participation; it stays off the plan.
+    with client.app.state.db.transaction() as conn:
+        conn.execute("UPDATE work_items SET archived=1 WHERE id=?", (item["id"],))
+    assert ok(read(client, f"/work-items/{item['id']}"))["agentActive"] is False
+    assert _listed(client, "&archived=true")[item["id"]]["agentActive"] is False
+    assert _listed(client, "&archived=true&status=active") == {}
+    entries = ok(read(client, "/days/2026-11-20"))["entries"]
+    assert [e["item"]["agentActive"] for e in entries] == [False]
+
+
 def test_a_days_entries_carry_the_calculated_status(client):
     agent, run = _agent(client)
     worked = _item(client, "Planned and worked", day="2026-11-20")

@@ -25,7 +25,8 @@ Worklog runs at `http://127.0.0.1:8877`. Start it from PowerShell in your Worklo
 2. As you work, tick "Worked on" for the item.
 3. Write what happened, and what comes next, in "Outcome / next action".
 4. Set its status (Open, Doing, Waiting, Blocked or Done) with the status menu. Waiting is for work that waits on someone else, such as a review or a reply.
-   - **Active** shows beside the menu while an agent is working on Open or Doing work: one of its runs reports work on the item, and the report is less than 2 hours old. Worklog works it out, so the menu never offers it and keeps the status you set. Waiting, Blocked and Done show as you set them.
+   - **Active** shows beside the menu while an agent is working on Open or Doing work: one of its runs reports work on the item, and the report is less than 2 hours old. Worklog works it out, so the menu never offers it and keeps the status you set. Waiting, Blocked and Done show as you set them. Archived work never shows Active.
+   - A page works Active out when it reads the work: when you open the page or come back to it, and after your own changes. A page left open in front of you keeps what it last read until then.
 
 You never press Save: Worklog saves as you type. Tomorrow, "Open work" on Today lists everything still open, ready to plan again.
 
@@ -218,7 +219,7 @@ A ticket filed from the browser starts open. An agent can file a past incident a
    - move it up or down
    - "Retire step"
 3. Add a "Version note" and press "Save new version". Each saved version is kept for good under "Immutable versions" in the roadmap's "History", where "Restore as new version" brings an old one back.
-4. Set progress on leaf steps (Open, Doing, Blocked or Done) in "Plan & progress", the roadmap's "Outline". A parent step follows its children: Done when all are done, Blocked if any is blocked, otherwise Doing once any has started. A step shows **Active**, as work items do, while it is Open or Doing and an agent reports work on it, on a work item on it, or on an Active step under it; the outline marks it beside its progress menu. The bar at the top fills in status colours, with how many steps are done, active, in progress, blocked and open beside it (an Active step counts as Active, not Open or Doing), and the roadmap's "Status" shows where each phase stands.
+4. Set progress on leaf steps (Open, Doing, Blocked or Done) in "Plan & progress", the roadmap's "Outline". A parent step follows its children: Done when all are done, Blocked if any is blocked, otherwise Doing once any has started. A step shows **Active**, as work items do, while it is Open or Doing and an agent reports work on it, on a work item on it, or on an Active step under it; the outline marks it with an "Active" badge under its title. The bar at the top fills in status colours, with how many steps are done, active, in progress, blocked and open beside it (an Active step counts as Active, not Open or Doing), and the roadmap's "Status" shows where each phase stands.
 5. To change one step's title, outcome or description, open the step, press "Edit step", then "Save step". It saves that step alone, without a new version, so agents working on other steps carry on undisturbed. Agents propose the same change for one step.
 6. To nest a roadmap under another, use "Add sub-roadmap" at the top of the parent's page, or choose its parent in "Nested under" beside it.
 

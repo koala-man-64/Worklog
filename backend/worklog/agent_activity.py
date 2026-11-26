@@ -9,7 +9,7 @@ Blocked and Done keep their stored status, since the person set them.
 
 A step is also Active while a work item on it is, and a parent step while a step under it is. Only
 what shows Active counts toward the step above it, so a done item an agent never released leaves its
-step as it is.
+step as it is. Archived work is off the plan and never shows Active.
 
 Nothing stores the status: each read works it out afresh as `agentActive`, so it never enters a
 record's history, a proposal or a roadmap's saved versions.
@@ -70,19 +70,21 @@ def active_work(conn: sqlite3.Connection) -> ActiveWork:
     return ActiveWork(frozenset(items), frozenset(steps))
 
 
-def item_active(work: ActiveWork, item_id: str, status: str) -> bool:
-    """Whether a work item shows Active: an agent works on it and the person left it open or doing."""
-    return status in SHOWN_AS_ACTIVE and item_id in work.items
+def item_active(work: ActiveWork, item: dict) -> bool:
+    """Whether a work item, as item_record gives it, shows Active: an agent works on it, and the person
+    left it open or doing and did not archive it."""
+    return item["status"] in SHOWN_AS_ACTIVE and not item["archived"] and item["id"] in work.items
 
 
 def active_item_ids(work: ActiveWork, conn: sqlite3.Connection) -> list[str]:
     """The work items that show Active, for a status filter."""
     return [r["id"] for r in rows_in(
-        conn, "SELECT id FROM work_items WHERE status IN ('open','doing') AND id IN ({})", sorted(work.items))]
+        conn, "SELECT id FROM work_items WHERE archived=0 AND status IN ('open','doing') AND id IN ({})",
+        sorted(work.items))]
 
 
 def _steps_of_active_items(conn: sqlite3.Connection, work: ActiveWork, step_ids: Iterable[str]) -> set[str]:
-    """Of these steps, the ones a work item that shows Active is on. Archived work is off the plan."""
+    """Of these steps, the ones a work item that shows Active is on."""
     wanted = set(step_ids)
     if not work.items or not wanted:
         return set()

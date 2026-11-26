@@ -115,8 +115,8 @@ class Items:
             rows = c.execute(f"SELECT w.*, r.stack_rank, (w.archived=0 AND w.status!='done' AND NOT EXISTS(SELECT 1 FROM daily_entries de WHERE de.item_id=w.id AND de.planned=1 AND de.date>=?)) AS is_backlog FROM work_items w LEFT JOIN ({RANKS}) r ON r.id=w.id WHERE {clause} ORDER BY r.stack_rank IS NULL,w.backlog_order,w.id LIMIT ? OFFSET ?", [current, *args, limit, offset]).fetchall()
             people_map = people_on(c, "item", [r["id"] for r in rows])
             repos = linked_repositories(c, "item", [r["id"] for r in rows])
-            return {"items": [{**item_record(r), "rank": r["stack_rank"], "repositoryIds": repos.get(r["id"], []), "isBacklog": bool(r["is_backlog"]), "people": people_map.get(r["id"], []),
-                               "agentActive": item_active(active, r["id"], r["status"])} for r in rows], "total": total,
+            return {"items": [{**(record := item_record(r)), "rank": r["stack_rank"], "repositoryIds": repos.get(r["id"], []), "isBacklog": bool(r["is_backlog"]), "people": people_map.get(r["id"], []),
+                               "agentActive": item_active(active, record)} for r in rows], "total": total,
                     "rankedCount": ranked_count(c), "collectionRevision": setting(c, "backlogRevision", 1)}
 
     def roadmap_items(self, c: sqlite3.Connection, roadmap_id: str, active: ActiveWork | None = None) -> builtins.list[dict]:
@@ -128,8 +128,8 @@ class Items:
         repos = linked_repositories(c, "item", [r["id"] for r in rows])
         active = active_work(c) if active is None else active
         return [
-            {**item_record(r), "repositoryIds": repos.get(r["id"], []), "roadmapId": r["roadmap_id"] or roadmap_id, "people": people_map.get(r["id"], []),
-             "agentActive": item_active(active, r["id"], r["status"])}
+            {**(record := item_record(r)), "repositoryIds": repos.get(r["id"], []), "roadmapId": r["roadmap_id"] or roadmap_id, "people": people_map.get(r["id"], []),
+             "agentActive": item_active(active, record)}
             for r in rows
         ]
 
@@ -141,7 +141,7 @@ class Items:
             result["repositoryIds"] = linked_repositories(c, "item", [item_id]).get(item_id, [])
             result.update(support.for_owner(c, "item", item_id))
             result["people"] = people_on(c, "item", [item_id]).get(item_id, [])
-            result["agentActive"] = item_active(active_work(c), item_id, result["status"])
+            result["agentActive"] = item_active(active_work(c), result)
             result["dailyEntries"] = [entry_record(r) for r in c.execute("SELECT * FROM daily_entries WHERE item_id=? ORDER BY date DESC", (item_id,))]
             result["linkedRoadmap"] = None
             result["linkedStep"] = None
@@ -175,7 +175,7 @@ class Items:
             for entry in entries:
                 entry["item"]["repositoryIds"] = repos.get(entry["itemId"], [])
                 entry["item"]["rank"] = ranked.get(entry["itemId"])
-                entry["item"]["agentActive"] = item_active(active, entry["itemId"], entry["item"]["status"])
+                entry["item"]["agentActive"] = item_active(active, entry["item"])
                 entry["counts"] = counts[entry["itemId"]]
                 # The status the item ended the day with, which groups the day's summary. Work
                 # logged after its day has no history by then, so it shows its status now.
