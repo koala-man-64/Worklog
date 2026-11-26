@@ -91,8 +91,9 @@
   font-variant-numeric: tabular-nums;
   min-width: 0;
 }
-/* Steps by status in one bar, in status colours: done, then in progress, then blocked; open
-   steps are the empty track. The roadmap's header and each phase on its board have one. */
+/* Steps by status in one bar, in status colours: done, then active (an agent at work), then in
+   progress, then blocked; open steps are the empty track. The roadmap's header and each phase on
+   its board have one. */
 .status-bar {
   display: flex;
   height: 5px;
@@ -102,6 +103,9 @@
 }
 .status-bar > .done {
   background: var(--status-done-border);
+}
+.status-bar > .active {
+  background: var(--status-active-border);
 }
 .status-bar > .doing {
   background: var(--status-doing-border);

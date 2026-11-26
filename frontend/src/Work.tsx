@@ -13,9 +13,17 @@ import { PeopleLinks, PersonBadges } from "./sections/PeopleLinks";
 import { RecoverRecords } from "./sections/RecoverRecords";
 import { DraftField } from "./ui/DraftField";
 import { Empty, ErrorMessage } from "./ui/Messages";
-import { ITEM_STATUSES, statusLabel, StatusSelect } from "./ui/Status";
+import {
+  ACTIVE_TITLE,
+  ActiveBadge,
+  ITEM_STATUSES,
+  SHOWN_ITEM_STATUSES,
+  type ShownStatus,
+  statusLabel,
+  StatusSelect,
+} from "./ui/Status";
 import { Pager } from "./ui/Pager";
-import type { Answer, Detail, ItemListed, ItemStatus } from "./apiTypes";
+import type { Answer, Detail, ItemListed } from "./apiTypes";
 import {
   RepositoryBadges,
   RepositoryPicker,
@@ -86,8 +94,9 @@ export function Work({ selected }: { selected?: string }) {
 }
 function WorkList() {
   const [archived, setArchived] = useState(false);
-  // Any pressed state matches; none pressed shows every state.
-  const [statuses, setStatuses] = useState<ItemStatus[]>([]);
+  // Any pressed state matches; none pressed shows every state. Active, the calculated status,
+  // matches the work an agent is on, beside the status the person set.
+  const [statuses, setStatuses] = useState<ShownStatus[]>([]);
   const [repositoryId, setRepositoryId] = useState("");
   const [personId, setPersonId] = useState("");
   const [view, setView] = useState("all");
@@ -95,7 +104,7 @@ function WorkList() {
   const [q, setQ] = useState("");
   const people = useData<Answer<"/api/v1/people">>("/people?archived=false");
   // In a fixed order, so the same states always make the same query.
-  const statusQuery = ITEM_STATUSES.filter((s) => statuses.includes(s))
+  const statusQuery = SHOWN_ITEM_STATUSES.filter((s) => statuses.includes(s))
     .map((s) => "&status=" + s)
     .join("");
   const page = (from: number, limit: number) =>
@@ -215,10 +224,11 @@ function WorkList() {
               role="group"
               aria-label="Filter status"
             >
-              {ITEM_STATUSES.map((s) => (
+              {SHOWN_ITEM_STATUSES.map((s) => (
                 <button
                   key={s}
                   type="button"
+                  title={s === "active" ? ACTIVE_TITLE : undefined}
                   aria-pressed={statuses.includes(s)}
                   onClick={() => {
                     setStatuses(
@@ -300,18 +310,21 @@ function WorkList() {
                         </a>
                       </th>
                       <td>
-                        <StatusSelect
-                          value={item.status}
-                          options={ITEM_STATUSES}
-                          onChange={(status) =>
-                            action.mutate(() =>
-                              commands.updateItem(item.id, {
-                                revision: item.revision,
-                                status,
-                              }),
-                            )
-                          }
-                        />
+                        <div className="status-stack">
+                          <StatusSelect
+                            value={item.status}
+                            options={ITEM_STATUSES}
+                            onChange={(status) =>
+                              action.mutate(() =>
+                                commands.updateItem(item.id, {
+                                  revision: item.revision,
+                                  status,
+                                }),
+                              )
+                            }
+                          />
+                          <ActiveBadge active={item.agentActive} />
+                        </div>
                       </td>
                       <td className="cell-description">
                         <span
@@ -448,6 +461,7 @@ export function ItemDetail({ id }: { id: string }) {
             options={ITEM_STATUSES}
             onChange={(status) => patch({ status })}
           />
+          <ActiveBadge active={item.agentActive} />
           <button
             onClick={() =>
               action.mutate(() =>

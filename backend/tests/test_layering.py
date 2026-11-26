@@ -21,6 +21,8 @@ ORDER = [
     # proposal gives its new records, and what an applied change counts toward.
     "search", "scratchpad", "repository_links", "coordination_models", "discussion_models", "lease_models", "operations",
     "proposal_names", "proposal_targets",
+    # The calculated Active status, worked out from agents' participations on each read.
+    "agent_activity",
     # Roadmaps, then the database, which opens, upgrades and validates the file.
     "plans", "db",
     # Records that stand on their own, and the agent identities that discussions and chats share.

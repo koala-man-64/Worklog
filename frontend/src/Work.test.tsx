@@ -418,7 +418,7 @@ it("filters the work list by any of the pressed states", async () => {
     within(screen.getByRole("group", { name: "Filter status" }))
       .getAllByRole("button")
       .map((button) => button.textContent),
-  ).toEqual(["Open", "Doing", "Waiting", "Blocked", "Done"]);
+  ).toEqual(["Open", "Doing", "Active", "Waiting", "Blocked", "Done"]);
   expect(states()).toEqual([]);
   await userEvent.click(toggle("Blocked"));
   await userEvent.click(toggle("Waiting"));
@@ -429,6 +429,48 @@ it("filters the work list by any of the pressed states", async () => {
   await userEvent.click(toggle("Doing"));
   expect(toggle("Doing")).toHaveAttribute("aria-pressed", "false");
   expect(states()).toEqual(["waiting", "blocked"]);
+  // Active, the calculated status, filters beside the states the person sets, and says what it is.
+  expect(toggle("Active")).toHaveAttribute(
+    "title",
+    expect.stringMatching(/^Active: an agent reported work/),
+  );
+  await userEvent.click(toggle("Active"));
+  expect(states()).toEqual(["active", "waiting", "blocked"]);
+});
+it("marks the work an agent is on as Active beside the status the person set", () => {
+  state.list = {
+    items: [
+      { ...row("a", "Alpha", 1, "doing"), agentActive: true },
+      { ...row("b", "Bravo", 2, "doing"), agentActive: false },
+    ],
+    total: 2,
+    rankedCount: 2,
+    collectionRevision: 1,
+  };
+  workList();
+  const [alpha, bravo] = within(
+    screen.getByRole("table", { name: "Work items" }),
+  )
+    .getAllByRole("row")
+    .slice(1);
+  // The menu keeps the status the person set; the badge says an agent is at work.
+  expect(within(alpha).getByRole("combobox", { name: "Status" })).toHaveValue(
+    "doing",
+  );
+  expect(within(alpha).getByText("Active")).toBeVisible();
+  expect(within(bravo).queryByText("Active")).toBeNull();
+});
+it("marks an Active work item in its page's header", () => {
+  state.item = item({ status: "open", agentActive: true });
+  const { rerender } = render(view(newClient()));
+  const header = screen.getByRole("banner");
+  expect(within(header).getByText("Active")).toBeVisible();
+  expect(within(header).getByRole("combobox", { name: "Status" })).toHaveValue(
+    "open",
+  );
+  state.item = item({ status: "open", agentActive: false });
+  rerender(view(newClient()));
+  expect(within(screen.getByRole("banner")).queryByText("Active")).toBeNull();
 });
 it("shows a link that changed elsewhere while the page is open", () => {
   const client = newClient();

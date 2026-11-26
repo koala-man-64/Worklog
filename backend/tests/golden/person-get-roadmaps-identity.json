@@ -72,6 +72,7 @@
     "revision": 3,
     "steps": [
       {
+        "agentActive": true,
         "attachments": [],
         "description": "",
         "id": "<id2>",
@@ -88,6 +89,7 @@
         "workClass": ""
       },
       {
+        "agentActive": true,
         "attachments": [],
         "description": "",
         "id": "<id3>",
@@ -125,6 +127,7 @@
     "workItems": [
       {
         "adoUrl": null,
+        "agentActive": true,
         "archived": false,
         "backlogOrder": 1,
         "createdAt": "<time.ffffff+hh:mm>",

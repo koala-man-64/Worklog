@@ -138,7 +138,15 @@ it("shows where each phase stands, the steps in progress with their agents, and 
     within(phases)
       .getAllByRole("columnheader")
       .map((h) => h.textContent),
-  ).toEqual(["Phase", "Progress", "Done", "Doing", "Blocked", "Open"]);
+  ).toEqual([
+    "Phase",
+    "Progress",
+    "Done",
+    "Active",
+    "Doing",
+    "Blocked",
+    "Open",
+  ]);
   const [, ...rows] = within(phases).getAllByRole("row");
   // A phase counts its leaves by status; the parent's own derived status doesn't count.
   expect(
@@ -150,8 +158,8 @@ it("shows where each phase stands, the steps in progress with their agents, and 
         .map((c) => c.textContent),
     ]),
   ).toEqual([
-    ["Build", "1", "1", "0", "2"],
-    ["Ship", "0", "0", "1", "1"],
+    ["Build", "1", "0", "1", "0", "2"],
+    ["Ship", "0", "0", "0", "1", "1"],
   ]);
   // The bar fills in the same order, each part its share of the phase; open steps are its track.
   expect(
@@ -196,7 +204,7 @@ it("shows the roadmap's steps by status beside the bar at the top", async () => 
     within(counts)
       .getAllByRole("listitem")
       .map((li) => li.textContent),
-  ).toEqual(["1 done", "1 doing", "1 blocked", "3 open"]);
+  ).toEqual(["1 done", "0 active", "1 doing", "1 blocked", "3 open"]);
   // Filled done, then in progress, then blocked, each its share; open steps are the track.
   const parts = Array.from(
     progress.querySelectorAll<HTMLElement>(".status-bar > span"),
@@ -208,6 +216,75 @@ it("shows the roadmap's steps by status beside the bar at the top", async () => 
   ]);
   for (const part of parts)
     expect(parseFloat(part.style.width)).toBeCloseTo(100 / 6);
+});
+
+it("shows the steps an agent works on as Active, apart from Doing, and in progress on the board", async () => {
+  // An agent works on Emit, which the person left open, and on Lex, which they marked doing.
+  served = aRoadmap({
+    id: ROADMAP,
+    title: "Compiler",
+    steps: plan.map((s) =>
+      [id(1), id(3), id(4)].includes(s.id) ? { ...s, agentActive: true } : s,
+    ),
+  });
+  render(page());
+  const counts = await screen.findByRole("list", { name: "Steps by status" });
+  // Active steps count apart from the status the person set.
+  expect(
+    within(counts)
+      .getAllByRole("listitem")
+      .map((li) => li.textContent),
+  ).toEqual(["1 done", "2 active", "0 doing", "1 blocked", "2 open"]);
+  expect(
+    Array.from(
+      (counts.parentElement as HTMLElement).querySelectorAll<HTMLElement>(
+        ".status-bar > span",
+      ),
+    ).map((part) => part.className),
+  ).toEqual(["done", "active", "blocked"]);
+  const phases = await screen.findByRole("table", { name: "Phases" });
+  const build = within(phases).getByRole("row", { name: /^Build/ });
+  expect(
+    within(build)
+      .getAllByRole("cell")
+      .slice(1)
+      .map((c) => c.textContent),
+  ).toEqual(["1", "2", "0", "0", "1"]);
+  // Now holds the steps in progress, Active ones among them; Next only the open steps nobody is on.
+  const now = await section("Now");
+  expect(titles(now)).toEqual(["Lex", "Emit"]);
+  expect(now.querySelectorAll(".status-dot.active")).toHaveLength(2);
+  expect(titles(await section("Next"))).toEqual(["Pack", "Docs"]);
+});
+
+it("marks Active steps in the outline beside the progress the person set", async () => {
+  served = aRoadmap({
+    id: ROADMAP,
+    title: "Compiler",
+    steps: plan.map((s) => (s.id === id(4) ? { ...s, agentActive: true } : s)),
+  });
+  render(page("outline"));
+  const progress = await screen.findByRole("combobox", {
+    name: "Progress for Emit",
+  });
+  const row = progress.closest("li") as HTMLElement;
+  expect(row).toHaveClass("status-active");
+  expect(within(row).getByText("Active")).toHaveAttribute(
+    "title",
+    expect.stringMatching(/^Active: an agent reported work/),
+  );
+  // The menu keeps the status the person set, and offers no Active: nobody sets it.
+  expect(progress).toHaveValue("open");
+  expect(
+    within(progress)
+      .getAllByRole("option")
+      .map((o) => o.textContent),
+  ).toEqual(["Open", "Doing", "Blocked", "Done"]);
+  const pack = (
+    await screen.findByRole("combobox", { name: "Progress for Pack" })
+  ).closest("li") as HTMLElement;
+  expect(pack).toHaveClass("status-open");
+  expect(within(pack).queryByText("Active")).toBeNull();
 });
 
 it("lists what waits on the person: open questions, blocked steps and proposals", async () => {

@@ -4844,6 +4844,8 @@ export interface components {
             repositoryIds: string[];
             /** Rank */
             rank: number | null;
+            /** Agentactive */
+            agentActive: boolean;
         };
         /** DaySummary */
         DaySummary: {
@@ -8924,6 +8926,8 @@ export interface components {
             notes: components["schemas"]["Note"][];
             /** Attachments */
             attachments: components["schemas"]["Attachment"][];
+            /** Agentactive */
+            agentActive: boolean;
         };
         /**
          * RoadmapTie
@@ -8990,6 +8994,8 @@ export interface components {
             repositoryIds: string[];
             /** People */
             people: components["schemas"]["RecordPerson"][];
+            /** Agentactive */
+            agentActive: boolean;
         };
         /**
          * RoadmapWorker
@@ -9540,6 +9546,8 @@ export interface components {
             notes: components["schemas"]["Note"][];
             /** Attachments */
             attachments: components["schemas"]["Attachment"][];
+            /** Agentactive */
+            agentActive: boolean;
             /** Roadmapid */
             roadmapId: string;
             /** Ancestors */
@@ -10833,6 +10841,8 @@ export interface components {
             references: components["schemas"]["FileReference"][];
             /** People */
             people: components["schemas"]["RecordPerson"][];
+            /** Agentactive */
+            agentActive: boolean;
             /** Dailyentries */
             dailyEntries: components["schemas"]["DailyEntry"][];
             linkedRoadmap: components["schemas"]["LinkedRoadmap"] | null;
@@ -10875,6 +10885,8 @@ export interface components {
             isBacklog: boolean;
             /** People */
             people: components["schemas"]["RecordPerson"][];
+            /** Agentactive */
+            agentActive: boolean;
         };
         /**
          * WorkItemRecord
@@ -11285,7 +11297,7 @@ export interface operations {
             query?: {
                 view?: string;
                 archived?: boolean;
-                /** @description Repeat to match any of several states */
+                /** @description Repeat to match any of several states; active matches the work that shows the calculated Active status */
                 status?: string[] | null;
                 roadmapId?: string | null;
                 personId?: string | null;
