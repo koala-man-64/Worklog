@@ -44,18 +44,22 @@ class Acknowledgement(Command):
         return self
 
 
-class MessageCreate(Command):
+class MessageFields(Command):
     text: str = Field(min_length=1, max_length=1_000_000)
     chatId: str | None = Field(default=None, max_length=500)
     onBehalfOfRoleId: str | None = Field(default=None, min_length=1, max_length=500)
     acknowledgement: Acknowledgement | None = None
 
 
-class DiscussionCreate(MessageCreate):
+class DiscussionCreate(MessageFields):
     title: str | None = Field(default=None, max_length=1000)
     contexts: list[Context] = Field(default_factory=list, max_length=30)
     # Free-text repository labels, which a new discussion no longer takes (K8): any given are refused.
     repos: list[str] = Field(default_factory=list, max_length=20)
+
+
+class MessageCreate(MessageFields):
+    replyToMessageId: str | None = Field(default=None, min_length=1, max_length=200)
 
 
 class Acknowledge(Command):

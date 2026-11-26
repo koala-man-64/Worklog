@@ -166,9 +166,9 @@ def test_the_upgrade_from_v18_snapshots_first_and_changes_no_record(tmp_path):
     before, search = rows(path, names), search_rows(path, "1")
     Database(path).initialize()
     assert state(path) == (migrations.SCHEMA_VERSION, sealed.current())
-    from test_repo_execution_schema import V35_TABLES
+    from test_repo_execution_schema import V35_TABLES, V36_TABLES
 
-    assert set(tables(path)) == set(names) | set(V33_TABLES) | set(V34_TABLES) | set(V35_TABLES)
+    assert set(tables(path)) == set(names) | set(V33_TABLES) | set(V34_TABLES) | set(V35_TABLES) | set(V36_TABLES)
     assert before_v33(rows(path, names)) == {**before, "github_refs": [(*ref, "") for ref in before["github_refs"]]}
     assert search_rows(path, "1") == search
     snapshots = sorted((path.parent / "backups").glob("worklog-pre-migration-*.sqlite3"))

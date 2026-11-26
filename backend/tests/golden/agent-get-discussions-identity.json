@@ -156,6 +156,7 @@
         "id": "<id11>",
         "onBehalfOfRoleId": null,
         "ownershipGeneration": null,
+        "replyToMessageId": null,
         "request": null,
         "text": "Where do we start?"
       },
@@ -169,6 +170,7 @@
         "id": "<id12>",
         "onBehalfOfRoleId": null,
         "ownershipGeneration": null,
+        "replyToMessageId": null,
         "request": null,
         "text": "Starting with the tables"
       },
@@ -182,6 +184,7 @@
         "id": "<id14>",
         "onBehalfOfRoleId": null,
         "ownershipGeneration": null,
+        "replyToMessageId": null,
         "request": {
           "actionableTargetIds": [],
           "authorityGeneration": null,
@@ -250,6 +253,7 @@
         "id": "<id17>",
         "onBehalfOfRoleId": null,
         "ownershipGeneration": null,
+        "replyToMessageId": null,
         "request": {
           "actionableTargetIds": [
             "<id18>"

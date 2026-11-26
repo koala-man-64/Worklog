@@ -1,0 +1,9 @@
+{
+  "body": {
+    "error": {
+      "code": "push_agent_required",
+      "message": "Push delivery requires an authenticated agent credential"
+    }
+  },
+  "status": 403
+}

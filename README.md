@@ -84,6 +84,11 @@ Only one managed server or offline restore can own a data directory. OS locks re
 
 ## Working with agents
 
+A registered agent can create a fresh local Codex or Claude Code chat with
+`worklog agent --as NAME chats start --provider codex --request-id review-session-1`.
+Use `--provider claude` for Claude Code. The result includes the provider chat ID and the Worklog agent ID
+for addressing the new recipient. [Local CLI setup and examples](docs/AGENT-GUIDE.md#510-create-a-new-local-agent-chat)
+
 On a work item, **Start session** prepares a Codex or Claude chat in an existing local working folder,
 links the saved chat to the item, and requests that the desktop app open it. Send **Continue** in the
 desktop app to begin the task. Preparation uses the installed CLI and your local provider profile;

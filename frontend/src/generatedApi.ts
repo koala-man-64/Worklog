@@ -3119,6 +3119,142 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/push/enroll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Enroll */
+        post: operations["enroll_api_v1_push_enroll_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/push/enrollments/{identity}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Enrollment */
+        get: operations["enrollment_api_v1_push_enrollments__identity__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/push/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Disable */
+        post: operations["disable_api_v1_push_disable_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/push/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Subscribe */
+        post: operations["subscribe_api_v1_push_subscriptions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/push/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Status */
+        get: operations["status_api_v1_push_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/push/deliveries/{identity}/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Claim */
+        post: operations["claim_api_v1_push_deliveries__identity__claim_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/push/deliveries/{identity}/receipt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Receipt */
+        post: operations["receipt_api_v1_push_deliveries__identity__receipt_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/push/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Stream */
+        get: operations["stream_api_v1_push_stream_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/": {
         parameters: {
             query?: never;
@@ -5038,6 +5174,8 @@ export interface components {
             id: string;
             /** Discussionid */
             discussionId: string;
+            /** Replytomessageid */
+            replyToMessageId?: string | null;
             /** Text */
             text: string;
             /** Authorid */
@@ -6595,6 +6733,8 @@ export interface components {
             /** Onbehalfofroleid */
             onBehalfOfRoleId?: string | null;
             acknowledgement?: components["schemas"]["Acknowledgement"] | null;
+            /** Replytomessageid */
+            replyToMessageId?: string | null;
         };
         /** Move */
         Move: {
@@ -7927,6 +8067,158 @@ export interface components {
             limit: number;
             /** Offset */
             offset: number;
+        };
+        /** PushAttempt */
+        PushAttempt: {
+            /** Enrollmentid */
+            enrollmentId: string;
+            /** Attemptid */
+            attemptId: string;
+        };
+        /** PushBinding */
+        PushBinding: {
+            /** Enrollmentid */
+            enrollmentId: string;
+        };
+        /** PushClaim */
+        PushClaim: {
+            /** Acquired */
+            acquired: boolean;
+            delivery: components["schemas"]["PushDelivery"];
+        };
+        /** PushDelivery */
+        PushDelivery: {
+            /** Id */
+            id: string;
+            /** Seq */
+            seq: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "discussion.ask" | "discussion.reply" | "ticket.status" | "item.status" | "run.end" | "run.update";
+            /**
+             * Subjecttype
+             * @enum {string}
+             */
+            subjectType: "discussion" | "ticket" | "item" | "run";
+            /** Subjectid */
+            subjectId: string;
+            /** Discussionid */
+            discussionId: string | null;
+            /** Messageid */
+            messageId: string | null;
+            /** Sourceeventid */
+            sourceEventId: string;
+            /** Recipientagentid */
+            recipientAgentId: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "pending" | "claimed" | "submitted" | "queued" | "unavailable" | "uncertain" | "cancelled";
+            /** Attemptcount */
+            attemptCount: number;
+            /** Attemptid */
+            attemptId: string | null;
+            /** Claimexpiresat */
+            claimExpiresAt: string | null;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+            /** Outcomeat */
+            outcomeAt: string | null;
+            /** Resumewarning */
+            resumeWarning: boolean;
+        };
+        /** PushEnroll */
+        PushEnroll: {
+            /**
+             * Provider
+             * @enum {string}
+             */
+            provider: "claude" | "codex";
+            /** Chatid */
+            chatId: string;
+        };
+        /** PushEnrollment */
+        PushEnrollment: {
+            /** Id */
+            id: string;
+            /**
+             * Provider
+             * @enum {string}
+             */
+            provider: "claude" | "codex";
+            /** Chatid */
+            chatId: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
+        };
+        /** PushPage */
+        PushPage: {
+            /** Items */
+            items: components["schemas"]["PushDelivery"][];
+            /** Hasmore */
+            hasMore: boolean;
+            /** Nextseq */
+            nextSeq: number;
+        };
+        /** PushReceipt */
+        PushReceipt: {
+            /** Enrollmentid */
+            enrollmentId: string;
+            /** Attemptid */
+            attemptId: string;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "submitted" | "queued" | "unavailable" | "uncertain";
+            /**
+             * Resumewarning
+             * @default false
+             */
+            resumeWarning: boolean;
+        };
+        /** PushSubscription */
+        PushSubscription: {
+            /** Enrollmentid */
+            enrollmentId: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "ticket" | "item" | "run";
+            /** Ref */
+            ref: string;
+            /** Enabled */
+            enabled: boolean;
+        };
+        /** PushWatch */
+        PushWatch: {
+            /** Id */
+            id: string;
+            /** Enrollmentid */
+            enrollmentId: string;
+            /**
+             * Subjecttype
+             * @enum {string}
+             */
+            subjectType: "ticket" | "item" | "run";
+            /** Subjectid */
+            subjectId: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Createdat */
+            createdAt: string;
+            /** Updatedat */
+            updatedAt: string;
         };
         /** Question */
         Question: {
@@ -17973,6 +18265,270 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LiveSnapshot"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    enroll_api_v1_push_enroll_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushEnroll"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushEnrollment"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    enrollment_api_v1_push_enrollments__identity__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushEnrollment"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    disable_api_v1_push_disable_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushBinding"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushEnrollment"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    subscribe_api_v1_push_subscriptions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushSubscription"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushWatch"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    status_api_v1_push_status_get: {
+        parameters: {
+            query?: {
+                box?: "sent" | "received";
+                limit?: number;
+                beforeSeq?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    claim_api_v1_push_deliveries__identity__claim_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushAttempt"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushClaim"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    receipt_api_v1_push_deliveries__identity__receipt_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushReceipt"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushDelivery"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stream_api_v1_push_stream_get: {
+        parameters: {
+            query: {
+                enrollmentId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
                 };
             };
             /** @description Validation Error */

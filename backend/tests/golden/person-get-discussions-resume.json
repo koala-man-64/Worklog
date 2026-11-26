@@ -230,6 +230,7 @@
         "id": "<id16>",
         "onBehalfOfRoleId": null,
         "ownershipGeneration": null,
+        "replyToMessageId": null,
         "request": {
           "actionableTargetIds": [],
           "authorityGeneration": null,

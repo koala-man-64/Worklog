@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import TypeVar
 
 from .common import AppError, uid
+from .push_signal import CommitSignal
 from .schema import BASELINE
 
 T = TypeVar("T")
@@ -18,6 +19,7 @@ T = TypeVar("T")
 class Database:
     def __init__(self, path: str | Path):
         self.path = Path(path)
+        self.commits = CommitSignal()
 
     def connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.path, timeout=3, isolation_level=None)
@@ -114,3 +116,5 @@ class Database:
             except Exception:
                 conn.rollback()
                 raise
+            if conn.total_changes:
+                self.commits.notify()

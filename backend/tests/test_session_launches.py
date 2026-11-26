@@ -7,6 +7,7 @@ import uuid
 
 import pytest
 from fastapi.testclient import TestClient
+from test_registration import bearer, issue, register, write
 from worklog import session_launches
 from worklog.app import create_app
 
@@ -91,6 +92,28 @@ def test_failed_handoff_keeps_link_and_open_does_not_prepare_again(browser, monk
     assert opened.status_code == 200, opened.text
     assert opened.json()["status"] == "ready"
     assert opened.json()["chat"]["id"] == failed["chat"]["id"]
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize("provider", ["codex", "claude"])
+def test_prepared_chat_can_receive_worklog_push(browser, provider):
+    person, item, cwd, calls = browser
+    launch = start(person, item, cwd, provider=provider)
+    assert launch.status_code == 200
+    chat = finished(person, launch.json()["id"])["chat"]
+    sponsor = issue(person)["token"]
+    with TestClient(person.app, base_url=ORIGIN) as agent:
+        registration, token = register(agent, sponsor, chatId=chat["chatId"])
+        assert registration.status_code == 200
+        enrollment = write(agent, "POST", "/push/enroll", {"provider": chat["provider"], "chatId": chat["chatId"]},
+                           headers=bearer(token))
+        assert enrollment.json()["enabled"] is True
+        ask = write(person, "POST", "/discussions", {"text": "Check the prepared work item.", "acknowledgement": {
+            "targets": [{"kind": "agent", "id": registration.json()["agentId"]}]}})
+        assert ask.status_code == 200
+        status = agent.get("/api/v1/push/status", headers=bearer(token))
+        assert [(row["state"], row["messageId"]) for row in status.json()["items"]] == [
+            ("pending", ask.json()["message"]["id"])]
     assert len(calls) == 1
 
 

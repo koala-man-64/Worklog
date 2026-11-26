@@ -2202,6 +2202,8 @@ class AcknowledgementRequest(Answer):
 class DiscussionMessage(Answer):
     id: str
     discussionId: str
+    # Older messages and pre-v36 idempotency receipts have no explicit reply target.
+    replyToMessageId: str | None = None
     text: str
     authorId: str
     authorLabel: str

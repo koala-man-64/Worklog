@@ -14,10 +14,23 @@ import sqlite3
 
 from .common import now, setting, today, uid
 
-SCHEMA_VERSION = 35
+SCHEMA_VERSION = 36
 # Older versions that startup and offline restore upgrade in one transaction.
 UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
-                                 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34})
+                                 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35})
+
+# v36's delivery tables start empty. Keep this DDL here, separate from schema.BASELINE, so a
+# future baseline change cannot rewrite the historical v36 upgrade.
+PUSH_DELIVERY_SCHEMA = """
+CREATE TABLE push_enrollments(id TEXT PRIMARY KEY,credential_id TEXT NOT NULL REFERENCES communication_credentials(credential_id),provider TEXT NOT NULL CHECK(provider IN('codex','claude')),chat_id TEXT NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,disabled_at TEXT,UNIQUE(credential_id,provider,chat_id));
+CREATE INDEX push_enrollments_credential ON push_enrollments(credential_id,disabled_at);
+CREATE TABLE push_subscriptions(id TEXT PRIMARY KEY,enrollment_id TEXT NOT NULL REFERENCES push_enrollments(id),subject_type TEXT NOT NULL CHECK(subject_type IN('ticket','item','run')),subject_id TEXT NOT NULL,enabled INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN(0,1)),created_at TEXT NOT NULL,updated_at TEXT NOT NULL,UNIQUE(enrollment_id,subject_type,subject_id));
+CREATE INDEX push_subscriptions_subject ON push_subscriptions(subject_type,subject_id,enabled,enrollment_id);
+CREATE INDEX push_subscriptions_enrollment ON push_subscriptions(enrollment_id,enabled,subject_type,subject_id);
+CREATE TABLE push_deliveries(seq INTEGER PRIMARY KEY AUTOINCREMENT,id TEXT NOT NULL UNIQUE,enrollment_id TEXT NOT NULL REFERENCES push_enrollments(id),source_event_id TEXT NOT NULL REFERENCES events(id),kind TEXT NOT NULL CHECK(kind IN('discussion.ask','discussion.reply','ticket.status','item.status','run.end','run.update')),subject_type TEXT NOT NULL CHECK(subject_type IN('discussion','ticket','item','run')),subject_id TEXT NOT NULL,discussion_id TEXT REFERENCES discussions(id),message_id TEXT REFERENCES discussion_messages(id),state TEXT NOT NULL DEFAULT 'pending' CHECK(state IN('pending','claimed','submitted','queued','unavailable','uncertain','cancelled')),attempt_id TEXT,claim_expires_at TEXT,attempt_count INTEGER NOT NULL DEFAULT 0 CHECK(attempt_count>=0),created_at TEXT NOT NULL,updated_at TEXT NOT NULL,outcome_at TEXT,resume_warning INTEGER NOT NULL DEFAULT 0 CHECK(resume_warning IN(0,1) AND (resume_warning=0 OR state='queued')),UNIQUE(source_event_id,enrollment_id));
+CREATE INDEX push_deliveries_enrollment_seq ON push_deliveries(enrollment_id,seq);
+CREATE INDEX push_deliveries_pending ON push_deliveries(enrollment_id,seq) WHERE state IN('pending','unavailable');
+"""
 
 # v1 grew in place before versions were counted: _upgrade_v1 adds whichever of these a v1 database
 # lacks. People as v1 had them; v10 renames role to team, adds person details and lets links name
@@ -1081,6 +1094,9 @@ def upgrade(conn: sqlite3.Connection) -> None:
         execute_schema(conn, LEASE_SLOT_SCHEMA)
     if version < 35:
         execute_schema(conn, REPO_WAVE_EXECUTION_SCHEMA)
+    if version < 36:
+        conn.execute("ALTER TABLE discussion_messages ADD COLUMN reply_to_message_id TEXT REFERENCES discussion_messages(id)")
+        execute_schema(conn, PUSH_DELIVERY_SCHEMA)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 
@@ -1108,9 +1124,12 @@ def _upgrade_v1(conn: sqlite3.Connection, tables: set[str]) -> None:
 
 
 def invalidate_restored_presence(conn: sqlite3.Connection, stamp: str) -> None:
-    """Retain reports while making restored runs, participation, leases and queued dispatches visibly ended."""
+    """Retain reports while ending restored presence and invalidating pending push delivery."""
     conn.execute("UPDATE participations SET released_at=?,release_reason='restore',updated_at=?,revision=revision+1 WHERE released_at IS NULL", (stamp, stamp))
     conn.execute("UPDATE agent_runs SET ended_at=?,end_reason='restore',updated_at=?,revision=revision+1 WHERE ended_at IS NULL", (stamp, stamp))
     conn.execute("UPDATE repository_leases SET state='released',released_at=?,release_reason='restore',revision=revision+1 WHERE state IN('offered','active')", (stamp,))
     conn.execute("UPDATE repository_leases SET state='cancelled',released_at=?,release_reason='restore',revision=revision+1 WHERE state='queued'", (stamp,))
     conn.execute("UPDATE dispatch_queue SET status='cancelled',message='Cancelled on restore',updated_at=?,revision=revision+1 WHERE status IN('queued','provisioning','preparing')", (stamp,))
+    conn.execute("UPDATE push_enrollments SET disabled_at=COALESCE(disabled_at,?),updated_at=?", (stamp, stamp))
+    conn.execute("UPDATE push_deliveries SET state='cancelled',updated_at=?,outcome_at=? WHERE state IN('pending','unavailable')", (stamp, stamp))
+    conn.execute("UPDATE push_deliveries SET state='uncertain',updated_at=?,outcome_at=? WHERE state='claimed'", (stamp, stamp))

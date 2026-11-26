@@ -10753,6 +10753,371 @@
         }
       }
     },
+    "/api/v1/push/enroll": {
+      "post": {
+        "summary": "Enroll",
+        "operationId": "enroll_api_v1_push_enroll_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushEnroll"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushEnrollment"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/push/enrollments/{identity}": {
+      "get": {
+        "summary": "Enrollment",
+        "operationId": "enrollment_api_v1_push_enrollments__identity__get",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushEnrollment"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/push/disable": {
+      "post": {
+        "summary": "Disable",
+        "operationId": "disable_api_v1_push_disable_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushBinding"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushEnrollment"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/push/subscriptions": {
+      "post": {
+        "summary": "Subscribe",
+        "operationId": "subscribe_api_v1_push_subscriptions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushSubscription"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushWatch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/push/status": {
+      "get": {
+        "summary": "Status",
+        "operationId": "status_api_v1_push_status_get",
+        "parameters": [
+          {
+            "name": "box",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "sent",
+                "received"
+              ],
+              "type": "string",
+              "default": "received",
+              "title": "Box"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "beforeSeq",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Beforeseq"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/push/deliveries/{identity}/claim": {
+      "post": {
+        "summary": "Claim",
+        "operationId": "claim_api_v1_push_deliveries__identity__claim_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushAttempt"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushClaim"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/push/deliveries/{identity}/receipt": {
+      "post": {
+        "summary": "Receipt",
+        "operationId": "receipt_api_v1_push_deliveries__identity__receipt_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushReceipt"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushDelivery"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/push/stream": {
+      "get": {
+        "summary": "Stream",
+        "operationId": "stream_api_v1_push_stream_get",
+        "parameters": [
+          {
+            "name": "enrollmentId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "title": "Enrollmentid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/": {
       "get": {
         "summary": "Frontend",
@@ -16383,6 +16748,17 @@
             "type": "string",
             "title": "Discussionid"
           },
+          "replyToMessageId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replytomessageid"
+          },
           "text": {
             "type": "string",
             "title": "Text"
@@ -21103,6 +21479,19 @@
                 "type": "null"
               }
             ]
+          },
+          "replyToMessageId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replytomessageid"
           }
         },
         "additionalProperties": false,
@@ -24902,6 +25291,436 @@
           "offset"
         ],
         "title": "PullRequests"
+      },
+      "PushAttempt": {
+        "properties": {
+          "enrollmentId": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Enrollmentid"
+          },
+          "attemptId": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Attemptid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "enrollmentId",
+          "attemptId"
+        ],
+        "title": "PushAttempt"
+      },
+      "PushBinding": {
+        "properties": {
+          "enrollmentId": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Enrollmentid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "enrollmentId"
+        ],
+        "title": "PushBinding"
+      },
+      "PushClaim": {
+        "properties": {
+          "acquired": {
+            "type": "boolean",
+            "title": "Acquired"
+          },
+          "delivery": {
+            "$ref": "#/components/schemas/PushDelivery"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "acquired",
+          "delivery"
+        ],
+        "title": "PushClaim"
+      },
+      "PushDelivery": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "seq": {
+            "type": "integer",
+            "title": "Seq"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "discussion.ask",
+              "discussion.reply",
+              "ticket.status",
+              "item.status",
+              "run.end",
+              "run.update"
+            ],
+            "title": "Kind"
+          },
+          "subjectType": {
+            "type": "string",
+            "enum": [
+              "discussion",
+              "ticket",
+              "item",
+              "run"
+            ],
+            "title": "Subjecttype"
+          },
+          "subjectId": {
+            "type": "string",
+            "title": "Subjectid"
+          },
+          "discussionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discussionid"
+          },
+          "messageId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Messageid"
+          },
+          "sourceEventId": {
+            "type": "string",
+            "title": "Sourceeventid"
+          },
+          "recipientAgentId": {
+            "type": "string",
+            "title": "Recipientagentid"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "claimed",
+              "submitted",
+              "queued",
+              "unavailable",
+              "uncertain",
+              "cancelled"
+            ],
+            "title": "State"
+          },
+          "attemptCount": {
+            "type": "integer",
+            "title": "Attemptcount"
+          },
+          "attemptId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attemptid"
+          },
+          "claimExpiresAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Claimexpiresat"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "outcomeAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcomeat"
+          },
+          "resumeWarning": {
+            "type": "boolean",
+            "title": "Resumewarning"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "seq",
+          "kind",
+          "subjectType",
+          "subjectId",
+          "discussionId",
+          "messageId",
+          "sourceEventId",
+          "recipientAgentId",
+          "state",
+          "attemptCount",
+          "attemptId",
+          "claimExpiresAt",
+          "createdAt",
+          "updatedAt",
+          "outcomeAt",
+          "resumeWarning"
+        ],
+        "title": "PushDelivery"
+      },
+      "PushEnroll": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "claude",
+              "codex"
+            ],
+            "title": "Provider"
+          },
+          "chatId": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Chatid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "provider",
+          "chatId"
+        ],
+        "title": "PushEnroll"
+      },
+      "PushEnrollment": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "claude",
+              "codex"
+            ],
+            "title": "Provider"
+          },
+          "chatId": {
+            "type": "string",
+            "title": "Chatid"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "provider",
+          "chatId",
+          "enabled",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "PushEnrollment"
+      },
+      "PushPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PushDelivery"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "hasMore": {
+            "type": "boolean",
+            "title": "Hasmore"
+          },
+          "nextSeq": {
+            "type": "integer",
+            "title": "Nextseq"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "hasMore",
+          "nextSeq"
+        ],
+        "title": "PushPage"
+      },
+      "PushReceipt": {
+        "properties": {
+          "enrollmentId": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Enrollmentid"
+          },
+          "attemptId": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Attemptid"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "submitted",
+              "queued",
+              "unavailable",
+              "uncertain"
+            ],
+            "title": "Outcome"
+          },
+          "resumeWarning": {
+            "type": "boolean",
+            "title": "Resumewarning",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "enrollmentId",
+          "attemptId",
+          "outcome"
+        ],
+        "title": "PushReceipt"
+      },
+      "PushSubscription": {
+        "properties": {
+          "enrollmentId": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Enrollmentid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "ticket",
+              "item",
+              "run"
+            ],
+            "title": "Kind"
+          },
+          "ref": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Ref"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "enrollmentId",
+          "kind",
+          "ref",
+          "enabled"
+        ],
+        "title": "PushSubscription"
+      },
+      "PushWatch": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "enrollmentId": {
+            "type": "string",
+            "title": "Enrollmentid"
+          },
+          "subjectType": {
+            "type": "string",
+            "enum": [
+              "ticket",
+              "item",
+              "run"
+            ],
+            "title": "Subjecttype"
+          },
+          "subjectId": {
+            "type": "string",
+            "title": "Subjectid"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "enrollmentId",
+          "subjectType",
+          "subjectId",
+          "enabled",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "PushWatch"
       },
       "Question": {
         "properties": {
