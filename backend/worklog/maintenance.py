@@ -15,9 +15,14 @@ def prune_receipts(conn: sqlite3.Connection, *, now: datetime | None = None, day
     receipts.created_at (v11) holds common.now() text, which sorts in time order.
     """
     cutoff = ((now or datetime.now(UTC)) - timedelta(days=days)).isoformat()
-    # Pending dispatches still need their launch options when a checkout becomes available.
+    # Pending dispatches need their options on promotion. Saved Claude launches with
+    # selections still need them to validate reopening after a checkout is released.
     return conn.execute(
-        "DELETE FROM receipts WHERE created_at<? AND (actor_id NOT LIKE 'session-launch:%' OR key NOT IN ("
-        "SELECT id FROM dispatch_queue WHERE status IN ('queued','provisioning','preparing')))",
+        "DELETE FROM receipts WHERE created_at<? AND (actor_id NOT LIKE 'session-launch:%' OR NOT EXISTS ("
+        "SELECT 1 FROM dispatch_queue dq WHERE dq.id=receipts.key AND ("
+        "dq.status IN ('queued','provisioning','preparing') OR (dq.provider='claude' AND dq.session_id IS NOT NULL "
+        "AND CASE WHEN json_valid(receipts.response_json) THEN "
+        "json_extract(receipts.response_json,'$.requestedOptions.requestedModel') IS NOT NULL OR "
+        "json_extract(receipts.response_json,'$.requestedOptions.reasoningEffort') IS NOT NULL ELSE 0 END))))",
         (cutoff,),
     ).rowcount

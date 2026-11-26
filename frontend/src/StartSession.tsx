@@ -576,6 +576,13 @@ export function StartSession({
               {availabilityLine(selectedSlots)}
             </p>
           )}
+          {provider === "claude" && (model.trim() || reasoningEffort) && (
+            <p className="muted">
+              Claude Desktop uses the working folder&apos;s settings. Worklog
+              can configure a managed checkout. For your own folder, match
+              these values in <code>.claude/settings.local.json</code>.
+            </p>
+          )}
           <label
             className="session-launch-prompt"
             htmlFor={`session-prompt-${itemId}`}
@@ -658,7 +665,7 @@ export function StartSession({
                         <strong>{current.reasoningEffort}</strong>.{" "}
                       </>
                     )}
-                    {current.status === "ready" &&
+                    {current.status === "ready" && current.provider === "codex" &&
                       "Verify your selections in the desktop app before sending Continue."}
                   </p>
                 )}

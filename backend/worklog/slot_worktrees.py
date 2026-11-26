@@ -13,6 +13,7 @@ import re
 import stat
 import subprocess
 import tempfile
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -247,6 +248,8 @@ def provision_slot(
     default_branch: str,
     requested_branch: str,
     lease_id: str,
+    *,
+    before_reuse: Callable[[Path], None] | None = None,
 ) -> ProvisionResult:
     """Lazily create or reuse a slot worktree, fetch origin, clean non-ignored files, and checkout branch."""
     base = validate_local_path(base_path, "baseCheckoutPath")
@@ -292,6 +295,8 @@ def provision_slot(
             reuse_slot = False
 
     if reuse_slot:
+        if before_reuse:
+            before_reuse(slot)
         status = inspect_slot_cleanliness(slot)
         if not status.clean:
             raise AppError(

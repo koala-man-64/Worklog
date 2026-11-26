@@ -66,7 +66,11 @@ GET /work-items/{id} -> item plus {rank,rankedCount,dailyEntries,notes,attachmen
   Available models and effort levels depend on the provider installation and account.
 - Launch requires a local browser session, CSRF token, and `Idempotency-Key`. Poll `GET /session-launches/{id}`
   using the returned launch ID. The receipt reports supplied settings as `requestedModel` and `reasoningEffort`.
-  Check them in the desktop app before sending Continue.
+- Claude Desktop reads the working folder's `.claude/settings.local.json`. For a custom folder, use
+  the requested ID or alias for `model` and the requested effort for `env.CLAUDE_CODE_EFFORT_LEVEL`.
+  An existing `env.ANTHROPIC_MODEL` must also match a requested model. Set only the values you want
+  to override. Worklog can create settings for a dedicated checkout slot when the file is absent.
+  It preserves existing settings and clears its own files when recycling the slot.
 
 ## People and links
 GET /people?archived=false&q= -> list envelope of {id,name,title,team,description,email,phone,chat,location,notes,archived,revision,createdAt,updatedAt,workItemCount,roadmapCount,repositoryCount}; the counts leave out archived targets, and `q` searches every field. POST /people {name,title:'',team:'',description:'',email:'',phone:'',chat:'',location:'',notes:''}. GET /people/{id} -> person plus {roadmaps:[{linkId,personId,roadmapId,relationship,createdAt,roadmap}],workItems:[{linkId,personId,itemId,relationship,createdAt,item}],repositories:[{linkId,personId,repositoryId,relationship,createdAt,repository}]}. PATCH /people/{id} {revision,name?,title?,team?,description?,email?,phone?,chat?,location?,notes?} changes only the fields it names. POST /people/{id}/archive or /recover {revision}.

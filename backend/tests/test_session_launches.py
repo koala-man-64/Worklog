@@ -58,6 +58,11 @@ def finished(client, identity):
 def test_prepares_links_and_replays_without_a_second_session(browser, provider):
     client, item, cwd, calls = browser
     options = {"model": "example-model", "reasoningEffort": "high"}
+    if provider == "claude":
+        settings = cwd / ".claude" / "settings.local.json"
+        settings.parent.mkdir()
+        contents = json.dumps({"model": "example-model", "env": {"CLAUDE_CODE_EFFORT_LEVEL": "high"}})
+        settings.write_text(contents, encoding="utf-8")
     initial = start(client, item, cwd, provider=provider, **options)
     assert initial.status_code == 200, initial.text
     ready = finished(client, initial.json()["id"])
@@ -76,6 +81,17 @@ def test_prepares_links_and_replays_without_a_second_session(browser, provider):
     assert len(calls) == 1
     conflict = start(client, item, cwd, provider=provider, model="example-model", reasoningEffort="low")
     assert conflict.status_code == 409
+    if provider == "claude":
+        assert settings.read_text(encoding="utf-8") == contents
+
+
+def test_claude_custom_folder_requires_matching_settings_before_preparing(browser):
+    client, item, cwd, calls = browser
+    response = start(client, item, cwd, provider="claude", reasoningEffort="low")
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "claude_settings"
+    assert not (cwd / ".claude").exists()
+    assert calls == []
 
 
 def test_failed_handoff_keeps_link_and_open_does_not_prepare_again(browser, monkeypatch):

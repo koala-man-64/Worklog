@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
+from .claude_settings import require_claude_settings
 from .common import AppError, now
 from .db import Database
 from .leases import LeaseService, policy_record, repository_slot_summaries
@@ -673,6 +674,8 @@ class SessionLauncher:
             if len(self.workers) >= 2:
                 raise AppError(429, "session_limit", "Two chats are being prepared. Wait for one to finish.")
             folder = self._folder(cwd)
+            if provider == "claude":
+                require_claude_settings(folder, requested_options)
             with self.db.transaction() as c:
                 item = get_item(c, item_id, active=True)
                 result = {"id": identity, "provider": provider, "status": "starting", "chat": None,
@@ -720,6 +723,8 @@ class SessionLauncher:
                 "Configure baseCheckoutPath on this repository or provide a local working folder",
                 {"cwd": "required"},
             )
+        if provider == "claude" and not pol["baseCheckoutPath"]:
+            require_claude_settings(fallback_cwd, requested_options)
         stamp = now()
         with self.db.transaction() as c:
             item = get_item(c, item_id, active=True)
@@ -846,6 +851,12 @@ class SessionLauncher:
             folder = activated["worktreePath"] or receipt.get("cwd", "")
             if not folder:
                 raise RuntimeError("No working folder available for dispatch")
+            requested_options = receipt.get("requestedOptions", {})
+            if provider == "claude" and requested_options:
+                if activated["worktreePath"]:
+                    self.leases.prepare_claude_settings(lease_id, folder, requested_options)
+                else:
+                    require_claude_settings(folder, requested_options)
 
             with self.db.transaction() as c:
                 c.execute(
@@ -866,7 +877,7 @@ class SessionLauncher:
                 provider,
                 folder,
                 _initialization_prompt(item_id, item_title, prompt, header),
-                receipt.get("requestedOptions", {}),
+                requested_options,
             )
             safe_id = _safe_session_id(chat_id)
             clean_model = _clean_model(model)
@@ -892,6 +903,8 @@ class SessionLauncher:
                         (chat_rec["id"], now(), dispatch_id),
                     )
             if auto_open:
+                self._verify_desktop_settings(provider, folder, requested_options,
+                                              lease_id if activated["worktreePath"] else None)
                 _open_desktop(provider, folder, safe_id)
                 ready_msg = "Chat prepared in slot and linked. Open request sent. Send Continue in the desktop app to begin work."
             else:
@@ -910,7 +923,9 @@ class SessionLauncher:
                     logger.warning("Failed to release lease after dispatch error", exc_info=True)
             with self.db.transaction() as c:
                 dq_now = c.execute("SELECT session_id,chat_record_id FROM dispatch_queue WHERE id=?", (dispatch_id,)).fetchone()
-                if dq_now is not None and dq_now["chat_record_id"]:
+                if isinstance(exc, AppError) and exc.code == "claude_settings":
+                    msg = exc.message
+                elif dq_now is not None and dq_now["chat_record_id"]:
                     msg = "The linked chat could not be opened. Use Open in app to retry this same chat."
                 elif dq_now is not None and dq_now["session_id"]:
                     msg = "The provider chat is saved, but its Worklog link could not be saved. Retry opening this session."
@@ -1039,10 +1054,12 @@ class SessionLauncher:
                     return self._dispatch_record(c, dq)["launch"]
                 if not dq["session_id"]:
                     raise AppError(409, "session_launch", "No saved provider session is available to reopen")
-                lease = c.execute("SELECT worktree_path FROM repository_leases WHERE id=?", (dq["lease_id"],)).fetchone()
-                folder = lease["worktree_path"] if lease and lease["worktree_path"] else ""
-                if not folder:
-                    folder = self._dispatch_receipt(c, dispatch_id).get("cwd", "")
+                lease_id = dq["lease_id"]
+                lease = c.execute("SELECT worktree_path FROM repository_leases WHERE id=?", (lease_id,)).fetchone()
+                slot_folder = lease["worktree_path"] if lease else ""
+                receipt = self._dispatch_receipt(c, dispatch_id)
+                folder = slot_folder or receipt.get("cwd", "")
+                requested_options = receipt.get("requestedOptions", {})
                 provider = dq["provider"]
                 session_id = dq["session_id"]
                 item_id = dq["item_id"]
@@ -1051,6 +1068,7 @@ class SessionLauncher:
                 chat_record_id = dq["chat_record_id"]
             self.opening.add(dispatch_id)
         try:
+            self._verify_desktop_settings(provider, folder, requested_options, lease_id if slot_folder else None)
             if not chat_record_id:
                 with self.db.transaction() as c:
                     item = get_item(c, item_id, active=True)
@@ -1073,10 +1091,12 @@ class SessionLauncher:
                 )
         except Exception as exc:
             logger.warning("Opening dispatched chat failed (%s)", type(exc).__name__)
+            message = (exc.message if isinstance(exc, AppError) and exc.code == "claude_settings" else
+                       "The linked chat could not be opened. Use Open in app to retry this same chat.")
             with self.db.transaction() as c:
                 c.execute(
                     "UPDATE dispatch_queue SET status='failed',message=?,updated_at=?,revision=revision+1 WHERE id=?",
-                    ("The linked chat could not be opened. Use Open in app to retry this same chat.", now(), dispatch_id),
+                    (message, now(), dispatch_id),
                 )
         finally:
             with self.lock:
@@ -1145,9 +1165,22 @@ class SessionLauncher:
                 self._save(c, identity, actor, record)
             return record
 
+    def _verify_desktop_settings(
+        self, provider: str, folder: str, options: dict[str, str], lease_id: str | None = None,
+    ) -> None:
+        if provider != "claude" or not options:
+            return
+        if lease_id and self.leases:
+            self.leases.require_claude_slot_settings(lease_id, folder, options)
+        else:
+            require_claude_settings(folder, options)
+
     def _handoff(self, identity: str, actor: dict) -> None:
         record = self._link_prepared(identity, actor)
         result = record["result"]
+        if result["provider"] == "claude":
+            options = {key: result[key] for key in ("requestedModel", "reasoningEffort") if key in result}
+            require_claude_settings(record["cwd"], options)
         _open_desktop(result["provider"], record["cwd"], result["chat"]["chatId"])
         self._state(identity, actor, "ready", "Chat prepared and linked. Open request sent. "
                     "Send Continue in the desktop app to begin work.")
@@ -1158,7 +1191,9 @@ class SessionLauncher:
         with self.lock, self.db.transaction() as c:
             record = self._load(c, identity, actor)
             result = record["result"]
-            if result.get("sessionId") and result["chat"] is None:
+            if isinstance(exc, AppError) and exc.code == "claude_settings":
+                message = exc.message
+            elif result.get("sessionId") and result["chat"] is None:
                 message = "The provider chat is saved, but its Worklog link could not be saved. Retry linking and opening this session."
             elif result["chat"] is not None:
                 message = "The linked chat could not be opened. Use Open in app to retry this same chat."
