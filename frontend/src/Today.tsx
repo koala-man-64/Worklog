@@ -8,7 +8,12 @@ import { Scratchpad } from "./sections/Notes";
 import { DraftField } from "./ui/DraftField";
 import { Markdown } from "./ui/Markdown";
 import { Empty, ErrorMessage } from "./ui/Messages";
-import { ITEM_STATUSES, StatusSelect } from "./ui/Status";
+import {
+  ActiveBadge,
+  ITEM_STATUSES,
+  shownStatus,
+  StatusSelect,
+} from "./ui/Status";
 import { Tabs } from "./ui/Tabs";
 import { CreateItem } from "./Work";
 import { DaySummary } from "./DaySummary";
@@ -460,7 +465,7 @@ export function Today({
                       <Icon name="grip" />
                     </span>
                     <span
-                      className={"status-dot " + entry.item.status}
+                      className={"status-dot " + shownStatus(entry.item)}
                       aria-hidden="true"
                     />
                   </span>
@@ -469,6 +474,7 @@ export function Today({
                       {entry.item.title}
                     </a>
                     <RankBadge rank={entry.item.rank} />
+                    <ActiveBadge active={entry.item.agentActive} />
                     <RepositoryBadges ids={entry.item.repositoryIds} />
                     {entry.item.archived && (
                       <span className="badge">
@@ -682,7 +688,7 @@ export function Today({
                 {candidates.map((item) => (
                   <div className="line" key={item.id}>
                     <span
-                      className={"status-dot " + item.status}
+                      className={"status-dot " + shownStatus(item)}
                       aria-hidden="true"
                     />
                     <span className="line-title">

@@ -549,10 +549,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Repeat to match any of several states",
+              "description": "Repeat to match any of several states; active matches the work that shows the calculated Active status",
               "title": "Status"
             },
-            "description": "Repeat to match any of several states"
+            "description": "Repeat to match any of several states; active matches the work that shows the calculated Active status"
           },
           {
             "name": "roadmapId",
@@ -15714,6 +15714,10 @@
               }
             ],
             "title": "Rank"
+          },
+          "agentActive": {
+            "type": "boolean",
+            "title": "Agentactive"
           }
         },
         "additionalProperties": false,
@@ -15732,7 +15736,8 @@
           "createdAt",
           "updatedAt",
           "repositoryIds",
-          "rank"
+          "rank",
+          "agentActive"
         ],
         "title": "DayItem"
       },
@@ -27813,6 +27818,10 @@
             },
             "type": "array",
             "title": "Attachments"
+          },
+          "agentActive": {
+            "type": "boolean",
+            "title": "Agentactive"
           }
         },
         "additionalProperties": false,
@@ -27831,7 +27840,8 @@
           "repositoryIds",
           "waveIds",
           "notes",
-          "attachments"
+          "attachments",
+          "agentActive"
         ],
         "title": "RoadmapStep",
         "description": "A step as its roadmap lists it, with its notes and files."
@@ -28033,6 +28043,10 @@
             },
             "type": "array",
             "title": "People"
+          },
+          "agentActive": {
+            "type": "boolean",
+            "title": "Agentactive"
           }
         },
         "additionalProperties": false,
@@ -28051,7 +28065,8 @@
           "createdAt",
           "updatedAt",
           "repositoryIds",
-          "people"
+          "people",
+          "agentActive"
         ],
         "title": "RoadmapWorkItem",
         "description": "A work item on the roadmap or one of its steps, with the people tied to it."
@@ -29763,6 +29778,10 @@
             "type": "array",
             "title": "Attachments"
           },
+          "agentActive": {
+            "type": "boolean",
+            "title": "Agentactive"
+          },
           "roadmapId": {
             "type": "string",
             "title": "Roadmapid"
@@ -29806,6 +29825,7 @@
           "waveIds",
           "notes",
           "attachments",
+          "agentActive",
           "roadmapId",
           "ancestors",
           "siblings",
@@ -33648,6 +33668,10 @@
             "type": "array",
             "title": "People"
           },
+          "agentActive": {
+            "type": "boolean",
+            "title": "Agentactive"
+          },
           "dailyEntries": {
             "items": {
               "$ref": "#/components/schemas/DailyEntry"
@@ -33701,6 +33725,7 @@
           "github",
           "references",
           "people",
+          "agentActive",
           "dailyEntries",
           "linkedRoadmap",
           "linkedStep"
@@ -33814,6 +33839,10 @@
             },
             "type": "array",
             "title": "People"
+          },
+          "agentActive": {
+            "type": "boolean",
+            "title": "Agentactive"
           }
         },
         "additionalProperties": false,
@@ -33834,7 +33863,8 @@
           "repositoryIds",
           "rank",
           "isBacklog",
-          "people"
+          "people",
+          "agentActive"
         ],
         "title": "WorkItemListed"
       },

@@ -13,6 +13,7 @@
           "id": "<id1>",
           "item": {
             "adoUrl": null,
+            "agentActive": true,
             "archived": false,
             "backlogOrder": 1,
             "createdAt": "<time.ffffff+hh:mm>",
@@ -364,6 +365,7 @@
       "items": [
         {
           "adoUrl": null,
+          "agentActive": true,
           "archived": false,
           "backlogOrder": 1,
           "createdAt": "<time.ffffff+hh:mm>",
@@ -393,6 +395,7 @@
         },
         {
           "adoUrl": null,
+          "agentActive": false,
           "archived": false,
           "backlogOrder": 2,
           "createdAt": "<time.ffffff+hh:mm>",

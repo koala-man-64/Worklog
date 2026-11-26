@@ -54,6 +54,7 @@ export const aStep = (fields: Fields<Step>): Step => ({
   waveIds: [],
   notes: [],
   attachments: [],
+  agentActive: false,
   ...fields,
 });
 
@@ -72,6 +73,7 @@ export const anItem = (fields: Fields<RoadmapWorkItem>): RoadmapWorkItem => ({
   updatedAt: MADE,
   repositoryIds: [],
   people: [],
+  agentActive: false,
   ...fields,
 });
 

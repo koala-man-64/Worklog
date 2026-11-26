@@ -25,6 +25,8 @@ Worklog runs at `http://127.0.0.1:8877`. Start it from PowerShell in your Worklo
 2. As you work, tick "Worked on" for the item.
 3. Write what happened, and what comes next, in "Outcome / next action".
 4. Set its status (Open, Doing, Waiting, Blocked or Done) with the status menu. Waiting is for work that waits on someone else, such as a review or a reply.
+   - **Active** shows beside the menu while an agent is working on Open or Doing work: one of its runs reports work on the item, and the report is less than 2 hours old. Worklog works it out, so the menu never offers it and keeps the status you set. Waiting, Blocked and Done show as you set them. Archived work never shows Active.
+   - A page works Active out when it reads the work: when you open the page or come back to it, and after your own changes. A page left open in front of you keeps what it last read until then.
 
 You never press Save: Worklog saves as you type. Tomorrow, "Open work" on Today lists everything still open, ready to plan again.
 
@@ -155,7 +157,7 @@ The work item itself doesn't change. While it isn't done it is back under "Open 
    - by text ("Find in work…")
    - by repository
    - by person
-   - by status: the Open, Doing, Waiting, Blocked and Done buttons combine; with none pressed, every state shows.
+   - by status: the Open, Doing, Active, Waiting, Blocked and Done buttons combine; with none pressed, every state shows. Active matches the work an agent is on, whichever status you set it to, so "Doing" alone still lists Doing work an agent is on.
 3. Switch "Work view" between "All work" and "Unscheduled backlog". The backlog holds items not done and not planned for today or later.
 4. Rank the work (below).
 
@@ -217,7 +219,7 @@ A ticket filed from the browser starts open. An agent can file a past incident a
    - move it up or down
    - "Retire step"
 3. Add a "Version note" and press "Save new version". Each saved version is kept for good under "Immutable versions" in the roadmap's "History", where "Restore as new version" brings an old one back.
-4. Set progress on leaf steps (Open, Doing, Blocked or Done) in "Plan & progress", the roadmap's "Outline". A parent step follows its children: Done when all are done, Blocked if any is blocked, otherwise Doing once any has started. The bar at the top fills in status colours, with how many steps are done, in progress, blocked and open beside it, and the roadmap's "Status" shows where each phase stands.
+4. Set progress on leaf steps (Open, Doing, Blocked or Done) in "Plan & progress", the roadmap's "Outline". A parent step follows its children: Done when all are done, Blocked if any is blocked, otherwise Doing once any has started. A step shows **Active**, as work items do, while it is Open or Doing and an agent reports work on it, on a work item on it, or on an Active step under it; the outline marks it with an "Active" badge under its title. The bar at the top fills in status colours, with how many steps are done, active, in progress, blocked and open beside it (an Active step counts as Active, not Open or Doing), and the roadmap's "Status" shows where each phase stands.
 5. To change one step's title, outcome or description, open the step, press "Edit step", then "Save step". It saves that step alone, without a new version, so agents working on other steps carry on undisturbed. Agents propose the same change for one step.
 6. To nest a roadmap under another, use "Add sub-roadmap" at the top of the parent's page, or choose its parent in "Nested under" beside it.
 
@@ -457,8 +459,8 @@ Plans broken into steps, with every saved version kept.
     - Its views, each at its own address: "Status", "Outline", "Execution", "Questions and decisions" with how many are open, "Chats", "Discussions", "Live", "Material" and "History".
   - **"Status"**, which the roadmap opens on:
     - "Phases": each step at the top of the outline, with how many of the steps under it are done, in progress, blocked and open, and a bar filled in those colours.
-    - "Now": the steps in progress, each with its phase and the agents working on it.
-    - "Next": the open steps, in outline order.
+    - "Now": the steps in progress, Active ones among them, each with its phase and the agents working on it.
+    - "Next": the open steps no agent is working on, in outline order.
     - "Needs you": the open questions, the blocked steps, and the proposals waiting on Review that would change the roadmap.
     - "Recently done": the steps last marked done, the latest first.
     - "Now", "Next" and each list under "Needs you" show their first eight and link to the rest; "Recently done" shows the last ten.
@@ -653,6 +655,7 @@ This guide, and the one your agents read:
 | Scratchpad | A work item's one running Markdown note |
 | Roadmap | A plan of nested steps, saved as immutable versions |
 | Step | One part of a roadmap, with the outcome its work produces; leaf steps carry progress |
+| Active | A status Worklog works out, never set: Open or Doing work, or a step, that an agent reported work on in the last 2 hours |
 | Repository lane | One repository's execution stream on a roadmap's "Execution" view: active work, competing in-progress work, queued order and blocked steps, governed by its dependency tier and WIP cap |
 | Wave | A synchronized release or contract batch across dependency tiers on a roadmap, with wave steps, per-repository freeze states and consumer re-pins |
 | Work class | A step's execution category: Stabilization, Critical path, Standard, Refactor or Readiness gate |

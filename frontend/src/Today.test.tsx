@@ -292,6 +292,31 @@ it("shows the stack rank of the day's work and of open work", () => {
   expect(within(openWork()).getByText("Stack rank 5")).toBeInTheDocument();
 });
 
+it("marks the day's work an agent is on as Active, in its heading and its dot", () => {
+  state.day = day("2026-10-28", [
+    entry("release", "Ship the release", "doing", {
+      item: {
+        ...item("release", "Ship the release", "doing"),
+        agentActive: true,
+      },
+    }),
+    entry("runbook", "Write the runbook", "doing"),
+  ]);
+  render(view("2026-10-28", "2026-10-28"));
+  const heading = (title: string) =>
+    screen
+      .getByRole("link", { name: title })
+      .closest<HTMLElement>(".section-heading")!;
+  expect(within(heading("Ship the release")).getByText("Active")).toBeVisible();
+  expect(
+    heading("Ship the release").querySelector(".status-dot.active"),
+  ).not.toBeNull();
+  expect(within(heading("Write the runbook")).queryByText("Active")).toBeNull();
+  expect(
+    heading("Write the runbook").querySelector(".status-dot.doing"),
+  ).not.toBeNull();
+});
+
 it("shows the repositories work links to, and links another from an entry's Repositories tab", async () => {
   state.day = day("2026-10-28", [
     entry("release", "Ship the release", "doing", {

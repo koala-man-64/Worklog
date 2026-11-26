@@ -29,6 +29,7 @@ from . import __version__, git_activity, locations, operations, policy, support
 from . import models as m
 from . import responses as out
 from .active_sessions import running_sessions
+from .agent_activity import active_work, mark_steps
 from .common import (
     FILE_LIMIT,
     AppError,
@@ -373,7 +374,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
 
     @app.get("/api/v1/work-items", response_model=out.WorkItems)
     def items(view: str = "all", archived: bool = False,
-              status: list[str] | None = Query(None, description="Repeat to match any of several states"),
+              status: list[str] | None = Query(None, description="Repeat to match any of several states; active matches the work that shows the calculated Active status"),
               roadmapId: str | None = None, personId: str | None = None, q: str = "", repositoryId: str | None = None,
               limit: int = Query(100, ge=1, le=200), offset: int = Query(0, ge=0)) -> dict:
         return work.items.list(view=view, archived=archived, states=status, roadmap_id=roadmapId, person_id=personId, limit=limit, offset=offset, q=q, repository_id=repositoryId)
@@ -687,7 +688,9 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             held = support.for_steps(c, identity)
             for step in result["steps"]:
                 step.update(held.get(step["id"]) or {"notes": [], "attachments": []})
-            result["workItems"] = work.items.roadmap_items(c, identity)
+            active = active_work(c)
+            mark_steps(c, result["steps"], active)
+            result["workItems"] = work.items.roadmap_items(c, identity, active)
             result["people"] = people_on(c, "roadmap", [identity]).get(identity, [])
         return result
 
@@ -743,7 +746,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             row = plans.get_step(c, identity)
             # Every step of the roadmap, retired ones included, so this one is among them: its own text
             # in full, and only the others' places and states, from which its progress and place come.
-            steps = step_family(c, row["roadmap_id"], identity)
+            steps = mark_steps(c, step_family(c, row["roadmap_id"], identity))
             current = next(s for s in steps if s["id"] == identity)
             # The roadmap's tracked chats on this step, in the order they were put there.
             chats = support.chat_records(c, c.execute(

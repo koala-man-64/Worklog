@@ -545,6 +545,9 @@ class WorkItem(Answer):
     github: list[ListedGithubReference]
     references: list[FileReference]
     people: list[RecordPerson]
+    # The calculated Active status (agent_activity): an agent reported work on it within two hours
+    # while its status is open or doing. Worked out on each read and never stored.
+    agentActive: bool
     dailyEntries: list[DailyEntry]
     linkedRoadmap: LinkedRoadmap | None
     linkedStep: LinkedStep | None
@@ -704,6 +707,10 @@ class RoadmapStep(PlanStep):
 
     notes: list[Note]
     attachments: list[Attachment]
+    # The calculated Active status (agent_activity): its status, a parent's derived, is open or doing,
+    # and an agent reported work within two hours on it, on a work item on it, or on a step under it
+    # that shows Active. Never for a retired step. Worked out on each read and never stored.
+    agentActive: bool
 
 
 class RoadmapVersion(Answer):
@@ -724,6 +731,9 @@ class RoadmapWorkItem(WorkItemRecord):
     """A work item on the roadmap or one of its steps, with the people tied to it."""
 
     people: list[RecordPerson]
+    # The calculated Active status (agent_activity): an agent reported work on it within two hours
+    # while its status is open or doing. Worked out on each read and never stored.
+    agentActive: bool
 
 
 class Roadmap(Answer):
@@ -835,6 +845,9 @@ class TabCounts(Answer):
 
 class DayItem(WorkItemRecord):
     rank: int | None
+    # The calculated Active status (agent_activity): an agent reported work on it within two hours
+    # while its status is open or doing. Worked out on each read and never stored.
+    agentActive: bool
 
 
 class DayEntry(DailyEntry):
@@ -893,6 +906,9 @@ class WorkItemListed(WorkItemRecord):
     rank: int | None
     isBacklog: bool
     people: list[RecordPerson]
+    # The calculated Active status (agent_activity): an agent reported work on it within two hours
+    # while its status is open or doing. Worked out on each read and never stored.
+    agentActive: bool
 
 
 class WorkItems(Answer):

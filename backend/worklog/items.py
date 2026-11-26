@@ -12,6 +12,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from . import search, support
+from .agent_activity import ActiveWork, active_item_ids, active_work, item_active
 from .common import (
     AppError,
     boolean,
@@ -67,17 +68,28 @@ class Items:
     def list(self, *, view: str = "all", archived: bool = False, states: builtins.list[str] | None = None,
              roadmap_id: str | None = None, person_id: str | None = None, repository_id: str | None = None,
              limit: int = 100, offset: int = 0, q: str = "", item_id: str | None = None) -> dict:
-        # Any of the given states matches; none, or only empty values, means every state.
-        chosen = sorted({item_status(value) for value in states or [] if value != ""})
+        # Any of the given states matches; none, or only empty values, means every state. "active",
+        # the calculated status, matches the work that shows Active, whatever else is chosen.
+        wanted = {value for value in states or [] if value != ""}
+        with_active = "active" in wanted
+        chosen = sorted({item_status(value) for value in wanted - {"active"}})
         with self.db.read() as c:
+            active = active_work(c)
             where = ["w.archived=?"]
             args: builtins.list[Any] = [int(archived)]
             if item_id is not None:
                 where.append("w.id=?")
                 args.append(item_id)
-            if chosen:
-                where.append("w.status IN(" + ",".join("?" for _ in chosen) + ")")
-                args.extend(chosen)
+            if chosen or with_active:
+                matches = []
+                if chosen:
+                    matches.append("w.status IN(" + ",".join("?" for _ in chosen) + ")")
+                    args.extend(chosen)
+                if with_active:
+                    shown = active_item_ids(active, c)
+                    matches.append("w.id IN(" + ",".join("?" for _ in shown) + ")" if shown else "0")
+                    args.extend(shown)
+                where.append("(" + " OR ".join(matches) + ")")
             if roadmap_id:
                 where.append("(w.roadmap_id=? OR w.step_id IN(SELECT id FROM steps WHERE roadmap_id=?))")
                 args.extend([roadmap_id, roadmap_id])
@@ -103,18 +115,21 @@ class Items:
             rows = c.execute(f"SELECT w.*, r.stack_rank, (w.archived=0 AND w.status!='done' AND NOT EXISTS(SELECT 1 FROM daily_entries de WHERE de.item_id=w.id AND de.planned=1 AND de.date>=?)) AS is_backlog FROM work_items w LEFT JOIN ({RANKS}) r ON r.id=w.id WHERE {clause} ORDER BY r.stack_rank IS NULL,w.backlog_order,w.id LIMIT ? OFFSET ?", [current, *args, limit, offset]).fetchall()
             people_map = people_on(c, "item", [r["id"] for r in rows])
             repos = linked_repositories(c, "item", [r["id"] for r in rows])
-            return {"items": [{**item_record(r), "rank": r["stack_rank"], "repositoryIds": repos.get(r["id"], []), "isBacklog": bool(r["is_backlog"]), "people": people_map.get(r["id"], [])} for r in rows], "total": total,
+            return {"items": [{**(record := item_record(r)), "rank": r["stack_rank"], "repositoryIds": repos.get(r["id"], []), "isBacklog": bool(r["is_backlog"]), "people": people_map.get(r["id"], []),
+                               "agentActive": item_active(active, record)} for r in rows], "total": total,
                     "rankedCount": ranked_count(c), "collectionRevision": setting(c, "backlogRevision", 1)}
 
-    def roadmap_items(self, c: sqlite3.Connection, roadmap_id: str) -> builtins.list[dict]:
+    def roadmap_items(self, c: sqlite3.Connection, roadmap_id: str, active: ActiveWork | None = None) -> builtins.list[dict]:
         rows = c.execute(
             "SELECT * FROM work_items WHERE archived=0 AND (roadmap_id=? OR step_id IN (SELECT id FROM steps WHERE roadmap_id=?)) ORDER BY backlog_order,id",
             (roadmap_id, roadmap_id),
         ).fetchall()
         people_map = people_on(c, "item", [r["id"] for r in rows])
         repos = linked_repositories(c, "item", [r["id"] for r in rows])
+        active = active_work(c) if active is None else active
         return [
-            {**item_record(r), "repositoryIds": repos.get(r["id"], []), "roadmapId": r["roadmap_id"] or roadmap_id, "people": people_map.get(r["id"], [])}
+            {**(record := item_record(r)), "repositoryIds": repos.get(r["id"], []), "roadmapId": r["roadmap_id"] or roadmap_id, "people": people_map.get(r["id"], []),
+             "agentActive": item_active(active, record)}
             for r in rows
         ]
 
@@ -126,6 +141,7 @@ class Items:
             result["repositoryIds"] = linked_repositories(c, "item", [item_id]).get(item_id, [])
             result.update(support.for_owner(c, "item", item_id))
             result["people"] = people_on(c, "item", [item_id]).get(item_id, [])
+            result["agentActive"] = item_active(active_work(c), result)
             result["dailyEntries"] = [entry_record(r) for r in c.execute("SELECT * FROM daily_entries WHERE item_id=? ORDER BY date DESC", (item_id,))]
             result["linkedRoadmap"] = None
             result["linkedStep"] = None
@@ -155,9 +171,11 @@ class Items:
             ranked = stack_ranks(c, ids)
             counts = self.tab_counts(c, ids)
             states = self._states_as_of(c, date)
+            active = active_work(c)
             for entry in entries:
                 entry["item"]["repositoryIds"] = repos.get(entry["itemId"], [])
                 entry["item"]["rank"] = ranked.get(entry["itemId"])
+                entry["item"]["agentActive"] = item_active(active, entry["item"])
                 entry["counts"] = counts[entry["itemId"]]
                 # The status the item ended the day with, which groups the day's summary. Work
                 # logged after its day has no history by then, so it shows its status now.

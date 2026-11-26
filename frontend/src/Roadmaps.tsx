@@ -31,8 +31,11 @@ import { Markdown } from "./ui/Markdown";
 import { Empty, ErrorMessage } from "./ui/Messages";
 import { ResizeHandle } from "./ui/ResizeHandle";
 import {
+  ActiveBadge,
   ITEM_STATUSES,
+  type ShownStatus,
   STATUSES,
+  shownStatus,
   StatusSelect,
   statusLabel,
 } from "./ui/Status";
@@ -69,17 +72,27 @@ const DETAIL_MIN = 300;
 const HANDLE_WIDTH = 24;
 // Agents report as they work, so who works where refreshes as on the Agents page.
 const AGENTS_REFRESH = 30_000;
-// Steps by status, in the order a status bar fills: done first, then in progress, then blocked.
-// Open steps are the bar's empty track. The roadmap's counts and the Phases columns follow it.
-const BAR_STATUSES: readonly Status[] = ["done", "doing", "blocked"];
-const COUNTED_STATUSES: readonly Status[] = [...BAR_STATUSES, "open"];
+// Steps by the status they show, in the order a status bar fills: done first, then active (an
+// agent at work, the calculated status), then in progress, then blocked. Open steps are the bar's
+// empty track. The roadmap's counts and the Phases columns follow it.
+const BAR_STATUSES: readonly ShownStatus<Status>[] = [
+  "done",
+  "active",
+  "doing",
+  "blocked",
+];
+const COUNTED_STATUSES: readonly ShownStatus<Status>[] = [
+  ...BAR_STATUSES,
+  "open",
+];
 /** Steps by status in one bar; the counts beside it say the same in numbers. */
 function StatusBar({ steps }: { steps: Step[] }) {
   return (
     <span className="status-bar" aria-hidden="true">
       {BAR_STATUSES.map((status) => {
         const share =
-          steps.filter((s) => s.status === status).length / (steps.length || 1);
+          steps.filter((s) => shownStatus(s) === status).length /
+          (steps.length || 1);
         return (
           share > 0 && (
             <span
@@ -425,7 +438,7 @@ export function RoadmapDetail({
   /** A work item's row. Material names the step it is on, which its page attaches work to. */
   const renderWorkItem = (item: RoadmapWorkItem, onStepPage = false) => (
     <div className="line roadmap-work-item" key={item.id}>
-      <span className={"status-dot " + item.status} />
+      <span className={"status-dot " + shownStatus(item)} />
       <a className="item-title" href={"#work/" + item.id}>
         {item.title}
       </a>
@@ -441,6 +454,7 @@ export function RoadmapDetail({
           )
         }
       />
+      <ActiveBadge active={item.agentActive} />
       {!onStepPage &&
         item.stepId &&
         (titles.has(item.stepId) ? (
@@ -559,10 +573,13 @@ export function RoadmapDetail({
           !tree.has(s.id) && stepRepos.length >= 2 && s.workClass !== "gate";
         const current = s.id === selected?.id;
         return (
-          <li key={s.id} className={"step status-" + s.status}>
+          <li key={s.id} className={"step status-" + shownStatus(s)}>
             <div className={"step-row" + (current ? " selected" : "")}>
               {head}
-              <span className={"status-dot " + s.status} aria-hidden="true" />
+              <span
+                className={"status-dot " + shownStatus(s)}
+                aria-hidden="true"
+              />
               <span className="step-text">
                 <a
                   className="step-link"
@@ -573,11 +590,13 @@ export function RoadmapDetail({
                   {s.title}
                 </a>
                 {(closed ||
+                  s.agentActive ||
                   items > 0 ||
                   placed.length > 0 ||
                   stepRepos.length > 0 ||
                   Boolean(s.workClass)) && (
                   <span className="step-meta">
+                    <ActiveBadge active={s.agentActive} />
                     {closed && (
                       <small>
                         ({kids} sub-step{kids === 1 ? "" : "s"} hidden)
@@ -924,7 +943,8 @@ export function RoadmapDetail({
               {COUNTED_STATUSES.map((status) => (
                 <li key={status}>
                   <span className={"status-dot " + status} aria-hidden="true" />
-                  {leaves.filter((s) => s.status === status).length} {status}
+                  {leaves.filter((s) => shownStatus(s) === status).length}{" "}
+                  {status}
                 </li>
               ))}
             </ul>
@@ -1318,8 +1338,12 @@ function StatusBoard({
   };
   for (const phase of phases) place(phase, phase);
   const leaves = ordered.filter((s) => !tree.has(s.id));
-  const doing = leaves.filter((s) => s.status === "doing");
-  const next = leaves.filter((s) => s.status === "open");
+  // Now holds the steps in progress, Active ones (an agent at work) among them; Next the open
+  // steps nobody is on.
+  const doing = leaves.filter((s) =>
+    ["doing", "active"].includes(shownStatus(s)),
+  );
+  const next = leaves.filter((s) => shownStatus(s) === "open");
   const blocked = leaves.filter((s) => s.status === "blocked");
   const questions = (road.questions ?? []).filter(
     (q) => q.status === "open" && !q.archived,
@@ -1336,7 +1360,7 @@ function StatusBoard({
     const phase = phaseOf.get(s.id);
     return (
       <li className="line board-step" key={s.id}>
-        <span className={"status-dot " + s.status} aria-hidden="true" />
+        <span className={"status-dot " + shownStatus(s)} aria-hidden="true" />
         <span className="board-step-text">
           <a
             className="item-title"
@@ -1391,8 +1415,8 @@ function StatusBoard({
               {phases.map((phase) => {
                 // A phase counts its leaves; a parent's own status is derived from them.
                 const under = leaves.filter((s) => phaseOf.get(s.id) === phase);
-                const count = (status: Status) =>
-                  under.filter((s) => s.status === status).length;
+                const count = (status: ShownStatus<Status>) =>
+                  under.filter((s) => shownStatus(s) === status).length;
                 return (
                   <tr key={phase.id}>
                     <th scope="row">

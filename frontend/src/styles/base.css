@@ -39,6 +39,9 @@
   --status-done-bg: #d6ede5;
   --status-done-ink: #14493e;
   --status-done-border: #27675d;
+  --status-active-bg: #ede9fe;
+  --status-active-ink: #4c1d95;
+  --status-active-border: #7c3aed;
   color-scheme: light;
 }
 :root[data-theme="dark"] {
@@ -70,6 +73,9 @@
   --status-done-bg: #1c3b32;
   --status-done-ink: #9ee0cb;
   --status-done-border: #52a38c;
+  --status-active-bg: #2e2152;
+  --status-active-ink: #ddd6fe;
+  --status-active-border: #a78bfa;
   color: var(--ink);
   background: var(--bg);
   color-scheme: dark;
@@ -104,6 +110,9 @@
     --status-done-bg: #1c3b32;
     --status-done-ink: #9ee0cb;
     --status-done-border: #52a38c;
+    --status-active-bg: #2e2152;
+    --status-active-ink: #ddd6fe;
+    --status-active-border: #a78bfa;
     color: var(--ink);
     background: var(--bg);
     color-scheme: dark;
@@ -935,6 +944,44 @@ button.rank:hover {
   border-color: var(--status-blocked-border);
   box-shadow: 0 0 0 3px var(--status-blocked-ring);
 }
+/* Active, the calculated status: an agent reported work within two hours. Filled, with a ring
+   standing off it, so it reads apart from Doing without its colour. */
+.status-dot.active {
+  background: var(--status-active-border);
+  border-color: var(--status-active-border);
+  outline: 1.5px solid var(--status-active-border);
+  outline-offset: 1.5px;
+}
+/* The Active badge beside a status menu, which keeps the status the person set. Not
+   .status-active: an Active step's row has that class. */
+.active-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border: 1px solid var(--status-active-border);
+  border-radius: 999px;
+  background: var(--status-active-bg);
+  color: var(--status-active-ink);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.active-badge .status-dot {
+  width: 8px;
+  height: 8px;
+  outline-width: 1px;
+  outline-offset: 1px;
+}
+/* A status menu with the Active badge under it, where a column is too narrow for both in a row. */
+.status-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
 .section-heading .status-dot {
   margin-right: 8px;
   vertical-align: 0;
@@ -1154,6 +1201,9 @@ section:not(.draft) > h3 {
 }
 .step.status-blocked {
   border-left-color: var(--status-blocked-border);
+}
+.step.status-active {
+  border-left-color: var(--status-active-border);
 }
 .tree-toggle,
 .tree-spacer {
