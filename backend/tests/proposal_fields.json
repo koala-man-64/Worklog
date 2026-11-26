@@ -49,6 +49,40 @@
       "revision"
     ]
   },
+  "dependency.create": {
+    "required": [
+      "dependent",
+      "prerequisite"
+    ],
+    "allowed": [
+      "condition",
+      "context",
+      "dependent",
+      "id",
+      "prerequisite"
+    ]
+  },
+  "dependency.confirm": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "note",
+      "revision"
+    ]
+  },
+  "dependency.archive": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "revision"
+    ]
+  },
   "item.create": {
     "required": [
       "title"

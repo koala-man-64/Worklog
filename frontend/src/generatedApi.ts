@@ -2382,6 +2382,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dependencies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Find Dependencies */
+        get: operations["find_dependencies_api_v1_dependencies_get"];
+        put?: never;
+        /** Create Dependency */
+        post: operations["create_dependency_api_v1_dependencies_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dependencies/roadmaps/{identity}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Roadmap Dependencies */
+        get: operations["roadmap_dependencies_api_v1_dependencies_roadmaps__identity__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dependencies/waits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reportable Waits */
+        get: operations["reportable_waits_api_v1_dependencies_waits_get"];
+        put?: never;
+        /** Report Wait */
+        post: operations["report_wait_api_v1_dependencies_waits_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dependencies/{identity}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Dependency */
+        get: operations["dependency_api_v1_dependencies__identity__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dependencies/{identity}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm Dependency */
+        post: operations["confirm_dependency_api_v1_dependencies__identity__confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dependencies/{identity}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archive Dependency */
+        post: operations["archive_dependency_api_v1_dependencies__identity__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tickets": {
         parameters: {
             query?: never;
@@ -5061,6 +5165,103 @@ export interface components {
             /** Decideddate */
             decidedDate?: string | null;
         };
+        /** Dependencies */
+        Dependencies: {
+            /** Prerequisites */
+            prerequisites: components["schemas"]["DependencyLink"][];
+            /** Dependents */
+            dependents: components["schemas"]["DependencyLink"][];
+        };
+        /** DependencyConfirm */
+        DependencyConfirm: {
+            /** Revision */
+            revision: number;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+        };
+        /** DependencyConfirmation */
+        DependencyConfirmation: {
+            /** Confirmedat */
+            confirmedAt: string;
+            /** Confirmedby */
+            confirmedBy: string;
+            /** Note */
+            note: string;
+        };
+        /** DependencyCreate */
+        DependencyCreate: {
+            dependent: components["schemas"]["DependencyRef"];
+            prerequisite: components["schemas"]["DependencyRef"];
+            context?: components["schemas"]["WaitContextRef"] | null;
+            /**
+             * Condition
+             * @default
+             */
+            condition: string;
+        };
+        /** DependencyEndpoint */
+        DependencyEndpoint: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "repository" | "step" | "item" | "ticket" | "agent";
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Available */
+            available: boolean;
+            /** Roadmapid */
+            roadmapId: string | null;
+            /** Mergedinto */
+            mergedInto: string | null;
+        };
+        /** DependencyLink */
+        DependencyLink: {
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "catalog" | "shared" | "wait";
+            dependent: components["schemas"]["DependencyEndpoint"];
+            prerequisite: components["schemas"]["DependencyEndpoint"];
+            context: components["schemas"]["DependencyEndpoint"] | null;
+            /** Condition */
+            condition: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "linked" | "waiting" | "satisfied" | "unavailable";
+            confirmation: components["schemas"]["DependencyConfirmation"] | null;
+            /** Reportedbyagentid */
+            reportedByAgentId: string | null;
+            /** Revision */
+            revision: number | null;
+            /** Archived */
+            archived: boolean;
+        };
+        /** DependencyRef */
+        DependencyRef: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "repository" | "step" | "item" | "ticket" | "agent";
+            /** Id */
+            id: string;
+        };
+        /** DependencyWaits */
+        DependencyWaits: {
+            /** Items */
+            items: components["schemas"]["DependencyLink"][];
+        };
         /**
          * DiscussedRepository
          * @description A repository with its own discussion's id (v22), slot summary (v34), and direct catalog dependencies (v35).
@@ -6869,7 +7070,7 @@ export interface components {
              * Action
              * @enum {string}
              */
-            action: "repository.create" | "repository.update" | "repository.archive" | "repository.recover" | "item.create" | "item.update" | "item.archive" | "item.recover" | "entry.upsert" | "note.create" | "note.update" | "roadmap.create" | "roadmap.revise" | "roadmap.move" | "progress.set" | "step.update" | "step.create" | "step.split" | "step.move" | "wave.create" | "wave.update" | "wave.steps" | "person.create" | "person.update" | "person.archive" | "person.recover" | "person.link" | "person.unlink" | "link.create" | "link.update" | "link.archive" | "link.recover" | "attachment.create" | "chat.create" | "chat.update" | "chat.archive" | "chat.recover" | "github.create" | "github.update" | "github.archive" | "github.recover" | "question.create" | "question.update" | "question.archive" | "question.recover" | "decision.create" | "decision.update" | "decision.archive" | "decision.recover" | "resource.create" | "resource.update" | "resource.archive" | "resource.recover" | "ticket.create" | "ticket.update";
+            action: "repository.create" | "repository.update" | "repository.archive" | "repository.recover" | "dependency.create" | "dependency.confirm" | "dependency.archive" | "item.create" | "item.update" | "item.archive" | "item.recover" | "entry.upsert" | "note.create" | "note.update" | "roadmap.create" | "roadmap.revise" | "roadmap.move" | "progress.set" | "step.update" | "step.create" | "step.split" | "step.move" | "wave.create" | "wave.update" | "wave.steps" | "person.create" | "person.update" | "person.archive" | "person.recover" | "person.link" | "person.unlink" | "link.create" | "link.update" | "link.archive" | "link.recover" | "attachment.create" | "chat.create" | "chat.update" | "chat.archive" | "chat.recover" | "github.create" | "github.update" | "github.archive" | "github.recover" | "question.create" | "question.update" | "question.archive" | "question.recover" | "decision.create" | "decision.update" | "decision.archive" | "decision.recover" | "resource.create" | "resource.update" | "resource.archive" | "resource.recover" | "ticket.create" | "ticket.update";
             /** Payload */
             payload: {
                 [key: string]: unknown;
@@ -9057,6 +9258,13 @@ export interface components {
             /** Parentid */
             parentId?: string | null;
         };
+        /** RoadmapDependencies */
+        RoadmapDependencies: {
+            /** Openbystep */
+            openByStep: {
+                [key: string]: number;
+            };
+        };
         /** RoadmapDispatch */
         RoadmapDispatch: {
             roadmap: components["schemas"]["DispatchRoadmapRef"];
@@ -10703,6 +10911,23 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /** WaitContextRef */
+        WaitContextRef: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "repository" | "step" | "item" | "ticket";
+            /** Id */
+            id: string;
+        };
+        /** WaitReport */
+        WaitReport: {
+            prerequisite: components["schemas"]["DependencyRef"];
+            context: components["schemas"]["WaitContextRef"];
+            /** Condition */
+            condition: string;
         };
         /** WaveCreate */
         WaveCreate: {
@@ -16656,6 +16881,267 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Overlaps"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    find_dependencies_api_v1_dependencies_get: {
+        parameters: {
+            query: {
+                type: "repository" | "step" | "item" | "ticket" | "agent";
+                id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Dependencies"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_dependency_api_v1_dependencies_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DependencyCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DependencyLink"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    roadmap_dependencies_api_v1_dependencies_roadmaps__identity__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoadmapDependencies"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reportable_waits_api_v1_dependencies_waits_get: {
+        parameters: {
+            query?: {
+                roadmapId?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DependencyWaits"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    report_wait_api_v1_dependencies_waits_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaitReport"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DependencyLink"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dependency_api_v1_dependencies__identity__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DependencyLink"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_dependency_api_v1_dependencies__identity__confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DependencyConfirm"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DependencyLink"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    archive_dependency_api_v1_dependencies__identity__archive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Expected"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DependencyLink"];
                 };
             };
             /** @description Validation Error */

@@ -210,6 +210,12 @@ The list shows open, doing and blocked tickets, most urgent first. Filter it by 
 
 A ticket filed from the browser starts open. An agent can file a past incident already Done.
 
+### Track prerequisites and agent waits
+
+A dependency records that one Worklog record depends on another. Links can connect repositories, roadmap steps, work items, tickets and agents. Each record has a list of what it needs and what depends on it. A person or approved proposal can assign an agent as the dependent with a work context. That relationship remains shared. Repository execution policy links remain visible as catalog dependencies.
+
+Shared links between non-agent records and a step, work item or ticket prerequisite become satisfied when that record is Done. An agent assignment, or a repository or agent prerequisite, needs an explicit confirmation. Agents can also report their own waits with a prerequisite, a condition and a work context. Only the reporting agent can confirm or archive its wait directly. Agents propose shared links as `dependency.create` operations for review. Worklog keeps agent assignments as shared relationships and records direct agent reports separately.
+
 ### Plan a larger effort as a roadmap
 
 1. Open **Roadmaps**, type into "Roadmap title" and press "Create roadmap".
@@ -658,6 +664,7 @@ This guide, and the one your agents read:
 | Step | One part of a roadmap, with the outcome its work produces; leaf steps carry progress |
 | Active | A status Worklog works out, never set: Open or Doing work, or a step, that an agent reported work on in the last 2 hours |
 | Repository lane | One repository's execution stream on a roadmap's "Execution" view: active work, competing in-progress work, queued order and blocked steps, governed by its dependency tier and WIP cap |
+| Dependency | A directed link that records a prerequisite between Worklog records, or an agent's wait in a work context |
 | Wave | A synchronized release or contract batch across dependency tiers on a roadmap, with wave steps, per-repository freeze states and consumer re-pins |
 | Work class | A step's execution category: Stabilization, Critical path, Standard, Refactor or Readiness gate |
 | WIP cap | The limit on concurrent Doing steps or active writers in a repository stream; defaults to the repository's checkout slot cap when left blank. Active writers are agents with a checkout lease or a participation that reported within 2 hours; a stale participation is still listed but doesn't count |

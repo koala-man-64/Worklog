@@ -183,6 +183,9 @@ def test_a_v22_shape_cannot_claim_version_23_and_a_v23_shape_cannot_claim_22(tmp
         conn.execute("PRAGMA user_version=22")
     with pytest.raises(ValueError, match="schema definitions"):
         recovery.validate_database(database)
+    # The way-back helpers expect the current schema to declare its real version.
+    with closing(sqlite3.connect(database)) as conn:
+        conn.execute(f"PRAGMA user_version={migrations.SCHEMA_VERSION}")
     to_v22(database)  # the v22 shape, now claiming 22
     recovery.validate_database(database)
     with closing(sqlite3.connect(database)) as conn:

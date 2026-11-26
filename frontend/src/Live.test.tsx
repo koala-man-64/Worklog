@@ -7,6 +7,9 @@ const mocks = vi.hoisted(() => ({ useData: vi.fn() }));
 vi.mock("./hooks", () => ({ useData: mocks.useData }));
 import { Live } from "./Live";
 
+const lastRead = (prefix: string) =>
+  mocks.useData.mock.calls.filter(([path]) => String(path).startsWith(prefix)).at(-1);
+
 const snapshot: LiveSnapshot = {
   generatedAt: "2026-11-14T12:00:00Z",
   windowMinutes: 60,
@@ -365,37 +368,33 @@ describe("Live", () => {
     // Every 15 seconds, not 5 (audit 3.7, P7): each poll reads the whole live picture.
     const user = userEvent.setup();
     render(<Live />);
-    expect(mocks.useData).toHaveBeenLastCalledWith(
+    expect(lastRead("/live?")).toEqual([
       "/live?windowMinutes=60&includeIdle=false",
       15_000,
       { keepPrevious: true },
-    );
+    ]);
+    expect(lastRead("/dependencies/waits")?.[1]).toBe(15_000);
     await user.click(screen.getByRole("button", { name: "15m" }));
-    expect(mocks.useData).toHaveBeenLastCalledWith(
-      "/live?windowMinutes=15&includeIdle=false",
-      15_000,
-      { keepPrevious: true },
-    );
+    expect(lastRead("/live?")?.[0]).toBe("/live?windowMinutes=15&includeIdle=false");
     await user.click(screen.getByRole("button", { name: "6h" }));
-    expect(mocks.useData).toHaveBeenLastCalledWith(
-      "/live?windowMinutes=360&includeIdle=false",
-      15_000,
-      { keepPrevious: true },
-    );
+    expect(lastRead("/live?")?.[0]).toBe("/live?windowMinutes=360&includeIdle=false");
     await user.click(screen.getByRole("checkbox", { name: "Show idle, stale and revoked agents" }));
-    expect(mocks.useData.mock.calls.at(-1)?.[0]).toContain("includeIdle=true");
+    expect(lastRead("/live?")?.[0]).toContain("includeIdle=true");
     await user.click(screen.getByRole("button", { name: "Pause live updates" }));
-    expect(mocks.useData.mock.calls.at(-1)?.[1]).toBeUndefined();
+    expect(lastRead("/live?")?.[1]).toBeUndefined();
+    expect(lastRead("/dependencies/waits")?.[1]).toBeUndefined();
     await user.click(screen.getByRole("button", { name: "Resume live updates" }));
-    expect(mocks.useData.mock.calls.at(-1)?.[1]).toBe(15_000);
+    expect(lastRead("/live?")?.[1]).toBe(15_000);
+    expect(lastRead("/dependencies/waits")?.[1]).toBe(15_000);
   });
 
   it("pins embedded mode to its roadmap without a selector", () => {
     render(<Live roadmapId="road-pinned" embedded />);
     expect(screen.queryByRole("combobox", { name: "Filter by roadmap" })).not.toBeInTheDocument();
-    expect(mocks.useData.mock.calls.at(-1)?.[0]).toBe(
+    expect(lastRead("/live?")?.[0]).toBe(
       "/live?windowMinutes=60&includeIdle=false&roadmapId=road-pinned",
     );
+    expect(lastRead("/dependencies/waits")?.[0]).toBe("/dependencies/waits?roadmapId=road-pinned");
     expect(screen.queryByRole("heading", { name: "Live", level: 1 })).not.toBeInTheDocument();
   });
 

@@ -115,6 +115,30 @@ def targets(conn: sqlite3.Connection, action: Any, payload: Any, applied: str | 
         holder = _holder(conn, payload.get("targetType"), payload.get("targetId"))
         if holder:
             add(*holder)
+    elif kind == "dependency":
+        if verb == "create":
+            ref = payload.get("context") or payload.get("dependent")
+            owner = (ref.get("type"), ref.get("id")) if isinstance(ref, dict) else (None, None)
+        else:
+            identity = _named(payload.get("id"))
+            dependency = conn.execute(
+                "SELECT coalesce(context_type,dependent_type),coalesce(context_id,dependent_id) "
+                "FROM dependencies WHERE id=?", (identity,),
+            ).fetchone() if identity else None
+            owner = tuple(dependency) if dependency else (None, None)
+        if owner[0] == "ticket" and (ticket_id := _named(owner[1])):
+            ticket = conn.execute("SELECT item_id FROM tickets WHERE id=?", (ticket_id,)).fetchone()
+            owner = ("item", ticket[0]) if ticket else (None, None)
+        holder = _holder(conn, *owner)
+        if holder:
+            add(*holder)
+            if holder[0] == "item":
+                item = conn.execute(
+                    "SELECT coalesce(s.roadmap_id,w.roadmap_id) FROM work_items w "
+                    "LEFT JOIN steps s ON s.id=w.step_id WHERE w.id=?", (holder[1],),
+                ).fetchone()
+                if item:
+                    add("roadmap", item[0])
     elif kind == "ticket":
         ticket = _named(applied)
         row = conn.execute("SELECT item_id FROM tickets WHERE id=?", (ticket,)).fetchone() if ticket else None

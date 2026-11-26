@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { commands } from "./commands";
+import { DependenciesPanel } from "./Dependencies";
 import { useCommand, useData, useWrites } from "./hooks";
 import { ChangeHistory } from "./sections/History";
 import { DraftField } from "./ui/DraftField";
@@ -525,6 +526,10 @@ function TicketView({ id }: { id: string }) {
           />
         )}
       </section>
+      <DependenciesPanel
+        target={{ type: "ticket", id: ticket.id }}
+        disabled={ticket.archived}
+      />
       <Comments ticket={ticket} />
       <ChangeHistory id={ticket.id} changes={ticket.history.length} />
     </>

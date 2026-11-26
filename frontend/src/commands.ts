@@ -22,6 +22,20 @@ export type ProposalVerb =
 export const commands = {
   createItem: (body: Schema["ItemCreate"]) =>
     request<Answer<"/api/v1/work-items", "post">>("/work-items", "POST", body),
+  createDependency: (body: Schema["DependencyCreate"]) =>
+    request<Answer<"/api/v1/dependencies", "post">>("/dependencies", "POST", body),
+  confirmDependency: (id: string, body: Schema["DependencyConfirm"]) =>
+    request<Answer<"/api/v1/dependencies/{identity}/confirm", "post">>(
+      `/dependencies/${encodeURIComponent(id)}/confirm`,
+      "POST",
+      body,
+    ),
+  archiveDependency: (id: string, body: Schema["Expected"]) =>
+    request<Answer<"/api/v1/dependencies/{identity}/archive", "post">>(
+      `/dependencies/${encodeURIComponent(id)}/archive`,
+      "POST",
+      body,
+    ),
   updateItem: (id: string, body: Schema["ItemUpdate"]) =>
     request<Answer<"/api/v1/work-items/{identity}", "patch">>(
       "/work-items/" + id,

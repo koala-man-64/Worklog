@@ -42,6 +42,7 @@ import {
 import { DecisionsSection, QuestionsSection } from "./QuestionsDecisions";
 import { AgentChips, AgentRoster, rosterOn, workersOn } from "./RoadmapAgents";
 import { AppliedProposals } from "./ProposalHistory";
+import { DependenciesPanel, DependencyCount } from "./Dependencies";
 import { RoadmapChats } from "./RoadmapChats";
 import {
   RoadmapExecution,
@@ -306,6 +307,11 @@ export function RoadmapDetail({
   const step = named ? undefined : sub;
   const addressed: View = named ?? (step ? "outline" : "status");
   const query = useData<Roadmap>("/roadmaps/" + id);
+  const dependencies = useData<Answer<"/api/v1/dependencies/roadmaps/{identity}">>(
+    `/dependencies/roadmaps/${encodeURIComponent(id)}`,
+    AGENTS_REFRESH,
+  );
+  const openByStep = dependencies.data?.openByStep ?? {};
   const action = useWrites();
   const [editing, setEditing] = useState(false);
   // The step whose own text is being edited, alone, apart from the structure editor.
@@ -565,6 +571,7 @@ export function RoadmapDetail({
             </li>
           );
         const items = roadWorkItems.filter((w) => w.stepId === s.id).length;
+        const openDependencies = openByStep[s.id] ?? 0;
         const placed = workers.length
           ? workersOn(workers, closed ? subtree(s.id) : new Set([s.id]))
           : [];
@@ -593,6 +600,7 @@ export function RoadmapDetail({
                   s.agentActive ||
                   items > 0 ||
                   placed.length > 0 ||
+                  openDependencies > 0 ||
                   stepRepos.length > 0 ||
                   Boolean(s.workClass)) && (
                   <span className="step-meta">
@@ -607,6 +615,7 @@ export function RoadmapDetail({
                         {items} work item{items === 1 ? "" : "s"}
                       </small>
                     )}
+                    <DependencyCount count={openDependencies} />
                     {s.workClass && (
                       <span className={`exec-pill wc-${s.workClass}`}>
                         {workClassLabel(s.workClass)}
@@ -722,6 +731,11 @@ export function RoadmapDetail({
       ) : (
         <p className="muted">No description yet. Add one with Edit step.</p>
       )}
+      <DependenciesPanel
+        key={selected.id}
+        target={{ type: "step", id: selected.id }}
+        disabled={road.archived}
+      />
       <section>
         <h3>
           Work items <span className="count">{selectedItems.length}</span>
@@ -790,6 +804,7 @@ export function RoadmapDetail({
         ordered={ordered}
         workers={workers}
         stepTitle={stepTitle}
+        openByStep={openByStep}
       />
       <section>
         <h3>Overview</h3>
@@ -917,6 +932,7 @@ export function RoadmapDetail({
   const shown = VIEWS.find((v) => v.id === view)!;
   return (
     <div className="bounded-screen">
+      <ErrorMessage error={dependencies.error} />
       <header className="roadmap-head">
         <div className="roadmap-eyebrow">
           <nav className="crumbs" aria-label="Roadmap location">
@@ -1258,7 +1274,7 @@ export function RoadmapDetail({
           </div>
         </div>
       ) : view === "execution" ? (
-        <RoadmapExecution roadmapId={id} archived={road.archived} />
+        <RoadmapExecution roadmapId={id} archived={road.archived} openByStep={openByStep} />
       ) : view === "chats" ? (
         <RoadmapChats road={road} chat={chat} />
       ) : view === "discussions" ? (
@@ -1313,6 +1329,7 @@ function StatusBoard({
   ordered,
   workers,
   stepTitle,
+  openByStep,
 }: {
   id: string;
   road: Roadmap;
@@ -1321,6 +1338,7 @@ function StatusBoard({
   ordered: Step[];
   workers: RoadmapWorker[];
   stepTitle: (id: string) => string;
+  openByStep: Record<string, number>;
 }) {
   // Agents propose as they work, so what waits on the person refreshes as their places do.
   const board = useData<Answer<"/api/v1/roadmaps/{identity}/board">>(
@@ -1355,6 +1373,8 @@ function StatusBoard({
     return s ? [{ step: s, at: d.doneAt }] : [];
   });
   const needs = questions.length + blocked.length + waiting.length;
+  const dependencyBlocked = ordered.filter((s) => (openByStep[s.id] ?? 0) > 0);
+  const dependencyCount = Object.values(openByStep).reduce((total, count) => total + count, 0);
   const outline = viewAddress(id, "outline");
   const stepRow = (s: Step, aside?: React.ReactNode) => {
     const phase = phaseOf.get(s.id);
@@ -1390,6 +1410,17 @@ function StatusBoard({
   return (
     <div className="roadmap-board">
       <ErrorMessage error={board.error} />
+      {dependencyCount > 0 && (
+        <section aria-label="Open dependency blockers">
+          <h3>Open dependencies <span className="count">{dependencyCount}</span></h3>
+          <ul className="board-list">
+            {dependencyBlocked.slice(0, BOARD_ROWS).map((step) =>
+              stepRow(step, <DependencyCount count={openByStep[step.id] ?? 0} />),
+            )}
+          </ul>
+          {more(dependencyBlocked.length - BOARD_ROWS, "steps with open dependencies", outline)}
+        </section>
+      )}
       {/* A plan without phases has nothing here the progress bar above doesn't say. */}
       {phases.some((p) => tree.has(p.id)) && (
         <section className="board-phases">

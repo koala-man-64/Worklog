@@ -6,7 +6,7 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
-from . import search, support
+from . import dependencies, search, support
 from .common import AppError
 from .coordination import repository_apply
 from .db import Database
@@ -38,6 +38,11 @@ class WorkService:
             if action.startswith("resource."):
                 return self.resources.apply(c, actor, action, p)
             return self.tickets.apply(c, proposer_identity(c, actor), action, p)
+        if action.startswith("dependency."):
+            author = proposer_identity(c, actor) if proposed else actor
+            if action == "dependency.create":
+                return dependencies.create(c, author, p, proposed=proposed)
+            return dependencies.transition(c, author, action.removeprefix("dependency."), p, proposed=proposed)
         if action.startswith("repository."):
             return repository_apply(c, actor, action, p)
         if action.startswith("item."):

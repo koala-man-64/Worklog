@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 from pydantic import ValidationError
 
 from . import coordination_models as cm
+from . import dependency_models as dm
 from . import models as m
 from .common import AppError
 
@@ -60,6 +61,9 @@ OPERATIONS: dict[str, Spec] = {
     "repository.update": _existing(cm.RepositoryUpdate),
     "repository.archive": _existing(m.Expected),
     "repository.recover": _existing(m.Expected),
+    "dependency.create": _new(dm.DependencyCreate),
+    "dependency.confirm": _existing(dm.DependencyConfirm),
+    "dependency.archive": _existing(m.Expected),
     "item.create": _new(m.ItemCreate),
     "item.update": _existing(m.ItemUpdate),
     "item.archive": _existing(m.Expected),

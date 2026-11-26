@@ -14,9 +14,53 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from .dependency_models import DependencyType
+
 
 class Answer(BaseModel):
     model_config = ConfigDict(extra="forbid")
+
+
+class DependencyEndpoint(Answer):
+    type: DependencyType
+    id: str
+    title: str
+    available: bool
+    roadmapId: str | None
+    mergedInto: str | None
+
+
+class DependencyConfirmation(Answer):
+    confirmedAt: str
+    confirmedBy: str
+    note: str
+
+
+class DependencyLink(Answer):
+    id: str
+    kind: Literal["catalog", "shared", "wait"]
+    dependent: DependencyEndpoint
+    prerequisite: DependencyEndpoint
+    context: DependencyEndpoint | None
+    condition: str
+    state: Literal["linked", "waiting", "satisfied", "unavailable"]
+    confirmation: DependencyConfirmation | None
+    reportedByAgentId: str | None
+    revision: int | None
+    archived: bool
+
+
+class Dependencies(Answer):
+    prerequisites: list[DependencyLink]
+    dependents: list[DependencyLink]
+
+
+class RoadmapDependencies(Answer):
+    openByStep: dict[str, int]
+
+
+class DependencyWaits(Answer):
+    items: list[DependencyLink]
 
 
 class Note(Answer):
