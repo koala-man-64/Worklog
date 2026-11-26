@@ -55,9 +55,12 @@ def token_for(data_dir: Path, port: int, name: str) -> str:
     return json.loads(path.read_text(encoding="utf-8"))["token"]
 
 
-@pytest.mark.parametrize("provider", ["codex", "claude"])
+@pytest.mark.parametrize(("parent_provider", "provider", "requested_model"), [
+    ("claude", "codex", "gpt-6.1-sol"),
+    ("codex", "claude", "claude-sonnet-5-5"),
+])
 def test_chats_start_prepares_once_registers_child_and_delivers_parent_ask(
-    tmp_path, monkeypatch, capsys, provider
+    tmp_path, monkeypatch, capsys, parent_provider, provider, requested_model,
 ):
     cli_data = tmp_path / "cli-data"
     cwd = tmp_path / f"{provider}-workspace"
@@ -66,8 +69,8 @@ def test_chats_start_prepares_once_registers_child_and_delivers_parent_ask(
     model = f"{provider}-test-model"
     prepare_calls = []
 
-    def prepare(actual_provider, actual_cwd, prompt, *, allow_non_git=False):
-        prepare_calls.append((actual_provider, actual_cwd, prompt, allow_non_git))
+    def prepare(actual_provider, actual_cwd, prompt, *, requested_options, allow_non_git=False):
+        prepare_calls.append((actual_provider, actual_cwd, prompt, requested_options, allow_non_git))
         return chat_id, model
 
     monkeypatch.setattr(local_sessions, "_prepare_session", prepare)
@@ -79,13 +82,14 @@ def test_chats_start_prepares_once_registers_child_and_delivers_parent_ask(
             sponsor_token = issue(person)["token"]
 
         monkeypatch.setenv("WORKLOG_AGENT_TOKEN", sponsor_token)
+        parent_name = f"{parent_provider}-parent"
         parent = invoke_cli(
             capsys,
             cli_data,
             port,
-            "agent", "register", "--chat", str(uuid.uuid4()), "--name", "parent", "--label", "Parent",
+            "agent", "register", "--chat", str(uuid.uuid4()), "--name", parent_name, "--label", f"{parent_provider} parent",
         )
-        parent_token = token_for(cli_data, port, "parent")
+        parent_token = token_for(cli_data, port, parent_name)
         with httpx.Client(base_url=url, trust_env=False) as api:
             parent_self = api.get("/api/v1/agent-registrations/self", headers=bearer(parent_token))
             parent_self.raise_for_status()
@@ -93,14 +97,15 @@ def test_chats_start_prepares_once_registers_child_and_delivers_parent_ask(
         assert parent_identity["agentId"] == parent["agentId"]
 
         start_args = (
-            "agent", "--as", "parent", "chats", "start",
+            "agent", "--as", parent_name, "chats", "start",
             "--provider", provider,
             "--cwd", str(cwd),
             "--label", f"Child {provider.title()}",
             "--request-id", f"start-{provider}-request-1",
         )
-        created = invoke_cli(capsys, cli_data, port, *start_args)
-        repeated = invoke_cli(capsys, cli_data, port, *start_args)
+        options = ("--model", requested_model, "--reasoning-effort", "low")
+        created = invoke_cli(capsys, cli_data, port, *start_args, *options)
+        repeated = invoke_cli(capsys, cli_data, port, *start_args, *options)
 
         assert created == repeated
         assert created["state"] == "created"
@@ -110,9 +115,17 @@ def test_chats_start_prepares_once_registers_child_and_delivers_parent_ask(
         assert created["name"].startswith("session-")
         assert created["agentId"]
         assert created["model"] == model
+        selected = {"requestedModel": requested_model, "reasoningEffort": "low"}
+        assert {key: created[key] for key in selected} == selected
+        for changed in (("--model", "other-model", "--reasoning-effort", "low"),
+                        ("--model", requested_model, "--reasoning-effort", "medium")):
+            status = cli.main(["--data-dir", str(cli_data), "--port", str(port), *start_args, *changed])
+            rejected = capsys.readouterr()
+            assert status == 1 and "different provider, directory, label, model or effort" in rejected.err
         assert len(prepare_calls) == 1
-        prepared_provider, prepared_cwd, prompt, allow_non_git = prepare_calls[0]
+        prepared_provider, prepared_cwd, prompt, prepared_options, allow_non_git = prepare_calls[0]
         assert (prepared_provider, prepared_cwd, allow_non_git) == (provider, str(cwd.resolve()), True)
+        assert prepared_options == selected
         assert created["name"] in prompt and "WORKLOG_READY" in prompt
         worklog_command = [
             sys.executable, "-m", "worklog.cli", "--data-dir", str(cli_data),

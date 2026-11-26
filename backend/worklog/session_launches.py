@@ -30,6 +30,7 @@ from .claude_settings import require_claude_settings
 from .common import AppError, now
 from .db import Database
 from .leases import LeaseService, policy_record, repository_slot_summaries
+from .models import CLAUDE_SESSION_EFFORTS
 from .records import get_item
 from .registry import AgentRegistry
 from .repository_links import linked_repositories
@@ -471,7 +472,7 @@ class SessionLauncher:
         effort = payload.get("reasoningEffort")
         if provider == "antigravity" and (model is not None or effort is not None):
             raise AppError(422, "validation", "Model and reasoning settings are available for Codex and Claude")
-        if provider == "claude" and effort is not None and effort not in {"low", "medium", "high", "xhigh", "max"}:
+        if provider == "claude" and effort is not None and effort not in CLAUDE_SESSION_EFFORTS:
             raise AppError(422, "validation", "Choose low, medium, high, xhigh, or max for Claude",
                            {"reasoningEffort": "invalid"})
         return {key: value for key, value in (("requestedModel", model), ("reasoningEffort", effort))

@@ -1030,6 +1030,8 @@ def start_local_chat_command(client: AgentClient, args: argparse.Namespace, reda
         worklog_command=worklog_command,
         prepare_credential=prepare_credential,
         register_child=register_child,
+        model=args.model,
+        reasoning_effort=args.reasoning_effort,
     )
     child_id = result.get("agentId") if isinstance(result, dict) else None
     child_chat = result.get("chatId") if isinstance(result, dict) else None
@@ -1503,6 +1505,8 @@ def _coordination_parser(actions: Any) -> None:
     start.add_argument("--provider", choices=("codex", "claude"), required=True)
     start.add_argument("--cwd", metavar="DIR", help="Working directory for the provider session (default: current directory)")
     start.add_argument("--label", help="How the child agent appears in Worklog")
+    start.add_argument("--model", help="Provider model ID or alias for the preparation turn")
+    start.add_argument("--reasoning-effort", metavar="LEVEL", help="Provider reasoning effort for the preparation turn")
     write(start)
 
 

@@ -118,6 +118,11 @@ class ChatCreate(Command):
     stepIds: list[str] = Field(default_factory=list)
 
 
+SESSION_MODEL_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9_.:/+\[\]-]*$"
+CLAUDE_SESSION_EFFORTS = ("low", "medium", "high", "xhigh", "max")
+SessionReasoningEffort = Literal["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra", "persistent"]
+
+
 class SessionStart(Command):
     provider: Literal["codex", "claude", "antigravity"]
     repositoryId: str | None = Field(default=None, min_length=1, max_length=200)
@@ -126,8 +131,8 @@ class SessionStart(Command):
     mode: Literal["shared", "exclusive"] = "shared"
     priority: Literal["normal", "pr_fixup", "wave", "incident"] = "normal"
     prompt: str = Field(min_length=1, max_length=12000)
-    model: str | None = Field(default=None, max_length=200, pattern=r"^[A-Za-z0-9][A-Za-z0-9_.:/+\[\]-]*$")
-    reasoningEffort: Literal["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra", "persistent"] | None = None
+    model: str | None = Field(default=None, max_length=200, pattern=SESSION_MODEL_PATTERN)
+    reasoningEffort: SessionReasoningEffort | None = None
 
 
 class AgentChatOpen(Command):

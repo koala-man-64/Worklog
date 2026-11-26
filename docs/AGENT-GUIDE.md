@@ -82,6 +82,7 @@ Records are archived, never deleted, and only the person archives or recovers th
 | Read work, days, roadmaps, steps, dispatch views, waves, repository queues, people, notes, tickets, resources, discussions, repositories, runs and proposals | yes | yes | - |
 | Read chat transcripts, the Claude Code sessions running on the person's machine, the Agents page, Settings, credentials, backups or the export | yes | no | - |
 | Prepare a Codex or Claude desktop session from a work item; read launch status or open that session | yes | no | - |
+| Start a local Codex or Claude child chat under your registered identity with `chats start` | - | yes | - |
 | Change work items, day entries, notes, roadmaps, progress, steps (including `step.create`, `step.split`, `step.move`), waves (`wave.create`, `wave.update`, `wave.steps`), people, links, tracked chats, GitHub references, questions or decisions | yes | no | yes |
 | Report consumer re-pin progress against a frozen wave repository (`waves repin`) | yes | yes (`in_progress`) | - |
 | Change wave status, freeze or unfreeze wave repositories, verify or waive re-pins, archive or recover waves, or reorder repository queues | yes | no | no |
@@ -350,7 +351,7 @@ worklog agent --as NAME proposal withdraw PROPOSAL_ID --revision 4
 | `updates list` | `[--repo ID] [--item ID] [--participation ID] [--limit 50] [--offset 0]` | - | - | updates as posted |
 | `updates post` | `--participation ID` and either `--text TEXT [--kind update\|blocker]` or `--file FILE` | - | required | immutable; advances the participation's revision |
 | `chats track` | `--item ITEM_ID`, or `--roadmap ROADMAP_ID [--step STEP_ID]` (repeat `--step`); `[--title TITLE] [--provider PROVIDER] [--model MODEL]` | - | required | tracks the chat you registered with there, and prints it with `created`; where it is tracked already, adds the steps you name |
-| `chats start` | `--provider codex\|claude [--cwd DIR] [--label LABEL]` | - | required | runs the installed provider CLI on this machine and registers its new chat as a child agent. See section 5.10. |
+| `chats start` | `--provider codex\|claude [--cwd DIR] [--label LABEL] [--model MODEL] [--reasoning-effort LEVEL]` | - | required | runs the installed provider CLI on this machine and registers its new chat as a child agent. See section 5.10. |
 | `dependencies report` | `--prerequisite-type TYPE --prerequisite-id UUID --context-type TYPE --context-id UUID --condition TEXT` | - | required | reports a wait as your own; prerequisite type may be repository, step, item, ticket or agent, while context type may be repository, step, item or ticket; ticket IDs are UUIDs |
 | `dependencies confirm ID` | `--revision N [--note TEXT]` | yes | required | confirms your own reported wait when its condition is met |
 | `dependencies archive ID` | `--revision N` | yes | required | archives your own reported wait |
@@ -704,34 +705,54 @@ Worklog stores pending notices while the receiver is disconnected. Reconnecting 
 
 When an existing agent owns the work, address its `agentId` directly. When you need a fresh recipient, run `chats start` as your own registered identity. The command uses the selected provider's installed CLI and local profile, completes a short preparation turn in the chosen directory, and registers the saved chat with Worklog. The directory defaults to your current folder.
 
-To send an assignment that the child can receive by push, enroll it before posting. Worklog queues the notice until the receiver connects.
+Use the starting agent's registered Worklog name for `--as` and the new chat's provider for `--provider`. `--model` takes a provider model ID or alias. `--reasoning-effort` takes an effort level supported by that provider and model. Each flag is optional. The provider chooses the default for an omitted flag. Claude accepts `low`, `medium`, `high`, `xhigh`, and `max`. Codex also accepts `none`, `minimal`, `ultra`, and `persistent`. Confirm model availability with the installed provider.
+
+**Claude Code starts Codex**
 
 ```powershell
-$child = worklog agent --as PARENT chats start --provider codex --cwd . --label 'Review agent' --request-id review-T12-session | ConvertFrom-Json
-$exe, $childArgs = $child.worklogCommand
-$enrollment = & $exe @childArgs push enroll --provider $child.provider --chat $child.chatId --request-id review-T12-enroll | ConvertFrom-Json
-worklog agent --as PARENT discussions post --text 'Please review the change.' --context ticket:T-12 --ask $child.agentId --request-id review-T12-ask
+$codexChild = worklog agent --as CLAUDE_PARENT chats start --provider codex --cwd . `
+  --model gpt-6.1-sol --reasoning-effort low --label 'Codex reviewer' `
+  --request-id review-T12-codex-session | ConvertFrom-Json
 ```
 
-For a Claude Code chat, use `--provider claude` in the same workflow. A standalone launch also prints the receipt as JSON.
+**Codex starts Claude Code**
 
 ```powershell
-worklog agent --as PARENT chats start --provider claude --cwd . --label 'Claude reviewer' --request-id claude-T12-session
+$claudeChild = worklog agent --as CODEX_PARENT chats start --provider claude --cwd . `
+  --model claude-sonnet-5-5 --reasoning-effort low --label 'Claude reviewer' `
+  --request-id review-T12-claude-session | ConvertFrom-Json
 ```
 
-The receipt includes the Worklog recipient (`agentId`) and provider conversation (`chatId`). The child learns its exact CLI and arguments (`worklogCommand`) on its first turn. They select the same Worklog instance and the child's own named credential, including when the parent uses a custom URL or data directory. The parent's credential stays out of the provider process.
+The receipt includes `agentId` for Worklog requests, `chatId` for provider resume, and the chosen `requestedModel` and `reasoningEffort` when supplied. `model` is the model the provider reports when available. The child learns its exact CLI and arguments (`worklogCommand`) on its first turn. They select the same Worklog instance and the child's own named credential, including when the parent uses a custom URL or data directory. The parent's credential stays out of the provider process. The work-item launch route (`POST /api/v1/work-items/{id}/sessions`) requires the person's local browser session.
 
-For the Codex example above, keep this connector running on the same machine. It can wake the saved conversation for the first assignment and later requests.
+The launch flags apply to the preparation turn. To explicitly use the same choices when resuming in the provider's terminal, run the appropriate command in the returned `cwd` with the child's provider profile. For a one-off Codex turn outside a Git repository, use `codex exec resume --skip-git-repo-check` with the same model and config flags.
 
 ```powershell
-& $exe @childArgs push connect --enrollment-id $enrollment.id --chat $child.chatId --resume
+codex resume $codexChild.chatId --model gpt-6.1-sol --config 'model_reasoning_effort="low"'
+claude --resume $claudeChild.chatId --model claude-sonnet-5-5 --effort low
 ```
 
-For Claude Code, start its interactive channel as described in section 5.9 using the returned child command followed by `push channel` and the enrollment and chat IDs. Open Claude in the child's own terminal and provider environment. For either provider, you can also open the saved conversation in that environment from the returned `cwd` with `codex resume CHAT_ID` or `claude --resume CHAT_ID`. For a one-off Codex turn outside a Git repository, use `codex exec resume --skip-git-repo-check CHAT_ID PROMPT`.
+For Claude Desktop, set the matching `model` and `env.CLAUDE_CODE_EFFORT_LEVEL` in `.claude/settings.local.json` in the child's folder before opening the chat. If the file sets `env.ANTHROPIC_MODEL`, use the same model there. `chats start` uses the chosen working directory as-is. The person's **Start session** workflow can set up a dedicated Worklog checkout automatically.
+
+To send an assignment by push, enroll the child before posting. Use the matching parent name and returned receipt for either provider. In this example Claude Code assigns work to the Codex child. Worklog queues the notice until the receiver connects.
+
+```powershell
+$exe, $childArgs = $codexChild.worklogCommand
+$enrollment = & $exe @childArgs push enroll --provider $codexChild.provider --chat $codexChild.chatId --request-id review-T12-codex-enroll | ConvertFrom-Json
+worklog agent --as CLAUDE_PARENT discussions post --text 'Please review the change.' --context ticket:T-12 --ask $codexChild.agentId --request-id review-T12-codex-ask
+```
+
+For Codex, keep this connector running on the same machine to wake the saved conversation for the first assignment and later requests. The connector uses the provider's settings for the resumed chat.
+
+```powershell
+& $exe @childArgs push connect --enrollment-id $enrollment.id --chat $codexChild.chatId --resume
+```
+
+For Claude Code, start its interactive channel as described in section 5.9 using the returned child command followed by `push channel` and the enrollment and chat IDs. Give that `claude --resume` invocation the `--model` and `--effort` values you chose for the child.
 
 The child can receive Worklog requests immediately after registration. Reading its inbox also finds requests sent before enrollment. Its parent sponsors the identity. Retiring or revoking the parent revokes credentials it issued to its children.
 
-Use the same request ID, provider, directory and label to retry on the same machine and Worklog data directory. The local receipt preserves the confirmed chat ID across registration failures. If the provider may have started but returned no usable ID, inspect its saved sessions before issuing a new launch request.
+Use the same request ID, provider, directory, label, model and effort to retry on the same machine and Worklog data directory. The local receipt preserves the confirmed chat ID across registration failures. If the provider may have started but returned no usable ID, inspect its saved sessions before issuing a new launch request.
 
 ## 6. Proposals
 
