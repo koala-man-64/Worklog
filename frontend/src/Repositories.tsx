@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useData, useWrites } from "./hooks";
+import { DependenciesPanel } from "./Dependencies";
 import { commands } from "./commands";
 import { Files } from "./sections/Files";
 import { PeopleLinks } from "./sections/PeopleLinks";
@@ -542,6 +543,10 @@ function RepositoryDetail({ id }: { id: string }) {
         </>
       )}
       <LinkedWork repo={repo} />
+      <DependenciesPanel
+        target={{ type: "repository", id: repo.id }}
+        disabled={repo.archived || !!repo.mergedInto}
+      />
       {!repo.mergedInto && <RepositorySlotsSection repo={repo} />}
       {!repo.mergedInto && <RepositoryExecutionPolicy repo={repo} />}
       {!repo.mergedInto && <RepositoryQueueSection repo={repo} />}

@@ -1,0 +1,41 @@
+{
+  "body": {
+    "archived": true,
+    "condition": "Draft the release notes",
+    "confirmation": {
+      "confirmedAt": "<time.ffffff+hh:mm>",
+      "confirmedBy": "Builder",
+      "note": "Release notes drafted"
+    },
+    "context": {
+      "available": true,
+      "id": "<id4>",
+      "mergedInto": null,
+      "roadmapId": "<id5>",
+      "title": "Child",
+      "type": "step"
+    },
+    "dependent": {
+      "available": true,
+      "id": "<id2>",
+      "mergedInto": null,
+      "roadmapId": null,
+      "title": "Builder",
+      "type": "agent"
+    },
+    "id": "<id1>",
+    "kind": "wait",
+    "prerequisite": {
+      "available": true,
+      "id": "<id3>",
+      "mergedInto": null,
+      "roadmapId": null,
+      "title": "Release notes",
+      "type": "item"
+    },
+    "reportedByAgentId": "<id2>",
+    "revision": 3,
+    "state": "satisfied"
+  },
+  "status": 200
+}

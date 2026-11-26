@@ -270,6 +270,26 @@ class World:
                                                                "deadlineSeconds": 3600}})
 
 
+        dependency = self.write(p, "POST", "/dependencies", {
+            "dependent": {"type": "step", "id": child},
+            "prerequisite": {"type": "ticket", "id": ids["ticket"]},
+        })
+        ids["dependency"] = dependency["id"]
+        scope = {"type": "step", "id": child}
+        self.write(a, "POST", "/dependencies/waits", {
+            "context": scope, "prerequisite": {"type": "ticket", "id": ids["ticket"]},
+            "condition": "Review the parser change",
+        })
+        resolved = self.write(a, "POST", "/dependencies/waits", {
+            "context": scope, "prerequisite": {"type": "item", "id": ids["other"]},
+            "condition": "Draft the release notes",
+        })
+        confirmed = self.write(a, "POST", f"/dependencies/{resolved['id']}/confirm", {
+            "revision": resolved["revision"], "note": "Release notes drafted",
+        })
+        self.write(a, "POST", f"/dependencies/{resolved['id']}/archive", {"revision": confirmed["revision"]})
+
+
 # A read's other forms, each its own golden file: the context's summary is its default (audit 3.5).
 VARIANTS = {"/context": ("detail=full",)}
 
@@ -278,12 +298,14 @@ def concrete(template: str, ids: dict[str, str], today: str) -> str:
     """The template with this world's records in it, and the query parameters a read needs."""
     owner = {"/attachments": f"?ownerType=item&ownerId={ids['item']}", "/history": f"?entityId={ids['item']}",
              "/coordination-overlaps": f"?itemId={ids['item']}", "/owners": f"?ref={ids['ticketRef']}",
+             "/dependencies": f"?type=step&id={ids['step']}",
              "/search": "?q=parser", "/repositories/resolve": "?url=https://github.com/example/worklog"}
     by_prefix = [("/work-items/", "item"), ("/notes/", "note"), ("/links/", "link"),
                  ("/references/", "reference"), ("/attachments/", "attachment"), ("/roadmaps/", "roadmap"),
                  ("/steps/", "step"), ("/questions/", "question"), ("/decisions/", "decision"),
                  ("/github/", "github"), ("/chats/", "chat"), ("/people/", "person"), ("/resources/", "resource"),
                  ("/repositories/", "repository"), ("/waves/", "wave"),
+                 ("/dependencies/roadmaps/", "roadmap"), ("/dependencies/", "dependency"),
                  ("/discussions/messages/", "message"),
                  ("/discussions/participants/", "agent"), ("/discussions/", "discussion"), ("/agents/", "agent"),
                  ("/agent-runs/", "run"), ("/participations/", "participation"), ("/leases/", "lease"), ("/proposals/", "proposal")]
@@ -298,10 +320,13 @@ def concrete(template: str, ids: dict[str, str], today: str) -> str:
 def normalized(value: object, names: dict[str, str], today: str) -> object:
     """value with each ID named by its first appearance, each time as <time>, and today as <today>."""
     if isinstance(value, dict):
-        return {key: KEYED[key] if key in KEYED and isinstance(item, str)
-                else KEYED_NUMBERS[key] if key in KEYED_NUMBERS and isinstance(item, int)
-                else normalized(item, names, today)
-                for key, item in value.items()}
+        return {
+            (normalized(key, names, today) if UUID.fullmatch(key) else key):
+            KEYED[key] if key in KEYED and isinstance(item, str)
+            else KEYED_NUMBERS[key] if key in KEYED_NUMBERS and isinstance(item, int)
+            else normalized(item, names, today)
+            for key, item in value.items()
+        }
     if isinstance(value, list):
         return [normalized(item, names, today) for item in value]
     if isinstance(value, str):

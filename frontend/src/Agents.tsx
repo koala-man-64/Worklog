@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import { getDataContext } from "./api";
+import { DependenciesPanel } from "./Dependencies";
 import { Avatar } from "./Avatar";
 import { Icon } from "./icons";
 import { useData } from "./hooks";
@@ -618,6 +619,7 @@ function AgentView({ id }: { id: string }) {
           <p className="muted">No responsibility roles owned.</p>
         )}
       </section>
+      <DependenciesPanel target={{ type: "agent", id }} />
       <section>
         <h2>From its work</h2>
         <p className="muted">

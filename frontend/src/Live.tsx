@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import { Avatar } from "./Avatar";
+import { LiveDependencyWaits } from "./Dependencies";
 import { useData } from "./hooks";
 import { Empty, ErrorMessage } from "./ui/Messages";
 import type {
@@ -308,6 +309,7 @@ export function Live({
         </label>
       </div>
 
+      <LiveDependencyWaits roadmapId={roadmapId} paused={paused} refreshMs={LIVE_REFRESH_MS} />
       <ErrorMessage error={query.error} />
       {!snapshot && query.isPending && <p className="live-loading">Reading current activity...</p>}
       {snapshot && (

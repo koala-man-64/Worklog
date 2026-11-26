@@ -1,4 +1,4 @@
-"""The v36 push schema adds no rows and preserves every pre-existing v35 record."""
+"""The v36 push and v37 dependency schemas preserve pre-existing records."""
 
 from __future__ import annotations
 
@@ -11,9 +11,10 @@ from worklog.db import Database
 from worklog.migrations import SCHEMA_VERSION
 
 V36_TABLES = ("push_enrollments", "push_subscriptions", "push_deliveries")
+V37_TABLES = ("dependencies",)
 
 
-def test_v35_upgrade_preserves_existing_records_and_does_not_backfill_push_state(tmp_path):
+def test_v35_and_populated_v36_upgrades_preserve_existing_records(tmp_path):
     path = tmp_path / "v35.sqlite3"
     sealed.build(path, 35)
     with closing(sqlite3.connect(path)) as conn:
@@ -65,7 +66,7 @@ def test_v35_upgrade_preserves_existing_records_and_does_not_backfill_push_state
     Database(path).initialize()
 
     after_version, after_shape, after_rows = contents(path)
-    assert SCHEMA_VERSION == after_version == 36
+    assert SCHEMA_VERSION == after_version == 37
     assert after_shape == sealed.current()
     for table, rows in before_rows.items():
         if table == "discussion_messages":
@@ -73,5 +74,42 @@ def test_v35_upgrade_preserves_existing_records_and_does_not_backfill_push_state
             assert [row[-1] for row in after_rows[table]] == [None] * len(rows)
         else:
             assert after_rows[table] == rows, table
-    for table in V36_TABLES:
+    for table in (*V36_TABLES, *V37_TABLES):
         assert after_rows[table] == []
+
+    # Populate records introduced in T-26's v36, then project only the v37 table away. The normal
+    # startup upgrade must preserve those records byte-for-byte while creating dependencies empty.
+    stamp = "2026-11-26T00:00:00+00:00"
+    with closing(sqlite3.connect(path)) as conn:
+        conn.execute(
+            "INSERT INTO discussion_messages(id,discussion_id,text,author_id,author_label,author_kind,created_at,reply_to_message_id) "
+            "VALUES('reply','discussion','Reply','agent','Agent','agent',?,'message')", (stamp,)
+        )
+        conn.execute(
+            "INSERT INTO push_enrollments(id,credential_id,provider,chat_id,created_at,updated_at) "
+            "VALUES('enrollment','credential','codex','chat-1',?,?)", (stamp, stamp)
+        )
+        conn.execute(
+            "INSERT INTO push_subscriptions(id,enrollment_id,subject_type,subject_id,created_at,updated_at) "
+            "VALUES('watch','enrollment','run','run',?,?)", (stamp, stamp)
+        )
+        conn.execute(
+            "INSERT INTO push_deliveries(id,enrollment_id,source_event_id,kind,subject_type,subject_id,discussion_id,message_id,state,created_at,updated_at) "
+            "VALUES('delivery','enrollment','event','discussion.ask','discussion','discussion','discussion','message','pending',?,?)",
+            (stamp, stamp),
+        )
+        assert conn.execute("SELECT count(*) FROM dependencies").fetchone()[0] == 0
+        conn.execute("DROP TABLE dependencies")
+        conn.execute("PRAGMA user_version=36")
+        conn.commit()
+
+    v36_version, v36_shape, v36_rows = contents(path)
+    assert v36_version == 36
+    assert v36_shape == sealed.shape(36)
+    Database(path).initialize()
+    upgraded_version, upgraded_shape, upgraded_rows = contents(path)
+    assert upgraded_version == SCHEMA_VERSION == 37
+    assert upgraded_shape == sealed.current()
+    for table, rows in v36_rows.items():
+        assert upgraded_rows[table] == rows, table
+    assert upgraded_rows["dependencies"] == []

@@ -11,6 +11,7 @@ and changes nothing. It reports each check with how many problems it found and t
 
 - integrity: SQLite's integrity_check and foreign_key_check;
 - references: a record that names a type its table never takes, or a record that is gone;
+- dependencies: typed dependency endpoints, agent waits with their work context, and cycles in shared prerequisites;
 - steps: a step whose parent is gone or on another roadmap;
 - trackedChats: one chat tracked twice on the same record;
 - searchIndex: FTS5's own integrity check;
@@ -33,6 +34,7 @@ from .recovery import _readonly, copy_database
 EXAMPLES = 5
 # The table of each kind of record that other records name by type and id.
 TABLES = {"item": "work_items", "roadmap": "roadmaps", "step": "steps", "repository": "repositories",
+          "agent": "communication_agents",
           "person": "people", "resource": "resources", "proposal": "proposals", "ticket": "tickets",
           "question": "roadmap_questions", "decision": "roadmap_decisions"}
 # What names a record by type and id, with the types each takes: those its CHECK allows (since v23,
@@ -44,6 +46,9 @@ REFERENCES = [
     ("agent_chats", "owner_type", "owner_id", ("item", "roadmap")),
     ("github_refs", "owner_type", "owner_id", ("item", "roadmap")),
     ("proposal_targets", "target_type", "target_id", ("item", "roadmap")),
+    ("dependencies", "dependent_type", "dependent_id", ("repository", "step", "item", "ticket", "agent")),
+    ("dependencies", "prerequisite_type", "prerequisite_id", ("repository", "step", "item", "ticket", "agent")),
+    ("dependencies", "context_type", "context_id", ("repository", "step", "item", "ticket")),
     ("person_links", "target_type", "target_id", ("item", "roadmap", "repository")),
     ("discussion_contexts", "context_type", "context_id",
      ("item", "roadmap", "step", "repository", "ticket", "person", "resource", "question", "decision")),
@@ -77,7 +82,8 @@ def doctor_database(db_path: Path | str) -> dict[str, Any]:
             if version != SCHEMA_VERSION:
                 raise ValueError(f"The database is at schema version {version}: start Worklog once to upgrade it "
                                  f"to version {SCHEMA_VERSION}, then check it")
-            checks = {"integrity": _integrity(conn), "references": _references(conn), "steps": _steps(conn),
+            checks = {"integrity": _integrity(conn), "references": _references(conn), "dependencies": _dependencies(conn),
+                      "steps": _steps(conn),
                       "trackedChats": _tracked_chats(conn), "searchIndex": _search_index(conn),
                       "searchKeys": _search_keys(conn), "leases": _leases(conn), "waves": _waves(conn)}
     return {"ok": not any(check["problems"] for check in checks.values()), "checks": checks}
@@ -133,6 +139,64 @@ def _steps(conn: sqlite3.Connection) -> dict[str, Any]:
             "SELECT s.id,s.parent_id FROM steps s LEFT JOIN steps p ON p.id=s.parent_id "
             "WHERE s.parent_id IS NOT NULL AND (p.id IS NULL OR p.roadmap_id<>s.roadmap_id) ORDER BY s.id"):
         found.add({"step": step, "parent": parent, "problem": "its parent is gone or on another roadmap"})
+    return found.report()
+
+
+def _dependencies(conn: sqlite3.Connection) -> dict[str, Any]:
+    """Check dependency-specific rules and the active shared-edge graph.
+
+    Polymorphic references are checked by _references. This check covers the context relationship,
+    the reporter's typed identity, and the acyclicity rule used when a shared edge is added. Agent
+    waits and human-confirmed edges do not participate in that graph.
+    """
+    found = _Found()
+    for identity, dependent_type, context_type, context_id in conn.execute(
+            "SELECT id,dependent_type,context_type,context_id FROM dependencies "
+            "WHERE (context_type IS NULL)<>(context_id IS NULL) "
+            "OR (dependent_type='agent')<>(context_type IS NOT NULL) ORDER BY id"):
+        found.add({"dependencyId": identity, "dependentType": dependent_type,
+                   "contextType": context_type, "contextId": context_id,
+                   "problem": "agent wait and work context do not agree"})
+    for identity, agent_id in conn.execute(
+            "SELECT d.id,d.reported_by_agent_id FROM dependencies d "
+            "WHERE d.reported_by_agent_id IS NOT NULL AND NOT EXISTS "
+            "(SELECT 1 FROM communication_agents a WHERE a.id=d.reported_by_agent_id) ORDER BY d.id"):
+        found.add({"dependencyId": identity, "agentId": agent_id, "problem": "reporting agent is gone"})
+
+    # The edge direction is dependent -> prerequisite. Only active, unconfirmed shared edges count;
+    # an agent wait is a request for action, not a prerequisite in the shared work DAG.
+    Key = tuple[str, str]
+    edges: dict[Key, list[tuple[Key, str]]] = {}
+    for identity, dependent_type, dependent_id, prerequisite_type, prerequisite_id in conn.execute(
+            "SELECT id,dependent_type,dependent_id,prerequisite_type,prerequisite_id FROM dependencies "
+            "WHERE archived=0 AND confirmed_at IS NULL AND dependent_type<>'agent' "
+            "ORDER BY dependent_type,dependent_id,prerequisite_type,prerequisite_id,id"):
+        dependent, prerequisite = (dependent_type, dependent_id), (prerequisite_type, prerequisite_id)
+        edges.setdefault(dependent, []).append((prerequisite, identity))
+    state: dict[Key, int] = {}
+    nodes = set(edges)
+    nodes.update(prerequisite for neighbors in edges.values() for prerequisite, _ in neighbors)
+    for node in sorted(nodes):
+        if state.get(node, 0) != 0:
+            continue
+        stack: list[tuple[Key, int]] = [(node, 0)]
+        state[node] = 1
+        while stack:
+            current, index = stack[-1]
+            neighbors = edges.get(current, ())
+            if index < len(neighbors):
+                stack[-1] = (current, index + 1)
+                target, identity = neighbors[index]
+                if state.get(target, 0) == 1:
+                    found.add({"dependencyId": identity, "dependentType": current[0], "dependentId": current[1],
+                               "prerequisiteType": target[0], "prerequisiteId": target[1],
+                               "problem": "shared dependency cycle"})
+                elif state.get(target, 0) == 0:
+                    state[target] = 1
+                    stack.append((target, 0))
+            else:
+                state[current] = 2
+                stack.pop()
     return found.report()
 
 

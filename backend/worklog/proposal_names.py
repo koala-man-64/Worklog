@@ -28,6 +28,7 @@ from .operations import CREATE_ID, NAME_RULE, NAMED, is_name
 KINDS = {"itemId": "item", "roadmapId": "roadmap", "personId": "person", "stepId": "step", "waveId": "wave"}
 TYPED = {"ownerId": "ownerType", "targetId": "targetType"}
 LISTS = {"repositoryIds": "repository", "stepIds": "step", "upstreamIds": "repository"}
+DEPENDENCY_REFS = ("dependent", "prerequisite", "context")
 # The kind of record a change names by `id`, where it isn't the one its action starts with.
 OWN = {"progress": "step"}
 NAMEABLE = frozenset(action.partition(".")[0] for action in NAMED)
@@ -55,6 +56,11 @@ def _uses(action: str, payload: dict) -> Iterator[tuple[str, Any, Any]]:
         if isinstance(payload.get(field), list):
             for value in payload[field]:
                 yield field, value, kind
+    if action == "dependency.create":
+        for field in DEPENDENCY_REFS:
+            ref = payload.get(field)
+            if isinstance(ref, dict):
+                yield field, ref.get("id"), ref.get("type")
     if action == "step.split" and isinstance(payload.get("children"), list):
         for child in payload["children"]:
             if isinstance(child, dict) and isinstance(child.get("repositoryIds"), list):
@@ -136,6 +142,11 @@ def resolve(action: str, payload: dict, names: dict[str, str]) -> tuple[dict, st
     for field in LISTS:
         if isinstance(resolved.get(field), list):
             resolved[field] = [known(field, value) for value in resolved[field]]
+    if action == "dependency.create":
+        for field in DEPENDENCY_REFS:
+            ref = resolved.get(field)
+            if isinstance(ref, dict) and "id" in ref:
+                resolved[field] = {**ref, "id": known(field, ref["id"])}
     if action == "step.split" and isinstance(resolved.get("children"), list):
         resolved["children"] = [
             {**child, "repositoryIds": [known("repositoryIds", v) for v in child["repositoryIds"]]}

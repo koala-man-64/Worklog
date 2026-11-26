@@ -98,6 +98,13 @@ ROUTES: dict[str, dict[str, str | Only]] = {
 
     "/context": {"GET": READ},
 
+    "/dependencies": {"GET": READ, "POST": HUMAN},
+    "/dependencies/roadmaps/{identity}": {"GET": READ},
+    "/dependencies/waits": {"GET": READ, "POST": COORDINATE},
+    "/dependencies/{identity}": {"GET": READ},
+    "/dependencies/{identity}/confirm": {"POST": COORDINATE},
+    "/dependencies/{identity}/archive": {"POST": COORDINATE},
+
     "/coordination-overlaps": {"GET": READ},
     "/coordination-updates": {"GET": READ},
 

@@ -44,6 +44,7 @@ from .common import (
 from .coordination import CoordinationService, agents_may_register, close_credential_runs
 from .coordination_api import install_coordination_routes
 from .db import Database
+from .dependency_api import install_dependency_routes
 from .discussion_api import install_discussion_routes
 from .discussions import bind_credential, communication_actor, registered_by, registered_chats
 from .guard import RequestGuard, error_response, read_body
@@ -1052,6 +1053,7 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     # Install lease routes before coordination routes so /repositories/{identity}/base-lock precedes /{verb}.
     install_lease_routes(app, db, leases)
     install_coordination_routes(app, db, mutate)
+    install_dependency_routes(app, db, mutate)
     install_ticket_routes(app, db, mutate)
     install_resource_routes(app, db, mutate)
     install_discussion_routes(app, db, discussion_mutate)

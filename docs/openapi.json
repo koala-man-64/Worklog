@@ -8048,6 +8048,355 @@
         }
       }
     },
+    "/api/v1/dependencies": {
+      "get": {
+        "summary": "Find Dependencies",
+        "operationId": "find_dependencies_api_v1_dependencies_get",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "repository",
+                "step",
+                "item",
+                "ticket",
+                "agent"
+              ],
+              "type": "string",
+              "title": "Type"
+            }
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dependencies"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Dependency",
+        "operationId": "create_dependency_api_v1_dependencies_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DependencyCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DependencyLink"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dependencies/roadmaps/{identity}": {
+      "get": {
+        "summary": "Roadmap Dependencies",
+        "operationId": "roadmap_dependencies_api_v1_dependencies_roadmaps__identity__get",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoadmapDependencies"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dependencies/waits": {
+      "get": {
+        "summary": "Reportable Waits",
+        "operationId": "reportable_waits_api_v1_dependencies_waits_get",
+        "parameters": [
+          {
+            "name": "roadmapId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Roadmapid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DependencyWaits"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Report Wait",
+        "operationId": "report_wait_api_v1_dependencies_waits_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WaitReport"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DependencyLink"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dependencies/{identity}": {
+      "get": {
+        "summary": "Dependency",
+        "operationId": "dependency_api_v1_dependencies__identity__get",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DependencyLink"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dependencies/{identity}/confirm": {
+      "post": {
+        "summary": "Confirm Dependency",
+        "operationId": "confirm_dependency_api_v1_dependencies__identity__confirm_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DependencyConfirm"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DependencyLink"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dependencies/{identity}/archive": {
+      "post": {
+        "summary": "Archive Dependency",
+        "operationId": "archive_dependency_api_v1_dependencies__identity__archive_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Expected"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DependencyLink"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/tickets": {
       "get": {
         "summary": "Tickets",
@@ -16361,6 +16710,313 @@
         ],
         "title": "DecisionUpdate"
       },
+      "Dependencies": {
+        "properties": {
+          "prerequisites": {
+            "items": {
+              "$ref": "#/components/schemas/DependencyLink"
+            },
+            "type": "array",
+            "title": "Prerequisites"
+          },
+          "dependents": {
+            "items": {
+              "$ref": "#/components/schemas/DependencyLink"
+            },
+            "type": "array",
+            "title": "Dependents"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "prerequisites",
+          "dependents"
+        ],
+        "title": "Dependencies"
+      },
+      "DependencyConfirm": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Note",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision"
+        ],
+        "title": "DependencyConfirm"
+      },
+      "DependencyConfirmation": {
+        "properties": {
+          "confirmedAt": {
+            "type": "string",
+            "title": "Confirmedat"
+          },
+          "confirmedBy": {
+            "type": "string",
+            "title": "Confirmedby"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "confirmedAt",
+          "confirmedBy",
+          "note"
+        ],
+        "title": "DependencyConfirmation"
+      },
+      "DependencyCreate": {
+        "properties": {
+          "dependent": {
+            "$ref": "#/components/schemas/DependencyRef"
+          },
+          "prerequisite": {
+            "$ref": "#/components/schemas/DependencyRef"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WaitContextRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "condition": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Condition",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "dependent",
+          "prerequisite"
+        ],
+        "title": "DependencyCreate"
+      },
+      "DependencyEndpoint": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "repository",
+              "step",
+              "item",
+              "ticket",
+              "agent"
+            ],
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "roadmapId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roadmapid"
+          },
+          "mergedInto": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mergedinto"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "id",
+          "title",
+          "available",
+          "roadmapId",
+          "mergedInto"
+        ],
+        "title": "DependencyEndpoint"
+      },
+      "DependencyLink": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "catalog",
+              "shared",
+              "wait"
+            ],
+            "title": "Kind"
+          },
+          "dependent": {
+            "$ref": "#/components/schemas/DependencyEndpoint"
+          },
+          "prerequisite": {
+            "$ref": "#/components/schemas/DependencyEndpoint"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DependencyEndpoint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "condition": {
+            "type": "string",
+            "title": "Condition"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "linked",
+              "waiting",
+              "satisfied",
+              "unavailable"
+            ],
+            "title": "State"
+          },
+          "confirmation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DependencyConfirmation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reportedByAgentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reportedbyagentid"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "dependent",
+          "prerequisite",
+          "context",
+          "condition",
+          "state",
+          "confirmation",
+          "reportedByAgentId",
+          "revision",
+          "archived"
+        ],
+        "title": "DependencyLink"
+      },
+      "DependencyRef": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "repository",
+              "step",
+              "item",
+              "ticket",
+              "agent"
+            ],
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "id"
+        ],
+        "title": "DependencyRef"
+      },
+      "DependencyWaits": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DependencyLink"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "DependencyWaits"
+      },
       "DiscussedRepository": {
         "properties": {
           "id": {
@@ -21836,6 +22492,9 @@
               "repository.update",
               "repository.archive",
               "repository.recover",
+              "dependency.create",
+              "dependency.confirm",
+              "dependency.archive",
               "item.create",
               "item.update",
               "item.archive",
@@ -28215,6 +28874,23 @@
         ],
         "title": "RoadmapCreate"
       },
+      "RoadmapDependencies": {
+        "properties": {
+          "openByStep": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Openbystep"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "openByStep"
+        ],
+        "title": "RoadmapDependencies"
+      },
       "RoadmapDispatch": {
         "properties": {
           "roadmap": {
@@ -33232,6 +33908,57 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "WaitContextRef": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "repository",
+              "step",
+              "item",
+              "ticket"
+            ],
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "id"
+        ],
+        "title": "WaitContextRef"
+      },
+      "WaitReport": {
+        "properties": {
+          "prerequisite": {
+            "$ref": "#/components/schemas/DependencyRef"
+          },
+          "context": {
+            "$ref": "#/components/schemas/WaitContextRef"
+          },
+          "condition": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Condition"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "prerequisite",
+          "context",
+          "condition"
+        ],
+        "title": "WaitReport"
       },
       "WaveCreate": {
         "properties": {

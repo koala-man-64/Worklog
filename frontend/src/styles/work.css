@@ -443,3 +443,86 @@
   flex: none;
   white-space: nowrap;
 }
+
+
+/* Dependencies: explicit prerequisites and human-confirmed outcomes. */
+.dependencies-panel,
+.live-waits {
+  margin: 18px 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+}
+.dependencies-panel > .section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.dependencies-panel h2,
+.live-waits h2 {
+  margin: 0;
+}
+.dependency-form,
+.dependency-picker {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+}
+.dependency-picker label,
+.dependency-form > label {
+  display: grid;
+  gap: 4px;
+}
+.dependency-picker select,
+.dependency-form input {
+  max-width: 36rem;
+}
+.dependency-picked {
+  margin: 4px 0;
+}
+.dependency-list,
+.dependency-candidates {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  list-style: none;
+}
+.dependency-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.dependency-state,
+.dependency-kind,
+.dependency-count {
+  display: inline-flex;
+  margin-left: 8px;
+  padding: 2px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.dependency-state.is-waiting,
+.dependency-count {
+  color: var(--warning, #8b5a00);
+}
+.dependency-row p {
+  margin: 5px 0;
+}
+.dependency-candidates {
+  margin: 4px 0;
+}
+
+.dependency-evidence {
+  display: grid;
+  gap: 4px;
+  max-width: 18rem;
+}
+.dependency-survivor {
+  display: block;
+  margin-top: 4px;
+}

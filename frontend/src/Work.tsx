@@ -2,6 +2,7 @@ import { Fragment, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { request, getDataContext } from "./api";
 import { commands } from "./commands";
+import { DependenciesPanel } from "./Dependencies";
 import { useCommand, useData, useWrites } from "./hooks";
 import { AgentChatsSection } from "./sections/AgentChats";
 import { Files } from "./sections/Files";
@@ -612,6 +613,7 @@ export function ItemDetail({ id }: { id: string }) {
           </form>
         </section>
       </div>
+      <DependenciesPanel target={{ type: "item", id }} disabled={item.archived} />
       <Coordination key={id} itemId={id} />
       <Scratchpad itemId={id} notes={item.notes} />
       <PeopleLinks targetType="item" targetId={id} people={item.people} />
