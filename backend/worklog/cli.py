@@ -1450,36 +1450,34 @@ def _wait_for_discussion(client: AgentClient, identity: str, timeout: float) -> 
     route = "/discussions/messages/" + identity
     delay_index = 0
     failures = 0
-    last = None
-    while True:
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            return {"outcome": "pending", "timedOut": True, "message": last}
+    deadline_result: dict = {"outcome": "unavailable", "error": "Worklog did not answer before the wait deadline"}
+    while (remaining := deadline - time.monotonic()) > 0:
         try:
-            last = client.request("GET", route, timeout=min(30, remaining), deadline=deadline)
-            failures = 0
+            message = client.request("GET", route, timeout=min(30, remaining), deadline=deadline)
         except AgentRequestError as exc:
             if exc.status in {401, 403}:
                 return {"outcome": "authentication_failed" if exc.status == 401 else "forbidden", "error": str(exc)}
             if exc.status is not None and exc.status < 500:
                 raise
             failures += 1
-            if failures >= 3 or time.monotonic() >= deadline:
-                return {"outcome": "unavailable", "error": str(exc)}
+            deadline_result = {"outcome": "unavailable", "error": str(exc)}
+            if failures >= 3:
+                return deadline_result
         else:
-            request = last.get("request")
+            failures = 0
+            request = message.get("request")
             if not request:
                 raise ValueError("This message has no acknowledgement request")
             state = request["state"]
             if state != "pending":
-                return {"outcome": state, "timedOut": False, "message": last}
-            if time.monotonic() >= deadline:
-                return {"outcome": "pending", "timedOut": True, "message": last}
-        delay = (2, 5, 10)[min(delay_index, 2)] * random.uniform(0.9, 1.1)
-        delay_index += 1
+                return {"outcome": state, "timedOut": False, "message": message}
+            deadline_result = {"outcome": "pending", "timedOut": True, "message": message}
         remaining = deadline - time.monotonic()
         if remaining > 0:
+            delay = (2, 5, 10)[min(delay_index, 2)] * random.uniform(0.9, 1.1)
+            delay_index += 1
             time.sleep(min(delay, remaining))
+    return deadline_result
 
 
 def _inbox(client: AgentClient, since: str | None, wait: bool, timeout: float) -> dict:
