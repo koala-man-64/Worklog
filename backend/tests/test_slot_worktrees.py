@@ -81,6 +81,20 @@ def test_provision_preserves_venv_and_node_modules_and_blocks_protected_branch(t
     assert (slot1 / "node_modules" / "pkg.json").read_text(encoding="utf-8") == "{}"
 
 
+def test_provision_resumes_remote_only_feature_branch(tmp_path):
+    _, base = make_repo_pair(tmp_path)
+    _git(base, "checkout", "-b", "seed")
+    _git(base, "commit", "--allow-empty", "-m", "Published feature checkpoint")
+    feature_tip = _git(base, "rev-parse", "HEAD")
+    _git(base, "push", "origin", "HEAD:refs/heads/feat/remote")
+    _git(base, "checkout", "main")
+
+    result = sw.provision_slot(str(base), "", "demo", 1, "main", "feat/remote", "fixture-lease")
+    slot = Path(result.worktree_path)
+    assert _git(slot, "symbolic-ref", "HEAD") == "refs/heads/feat/remote"
+    assert _git(slot, "rev-parse", "HEAD") == feature_tip
+
+
 def test_dirty_slot_guard_and_auto_rescue_commit_recovery(tmp_path):
     _, base = make_repo_pair(tmp_path, "jobs")
     lease_id = "33333333-3333-4333-8333-333333333333"

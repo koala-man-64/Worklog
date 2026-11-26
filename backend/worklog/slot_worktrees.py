@@ -263,9 +263,18 @@ def provision_slot(
         fetch_warning = first[0][:200] if first else "git fetch origin failed; used local refs"
         logger.warning("Slot fetch warning for %s: %s", base, fetch_warning)
 
-    start_ref = _resolve_start_ref(base, default_branch or "main")
+    # Reattach an existing local branch at its exact tip, including unpushed commits.
+    # Use non-forcing creation so a branch created concurrently cannot be reset.
+    create_args = []
+    target = branch
+    if _run_git(base, "show-ref", "--verify", "--quiet", f"refs/heads/{branch}").returncode != 0:
+        create_args = ["-b", branch]
+        target = f"refs/remotes/origin/{branch}"
+        if _run_git(base, "show-ref", "--verify", "--quiet", target).returncode != 0:
+            target = _resolve_start_ref(base, default_branch or "main")
 
-    if slot.exists():
+    reuse_slot = slot.exists()
+    if reuse_slot:
         registered = _registered_worktrees(base)
         if slot not in registered:
             # Prune stale worktree metadata first, then check whether directory is empty or rogue.
@@ -280,12 +289,9 @@ def provision_slot(
                     {"worktreePath": str(slot)},
                 )
             slot.rmdir()
-            created = _run_git(base, "worktree", "add", "-B", branch, str(slot), start_ref, timeout=_FETCH_TIMEOUT_S)
-            if created.returncode != 0:
-                detail = (created.stderr or created.stdout or "").strip().splitlines()
-                msg = detail[0][:240] if detail else "git worktree add failed"
-                raise AppError(503, "slot_provisioning_failed", f"Could not checkout branch '{branch}' in slot: {msg}")
-            return ProvisionResult(worktree_path=str(slot), branch=branch, fetch_warning=fetch_warning)
+            reuse_slot = False
+
+    if reuse_slot:
         status = inspect_slot_cleanliness(slot)
         if not status.clean:
             raise AppError(
@@ -296,8 +302,7 @@ def provision_slot(
             )
         # Clean untracked non-ignored files ONLY (never -x), preserving .venv and node_modules.
         _git_ok(slot, "clean", "-fd")
-        # Check out the target branch from start_ref (or attach to existing local branch if not checked out elsewhere).
-        checkout = _run_git(slot, "checkout", "-B", branch, start_ref)
+        checkout = _run_git(slot, "checkout", *create_args, target, "--")
         if checkout.returncode != 0:
             detail = (checkout.stderr or checkout.stdout or "").strip().splitlines()
             msg = detail[0][:240] if detail else "git checkout failed"
@@ -305,7 +310,7 @@ def provision_slot(
     else:
         slot.parent.mkdir(parents=True, exist_ok=True)
         _run_git(base, "worktree", "prune")
-        created = _run_git(base, "worktree", "add", "-B", branch, str(slot), start_ref, timeout=_FETCH_TIMEOUT_S)
+        created = _run_git(base, "worktree", "add", *create_args, str(slot), target, timeout=_FETCH_TIMEOUT_S)
         if created.returncode != 0:
             detail = (created.stderr or created.stdout or "").strip().splitlines()
             msg = detail[0][:240] if detail else "git worktree add failed"
