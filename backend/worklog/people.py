@@ -56,7 +56,7 @@ class People:
     def __init__(self, db: Database):
         self.db = db
 
-    def list(self, *, archived: bool = False, q: str = "") -> dict:
+    def list(self, *, archived: bool = False, q: str = "", summary: bool = False) -> dict:
         with self.db.read() as c:
             where = ["p.archived=?"]
             args: builtins.list[Any] = [int(archived)]
@@ -65,15 +65,13 @@ class People:
                 where.append("p.id IN(SELECT entity_id FROM search_index WHERE search_index MATCH ? AND type='person')")
                 args.append(match)
             clause = " AND ".join(where)
-            rows = c.execute(
-                f"""SELECT p.*,
+            columns = "p.id,p.name" if summary else """p.*,
                     (SELECT count(*) FROM person_links pl JOIN work_items w ON w.id=pl.target_id WHERE pl.person_id=p.id AND pl.target_type='item' AND w.archived=0) AS work_item_count,
                     (SELECT count(*) FROM person_links pl JOIN roadmaps r ON r.id=pl.target_id WHERE pl.person_id=p.id AND pl.target_type='roadmap' AND r.archived=0) AS roadmap_count,
-                    (SELECT count(*) FROM person_links pl JOIN repositories rp ON rp.id=pl.target_id WHERE pl.person_id=p.id AND pl.target_type='repository' AND rp.archived=0) AS repository_count
-                    FROM people p WHERE {clause} ORDER BY p.name COLLATE NOCASE, p.id""",
-                args,
-            ).fetchall()
-            items = [person_record(r) for r in rows]
+                    (SELECT count(*) FROM person_links pl JOIN repositories rp ON rp.id=pl.target_id WHERE pl.person_id=p.id AND pl.target_type='repository' AND rp.archived=0) AS repository_count"""
+            rows = c.execute(f"SELECT {columns} FROM people p WHERE {clause} ORDER BY p.name COLLATE NOCASE,p.id", args)
+            render = dict if summary else person_record
+            items = [render(r) for r in rows]
             return {"items": items, "total": len(items)}
 
     def detail(self, person_id: str) -> dict:
