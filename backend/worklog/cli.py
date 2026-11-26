@@ -67,6 +67,8 @@ ROLE_CONTEXT_KINDS = ("item", "roadmap", "step")
 TICKET_KINDS = ("bug", "incident", "task")
 TICKET_PRIORITIES = ("low", "normal", "high", "urgent")
 TICKET_STATUSES = ("open", "doing", "blocked", "done")
+DEPENDENCY_TYPES = ("repository", "step", "item", "ticket", "agent")
+WAIT_CONTEXT_TYPES = ("repository", "step", "item", "ticket")
 # What agents read before their first command; `worklog agent guide` prints it. Resolved like the
 # frontend build in app.py, from this checkout.
 AGENT_GUIDE = Path(__file__).resolve().parents[2] / "docs" / "AGENT-GUIDE.md"
@@ -613,6 +615,25 @@ def _coordination_route_allowed(method: str, route: str) -> bool:
         or parts[0] == "participations" and parts[2] in {"release", "rejoin", "check-in", "updates", "outputs"})
 
 
+def _dependency_route_allowed(method: str, route: str) -> bool:
+    """Agents read dependency links and report or change only their own waits directly."""
+    if not route.startswith("/") or route.endswith("/"):
+        return False
+    if route == "/dependencies":
+        return method == "GET"
+    if route == "/dependencies/waits":
+        return method == "POST"
+    parts = route.strip("/").split("/")
+    if len(parts) != 3 or parts[0] != "dependencies" or parts[2] not in {"confirm", "archive"}:
+        return False
+    try:
+        if str(uuid.UUID(parts[1])) != parts[1].lower():
+            return False
+    except ValueError:
+        return False
+    return method == "POST"
+
+
 def _lease_route_allowed(method: str, route: str) -> bool:
     """Agents read slot policies/status and acquire/poll/renew/release their own checkout leases."""
     if not route.startswith("/") or route.endswith("/"):
@@ -722,7 +743,7 @@ class AgentClient:
             ids = query.get("ownerId", [])
             allowed = query.get("ownerType") == ["proposal"] and len(ids) == 1 and valid_id(ids[0])
         allowed = (allowed or _discussion_route_allowed(method, route) or _push_route_allowed(method, route)
-                   or _coordination_route_allowed(method, route)
+                   or _coordination_route_allowed(method, route) or _dependency_route_allowed(method, route)
                    or _lease_route_allowed(method, route) or _ticket_route_allowed(method, route)
                    or _wave_route_allowed(method, route))
         if not allowed:
@@ -736,7 +757,7 @@ class AgentClient:
             headers["Content-Type"] = "application/json"
         coordination_write = method in {"POST", "PATCH"} and route.startswith(("/repositories", "/agent-runs", "/participations",
                                                                                "/tickets", "/chats/track", "/leases", "/waves",
-                                                                               "/push"))
+                                                                               "/push", "/dependencies"))
         if method == "POST" or coordination_write:
             request_id = request_id or str(uuid.uuid4())
             if not 8 <= len(request_id) <= 200 or not request_id.isascii() or any(ord(c) < 33 or ord(c) > 126 for c in request_id):
@@ -1166,6 +1187,8 @@ def agent_command(args: argparse.Namespace, port: int, redact: list[str]) -> Any
         return coordination_command(client, args)
     if args.agent_action == "tickets":
         return ticket_command(client, args)
+    if args.agent_action == "dependencies":
+        return dependency_command(client, args)
     if args.agent_action == "resources":
         if args.resource_action == "list":
             return client.request("GET", "/resources" + _coordination_query(args, "q", "archived", "limit", "offset"))
@@ -1524,6 +1547,80 @@ def ticket_command(client: AgentClient, args: argparse.Namespace) -> Any:
             payload[field] = empty
     payload["revision"] = args.revision
     return client.request("PATCH", route, payload, request_id=args.request_id)
+
+
+def dependency_command(client: AgentClient, args: argparse.Namespace) -> Any:
+    action = args.dependency_action
+    if action == "list":
+        return client.request(
+            "GET", "/dependencies?" + urlencode({"type": args.type, "id": args.id})
+        )
+    if action == "report":
+        payload = {
+            "prerequisite": {"type": args.prerequisite_type, "id": args.prerequisite_id},
+            "context": {"type": args.context_type, "id": args.context_id},
+            "condition": args.condition,
+        }
+        return client.request("POST", "/dependencies/waits", payload, request_id=args.request_id)
+    payload = {"revision": args.revision}
+    if action == "confirm" and args.note is not None:
+        payload["note"] = args.note
+    return client.request(
+        "POST", f"/dependencies/{args.id}/{action}", payload, request_id=args.request_id
+    )
+
+
+def _dependency_parser(actions: Any) -> None:
+    def write(command: Any) -> None:
+        command.add_argument(
+            "--request-id",
+            required=True,
+            help="Stable operation key; reuse with the same payload after an uncertain result",
+        )
+
+    dependencies = actions.add_parser(
+        "dependencies", help="Read prerequisites and manage your own reported waits"
+    ).add_subparsers(dest="dependency_action", required=True)
+    listing = dependencies.add_parser(
+        "list", help="Show prerequisites and dependents for one typed record"
+    )
+    listing.add_argument(
+        "--type",
+        required=True,
+        choices=DEPENDENCY_TYPES,
+        help="repository, step, item, ticket or agent",
+    )
+    listing.add_argument("--id", required=True, help="The selected Worklog record's UUID")
+
+    report = dependencies.add_parser(
+        "report", help="Report your own wait on a prerequisite in a work context"
+    )
+    report.add_argument("--prerequisite-type", required=True, choices=DEPENDENCY_TYPES)
+    report.add_argument(
+        "--prerequisite-id", required=True, help="The prerequisite's Worklog record UUID"
+    )
+    report.add_argument(
+        "--context-type",
+        required=True,
+        choices=WAIT_CONTEXT_TYPES,
+        help="repository, step, item or ticket",
+    )
+    report.add_argument("--context-id", required=True, help="The context's Worklog record UUID")
+    report.add_argument(
+        "--condition", required=True, help="What must happen before your wait is satisfied"
+    )
+    write(report)
+
+    confirm = dependencies.add_parser("confirm", help="Confirm your own reported wait")
+    confirm.add_argument("id", help="Dependency wait ID")
+    confirm.add_argument("--revision", required=True, type=int)
+    confirm.add_argument("--note", help="Why the wait is satisfied")
+    write(confirm)
+
+    archive = dependencies.add_parser("archive", help="Archive your own reported wait")
+    archive.add_argument("id", help="Dependency wait ID")
+    archive.add_argument("--revision", required=True, type=int)
+    write(archive)
 
 
 def _ticket_parser(actions: Any) -> None:
@@ -2240,6 +2337,7 @@ def parser() -> argparse.ArgumentParser:
     _coordination_parser(actions)
     _lease_parser(actions)
     _ticket_parser(actions)
+    _dependency_parser(actions)
     context = actions.add_parser("context")
     context.add_argument("--date")
     context.add_argument("--repo", dest="repositoryId", help="Canonical repository ID")

@@ -85,6 +85,7 @@ SEALED_SCHEMAS: dict[int, frozenset[str]] = {
     34: frozenset({"a4f0966ec0fd7469eb25a3bfd802c021199b62157c5431eac5019a471a0ef0b9"}),  # repository slot policies, leases, and dispatch queue
     35: frozenset({"2451b0a1104444d52714708f0395f3f65eb0fa48b25a37f946512a883c4bcd67"}),  # repository execution policies, step-repository links, work classes, step participations, and synchronized waves
     36: frozenset({"c82d1f0d68e7d112a259c96704ea01383fefb25e3fcc57b81058433ddcb3e2e7"}),  # push delivery enrollments, subscriptions, receipts, and message replies
+    37: frozenset({"6ed3010e2d634de0bea2813954e3f5c5d604d630b06a5669738c5d3f60a1564f"}),  # typed dependencies and agent waits
 }
 
 

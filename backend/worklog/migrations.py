@@ -14,10 +14,10 @@ import sqlite3
 
 from .common import now, setting, today, uid
 
-SCHEMA_VERSION = 36
+SCHEMA_VERSION = 37
 # Older versions that startup and offline restore upgrade in one transaction.
 UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
-                                 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35})
+                                 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36})
 
 # v36's delivery tables start empty. Keep this DDL here, separate from schema.BASELINE, so a
 # future baseline change cannot rewrite the historical v36 upgrade.
@@ -30,6 +30,16 @@ CREATE INDEX push_subscriptions_enrollment ON push_subscriptions(enrollment_id,e
 CREATE TABLE push_deliveries(seq INTEGER PRIMARY KEY AUTOINCREMENT,id TEXT NOT NULL UNIQUE,enrollment_id TEXT NOT NULL REFERENCES push_enrollments(id),source_event_id TEXT NOT NULL REFERENCES events(id),kind TEXT NOT NULL CHECK(kind IN('discussion.ask','discussion.reply','ticket.status','item.status','run.end','run.update')),subject_type TEXT NOT NULL CHECK(subject_type IN('discussion','ticket','item','run')),subject_id TEXT NOT NULL,discussion_id TEXT REFERENCES discussions(id),message_id TEXT REFERENCES discussion_messages(id),state TEXT NOT NULL DEFAULT 'pending' CHECK(state IN('pending','claimed','submitted','queued','unavailable','uncertain','cancelled')),attempt_id TEXT,claim_expires_at TEXT,attempt_count INTEGER NOT NULL DEFAULT 0 CHECK(attempt_count>=0),created_at TEXT NOT NULL,updated_at TEXT NOT NULL,outcome_at TEXT,resume_warning INTEGER NOT NULL DEFAULT 0 CHECK(resume_warning IN(0,1) AND (resume_warning=0 OR state='queued')),UNIQUE(source_event_id,enrollment_id));
 CREATE INDEX push_deliveries_enrollment_seq ON push_deliveries(enrollment_id,seq);
 CREATE INDEX push_deliveries_pending ON push_deliveries(enrollment_id,seq) WHERE state IN('pending','unavailable');
+"""
+
+# v37: typed shared prerequisites and context-scoped agent waits. Polymorphic endpoints are
+# checked by doctor; reported_by_agent_id is a real FK. Decisions are recorded on the edge.
+DEPENDENCIES_SCHEMA = """
+CREATE TABLE dependencies(id TEXT PRIMARY KEY,dependent_type TEXT NOT NULL CHECK(dependent_type IN('repository','step','item','ticket','agent')),dependent_id TEXT NOT NULL,prerequisite_type TEXT NOT NULL CHECK(prerequisite_type IN('repository','step','item','ticket','agent')),prerequisite_id TEXT NOT NULL,context_type TEXT CHECK(context_type IS NULL OR context_type IN('repository','step','item','ticket')),context_id TEXT,reported_by_agent_id TEXT REFERENCES communication_agents(id),condition TEXT NOT NULL DEFAULT '',confirmed_at TEXT,confirmed_by_id TEXT,confirmed_by_label TEXT,confirmation_note TEXT NOT NULL DEFAULT '',archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL,CHECK(dependent_type<>prerequisite_type OR dependent_id<>prerequisite_id),CHECK((context_type IS NULL)=(context_id IS NULL)),CHECK((dependent_type='agent')=(context_type IS NOT NULL)),CHECK((confirmed_at IS NULL AND confirmed_by_id IS NULL AND confirmed_by_label IS NULL) OR (confirmed_at IS NOT NULL AND confirmed_by_id IS NOT NULL AND confirmed_by_label IS NOT NULL)));
+CREATE UNIQUE INDEX dependencies_shared_active ON dependencies(dependent_type,dependent_id,prerequisite_type,prerequisite_id) WHERE archived=0 AND context_type IS NULL;
+CREATE UNIQUE INDEX dependencies_wait_pending ON dependencies(dependent_type,dependent_id,prerequisite_type,prerequisite_id,context_type,context_id,condition) WHERE archived=0 AND context_type IS NOT NULL AND confirmed_at IS NULL;
+CREATE INDEX dependencies_dependent ON dependencies(dependent_type,dependent_id,archived,created_at,id);
+CREATE INDEX dependencies_prerequisite ON dependencies(prerequisite_type,prerequisite_id,archived,created_at,id);
 """
 
 # v1 grew in place before versions were counted: _upgrade_v1 adds whichever of these a v1 database
@@ -1097,6 +1107,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
     if version < 36:
         conn.execute("ALTER TABLE discussion_messages ADD COLUMN reply_to_message_id TEXT REFERENCES discussion_messages(id)")
         execute_schema(conn, PUSH_DELIVERY_SCHEMA)
+    if version < 37:
+        execute_schema(conn, DEPENDENCIES_SCHEMA)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 

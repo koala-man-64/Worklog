@@ -390,6 +390,7 @@ function currentPath(
     return DATE.test(date) ? "/days/" + encodeURIComponent(date) : null;
   }
   if (action === "progress.set" || action.startsWith("step.")) return "/steps/" + id;
+  if (action.startsWith("dependency.")) return "/dependencies/" + id;
   if (action.startsWith("wave.")) return "/waves/" + id;
   if (action.startsWith("repository.")) return "/repositories/" + id;
   const collection = action.startsWith("roadmap.")

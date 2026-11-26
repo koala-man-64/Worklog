@@ -1,0 +1,35 @@
+{
+  "body": {
+    "dependents": [],
+    "prerequisites": [
+      {
+        "archived": false,
+        "condition": "",
+        "confirmation": null,
+        "context": null,
+        "dependent": {
+          "available": true,
+          "id": "<id2>",
+          "mergedInto": null,
+          "roadmapId": "<id3>",
+          "title": "Child",
+          "type": "step"
+        },
+        "id": "<id1>",
+        "kind": "shared",
+        "prerequisite": {
+          "available": true,
+          "id": "<id4>",
+          "mergedInto": null,
+          "roadmapId": "<id3>",
+          "title": "Crash on save",
+          "type": "ticket"
+        },
+        "reportedByAgentId": null,
+        "revision": 1,
+        "state": "waiting"
+      }
+    ]
+  },
+  "status": 200
+}

@@ -67,7 +67,8 @@ def test_a_clean_database_reports_nothing_and_is_not_changed(world):
         reader.execute("ROLLBACK")
     assert report["ok"] is True
     assert {name: check["problems"] for name, check in report["checks"].items()} == {
-        "integrity": 0, "references": 0, "steps": 0, "trackedChats": 0, "searchIndex": 0, "searchKeys": 0, "leases": 0, "waves": 0}
+        "integrity": 0, "references": 0, "dependencies": 0, "steps": 0, "trackedChats": 0,
+        "searchIndex": 0, "searchKeys": 0, "leases": 0, "waves": 0}
     assert digest(database) == original
     assert list(data.glob("*doctor*")) == []
 
@@ -93,6 +94,18 @@ def test_each_check_finds_what_the_schema_cannot_refuse(world):
         conn.execute("DELETE FROM search_index WHERE rowid=?", (link_doc,))
         conn.execute("INSERT INTO search_index(entity_id,type,title,body,owner_id,archived) VALUES('stray','item','Stray','','',0)")
         conn.execute("DELETE FROM tickets WHERE id=?", (names["ticket"],))
+        # Dependencies keep typed endpoints without polymorphic foreign keys; the doctor checks them
+        # and detects cycles across entity types.
+        stamp = "2026-11-26T00:00:00+00:00"
+        conn.executemany(
+            "INSERT INTO dependencies(id,dependent_type,dependent_id,prerequisite_type,prerequisite_id,created_at,updated_at) "
+            "VALUES(?,?,?,?,?,?,?)",
+            [
+                ("dep-item-step", "item", names["item"], "step", names["child"], stamp, stamp),
+                ("dep-step-item", "step", names["child"], "item", names["item"], stamp, stamp),
+                ("dep-gone-item", "item", "gone-item", "step", names["child"], stamp, stamp),
+            ],
+        )
         conn.commit()
     report = doctor_database(database)
     checks = report["checks"]
@@ -100,7 +113,13 @@ def test_each_check_finds_what_the_schema_cannot_refuse(world):
     references = checks["references"]["examples"]
     assert {"table": "notes", "type": "ticket", "rows": 1, "problem": "a type this table never takes"} in references
     assert {"table": "web_links", "type": "item", "id": "gone-item", "problem": "the record it names is gone"} in references
-    assert checks["references"]["problems"] == 2
+    assert {"table": "dependencies", "type": "item", "id": "gone-item", "problem": "the record it names is gone"} in references
+    assert checks["references"]["problems"] == 3
+    assert checks["dependencies"]["problems"] == 1
+    assert checks["dependencies"]["examples"] == [{
+        "dependencyId": "dep-step-item", "dependentType": "step", "dependentId": names["child"],
+        "prerequisiteType": "item", "prerequisiteId": names["item"], "problem": "shared dependency cycle",
+    }]
     assert checks["steps"]["examples"] == [{"step": names["child"], "parent": "gone-step",
                                            "problem": "its parent is gone or on another roadmap"}]
     assert checks["trackedChats"]["examples"] == [{"ownerType": "item", "ownerId": names["item"], "chatId": "chat-1", "times": 2}]

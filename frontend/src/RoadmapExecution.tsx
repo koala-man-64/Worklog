@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { commands } from "./commands";
+import { DependencyCount } from "./Dependencies";
 import { useData, useWrites } from "./hooks";
 import { RepositoryPicker } from "./RepositoryControls";
 import { Empty, ErrorMessage } from "./ui/Messages";
@@ -369,9 +370,11 @@ export function StepSplitDialog({
 export function RoadmapExecution({
   roadmapId,
   archived,
+  openByStep = {},
 }: {
   roadmapId: string;
   archived: boolean;
+  openByStep?: Record<string, number>;
 }) {
   const [selectedWaveId, setSelectedWaveId] = useState("");
   const [repoFilter, setRepoFilter] = useState("");
@@ -410,6 +413,7 @@ export function RoadmapExecution({
   }
 
   const { summary, waves, activeWave, repoLanes, multiRepoLeaves, unassignedLeaves, gates } = data;
+  const openDependencyCount = Object.values(openByStep).reduce((total, count) => total + count, 0);
 
   return (
     <div className="pane roadmap-view exec-view">
@@ -425,6 +429,10 @@ export function RoadmapExecution({
         <div>
           <dt>Doing</dt>
           <dd>{summary.doingLeaves}</dd>
+        </div>
+        <div className={openDependencyCount > 0 ? "is-warning" : undefined}>
+          <dt>Open dependencies</dt>
+          <dd>{openDependencyCount}</dd>
         </div>
         <div>
           <dt>Blocked</dt>
@@ -563,6 +571,7 @@ export function RoadmapExecution({
                 activeWave={activeWave}
                 archived={archived}
                 includeDone={includeDone}
+                openByStep={openByStep}
                 onSplit={setSplittingStep}
               />
             ))}
@@ -593,6 +602,7 @@ export function RoadmapExecution({
                     >
                       {st.title}
                     </a>
+                    <DependencyCount count={openByStep[st.id] ?? 0} />
                     {st.phasePath.length > 0 && (
                       <small className="muted">
                         {st.phasePath.map((p) => p.title).join(" › ")}
@@ -661,6 +671,7 @@ export function RoadmapExecution({
                 step={st}
                 repoMap={repoMap}
                 archived={archived}
+                openDependencies={openByStep[st.id] ?? 0}
               />
             ))}
           </ul>
@@ -688,6 +699,7 @@ export function RoadmapExecution({
                         >
                           {g.title}
                         </a>
+                        <DependencyCount count={openByStep[g.id] ?? 0} />
                         {g.phasePath.length > 0 && (
                           <small className="muted">
                             {g.phasePath.map((p) => p.title).join(" › ")}
@@ -714,6 +726,7 @@ export function RoadmapExecution({
                     aria-hidden="true"
                   />
                   <strong>{phase.title}</strong>
+                  <DependencyCount count={openByStep[phase.id] ?? 0} />
                   <small>
                     {phase.doneLeaves}/{phase.totalLeaves} done
                     {phase.doingLeaves > 0 ? ` · ${phase.doingLeaves} doing` : ""}
@@ -1273,6 +1286,7 @@ function RepoLaneCard({
   activeWave,
   archived,
   includeDone,
+  openByStep,
   onSplit,
 }: {
   roadmapId: string;
@@ -1280,6 +1294,7 @@ function RepoLaneCard({
   activeWave: WaveDetail | null;
   archived: boolean;
   includeDone: boolean;
+  openByStep: Readonly<Record<string, number>>;
   onSplit: (step: DispatchStepCard) => void;
 }) {
   const action = useWrites();
@@ -1338,6 +1353,7 @@ function RepoLaneCard({
           >
             {step.title}
           </a>
+          <DependencyCount count={openByStep[step.id] ?? 0} />
           {step.phasePath.length > 0 && (
             <small className="muted">
               {step.phasePath.map((p) => p.title).join(" › ")}
@@ -1658,11 +1674,13 @@ function UnassignedLeafRow({
   step,
   repoMap,
   archived,
+  openDependencies,
 }: {
   roadmapId: string;
   step: DispatchUnassignedStepCard;
   repoMap: Map<string, Repository>;
   archived: boolean;
+  openDependencies: number;
 }) {
   const action = useWrites();
   const [selectedRepos, setSelectedRepos] = useState<string[]>([]);
@@ -1675,6 +1693,7 @@ function UnassignedLeafRow({
           <a className="item-title" href={`#roadmaps/${roadmapId}/${step.id}`}>
             {step.title}
           </a>
+          <DependencyCount count={openDependencies} />
           {step.phasePath.length > 0 && (
             <small className="muted">
               {step.phasePath.map((p) => p.title).join(" › ")}

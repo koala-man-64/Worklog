@@ -1,4 +1,4 @@
-"""Schema v35 migration, repository DAG topology, cycle rejection, and repository merge migration."""
+"""Schema v35-v37 migrations, repository topology, dependency cycles, and merge migration."""
 
 from __future__ import annotations
 
@@ -59,19 +59,34 @@ V35_TABLES = (
     "wave_repins",
 )
 V36_TABLES = ("push_enrollments", "push_subscriptions", "push_deliveries")
+V37_TABLES = ("dependencies",)
+
+
+def to_v36(path):
+    """Project a v37 fixture back to v36 while its additive dependency table is empty."""
+    with closing(sqlite3.connect(path)) as conn:
+        version = conn.execute("PRAGMA user_version").fetchone()[0]
+        tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        if version == 37 and set(V37_TABLES) <= tables:
+            if conn.execute("SELECT count(*) FROM dependencies").fetchone()[0]:
+                raise ValueError("The v37 dependency table must be empty for the v36 fixture")
+            conn.executescript("DROP TABLE dependencies; PRAGMA user_version=36;")
+        elif version != 36 or set(V37_TABLES) & tables:
+            raise ValueError(f"Expected a v36 or v37 schema shape, got version {version}")
 
 
 def to_v35(path):
-    """Take a current v36 database back to the v35 shape the documented way."""
+    """Take a current v37 database back through the documented v37 and v36 way-backs."""
+    to_v36(path)
     with closing(sqlite3.connect(path)) as conn:
         version = conn.execute("PRAGMA user_version").fetchone()[0]
         tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         message_columns = {row[1] for row in conn.execute("PRAGMA table_info(discussion_messages)")}
         has_v36_shape = set(V36_TABLES) <= tables and "reply_to_message_id" in message_columns
         has_v35_shape = not set(V36_TABLES) & tables and "reply_to_message_id" not in message_columns
-        if has_v36_shape:
+        if version == 36 and has_v36_shape:
             conn.executescript(WAY_BACK_V35)
-        elif not has_v35_shape or version != 35:
+        elif version != 35 or not has_v35_shape:
             raise ValueError(f"Expected a v35 or v36 schema shape, got version {version}")
 
 
@@ -81,16 +96,29 @@ def test_v36_way_back_sql_matches_the_upgrade_guide():
 
 
 def to_v34(path):
-    """Take a current v36 database back to v34 through both historical way-backs."""
+    """Take a current v37 database back to v34 through its historical way-backs."""
     to_v35(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK_V34)
 
 
+def before_v37(rows):
+    """Rows present in v36, excluding the empty v37 dependency table."""
+    return {table: values for table, values in rows.items() if table not in V37_TABLES}
+
+
+def before_v36(rows):
+    """Rows present in v35, excluding v36 push state/reply correlation and v37 dependencies."""
+    kept = {table: values for table, values in rows.items() if table not in V36_TABLES and table not in V37_TABLES}
+    if "discussion_messages" in kept:
+        kept["discussion_messages"] = [row[:-1] for row in kept["discussion_messages"]]
+    return kept
+
+
 def before_v35(rows):
-    """A database's rows as they read before v35: v36 push tables and reply correlation removed,
-    v35 additive tables left out, and its step/repository/participation additions trimmed back."""
-    kept = {table: values for table, values in rows.items() if table not in V36_TABLES and table not in V35_TABLES}
+    """Rows present before v35, with all later additions removed from the projection."""
+    kept = {table: values for table, values in rows.items()
+            if table not in V36_TABLES and table not in V37_TABLES and table not in V35_TABLES}
     if "discussion_messages" in kept:
         kept["discussion_messages"] = [row[:-1] for row in kept["discussion_messages"]]
     if "steps" in kept:
@@ -117,6 +145,23 @@ def before_v35(rows):
     return kept
 
 
+def test_v37_upgrade_adds_an_empty_table_and_preserves_the_v36_shape(tmp_path):
+    import sealed
+    from test_sealed_schemas import contents
+
+    db_path = tmp_path / "upgrade-v36.sqlite3"
+    Database(db_path).initialize()
+    to_v36(db_path)
+    version, signature, before = contents(db_path)
+    assert (version, signature) == (36, sealed.shape(36))
+
+    Database(db_path).initialize()
+    version, signature, after = contents(db_path)
+    assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
+    assert after["dependencies"] == []
+    assert before_v37(after) == before
+
+
 def test_the_latest_way_back_chain_gives_v34s_exact_shape_and_upgrades_again(tmp_path):
     import sealed
     from test_sealed_schemas import contents
@@ -131,7 +176,7 @@ def test_the_latest_way_back_chain_gives_v34s_exact_shape_and_upgrades_again(tmp
     Database(db_path).initialize()
     version, signature, after = contents(db_path)
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
-    for table in V35_TABLES:
+    for table in (*V35_TABLES, *V36_TABLES, *V37_TABLES):
         assert after[table] == []
     assert before_v35(after) == before
 
@@ -191,7 +236,7 @@ def test_v36_way_back_drops_push_state_and_reupgrade_does_not_replay_it(tmp_path
     Database(db_path).initialize()
     version, signature, reupgraded_rows = contents(db_path)
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
-    for table in V36_TABLES:
+    for table in (*V36_TABLES, *V37_TABLES):
         assert reupgraded_rows[table] == []
     for table, rows in v35_rows.items():
         if table == "discussion_messages":
@@ -201,7 +246,7 @@ def test_v36_way_back_drops_push_state_and_reupgrade_does_not_replay_it(tmp_path
             assert reupgraded_rows[table] == rows, table
 
 
-def test_v34_upgrades_cleanly_to_v35_and_passes_doctor(tmp_path):
+def test_v34_upgrades_cleanly_to_current_and_passes_doctor(tmp_path):
     db_path = tmp_path / "upgrade-v34.sqlite3"
     v34_spec = json.loads((SCHEMAS / "v34.json").read_text(encoding="utf-8"))
     entries = v34_spec["shapes"][0]["schema"]
@@ -233,9 +278,52 @@ def test_v34_upgrades_cleanly_to_v35_and_passes_doctor(tmp_path):
         assert "work_class" in step_cols
         assert {"wip_cap", "tier"} <= repo_cols
         assert "step_id" in part_cols
+        assert conn.execute("SELECT count(*) FROM dependencies").fetchone()[0] == 0
     report = doctor_database(db_path)
     assert report["ok"] is True, report
     assert report["checks"]["waves"]["problems"] == 0
+
+
+def test_v35_upgrades_populated_data_without_changing_existing_records(client):
+    import sealed
+    from test_sealed_schemas import contents
+
+    upstream = ok(write(client, "POST", "/repositories", {
+        "name": "migration-upstream", "url": "https://example.test/migration-upstream",
+    }))
+    consumer = ok(write(client, "POST", "/repositories", {
+        "name": "migration-consumer", "url": "https://example.test/migration-consumer",
+        "upstreamIds": [upstream["id"]],
+    }))
+    step_id = str(uuid.uuid4())
+    roadmap = ok(write(client, "POST", "/roadmaps", {
+        "title": "Populated v35 migration", "overview": "",
+        "steps": [{"id": step_id, "title": "Adopt the contract", "position": 0,
+                   "repositoryIds": [consumer["id"]]}],
+    }))
+    ok(write(client, "POST", "/work-items", {"title": "Work item preserved"}))
+    ok(write(client, "POST", "/tickets", {"title": "Ticket preserved"}))
+    wave = ok(write(client, "POST", f"/roadmaps/{roadmap['id']}/waves", {
+        "name": "Migration wave", "stepIds": [step_id],
+        "repositories": [{"repositoryId": upstream["id"]}, {"repositoryId": consumer["id"]}],
+    }))
+    assert wave["stepIds"] == [step_id]
+
+    db_path = client.app.state.db.path
+    to_v35(db_path)
+    version, signature, before = contents(db_path)
+    assert (version, signature) == (35, sealed.shape(35))
+    assert before["repository_dependencies"]
+    assert before["step_repositories"]
+    assert before["waves"]
+    assert before["wave_steps"]
+
+    Database(db_path).initialize()
+    version, signature, after = contents(db_path)
+    assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
+    assert after["dependencies"] == []
+    assert before_v36(after) == before
+    assert doctor_database(db_path)["ok"] is True
 
 
 def test_repository_dependencies_reject_cycles_and_merge_migrates_execution_records(client):

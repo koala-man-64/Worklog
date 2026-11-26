@@ -427,6 +427,7 @@ class WaveRepinVerify(Expected):
 
 class Operation(Command):
     action: Literal["repository.create", "repository.update", "repository.archive", "repository.recover",
+                    "dependency.create", "dependency.confirm", "dependency.archive",
                     "item.create", "item.update", "item.archive", "item.recover", "entry.upsert",
                     "note.create", "note.update",
                     "roadmap.create", "roadmap.revise", "roadmap.move", "progress.set", "step.update",

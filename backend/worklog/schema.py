@@ -181,6 +181,13 @@ CREATE TABLE wave_repositories(wave_id TEXT NOT NULL REFERENCES waves(id),reposi
 CREATE INDEX wave_repositories_repo ON wave_repositories(repository_id,wave_id);
 CREATE TABLE wave_repins(wave_id TEXT NOT NULL REFERENCES waves(id),upstream_repo_id TEXT NOT NULL REFERENCES repositories(id),consumer_repo_id TEXT NOT NULL REFERENCES repositories(id),status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN('pending','in_progress','verified','waived')),pinned_ref TEXT NOT NULL DEFAULT '',pr_url TEXT NOT NULL DEFAULT '',commit_sha TEXT NOT NULL DEFAULT '',reported_by_label TEXT NOT NULL DEFAULT '',verified_at TEXT,revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),updated_at TEXT NOT NULL,PRIMARY KEY(wave_id,upstream_repo_id,consumer_repo_id),CHECK(upstream_repo_id<>consumer_repo_id));
 CREATE INDEX wave_repins_consumer ON wave_repins(consumer_repo_id,wave_id);
+
+-- Typed work dependencies and agent waits (v37).
+CREATE TABLE dependencies(id TEXT PRIMARY KEY,dependent_type TEXT NOT NULL CHECK(dependent_type IN('repository','step','item','ticket','agent')),dependent_id TEXT NOT NULL,prerequisite_type TEXT NOT NULL CHECK(prerequisite_type IN('repository','step','item','ticket','agent')),prerequisite_id TEXT NOT NULL,context_type TEXT CHECK(context_type IS NULL OR context_type IN('repository','step','item','ticket')),context_id TEXT,reported_by_agent_id TEXT REFERENCES communication_agents(id),condition TEXT NOT NULL DEFAULT '',confirmed_at TEXT,confirmed_by_id TEXT,confirmed_by_label TEXT,confirmation_note TEXT NOT NULL DEFAULT '',archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL,CHECK(dependent_type<>prerequisite_type OR dependent_id<>prerequisite_id),CHECK((context_type IS NULL)=(context_id IS NULL)),CHECK((dependent_type='agent')=(context_type IS NOT NULL)),CHECK((confirmed_at IS NULL AND confirmed_by_id IS NULL AND confirmed_by_label IS NULL) OR (confirmed_at IS NOT NULL AND confirmed_by_id IS NOT NULL AND confirmed_by_label IS NOT NULL)));
+CREATE UNIQUE INDEX dependencies_shared_active ON dependencies(dependent_type,dependent_id,prerequisite_type,prerequisite_id) WHERE archived=0 AND context_type IS NULL;
+CREATE UNIQUE INDEX dependencies_wait_pending ON dependencies(dependent_type,dependent_id,prerequisite_type,prerequisite_id,context_type,context_id,condition) WHERE archived=0 AND context_type IS NOT NULL AND confirmed_at IS NULL;
+CREATE INDEX dependencies_dependent ON dependencies(dependent_type,dependent_id,archived,created_at,id);
+CREATE INDEX dependencies_prerequisite ON dependencies(prerequisite_type,prerequisite_id,archived,created_at,id);
 """
 
 PUSH_SCHEMA = """

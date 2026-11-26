@@ -18,7 +18,7 @@ worklog [--port N] [--data-dir DIR] agent [--as NAME] [--url URL] GROUP COMMAND 
 - The instance is `http://127.0.0.1:PORT`, where PORT is `--port`, else the `WORKLOG_PORT` environment variable, else 8877. `--url` must be plain HTTP on 127.0.0.1 with no path. Use the same port and data directory for every command against one instance.
 - The command line talks only to 127.0.0.1 over plain HTTP. It ignores proxy settings, refuses redirects and never prints a credential.
 - Success prints ASCII JSON on stdout and exits 0. Failure prints one `Worklog: ...` line on stderr and exits 1; a usage error exits 2 (section 8). `worklog agent guide` is the one command that prints Markdown.
-- IDs are UUIDs, except a ticket's key (`T-12`) and a chat ID (the provider's session or thread ID). Dates are `YYYY-MM-DD` in the person's timezone. Long text fields are Markdown.
+- Most record IDs are UUIDs. Tickets also have keys such as `T-12`, and chats use their provider session or thread ID. Dependency references always use record UUIDs, including ticket references. Dates are `YYYY-MM-DD` in the person's timezone. Long text fields are Markdown.
 
 ## 1. Rules
 
@@ -270,6 +270,7 @@ worklog agent --as NAME retire
 | Command | Arguments and options | Prints |
 |---|---|---|
 | `context` | `[--date DATE] [--repo REPOSITORY_ID] [--item ITEM_ID] [--full]` | `{day,workItems,roadmaps,people,proposals,repositories,runs,participations,updates,tickets,resources}`, a summary by default: work items as `{id,title,status,rank}`, roadmaps as `{id,title,openQuestions}`, people as `{id,name}`, and the latest 10 updates as `{id,kind,text,authorLabel,participationId,createdAt}` with `text` cut to its first line (200 characters). `--full` answers the whole context instead: each work item, roadmap (without its steps), person and update whole, up to 100 of each. Either way: the day's entries, up to 100 of each other list, open proposals (yours in draft and those submitted for review) by title, status and `operationCount` without their changes, open tickets, and resources by title and summary without their text |
+| `dependencies list` | `--type repository\|step\|item\|ticket\|agent --id UUID` | `{prerequisites,dependents}`: active dependency links, including shared agent assignments and direct waits, plus repository catalog links. Ticket references use their canonical UUID |
 | `search QUERY` | `[--limit 50] [--archived]` | `{items:[{id,type,title,snippet,ownerId,routeType,routeId}],total}`; 220-character snippets; the first 30 words of QUERY count |
 | `roadmap outline ID` | - | `{id,title,archived,revision,steps:[{id,title,status,parentId,position,workClass,repositoryIds,waveId}]}`: each step in the plan, retired ones aside, depth-first in outline order, without its text; a parent's status comes from its leaves |
 | `roadmap dispatch ID` | `[--wave WAVE_ID] [--repo REPOSITORY_ID] [--include-done]` | Repo + Wave execution view: `summary`, `waves`, `activeWave`, `repoLanes` (per-repo WIP cap, active writers, doing/competing/queued/blocked steps, freeze state, re-pins), `multiRepoLeaves`, `unassignedLeaves` and `gates` |
@@ -350,6 +351,9 @@ worklog agent --as NAME proposal withdraw PROPOSAL_ID --revision 4
 | `updates post` | `--participation ID` and either `--text TEXT [--kind update\|blocker]` or `--file FILE` | - | required | immutable; advances the participation's revision |
 | `chats track` | `--item ITEM_ID`, or `--roadmap ROADMAP_ID [--step STEP_ID]` (repeat `--step`); `[--title TITLE] [--provider PROVIDER] [--model MODEL]` | - | required | tracks the chat you registered with there, and prints it with `created`; where it is tracked already, adds the steps you name |
 | `chats start` | `--provider codex\|claude [--cwd DIR] [--label LABEL]` | - | required | runs the installed provider CLI on this machine and registers its new chat as a child agent. See section 5.10. |
+| `dependencies report` | `--prerequisite-type TYPE --prerequisite-id UUID --context-type TYPE --context-id UUID --condition TEXT` | - | required | reports a wait as your own; prerequisite type may be repository, step, item, ticket or agent, while context type may be repository, step, item or ticket; ticket IDs are UUIDs |
+| `dependencies confirm ID` | `--revision N [--note TEXT]` | yes | required | confirms your own reported wait when its condition is met |
+| `dependencies archive ID` | `--revision N` | yes | required | archives your own reported wait |
 | `leases acquire` | `--repo REPOSITORY_ID` or `--checkout PATH`; `[--branch NAME] [--mode shared\|exclusive] [--ttl 30m] [--priority normal\|pr_fixup\|wave\|incident] [--reason TEXT] [--run RUN_ID] [--provider PROVIDER] [--wait] [--timeout 600]` | - | required | acquires a checkout slot lease (provisioning a reusable worktree when configured) or enters the FIFO queue; `--wait` polls until granted or timeout |
 | `leases wait ID` | `[--timeout 600]` | - | - | polls an existing queued or offered lease until active or terminal |
 | `leases renew ID` | `--revision N [--ttl 30m]` | yes | required | extends an active lease's TTL (5m to 4h) |
@@ -386,6 +390,10 @@ worklog agent --as NAME repositories list --q parser --limit 20
 worklog agent --as NAME repositories show REPOSITORY_ID
 worklog agent --as NAME repositories ensure --remote https://github.com/team/repo --request-id repository-team-repo
 worklog agent --as NAME repositories ensure --checkout C:/Projects/repo --name repo --request-id repository-local-repo
+worklog agent --as NAME dependencies list --type item --id ITEM_ID
+worklog agent --as NAME dependencies report --prerequisite-type ticket --prerequisite-id TICKET_ID --context-type item --context-id ITEM_ID --condition 'The fix is reviewed' --request-id dependency-wait-1
+worklog agent --as NAME dependencies confirm DEPENDENCY_ID --revision 1 --note 'The fix is reviewed' --request-id dependency-confirm-1
+worklog agent --as NAME dependencies archive DEPENDENCY_ID --revision 2 --request-id dependency-archive-1
 worklog agent --as NAME runs list --include-ended
 worklog agent --as NAME runs show RUN_ID
 worklog agent --as NAME runs start --client-run-key CHAT_ID --display-name 'Repository review' --request-id run-start-CHAT_ID
@@ -751,6 +759,9 @@ A proposal is a JSON file with a title (up to 1,000 bytes), a rationale for the 
 | `repository.update` | `id`, `revision` | `name`, `url`, `description`, `wipCap`, `tier`, `upstreamIds` |
 | `repository.archive` | `id`, `revision` | - |
 | `repository.recover` | `id`, `revision` | - |
+| `dependency.create` | `dependent`, `prerequisite` | `id`, `context`, `condition` |
+| `dependency.confirm` | `id`, `revision` | `note` |
+| `dependency.archive` | `id`, `revision` | - |
 | `item.create` | `title` | `id`, `description`, `adoUrl`, `roadmapId`, `stepId`, `day`, `worked`, `repositoryIds` |
 | `item.update` | `id`, `revision` | `title`, `description`, `status`, `adoUrl`, `roadmapId`, `stepId`, `repositoryIds` |
 | `item.archive` | `id`, `revision` | - |
@@ -846,6 +857,7 @@ Any other field is refused. On a create, `id` is not an ID but a name for the ne
   - **Free-text repository labels.** Chats tracked before schema version 24 may carry `repos` labels. They stay readable, and the upgrade linked each chat to the one repository whose name a label was exactly. A chat takes no new ones (`422 validation`, `repos` marked `"retired"`): a `chat.*` that leaves `repos` out, or gives the chat's own labels unchanged, applies; one that changes them is refused when the person approves it. Link the repository with `repositoryIds` instead.
 - **GitHub references.** `kind` is `commit` or `pr`. `chatId` names a tracked chat on the same work item or roadmap, or on its linked work: by its Worklog ID or its provider ID.
 - **Existing repositories.** A `repository.create` for a remote that is already registered links to that record instead of failing.
+- **Dependencies.** `dependency.create` proposes a shared prerequisite between typed `dependent` and `prerequisite` records. Each reference has `type` (`repository`, `step`, `item`, `ticket` or `agent`) and its record UUID as `id`, including for tickets. `context` is optional unless the dependent is an agent. Agent contexts are required and use `repository`, `step`, `item` or `ticket`. A person or approved proposal may assign an agent as the dependent, and that link remains shared. For shared links, give a condition when the prerequisite needs confirmation. Direct waits always require a condition. `dependency.create` may name its new link with `id`, so a later `dependency.confirm` or `dependency.archive` in the same proposal can refer to it. Use `dependencies report` for your own wait. Worklog records its caller in `reportedByAgentId`, and that agent may confirm or archive the wait directly. `GET /dependencies/waits` lists waits identified by `reportedByAgentId`.
 - **Names for new records.** Worklog gives a new record its ID when the change that creates it applies, so a later change in the same proposal can't give that ID. Name the record instead:
   - On any create but `attachment.create`, and `note.create` on a work item (it joins the item's one scratchpad), `id` is a name, such as `@jane`: `@` and up to 100 letters, digits, `.`, `_` or `-`, starting with a letter or digit. It is never an ID; Worklog chooses that.
   - A later change gives the name wherever it would give the record's ID: in `id`, `itemId`, `roadmapId`, `parentId`, `personId`, `ownerId`, `targetId`, and in `repositoryIds`. The record must be the kind the field takes: a person for `personId`, a repository in `repositoryIds`, and for `ownerId` and `targetId` the kind `ownerType` or `targetType` names.

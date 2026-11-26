@@ -1,0 +1,37 @@
+{
+  "body": {
+    "archived": false,
+    "condition": "Review the parser change",
+    "confirmation": null,
+    "context": {
+      "available": true,
+      "id": "<id5>",
+      "mergedInto": null,
+      "roadmapId": "<id4>",
+      "title": "Child",
+      "type": "step"
+    },
+    "dependent": {
+      "available": true,
+      "id": "<id2>",
+      "mergedInto": null,
+      "roadmapId": null,
+      "title": "Builder",
+      "type": "agent"
+    },
+    "id": "<id1>",
+    "kind": "wait",
+    "prerequisite": {
+      "available": true,
+      "id": "<id3>",
+      "mergedInto": null,
+      "roadmapId": "<id4>",
+      "title": "Crash on save",
+      "type": "ticket"
+    },
+    "reportedByAgentId": "<id2>",
+    "revision": 1,
+    "state": "waiting"
+  },
+  "status": 200
+}
