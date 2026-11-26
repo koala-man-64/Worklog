@@ -81,12 +81,6 @@ export const commands = {
     ),
   createLink: (body: Schema["LinkCreate"]) =>
     request<Answer<"/api/v1/links", "post">>("/links", "POST", body),
-  updateLink: (id: string, body: Schema["LinkUpdate"]) =>
-    request<Answer<"/api/v1/links/{identity}", "patch">>(
-      "/links/" + id,
-      "PATCH",
-      body,
-    ),
   createChat: (body: Schema["ChatCreate"]) =>
     request<Answer<"/api/v1/chats", "post">>("/chats", "POST", body),
   updateChat: (id: string, body: Schema["ChatUpdate"]) =>
@@ -249,12 +243,6 @@ export const commands = {
   splitStep: (id: string, body: Schema["StepSplit"]) =>
     request<Answer<"/api/v1/steps/{identity}/split", "post">>(
       `/steps/${id}/split`,
-      "POST",
-      body,
-    ),
-  moveStep: (id: string, body: Schema["StepMove"]) =>
-    request<Answer<"/api/v1/steps/{identity}/move", "post">>(
-      `/steps/${id}/move`,
       "POST",
       body,
     ),
