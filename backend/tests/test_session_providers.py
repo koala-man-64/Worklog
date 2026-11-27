@@ -11,7 +11,8 @@ SESSION = "903fb118-fbe8-4241-85bf-d6270a0bfaee"
 
 
 @pytest.mark.parametrize("provider", ["codex", "claude"])
-def test_preparation_keeps_prompt_out_of_arguments_and_requires_a_saved_session(monkeypatch, provider):
+@pytest.mark.parametrize("customize", [False, True])
+def test_preparation_keeps_prompt_out_of_arguments_and_requires_a_saved_session(monkeypatch, provider, customize):
     prompt = "Keep literal text: $(private) & `command`\nContinue later"
     monkeypatch.setattr(sessions, "_codex_executable", lambda: ["codex.exe"])
     monkeypatch.setattr(sessions, "_cli_executable", lambda name: name + ".exe")
@@ -28,13 +29,24 @@ def test_preparation_keeps_prompt_out_of_arguments_and_requires_a_saved_session(
         return subprocess.CompletedProcess(command, 0, output.encode(), b"")
 
     monkeypatch.setattr(sessions, "_run_cli", run)
-    assert sessions._prepare_session(provider, "C:\\work", prompt) == (SESSION, "")
+    prefs = {"requestedModel": "example-model", "reasoningEffort": "xhigh"} if customize else {}
+    assert sessions._prepare_session(provider, "C:\\work", prompt, prefs) == (SESSION, "")
     command, options = calls[0]
     assert prompt not in command
     assert options["input_bytes"] == prompt.encode()
+    if customize:
+        assert command[command.index("--model") + 1] == "example-model"
+    else:
+        assert "--model" not in command
     if provider == "claude":
         assert command[command.index("--tools") + 1] == ""
+        if customize:
+            assert command[command.index("--effort") + 1] == "xhigh"
+        else:
+            assert "--effort" not in command
     else:
+        assert command[-1] == "-"
+        assert ('model_reasoning_effort="xhigh"' in command) == customize
         assert command[command.index("--sandbox") + 1] == "read-only"
         assert "--ignore-user-config" in command
         assert {"shell_tool", "apps", "plugins", "skill_mcp_dependency_install"} <= set(command)

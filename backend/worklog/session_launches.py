@@ -26,9 +26,11 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
+from .claude_settings import require_claude_settings
 from .common import AppError, now
 from .db import Database
 from .leases import LeaseService, policy_record, repository_slot_summaries
+from .models import CLAUDE_SESSION_EFFORTS
 from .records import get_item
 from .registry import AgentRegistry
 from .repository_links import linked_repositories
@@ -62,7 +64,8 @@ class _LaunchJob:
     item_title: str
     cwd: str
     prompt: str
-    prepare: Callable[[str, str, str], tuple[str, str]]
+    requested_options: dict[str, str]
+    prepare: Callable[[str, str, str, dict[str, str]], tuple[str, str]]
 
 
 def _safe_session_id(value: Any) -> str:
@@ -300,8 +303,14 @@ def _run_cli(
             _ACTIVE_PROCESSES.discard(process)
 
 
-def _prepare_session(provider: str, cwd: str, prompt: str, *, allow_non_git: bool = False) -> tuple[str, str]:
+def _prepare_session(
+    provider: str, cwd: str, prompt: str, requested_options: dict[str, str] | None = None,
+    *, allow_non_git: bool = False,
+) -> tuple[str, str]:
     """Create one completed, ready-only provider turn and return its durable session ID and model."""
+    options = requested_options or {}
+    requested_model = options.get("requestedModel")
+    reasoning_effort = options.get("reasoningEffort")
     if provider == "codex":
         command = [
             *_codex_executable(), "exec", "--json", "--sandbox", "read-only",
@@ -311,6 +320,10 @@ def _prepare_session(provider: str, cwd: str, prompt: str, *, allow_non_git: boo
         ]
         if allow_non_git:
             command.append("--skip-git-repo-check")
+        if requested_model:
+            command.extend(["--model", requested_model])
+        if reasoning_effort:
+            command.extend(["-c", f"model_reasoning_effort={json.dumps(reasoning_effort)}"])
         command.append("-")
         completed = _run_cli(
             command,
@@ -358,6 +371,10 @@ def _prepare_session(provider: str, cwd: str, prompt: str, *, allow_non_git: boo
             _cli_executable("claude"), "-p", "--session-id", session_id,
             "--output-format", "json", "--max-turns", "1", "--tools", "",
         ]
+        if requested_model:
+            command.extend(["--model", requested_model])
+        if reasoning_effort:
+            command.extend(["--effort", reasoning_effort])
         completed = _run_cli(
             command,
             cwd=cwd,
@@ -440,6 +457,26 @@ class SessionLauncher:
                             (json.dumps(record), self._namespace(actor), identity))
         if changed.rowcount != 1:
             raise AppError(404, "not_found", "Session launch not found")
+
+    @staticmethod
+    def _dispatch_receipt(c: sqlite3.Connection, identity: str) -> dict:
+        row = c.execute(
+            "SELECT response_json FROM receipts WHERE actor_id=? AND key=?",
+            (RECEIPT_PREFIX + "local-user", identity),
+        ).fetchone()
+        return json.loads(row["response_json"]) if row is not None else {}
+
+    @staticmethod
+    def _requested_options(provider: str, payload: dict) -> dict[str, str]:
+        model = payload.get("model")
+        effort = payload.get("reasoningEffort")
+        if provider == "antigravity" and (model is not None or effort is not None):
+            raise AppError(422, "validation", "Model and reasoning settings are available for Codex and Claude")
+        if provider == "claude" and effort is not None and effort not in CLAUDE_SESSION_EFFORTS:
+            raise AppError(422, "validation", "Choose low, medium, high, xhigh, or max for Claude",
+                           {"reasoningEffort": "invalid"})
+        return {key: value for key, value in (("requestedModel", model), ("reasoningEffort", effort))
+                if value is not None}
 
     @staticmethod
     def _validate(payload: dict) -> tuple[str, str | None, str | None, str, str, str, str]:
@@ -558,6 +595,7 @@ class SessionLauncher:
                 "queuePosition": queue_position,
                 "activeHolders": summary.get("activeLeases", []),
                 "copyablePrompt": copyable_prompt,
+                **self._dispatch_receipt(c, dq["id"]).get("requestedOptions", {}),
             },
             "item": {
                 "id": dq["id"],
@@ -591,6 +629,7 @@ class SessionLauncher:
         if not 8 <= len(key) <= 200:
             raise AppError(422, "idempotency", "Use an idempotency key between 8 and 200 characters")
         provider, repository_id, cwd, branch, mode, priority, prompt = self._validate(payload)
+        requested_options = self._requested_options(provider, payload)
         identity = hashlib.sha256(key.encode()).hexdigest()
         digest = hashlib.sha256(json.dumps({"item": item_id, "payload": payload}, sort_keys=True).encode()).hexdigest()
         with self.lock:
@@ -611,7 +650,7 @@ class SessionLauncher:
             if effective_repo is not None and self.leases is not None:
                 return self._start_dispatched(
                     identity, namespace, digest, item_id, effective_repo,
-                    provider, cwd, branch, mode, priority, prompt, actor,
+                    provider, cwd, branch, mode, priority, prompt, requested_options, actor,
                 )
 
             # Legacy raw-cwd launch path (or Antigravity with custom folder).
@@ -636,15 +675,18 @@ class SessionLauncher:
             if len(self.workers) >= 2:
                 raise AppError(429, "session_limit", "Two chats are being prepared. Wait for one to finish.")
             folder = self._folder(cwd)
+            if provider == "claude":
+                require_claude_settings(folder, requested_options)
             with self.db.transaction() as c:
                 item = get_item(c, item_id, active=True)
                 result = {"id": identity, "provider": provider, "status": "starting", "chat": None,
-                          "sessionId": None, "message": "Preparing a linked desktop chat…"}
+                          "sessionId": None, "message": "Preparing a linked desktop chat…", **requested_options}
                 record = {"kind": "session-launch", "processToken": self.token, "cwd": folder,
                           "itemId": item_id, "itemTitle": item["title"], "result": result}
                 c.execute("INSERT INTO receipts(actor_id,key,request_hash,response_json,created_at) VALUES(?,?,?,?,?)",
                           (namespace, identity, digest, json.dumps(record), now()))
-            job = _LaunchJob(self, identity, dict(actor), provider, item_id, item["title"], folder, prompt, _prepare_session)
+            job = _LaunchJob(self, identity, dict(actor), provider, item_id, item["title"],
+                             folder, prompt, requested_options, _prepare_session)
             worker = threading.Thread(target=self._run_launch, args=(job,), name="worklog-session-prepare", daemon=True)
             self.workers[identity] = worker
             try:
@@ -667,6 +709,7 @@ class SessionLauncher:
         mode: str,
         priority: str,
         prompt: str,
+        requested_options: dict[str, str],
         actor: dict,
     ) -> dict:
         assert self.leases is not None
@@ -681,6 +724,8 @@ class SessionLauncher:
                 "Configure baseCheckoutPath on this repository or provide a local working folder",
                 {"cwd": "required"},
             )
+        if provider == "claude" and not pol["baseCheckoutPath"]:
+            require_claude_settings(fallback_cwd, requested_options)
         stamp = now()
         with self.db.transaction() as c:
             item = get_item(c, item_id, active=True)
@@ -709,7 +754,7 @@ class SessionLauncher:
             )
             receipt_record = {
                 "kind": "dispatch-launch", "dispatchId": identity, "cwd": fallback_cwd,
-                "itemId": item_id, "itemTitle": item["title"],
+                "itemId": item_id, "itemTitle": item["title"], "requestedOptions": requested_options,
             }
             c.execute("INSERT INTO receipts(actor_id,key,request_hash,response_json,created_at) VALUES(?,?,?,?,?)",
                       (namespace, identity, digest, json.dumps(receipt_record), stamp))
@@ -721,7 +766,7 @@ class SessionLauncher:
         if provider == "antigravity":
             return self._finish_antigravity_dispatch(identity, lease["id"], branch, actor)
 
-        self._spawn_dispatch_worker(identity, dict(actor), fallback_cwd=fallback_cwd, auto_open=True)
+        self._spawn_dispatch_worker(identity, dict(actor), auto_open=True)
         return self.get(identity, actor)
 
     def _finish_antigravity_dispatch(
@@ -759,7 +804,6 @@ class SessionLauncher:
         dispatch_id: str,
         actor: dict,
         *,
-        fallback_cwd: str = "",
         auto_open: bool,
     ) -> bool:
         with self.lock:
@@ -767,7 +811,7 @@ class SessionLauncher:
                 return False
             worker = threading.Thread(
                 target=self._run_dispatch_worker,
-                args=(dispatch_id, actor, fallback_cwd, auto_open),
+                args=(dispatch_id, actor, auto_open),
                 name="worklog-dispatch-prepare",
                 daemon=True,
             )
@@ -783,7 +827,6 @@ class SessionLauncher:
         self,
         dispatch_id: str,
         actor: dict,
-        fallback_cwd: str,
         auto_open: bool,
     ) -> None:
         assert self.leases is not None
@@ -803,11 +846,18 @@ class SessionLauncher:
                 repo_id = dq["repository_id"]
                 item_id = dq["item_id"]
                 item_title = item["title"]
+                receipt = self._dispatch_receipt(c, dispatch_id)
 
             activated = self.leases.activate_dispatch_lease(lease_id, actor, requested_branch=branch)
-            folder = activated["worktreePath"] or fallback_cwd
+            folder = activated["worktreePath"] or receipt.get("cwd", "")
             if not folder:
                 raise RuntimeError("No working folder available for dispatch")
+            requested_options = receipt.get("requestedOptions", {})
+            if provider == "claude" and requested_options:
+                if activated["worktreePath"]:
+                    self.leases.prepare_claude_settings(lease_id, folder, requested_options)
+                else:
+                    require_claude_settings(folder, requested_options)
 
             with self.db.transaction() as c:
                 c.execute(
@@ -828,6 +878,7 @@ class SessionLauncher:
                 provider,
                 folder,
                 _initialization_prompt(item_id, item_title, prompt, header),
+                requested_options,
             )
             safe_id = _safe_session_id(chat_id)
             clean_model = _clean_model(model)
@@ -853,6 +904,8 @@ class SessionLauncher:
                         (chat_rec["id"], now(), dispatch_id),
                     )
             if auto_open:
+                self._verify_desktop_settings(provider, folder, requested_options,
+                                              lease_id if activated["worktreePath"] else None)
                 _open_desktop(provider, folder, safe_id)
                 ready_msg = "Chat prepared in slot and linked. Open request sent. Send Continue in the desktop app to begin work."
             else:
@@ -871,7 +924,9 @@ class SessionLauncher:
                     logger.warning("Failed to release lease after dispatch error", exc_info=True)
             with self.db.transaction() as c:
                 dq_now = c.execute("SELECT session_id,chat_record_id FROM dispatch_queue WHERE id=?", (dispatch_id,)).fetchone()
-                if dq_now is not None and dq_now["chat_record_id"]:
+                if isinstance(exc, AppError) and exc.code == "claude_settings":
+                    msg = exc.message
+                elif dq_now is not None and dq_now["chat_record_id"]:
                     msg = "The linked chat could not be opened. Use Open in app to retry this same chat."
                 elif dq_now is not None and dq_now["session_id"]:
                     msg = "The provider chat is saved, but its Worklog link could not be saved. Retry opening this session."
@@ -908,14 +963,6 @@ class SessionLauncher:
                     continue
                 if row["provider"] != "antigravity" and len(self.workers) >= 2:
                     break
-            fallback_cwd = ""
-            with self.db.read() as c:
-                rec_row = c.execute("SELECT response_json FROM receipts WHERE key=?", (row["id"],)).fetchone()
-                if rec_row is not None:
-                    try:
-                        fallback_cwd = str(json.loads(rec_row["response_json"]).get("cwd") or "")
-                    except (TypeError, ValueError):
-                        fallback_cwd = ""
             if row["provider"] == "antigravity":
                 with self.db.transaction() as c:
                     cur = c.execute("SELECT status FROM dispatch_queue WHERE id=?", (row["id"],)).fetchone()
@@ -941,7 +988,7 @@ class SessionLauncher:
                             "UPDATE dispatch_queue SET status='provisioning',process_token=?,message=?,updated_at=?,revision=revision+1 WHERE id=?",
                             (self.token, "Slot granted; provisioning worktree…", now(), row["id"]),
                         )
-                    if self._spawn_dispatch_worker(row["id"], actor, fallback_cwd=fallback_cwd, auto_open=False):
+                    if self._spawn_dispatch_worker(row["id"], actor, auto_open=False):
                         started += 1
         return started
 
@@ -1008,12 +1055,12 @@ class SessionLauncher:
                     return self._dispatch_record(c, dq)["launch"]
                 if not dq["session_id"]:
                     raise AppError(409, "session_launch", "No saved provider session is available to reopen")
-                lease = c.execute("SELECT worktree_path FROM repository_leases WHERE id=?", (dq["lease_id"],)).fetchone()
-                folder = lease["worktree_path"] if lease and lease["worktree_path"] else ""
-                if not folder:
-                    rec_row = c.execute("SELECT response_json FROM receipts WHERE key=?", (dispatch_id,)).fetchone()
-                    if rec_row is not None:
-                        folder = str(json.loads(rec_row["response_json"]).get("cwd") or "")
+                lease_id = dq["lease_id"]
+                lease = c.execute("SELECT worktree_path FROM repository_leases WHERE id=?", (lease_id,)).fetchone()
+                slot_folder = lease["worktree_path"] if lease else ""
+                receipt = self._dispatch_receipt(c, dispatch_id)
+                folder = slot_folder or receipt.get("cwd", "")
+                requested_options = receipt.get("requestedOptions", {})
                 provider = dq["provider"]
                 session_id = dq["session_id"]
                 item_id = dq["item_id"]
@@ -1022,6 +1069,7 @@ class SessionLauncher:
                 chat_record_id = dq["chat_record_id"]
             self.opening.add(dispatch_id)
         try:
+            self._verify_desktop_settings(provider, folder, requested_options, lease_id if slot_folder else None)
             if not chat_record_id:
                 with self.db.transaction() as c:
                     item = get_item(c, item_id, active=True)
@@ -1044,10 +1092,12 @@ class SessionLauncher:
                 )
         except Exception as exc:
             logger.warning("Opening dispatched chat failed (%s)", type(exc).__name__)
+            message = (exc.message if isinstance(exc, AppError) and exc.code == "claude_settings" else
+                       "The linked chat could not be opened. Use Open in app to retry this same chat.")
             with self.db.transaction() as c:
                 c.execute(
                     "UPDATE dispatch_queue SET status='failed',message=?,updated_at=?,revision=revision+1 WHERE id=?",
-                    ("The linked chat could not be opened. Use Open in app to retry this same chat.", now(), dispatch_id),
+                    (message, now(), dispatch_id),
                 )
         finally:
             with self.lock:
@@ -1116,9 +1166,22 @@ class SessionLauncher:
                 self._save(c, identity, actor, record)
             return record
 
+    def _verify_desktop_settings(
+        self, provider: str, folder: str, options: dict[str, str], lease_id: str | None = None,
+    ) -> None:
+        if provider != "claude" or not options:
+            return
+        if lease_id and self.leases:
+            self.leases.require_claude_slot_settings(lease_id, folder, options)
+        else:
+            require_claude_settings(folder, options)
+
     def _handoff(self, identity: str, actor: dict) -> None:
         record = self._link_prepared(identity, actor)
         result = record["result"]
+        if result["provider"] == "claude":
+            options = {key: result[key] for key in ("requestedModel", "reasoningEffort") if key in result}
+            require_claude_settings(record["cwd"], options)
         _open_desktop(result["provider"], record["cwd"], result["chat"]["chatId"])
         self._state(identity, actor, "ready", "Chat prepared and linked. Open request sent. "
                     "Send Continue in the desktop app to begin work.")
@@ -1129,7 +1192,9 @@ class SessionLauncher:
         with self.lock, self.db.transaction() as c:
             record = self._load(c, identity, actor)
             result = record["result"]
-            if result.get("sessionId") and result["chat"] is None:
+            if isinstance(exc, AppError) and exc.code == "claude_settings":
+                message = exc.message
+            elif result.get("sessionId") and result["chat"] is None:
                 message = "The provider chat is saved, but its Worklog link could not be saved. Retry linking and opening this session."
             elif result["chat"] is not None:
                 message = "The linked chat could not be opened. Use Open in app to retry this same chat."
@@ -1145,7 +1210,8 @@ class SessionLauncher:
             with self.db.read() as c:
                 get_item(c, job.item_id, active=True)
             chat_id, model = job.prepare(job.provider, job.cwd,
-                                         _initialization_prompt(job.item_id, job.item_title, job.prompt))
+                                         _initialization_prompt(job.item_id, job.item_title, job.prompt),
+                                         job.requested_options)
             self._record_session(job, chat_id, model)
             self._handoff(job.identity, job.actor)
         except Exception as exc:

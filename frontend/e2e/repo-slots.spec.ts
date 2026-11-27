@@ -184,8 +184,30 @@ test("repository checkout slots enforce cap, show queue, and promote on force re
     page.getByText(/Frozen \(0\/0\) — session will queue/),
   ).toBeVisible();
   await page
+    .getByRole("textbox", { name: "Working folder" })
+    .fill(process.cwd());
+  await page
+    .getByRole("textbox", { name: "Model", exact: true })
+    .fill("example-model");
+  await page
+    .getByRole("combobox", { name: "Reasoning effort" })
+    .selectOption("xhigh");
+  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await expect(page.getByText(/Queued for/i)).toBeVisible();
+  await expect(page.getByText(/Requested model example-model/)).toBeVisible();
+  await expect(page.getByText(/Requested effort xhigh/)).toBeVisible();
+  await page
+    .getByRole("button", { name: "Cancel queued dispatch", exact: true })
+    .click();
+  await expect(page.getByText("Queued dispatch cancelled.")).toBeVisible();
+
+  await page.getByRole("button", { name: "Start another session" }).click();
+  await page
     .getByRole("combobox", { name: "Provider", exact: true })
     .selectOption("antigravity");
+  await expect(
+    page.getByRole("textbox", { name: "Model", exact: true }),
+  ).toHaveCount(0);
   await page.getByRole("button", { name: "Start", exact: true }).click();
   await expect(page.getByText(/Queued for/i)).toBeVisible();
   await page

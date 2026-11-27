@@ -284,6 +284,8 @@ class SessionLaunch(Answer):
     status: Literal["queued", "provisioning", "starting", "preparing", "ready", "ready_manual", "failed", "cancelled"]
     chat: TrackedChat | None
     message: str
+    requestedModel: str | None = None
+    reasoningEffort: str | None = None
     # A provider chat can exist before a failed local link is repaired.
     sessionId: str | None = None
     dispatchId: str | None = None

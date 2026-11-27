@@ -27,8 +27,9 @@ def test_concurrent_launch_and_replay_create_one_chat(arguments, monkeypatch):
     started, finish = threading.Event(), threading.Event()
     calls = []
 
-    def prepare(provider, cwd, prompt, *, allow_non_git):
+    def prepare(provider, cwd, prompt, *, requested_options, allow_non_git):
         calls.append((provider, cwd, prompt))
+        assert requested_options == {}
         assert allow_non_git
         started.set()
         assert finish.wait(8)
@@ -48,9 +49,21 @@ def test_concurrent_launch_and_replay_create_one_chat(arguments, monkeypatch):
     assert created["name"] in calls[0][2] and created["state"] == "created"
     assert created == local_sessions.start_local_session(**arguments)
     assert len(calls) == 1
-    for key, other in (("provider", "claude"), ("cwd", Path(arguments["cwd"]).parent), ("label", "A new label")):
+    for key, other in (("provider", "claude"), ("cwd", Path(arguments["cwd"]).parent), ("label", "A new label"),
+                       ("model", "example-model"), ("reasoning_effort", "low")):
         with pytest.raises(ValueError, match="different"):
             local_sessions.start_local_session(**{**arguments, key: other})
+
+
+@pytest.mark.parametrize(("provider", "flags", "message"), [
+    ("codex", {"model": "--other-flag"}, "--model"),
+    ("codex", {"reasoning_effort": "unknown"}, "codex --reasoning-effort"),
+    ("claude", {"reasoning_effort": "ultra"}, "claude --reasoning-effort"),
+])
+def test_rejects_unsupported_launch_settings_before_writing_receipt(arguments, provider, flags, message):
+    with pytest.raises(ValueError, match=message):
+        local_sessions.start_local_session(**{**arguments, "provider": provider, **flags})
+    assert not arguments["receipt_dir"].exists()
 
 
 def test_retry_registration_reuses_the_persisted_provider_id(arguments, monkeypatch):
