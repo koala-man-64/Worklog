@@ -175,6 +175,7 @@ ROUTES: dict[str, dict[str, str | Only]] = {
     "/leases/acquire": {"POST": COORDINATE},
     "/leases/{identity}": {"GET": READ},
     "/leases/{identity}/poll": {"POST": COORDINATE},
+    "/leases/{identity}/bind-worktree": {"POST": COORDINATE},
     "/leases/{identity}/renew": {"POST": COORDINATE},
     "/leases/{identity}/release": {"POST": COORDINATE},
     "/leases/{identity}/rescue": {"POST": HUMAN},

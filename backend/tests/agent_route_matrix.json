@@ -158,6 +158,7 @@
   "POST /api/v1/github/{identity}/recover": "refused",
   "POST /api/v1/leases/acquire": "reaches handler",
   "POST /api/v1/leases/{identity}/poll": "reaches handler",
+  "POST /api/v1/leases/{identity}/bind-worktree": "reaches handler",
   "POST /api/v1/leases/{identity}/release": "reaches handler",
   "POST /api/v1/leases/{identity}/renew": "reaches handler",
   "POST /api/v1/leases/{identity}/rescue": "refused",

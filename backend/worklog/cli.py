@@ -652,7 +652,7 @@ def _lease_route_allowed(method: str, route: str) -> bool:
         return False
     if len(parts) == 2 and parts[0] == "leases":
         return method == "GET"
-    if len(parts) == 3 and parts[0] == "leases" and parts[2] in {"poll", "renew", "release"}:
+    if len(parts) == 3 and parts[0] == "leases" and parts[2] in {"poll", "renew", "release", "bind-worktree"}:
         return method == "POST"
     if len(parts) == 3 and parts[0] == "repositories" and parts[2] in {"slot-policy", "slots"}:
         return method == "GET"
@@ -2075,6 +2075,11 @@ def lease_command(client: AgentClient, args: argparse.Namespace) -> Any:
         if args.reason:
             payload["reason"] = args.reason
         return client.request("POST", f"/leases/{args.id}/release", payload, request_id=args.request_id)
+    if action == "bind-worktree":
+        payload = {"revision": args.revision, "worktreePath": args.path}
+        if args.handoff_message is not None:
+            payload["handoffMessageId"] = args.handoff_message
+        return client.request("POST", f"/leases/{args.id}/bind-worktree", payload, request_id=args.request_id)
     raise ValueError(f"Unknown lease action: {action}")
 
 
@@ -2105,6 +2110,14 @@ def _lease_parser(actions: Any) -> None:
     waiting.add_argument("id", help="Lease ID")
     waiting.add_argument("--timeout", type=_lease_wait_timeout, default=600,
                          help="Seconds to wait (default 600, max 3600)")
+
+    bind = leases.add_parser("bind-worktree", help="Bind an active lease to a caller-created worktree")
+    bind.add_argument("id", help="Lease ID")
+    bind.add_argument("--path", required=True, help="Canonical absolute path to the caller-created Git worktree")
+    bind.add_argument("--revision", type=int, required=True)
+    bind.add_argument("--handoff-message", dest="handoff_message",
+                      help="Repository-discussion message that hands off a pre-existing worktree")
+    write(bind)
 
     renew = leases.add_parser("renew", help="Extend an active lease's TTL")
     renew.add_argument("id", help="Lease ID")

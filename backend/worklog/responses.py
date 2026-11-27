@@ -126,6 +126,7 @@ class ActiveLeaseSummary(Answer):
     slotIndex: int | None
     branch: str
     worktreePath: str
+    worktreeSource: Literal["unbound", "managed", "caller"]
     mode: Literal["shared", "exclusive"]
     state: Literal["offered", "active"]
     expiresAt: str | None
@@ -196,6 +197,7 @@ class Lease(Answer):
     holderLabel: str
     slotIndex: int | None
     worktreePath: str
+    worktreeSource: Literal["unbound", "managed", "caller"]
     branch: str
     mode: Literal["shared", "exclusive"]
     state: Literal["queued", "offered", "active", "released", "expired", "expired_dirty", "revoked", "cancelled"]

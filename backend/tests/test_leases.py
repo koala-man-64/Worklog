@@ -92,6 +92,26 @@ def env(tmp_path):
         yield client, tmp_path
 
 
+@pytest.mark.parametrize(("path", "source"), [("", "unbound"), ("C:/old-pool/slot-1", "managed")])
+def test_replaying_a_v37_receipt_classifies_the_original_path(env, path, source):
+    client, _ = env
+    repo = _create_repo(client, "old-receipt")
+    owner = _issue(client, "Owner")
+    payload = {"repositoryId": repo["id"], "branch": "feature/old-receipt"}
+    key = "acquire-from-v37"
+    acquired = _agent_post(client, owner["token"], "/leases/acquire", payload, key).json()
+    released = _agent_post(client, owner["token"], f"/leases/{acquired['id']}/release",
+                           {"revision": acquired["revision"]})
+    assert released.status_code == 200, released.text
+    legacy = dict(acquired, worktreePath=path)
+    del legacy["worktreeSource"]
+    with client.app.state.db.transaction() as c:
+        c.execute("UPDATE receipts SET response_json=? WHERE key=?", (json.dumps(legacy), key))
+    replay = _agent_post(client, owner["token"], "/leases/acquire", payload, key)
+    assert replay.status_code == 200, replay.text
+    assert replay.json() == {**legacy, "worktreeSource": source}
+
+
 def test_concurrent_acquire_enforces_cap_and_fifo_promotion(env):
     client, tmp_path = env
     repo = _create_repo(client, "jobs")
@@ -224,6 +244,97 @@ def test_reacquire_preserves_exact_feature_commit(env, occupy_released_slot, adv
     assert _git(resumed_slot, "rev-parse", "HEAD") == feature_tip
 
 
+@pytest.mark.parametrize("release_first", [False, True], ids=["occupied", "caller-retained"])
+def test_managed_policy_cannot_take_over_a_caller_worktree(env, monkeypatch, release_first):
+    from worklog import slot_worktrees
+
+    client, tmp_path = env
+    name = "caller-pool"
+    _, base = make_repo_pair(tmp_path, name)
+    repo = _create_repo(client, name)
+    _git(base, "remote", "set-url", "origin", repo["url"])
+    holder, waiter = _issue(client, "Caller"), _issue(client, "Next")
+    branch = "feature/caller"
+    claim = _agent_post(client, holder["token"], "/leases/acquire", {"repositoryId": repo["id"], "branch": branch}).json()
+    root = tmp_path / "new-managed-pool"
+    target = root / name / ("slot-1" if release_first else "slot-2")
+    target.parent.mkdir(parents=True)
+    _git(base, "worktree", "add", "-b", branch, str(target))
+    bound = _agent_post(client, holder["token"], f"/leases/{claim['id']}/bind-worktree",
+                        {"revision": claim["revision"], "worktreePath": str(target)})
+    assert bound.status_code == 200, bound.text
+    dirty = target / "untracked.txt"
+    dirty.write_text("caller data", encoding="utf-8")
+    if release_first:
+        released = _agent_post(client, holder["token"], f"/leases/{claim['id']}/release",
+                               {"revision": bound.json()["revision"]})
+        assert released.status_code == 200, released.text
+    policy = client.patch(f"/api/v1/repositories/{repo['id']}/slot-policy",
+                          json={"baseCheckoutPath": str(base), "slotRootPath": str(root)})
+    assert policy.status_code == 200, policy.text
+    monkeypatch.setattr(slot_worktrees, "provision_slot", lambda *args: pytest.fail("entered caller worktree"))
+    refused = _agent_post(client, waiter["token"], "/leases/acquire", {"repositoryId": repo["id"], "branch": "feature/next"})
+    assert refused.status_code == 409, refused.text
+    assert refused.json()["error"]["code"] == ("caller_worktree" if release_first else "worktree_in_use")
+    assert dirty.read_text(encoding="utf-8") == "caller data"
+    assert _git(target, "symbolic-ref", "--short", "HEAD") == branch
+
+
+def test_logical_lease_cannot_bind_inside_another_managed_pool(env):
+    client, tmp_path = env
+    repo = _create_repo(client, "caller-catalog")
+    _, base = make_repo_pair(tmp_path, repo["name"])
+    _git(base, "remote", "set-url", "origin", repo["url"])
+    managed = _create_repo(client, "managed-catalog", url="")
+    pool = tmp_path / "slots"
+    policy = client.patch(f"/api/v1/repositories/{managed['id']}/slot-policy",
+                          json={"baseCheckoutPath": str(base), "slotRootPath": str(pool)})
+    assert policy.status_code == 200, policy.text
+    owner = _issue(client, "Caller")
+    lease = _agent_post(client, owner["token"], "/leases/acquire",
+                        {"repositoryId": repo["id"], "branch": "feature/pool"}).json()
+    target = pool / managed["name"] / "slot-1"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    _git(base, "worktree", "add", "-b", lease["branch"], str(target))
+    refused = _agent_post(client, owner["token"], f"/leases/{lease['id']}/bind-worktree",
+                          {"revision": lease["revision"], "worktreePath": str(target)})
+    assert refused.status_code == 409, refused.text
+    assert refused.json()["error"]["code"] == "worktree_managed"
+    assert client.get(f"/api/v1/leases/{lease['id']}").json() == lease
+    assert _git(target, "symbolic-ref", "--short", "HEAD") == lease["branch"]
+
+
+def test_caller_lease_heartbeat_wins_over_an_older_expiry_scan(env, monkeypatch):
+    client, tmp_path = env
+    repo = _create_repo(client, "caller-heartbeat")
+    owner = _issue(client, "Caller")
+    _, base = make_repo_pair(tmp_path, repo["name"])
+    _git(base, "remote", "set-url", "origin", repo["url"])
+    service = client.app.state.leases
+    monkeypatch.setattr(service, "_dead_claude_sessions", lambda: set())
+    acquire = {"repositoryId": repo["id"], "branch": "feature/heartbeat", "provider": "claude"}
+    lease = _agent_post(client, owner["token"], "/leases/acquire", acquire).json()
+    path = tmp_path / "caller"
+    _git(base, "worktree", "add", "-b", lease["branch"], str(path))
+    bound = _agent_post(client, owner["token"], f"/leases/{lease['id']}/bind-worktree",
+                        {"revision": lease["revision"], "worktreePath": str(path)})
+    assert bound.status_code == 200, bound.text
+    with client.app.state.db.transaction() as c:
+        c.execute("UPDATE repository_leases SET expires_at=? WHERE id=?",
+                  ((datetime.now(UTC) - timedelta(seconds=1)).isoformat(), lease["id"]))
+
+    def refresh_after_scan():
+        renewed = _agent_post(client, owner["token"], "/leases/acquire", acquire)
+        assert renewed.status_code == 200, renewed.text
+        assert renewed.json()["revision"] == bound.json()["revision"]
+        return set()
+
+    monkeypatch.setattr(service, "_dead_claude_sessions", refresh_after_scan)
+    assert service.sweep()["expired"] == 0
+    current = client.get(f"/api/v1/leases/{lease['id']}").json()
+    assert (current["state"], current["worktreePath"]) == ("active", str(path))
+
+
 def test_ttl_expiry_auto_rescue_and_human_rescue_when_disabled(env):
     client, tmp_path = env
     _, base = make_repo_pair(tmp_path, "rescue-repo")
@@ -321,7 +432,7 @@ def test_slot_count_changes_from_the_list_while_a_moved_base_waits_to_be_fixed(e
 
 
 def test_lifecycle_hooks_run_end_retire_continue_and_merge(env):
-    client, _ = env
+    client, tmp_path = env
     repo = _create_repo(client, "lifecycle-repo")
     sponsor = _issue(client, "Sponsor")
 
@@ -337,9 +448,38 @@ def test_lifecycle_hooks_run_end_retire_continue_and_merge(env):
     ).json()
     lease_a = _agent_post(
         client, tok_a, "/leases/acquire",
-        {"repositoryId": repo["id"], "branch": "feat/a", "runId": run_a["id"]},
+        {
+            "repositoryId": repo["id"],
+            "branch": "feat/a",
+            "runId": run_a["id"],
+            "chatId": "self-reported-acquisition-chat",
+        },
     ).json()
     assert lease_a["state"] == "active"
+
+    # Bind a clean, real caller worktree after acquisition so the first-use attestation is valid.
+    _, base = make_repo_pair(tmp_path, "lifecycle-repo")
+    _git(base, "remote", "set-url", "origin", repo["url"])
+    caller_path = tmp_path / "caller-worktrees" / "lifecycle-a"
+    caller_path.parent.mkdir(parents=True, exist_ok=True)
+    _git(base, "worktree", "add", str(caller_path), "-b", "feat/a", "HEAD")
+    caller_path = caller_path.resolve()
+    bind_key = "lifecycle-bind-a"
+    bound_a = _agent_post(
+        client, tok_a, f"/leases/{lease_a['id']}/bind-worktree",
+        {"revision": lease_a["revision"], "worktreePath": str(caller_path)},
+        key=bind_key,
+    )
+    assert bound_a.status_code == 200, bound_a.text
+    assert bound_a.json()["worktreeSource"] == "caller"
+    with client.app.state.db.transaction() as c:
+        bind_event = c.execute(
+            "SELECT after_json FROM events WHERE kind='lease.bind_worktree' AND entity_id=? ORDER BY rowid DESC LIMIT 1",
+            (lease_a["id"],),
+        ).fetchone()
+    assert bind_event is not None
+    assert json.loads(bind_event[0])["chatId"] == "chat-a-1"
+    assert lease_a["chatId"] == "self-reported-acquisition-chat"
 
     # Continue identity A into chat-a-2 -> lease ownership transfers to new credential & chat!
     tok_a2 = "B" * 20 + "abcdefghijklmnopqrstuvwxyz0123456"
@@ -352,11 +492,32 @@ def test_lifecycle_hooks_run_end_retire_continue_and_merge(env):
     assert lease_after_cont["state"] == "active"
     assert lease_after_cont["credentialId"] == cont.json()["id"]
     assert lease_after_cont["chatId"] == "chat-a-2"
+    assert lease_after_cont["worktreePath"] == str(caller_path)
+    assert lease_after_cont["worktreeSource"] == "caller"
 
-    # Retiring tok_a2 releases its active lease!
+    # The revoked credential cannot replay its earlier successful bind receipt.
+    old_replay = _agent_post(
+        client, tok_a, f"/leases/{lease_a['id']}/bind-worktree",
+        {"revision": lease_a["revision"], "worktreePath": str(caller_path)},
+        key=bind_key,
+    )
+    assert old_replay.status_code == 401
+    assert old_replay.json()["error"]["code"] == "authentication"
+    assert client.get(f"/api/v1/leases/{lease_a['id']}").json()["revision"] == lease_after_cont["revision"]
+
+    # Retirement releases the logical lease but leaves dirty caller data and its worktree intact.
+    caller_note = caller_path / "caller-note.txt"
+    caller_note.write_text("keep caller data\n", encoding="utf-8")
+
+    # Retiring tok_a2 releases its active lease without cleaning up the caller's path.
     ret = _agent_post(client, tok_a2, "/agent-registrations/retire", {})
     assert ret.status_code == 200, ret.text
-    assert client.get(f"/api/v1/leases/{lease_a['id']}").json()["state"] == "released"
+    retired_lease = client.get(f"/api/v1/leases/{lease_a['id']}").json()
+    assert retired_lease["state"] == "released"
+    assert retired_lease["worktreePath"] == str(caller_path)
+    assert retired_lease["worktreeSource"] == "caller"
+    assert caller_note.read_text(encoding="utf-8") == "keep caller data\n"
+    assert _git(caller_path, "symbolic-ref", "--short", "HEAD") == "feat/a"
 
     # Start a new run & lease under sponsor, then end the run -> releases lease!
     run_s = _agent_post(client, sponsor["token"], "/agent-runs", {"clientRunKey": "run-s", "displayName": "Sponsor"}).json()

@@ -51,6 +51,13 @@ class LeasePoll(Command):
     branch: str | None = Field(default=None, max_length=200)
 
 
+class LeaseBindWorktree(Expected):
+    """Bind an active logical lease to a caller-created Git worktree."""
+
+    worktreePath: str = Field(min_length=1, max_length=2000)
+    handoffMessageId: str | None = Field(default=None, max_length=200)
+
+
 class LeaseRenew(Expected):
     """Extend an active lease's TTL."""
 

@@ -29,7 +29,8 @@
         "runId": "<id4>",
         "slotIndex": 1,
         "state": "active",
-        "worktreePath": ""
+        "worktreePath": "",
+        "worktreeSource": "unbound"
       }
     ],
     "limit": 50,

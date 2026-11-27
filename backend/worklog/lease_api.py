@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sqlite3
 from collections.abc import Callable
 from typing import Any
 
@@ -21,7 +22,7 @@ def install_lease_routes(app: FastAPI, db: Database, leases: LeaseService) -> No
     def idempotent_call(
         request: Request,
         payload: Any,
-        fn: Callable[[dict[str, Any]], dict[str, Any]],
+        fn: Callable[[dict[str, Any]], dict[str, Any] | Callable[[sqlite3.Connection], dict[str, Any]]],
         *,
         required_key: bool = True,
     ) -> dict[str, Any]:
@@ -36,7 +37,8 @@ def install_lease_routes(app: FastAPI, db: Database, leases: LeaseService) -> No
         ).hexdigest()
         actor = request.state.actor
         receipt_actor = actor["id"]
-        with db.read() as c:
+
+        def replay(c: sqlite3.Connection) -> dict[str, Any] | None:
             if actor.get("kind") == "agent":
                 communication_actor(c, actor)
             if key:
@@ -47,22 +49,38 @@ def install_lease_routes(app: FastAPI, db: Database, leases: LeaseService) -> No
                 if receipt is not None:
                     if receipt["request_hash"] != digest:
                         raise AppError(409, "idempotency_conflict", "This key was already used for a different request")
-                    return json.loads(receipt["response_json"])
-        result = fn(actor)
-        if key:
-            with db.transaction() as c:
-                existing = c.execute(
-                    "SELECT request_hash,response_json FROM receipts WHERE actor_id=? AND key=?",
-                    (receipt_actor, key),
-                ).fetchone()
-                if existing is not None:
-                    if existing["request_hash"] != digest:
-                        raise AppError(409, "idempotency_conflict", "This key was already used for a different request")
-                    return json.loads(existing["response_json"])
+                    record = json.loads(receipt["response_json"])
+                    # Before v38 a recorded lease path could only have come from a managed slot.
+                    if "worktreePath" in record and "worktreeSource" not in record:
+                        record["worktreeSource"] = "managed" if record["worktreePath"] else "unbound"
+                    return record
+            return None
+
+        with db.read() as c:
+            if (saved := replay(c)) is not None:
+                return saved
+        try:
+            prepared = fn(actor)
+        except AppError:
+            # An identical concurrent request may have committed while this one was inspecting Git.
+            with db.read() as c:
+                if (saved := replay(c)) is not None:
+                    return saved
+            raise
+        if not key and not callable(prepared):
+            return prepared
+        with db.transaction() as c:
+            if (saved := replay(c)) is not None:
+                return saved
+            # A prepared write, including worktree binding, commits its audit event and receipt together.
+            result = prepared(c) if callable(prepared) else prepared
+            if key:
                 c.execute(
                     "INSERT INTO receipts(actor_id,key,request_hash,response_json,created_at) VALUES(?,?,?,?,?)",
                     (receipt_actor, key, digest, json.dumps(result), now()),
                 )
+        if callable(prepared):
+            leases.write_snapshot()
         return result
 
     # Repository slot policy and base checkout read-only lock.
@@ -145,6 +163,11 @@ def install_lease_routes(app: FastAPI, db: Database, leases: LeaseService) -> No
             lambda actor: leases.renew(actor, identity, payload),
             required_key=True,
         )
+
+    @app.post("/api/v1/leases/{identity}/bind-worktree", response_model=out.Lease)
+    def bind_lease_worktree(identity: str, request: Request, body: m.LeaseBindWorktree) -> dict:
+        payload = body.model_dump()
+        return idempotent_call(request, payload, lambda actor: leases.prepare_worktree_binding(actor, identity, payload))
 
     @app.post("/api/v1/leases/{identity}/release", response_model=out.Lease)
     def release_lease(identity: str, request: Request, body: m.LeaseRelease) -> dict:

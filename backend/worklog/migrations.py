@@ -14,10 +14,10 @@ import sqlite3
 
 from .common import now, setting, today, uid
 
-SCHEMA_VERSION = 37
+SCHEMA_VERSION = 38
 # Older versions that startup and offline restore upgrade in one transaction.
 UPGRADABLE_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
-                                 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36})
+                                 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37})
 
 # v36's delivery tables start empty. Keep this DDL here, separate from schema.BASELINE, so a
 # future baseline change cannot rewrite the historical v36 upgrade.
@@ -40,6 +40,13 @@ CREATE UNIQUE INDEX dependencies_shared_active ON dependencies(dependent_type,de
 CREATE UNIQUE INDEX dependencies_wait_pending ON dependencies(dependent_type,dependent_id,prerequisite_type,prerequisite_id,context_type,context_id,condition) WHERE archived=0 AND context_type IS NOT NULL AND confirmed_at IS NULL;
 CREATE INDEX dependencies_dependent ON dependencies(dependent_type,dependent_id,archived,created_at,id);
 CREATE INDEX dependencies_prerequisite ON dependencies(prerequisite_type,prerequisite_id,archived,created_at,id);
+"""
+
+# v38: caller-created worktrees and repository-wide physical checkout claims.
+WORKTREE_CLAIMS_SCHEMA = """
+ALTER TABLE repository_leases ADD COLUMN caller_worktree_path TEXT CHECK(caller_worktree_path IS NULL OR worktree_path='');
+ALTER TABLE repository_leases ADD COLUMN worktree_claim_key TEXT;
+CREATE UNIQUE INDEX repository_leases_active_claim_key ON repository_leases(worktree_claim_key) WHERE state IN('offered','active','expired_dirty') AND worktree_claim_key IS NOT NULL;
 """
 
 # v1 grew in place before versions were counted: _upgrade_v1 adds whichever of these a v1 database
@@ -1109,6 +1116,8 @@ def upgrade(conn: sqlite3.Connection) -> None:
         execute_schema(conn, PUSH_DELIVERY_SCHEMA)
     if version < 37:
         execute_schema(conn, DEPENDENCIES_SCHEMA)
+    if version < 38:
+        execute_schema(conn, WORKTREE_CLAIMS_SCHEMA)
     conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 
