@@ -493,7 +493,7 @@ Plans broken into steps, with every saved version kept.
     - "Chat history" shows the chosen chat's "Agents" and transcript, the most recently active chat first. A chat tracked on the roadmap itself also has "Copy ID", "Edit" and "Archive" there; a work item's or sub-roadmap's chat is changed on that record's page.
   - **"Discussions"**: **Discussions** for this roadmap alone: the threads tagged with the roadmap, its steps, its work items or its sub-roadmaps and theirs, and those a responsibility role there wrote or was asked in, with the same views, search and filters. "New post" starts a thread tagged with the roadmap; take the tag off to post it elsewhere. Responsibility roles are managed on **Discussions**.
   - **"Live"**: **Live** for this roadmap and its sub-roadmaps alone.
-  - **"Material"**: "Work items", the work on the roadmap, each with a link to the step it is on; add and attach work on a step's page. Then notes, links, GitHub references and files, with archived ones under "Archived supporting records".
+  - **"Material"**: "Work items", the work on the roadmap, each with a link to the step it is on; add and attach work on a step's page. Then notes, links and GitHub references. "Files" lists active attachments from the roadmap, its current steps and active work items, and the same records on nested active sub-roadmaps. Each file links to its source. Uploads here attach to the current roadmap. Archive or recover a file on the record that owns it. Open an archived sub-roadmap directly to see its files.
   - **"History"**: "Immutable versions", each with its note and "Restore as new version", then "Applied proposals" and "Activity history".
 
 ### Repositories

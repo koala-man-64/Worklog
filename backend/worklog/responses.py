@@ -842,6 +842,20 @@ class DoneStep(Answer):
     doneAt: str
 
 
+class RoadmapAttachment(Attachment):
+    """An attached file in a roadmap's Material view, with its source."""
+
+    ownerType: Literal["item", "roadmap", "step"]
+    ownerTitle: str
+    roadmapId: str
+    roadmapTitle: str
+
+
+class RoadmapAttachments(Answer):
+    items: list[RoadmapAttachment]
+    total: int
+
+
 class RoadmapBoard(Answer):
     """What a roadmap's status board reads besides the roadmap itself."""
 

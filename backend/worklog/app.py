@@ -700,6 +700,12 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
             result["people"] = people_on(c, "roadmap", [identity]).get(identity, [])
         return result
 
+    @app.get("/api/v1/roadmaps/{identity}/attachments", response_model=out.RoadmapAttachments)
+    def roadmap_attachments(identity: str) -> dict:
+        with db.read() as c:
+            records = support.roadmap_attachments(c, identity)
+        return {"items": records, "total": len(records)}
+
     @app.get("/api/v1/roadmaps/{identity}/board", response_model=out.RoadmapBoard)
     def roadmap_board(identity: str) -> dict:
         with db.read() as c:
