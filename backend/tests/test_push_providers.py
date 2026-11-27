@@ -10,6 +10,20 @@ from worklog import push_providers
 THREAD_ID = "123e4567-e89b-12d3-a456-426614174000"
 NOTICE = "Worklog has an update. Check Worklog for details."
 
+# Verbatim `codex queue --thread ID --message TEXT --resume` output from Codex CLI 0.167.1 on Windows.
+CODEX_0167_THREAD_ID = "01a21ed2-e6ae-7703-9612-56fcfc18f37c"
+CODEX_0167_NO_DAEMON_STDOUT = (
+    b"Queued message 01a21ed2-f789-7202-b157-bb8d455b6169 for thread 01a21ed2-e6ae-7703-9612-56fcfc18f37c.\n"
+)
+CODEX_0167_NO_DAEMON_STDERR = (
+    b"Warning: message was queued, but could not resume thread 01a21ed2-e6ae-7703-9612-56fcfc18f37c: "
+    b"start a local daemon or specify a server with --remote\n"
+)
+CODEX_0167_DAEMON_THREAD_ID = "01a21f58-0944-7fb2-9167-5ed0f72b934a"
+CODEX_0167_DAEMON_STDOUT = (
+    b"Queued message 01a21f58-178f-7383-8ff5-4957367d9199 for thread 01a21f58-0944-7fb2-9167-5ed0f72b934a.\n"
+)
+
 
 def test_codex_queues_notice_with_explicit_thread_and_no_shell(monkeypatch, capsys):
     command = ["C:/tools/codex.exe"]
@@ -78,6 +92,30 @@ def test_codex_resume_is_an_explicit_argument(monkeypatch):
             f"Warning: message was queued, but could not resume {THREAD_ID}: probe".encode(),
             "uncertain",
         ),
+        (
+            True,
+            0,
+            f"Warning: message was queued, but could not resume thread {THREAD_ID}: probe\r\n".encode(),
+            "queued_resume_warning",
+        ),
+        (
+            False,
+            0,
+            f"Warning: message was queued, but could not resume thread {THREAD_ID}: probe".encode(),
+            "queued",
+        ),
+        (
+            True,
+            0,
+            b"Warning: message was queued, but could not resume thread 99999999-9999-4999-8999-999999999999: probe",
+            "queued",
+        ),
+        (
+            True,
+            1,
+            f"Warning: message was queued, but could not resume thread {THREAD_ID}: probe".encode(),
+            "uncertain",
+        ),
     ],
 )
 def test_codex_resume_warning_is_recognized_only_for_confirmed_queue(
@@ -91,6 +129,27 @@ def test_codex_resume_warning_is_recognized_only_for_confirmed_queue(
     )
 
     assert push_providers.submit_notice("codex", THREAD_ID, NOTICE, resume=resume) == expected
+    assert capsys.readouterr() == ("", "")
+
+
+@pytest.mark.parametrize(
+    ("thread_id", "stdout", "stderr", "expected"),
+    [
+        # No local app-server daemon: Codex keeps the message queued, warns and still exits 0.
+        (CODEX_0167_THREAD_ID, CODEX_0167_NO_DAEMON_STDOUT, CODEX_0167_NO_DAEMON_STDERR, "queued_resume_warning"),
+        # A running daemon resumed the thread: no warning.
+        (CODEX_0167_DAEMON_THREAD_ID, CODEX_0167_DAEMON_STDOUT, b"", "queued"),
+    ],
+)
+def test_codex_0167_resume_output_is_classified(monkeypatch, capsys, thread_id, stdout, stderr, expected):
+    monkeypatch.setattr(push_providers, "_codex_executable", lambda: ["codex"])
+    monkeypatch.setattr(
+        push_providers,
+        "_run",
+        lambda args: subprocess.CompletedProcess(args, 0, stdout, stderr),
+    )
+
+    assert push_providers.submit_notice("codex", thread_id, NOTICE, resume=True) == expected
     assert capsys.readouterr() == ("", "")
 
 
