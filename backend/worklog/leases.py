@@ -966,7 +966,7 @@ class LeaseService:
                     raise AppError(409, "caller_worktree", "The caller must archive its worktree before slot reuse")
             prov = slot_worktrees.provision_slot(
                 pol["baseCheckoutPath"], pol["slotRootPath"], repo_name, slot_index,
-                pol["defaultBranch"], requested_branch, lease_id,
+                pol["defaultBranch"], requested_branch, lease_id, target,
             )
             worktree_path, branch, fetch_warning = prov.worktree_path, prov.branch, prov.fetch_warning
             if slot_worktrees.worktree_claim_key(worktree_path) != key:
@@ -1452,7 +1452,8 @@ class LeaseService:
         with self.db.read() as c:
             row, repo, pol = self._bindable_lease(c, actor, lease_id, revision)
         worktree = slot_worktrees.validate_caller_worktree(
-            payload["worktreePath"], repo["remote_identity"], row["branch"], pol["defaultBranch"]
+            payload["worktreePath"], repo["remote_identity"], row["branch"], pol["defaultBranch"],
+            inspect_cleanliness=not payload.get("handoffMessageId"),
         )
 
         def commit(c: sqlite3.Connection) -> dict[str, Any]:

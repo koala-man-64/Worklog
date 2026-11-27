@@ -6,6 +6,8 @@ import os
 import subprocess
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
+from typing import cast
 
 import pytest
 from worklog import slot_worktrees as sw
@@ -92,20 +94,17 @@ def test_validate_linked_worktree_and_claim_key_are_read_only(tmp_path):
     assert isinstance(claim, sw.CallerWorktree)
     assert claim.path == linked.resolve()
     assert claim.registered_at_ns > 0
-    assert len(claim.registration_id) == 64
+    link_snapshot = sw._snapshot_file(linked / ".git", include_content=True)
+    reciprocal_snapshot = sw._snapshot_file(_git_admin(linked) / "gitdir", include_content=True)
+    assert claim.registration_id == sw._registration_id(
+        link_snapshot,
+        reciprocal_snapshot,
+        claim.registered_at_ns,
+    )
     assert claim.clean is True
-    link_stat = (linked / ".git").stat()
-    birthtime_ns = getattr(link_stat, "st_birthtime_ns", None)
-    has_birth_time = isinstance(birthtime_ns, int) and birthtime_ns > 0
-    if not has_birth_time:
-        birthtime = getattr(link_stat, "st_birthtime", None)
-        has_birth_time = isinstance(birthtime, (int, float)) and birthtime > 0
-        birthtime_ns = int(birthtime * 1_000_000_000) if has_birth_time else link_stat.st_mtime_ns
-    if has_birth_time:
-        assert claim.registered_at_ns == birthtime_ns
-    else:
-        reciprocal_mtime_ns = (_git_admin(linked) / "gitdir").stat().st_mtime_ns
-        assert claim.registered_at_ns == min(link_stat.st_mtime_ns, reciprocal_mtime_ns)
+
+    assert claim.registered_at_ns == sw._registration_time(link_snapshot, reciprocal_snapshot)
+    assert claim.registration_trustworthy is sw._registration_is_trustworthy(link_snapshot, reciprocal_snapshot)
     assert claim.require_current() is None
     assert sw.validate_caller_worktree(str(linked), identity, "codex/task", "main").registration_id == claim.registration_id
     assert _state(base, linked) == before
@@ -113,6 +112,68 @@ def test_validate_linked_worktree_and_claim_key_are_read_only(tmp_path):
     assert sw.worktree_claim_key(linked) == sw.worktree_claim_key(linked / "." / ".." / linked.name)
     if os.name == "nt":
         assert sw.worktree_claim_key(str(linked).swapcase()) == sw.worktree_claim_key(linked)
+
+
+@pytest.mark.parametrize(
+    (
+        "link_age", "link_birth", "link_identity", "reciprocal_age", "reciprocal_birth",
+        "reciprocal_identity", "expected", "trusted",
+    ),
+    [
+        (100, True, True, 80, True, True, 80, True),
+        (100, True, True, 80, False, True, 80, False),
+        (70, False, True, 140, True, True, 70, False),
+        (90, True, False, 120, True, True, 90, False),
+        (90, True, True, 120, True, False, 90, False),
+        (170, False, True, 80, False, True, 80, False),
+    ],
+)
+def test_registration_age_and_trust_require_both_endpoints(
+    tmp_path, link_age, link_birth, link_identity, reciprocal_age, reciprocal_birth,
+    reciprocal_identity, expected, trusted,
+):
+    link = sw._FileSnapshot(
+        tmp_path / ".git",
+        (1, 2, 0, 0, 150, 0),
+        (1, 2, 0, 0, 150, 0),
+        registered_at_ns=link_age,
+        has_birth_time=link_birth,
+        has_file_identity=link_identity,
+    )
+    reciprocal = sw._FileSnapshot(
+        tmp_path / "gitdir",
+        (1, 3, 0, 0, 160, 0),
+        (1, 3, 0, 0, 160, 0),
+        registered_at_ns=reciprocal_age,
+        has_birth_time=reciprocal_birth,
+        has_file_identity=reciprocal_identity,
+    )
+
+    assert sw._registration_time(link, reciprocal) == expected
+    assert sw._registration_is_trustworthy(link, reciprocal) is trusted
+    registration_id = sw._registration_id(link, reciprocal, expected)
+    assert bool(registration_id) is (link_identity and reciprocal_identity)
+    if registration_id:
+        assert len(registration_id) == 64
+
+
+def test_linux_statx_birth_time_is_used_when_stdlib_has_no_birth_time(monkeypatch):
+    file_stat = cast(os.stat_result, SimpleNamespace(st_birthtime_ns=None, st_birthtime=None))
+    monkeypatch.setattr(sw, "_SYS_PLATFORM", "linux")
+    monkeypatch.setattr(sw, "_linux_statx_birth_time_ns", lambda _path, _stat: 123_000_000_456)
+
+    assert sw._birth_time_ns(Path("metadata"), file_stat) == 123_000_000_456
+
+
+def test_missing_linux_statx_birth_time_uses_fallback_mtime_evidence(monkeypatch):
+    file_stat = cast(
+        os.stat_result,
+        SimpleNamespace(st_birthtime_ns=None, st_birthtime=None, st_mtime_ns=456),
+    )
+    monkeypatch.setattr(sw, "_SYS_PLATFORM", "linux")
+    monkeypatch.setattr(sw, "_linux_statx_birth_time_ns", lambda _path, _stat: None)
+
+    assert sw._birth_time_ns(Path("metadata"), file_stat) is None
 
 
 def test_fallback_registration_age_cannot_be_advanced_by_touching_git_link(tmp_path, monkeypatch):
@@ -136,6 +197,8 @@ def test_fallback_registration_age_cannot_be_advanced_by_touching_git_link(tmp_p
 
     assert first.registered_at_ns == second.registered_at_ns == reciprocal_mtime_ns
     assert first.registration_id == second.registration_id
+    assert first.registration_trustworthy is False
+    assert second.registration_trustworthy is False
 
 
 def test_validate_rejects_root_that_resolves_to_unc_before_git_or_metadata(tmp_path, monkeypatch):
@@ -186,6 +249,33 @@ def test_validate_rejects_main_clone_subdirectory_and_nonlocal_paths(tmp_path):
     _rejects("relative/caller", identity)
     _rejects(r"\\server\share\caller", identity)
     _rejects(tmp_path / "missing", identity)
+
+
+def test_validate_uses_full_local_branch_ref_when_short_name_is_ambiguous(tmp_path):
+    _, base, identity = _repo_pair(tmp_path)
+    linked = _add_worktree(base, tmp_path / "caller")
+    _git(linked, "tag", "codex/task")
+
+    assert _git(linked, "symbolic-ref", "--quiet", "--short", "HEAD") == "heads/codex/task"
+    assert _git(linked, "symbolic-ref", "--quiet", "HEAD") == "refs/heads/codex/task"
+    claim = sw.validate_caller_worktree(str(linked), identity, "codex/task", "main")
+
+    assert claim.path == linked.resolve()
+    assert claim.clean is True
+
+
+def test_remote_tracking_ref_cannot_satisfy_local_branch_check(tmp_path, monkeypatch):
+    _, base, identity = _repo_pair(tmp_path)
+    linked = _add_worktree(base, tmp_path / "caller", "origin/task")
+    original = sw._run_git
+
+    def report_remote_ref(cwd, *args, **kwargs):
+        if "symbolic-ref" in args:
+            return subprocess.CompletedProcess(args, 0, "refs/remotes/origin/task\n", "")
+        return original(cwd, *args, **kwargs)
+
+    monkeypatch.setattr(sw, "_run_git", report_remote_ref)
+    _rejects(linked, identity, branch="origin/task")
 
 
 def test_validate_rejects_remote_branch_and_default_branch_mismatches(tmp_path):
@@ -285,21 +375,49 @@ def test_validate_reports_dirty_staged_unstaged_and_untracked_state(tmp_path):
     assert (linked / "notes.txt").read_text(encoding="utf-8") == "untracked\n"
 
 
-def test_validate_fails_closed_if_git_status_cannot_be_read(tmp_path, monkeypatch):
+def test_clean_attestation_supports_builtin_line_endings_and_ignored_dependencies(tmp_path):
+    _, base, identity = _repo_pair(tmp_path)
+    note = "notes with space-é.txt"
+    (base / ".gitattributes").write_text("*.txt text eol=crlf\n", encoding="ascii")
+    (base / ".gitignore").write_text(".venv/\n", encoding="ascii")
+    (base / note).write_bytes(b"one\ntwo\n")
+    _git(base, "add", ".gitattributes", ".gitignore", note)
+    _git(base, "commit", "-m", "Record checkout rules")
+    linked = _add_worktree(base, tmp_path / "caller")
+    (linked / ".venv").mkdir()
+    (linked / ".venv" / "local.txt").write_text("local dependency", encoding="ascii")
+    assert (linked / note).read_bytes() == b"one\r\ntwo\r\n"
+
+    claim = sw.validate_caller_worktree(str(linked), identity, "codex/task", "main")
+
+    assert claim.clean and claim.still_clean()
+    (linked / "planned.txt").write_bytes(b"planned\n")
+    _git(linked, "add", "--intent-to-add", "planned.txt")
+    assert not sw.validate_caller_worktree(str(linked), identity, "codex/task", "main").clean
+
+
+def test_indeterminate_private_git_comparison_requires_handoff(tmp_path, monkeypatch):
     _, base, identity = _repo_pair(tmp_path)
     linked = _add_worktree(base, tmp_path / "caller")
     original = sw._run_git
+    comparisons = []
 
     def fail_status(cwd, *args, **kwargs):
         if "status" in args:
-            return subprocess.CompletedProcess(["git", *args], 128, "", "private path")
+            env = kwargs["extra_env"]
+            private = Path(env["GIT_DIR"])
+            assert private != _git_admin(linked) and not private.is_relative_to(linked)
+            assert Path(env["GIT_INDEX_FILE"]).parent == private
+            assert env["GIT_CONFIG_NOSYSTEM"] == "1" and env["GIT_CONFIG_GLOBAL"] == os.devnull
+            assert env["GIT_NO_LAZY_FETCH"] == "1" and env["GIT_ALLOW_PROTOCOL"] == ""
+            comparisons.append(private)
+            return subprocess.CompletedProcess(["git", *args], 128, b"", b"private path")
         return original(cwd, *args, **kwargs)
 
     monkeypatch.setattr(sw, "_run_git", fail_status)
-    with pytest.raises(AppError) as exc:
-        sw.validate_caller_worktree(str(linked), identity, "codex/task", "main")
-    assert exc.value.status == 422
-    assert "private path" not in str(exc.value)
+    worktree = sw.validate_caller_worktree(str(linked), identity, "codex/task", "main")
+    assert not worktree.clean and len(comparisons) == 1
+    assert not comparisons[0].exists()
 
 
 def test_validate_does_not_include_remote_credentials_in_errors(tmp_path):

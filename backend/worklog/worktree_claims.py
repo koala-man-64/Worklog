@@ -87,7 +87,11 @@ def binding_provenance(
         ).fetchone()
         # A prior holder's authority follows its registered worktree, including a later lease.
         # Recreating a directory at the same address does not inherit that holder's evidence.
-        if receipt and json.loads(receipt["after_json"]).get("registrationId") == worktree.registration_id:
+        if (
+            worktree.registration_id
+            and receipt
+            and json.loads(receipt["after_json"]).get("registrationId") == worktree.registration_id
+        ):
             previous_owner = prior["agent_id"]
     # A participation is advisory. A peer's conflicting report calls for an explicit handoff,
     # and a self-reported directory never grants authority to sign one.
@@ -101,8 +105,11 @@ def binding_provenance(
     if not handoff_message_id:
         if not disputed and previous_owner == lease["agent_id"]:
             return "previous_binding"
-        registered_after_grant = worktree.registered_at_ns >= int(acquired_at.timestamp() * 1_000_000_000)
-        if not disputed and previous_owner is None and registered_after_grant and worktree.clean:
+        registered_after_grant = (
+            worktree.registration_trustworthy
+            and worktree.registered_at_ns >= int(acquired_at.timestamp() * 1_000_000_000)
+        )
+        if not disputed and previous_owner is None and registered_after_grant and worktree.still_clean():
             return "session_attestation"
     else:
         # The immutable message names this one lease and physical path. Only the person or the
@@ -120,6 +127,6 @@ def binding_provenance(
                 return "handoff"
     raise AppError(
         409, "worktree_handoff_required",
-        "This existing worktree needs an explicit repository discussion handoff from the person "
+        "This worktree needs an explicit repository discussion handoff from the person "
         "or its previous lease holder. Supply the handoff message ID.",
     )

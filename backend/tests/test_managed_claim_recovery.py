@@ -4,15 +4,18 @@ from __future__ import annotations
 
 import concurrent.futures
 import sqlite3
+import subprocess
 import threading
 from contextlib import closing
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import pytest
 from test_leases import _agent_post, _create_repo, _issue
 from test_leases import env as lease_env
 from test_slot_worktrees import make_repo_pair
 from worklog import slot_worktrees
+from worklog.common import AppError
 from worklog.leases import OFFER_GRACE_SECONDS
 
 env = lease_env
@@ -73,6 +76,46 @@ def test_poll_recovers_interrupted_managed_offer_with_existing_canonical_claim(e
             "SELECT state,worktree_claim_key FROM repository_leases WHERE id=?", (lease_id,)
         ).fetchone()
     assert row == ("active", slot_worktrees.worktree_claim_key(target))
+
+
+@pytest.mark.parametrize("during_fetch", [False, True], ids=["after-reservation", "during-fetch"])
+def test_managed_offer_rejects_changed_slot_mapping_before_checkout_writes(env, monkeypatch, during_fetch):
+    client, tmp_path = env
+    _, agent, reserved_target, lease_id = _interrupted_offer(client, tmp_path, "managed-path-race")
+    alternate_checkout = tmp_path / "alternate-checkout"
+    alternate_checkout.mkdir()
+    sentinel = alternate_checkout / "sentinel.txt"
+    sentinel.write_text("untouched", encoding="utf-8")
+
+    resolve_slot_path = slot_worktrees.resolve_slot_path
+    resolver_calls = 0
+
+    def change_mapping_after_reservation(*args):
+        nonlocal resolver_calls
+        resolver_calls += 1
+        if resolver_calls == 1 or (during_fetch and not git_calls):
+            return resolve_slot_path(*args)
+        return alternate_checkout
+
+    git_calls = []
+
+    def record_unexpected_git(cwd, *args, **kwargs):
+        git_calls.append(args[0])
+        if during_fetch and args[0] == "fetch":
+            return subprocess.CompletedProcess(args, 0, "", "")
+        raise AppError(503, "slot_provisioning_failed", "Unexpected Git command during path validation")
+
+    monkeypatch.setattr(slot_worktrees, "resolve_slot_path", change_mapping_after_reservation)
+    monkeypatch.setattr(slot_worktrees, "_run_git", record_unexpected_git)
+
+    response = _agent_post(client, agent["token"], f"/leases/{lease_id}/poll", {})
+
+    assert response.status_code == 409, response.text
+    assert response.json()["error"]["code"] == "conflict"
+    assert git_calls == (["fetch"] if during_fetch else [])
+    assert sentinel.read_text(encoding="utf-8") == "untouched"
+    assert list(alternate_checkout.iterdir()) == [sentinel]
+    assert not reserved_target.exists()
 
 
 def test_concurrent_polls_provision_interrupted_managed_offer_once(env, monkeypatch):

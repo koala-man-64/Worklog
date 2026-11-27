@@ -371,6 +371,8 @@ worklog agent --as NAME proposal withdraw PROPOSAL_ID --revision 4
   C:/canonical/absolute/worktree/path
   ```
 
+  A fresh tree can also need a handoff if the filesystem cannot verify when Git created its registration, or if Worklog cannot confirm it is clean. This includes trees with Git filters, submodules, or sparse or assume-unchanged entries. Worklog also asks for a handoff if the checkout changes during inspection or exceeds the size or time limit for an automatic check. Use the same message format and retry with a new request ID.
+
   Release the lease after pushing your PR or handing off. Release, expiry, run end and retirement leave a caller's worktree and branch in place for the caller to archive. An explicit rescue returns `409 caller_worktree`. Worklog recycles managed slots and can rescue their edits. Each agent may hold one active repository lease (`409 agent_lease_limit`). Participation check-ins, outputs and updates refresh the heartbeat. Continuing the identity transfers open leases to the new chat.
 
 - **Remotes.** A remote is an `https://` address, `ssh://git@host/path` or `git@host:path`. Every form of one remote names the same record: HTTPS or SSH, with or without `.git` or a trailing `/`, in any case, and Azure DevOps' `dev.azure.com`, `{org}.visualstudio.com` and `ssh.dev.azure.com` forms.
@@ -1050,7 +1052,7 @@ worklog check
 | `lease_scope` | 403 | The lease belongs to another agent identity | Poll, renew, bind and release only your own leases |
 | `worktree_managed` | 409 | The lease or path belongs to a Worklog-managed slot | Use the returned managed worktree, or choose a caller worktree outside managed slot pools |
 | `worktree_in_use` | 409 | The lease is already bound, or another active lease claims this physical worktree | Use the lease's existing path or resolve the other lease before binding |
-| `worktree_handoff_required` | 409 | Worklog cannot verify custody of this existing or dirty worktree | Ask the person or previous recorded holder to post the exact repository-discussion handoff, then retry with `--handoff-message` |
+| `worktree_handoff_required` | 409 | Worklog needs additional evidence to verify custody or confirm clean first use | Ask the person or previous recorded holder to post the exact repository-discussion handoff, then retry with `--handoff-message` |
 | `caller_worktree` | 409 | A caller-owned worktree cannot be rescued or recycled by Worklog | Recover or remove the caller's worktree yourself; release the lease without `--rescue` |
 | `lease_closed` | 409 | The lease is already released, expired, revoked or cancelled | Acquire a new lease if you need another checkout slot |
 

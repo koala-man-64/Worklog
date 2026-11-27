@@ -7,16 +7,19 @@ Run Git outside SQLite write transactions. Claim commits only recheck local path
 
 from __future__ import annotations
 
+import ctypes
 import hashlib
 import logging
 import os
 import re
 import stat
 import subprocess
+import sys
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from . import caller_cleanliness
 from .common import AppError
 from .repository_links import repository_identity
 
@@ -31,6 +34,7 @@ _DEFAULT_TIMEOUT_S = 30.0
 _FETCH_TIMEOUT_S = 90.0
 _MAX_GIT_METADATA_BYTES = 64 * 1024
 _MAX_GIT_CONFIG_BYTES = 1024 * 1024
+_SYS_PLATFORM = sys.platform
 
 
 def _git_env(extra: dict[str, str] | None = None) -> dict[str, str]:
@@ -89,12 +93,14 @@ def _run_git(
     timeout: float = _DEFAULT_TIMEOUT_S,
     extra_env: dict[str, str] | None = None,
     decode: bool = True,
+    input_bytes: bytes | None = None,
 ) -> subprocess.CompletedProcess:
     cmd = ["git", *_SAFE_GIT, "-C", str(cwd), *args]
     try:
         completed = subprocess.run(
             cmd,
-            stdin=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL if input_bytes is None else None,
+            input=input_bytes,
             capture_output=True,
             env=_git_env(extra_env),
             timeout=timeout,
@@ -220,6 +226,88 @@ class _FileSnapshot:
     content: bytes | None = field(default=None, repr=False)
     registered_at_ns: int = 0
     has_birth_time: bool = False
+    has_file_identity: bool = False
+
+
+class _StatxTimestamp(ctypes.Structure):
+    _fields_ = [
+        ("seconds", ctypes.c_int64),
+        ("nanoseconds", ctypes.c_uint32),
+        ("reserved", ctypes.c_int32),
+    ]
+
+
+class _StatxResult(ctypes.Structure):
+    _fields_ = [
+        ("mask", ctypes.c_uint32),
+        ("block_size", ctypes.c_uint32),
+        ("attributes", ctypes.c_uint64),
+        ("links", ctypes.c_uint32),
+        ("uid", ctypes.c_uint32),
+        ("gid", ctypes.c_uint32),
+        ("mode", ctypes.c_uint16),
+        ("spare0", ctypes.c_uint16),
+        ("inode", ctypes.c_uint64),
+        ("size", ctypes.c_uint64),
+        ("blocks", ctypes.c_uint64),
+        ("attributes_mask", ctypes.c_uint64),
+        ("atime", _StatxTimestamp),
+        ("birthtime", _StatxTimestamp),
+        ("ctime", _StatxTimestamp),
+        ("mtime", _StatxTimestamp),
+        ("rdev_major", ctypes.c_uint32),
+        ("rdev_minor", ctypes.c_uint32),
+        ("dev_major", ctypes.c_uint32),
+        ("dev_minor", ctypes.c_uint32),
+        ("mount_id", ctypes.c_uint64),
+        ("dio_mem_align", ctypes.c_uint32),
+        ("dio_offset_align", ctypes.c_uint32),
+        ("spare3", ctypes.c_uint64 * 12),
+    ]
+
+
+def _linux_statx_birth_time_ns(path: Path, expected_stat: os.stat_result) -> int | None:
+    """Read STATX_BTIME only when statx identifies the same regular file as lstat."""
+    if _SYS_PLATFORM != "linux":
+        return None
+    try:
+        libc = ctypes.CDLL(None, use_errno=True)
+        statx_call = libc.statx
+    except (AttributeError, OSError):
+        return None
+    statx_call.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_uint, ctypes.POINTER(_StatxResult)]
+    statx_call.restype = ctypes.c_int
+    result = _StatxResult()
+    # AT_FDCWD | AT_SYMLINK_NOFOLLOW; request basic identity plus STATX_BTIME.
+    requested = 0x07FF | 0x0800
+    if statx_call(-100, os.fsencode(path), 0x100, requested, ctypes.byref(result)) != 0:
+        return None
+    if result.mask & 0x0800 == 0 or result.mask & 0x0101 != 0x0101:
+        return None
+    major = getattr(os, "major", None)
+    minor = getattr(os, "minor", None)
+    if not callable(major) or not callable(minor):
+        return None
+    if (
+        result.inode != int(expected_stat.st_ino)
+        or (result.dev_major, result.dev_minor) != (major(expected_stat.st_dev), minor(expected_stat.st_dev))
+        or stat.S_IFMT(result.mode) != stat.S_IFMT(expected_stat.st_mode)
+        or not 0 <= result.birthtime.nanoseconds < 1_000_000_000
+        or result.birthtime.seconds < 0
+    ):
+        return None
+    return int(result.birthtime.seconds) * 1_000_000_000 + int(result.birthtime.nanoseconds)
+
+
+def _birth_time_ns(path: Path, file_stat: os.stat_result) -> int | None:
+    """Return a trustworthy native creation time, or None so callers use mtime evidence."""
+    raw_birth_ns: object = getattr(file_stat, "st_birthtime_ns", None)
+    if isinstance(raw_birth_ns, int) and raw_birth_ns > 0:
+        return raw_birth_ns
+    raw_birth_time: object = getattr(file_stat, "st_birthtime", None)
+    if isinstance(raw_birth_time, (int, float)) and raw_birth_time > 0:
+        return int(raw_birth_time * 1_000_000_000)
+    return _linux_statx_birth_time_ns(path, file_stat)
 
 
 def _snapshot_file(
@@ -259,24 +347,19 @@ def _snapshot_file(
             raise OSError("Git metadata changed while being inspected")
     finally:
         os.close(descriptor)
-    raw_birth_ns: object = getattr(link_stat, "st_birthtime_ns", None)
-    if isinstance(raw_birth_ns, int) and raw_birth_ns > 0:
-        birth_ns = raw_birth_ns
-        has_birth_time = True
-    else:
-        raw_birth_time: object = getattr(link_stat, "st_birthtime", None)
-        if isinstance(raw_birth_time, (int, float)) and raw_birth_time > 0:
-            birth_ns = int(raw_birth_time * 1_000_000_000)
-            has_birth_time = True
-        else:
-            birth_ns = int(link_stat.st_mtime_ns)
-            has_birth_time = False
+    birth_ns = _birth_time_ns(path, link_stat)
+    has_birth_time = birth_ns is not None
+    if birth_ns is None:
+        birth_ns = int(link_stat.st_mtime_ns)
+    has_file_identity = int(link_stat.st_dev) > 0 and int(link_stat.st_ino) > 0
     target_key = _stat_key(target_stat)
     if os.name == "nt":
         # Keep the stable path-observed ctime in the snapshot, not the transient
         # value returned by a Windows open handle.
         target_key = (*target_key[:5], int(link_stat.st_ctime_ns))
-    return _FileSnapshot(path, _stat_key(link_stat), target_key, content, int(birth_ns), has_birth_time)
+    return _FileSnapshot(
+        path, _stat_key(link_stat), target_key, content, int(birth_ns), has_birth_time, has_file_identity
+    )
 
 
 def _read_single_line(snapshot: _FileSnapshot, label: str) -> str:
@@ -317,11 +400,19 @@ class CallerWorktree:
     path: Path
     registered_at_ns: int
     registration_id: str
-    clean: bool
+    registration_trustworthy: bool
+    _clean_evidence: caller_cleanliness.CleanEvidence | None = field(repr=False, compare=False)
     _root_identity: tuple[int, int, int] = field(repr=False, compare=False)
     _common_dir: Path = field(repr=False, compare=False)
     _common_identity: tuple[int, int, int] = field(repr=False, compare=False)
     _files: tuple[_FileSnapshot, ...] = field(repr=False, compare=False)
+
+    @property
+    def clean(self) -> bool:
+        return self._clean_evidence is not None
+
+    def still_clean(self) -> bool:
+        return self._clean_evidence is not None and self._clean_evidence.current(bounded=True)
 
     def require_current(self) -> None:
         """Recheck cached local metadata immediately before binding, without spawning Git."""
@@ -358,7 +449,7 @@ def _origin_config_snapshots(path: Path) -> tuple[_FileSnapshot, ...]:
         "--show-origin",
         "--get-all",
         "remote.origin.url",
-        extra_env={"GIT_OPTIONAL_LOCKS": "0"},
+        extra_env=caller_cleanliness.READ_ONLY_ENV,
     )
     if result.returncode != 0:
         return ()
@@ -385,17 +476,48 @@ def _origin_config_snapshots(path: Path) -> tuple[_FileSnapshot, ...]:
 
 
 def _registration_time(link: _FileSnapshot, reciprocal: _FileSnapshot) -> int:
-    """Use both registration directions when birth time is unavailable."""
-    if link.has_birth_time:
-        return link.registered_at_ns
-    return min(link.registered_at_ns, reciprocal.link_metadata[4])
+    """Use the earliest birth-time or mtime evidence from both registration endpoints."""
+    return min(link.registered_at_ns, reciprocal.registered_at_ns)
+
+
+def _registration_has_identity(link: _FileSnapshot, reciprocal: _FileSnapshot) -> bool:
+    """Both registration endpoints need stable local file IDs for holder reuse."""
+    return link.has_file_identity and reciprocal.has_file_identity
+
+
+def _registration_is_trustworthy(link: _FileSnapshot, reciprocal: _FileSnapshot) -> bool:
+    """Automatic first-use attribution requires birth time and file identity at both endpoints."""
+    return (
+        _registration_has_identity(link, reciprocal)
+        and link.has_birth_time
+        and reciprocal.has_birth_time
+        and link.registered_at_ns > 0
+        and reciprocal.registered_at_ns > 0
+    )
+
+
+def _registration_id(link: _FileSnapshot, reciprocal: _FileSnapshot, registered_at_ns: int) -> str:
+    """Hash stable endpoint identities; an unknown file ID must never match a prior receipt."""
+    if not _registration_has_identity(link, reciprocal):
+        return ""
+    parts = (
+        link.link_metadata[0],
+        link.link_metadata[1],
+        registered_at_ns,
+        reciprocal.link_metadata[0],
+        reciprocal.link_metadata[1],
+    )
+    return hashlib.sha256(
+        b"caller-worktree-registration\\0"
+        + b"\\0".join(str(part).encode("ascii") for part in parts)
+    ).hexdigest()
 
 
 def _registered_worktree_paths(common_dir: Path) -> set[str]:
-    result = _run_git(common_dir, "worktree", "list", "--porcelain", "-z", extra_env={"GIT_OPTIONAL_LOCKS": "0"})
+    result = _run_git(common_dir, "worktree", "list", "--porcelain", "-z", extra_env=caller_cleanliness.READ_ONLY_ENV)
     nul_delimited = result.returncode == 0
     if not nul_delimited:
-        result = _run_git(common_dir, "worktree", "list", "--porcelain", extra_env={"GIT_OPTIONAL_LOCKS": "0"})
+        result = _run_git(common_dir, "worktree", "list", "--porcelain", extra_env=caller_cleanliness.READ_ONLY_ENV)
     if result.returncode != 0:
         raise AppError(422, "validation", "Could not verify Git worktree registration", {"worktreePath": "unregistered"})
     found: set[str] = set()
@@ -416,6 +538,8 @@ def validate_caller_worktree(
     expected_remote_identity: str,
     branch: str,
     default_branch: str,
+    *,
+    inspect_cleanliness: bool = True,
 ) -> CallerWorktree:
     """Validate an existing, caller-owned linked worktree without changing Git or file state."""
     if not isinstance(path, str) or any(ord(ch) < 32 or ord(ch) == 127 for ch in path):
@@ -472,7 +596,7 @@ def validate_caller_worktree(
     if _physical_path_key(reciprocal_target) != _physical_path_key(link_path):
         raise AppError(422, "validation", "Git worktree registration does not point back to this worktree", {"worktreePath": "unregistered"})
 
-    env = {"GIT_OPTIONAL_LOCKS": "0"}
+    env = caller_cleanliness.READ_ONLY_ENV
     rev = _run_git(resolved, "rev-parse", "--path-format=absolute", "--show-toplevel", "--git-dir", "--git-common-dir", extra_env=env)
     lines = rev.stdout.splitlines()
     if rev.returncode != 0 or len(lines) != 3 or any(not line for line in lines):
@@ -498,12 +622,13 @@ def validate_caller_worktree(
     if git_dir_key == root_key or not git_dir_key.startswith(root_key + "/"):
         raise AppError(422, "validation", "Git directory is not registered beneath this repository", {"worktreePath": "unregistered"})
 
-    branch_result = _run_git(resolved, "symbolic-ref", "--quiet", "--short", "HEAD", extra_env=env)
+    branch_result = _run_git(resolved, "symbolic-ref", "--quiet", "HEAD", extra_env=env)
     if branch_result.returncode != 0 or not branch_result.stdout.strip():
         raise AppError(422, "validation", "Caller worktree HEAD is detached", {"branch": "detached"})
-    actual_branch = validate_branch_name(branch_result.stdout.strip())
-    if actual_branch != expected_branch:
+    actual_ref = branch_result.stdout.strip()
+    if actual_ref != f"refs/heads/{expected_branch}":
         raise AppError(422, "validation", "Caller worktree branch does not match the lease branch", {"branch": "mismatch"})
+    actual_branch = validate_branch_name(actual_ref.removeprefix("refs/heads/"))
     if default_branch and actual_branch.casefold() == default_branch.strip().casefold():
         raise AppError(422, "validation", "The repository default branch cannot be bound as a task worktree", {"branch": "protected"})
 
@@ -519,42 +644,25 @@ def validate_caller_worktree(
     if target_key not in _registered_worktree_paths(common_dir):
         raise AppError(422, "validation", "Git does not list this path as a registered worktree", {"worktreePath": "unregistered"})
 
-    status = _run_git(
-        resolved,
-        "-c",
-        "submodule.recurse=false",
-        "status",
-        "--porcelain",
-        "--untracked-files=normal",
-        "--ignore-submodules=none",
-        extra_env=env,
+    clean_evidence = (
+        caller_cleanliness.inspect(resolved, git_dir, common_dir, expected_branch, _run_git)
+        if inspect_cleanliness else None
     )
-    if status.returncode != 0:
-        raise AppError(422, "validation", "Could not inspect caller worktree status", {"worktreePath": "status_unavailable"})
-    clean = not any(line.strip() for line in status.stdout.splitlines())
 
     config_after = _origin_config_snapshots(resolved)
     if config_after != config_before:
         raise AppError(409, "conflict", "Caller worktree changed during validation")
     registered_at_ns = _registration_time(link_snapshot, reciprocal_snapshot)
-    registration_parts = (
-        link_snapshot.link_metadata[0],
-        link_snapshot.link_metadata[1],
-        registered_at_ns,
-        reciprocal_snapshot.link_metadata[0],
-        reciprocal_snapshot.link_metadata[1],
-    )
-    registration_id = hashlib.sha256(
-        b"caller-worktree-registration\\0"
-        + b"\\0".join(str(part).encode("ascii") for part in registration_parts)
-    ).hexdigest()
+    registration_id = _registration_id(link_snapshot, reciprocal_snapshot, registered_at_ns)
     common_identity = (int(common_stat.st_dev), int(common_stat.st_ino), int(common_stat.st_mode))
     files = (link_snapshot, head_snapshot, reciprocal_snapshot, commondir_snapshot, *config_before)
+    registration_trustworthy = _registration_is_trustworthy(link_snapshot, reciprocal_snapshot)
     caller_worktree = CallerWorktree(
         resolved,
         int(registered_at_ns),
         registration_id,
-        clean,
+        registration_trustworthy,
+        clean_evidence,
         root_identity,
         common_dir,
         common_identity,
@@ -655,21 +763,30 @@ def provision_slot(
     default_branch: str,
     requested_branch: str,
     lease_id: str,
+    reserved_slot_path: str | Path | None = None,
 ) -> ProvisionResult:
     """Lazily create or reuse a slot worktree, fetch origin, clean non-ignored files, and checkout branch."""
     base = validate_local_path(base_path, "baseCheckoutPath")
     if not base.is_dir():
         raise AppError(503, "slot_provisioning_failed", "Configured base checkout path does not exist")
     branch = validate_branch_name(requested_branch) or f"worklog/slot-{slot_index}-{lease_id[:8]}"
-    slot = resolve_slot_path(base, slot_root, repo_name, slot_index)
+    slot = Path(reserved_slot_path) if reserved_slot_path is not None else resolve_slot_path(base, slot_root, repo_name, slot_index)
+
+    def check_reservation() -> None:
+        if reserved_slot_path is not None:
+            current = resolve_slot_path(base, slot_root, repo_name, slot_index)
+            if not _is_local_absolute(str(slot)) or slot != current or slot.resolve() != slot:
+                raise AppError(409, "conflict", "Managed slot path changed after its lease claim was reserved")
 
     # Fetch latest refs; tolerate offline mode by falling back to local origin/<default_branch>.
+    check_reservation()
     fetch_warning = ""
     fetch = _run_git(base, "fetch", "origin", "--prune", timeout=_FETCH_TIMEOUT_S)
     if fetch.returncode != 0:
         first = (fetch.stderr or "").strip().splitlines()
         fetch_warning = first[0][:200] if first else "git fetch origin failed; used local refs"
         logger.warning("Slot fetch warning for %s: %s", base, fetch_warning)
+    check_reservation()
 
     # Reattach an existing local branch at its exact tip, including unpushed commits.
     # Use non-forcing creation so a branch created concurrently cannot be reset.
@@ -696,6 +813,7 @@ def provision_slot(
                     f"Slot directory {slot} exists but is not a registered Git worktree",
                     {"worktreePath": str(slot)},
                 )
+            check_reservation()
             slot.rmdir()
             reuse_slot = False
 
@@ -709,15 +827,19 @@ def provision_slot(
                 {"worktreePath": str(slot), "dirtyFiles": list(status.dirty_files[:20])},
             )
         # Clean untracked non-ignored files ONLY (never -x), preserving .venv and node_modules.
+        check_reservation()
         _git_ok(slot, "clean", "-fd")
+        check_reservation()
         checkout = _run_git(slot, "checkout", *create_args, target, "--")
         if checkout.returncode != 0:
             detail = (checkout.stderr or checkout.stdout or "").strip().splitlines()
             msg = detail[0][:240] if detail else "git checkout failed"
             raise AppError(503, "slot_provisioning_failed", f"Could not checkout branch '{branch}' in slot: {msg}")
     else:
+        check_reservation()
         slot.parent.mkdir(parents=True, exist_ok=True)
         _run_git(base, "worktree", "prune")
+        check_reservation()
         created = _run_git(base, "worktree", "add", *create_args, str(slot), target, timeout=_FETCH_TIMEOUT_S)
         if created.returncode != 0:
             detail = (created.stderr or created.stdout or "").strip().splitlines()
