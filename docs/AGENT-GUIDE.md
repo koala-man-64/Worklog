@@ -371,7 +371,7 @@ worklog agent --as NAME proposal withdraw PROPOSAL_ID --revision 4
   C:/canonical/absolute/worktree/path
   ```
 
-  A fresh tree can also need a handoff if the filesystem cannot verify when Git created its registration, or if Worklog cannot confirm it is clean. This includes trees with Git filters, submodules, or sparse or assume-unchanged entries. Worklog also asks for a handoff if the checkout changes during inspection or exceeds the size or time limit for an automatic check. Use the same message format and retry with a new request ID.
+  A fresh tree can also need a handoff if the filesystem cannot verify when Git created its registration, or if Worklog cannot confirm it is clean. This includes trees with Git filters, submodules, sparse or assume-unchanged entries, or files ignored only by rules outside the checkout. Worklog also asks for a handoff if the checkout changes during inspection or exceeds the size or time limit for an automatic check. Use the same message format and retry with a new request ID.
 
   Release the lease after pushing your PR or handing off. Release, expiry, run end and retirement leave a caller's worktree and branch in place for the caller to archive. An explicit rescue returns `409 caller_worktree`. Worklog recycles managed slots and can rescue their edits. Each agent may hold one active repository lease (`409 agent_lease_limit`). Participation check-ins, outputs and updates refresh the heartbeat. Continuing the identity transfers open leases to the new chat.
 

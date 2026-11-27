@@ -189,7 +189,10 @@ def _inspect(root: Path, git_dir: Path, common: Path, branch: str, run: _Git, pr
     }
     # On POSIX, disabling fileMode can hide a local executable-bit change. Treat
     # that difference as indeterminate for first use even when the caller ignores it.
-    options = ["-c", f"core.attributesFile={os.devnull}", "-c", f"core.fileMode={'false' if os.name == 'nt' else 'true'}"]
+    options = [
+        "-c", f"core.attributesFile={os.devnull}", "-c", f"core.excludesFile={os.devnull}",
+        "-c", f"core.fileMode={'false' if os.name == 'nt' else 'true'}",
+    ]
     settings = run(root, "config", "--null", "--type=bool-or-str", "--get-regexp", r"^core\.(autocrlf|eol)$",
                    extra_env=READ_ONLY_ENV, decode=False)
     if settings.returncode not in (0, 1):
@@ -227,11 +230,16 @@ def _inspect(root: Path, git_dir: Path, common: Path, branch: str, run: _Git, pr
     extras = _observe_checkout(root, tracked, observed)
     while extras:
         # Prefix each pathname so a leading colon is a filename, not pathspec syntax.
-        ignored = run(root, "check-ignore", "--no-index", "--stdin", "-z", extra_env=source_env,
-                      input_bytes=b"".join(b"./" + name + b"\0" for name in extras), decode=False)
-        if ignored.returncode not in (0, 1):
+        candidates = b"".join(b"./" + name + b"\0" for name in extras)
+        ignore_args = ("check-ignore", "--no-index", "--stdin", "-z")
+        actual = run(root, *ignore_args, extra_env=source_env, input_bytes=candidates, decode=False)
+        local = isolated(*ignore_args, data=candidates)
+        if actual.returncode not in (0, 1) or local.returncode not in (0, 1):
             return None
-        remaining = set(extras).difference(name.removeprefix(b"./") for name in ignored.stdout.split(b"\0"))
+        # Only omit entries covered by the watched checkout rules. An external
+        # excludes file could change independently between inspection and binding.
+        ignored = set(actual.stdout.split(b"\0")).intersection(local.stdout.split(b"\0"))
+        remaining = set(extras).difference(name.removeprefix(b"./") for name in ignored)
         extras = []
         for name in remaining:
             if len(observed) >= _MAX_PROOF_PATHS:

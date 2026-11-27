@@ -230,6 +230,25 @@ def test_index_visibility_flags_require_authentic_handoff(env, visibility_flag):
     assert _safe_snapshot(path) == before
 
 
+def test_file_ignored_only_by_external_rules_requires_handoff(env):
+    client, tmp_path = env
+    repo, base, _ = _create_repo(client, tmp_path, "bind-external-ignore")
+    external_rules = tmp_path / "user-gitignore"
+    external_rules.write_text("local-notes.txt\n", encoding="utf-8")
+    _git(base, "config", "core.excludesFile", external_rules.as_posix())
+    token = _issue(client, "External ignore owner")["token"]
+    lease = _acquire(client, token, repo, "codex/external-ignore")
+    path = _caller_worktree(base, tmp_path, lease["branch"])
+    (path / "local-notes.txt").write_text("unfinished work\n", encoding="utf-8")
+    assert _git(path, "check-ignore", "--", "local-notes.txt") == "local-notes.txt"
+    before = _safe_snapshot(path)
+
+    key = "bind-external-ignore-refused"
+    refused = _bind(client, token, lease, path, key=key)
+    assert refused.json()["error"]["code"] == "worktree_handoff_required"
+    _assert_refusal_preserved_state(client, refused, lease, key, path, before)
+
+
 def test_unverifiable_filter_attribute_requires_handoff_without_caller_configured_status_or_checkout(env, monkeypatch):
     client, tmp_path = env
     repo, base, _ = _create_repo(client, tmp_path, "bind-attestation-filter")
