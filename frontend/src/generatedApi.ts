@@ -1986,6 +1986,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/leases/{identity}/bind-worktree": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bind Lease Worktree */
+        post: operations["bind_lease_worktree_api_v1_leases__identity__bind_worktree_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/leases/{identity}/release": {
         parameters: {
             query?: never;
@@ -3541,6 +3558,11 @@ export interface components {
             branch: string;
             /** Worktreepath */
             worktreePath: string;
+            /**
+             * Worktreesource
+             * @enum {string}
+             */
+            worktreeSource: "unbound" | "managed" | "caller";
             /**
              * Mode
              * @enum {string}
@@ -6225,6 +6247,11 @@ export interface components {
             slotIndex: number | null;
             /** Worktreepath */
             worktreePath: string;
+            /**
+             * Worktreesource
+             * @enum {string}
+             */
+            worktreeSource: "unbound" | "managed" | "caller";
             /** Branch */
             branch: string;
             /**
@@ -6314,6 +6341,18 @@ export interface components {
              * @default
              */
             chatId: string;
+        };
+        /**
+         * LeaseBindWorktree
+         * @description Bind an active logical lease to a caller-created Git worktree.
+         */
+        LeaseBindWorktree: {
+            /** Revision */
+            revision: number;
+            /** Worktreepath */
+            worktreePath: string;
+            /** Handoffmessageid */
+            handoffMessageId?: string | null;
         };
         /**
          * LeasePoll
@@ -15919,6 +15958,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["LeaseRenew"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Lease"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bind_lease_worktree_api_v1_leases__identity__bind_worktree_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LeaseBindWorktree"];
             };
         };
         responses: {

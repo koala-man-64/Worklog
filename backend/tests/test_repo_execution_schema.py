@@ -1,4 +1,4 @@
-"""Schema v35-v37 migrations, repository topology, dependency cycles, and merge migration."""
+"""Schema v35-v38 migrations, repository topology, dependency cycles, and merge migration."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import uuid
 from contextlib import closing
 from pathlib import Path
 
+import pytest
 from test_step_update import client, ok, read, refused, write
 from worklog import migrations
 from worklog.db import Database
@@ -60,23 +61,51 @@ V35_TABLES = (
 )
 V36_TABLES = ("push_enrollments", "push_subscriptions", "push_deliveries")
 V37_TABLES = ("dependencies",)
+V38_COLUMNS = ("caller_worktree_path", "worktree_claim_key")
+
+
+def to_v37(path):
+    """Project a v38 fixture back to v37 only while its new lease fields are empty."""
+    with closing(sqlite3.connect(path)) as conn:
+        version = conn.execute("PRAGMA user_version").fetchone()[0]
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(repository_leases)")}
+        if version == 38 and set(V38_COLUMNS) <= columns:
+            if conn.execute(
+                "SELECT 1 FROM repository_leases WHERE caller_worktree_path IS NOT NULL "
+                "OR worktree_claim_key IS NOT NULL LIMIT 1"
+            ).fetchone():
+                raise ValueError("The v38 caller worktree fields must be empty for the v37 fixture")
+            conn.execute("DROP INDEX repository_leases_active_claim_key")
+            conn.execute("ALTER TABLE repository_leases DROP COLUMN worktree_claim_key")
+            conn.execute("ALTER TABLE repository_leases DROP COLUMN caller_worktree_path")
+            conn.execute("PRAGMA user_version=37")
+            conn.commit()
+        elif version != 37 or set(V38_COLUMNS) & columns:
+            raise ValueError(f"Expected a v37 or v38 schema shape, got version {version}")
 
 
 def to_v36(path):
-    """Project a v37 fixture back to v36 while its additive dependency table is empty."""
+    """Project a v38 fixture back through v37 while the added tables and fields are empty."""
+    with closing(sqlite3.connect(path)) as conn:
+        version = conn.execute("PRAGMA user_version").fetchone()[0]
+        if version == 36:
+            return
+    to_v37(path)
     with closing(sqlite3.connect(path)) as conn:
         version = conn.execute("PRAGMA user_version").fetchone()[0]
         tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         if version == 37 and set(V37_TABLES) <= tables:
             if conn.execute("SELECT count(*) FROM dependencies").fetchone()[0]:
                 raise ValueError("The v37 dependency table must be empty for the v36 fixture")
-            conn.executescript("DROP TABLE dependencies; PRAGMA user_version=36;")
+            conn.execute("DROP TABLE dependencies")
+            conn.execute("PRAGMA user_version=36")
+            conn.commit()
         elif version != 36 or set(V37_TABLES) & tables:
             raise ValueError(f"Expected a v36 or v37 schema shape, got version {version}")
 
 
 def to_v35(path):
-    """Take a current v37 database back through the documented v37 and v36 way-backs."""
+    """Take a current v38 database back through the documented v38, v37 and v36 way-backs."""
     to_v36(path)
     with closing(sqlite3.connect(path)) as conn:
         version = conn.execute("PRAGMA user_version").fetchone()[0]
@@ -96,20 +125,29 @@ def test_v36_way_back_sql_matches_the_upgrade_guide():
 
 
 def to_v34(path):
-    """Take a current v37 database back to v34 through its historical way-backs."""
+    """Take a current v38 database back to v34 through its historical way-backs."""
     to_v35(path)
     with closing(sqlite3.connect(path)) as conn:
         conn.executescript(WAY_BACK_V34)
 
 
+def before_v38(rows):
+    """Rows present in v37, excluding the two empty v38 lease fields."""
+    kept = dict(rows)
+    if "repository_leases" in kept:
+        kept["repository_leases"] = [row[:-2] for row in kept["repository_leases"]]
+    return kept
+
+
 def before_v37(rows):
-    """Rows present in v36, excluding the empty v37 dependency table."""
-    return {table: values for table, values in rows.items() if table not in V37_TABLES}
+    """Rows present in v36, excluding the empty v37 dependency table and v38 lease fields."""
+    return {table: values for table, values in before_v38(rows).items() if table not in V37_TABLES}
 
 
 def before_v36(rows):
     """Rows present in v35, excluding v36 push state/reply correlation and v37 dependencies."""
-    kept = {table: values for table, values in rows.items() if table not in V36_TABLES and table not in V37_TABLES}
+    kept = {table: values for table, values in before_v38(rows).items()
+            if table not in V36_TABLES and table not in V37_TABLES}
     if "discussion_messages" in kept:
         kept["discussion_messages"] = [row[:-1] for row in kept["discussion_messages"]]
     return kept
@@ -117,7 +155,7 @@ def before_v36(rows):
 
 def before_v35(rows):
     """Rows present before v35, with all later additions removed from the projection."""
-    kept = {table: values for table, values in rows.items()
+    kept = {table: values for table, values in before_v38(rows).items()
             if table not in V36_TABLES and table not in V37_TABLES and table not in V35_TABLES}
     if "discussion_messages" in kept:
         kept["discussion_messages"] = [row[:-1] for row in kept["discussion_messages"]]
@@ -160,6 +198,105 @@ def test_v37_upgrade_adds_an_empty_table_and_preserves_the_v36_shape(tmp_path):
     assert (version, signature) == (migrations.SCHEMA_VERSION, sealed.current())
     assert after["dependencies"] == []
     assert before_v37(after) == before
+
+
+def test_v38_preserves_pathless_managed_and_historical_lease_rows(tmp_path):
+    import sealed
+    from test_sealed_schemas import contents
+
+    db_path = tmp_path / "upgrade-v37-leases.sqlite3"
+    sealed.build(db_path, 37)
+    stamp = "2026-11-26T12:00:00+00:00"
+    shared_path = "C:/shared/.worklog-slots/repo/slot-2"
+    with closing(sqlite3.connect(db_path)) as conn:
+        conn.executemany(
+            "INSERT INTO repositories(id,name,created_at,updated_at) VALUES(?,?,?,?)",
+            [("repo-a", "Repository A", stamp, stamp), ("repo-b", "Repository B", stamp, stamp)],
+        )
+        conn.executemany(
+            "INSERT INTO repository_leases(id,repository_id,slot_index,worktree_path,branch,state,queue_seq,"
+            "requested_at,last_heartbeat_at,released_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
+            [
+                ("pathless", "repo-a", 1, "", "", "active", 1, stamp, stamp, None),
+                ("managed", "repo-a", 2, shared_path, "feat/current", "active", 2, stamp, stamp, None),
+                ("historical", "repo-a", 2, shared_path, "feat/old", "released", 3, stamp, stamp, stamp),
+                # v37's path index is repository-scoped, so this legacy duplicate must not make
+                # the additive v38 claim-key index fail during migration.
+                ("other-repo", "repo-b", 1, shared_path, "feat/other", "active", 1, stamp, stamp, None),
+            ],
+        )
+        conn.commit()
+    before_version, before_shape, before = contents(db_path)
+    assert (before_version, before_shape) == (37, sealed.shape(37))
+
+    Database(db_path).initialize()
+
+    version, signature, after = contents(db_path)
+    assert (version, signature) == (38, sealed.current())
+    assert before_v38(after) == before
+    assert all(row[-2:] == (None, None) for row in after["repository_leases"])
+
+    to_v37(db_path)
+    version, signature, downgraded = contents(db_path)
+    assert (version, signature) == (37, sealed.shape(37))
+    assert downgraded == before
+
+
+def test_v38_claim_key_is_global_partial_and_caller_path_is_separate(tmp_path):
+    db_path = tmp_path / "claim-key-index.sqlite3"
+    Database(db_path).initialize()
+    stamp = "2026-11-26T12:00:00+00:00"
+    claim_key = "canonical:C:/shared/task"
+
+    def insert(conn, identity, repository, state, *, key=claim_key, caller_path="C:/caller/task",
+               managed_path=""):
+        conn.execute(
+            "INSERT INTO repository_leases(id,repository_id,worktree_path,caller_worktree_path,"
+            "worktree_claim_key,state,queue_seq,requested_at,last_heartbeat_at,released_at) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?)",
+            (identity, repository, managed_path, caller_path, key, state, 1, stamp, stamp,
+             stamp if state == "released" else None),
+        )
+
+    with closing(sqlite3.connect(db_path)) as conn:
+        insert(conn, "active", "repo-a", "active")
+        conn.commit()
+        for index, state in enumerate(("offered", "active", "expired_dirty"), start=1):
+            with pytest.raises(sqlite3.IntegrityError):
+                insert(conn, f"duplicate-{index}", f"repo-{index}", state,
+                       caller_path=f"C:/other/{index}")
+            conn.rollback()
+        insert(conn, "released", "repo-b", "released", caller_path="C:/released/task")
+        conn.commit()
+        with pytest.raises(sqlite3.IntegrityError):
+            insert(conn, "two-path-fields", "repo-c", "active", key="another-key",
+                   caller_path="C:/caller/task", managed_path="C:/managed/task")
+        conn.rollback()
+        assert conn.execute(
+            "SELECT count(*) FROM repository_leases WHERE worktree_claim_key=?", (claim_key,)
+        ).fetchone()[0] == 2
+
+
+def test_v38_way_back_refuses_nonempty_caller_worktree_fields(tmp_path):
+    db_path = tmp_path / "wayback-v38-with-claims.sqlite3"
+    Database(db_path).initialize()
+    stamp = "2026-11-26T12:00:00+00:00"
+    with closing(sqlite3.connect(db_path)) as conn:
+        conn.execute(
+            "INSERT INTO repository_leases(id,repository_id,caller_worktree_path,worktree_claim_key,state,"
+            "queue_seq,requested_at,last_heartbeat_at) VALUES(?,?,?,?,?,?,?,?)",
+            ("caller", "repo-a", "C:/caller/task", "canonical:C:/caller/task",
+             "active", 1, stamp, stamp),
+        )
+        conn.commit()
+
+    with pytest.raises(ValueError, match="v38 caller worktree fields"):
+        to_v37(db_path)
+    with closing(sqlite3.connect(db_path)) as conn:
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 38
+        assert conn.execute(
+            "SELECT caller_worktree_path,worktree_claim_key FROM repository_leases WHERE id='caller'"
+        ).fetchone() == ("C:/caller/task", "canonical:C:/caller/task")
 
 
 def test_the_latest_way_back_chain_gives_v34s_exact_shape_and_upgrades_again(tmp_path):

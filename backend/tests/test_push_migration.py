@@ -1,4 +1,4 @@
-"""The v36 push and v37 dependency schemas preserve pre-existing records."""
+"""The v36 push, v37 dependency, and v38 lease schemas preserve pre-existing records."""
 
 from __future__ import annotations
 
@@ -66,7 +66,7 @@ def test_v35_and_populated_v36_upgrades_preserve_existing_records(tmp_path):
     Database(path).initialize()
 
     after_version, after_shape, after_rows = contents(path)
-    assert SCHEMA_VERSION == after_version == 37
+    assert SCHEMA_VERSION == after_version == 38
     assert after_shape == sealed.current()
     for table, rows in before_rows.items():
         if table == "discussion_messages":
@@ -77,8 +77,8 @@ def test_v35_and_populated_v36_upgrades_preserve_existing_records(tmp_path):
     for table in (*V36_TABLES, *V37_TABLES):
         assert after_rows[table] == []
 
-    # Populate records introduced in T-26's v36, then project only the v37 table away. The normal
-    # startup upgrade must preserve those records byte-for-byte while creating dependencies empty.
+    # Populate records introduced in T-26's v36, then project the empty v38 fields and v37 table
+    # away. The normal startup upgrade must preserve v36 records byte-for-byte.
     stamp = "2026-11-26T00:00:00+00:00"
     with closing(sqlite3.connect(path)) as conn:
         conn.execute(
@@ -99,16 +99,17 @@ def test_v35_and_populated_v36_upgrades_preserve_existing_records(tmp_path):
             (stamp, stamp),
         )
         assert conn.execute("SELECT count(*) FROM dependencies").fetchone()[0] == 0
-        conn.execute("DROP TABLE dependencies")
-        conn.execute("PRAGMA user_version=36")
         conn.commit()
 
+    from test_repo_execution_schema import to_v36
+
+    to_v36(path)
     v36_version, v36_shape, v36_rows = contents(path)
     assert v36_version == 36
     assert v36_shape == sealed.shape(36)
     Database(path).initialize()
     upgraded_version, upgraded_shape, upgraded_rows = contents(path)
-    assert upgraded_version == SCHEMA_VERSION == 37
+    assert upgraded_version == SCHEMA_VERSION == 38
     assert upgraded_shape == sealed.current()
     for table, rows in v36_rows.items():
         assert upgraded_rows[table] == rows, table

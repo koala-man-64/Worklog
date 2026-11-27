@@ -14,12 +14,14 @@ import os
 import sqlite3
 import threading
 import uuid
+import weakref
 from collections.abc import Callable, Iterable
+from contextlib import nullcontext
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from . import active_sessions, antigravity_sessions, slot_worktrees
+from . import active_sessions, antigravity_sessions, slot_worktrees, worktree_claims
 from .claude_settings import ManagedClaudeSettings, require_claude_settings
 from .common import AppError, event, now, require_revision, text, uid
 from .db import Database
@@ -160,6 +162,14 @@ def _repo_name_map(c: sqlite3.Connection, repo_ids: Iterable[str]) -> dict[str, 
     return {r["id"]: r["name"] for r in c.execute(f"SELECT id,name FROM repositories WHERE id IN ({marks})", ids)}
 
 
+def _worktree_fields(row: sqlite3.Row) -> dict[str, str]:
+    if row["caller_worktree_path"]:
+        return {"worktreePath": row["caller_worktree_path"], "worktreeSource": "caller"}
+    if row["worktree_path"]:
+        return {"worktreePath": row["worktree_path"], "worktreeSource": "managed"}
+    return {"worktreePath": "", "worktreeSource": "unbound"}
+
+
 def lease_record(
     c: sqlite3.Connection,
     row: sqlite3.Row,
@@ -184,7 +194,7 @@ def lease_record(
         "chatId": row["chat_id"],
         "holderLabel": row["holder_label"],
         "slotIndex": row["slot_index"],
-        "worktreePath": row["worktree_path"],
+        **_worktree_fields(row),
         "branch": row["branch"],
         "mode": row["mode"],
         "state": row["state"],
@@ -232,7 +242,7 @@ def repository_slot_summaries(c: sqlite3.Connection, repo_ids: Iterable[str]) ->
                 "provider": r["provider"],
                 "slotIndex": r["slot_index"],
                 "branch": r["branch"],
-                "worktreePath": r["worktree_path"],
+                **_worktree_fields(r),
                 "mode": r["mode"],
                 "state": r["state"],
                 "expiresAt": r["expires_at"],
@@ -651,6 +661,8 @@ class LeaseService:
         self.on_promote = on_promote
         self._sweep_lock = threading.Lock()
         self._snapshot_lock = threading.Lock()
+        self._provision_locks: weakref.WeakValueDictionary[str, threading.Lock] = weakref.WeakValueDictionary()
+        self._provision_guard = threading.Lock()
         self._claude_settings_lock = threading.Lock()
         self._claude_settings = ManagedClaudeSettings(db.path.parent)
 
@@ -934,55 +946,89 @@ class LeaseService:
     # ---- Acquire / Poll / Renew / Release / Rescue ----
 
     def _provision_and_activate(
+        self, lease_id: str, repo_id: str, repo_name: str, slot_index: int, requested_branch: str,
+        ttl_seconds: int, pol: dict[str, Any], actor: dict[str, Any], *, rollback_on_failure: bool = True,
+    ) -> dict[str, Any]:
+        # A slow or cancelled offer may still be running Git. Serialize physical slots across
+        # offers while allowing unrelated directories to provision independently.
+        target = None
+        key = lease_id
+        lock = None
+        try:
+            if pol["baseCheckoutPath"]:
+                target = slot_worktrees.resolve_slot_path(pol["baseCheckoutPath"], pol["slotRootPath"], repo_name, slot_index)
+                key = slot_worktrees.worktree_claim_key(target)
+            with self._provision_guard:
+                lock = self._provision_locks.setdefault(key, threading.Lock())
+            with lock:
+                return self._activate_offer(
+                    lease_id, repo_name, slot_index, requested_branch, ttl_seconds, pol, actor, target, key,
+                )
+        except AppError:
+            if rollback_on_failure and pol["baseCheckoutPath"]:
+                # A retry may have taken the same reservation after a Git failure. Let that
+                # attempt finish before cancelling an offer that is still outstanding.
+                with (lock or nullcontext()), self.db.transaction() as c:
+                    stamp = now()
+                    c.execute(
+                        "UPDATE repository_leases SET state='cancelled',released_at=?,release_reason='provision_failed',"
+                        "revision=revision+1 WHERE id=? AND state='offered' "
+                        "AND (worktree_claim_key IS NULL OR worktree_claim_key=?)", (stamp, lease_id, key),
+                    )
+                    promoted_dispatch = _promote_next_in_tx(c, repo_id, stamp)
+                self.write_snapshot()
+                if promoted_dispatch:
+                    self._notify_promoted()
+            raise
+
+    def _is_provisioning(self, key: str | None) -> bool:
+        with self._provision_guard:
+            lock = self._provision_locks.get(key) if key else None
+            return lock is not None and lock.locked()
+
+    def _activate_offer(
         self,
         lease_id: str,
-        repo_id: str,
         repo_name: str,
         slot_index: int,
         requested_branch: str,
         ttl_seconds: int,
         pol: dict[str, Any],
         actor: dict[str, Any],
-        *,
-        rollback_on_failure: bool = True,
+        target: Path | None,
+        key: str,
     ) -> dict[str, Any]:
         """Run Git slot provisioning outside SQLite lock, then finalize lease to active."""
         fetch_warning = ""
         worktree_path = ""
         branch = requested_branch
-        if pol["baseCheckoutPath"]:
-            try:
-                prov = slot_worktrees.provision_slot(
-                    pol["baseCheckoutPath"],
-                    pol["slotRootPath"],
-                    repo_name,
-                    slot_index,
-                    pol["defaultBranch"],
-                    requested_branch,
-                    lease_id,
-                    before_reuse=self._clear_claude_slot,
-                )
-                worktree_path = prov.worktree_path
-                branch = prov.branch
-                fetch_warning = prov.fetch_warning
-            except AppError:
-                if rollback_on_failure:
-                    promoted_dispatch = False
-                    with self.db.transaction() as c:
-                        stamp = now()
-                        c.execute(
-                            "UPDATE repository_leases SET state='cancelled',released_at=?,release_reason='provision_failed',"
-                            "revision=revision+1 WHERE id=? AND state='offered'",
-                            (stamp, lease_id),
-                        )
-                        promoted_dispatch = _promote_next_in_tx(c, repo_id, stamp)
-                    self.write_snapshot()
-                    if promoted_dispatch:
-                        self._notify_promoted()
-                raise
+        if target is not None:
+            with self.db.transaction() as c:
+                offer = c.execute("SELECT * FROM repository_leases WHERE id=?", (lease_id,)).fetchone()
+                if offer is not None and offer["state"] == "active":
+                    return lease_record(c, offer, repo_name=repo_name)
+                if offer is None or offer["state"] != "offered":
+                    raise AppError(409, "conflict", "Lease offer is no longer available")
+                if offer["worktree_claim_key"] not in (None, key):
+                    raise AppError(409, "conflict", "The managed slot path changed during provisioning")
+                if worktree_claims.reserve(c, lease_id, target) != key:
+                    raise AppError(409, "conflict", "The managed slot path changed during provisioning")
+                prior = worktree_claims.last_holder(c, key, lease_id)
+                if prior is not None and prior["caller_worktree_path"] and target.exists():
+                    raise AppError(409, "caller_worktree", "The caller must archive its worktree before slot reuse")
+            prov = slot_worktrees.provision_slot(
+                pol["baseCheckoutPath"], pol["slotRootPath"], repo_name, slot_index,
+                pol["defaultBranch"], requested_branch, lease_id, target,
+                before_reuse=self._clear_claude_slot,
+            )
+            worktree_path, branch, fetch_warning = prov.worktree_path, prov.branch, prov.fetch_warning
+            if slot_worktrees.worktree_claim_key(worktree_path) != key:
+                raise AppError(409, "conflict", "The provisioned path no longer matches the reserved slot")
 
         with self.db.transaction() as c:
             row = c.execute("SELECT * FROM repository_leases WHERE id=?", (lease_id,)).fetchone()
+            if row is not None and row["state"] == "active":
+                return lease_record(c, row, repo_name=repo_name)
             if row is None or row["state"] != "offered":
                 raise AppError(409, "conflict", "Lease offer is no longer available")
             stamp = now()
@@ -1424,6 +1470,81 @@ class LeaseService:
         assert result is not None
         return result
 
+    def _bindable_lease(
+        self, c: sqlite3.Connection, actor: dict[str, Any], lease_id: str, revision: int,
+    ) -> tuple[sqlite3.Row, sqlite3.Row, dict[str, Any]]:
+        if actor.get("kind") != "agent":
+            raise AppError(403, "lease_scope", "Only the authenticated lease owner can bind a worktree")
+        principal = communication_actor(c, actor)
+        row = c.execute("SELECT * FROM repository_leases WHERE id=?", (lease_id,)).fetchone()
+        if row is None:
+            raise AppError(404, "not_found", "Lease not found")
+        if row["agent_id"] != principal["id"]:
+            raise AppError(403, "lease_scope", "Only the lease owner can bind a worktree")
+        require_revision(row, revision)
+        expiry = _parse_iso(row["expires_at"])
+        if row["state"] != "active" or row["release_reason"] or expiry is None or expiry <= datetime.now(UTC):
+            raise AppError(409, "lease_closed", "Only an active, unexpired lease can bind a worktree")
+        repo = _get_repo(c, row["repository_id"])
+        pol = policy_record(c, repo["id"])
+        if pol["baseCheckoutPath"] or row["worktree_path"]:
+            raise AppError(409, "worktree_managed", "This lease uses the repository's managed slot policy")
+        if row["worktree_claim_key"] is not None or row["caller_worktree_path"]:
+            raise AppError(409, "worktree_in_use", "The lease already has a worktree binding")
+        if repo["archived"] or repo["merged_into"] or pol["maxActiveLeases"] == 0:
+            raise AppError(409, "lease_closed", "The repository is unavailable for worktree binding")
+        if not row["branch"] or not repo["remote_identity"]:
+            raise AppError(422, "validation", "Binding requires a named lease branch and a catalog origin")
+        return row, repo, pol
+
+    def prepare_worktree_binding(
+        self, actor: dict[str, Any], lease_id: str, payload: dict[str, Any],
+    ) -> Callable[[sqlite3.Connection], dict[str, Any]]:
+        """Inspect Git outside the write lock; commit the claim and its receipt in one transaction."""
+        revision = payload["revision"]
+        with self.db.read() as c:
+            row, repo, pol = self._bindable_lease(c, actor, lease_id, revision)
+        worktree = slot_worktrees.validate_caller_worktree(
+            payload["worktreePath"], repo["remote_identity"], row["branch"], pol["defaultBranch"],
+            inspect_cleanliness=not payload.get("handoffMessageId"),
+        )
+
+        def commit(c: sqlite3.Connection) -> dict[str, Any]:
+            current, current_repo, policy = self._bindable_lease(c, actor, lease_id, revision)
+            if (repo["remote_identity"] != current_repo["remote_identity"] or repo["id"] != current_repo["id"]
+                    or row["branch"] != current["branch"] or pol["defaultBranch"] != policy["defaultBranch"]):
+                raise AppError(409, "conflict", "Repository or lease changed while verifying the worktree")
+            worktree.require_current()
+            worktree_claims.require_caller_path(c, worktree.path)
+            key = worktree_claims.reserve(c, lease_id, worktree.path)
+            if self._is_provisioning(key):
+                raise AppError(409, "worktree_in_use", "A managed offer is provisioning this directory")
+            acquired = _parse_iso(current["acquired_at"])
+            if acquired is None:
+                raise AppError(409, "lease_closed", "The lease has no recorded acquisition")
+            provenance = worktree_claims.binding_provenance(
+                c, current, worktree, key, acquired, payload.get("handoffMessageId")
+            )
+            c.execute(
+                "UPDATE repository_leases SET caller_worktree_path=?,revision=revision+1 WHERE id=?",
+                (str(worktree.path), lease_id),
+            )
+            bound = c.execute("SELECT * FROM repository_leases WHERE id=?", (lease_id,)).fetchone()
+            result = lease_record(c, bound, repo_name=current_repo["name"])
+            credential = c.execute(
+                "SELECT chat_id FROM communication_credentials WHERE credential_id=?", (actor["id"],)
+            ).fetchone()
+            event(c, actor, "lease.bind_worktree", lease_id, None, {
+                "worktreePath": result["worktreePath"], "agentId": current["agent_id"],
+                "chatId": credential["chat_id"], "provenance": provenance,
+                "registeredAtNs": str(worktree.registered_at_ns),
+                "registrationId": worktree.registration_id,
+                "handoffMessageId": payload.get("handoffMessageId"), "revision": result["revision"],
+            })
+            return result
+
+        return commit
+
     def renew(self, actor: dict[str, Any], lease_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         requested_ttl = payload.get("ttlSeconds")
         if requested_ttl is not None and not (MIN_TTL_SECONDS <= int(requested_ttl) <= MAX_TTL_SECONDS):
@@ -1473,6 +1594,8 @@ class LeaseService:
                 raise AppError(409, "lease_closed", "Lease is already closed")
             if row["state"] == "expired_dirty":
                 raise AppError(409, "slot_dirty", "Lease slot is expired_dirty; use rescue to recover and recycle it")
+            if row["caller_worktree_path"] and rescue:
+                raise AppError(409, "caller_worktree", "The caller owns recovery and archival. Release without rescue.")
             pol = policy_record(c, row["repository_id"])
 
         # Phase 2 (outside DB lock): clean/detach/rescue managed worktree if present.
@@ -1539,6 +1662,8 @@ class LeaseService:
             require_revision(row, payload.get("revision"))
             if row["state"] not in {"expired_dirty", "active", "offered"}:
                 raise AppError(409, "lease_closed", "Lease is already closed")
+            if row["caller_worktree_path"]:
+                raise AppError(409, "caller_worktree", "The caller owns recovery and archival of this worktree")
             pol = policy_record(c, row["repository_id"])
 
         rescue_ref = row["rescue_ref"]
@@ -1666,12 +1791,14 @@ class LeaseService:
 
             # 1b. Expire unconfirmed CLI offered leases past 180s (excluding dispatch_queue offers).
             stale_offered = c.execute(
-                "SELECT id,repository_id FROM repository_leases l WHERE state='offered' "
+                "SELECT id,repository_id,worktree_claim_key FROM repository_leases l WHERE state='offered' "
                 "AND COALESCE(offered_at,requested_at)<? "
                 "AND NOT EXISTS(SELECT 1 FROM dispatch_queue dq WHERE dq.lease_id=l.id AND dq.status IN ('queued','provisioning','preparing'))",
                 (offer_cutoff,),
             ).fetchall()
             for row in stale_offered:
+                if self._is_provisioning(row["worktree_claim_key"]):
+                    continue
                 c.execute(
                     "UPDATE repository_leases SET state='expired',released_at=?,release_reason='offer_timeout',"
                     "revision=revision+1 WHERE id=? AND state='offered'",
@@ -1729,6 +1856,12 @@ class LeaseService:
                 cur_row = c.execute("SELECT * FROM repository_leases WHERE id=?", (lease_dict["id"],)).fetchone()
                 if cur_row is None or cur_row["state"] != "active" or int(cur_row["revision"]) != int(lease_dict["revision"]):
                     # Renewed or released concurrently while we were inspecting/recycling.
+                    continue
+                liveness_field = "expires_at" if reclaim_reason == "ttl_expired" else "last_heartbeat_at"
+                if (not lease_dict["worktree_path"] and not cur_row["release_reason"]
+                        and cur_row[liveness_field] != lease_dict[liveness_field]):
+                    # Participation and reacquisition refresh a logical/caller lease without
+                    # incrementing its revision. A heartbeat supersedes this liveness scan.
                     continue
                 end_stamp = now()
                 c.execute(

@@ -704,6 +704,7 @@ describe("StartSession", () => {
                 slotIndex: 1,
                 branch: "codex/job-1",
                 worktreePath: "C:\\Projects\\.worklog-slots\\aa-jobs\\slot-1",
+                worktreeSource: "managed",
                 mode: "shared",
                 state: "active",
                 expiresAt: "2026-11-24T01:00:00Z",
