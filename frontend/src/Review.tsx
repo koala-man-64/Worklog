@@ -23,6 +23,9 @@ import type {
 } from "./apiTypes";
 import { Icon } from "./icons";
 import { statusLabel } from "./ProposalHistory";
+import type {
+  DeliverableDetail,
+} from "./deliverableTypes";
 // The list is paged 50 at a time, as Pages moves.
 const PAGE = 50;
 export function Review({ selectedId }: { selectedId?: string }) {
@@ -196,6 +199,12 @@ function ProposalDetail({ id, onBack }: { id: string; onBack: () => void }) {
           payload={op.payload}
           files={p.attachments ?? []}
           proposedEarlier={(target) => (declared.get(target) ?? index) < index}
+          priorDeliverable={(target) =>
+            priorDeliverableState(p.operations, index, target)
+          }
+          priorDeliverableRevision={(target, currentRevision) =>
+            priorDeliverableRevision(p.operations, index, target, currentRevision)
+          }
           createdBy={(name) => {
             const at = declared.get(name);
             return at !== undefined && at < index ? at + 1 : undefined;
@@ -341,6 +350,7 @@ const NAME_FIELDS = new Set([
   "targetId",
   "repositoryIds",
   "stepIds",
+  "deliverableId",
   "upstreamIds",
 ]);
 function namesIn(key: string, value: unknown): string[] {
@@ -368,6 +378,56 @@ function declaredTargets(operations: Operation[]) {
   });
   return first;
 }
+
+function priorDeliverableState(
+  operations: Operation[],
+  beforeIndex: number,
+  target: string,
+) {
+  let state: Record<string, unknown> | undefined;
+  for (const operation of operations.slice(0, beforeIndex)) {
+    if (
+      operation.action === "deliverable.create" &&
+      operation.payload.id === target
+    ) {
+      state = { ...operation.payload };
+    } else if (
+      operation.action === "deliverable.update" &&
+      operation.payload.id === target &&
+      state
+    ) {
+      state = { ...state, ...operation.payload };
+    }
+  }
+  return state;
+}
+
+function priorDeliverableRevision(
+  operations: Operation[],
+  beforeIndex: number,
+  target: string,
+  currentRevision?: number,
+): number | null | undefined {
+  let revision = currentRevision;
+  let found = false;
+  for (const operation of operations.slice(0, beforeIndex)) {
+    if (!operation.action.startsWith("deliverable.") || operation.payload.id !== target)
+      continue;
+    if (operation.action === "deliverable.create") {
+      revision = 1;
+      found = true;
+      continue;
+    }
+    if (!(["deliverable.update", "deliverable.submit", "deliverable.accept", "deliverable.reopen"] as string[]).includes(operation.action))
+      continue;
+    const expected = operation.payload.revision;
+    if (typeof expected !== "number") return null;
+    if (revision !== undefined && expected !== revision) return null;
+    revision = expected + 1;
+    found = true;
+  }
+  return found ? revision : undefined;
+}
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 // A ticket is named by its UUID, its key (T-12) or its number.
@@ -390,6 +450,7 @@ function currentPath(
     return DATE.test(date) ? "/days/" + encodeURIComponent(date) : null;
   }
   if (action === "progress.set" || action.startsWith("step.")) return "/steps/" + id;
+  if (action.startsWith("deliverable.")) return "/deliverables/" + id;
   if (action.startsWith("dependency.")) return "/dependencies/" + id;
   if (action.startsWith("wave.")) return "/waves/" + id;
   if (action.startsWith("repository.")) return "/repositories/" + id;
@@ -421,6 +482,8 @@ export function OperationDiff({
   files,
   proposedEarlier,
   createdBy,
+  priorDeliverable,
+  priorDeliverableRevision,
   onStale,
 }: {
   // The change's place in the proposal, as a failed approval names it.
@@ -431,6 +494,13 @@ export function OperationDiff({
   files?: Attachment[];
   // True when an earlier operation in the same proposal creates the target.
   proposedEarlier?: (target: string) => boolean;
+  /** Deliverable state staged by earlier changes in the same proposal. */
+  priorDeliverable?: (target: string) => Record<string, unknown> | undefined;
+  /** The revision that remains after earlier matching changes in this proposal. */
+  priorDeliverableRevision?: (
+    target: string,
+    currentRevision?: number,
+  ) => number | null | undefined;
   // The number of the earlier change that creates the record a name stands
   // for, or undefined when none does.
   createdBy?: (name: string) => number | undefined;
@@ -498,6 +568,13 @@ export function OperationDiff({
   });
   const before =
     current.data ?? (holder as unknown as Record<string, unknown> | null);
+  const stagedRevision = priorDeliverableRevision?.(
+    target,
+    typeof before?.revision === "number" ? before.revision : undefined,
+  );
+  const revisionChainMismatch = stagedRevision === null;
+  const comparableRevision =
+    typeof stagedRevision === "number" ? stagedRevision : before?.revision;
   // Not found is expected only for a target that this proposal creates first;
   // any other missing target stays an error, since approval would fail on it.
   const created =
@@ -509,10 +586,10 @@ export function OperationDiff({
   // earlier change creates.
   const isNew = !before && !loading && (creating || created);
   const staleDetail =
-    before &&
     payload.revision !== undefined &&
-    before.revision !== payload.revision
-      ? `Change ${number ?? "?"} (${action}: expected revision ${String(payload.revision)}, current revision ${String(before.revision)})`
+    (revisionChainMismatch ||
+      (comparableRevision !== undefined && comparableRevision !== payload.revision))
+      ? `Change ${number ?? "?"} (${action}: expected revision ${String(payload.revision)}, ${action.startsWith("deliverable.") ? "current proposal revision" : "current revision"} ${String(comparableRevision ?? "unknown")})`
       : null;
   useEffect(() => {
     if (number !== undefined && onStale) {
@@ -559,14 +636,24 @@ export function OperationDiff({
       )}
       {before &&
         payload.revision !== undefined &&
-        before.revision !== payload.revision && (
+        (revisionChainMismatch || comparableRevision !== payload.revision) && (
           <p className="warning">
-            This target changed: expected revision {String(payload.revision)},
-            current revision {String(before.revision)}. Approval will be checked
-            by the server.
+            {revisionChainMismatch
+              ? "An earlier deliverable change has an unexpected revision; approval will be checked by the server."
+              : `This target changed: expected revision ${String(payload.revision)}, ${action.startsWith("deliverable.") ? "current proposal revision" : "current revision"} ${String(comparableRevision)}. Approval will be checked by the server.`}
           </p>
         )}
       {isNew && !created && <p className="muted">New record</p>}
+      {action.startsWith("deliverable.") && (
+        <DeliverableOperationSummary
+          action={action}
+          payload={payload}
+          current={before}
+          staged={priorDeliverable?.(target)}
+          stagedRevision={stagedRevision}
+          files={files ?? []}
+        />
+      )}
       {Object.entries(payload).map(([key, value]) => (
         <div className={isNew ? "diff-row new" : "diff-row"} key={key}>
           <strong>{key}</strong>
@@ -597,6 +684,173 @@ export function OperationDiff({
     </article>
   );
 }
+
+function DeliverableOperationSummary({
+  action,
+  payload,
+  current,
+  staged,
+  stagedRevision,
+  files,
+}: {
+  action: string;
+  payload: Record<string, unknown>;
+  current?: Record<string, unknown> | null;
+  staged?: Record<string, unknown>;
+  stagedRevision?: number | null;
+  files: Attachment[];
+}) {
+  const live = current as Partial<DeliverableDetail> | null | undefined;
+  const data = { ...(live ?? {}), ...(staged ?? {}), ...payload } as Record<
+    string,
+    unknown
+  >;
+  const target = String(payload.id ?? "");
+  const roadmapId = String(data.roadmapId ?? "");
+  const expected =
+    typeof payload.revision === "number" ? payload.revision : undefined;
+  const currentRevision = live?.revision;
+  const comparableRevision =
+    typeof stagedRevision === "number" ? stagedRevision : currentRevision;
+  const revisionMismatch =
+    stagedRevision === null ||
+    (expected !== undefined &&
+      comparableRevision !== undefined &&
+      expected !== comparableRevision);
+  const title = typeof data.title === "string" ? data.title : "this deliverable";
+  const requirements = objectRows(data.requirements);
+  const inputs = objectRows(data.inputs);
+  const outputs = objectRows(data.outputs);
+  const actionText: Record<string, string> = {
+    "deliverable.create": "Creates a deliverable",
+    "deliverable.update": "Updates a deliverable",
+    "deliverable.submit": "Submits a deliverable for review",
+    "deliverable.accept": "Accepts a deliverable",
+    "deliverable.reopen": "Reopens a deliverable",
+  };
+  const kind = (reference: Record<string, unknown>) =>
+    typeof reference.kind === "string" ? reference.kind : "reference";
+  const referenceText = (reference: Record<string, unknown>) =>
+    safeText(reference.label) || safeText(reference.url) || safeText(reference.id) || "Reference";
+  const renderReference = (reference: Record<string, unknown>, index: number) => {
+    const refKind = kind(reference);
+    const label = referenceText(reference);
+    if (refKind === "proposal_attachment") {
+      const id = typeof reference.id === "string" && UUID.test(reference.id) ? reference.id : "";
+      const file = id ? files.find((candidate) => candidate.id === id) : undefined;
+      return <li key={`proof-${id || index}`}>{file ? <EvidenceFile file={file} /> : label}</li>;
+    }
+    const id = typeof reference.id === "string" ? reference.id : "";
+    const url = typeof reference.url === "string" ? reference.url : "";
+    const safeId = UUID.test(id) ? id : "";
+    const availability = safeText(reference.availability);
+    const href = availability === "unavailable" ? "" :
+      refKind === "url" && reviewSafeUrl(url)
+        ? url
+        : refKind === "resource" && safeId
+          ? `#resources/${encodeURIComponent(safeId)}`
+          : refKind === "repository" && safeId
+            ? `#repositories/${encodeURIComponent(safeId)}`
+            : refKind === "attachment" && safeId
+              ? download(`/attachments/${encodeURIComponent(safeId)}?download=1`)
+              : "";
+    return (
+      <li key={`${refKind}:${id || url || index}`}>
+        {href ? <a href={href}>{label}</a> : label} <small>{refKind}</small>
+        {availability === "changed" && <small> Changed since linked</small>}
+        {availability === "unavailable" && <small> Unavailable</small>}
+        {Number.isInteger(reference.sourceRevision) && (
+          <small> Source revision {String(reference.sourceRevision)}</small>
+        )}
+        {safeText(reference.sha256) && <small> SHA-256 {safeText(reference.sha256)}</small>}
+      </li>
+    );
+  };
+  const isNamed = namesIn("id", target).length > 0;
+  const detailHref =
+    !isNamed && UUID.test(target) && UUID.test(roadmapId)
+      ? `#roadmaps/${encodeURIComponent(roadmapId)}/deliverables/${encodeURIComponent(target)}`
+      : "";
+
+  return (
+    <section className="deliverable-proposal-summary">
+      <p>
+        <strong>{actionText[action] ?? action}</strong>
+        {title !== "this deliverable" && <> · {title}</>}
+      </p>
+      {detailHref && <p><a href={detailHref}>Open deliverable</a></p>}
+      {expected !== undefined && (
+        <p className={revisionMismatch ? "warning" : "muted"}>
+          Expected revision {expected}
+          {currentRevision !== undefined && ` · current revision ${currentRevision}`}
+          {stagedRevision !== undefined && stagedRevision !== null &&
+            ` · after earlier proposal changes, revision ${stagedRevision}`}
+          {stagedRevision === null && " · an earlier proposal change has an inconsistent revision"}
+        </p>
+      )}
+      {typeof payload.reason === "string" && payload.reason && (
+        <p>Reopen reason: {payload.reason}</p>
+      )}
+      {typeof payload.note === "string" && payload.note && (
+        <p>Acceptance note: {payload.note}</p>
+      )}
+      {requirements.length > 0 && (
+        <div>
+          <strong>Checklist ({requirements.filter((item) => item.checked).length}/{requirements.length})</strong>
+          <ul>
+            {requirements.map((requirement, index) => (
+              <li key={safeText(requirement.id) || `requirement-${index}`}>
+                {requirement.checked === true ? "✓" : "○"} {safeText(requirement.text) || "Untitled requirement"}
+                {safeText(requirement.verificationNote) && ` — ${safeText(requirement.verificationNote)}`}
+                {objectRows(requirement.evidence).length > 0 && (
+                  <ul>{objectRows(requirement.evidence).map((reference, refIndex) =>
+                    renderReference(reference, refIndex),
+                  )}</ul>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {(inputs.length > 0 || outputs.length > 0) && (
+        <div className="deliverable-proposal-references">
+          {inputs.length > 0 && <div><strong>Inputs</strong><ul>{inputs.map((reference, index) => renderReference(reference, index))}</ul></div>}
+          {outputs.length > 0 && <div><strong>Outputs</strong><ul>{outputs.map((reference, index) => renderReference(reference, index))}</ul></div>}
+        </div>
+      )}
+      {Array.isArray(data.stepIds) && data.stepIds.length > 0 && (
+        <p>{data.stepIds.length} linked delivery step{data.stepIds.length === 1 ? "" : "s"}</p>
+      )}
+    </section>
+  );
+}
+
+function objectRows(value: unknown): Record<string, unknown>[] {
+  return Array.isArray(value)
+    ? value.filter(
+        (item): item is Record<string, unknown> =>
+          item !== null && typeof item === "object" && !Array.isArray(item),
+      )
+    : [];
+}
+
+function safeText(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function reviewSafeUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return (
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      !url.username &&
+      !url.password
+    );
+  } catch {
+    return false;
+  }
+}
+
 // A name stands for a record the same proposal creates, so say which change
 // creates it, or, on the create itself, what the name is for.
 function NameNotes({

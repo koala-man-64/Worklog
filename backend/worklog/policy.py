@@ -98,6 +98,14 @@ ROUTES: dict[str, dict[str, str | Only]] = {
 
     "/context": {"GET": READ},
 
+    "/deliverables/{identity}": {"GET": READ, "PATCH": HUMAN},
+    "/deliverables/{identity}/accept": {"POST": HUMAN},
+    "/deliverables/{identity}/archive": {"POST": HUMAN},
+    "/deliverables/{identity}/history": {"GET": READ},
+    "/deliverables/{identity}/recover": {"POST": HUMAN},
+    "/deliverables/{identity}/reopen": {"POST": HUMAN},
+    "/deliverables/{identity}/submit": {"POST": HUMAN},
+
     "/dependencies": {"GET": READ, "POST": HUMAN},
     "/dependencies/roadmaps/{identity}": {"GET": READ},
     "/dependencies/waits": {"GET": READ, "POST": COORDINATE},
@@ -250,6 +258,8 @@ ROUTES: dict[str, dict[str, str | Only]] = {
     "/roadmaps/{identity}/agents": {"GET": HUMAN},
     "/roadmaps/{identity}/attachments": {"GET": HUMAN},
     "/roadmaps/{identity}/board": {"GET": HUMAN},
+    "/roadmaps/{identity}/deliverable-options": {"GET": READ},
+    "/roadmaps/{identity}/deliverables": {"GET": READ, "POST": HUMAN},
     "/roadmaps/{identity}/dispatch": {"GET": READ},
     "/roadmaps/{identity}/move": {"POST": HUMAN},
     "/roadmaps/{identity}/outline": {"GET": READ},
@@ -268,6 +278,7 @@ ROUTES: dict[str, dict[str, str | Only]] = {
     "/settings": {"GET": HUMAN, "PATCH": HUMAN},
 
     "/steps/{identity}": {"GET": READ, "PATCH": HUMAN},
+    "/steps/{identity}/deliverables": {"GET": READ},
     "/steps/{identity}/history": {"GET": READ},
     "/steps/{identity}/move": {"POST": HUMAN},
     "/steps/{identity}/progress": {"PATCH": HUMAN},

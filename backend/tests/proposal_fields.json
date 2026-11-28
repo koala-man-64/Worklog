@@ -290,6 +290,71 @@
       "revision"
     ]
   },
+  "deliverable.create": {
+    "required": [
+      "roadmapId",
+      "title"
+    ],
+    "allowed": [
+      "description",
+      "id",
+      "inputs",
+      "outputs",
+      "requirements",
+      "roadmapId",
+      "stepIds",
+      "title"
+    ]
+  },
+  "deliverable.update": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "description",
+      "id",
+      "inputs",
+      "outputs",
+      "requirements",
+      "revision",
+      "stepIds",
+      "title"
+    ]
+  },
+  "deliverable.submit": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "revision"
+    ]
+  },
+  "deliverable.accept": {
+    "required": [
+      "id",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "note",
+      "revision"
+    ]
+  },
+  "deliverable.reopen": {
+    "required": [
+      "id",
+      "reason",
+      "revision"
+    ],
+    "allowed": [
+      "id",
+      "reason",
+      "revision"
+    ]
+  },
   "wave.create": {
     "required": [
       "name",

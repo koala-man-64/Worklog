@@ -9,7 +9,7 @@ Worklog runs at **http://127.0.0.1:8877** from one local SQLite database. Its wo
 - **Plan and record your days.** Plan what you will work on and mark what you actually worked on with an outcome and next action.
 - **Keep one backlog, stack ranked.** Work items carry a status, a stack rank, a Markdown description, a scratchpad, files, links, local paths, an Azure DevOps link, GitHub pull requests and commits, people and repositories, along with their daily record and full history.
 - **Track issues as tickets.** You and your agents file tickets for bugs, incidents and tasks, work them with a status, assignee and comments, and close them with a resolution. Closed tickets stay searchable, so the next agent finds what fixed an issue last time.
-- **Plan bigger efforts as roadmaps.** Roadmaps nest under each other and hold step trees with progress, immutable versions, questions and decisions.
+- **Plan bigger efforts as roadmaps.** Roadmaps nest under each other and hold step trees with progress, deliverables, immutable versions, questions and decisions.
 - **Know who is involved.** A people directory keeps each person's title, team, description, contact details and notes, and ties them to work items, roadmaps and repositories, with their role on each.
 - **Keep reference pages.** Resources are Markdown pages you write once for yourself and your agents, such as how you like work done, conventions and runbooks. You read them on the Resources page, agents read them from the command line, and they change them only through proposals.
 - **Work with AI agents under your control.** Claude Code, Codex, or any agent you give a credential can read your context, report what it is working on and where, talk with you and other agents, take and hand off responsibilities, file and close tickets, and propose changes that only you can approve, unless you turn approval off.
@@ -81,6 +81,24 @@ Only one managed server or offline restore can own a data directory. OS locks re
 - **[docs/GUIDE.md](docs/GUIDE.md)** is the guide for people: getting started, how Worklog behaves, how to do each task, every page and its controls, and troubleshooting. Worklog also shows it on its **Guide** page, offline like everything else.
 - **[docs/AGENT-GUIDE.md](docs/AGENT-GUIDE.md)** is the contract for AI agents: the rules they follow, every `worklog agent` command, the proposal operations, every error code with the response it needs, and the limits. Agents print it with `./.venv/Scripts/worklog.exe agent guide`, which needs no credential and no running Worklog. The **Guide** page shows it too, under "For agents".
 - **[docs/API.md](docs/API.md)** is the HTTP contract, and `docs/openapi.json` its generated schema.
+
+## Roadmap deliverables
+
+Open a roadmap's **Deliverables** tab to define the result, what it takes to deliver it, and the proof needed for acceptance.
+A parent roadmap lists its sub-roadmaps' deliverables. Link contributing steps and add files, URLs, repositories or Resource pages
+as inputs, outputs or checklist evidence. Acceptance preserves the reviewed revision. [Define and accept a deliverable](docs/GUIDE.md#define-and-accept-a-deliverable)
+
+Agents can list deliverables, inspect their requirements and acceptance history, and look them up by contributing step.
+
+```powershell
+worklog agent --as NAME roadmap deliverables ROADMAP_ID
+worklog agent --as NAME roadmap deliverable DELIVERABLE_ID
+worklog agent --as NAME roadmap deliverable-history DELIVERABLE_ID
+worklog agent --as NAME step deliverables STEP_ID
+```
+
+An agent proposes changes with the usual proposal commands. The approval setting also applies when a proposal explicitly accepts a deliverable.
+[Agent CLI reference](docs/AGENT-GUIDE.md#52-reading)
 
 ## Working with agents
 

@@ -1406,3 +1406,272 @@ section.step-outcome > h3 {
 .roadmap-live-panel .live-waits {
   margin-top: 10px;
 }
+
+/* Deliverables are roadmap-level products with their own acceptance record. */
+.deliverable-rollup {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--teal-wash);
+}
+.deliverable-rollup h3,
+.deliverable-rollup p {
+  margin: 0;
+}
+.deliverable-rollup p {
+  margin-top: 3px;
+}
+.deliverables-view {
+  gap: 14px;
+}
+.deliverables-header,
+.deliverable-detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.deliverables-header h2,
+.deliverables-header p,
+.deliverable-detail-header h2,
+.deliverable-detail-header p {
+  margin-top: 0;
+  margin-bottom: 5px;
+}
+.deliverable-add {
+  min-width: min(420px, 48%);
+}
+.deliverable-counts,
+.deliverable-readiness-note {
+  margin: 0;
+  color: var(--muted);
+}
+.deliverable-list-controls {
+  align-items: center;
+  flex-wrap: wrap;
+}
+.deliverable-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+.deliverable-owner-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.deliverable-owner-group > h3 {
+  margin: 0;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.96rem;
+}
+.deliverable-card {
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+.deliverable-card-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.deliverable-card-title h2 {
+  margin: 0;
+}
+.deliverable-card-main {
+  display: grid;
+  gap: 5px;
+}
+.deliverable-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 21px;
+  padding: 1px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.deliverable-status.status-ready_for_review,
+.deliverable-status.status-accepted {
+  border-color: var(--teal);
+  background: var(--teal-wash);
+  color: var(--ink);
+}
+.deliverable-detail-header .toolbar {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.deliverable-section,
+.deliverable-editor-section {
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.deliverable-section > h3,
+.deliverable-editor-section > h4 {
+  margin-top: 0;
+}
+.deliverable-requirements,
+.deliverable-step-links,
+.deliverable-reference-links {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+.deliverable-requirements > li > label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.deliverable-requirements > li p {
+  margin: 5px 0 0 26px;
+}
+.deliverable-step-links > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 6px 14px;
+}
+.deliverable-step-links > li > small {
+  grid-column: 1;
+}
+.step-deliverables .section-heading {
+  align-items: center;
+}
+.step-deliverables .deliverable-step-links > li {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.deliverable-reference-links {
+  margin-top: 6px;
+}
+.deliverable-reference-links > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+.deliverable-action-form,
+.deliverable-editor {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.deliverable-action-form label,
+.deliverable-editor label,
+.deliverable-reference-add label,
+.deliverable-picker label {
+  display: grid;
+  gap: 5px;
+}
+.deliverable-editor > h3,
+.deliverable-editor-section > h4 {
+  margin-bottom: 2px;
+}
+.deliverable-editor-section {
+  margin-top: 4px;
+  padding-top: 12px;
+}
+.deliverable-requirement-editor {
+  display: grid;
+  gap: 9px;
+  margin: 10px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+.deliverable-requirement-editor .deliverable-check-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.deliverable-reference-editor,
+.deliverable-reference-add,
+.deliverable-picker {
+  display: grid;
+  gap: 9px;
+}
+.deliverable-reference-row,
+.deliverable-step-choice,
+.deliverable-option {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 0;
+  border-top: 1px solid var(--line);
+}
+.deliverable-reference-row > div,
+.deliverable-option > span {
+  display: grid;
+  gap: 3px;
+}
+.deliverable-refresh-reference {
+  display: flex !important;
+  align-items: center;
+  gap: 6px !important;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.deliverable-reference-add {
+  padding: 10px;
+  border-left: 2px solid var(--line);
+}
+.deliverable-file-upload {
+  margin-top: 5px;
+}
+.deliverable-history {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  list-style: none;
+}
+.deliverable-history-row {
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+.deliverable-history-row summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.deliverable-history-row h4,
+.deliverable-history-row h5 {
+  margin: 10px 0 4px;
+}
+.deliverable-history-events {
+  margin-top: 12px;
+}
+.deliverable-history-events > p {
+  padding: 5px 0;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 720px) {
+  .deliverables-header,
+  .deliverable-detail-header {
+    flex-direction: column;
+  }
+  .deliverable-add {
+    width: 100%;
+    min-width: 0;
+  }
+  .deliverable-detail-header .toolbar {
+    justify-content: flex-start;
+  }
+}

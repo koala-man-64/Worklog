@@ -203,3 +203,14 @@ CREATE INDEX push_deliveries_pending ON push_deliveries(enrollment_id,seq) WHERE
 """
 
 BASELINE += PUSH_SCHEMA
+
+# Roadmap deliverables, their links to plan steps, and acceptance receipts (v39).
+DELIVERABLES_SCHEMA = """
+CREATE TABLE deliverables(id TEXT PRIMARY KEY,roadmap_id TEXT NOT NULL REFERENCES roadmaps(id),title TEXT NOT NULL,description TEXT NOT NULL DEFAULT '',definition TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'planned' CHECK(status IN('planned','ready_for_review','accepted')),archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>=1),created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+CREATE INDEX deliverables_roadmap ON deliverables(roadmap_id,archived,status,id);
+CREATE TABLE deliverable_steps(deliverable_id TEXT NOT NULL REFERENCES deliverables(id),step_id TEXT NOT NULL REFERENCES steps(id),position INTEGER NOT NULL CHECK(position>=0),PRIMARY KEY(deliverable_id,step_id));
+CREATE INDEX deliverable_steps_step ON deliverable_steps(step_id,deliverable_id);
+CREATE TABLE deliverable_acceptances(deliverable_id TEXT NOT NULL REFERENCES deliverables(id),revision INTEGER NOT NULL CHECK(revision>=1),accepted_at TEXT NOT NULL,actor_id TEXT NOT NULL,actor_label TEXT NOT NULL,actor_kind TEXT NOT NULL CHECK(actor_kind IN('human','agent')),proposal_id TEXT REFERENCES proposals(id),note TEXT NOT NULL DEFAULT '',snapshot TEXT NOT NULL,PRIMARY KEY(deliverable_id,revision));
+"""
+
+BASELINE += DELIVERABLES_SCHEMA
