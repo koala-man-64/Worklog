@@ -161,6 +161,10 @@ def test_dispatch_queue_admission_auto_promotion_and_restart_open(tmp_path, monk
         assert opened_res.json()["reasoningEffort"] == "xhigh"
         assert len(opened) == 3
 
+        # Claude Code records "don't ask again" rules in the file Worklog wrote. Recycling keeps
+        # ignored files, so the release must still take it out of the slot, and keep a copy.
+        edited = {**generated, "permissions": {"allow": ["Bash(npm test:*)"]}}
+        (project / "settings.local.json").write_text(json.dumps(edited), encoding="utf-8")
         saved_lease = client2.get(f"/api/v1/leases/{l3['leaseId']}").json()
         released = client2.post(
             f"/api/v1/leases/{l3['leaseId']}/release",
@@ -170,6 +174,8 @@ def test_dispatch_queue_admission_auto_promotion_and_restart_open(tmp_path, monk
         assert released.status_code == 200, released.text
         assert not (project / "settings.local.json").exists()
         assert not (project / ".gitignore").exists()
+        rescued = data_dir / "claude-checkout-settings" / "rescued" / f"{l3['leaseId']}.settings.local.json"
+        assert json.loads(rescued.read_text(encoding="utf-8")) == edited
 
         default_launch = client2.post(
             f"/api/v1/work-items/{item['id']}/sessions",

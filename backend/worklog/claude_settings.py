@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 
 from .common import AppError
@@ -12,9 +13,14 @@ from .slot_worktrees import _git_ok, _run_git
 
 SETTINGS = "settings.local.json"
 IGNORE = ".gitignore"
+RESCUED = "rescued"
 _MISMATCH = (
     "Claude's launch selections need matching values in .claude/settings.local.json. "
     "Choose a managed checkout or configure the selected folder first."
+)
+_SLOT_MISMATCH = (
+    "This Worklog slot's .claude/settings.local.json has other model or effort values. "
+    "Choose matching selections, or delete that file in the slot and launch again."
 )
 
 
@@ -29,7 +35,7 @@ def _settings_path(cwd: str | Path) -> Path:
     return _safe_path(folder / SETTINGS)
 
 
-def require_claude_settings(cwd: str, options: dict[str, str]) -> None:
+def require_claude_settings(cwd: str, options: dict[str, str], *, mismatch: str = _MISMATCH) -> None:
     """Check the documented folder overrides needed for the Desktop continuation."""
     if not options:
         return
@@ -37,16 +43,21 @@ def require_claude_settings(cwd: str, options: dict[str, str]) -> None:
     try:
         settings = json.loads(path.read_text(encoding="utf-8-sig"))
     except (OSError, ValueError) as exc:
-        raise AppError(422, "claude_settings", _MISMATCH) from exc
+        raise AppError(422, "claude_settings", mismatch) from exc
     if not isinstance(settings, dict) or not isinstance(settings.get("env", {}), dict):
-        raise AppError(422, "claude_settings", _MISMATCH)
+        raise AppError(422, "claude_settings", mismatch)
     env = settings.get("env", {})
     model = options.get("requestedModel")
     effort = options.get("reasoningEffort")
     if model and (settings.get("model") != model or env.get("ANTHROPIC_MODEL", model) != model):
-        raise AppError(422, "claude_settings", _MISMATCH, {"model": "project_settings_mismatch"})
+        raise AppError(422, "claude_settings", mismatch, {"model": "project_settings_mismatch"})
     if effort and env.get("CLAUDE_CODE_EFFORT_LEVEL") != effort:
-        raise AppError(422, "claude_settings", _MISMATCH, {"reasoningEffort": "project_settings_mismatch"})
+        raise AppError(422, "claude_settings", mismatch, {"reasoningEffort": "project_settings_mismatch"})
+
+
+def require_slot_settings(cwd: str, options: dict[str, str]) -> None:
+    """The same check for a managed slot, whose refusal must not send the caller to a managed checkout."""
+    require_claude_settings(cwd, options, mismatch=_SLOT_MISMATCH)
 
 
 def _digest(data: bytes) -> str:
@@ -69,12 +80,29 @@ class ManagedClaudeSettings:
     def _record(self, root: Path) -> Path:
         return self.directory / (_digest(os.path.normcase(str(root)).encode("utf-8")) + ".json")
 
+    def rescued_path(self, lease_id: str) -> Path:
+        name = lease_id if re.fullmatch(r"[A-Za-z0-9-]{1,64}", lease_id) else _digest(lease_id.encode("utf-8"))
+        return self.directory / RESCUED / f"{name}.{SETTINGS}"
+
+    def _rescue(self, path: Path, lease_id: str) -> None:
+        target = self.rescued_path(lease_id)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        # Copy, then delete: the data directory and the slot can be on different volumes.
+        temporary = target.with_suffix(".tmp")
+        temporary.write_bytes(path.read_bytes())
+        temporary.replace(target)
+        path.unlink()
+
     def prepare(self, cwd: str, lease_id: str, options: dict[str, str]) -> None:
         root = Path(cwd).resolve()
         path = _settings_path(root)
         if path.exists():
-            require_claude_settings(cwd, options)
+            require_slot_settings(cwd, options)
             return
+        # This lease's own file is gone (deleted to change selections, or a crash came between the record
+        # and the file): drop its record and ignore rule before writing anew. Another lease's record
+        # still refuses below.
+        self.clear(root, lease_id)
 
         env: dict[str, str] = {}
         settings: dict[str, str | dict[str, str]] = {"env": env}
@@ -140,10 +168,15 @@ class ManagedClaudeSettings:
                 return
             path = _settings_path(root)
             tracked = set(_git_ok(root, "ls-files", "--", f".claude/{SETTINGS}", f".claude/{IGNORE}").splitlines())
-            # A changed or newly tracked settings file belongs to the user, including its ignore rule.
-            if path.exists() and (f".claude/{SETTINGS}" in tracked or _digest(path.read_bytes()) != names[SETTINGS]):
+            # A settings file the repository tracks belongs to it, including its ignore rule.
+            if f".claude/{SETTINGS}" in tracked:
                 record.unlink()
                 return
+            # Claude Code adds permission rules to the file Worklog wrote, and a crash can leave it half
+            # written. Recycling keeps ignored files, so move it out of the slot rather than hand it to
+            # the next lease, and keep its contents in Worklog's data directory.
+            if path.exists() and _digest(path.read_bytes()) != names[SETTINGS]:
+                self._rescue(path, str(saved["leaseId"]))
             for name in (SETTINGS, IGNORE):
                 target = _safe_path(path.parent / name)
                 if name in names and f".claude/{name}" not in tracked and target.exists():
