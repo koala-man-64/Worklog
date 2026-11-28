@@ -146,6 +146,9 @@ def test_missing_executable_can_be_retried_and_another_parent_gets_its_own_chat(
 def test_codex_local_preparation_supports_an_ordinary_folder_and_keeps_the_desktop_default(tmp_path, monkeypatch):
     commands = []
     events = [json.dumps({"type": "thread.started", "thread_id": CHAT}), json.dumps({"type": "turn.completed"})]
+    codex_home = tmp_path / "empty-codex-home"
+    codex_home.mkdir()
+    monkeypatch.setenv("CODEX_HOME", str(codex_home))
 
     def cli(command, **options):
         commands.append(command)
@@ -159,3 +162,49 @@ def test_codex_local_preparation_supports_an_ordinary_folder_and_keeps_the_deskt
     assert "--skip-git-repo-check" in commands[0]
     assert "--skip-git-repo-check" not in commands[1]
     assert all(command[-1] == "-" and command[command.index("--sandbox") + 1] == "read-only" for command in commands)
+    assert all("multi_agent" in command and "shell_tool" in command for command in commands)
+
+
+@pytest.mark.parametrize(
+    ("config_toml", "expected_local_sandbox", "expected_ws_net"),
+    [
+        ('sandbox_mode = "danger-full-access"\n', "danger-full-access", False),
+        (
+            'sandbox_mode = "workspace-write"\n[sandbox_workspace_write]\nnetwork_access = true\n',
+            "workspace-write",
+            True,
+        ),
+        ('sandbox_mode = "workspace-write"\n', "workspace-write", False),
+        ('sandbox_mode = "unknown-mode"\n', "read-only", False),
+        ('not = [valid toml\n', "read-only", False),
+    ],
+)
+def test_codex_local_preparation_inherits_configured_sandbox_without_changing_desktop_launches(
+    tmp_path, monkeypatch, config_toml, expected_local_sandbox, expected_ws_net,
+):
+    commands = []
+    events = [json.dumps({"type": "thread.started", "thread_id": CHAT}), json.dumps({"type": "turn.completed"})]
+    codex_home = tmp_path / "codex-home"
+    codex_home.mkdir()
+    (codex_home / "config.toml").write_text(config_toml, encoding="utf-8")
+    monkeypatch.setenv("CODEX_HOME", str(codex_home))
+
+    def cli(command, **options):
+        commands.append(command)
+        return subprocess.CompletedProcess(command, 0, ("\n".join(events) + "\n").encode(), b"")
+
+    monkeypatch.setattr(session_launches, "_codex_executable", lambda: ["codex"])
+    monkeypatch.setattr(session_launches, "_run_cli", cli)
+
+    assert session_launches._prepare_session("codex", str(tmp_path), "Prepare", allow_non_git=True) == (CHAT, "")
+    assert session_launches._prepare_session("codex", str(tmp_path), "Prepare", allow_non_git=False) == (CHAT, "")
+
+    local_cmd, desktop_cmd = commands
+    assert local_cmd[local_cmd.index("--sandbox") + 1] == expected_local_sandbox
+    assert ("sandbox_workspace_write.network_access=true" in local_cmd) is expected_ws_net
+    # Preparation turn keeps all execution tools disabled even when inheriting user sandbox_mode.
+    assert {"shell_tool", "multi_agent", "apps", "plugins", "skill_mcp_dependency_install"} <= set(local_cmd)
+    assert "--ignore-user-config" in local_cmd
+    # Desktop work-item launches always keep read-only preparation.
+    assert desktop_cmd[desktop_cmd.index("--sandbox") + 1] == "read-only"
+    assert "sandbox_workspace_write.network_access=true" not in desktop_cmd
