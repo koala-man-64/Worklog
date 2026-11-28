@@ -736,6 +736,12 @@ $claudeChild = worklog agent --as CODEX_PARENT chats start --provider claude --c
   --request-id review-T12-claude-session | ConvertFrom-Json
 ```
 
+Without `--model` or `--reasoning-effort`, the provider uses its own defaults. A standalone launch prints the receipt as JSON:
+
+```powershell
+worklog agent --as PARENT chats start --provider claude --cwd . --label 'Claude reviewer' --request-id claude-T12-session
+```
+
 The receipt includes `agentId` for Worklog requests, `chatId` for provider resume, and the chosen `requestedModel` and `reasoningEffort` when supplied. `model` is the model the provider reports when available. The child learns its exact CLI and arguments (`worklogCommand`) on its first turn. They select the same Worklog instance and the child's own named credential, including when the parent uses a custom URL or data directory. The parent's credential stays out of the provider process. The work-item launch route (`POST /api/v1/work-items/{id}/sessions`) requires the person's local browser session.
 
 The launch flags apply to the preparation turn. To explicitly use the same choices when resuming in the provider's terminal, run the appropriate command in the returned `cwd` with the child's provider profile. For a one-off Codex turn outside a Git repository, use `codex exec resume --skip-git-repo-check` with the same model and config flags.
@@ -1028,6 +1034,7 @@ worklog check
 | `session_launch` | 409 | No saved provider session is available to reopen | The person checks provider history before starting another session |
 | `not_an_agent` | 409 | The person asked to open the chat of a request slot that waits on no agent: their own, an open audience, or a role nobody owns | The person's; not yours |
 | `session_limit` | 429 | Two desktop chats are already being prepared | Wait for a preparation to finish |
+| `claude_settings` | 422 or 409 | A Claude launch that names a model or reasoning effort needs the same values in the folder's `.claude/settings.local.json`: `model`, `env.CLAUDE_CODE_EFFORT_LEVEL`, and `env.ANTHROPIC_MODEL` when it is set. The file must be ignored by Git and must not link outside the checkout (422). Or Worklog could not prepare, check or clear its own settings in a managed checkout, which needs an active lease on its assigned branch (409) | Set the matching values in that folder, or choose a managed checkout from the person's **Start session**. For 409, check the lease and its branch, then tell the person |
 | `database_busy` | 503 | The database was briefly locked | Retry the same command with the same request ID after a second |
 | `database_error` | 503 | A database operation failed; nothing was committed | Retry once with the same request ID, then tell the person |
 | `storage_error` | 503 | Disk or folder trouble on the person's machine | Tell the person |
