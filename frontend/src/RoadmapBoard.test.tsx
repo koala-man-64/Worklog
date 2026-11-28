@@ -665,3 +665,81 @@ it("reads no Live while the panel stays hidden, and opens it again from the head
   expect(localStorage.getItem("roadmap-live-panel")).toBe("open");
   await waitFor(() => expect(liveReads()).toHaveLength(1));
 });
+
+it("places Step details and Structure editor in a tab of the Live panel on Outline", async () => {
+  const { rerender } = render(page("outline"));
+  expect(
+    await screen.findByRole("region", { name: "Plan outline" }),
+  ).toBeInTheDocument();
+  const panel = screen.getByRole("complementary", { name: "Live activity" });
+  const liveTab = within(panel).getByRole("tab", { name: "Live" });
+  const detailsTab = within(panel).getByRole("tab", { name: "Step details" });
+  expect(liveTab).toHaveAttribute("aria-selected", "true");
+  expect(detailsTab).toHaveAttribute("aria-selected", "false");
+
+  // Switching to Step details inside the Live panel shows the prompt when no step is chosen.
+  await userEvent.click(detailsTab);
+  expect(detailsTab).toHaveAttribute("aria-selected", "true");
+  expect(
+    within(panel).getByRole("region", { name: "Step details" }),
+  ).toBeVisible();
+  expect(
+    within(panel).getByText("Choose a step to see its work, chats and notes."),
+  ).toBeVisible();
+
+  // Selecting a step opens Step details inside the right panel, and Live stays one tab away.
+  await userEvent.click(liveTab);
+  expect(liveTab).toHaveAttribute("aria-selected", "true");
+  rerender(page(id(3)));
+  expect(detailsTab).toHaveAttribute("aria-selected", "true");
+  const details = within(panel).getByRole("region", { name: "Step details" });
+  expect(within(details).getByRole("heading", { name: "Lex" })).toBeVisible();
+
+  // Clicking the already-selected step after switching back to Live returns to Step details.
+  await userEvent.click(liveTab);
+  expect(liveTab).toHaveAttribute("aria-selected", "true");
+  await userEvent.click(
+    within(screen.getByRole("region", { name: "Plan outline" })).getByRole(
+      "link",
+      { name: "Lex" },
+    ),
+  );
+  expect(detailsTab).toHaveAttribute("aria-selected", "true");
+  expect(
+    within(panel).getByRole("region", { name: "Step details" }),
+  ).toBeVisible();
+
+  // Edit structure uses the same tab in the Live panel.
+  await userEvent.click(screen.getByRole("button", { name: "Edit structure" }));
+  const editorTab = within(panel).getByRole("tab", {
+    name: "Structure editor",
+  });
+  expect(editorTab).toHaveAttribute("aria-selected", "true");
+  expect(
+    within(panel).getByRole("region", { name: "Structure editor" }),
+  ).toBeVisible();
+});
+
+it("opens Step details even when the Live panel was hidden, without polling Live", async () => {
+  localStorage.setItem("roadmap-live-panel", "closed");
+  const { rerender } = render(page(id(3)));
+  const panel = await screen.findByRole("complementary", {
+    name: "Live activity",
+  });
+  expect(
+    within(panel).getByRole("tab", { name: "Step details" }),
+  ).toHaveAttribute("aria-selected", "true");
+  expect(
+    within(panel).getByRole("region", { name: "Step details" }),
+  ).toBeVisible();
+  expect(liveReads()).toEqual([]);
+  // Leaving Outline keeps the Live panel hidden as preferred.
+  rerender(page("material"));
+  expect(
+    await screen.findByRole("region", { name: "Material" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("complementary", { name: "Live activity" }),
+  ).toBeNull();
+  expect(liveReads()).toEqual([]);
+});

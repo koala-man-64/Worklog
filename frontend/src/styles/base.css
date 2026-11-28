@@ -1692,7 +1692,7 @@ code {
   }
 }
 @media not all and (min-width: 900px) and (min-height: 560px) {
-  .roadmap-split .panel-body,
+  .roadmap-outline-panel .panel-body,
   .chats-split .panel-body,
   .discussions-split .panel-body,
   .guide-split .panel-body,

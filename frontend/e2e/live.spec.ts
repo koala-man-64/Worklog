@@ -299,6 +299,29 @@ test("live shows agents taking work, overlapping on repositories and communicati
   await expect(panel).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Live panel" })).toHaveCount(0);
 
+  // On Outline, Step details sits in a tab of the Live panel beside the plan.
+  await page.goto(`/#roadmaps/${roadmap.id}/outline`);
+  await expect(panel.getByRole("tab", { name: "Live" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await page
+    .getByRole("region", { name: "Plan outline" })
+    .getByRole("link", { name: "Live step " + suffix, exact: true })
+    .click();
+  await expect(
+    panel.getByRole("tab", { name: "Step details" }),
+  ).toHaveAttribute("aria-selected", "true");
+  await expect(
+    panel
+      .getByRole("region", { name: "Step details" })
+      .getByRole("heading", { name: "Live step " + suffix }),
+  ).toBeVisible();
+  await panel.getByRole("tab", { name: "Live" }).click();
+  await expect(
+    panel.getByRole("link", { name: builderLabel, exact: true }),
+  ).toBeVisible();
+
   // Hidden, it stays hidden, through a reload too, until the header opens it again.
   await page.goto(`/#roadmaps/${roadmap.id}/outline`);
   await panel.getByRole("button", { name: "Hide Live panel" }).click();

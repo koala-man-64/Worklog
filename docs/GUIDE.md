@@ -229,7 +229,7 @@ Shared links between non-agent records and a step, work item or ticket prerequis
 5. To change one step's title, outcome or description, open the step, press "Edit step", then "Save step". It saves that step alone, without a new version, so agents working on other steps carry on undisturbed. Agents propose the same change for one step.
 6. To nest a roadmap under another, use "Add sub-roadmap" at the top of the parent's page, or choose its parent in "Nested under" beside it.
 
-The editor opens beside the outline, and keeps your unsaved structure as a browser draft. If the roadmap changed in the meantime, choose "Rebase onto current" to keep your edits on the newest version: a title, outcome, description or parent you didn't change takes the newest one, so a step edited elsewhere keeps its new text, and a step retired elsewhere stays retired unless you changed it. Or choose "Discard draft". A save changes only the steps you changed: adding or retiring a step leaves the others as they were. Retired steps keep their history; "Show retired steps" shows them in the outline, where they were. Once your phases are in place, run day-to-day delivery across repositories and release waves as described in [Execute a roadmap by repository stream and wave](#execute-a-roadmap-by-repository-stream-and-wave).
+The editor opens in the "Structure editor" tab of the panel beside the outline, and keeps your unsaved structure as a browser draft. If the roadmap changed in the meantime, choose "Rebase onto current" to keep your edits on the newest version: a title, outcome, description or parent you didn't change takes the newest one, so a step edited elsewhere keeps its new text, and a step retired elsewhere stays retired unless you changed it. Or choose "Discard draft". A save changes only the steps you changed: adding or retiring a step leaves the others as they were. Retired steps keep their history; "Show retired steps" shows them in the outline, where they were. Once your phases are in place, run day-to-day delivery across repositories and release waves as described in [Execute a roadmap by repository stream and wave](#execute-a-roadmap-by-repository-stream-and-wave).
 
 ### Define and accept a deliverable
 
@@ -487,8 +487,8 @@ Plans broken into steps, with every saved version kept.
   - **"Outline":**
     - "Plan & progress": the outline of steps, with "Collapse done", "Collapse all" and "Expand all", "Show retired steps" once a step is retired, and optional filters by repository, work class and "Multi-repo leaves only". A long title is cut short on its line; hover over it to read it whole, as on "Status".
     - "Agents working here", and each step's progress, work-item count, work class, linked repositories and agents.
-    - Drag the outline's edge to resize it.
-    - "Edit structure" opens the editor beside it. Otherwise it has the step chosen in the outline:
+    - "Step details" and "Structure editor" sit as a tab beside "Live" in the panel on the right; drag the panel's edge to resize it.
+    - "Edit structure" opens the "Structure editor" tab. Otherwise choosing a step in the outline opens its "Step details" tab:
       - Its "Outcome" first, in a panel larger than anything else under its title, or "No outcome yet" when it has none. Then its description, with "Edit step" for its title, outcome, description, work class and linked repositories, "Split by repo" to split a leaf into single-repo child steps, and "Add child step" to add a child step without rewriting the full tree.
       - Its work items, each with its status and "Unlink". "Add work item" creates one on this step, and "Attach work item" puts existing work, found with "Find existing work", on it, moving it from another step.
       - Its agent chats, with "Assign chat", "Add chat to step" and "Unassign". "Messages" opens a chat on the roadmap's "Chats".
@@ -510,13 +510,13 @@ Plans broken into steps, with every saved version kept.
     - "Chat history" shows the chosen chat's "Agents" and transcript, the most recently active chat first. A chat tracked on the roadmap itself also has "Copy ID", "Edit" and "Archive" there; a work item's or sub-roadmap's chat is changed on that record's page.
   - **"Discussions"**: **Discussions** for this roadmap alone: the threads tagged with the roadmap, its steps, its work items or its sub-roadmaps and theirs, and those a responsibility role there wrote or was asked in, with the same views, search and filters. "New post" starts a thread tagged with the roadmap; take the tag off to post it elsewhere. Responsibility roles are managed on **Discussions**.
   - **"Live"**: **Live** for this roadmap and its sub-roadmaps alone.
-  - **The Live panel**, beside every view but "Live": the same activity, for this roadmap and its sub-roadmaps, in a column narrow enough to sit next to the outline.
+  - **The Live panel**, beside every view but "Live": the same activity, for this roadmap and its sub-roadmaps, in a column narrow enough to sit next to the outline. On "Outline", "Step details" (and "Structure editor" while editing) shares this panel as a second tab beside "Live".
     - First what needs you and what moves; "Overlaps", "Over-cap repos" and "Waiting on agents" show only when there are any.
     - "Agents": each with its state, its session, the steps, work items and repositories it is tied to (a tie whose report went stale is greyed), its chat and its latest note.
     - "Plans & work": the steps and work items moving, a sub-roadmap's under its own line, each with its connected agents and "Needs you" when something waits on you.
     - "Repositories": their slots, caps, overlap and branches. Then the open agent waits and the eight latest "Recent pulses".
     - "Activity window" sets the time range and "Pause live updates" stops refreshing. "Open full Live" opens the "Live" view, with the flow map and swimlanes.
-    - "Hide" in the panel, or "Live panel" in the header, closes and opens it. It stays as you leave it, on every roadmap, and reads nothing while closed. Drag its edge to resize it. When the window is too narrow for both, it sits under the view.
+    - "Hide" in the panel, or "Live panel" in the header, closes and opens it. It stays as you leave it, on every roadmap, and reads nothing while closed (opening a step or "Edit structure" on "Outline" still opens its tab without reading Live until you switch to "Live"). Drag its edge to resize it. When the window is too narrow for both, it sits under the view.
   - **"Material"**: "Work items", the work on the roadmap, each with a link to the step it is on; add and attach work on a step's page. Then notes, links and GitHub references. "Files" lists active attachments from the roadmap, its current steps and active work items, and the same records on nested active sub-roadmaps. Each file links to its source. Uploads here attach to the current roadmap. Archive or recover a file on the record that owns it. Open an archived sub-roadmap directly to see its files.
   - **"History"**: "Immutable versions", each with its note and "Restore as new version", then "Applied proposals" and "Activity history".
 

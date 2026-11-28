@@ -960,15 +960,11 @@ test("the sidebar and plan outline resize by drag and keep their widths", async 
   expect(created.ok()).toBeTruthy();
   const { id } = await created.json();
   await page.goto(`/#roadmaps/${id}/outline`);
-  // The Live panel takes the room the outline grows into here; hidden, it stays hidden.
-  await page
-    .getByRole("complementary", { name: "Live activity" })
-    .getByRole("button", { name: "Hide Live panel" })
-    .click();
   const outline = page.getByRole("region", { name: "Plan outline" });
-  const sidebar = page.getByRole("complementary");
-  const outlineHandle = page.getByRole("separator", {
-    name: "Resize plan outline",
+  const livePanel = page.getByRole("complementary", { name: "Live activity" });
+  const sidebar = page.locator("aside.sidebar");
+  const liveHandle = page.getByRole("separator", {
+    name: "Resize Live panel",
   });
   const sidebarHandle = page.getByRole("separator", { name: "Resize sidebar" });
   const width = async (target: Locator) => (await target.boundingBox())!.width;
@@ -981,31 +977,33 @@ test("the sidebar and plan outline resize by drag and keep their widths", async 
     await page.mouse.up();
   };
   await expect(outline).toBeVisible();
-  const initial = await width(outline);
-  await drag(outlineHandle, 120);
-  expect(Math.abs((await width(outline)) - (initial + 120))).toBeLessThan(1);
+  await expect(livePanel).toBeVisible();
+  const initialPanel = await width(livePanel);
+  await drag(liveHandle, -80);
+  expect(
+    Math.abs((await width(livePanel)) - (initialPanel + 80)),
+  ).toBeLessThan(1);
   await drag(sidebarHandle, 60);
   expect(await width(sidebar)).toBe(290);
   await expect(sidebarHandle).toHaveAttribute("aria-valuenow", "290");
-  // The outline stops where the detail pane would drop below 300px.
-  await drag(outlineHandle, 2000);
-  const detail = page.getByRole("region", { name: "Step details" });
-  expect(Math.round(await width(detail))).toBe(300);
-  await drag(outlineHandle, -2000);
-  expect(await width(outline)).toBe(300);
+  // Dragging left stops where the outline would drop below 300px; right stops at 300px panel.
+  await drag(liveHandle, -2000);
+  expect(Math.round(await width(outline))).toBe(300);
+  await drag(liveHandle, 2000);
+  expect(Math.round(await width(livePanel))).toBe(300);
   await page.reload();
   await expect(outline).toBeVisible();
   expect(await width(sidebar)).toBe(290);
-  expect(await width(outline)).toBe(300);
+  expect(Math.round(await width(livePanel))).toBe(300);
   await sidebarHandle.dblclick();
   expect(await width(sidebar)).toBe(230);
-  await outlineHandle.dblclick();
-  expect(Math.abs((await width(outline)) - initial)).toBeLessThan(1);
+  await liveHandle.dblclick();
+  expect(Math.abs((await width(livePanel)) - initialPanel)).toBeLessThan(1);
   // Stacked layouts have nothing to drag and still fit the window.
   await drag(sidebarHandle, 120);
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(sidebarHandle).toBeHidden();
-  await expect(outlineHandle).toBeHidden();
+  await expect(liveHandle).toBeHidden();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,

@@ -1,4 +1,11 @@
-import { useState, type RefObject } from "react";
+import {
+  useId,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { Avatar } from "./Avatar";
 import { LiveDependencyWaits } from "./Dependencies";
 import { useData } from "./hooks";
@@ -19,43 +26,128 @@ import type { LiveSnapshot } from "./apiTypes";
 // The panel shows this many of the latest pulses; the Live tab has the whole tape.
 const PULSES = 8;
 
+export type RoadmapPanelTab = "live" | "details";
+
+export type RoadmapPanelDetailTab = {
+  /** Tab label: "Step details" or "Structure editor" on the Outline view. */
+  label: string;
+  /** Drawn when the tab first opens, then kept while switching back to Live. */
+  render: () => ReactNode;
+};
+
 /**
  * Live beside a roadmap's other views: the agents, work and repositories moving on this roadmap and
- * the roadmaps nested under it, as a column narrow enough to sit next to the outline. The Live tab
- * keeps the flow map and swimlanes.
+ * the roadmaps nested under it, as a column narrow enough to sit next to the outline. On Outline,
+ * step details and the structure editor share this panel as a second tab so the outline stays wide.
  */
 export function RoadmapLivePanel({
   id,
   roadmapId,
   panelRef,
   onClose,
+  detailTab,
+  activeTab = "live",
+  onTabChange,
 }: {
   id?: string;
   roadmapId: string;
   panelRef?: RefObject<HTMLElement | null>;
   onClose: () => void;
+  detailTab?: RoadmapPanelDetailTab;
+  activeTab?: RoadmapPanelTab;
+  onTabChange?: (tab: RoadmapPanelTab) => void;
 }) {
+  const base = useId();
   const [windowMinutes, setWindowMinutes] = useState<WindowMinutes>(60);
   const [paused, setPaused] = useState(false);
-  const query = useData<LiveSnapshot>(
-    liveAddress(roadmapId, windowMinutes, false),
-    paused ? undefined : LIVE_REFRESH_MS,
-    { keepPrevious: true },
+  const [internalTab, setInternalTab] = useState<RoadmapPanelTab>(activeTab);
+  const liveTabRef = useRef<HTMLButtonElement>(null);
+  const detailsTabRef = useRef<HTMLButtonElement>(null);
+  const currentTab: RoadmapPanelTab = detailTab
+    ? onTabChange
+      ? activeTab
+      : internalTab
+    : "live";
+  const [openedLive, setOpenedLive] = useState(() => currentTab === "live");
+  const [openedDetails, setOpenedDetails] = useState(
+    () => currentTab === "details",
   );
-  // A kept answer for another roadmap says nothing about this one.
-  const snapshot = query.data?.roadmapId === roadmapId ? query.data : undefined;
+  if (currentTab === "live" && !openedLive) setOpenedLive(true);
+  if (currentTab === "details" && !openedDetails) setOpenedDetails(true);
+
+  const selectTab = (tab: RoadmapPanelTab) => {
+    if (tab === "live" && !openedLive) setOpenedLive(true);
+    if (tab === "details" && !openedDetails) setOpenedDetails(true);
+    if (onTabChange) onTabChange(tab);
+    else setInternalTab(tab);
+  };
+
+  const onTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    const next: RoadmapPanelTab | null =
+      event.key === "ArrowRight" || event.key === "ArrowLeft"
+        ? currentTab === "live"
+          ? "details"
+          : "live"
+        : event.key === "Home"
+          ? "live"
+          : event.key === "End"
+            ? "details"
+            : null;
+    if (!next) return;
+    event.preventDefault();
+    selectTab(next);
+    (next === "live" ? liveTabRef : detailsTabRef).current?.focus();
+  };
+
   return (
     <aside
       id={id}
       ref={panelRef}
-      className="panel roadmap-live-panel"
+      className={"panel roadmap-live-panel" + (detailTab ? " has-tabs" : "")}
       aria-label="Live activity"
     >
       <div className="panel-head">
-        <h2>Live</h2>
-        <span className={`live-beacon${paused ? " is-paused" : ""}`}>
-          {paused ? "Paused" : "Updating"}
-        </span>
+        {detailTab ? (
+          <div
+            className="tab-list roadmap-live-tabs"
+            role="tablist"
+            aria-label="Live panel views"
+          >
+            <button
+              ref={liveTabRef}
+              type="button"
+              role="tab"
+              id={`${base}-tab-live`}
+              aria-selected={currentTab === "live"}
+              aria-controls={`${base}-panel-live`}
+              tabIndex={currentTab === "live" ? 0 : -1}
+              onClick={() => selectTab("live")}
+              onKeyDown={onTabKeyDown}
+            >
+              Live
+            </button>
+            <button
+              ref={detailsTabRef}
+              type="button"
+              role="tab"
+              id={`${base}-tab-details`}
+              aria-selected={currentTab === "details"}
+              aria-controls={`${base}-panel-details`}
+              tabIndex={currentTab === "details" ? 0 : -1}
+              onClick={() => selectTab("details")}
+              onKeyDown={onTabKeyDown}
+            >
+              {detailTab.label}
+            </button>
+          </div>
+        ) : (
+          <>
+            <h2>Live</h2>
+            <span className={`live-beacon${paused ? " is-paused" : ""}`}>
+              {paused ? "Paused" : "Updating"}
+            </span>
+          </>
+        )}
         <button
           type="button"
           className="quiet"
@@ -65,7 +157,87 @@ export function RoadmapLivePanel({
           Hide
         </button>
       </div>
+      {detailTab ? (
+        <>
+          <div
+            className="roadmap-live-tab-panel"
+            role="tabpanel"
+            id={`${base}-panel-live`}
+            aria-labelledby={`${base}-tab-live`}
+            hidden={currentTab !== "live"}
+            tabIndex={0}
+          >
+            {(openedLive || currentTab === "live") && (
+              <LiveTabBody
+                roadmapId={roadmapId}
+                windowMinutes={windowMinutes}
+                setWindowMinutes={setWindowMinutes}
+                paused={paused}
+                setPaused={setPaused}
+                active={currentTab === "live"}
+                showBeacon
+              />
+            )}
+          </div>
+          <div
+            className="roadmap-live-tab-panel"
+            role="tabpanel"
+            id={`${base}-panel-details`}
+            aria-labelledby={`${base}-tab-details`}
+            hidden={currentTab !== "details"}
+            tabIndex={0}
+          >
+            {(openedDetails || currentTab === "details") && detailTab.render()}
+          </div>
+        </>
+      ) : (
+        <LiveTabBody
+          roadmapId={roadmapId}
+          windowMinutes={windowMinutes}
+          setWindowMinutes={setWindowMinutes}
+          paused={paused}
+          setPaused={setPaused}
+          active
+          showBeacon={false}
+        />
+      )}
+    </aside>
+  );
+}
+
+function LiveTabBody({
+  roadmapId,
+  windowMinutes,
+  setWindowMinutes,
+  paused,
+  setPaused,
+  active,
+  showBeacon,
+}: {
+  roadmapId: string;
+  windowMinutes: WindowMinutes;
+  setWindowMinutes: (value: WindowMinutes) => void;
+  paused: boolean;
+  setPaused: (value: boolean | ((previous: boolean) => boolean)) => void;
+  active: boolean;
+  showBeacon: boolean;
+}) {
+  const polling = active && !paused;
+  const query = useData<LiveSnapshot>(
+    liveAddress(roadmapId, windowMinutes, false),
+    polling ? LIVE_REFRESH_MS : undefined,
+    { keepPrevious: true },
+  );
+  // A kept answer for another roadmap says nothing about this one.
+  const snapshot = query.data?.roadmapId === roadmapId ? query.data : undefined;
+  return (
+    <>
       <div className="roadmap-live-controls">
+        {showBeacon && (
+          <span className={`live-beacon${paused ? " is-paused" : ""}`}>
+            {paused ? "Paused" : "Updating"}
+          </span>
+        )}
         <select
           aria-label="Activity window"
           value={windowMinutes}
@@ -91,7 +263,7 @@ export function RoadmapLivePanel({
       <div className="panel-body">
         <LiveDependencyWaits
           roadmapId={roadmapId}
-          paused={paused}
+          paused={!polling}
           refreshMs={LIVE_REFRESH_MS}
         />
         <ErrorMessage error={query.error} />
@@ -100,7 +272,7 @@ export function RoadmapLivePanel({
         )}
         {snapshot && <Activity snapshot={snapshot} roadmapId={roadmapId} />}
       </div>
-    </aside>
+    </>
   );
 }
 

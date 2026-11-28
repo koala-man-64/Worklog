@@ -471,3 +471,70 @@ it("links the full view and hides on request", async () => {
   );
   expect(onClose).toHaveBeenCalledOnce();
 });
+
+it("shows a detail tab beside Live, supports keyboard switching, and only polls Live while active", async () => {
+  const onTabChange = vi.fn();
+  const { rerender } = render(
+    <RoadmapLivePanel
+      roadmapId={ROAD}
+      onClose={() => undefined}
+      activeTab="details"
+      onTabChange={onTabChange}
+      detailTab={{
+        label: "Step details",
+        render: () => <p>Selected step body</p>,
+      }}
+    />,
+  );
+  const tablist = within(panel()).getByRole("tablist", {
+    name: "Live panel views",
+  });
+  const liveTab = within(tablist).getByRole("tab", { name: "Live" });
+  const detailTab = within(tablist).getByRole("tab", { name: "Step details" });
+  expect(liveTab).toHaveAttribute("aria-selected", "false");
+  expect(detailTab).toHaveAttribute("aria-selected", "true");
+  expect(within(panel()).getByText("Selected step body")).toBeVisible();
+  // Opened directly on Step details, Live does not read until opened.
+  expect(liveReads()).toEqual([]);
+
+  // ArrowLeft from Step details requests the Live tab.
+  detailTab.focus();
+  await userEvent.keyboard("{ArrowLeft}");
+  expect(onTabChange).toHaveBeenLastCalledWith("live");
+
+  rerender(
+    <RoadmapLivePanel
+      roadmapId={ROAD}
+      onClose={() => undefined}
+      activeTab="live"
+      onTabChange={onTabChange}
+      detailTab={{
+        label: "Step details",
+        render: () => <p>Selected step body</p>,
+      }}
+    />,
+  );
+  expect(liveTab).toHaveAttribute("aria-selected", "true");
+  expect(liveReads().at(-1)).toEqual([
+    `/live?windowMinutes=60&includeIdle=false&roadmapId=${ROAD}`,
+    15_000,
+    { keepPrevious: true },
+  ]);
+  expect(within(panel()).getByText("Updating")).toBeVisible();
+
+  // Switching back to Step details pauses Live polling while keeping both tabs mounted.
+  rerender(
+    <RoadmapLivePanel
+      roadmapId={ROAD}
+      onClose={() => undefined}
+      activeTab="details"
+      onTabChange={onTabChange}
+      detailTab={{
+        label: "Step details",
+        render: () => <p>Selected step body</p>,
+      }}
+    />,
+  );
+  expect(liveReads().at(-1)?.[1]).toBeUndefined();
+  expect(within(panel()).getByText("Selected step body")).toBeVisible();
+});
