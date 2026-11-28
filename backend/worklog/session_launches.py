@@ -19,6 +19,7 @@ import sqlite3
 import subprocess
 import sys
 import threading
+import tomllib
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -303,6 +304,38 @@ def _run_cli(
             _ACTIVE_PROCESSES.discard(process)
 
 
+_CODEX_SANDBOX_MODES = frozenset({"read-only", "workspace-write", "danger-full-access"})
+_MAX_CODEX_CONFIG_BYTES = 262_144
+
+
+def _codex_configured_sandbox(env: dict[str, str]) -> tuple[str, bool]:
+    """Read the user's configured Codex sandbox_mode so push-woken chats start children inherit it.
+
+    Never elevates past what the user configured in CODEX_HOME/config.toml; falls back to read-only.
+    """
+    codex_home_raw = env.get("CODEX_HOME")
+    if codex_home_raw:
+        codex_home = Path(codex_home_raw)
+    else:
+        home_raw = env.get("USERPROFILE") or env.get("HOME")
+        codex_home = (Path(home_raw) if home_raw else Path.home()) / ".codex"
+    config_path = codex_home / "config.toml"
+    try:
+        if not config_path.is_file() or config_path.stat().st_size > _MAX_CODEX_CONFIG_BYTES:
+            return "read-only", False
+        parsed = tomllib.loads(config_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, tomllib.TOMLDecodeError, ValueError):
+        return "read-only", False
+    if not isinstance(parsed, dict):
+        return "read-only", False
+    mode = parsed.get("sandbox_mode")
+    if not isinstance(mode, str) or mode not in _CODEX_SANDBOX_MODES:
+        return "read-only", False
+    ws = parsed.get("sandbox_workspace_write")
+    network_access = mode == "workspace-write" and isinstance(ws, dict) and ws.get("network_access") is True
+    return mode, network_access
+
+
 def _prepare_session(
     provider: str, cwd: str, prompt: str, requested_options: dict[str, str] | None = None,
     *, allow_non_git: bool = False,
@@ -312,12 +345,23 @@ def _prepare_session(
     requested_model = options.get("requestedModel")
     reasoning_effort = options.get("reasoningEffort")
     if provider == "codex":
+        child_env = _child_environment(provider)
+        sandbox_mode = "read-only"
+        ws_network = False
+        if allow_non_git:
+            # Codex CLI persists the preparation turn's sandbox policy onto the thread and replays
+            # it when `codex queue --resume` wakes the session. Inherit the user's configured
+            # sandbox_mode here while keeping all tools disabled for this preparation turn.
+            sandbox_mode, ws_network = _codex_configured_sandbox(child_env)
         command = [
-            *_codex_executable(), "exec", "--json", "--sandbox", "read-only",
-            "--ignore-user-config", "--disable", "shell_tool", "--disable", "apps",
-            "--disable", "plugins", "--disable", "skill_mcp_dependency_install",
+            *_codex_executable(), "exec", "--json", "--sandbox", sandbox_mode,
+            "--ignore-user-config", "--disable", "shell_tool", "--disable", "multi_agent",
+            "--disable", "apps", "--disable", "plugins",
+            "--disable", "skill_mcp_dependency_install",
             "-c", 'web_search="disabled"',
         ]
+        if ws_network:
+            command.extend(["-c", "sandbox_workspace_write.network_access=true"])
         if allow_non_git:
             command.append("--skip-git-repo-check")
         if requested_model:
@@ -328,7 +372,7 @@ def _prepare_session(
         completed = _run_cli(
             command,
             cwd=cwd,
-            env=_child_environment(provider),
+            env=child_env,
             input_bytes=prompt.encode("utf-8"),
             timeout=PREPARE_TIMEOUT_SECONDS,
             capture_output=True,

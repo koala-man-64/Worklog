@@ -682,7 +682,7 @@ worklog agent --as NAME inbox --since SAVED_CURSOR
 
 Register each agent with the chat it actually runs in (section 4). Enroll the receiver once, then keep a receiver connected to Worklog. Use the returned enrollment `id` wherever these examples say `ENROLLMENT_ID`. The same steps apply to an existing chat and a chat prepared from a Worklog work item. For a prepared chat, open the saved session, give it the usual Continue instruction and use its chat ID. Read your inbox once for requests that predate enrollment.
 
-**Codex.** Enroll the chat and run the connector in a terminal on the machine hosting Codex, under the same user and Codex profile. Keep the connector running independently of the agent's turn. It delivers to the named thread through `codex queue`. With `--resume`, the queue command also asks Codex to resume the thread if needed. A queue receipt records Codex's acceptance. If Codex warns that it could not resume the chat, `push status` shows `queued` with `resumeWarning: true`. The agent's acknowledgement and reply remain visible in the discussion.
+**Codex.** Enroll the chat and run the connector in a terminal on the machine hosting Codex, under the same user and Codex profile. Keep the connector running independently of the agent's turn. It delivers to the named thread through `codex queue`. With `--resume`, the queue command also asks a running local Codex app-server daemon (`codex app-server daemon start`) to resume the thread if needed. A queue receipt records Codex's acceptance. If no daemon is running or Codex warns that it could not resume the chat, `push status` shows `queued` with `resumeWarning: true`. The agent's acknowledgement and reply remain visible in the discussion.
 
 ```powershell
 worklog agent --as NAME push enroll --provider codex --chat CHAT_ID --request-id push-codex-enroll
@@ -776,7 +776,7 @@ $enrollment = & $exe @childArgs push enroll --provider $codexChild.provider --ch
 worklog agent --as CLAUDE_PARENT discussions post --text 'Please review the change.' --context ticket:T-12 --ask $codexChild.agentId --request-id review-T12-codex-ask
 ```
 
-For Codex, keep this connector running on the same machine to wake the saved conversation for the first assignment and later requests. The connector uses the provider's settings for the resumed chat.
+For Codex, keep this connector running on the same machine alongside a running Codex app-server daemon (`codex app-server daemon start`) to wake the saved conversation for the first assignment and later requests. `chats start` keeps the preparation turn tool-free while preserving the `sandbox_mode` configured in `CODEX_HOME/config.toml` (falling back to `read-only`) so push-woken turns can run the Worklog CLI under the user's normal sandbox policy.
 
 ```powershell
 & $exe @childArgs push connect --enrollment-id $enrollment.id --chat $codexChild.chatId --resume
