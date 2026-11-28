@@ -1056,6 +1056,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/roadmaps/{identity}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Roadmap Attachments */
+        get: operations["roadmap_attachments_api_v1_roadmaps__identity__attachments_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/roadmaps/{identity}/board": {
         parameters: {
             query?: never;
@@ -9272,6 +9289,50 @@ export interface components {
             roster: components["schemas"]["RoadmapRoster"];
         };
         /**
+         * RoadmapAttachment
+         * @description An attached file in a roadmap's Material view, with its source.
+         */
+        RoadmapAttachment: {
+            /** Id */
+            id: string;
+            /**
+             * Ownertype
+             * @enum {string}
+             */
+            ownerType: "item" | "roadmap" | "step";
+            /** Ownerid */
+            ownerId: string;
+            /** Name */
+            name: string;
+            /** Mime */
+            mime: string;
+            /** Size */
+            size: number;
+            /** Sha256 */
+            sha256: string;
+            /** Archived */
+            archived: boolean;
+            /** Removed */
+            removed: boolean;
+            /** Revision */
+            revision: number;
+            /** Createdat */
+            createdAt: string;
+            /** Ownertitle */
+            ownerTitle: string;
+            /** Roadmapid */
+            roadmapId: string;
+            /** Roadmaptitle */
+            roadmapTitle: string;
+        };
+        /** RoadmapAttachments */
+        RoadmapAttachments: {
+            /** Items */
+            items: components["schemas"]["RoadmapAttachment"][];
+            /** Total */
+            total: number;
+        };
+        /**
          * RoadmapBoard
          * @description What a roadmap's status board reads besides the roadmap itself.
          */
@@ -9822,6 +9883,10 @@ export interface components {
             chat: components["schemas"]["TrackedChat"] | null;
             /** Message */
             message: string;
+            /** Requestedmodel */
+            requestedModel?: string | null;
+            /** Reasoningeffort */
+            reasoningEffort?: string | null;
             /** Sessionid */
             sessionId?: string | null;
             /** Dispatchid */
@@ -9875,6 +9940,10 @@ export interface components {
             priority: "normal" | "pr_fixup" | "wave" | "incident";
             /** Prompt */
             prompt: string;
+            /** Model */
+            model?: string | null;
+            /** Reasoningeffort */
+            reasoningEffort?: ("none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max" | "ultra" | "persistent") | null;
         };
         /** Settings */
         Settings: {
@@ -13884,6 +13953,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Roadmap"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    roadmap_attachments_api_v1_roadmaps__identity__attachments_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoadmapAttachments"];
                 };
             };
             /** @description Validation Error */

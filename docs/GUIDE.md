@@ -500,7 +500,7 @@ Plans broken into steps, with every saved version kept.
     - "Repositories": their slots, caps, overlap and branches. Then the open agent waits and the eight latest "Recent pulses".
     - "Activity window" sets the time range and "Pause live updates" stops refreshing. "Open full Live" opens the "Live" view, with the flow map and swimlanes.
     - "Hide" in the panel, or "Live panel" in the header, closes and opens it. It stays as you leave it, on every roadmap, and reads nothing while closed. Drag its edge to resize it. When the window is too narrow for both, it sits under the view.
-  - **"Material"**: "Work items", the work on the roadmap, each with a link to the step it is on; add and attach work on a step's page. Then notes, links, GitHub references and files, with archived ones under "Archived supporting records".
+  - **"Material"**: "Work items", the work on the roadmap, each with a link to the step it is on; add and attach work on a step's page. Then notes, links and GitHub references. "Files" lists active attachments from the roadmap, its current steps and active work items, and the same records on nested active sub-roadmaps. Each file links to its source. Uploads here attach to the current roadmap. Archive or recover a file on the record that owns it. Open an archived sub-roadmap directly to see its files.
   - **"History"**: "Immutable versions", each with its note and "Restore as new version", then "Applied proposals" and "Activity history".
 
 ### Repositories

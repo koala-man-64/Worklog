@@ -1,4 +1,4 @@
-import { useId, useState, type ChangeEvent } from "react";
+import { useId, useState, type ChangeEvent, type ReactNode } from "react";
 import { download } from "../api";
 import { commands } from "../commands";
 import { useWrites } from "../hooks";
@@ -19,6 +19,7 @@ export function Files({
   ownerId,
   files,
   references,
+  attachmentSources,
   readOnly = false,
   heading = true,
   attach = true,
@@ -27,6 +28,7 @@ export function Files({
   ownerId: string;
   files: Attachment[];
   references?: Reference[];
+  attachmentSources?: ReadonlyMap<string, ReactNode>;
   readOnly?: boolean;
   /** False where a tab already names the section. */
   heading?: boolean;
@@ -147,20 +149,23 @@ export function Files({
               {formatBytes(entry.record.size)}
               {entry.record.removed && " · removed"}
             </small>
-            {!readOnly && (
-              <button
-                className="quiet"
-                onClick={() =>
-                  action.mutate(() =>
-                    commands.setArchived("attachments", entry.record.id, true, {
-                      revision: entry.record.revision,
-                    }),
-                  )
-                }
-              >
-                Archive
-              </button>
-            )}
+            {attachmentSources?.get(entry.record.id)}
+            {!readOnly &&
+              entry.record.ownerType === ownerType &&
+              entry.record.ownerId === ownerId && (
+                <button
+                  className="quiet"
+                  onClick={() =>
+                    action.mutate(() =>
+                      commands.setArchived("attachments", entry.record.id, true, {
+                        revision: entry.record.revision,
+                      }),
+                    )
+                  }
+                >
+                  Archive
+                </button>
+              )}
           </div>
         ) : (
           <div className="line" key={"path-" + entry.record.id}>

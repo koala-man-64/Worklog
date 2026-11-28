@@ -3444,6 +3444,45 @@
         }
       }
     },
+    "/api/v1/roadmaps/{identity}/attachments": {
+      "get": {
+        "summary": "Roadmap Attachments",
+        "operationId": "roadmap_attachments_api_v1_roadmaps__identity__attachments_get",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoadmapAttachments"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/roadmaps/{identity}/board": {
       "get": {
         "summary": "Roadmap Board",
@@ -28914,6 +28953,113 @@
         ],
         "title": "RoadmapAgents"
       },
+      "RoadmapAttachment": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "ownerType": {
+            "type": "string",
+            "enum": [
+              "item",
+              "roadmap",
+              "step"
+            ],
+            "title": "Ownertype"
+          },
+          "ownerId": {
+            "type": "string",
+            "title": "Ownerid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "mime": {
+            "type": "string",
+            "title": "Mime"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "sha256": {
+            "type": "string",
+            "title": "Sha256"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "removed": {
+            "type": "boolean",
+            "title": "Removed"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "ownerTitle": {
+            "type": "string",
+            "title": "Ownertitle"
+          },
+          "roadmapId": {
+            "type": "string",
+            "title": "Roadmapid"
+          },
+          "roadmapTitle": {
+            "type": "string",
+            "title": "Roadmaptitle"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "ownerType",
+          "ownerId",
+          "name",
+          "mime",
+          "size",
+          "sha256",
+          "archived",
+          "removed",
+          "revision",
+          "createdAt",
+          "ownerTitle",
+          "roadmapId",
+          "roadmapTitle"
+        ],
+        "title": "RoadmapAttachment",
+        "description": "An attached file in a roadmap's Material view, with its source."
+      },
+      "RoadmapAttachments": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RoadmapAttachment"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "RoadmapAttachments"
+      },
       "RoadmapBoard": {
         "properties": {
           "waiting": {
@@ -30498,6 +30644,28 @@
             "type": "string",
             "title": "Message"
           },
+          "requestedModel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requestedmodel"
+          },
+          "reasoningEffort": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reasoningeffort"
+          },
           "sessionId": {
             "anyOf": [
               {
@@ -30701,6 +30869,41 @@
             "maxLength": 12000,
             "minLength": 1,
             "title": "Prompt"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/+\\[\\]-]*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "reasoningEffort": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "minimal",
+                  "low",
+                  "medium",
+                  "high",
+                  "xhigh",
+                  "max",
+                  "ultra",
+                  "persistent"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reasoningeffort"
           }
         },
         "additionalProperties": false,

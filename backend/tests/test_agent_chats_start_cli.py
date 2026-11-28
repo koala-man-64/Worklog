@@ -110,11 +110,12 @@ def _stub_local_sessions(monkeypatch, *, calls=None):
 def test_parser_accepts_named_provider_chat_start_and_requires_request_id():
     parsed = cli.parser().parse_args([
         "agent", "--as", "parent", "chats", "start", "--provider", "codex", "--cwd", "C:/repo",
-        "--label", "Worker", "--request-id", "start-child-01",
+        "--label", "Worker", "--model", "gpt-6.1-sol", "--reasoning-effort", "low", "--request-id", "start-child-01",
     ])
     assert (parsed.agent_action, parsed.coordination_action, parsed.provider, parsed.cwd, parsed.label,
             parsed.request_id, parsed.as_name) == (
         "chats", "start", "codex", "C:/repo", "Worker", "start-child-01", "parent")
+    assert (parsed.model, parsed.reasoning_effort) == ("gpt-6.1-sol", "low")
     with pytest.raises(SystemExit):
         cli.parser().parse_args(["agent", "chats", "start", "--provider", "codex"])
 
@@ -265,7 +266,7 @@ def test_registration_failure_retry_does_not_start_another_provider_chat(fake_cl
     _reuse_client(monkeypatch, client)
     calls = []
 
-    def prepare(provider, cwd, prompt, *, allow_non_git):
+    def prepare(provider, cwd, prompt, *, requested_options, allow_non_git):
         calls.append((provider, cwd, prompt, allow_non_git))
         return CHILD_CHAT, "test-model"
 
@@ -296,7 +297,7 @@ def test_removed_child_credential_after_possible_registration_is_not_recreated(
     _reuse_client(monkeypatch, client)
     calls = []
 
-    def prepare(provider, cwd, prompt, *, allow_non_git):
+    def prepare(provider, cwd, prompt, *, requested_options, allow_non_git):
         calls.append((provider, cwd, prompt, allow_non_git))
         return CHILD_CHAT, "test-model"
 
@@ -330,7 +331,7 @@ def test_stale_registered_recipient_replay_does_not_launch_again(fake_cli, monke
     _reuse_client(monkeypatch, client)
     calls = []
 
-    def prepare(provider, cwd, prompt, *, allow_non_git):
+    def prepare(provider, cwd, prompt, *, requested_options, allow_non_git):
         calls.append((provider, cwd, prompt, allow_non_git))
         return CHILD_CHAT, "test-model"
 

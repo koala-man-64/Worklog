@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from . import active_sessions, antigravity_sessions, slot_worktrees, worktree_claims
+from .claude_settings import ManagedClaudeSettings, require_claude_settings
 from .common import AppError, event, now, require_revision, text, uid
 from .db import Database
 from .discussions import communication_actor, identity_chat
@@ -662,6 +663,57 @@ class LeaseService:
         self._snapshot_lock = threading.Lock()
         self._provision_locks: weakref.WeakValueDictionary[str, threading.Lock] = weakref.WeakValueDictionary()
         self._provision_guard = threading.Lock()
+        self._claude_settings_lock = threading.Lock()
+        self._claude_settings = ManagedClaudeSettings(db.path.parent)
+
+    @staticmethod
+    def _require_active_claude_slot(c: sqlite3.Connection, lease_id: str, cwd: str) -> str:
+        lease = c.execute("SELECT * FROM repository_leases WHERE id=?", (lease_id,)).fetchone()
+        if (lease is None or lease["provider"] != "claude" or lease["state"] != "active"
+                or lease["release_reason"] or not lease["worktree_path"]
+                or not lease["expires_at"] or lease["expires_at"] <= now()
+                or Path(cwd).resolve() != Path(lease["worktree_path"]).resolve()):
+            raise AppError(409, "claude_settings", "Claude launch settings need an active lease for this checkout")
+        return str(lease["branch"])
+
+    @staticmethod
+    def _require_slot_branch(cwd: str, branch: str) -> None:
+        # Recycling detaches the checkout before its lease update commits.
+        if slot_worktrees._git_ok(cwd, "branch", "--show-current").strip() != branch:
+            raise AppError(409, "claude_settings", "The Claude checkout is no longer on its assigned branch")
+
+    def prepare_claude_settings(self, lease_id: str, cwd: str, options: dict[str, str]) -> None:
+        with self._claude_settings_lock, self.db.read() as c:
+            self._require_slot_branch(cwd, self._require_active_claude_slot(c, lease_id, cwd))
+            self._claude_settings.prepare(cwd, lease_id, options)
+            # A run can close its lease in SQLite while slot recycling waits for this lock.
+            self._require_active_claude_slot(c, lease_id, cwd)
+
+    def require_claude_slot_settings(self, lease_id: str, cwd: str, options: dict[str, str]) -> None:
+        with self._claude_settings_lock, self.db.read() as c:
+            self._require_slot_branch(cwd, self._require_active_claude_slot(c, lease_id, cwd))
+            require_claude_settings(cwd, options)
+
+    def _clear_claude_slot(self, slot: Path) -> None:
+        with self._claude_settings_lock:
+            self._claude_settings.clear(slot)
+
+    def _recycle_slot(
+        self, cwd: str, default_branch: str, lease_id: str, *, branch: str, allow_rescue: bool,
+    ) -> slot_worktrees.RecycleResult:
+        with self._claude_settings_lock:
+            recycled = slot_worktrees.recycle_or_rescue_slot(
+                cwd, default_branch, lease_id, branch=branch, allow_rescue=allow_rescue,
+            )
+            if recycled.clean:
+                try:
+                    self._claude_settings.clear(cwd, lease_id)
+                except AppError as exc:
+                    return slot_worktrees.RecycleResult(
+                        clean=False, rescued=recycled.rescued, rescue_ref=recycled.rescue_ref,
+                        dirty_files=(".claude/settings.local.json",), error=exc.message,
+                    )
+            return recycled
 
     def snapshot_path(self) -> Path:
         return self.db.path.parent / SNAPSHOT_FILE
@@ -967,6 +1019,7 @@ class LeaseService:
             prov = slot_worktrees.provision_slot(
                 pol["baseCheckoutPath"], pol["slotRootPath"], repo_name, slot_index,
                 pol["defaultBranch"], requested_branch, lease_id, target,
+                before_reuse=self._clear_claude_slot,
             )
             worktree_path, branch, fetch_warning = prov.worktree_path, prov.branch, prov.fetch_warning
             if slot_worktrees.worktree_claim_key(worktree_path) != key:
@@ -1349,7 +1402,7 @@ class LeaseService:
             pol = policy_record(c, row["repository_id"])
         rescue_ref = ""
         if row["worktree_path"]:
-            res = slot_worktrees.recycle_or_rescue_slot(
+            res = self._recycle_slot(
                 row["worktree_path"],
                 pol["defaultBranch"],
                 lease_id,
@@ -1549,7 +1602,7 @@ class LeaseService:
         rescue_ref = ""
         if row["state"] in HOLDING_STATES and row["worktree_path"]:
             allow_rescue = rescue if actor.get("kind") == "agent" else (rescue or force or pol["autoRescueDirty"])
-            recycled = slot_worktrees.recycle_or_rescue_slot(
+            recycled = self._recycle_slot(
                 row["worktree_path"],
                 pol["defaultBranch"],
                 lease_id,
@@ -1560,7 +1613,7 @@ class LeaseService:
                 raise AppError(
                     409,
                     "slot_dirty",
-                    "Slot has uncommitted changes; commit/push them or release with --rescue to snapshot to refs/worklog-rescue",
+                    recycled.error or "Slot has uncommitted changes; commit/push them or release with --rescue to snapshot to refs/worklog-rescue",
                     {"worktreePath": row["worktree_path"], "dirtyFiles": list(recycled.dirty_files[:20])},
                 )
             rescue_ref = recycled.rescue_ref
@@ -1615,7 +1668,7 @@ class LeaseService:
 
         rescue_ref = row["rescue_ref"]
         if row["worktree_path"]:
-            recycled = slot_worktrees.recycle_or_rescue_slot(
+            recycled = self._recycle_slot(
                 row["worktree_path"],
                 pol["defaultBranch"],
                 lease_id,
@@ -1785,7 +1838,7 @@ class LeaseService:
             rescue_ref = lease_dict["rescue_ref"]
             final_state = target_state
             if lease_dict["worktree_path"]:
-                recycled = slot_worktrees.recycle_or_rescue_slot(
+                recycled = self._recycle_slot(
                     lease_dict["worktree_path"],
                     pol["defaultBranch"],
                     lease_dict["id"],
