@@ -19,6 +19,7 @@ record it makes, so later changes in the same proposal can use it (proposal_name
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 
 from pydantic import ValidationError
@@ -82,6 +83,11 @@ OPERATIONS: dict[str, Spec] = {
     "step.create": Spec(m.StepCreate, frozenset({"roadmapId"})),
     "step.split": _existing(m.StepSplit),
     "step.move": _existing(m.StepMove),
+    "deliverable.create": Spec(m.DeliverableCreate, frozenset({"roadmapId"})),
+    "deliverable.update": _existing(m.DeliverableUpdate),
+    "deliverable.submit": _existing(m.Expected),
+    "deliverable.accept": _existing(m.DeliverableAccept),
+    "deliverable.reopen": _existing(m.DeliverableReopen),
     "wave.create": Spec(m.WaveCreate, frozenset({"roadmapId"})),
     "wave.update": _existing(m.WaveUpdate),
     "wave.steps": _existing(m.WaveStepsUpdate),
@@ -130,6 +136,7 @@ SERVER_ONLY = frozenset({
     "note.archive", "note.recover",
     "roadmap.restore", "roadmap.archive", "roadmap.recover",
     "ticket.archive", "ticket.recover",
+    "deliverable.archive", "deliverable.recover",
     "wave.archive", "wave.recover", "wave.status", "wave.freeze", "wave.repin.verify",
     "repository.queue.reorder",
 })
@@ -154,6 +161,14 @@ def keys(action: str) -> tuple[frozenset[str], frozenset[str]]:
     """The keys a proposed change must give, and the keys it may give: a create's name among them."""
     spec = OPERATIONS[action]
     return spec.required, spec.allowed | (frozenset({"id"}) if action in NAMED else frozenset())
+
+
+def deliverable_references(content: dict) -> Iterator[dict]:
+    """All inputs, outputs and evidence in a validated deliverable definition."""
+    yield from content.get("inputs", [])
+    yield from content.get("outputs", [])
+    for requirement in content.get("requirements", []):
+        yield from requirement.get("evidence", [])
 
 
 def validate(action: str, payload: dict) -> None:

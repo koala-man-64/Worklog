@@ -44,6 +44,7 @@ from .common import (
 from .coordination import CoordinationService, agents_may_register, close_credential_runs
 from .coordination_api import install_coordination_routes
 from .db import Database
+from .deliverable_api import install_deliverable_routes
 from .dependency_api import install_dependency_routes
 from .discussion_api import install_discussion_routes
 from .discussions import bind_credential, communication_actor, registered_by, registered_chats
@@ -321,14 +322,16 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     # How a replayed receipt reads each family's record back, in the shape its route answers.
     proposal_replay = ("proposal", lambda c, actor, identity: proposals.record(c, identity, actor))
     replays: dict[str, tuple[str, Callable[[sqlite3.Connection, dict, str], dict]]] = {
+        "deliverable": ("deliverable", lambda c, actor, identity: work.deliverables.record(c, identity)),
         "roadmap": ("roadmap", lambda c, actor, identity: plans.saved(c, identity)),
         "progress.set": ("step", lambda c, actor, identity: plans.step_answer(c, identity)),
         "step.update": ("step", lambda c, actor, identity: plans.step_answer(c, identity, with_roadmap=True)),
     }
 
     def apply(request: Request, action: str, payload: dict, *, create: bool = False) -> dict:
+        family = action.split(".", 1)[0]
         result = mutate(request, payload, lambda c, a: work.apply(c, a, action, payload), required_key=create,
-                        replay=replays.get(action.split(".", 1)[0] if action.startswith("roadmap.") else action))
+                        replay=replays.get(family if family in {"roadmap", "deliverable"} else action))
         if action.startswith("github."):
             result.setdefault("submittedBy", "")  # Receipts from v31 and earlier omit this field.
         return result
@@ -1033,7 +1036,8 @@ def create_app(data_dir: str | Path | None = None, *, testing: bool = False,
     def person_link_remove(request: Request, body: m.PersonLinkRemove) -> dict:
         return apply(request, "person.unlink", body.model_dump())
 
-    # Install wave routes before /{verb} routes on roadmaps, proposals, and repositories.
+    # Install concrete writes before the /{verb} routes.
+    install_deliverable_routes(app, work.deliverables, apply)
     install_wave_routes(app, db, mutate, proposals)
 
     @app.post("/api/v1/roadmaps/{identity}/{verb}", response_model=out.SavedRoadmap)

@@ -10,6 +10,7 @@ from . import dependencies, search, support
 from .common import AppError
 from .coordination import repository_apply
 from .db import Database
+from .deliverables import DeliverableService
 from .discussions import proposer_identity
 from .items import Items
 from .people import People
@@ -26,6 +27,7 @@ class WorkService:
     def __init__(self, db: Database, plans: Any, proposals: Any = None):
         self.db, self.plans, self.proposals = db, plans, proposals
         self.items, self.people = Items(db), People(db)
+        self.deliverables = DeliverableService(db)
         self.resources, self.tickets, self.waves = ResourceService(), TicketService(), WaveService(db)
 
     def apply(self, c: sqlite3.Connection, actor: dict, action: str, p: dict, *, proposed: bool = False) -> dict:
@@ -65,6 +67,13 @@ class WorkService:
             if self.proposals is not None and action != "roadmap.create":
                 self.proposals.notify_stale_proposals(
                     c, result.get("roadmapId") if action in {"progress.set", "step.update", "step.create", "step.split", "step.move"} else result.get("id"))
+            return result
+        if action.startswith("deliverable."):
+            author = proposer_identity(c, actor) if proposed else actor
+            proposal_id = self.proposals.applying_id if proposed and self.proposals is not None else None
+            result = self.deliverables.apply(c, author, action, p, proposal_id=proposal_id)
+            if self.proposals is not None and not proposed and action != "deliverable.create":
+                self.proposals.notify_stale_proposals(c, result["roadmapId"])
             return result
         if action.startswith("wave."):
             return self.waves.apply(c, actor, action, p)

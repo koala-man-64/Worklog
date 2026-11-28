@@ -836,6 +836,122 @@ class Step(RoadmapStep):
     chats: list[TrackedChat]
 
 
+class DeliverableRoadmap(Answer):
+    id: str
+    title: str
+
+
+class DeliverableSummary(Answer):
+    id: str
+    roadmapId: str
+    roadmapTitle: str
+    roadmapPath: list[DeliverableRoadmap]
+    title: str
+    status: Literal["planned", "ready_for_review", "accepted"]
+    archived: bool
+    revision: int
+    requirementCount: int
+    checkedCount: int
+    createdAt: str
+    updatedAt: str
+
+
+class DeliverableBacklinks(Answer):
+    items: list[DeliverableSummary]
+    total: int
+
+
+class DeliverableCounts(Answer):
+    planned: int
+    readyForReview: int
+    accepted: int
+
+
+class DeliverableList(DeliverableBacklinks):
+    counts: DeliverableCounts
+
+
+class DeliverableOption(Answer):
+    id: str
+    title: str
+    detail: str
+
+
+class DeliverableOptions(Answer):
+    items: list[DeliverableOption]
+    total: int
+
+
+class DeliverableReference(Answer):
+    kind: Literal["url", "repository", "resource", "attachment"]
+    id: str | None = None
+    url: str | None = None
+    label: str
+    href: str | None
+    availability: Literal["available", "changed", "unavailable"]
+    sourceRevision: int | None = None
+    sha256: str | None = None
+
+
+class DeliverableRequirement(Answer):
+    id: str
+    text: str
+    checked: bool
+    verificationNote: str
+    evidence: list[DeliverableReference]
+
+
+class DeliverableStep(Answer):
+    id: str
+    title: str
+    roadmapId: str
+    roadmapTitle: str
+    available: bool
+
+
+class DeliverableSnapshot(Answer):
+    title: str
+    description: str
+    steps: list[DeliverableStep]
+    requirements: list[DeliverableRequirement]
+    inputs: list[DeliverableReference]
+    outputs: list[DeliverableReference]
+
+
+class DeliverableDetail(DeliverableSummary, DeliverableSnapshot):
+    stepIds: list[str]
+
+
+class DeliverableActor(Answer):
+    id: str
+    label: str
+    kind: Literal["human", "agent"]
+
+
+class DeliverableAcceptance(Answer):
+    revision: int
+    acceptedAt: str
+    actor: DeliverableActor
+    note: str
+    proposalId: str | None
+    snapshot: DeliverableSnapshot
+
+
+class DeliverableEvent(Answer):
+    kind: str
+    actorId: str
+    actorLabel: str
+    actorKind: str
+    createdAt: str
+    reason: str
+
+
+class DeliverableHistory(Answer):
+    items: list[DeliverableAcceptance]
+    total: int
+    events: list[DeliverableEvent]
+
+
 class DoneStep(Answer):
     """A step marked done, and when it last was."""
 

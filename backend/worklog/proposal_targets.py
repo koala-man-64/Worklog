@@ -105,6 +105,14 @@ def targets(conn: sqlite3.Connection, action: Any, payload: Any, applied: str | 
         add("roadmap", payload.get("roadmapId"))
     elif action in {"progress.set", "step.update", "step.split", "step.move"}:
         add("roadmap", _step_roadmap(conn, payload.get("id") or payload.get("stepId")))
+    elif kind == "deliverable":
+        if verb == "create":
+            add("roadmap", payload.get("roadmapId"))
+        else:
+            identity = _named(payload.get("id"))
+            row = conn.execute("SELECT roadmap_id FROM deliverables WHERE id=?", (identity,)).fetchone() if identity else None
+            if row:
+                add("roadmap", row[0])
     elif action == "wave.create":
         add("roadmap", payload.get("roadmapId"))
     elif action in {"wave.update", "wave.steps"}:

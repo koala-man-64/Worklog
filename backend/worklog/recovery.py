@@ -28,6 +28,7 @@ REQUIRED_TABLES = frozenset(
      "credentials", "roadmaps", "steps", "proposals", "settings", "events",
      "receipts", "file_references", "search_index", "roadmap_versions"}
 )
+DELIVERABLE_TABLES = frozenset({"deliverables", "deliverable_steps", "deliverable_acceptances"})
 
 # Every released schema, sealed: the digest of each shape a version shipped in, over its normalized
 # sqlite_master. A digest covers table definitions, constraints, indexes and FTS shadows, never
@@ -37,6 +38,7 @@ REQUIRED_TABLES = frozenset(
 # digest against it, so a schema change needs a new version, its upgrade, the same change in
 # schema.BASELINE and a new seal.
 SEALED_SCHEMAS: dict[int, frozenset[str]] = {
+    39: frozenset({"e98f34137635987ea507222fcaf81eedd978c3ca5bb7afce4b30d601b86a755f"}),  # roadmap deliverables and acceptance history
     38: frozenset({"4ba40c9a56f6d482c6e776904f88db74654b1d694196f04eadb6fe7d9b04b9c2"}),  # caller worktree lease claims
     1: frozenset({
         "c5ae7406cdd63ddfa0cd7f3a18f2cc74f898936ef42c3b72909424c2d2e5a272",  # discussions with roadmap questions and decisions, the last v1 shape
@@ -171,7 +173,8 @@ def validate_database(path: Path | str, *, require_current: bool = True) -> None
                 if version not in UPGRADABLE_VERSIONS | {SCHEMA_VERSION}:
                     raise ValueError(f"Unsupported database schema version {version}; expected 1 to {SCHEMA_VERSION}")
                 tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-                missing = REQUIRED_TABLES - tables
+                required = REQUIRED_TABLES | (DELIVERABLE_TABLES if version >= 39 else frozenset())
+                missing = required - tables
                 if missing:
                     raise ValueError("Database missing expected tables: " + ", ".join(sorted(missing)))
                 if _schema_digest(_schema_signature(conn)) not in SEALED_SCHEMAS.get(version, frozenset()):

@@ -1,0 +1,27 @@
+{
+  "body": {
+    "items": [
+      {
+        "archived": false,
+        "checkedCount": 1,
+        "createdAt": "<time.ffffff+hh:mm>",
+        "id": "<id1>",
+        "requirementCount": 1,
+        "revision": 3,
+        "roadmapId": "<id2>",
+        "roadmapPath": [
+          {
+            "id": "<id2>",
+            "title": "Plan 2"
+          }
+        ],
+        "roadmapTitle": "Plan 2",
+        "status": "accepted",
+        "title": "Buildable parser",
+        "updatedAt": "<time.ffffff+hh:mm>"
+      }
+    ],
+    "total": 1
+  },
+  "status": 200
+}

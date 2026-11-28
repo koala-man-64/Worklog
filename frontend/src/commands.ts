@@ -1,5 +1,9 @@
 import { request } from "./api";
 import type { Answer, Schema } from "./apiTypes";
+import type {
+  DeliverableCreateBody,
+  DeliverableUpdateBody,
+} from "./deliverableTypes";
 /** A command archives a record, or recovers it. */
 const verb = (archived: boolean) => (archived ? "archive" : "recover");
 /** The records whose routes archive and recover them as /{kind}/{id}/archive and /recover. */
@@ -219,6 +223,54 @@ export const commands = {
     ),
 
   // Roadmaps and steps.
+  createDeliverable: (roadmapId: string, body: DeliverableCreateBody) =>
+    request<Answer<"/api/v1/roadmaps/{identity}/deliverables", "post">>(
+      `/roadmaps/${encodeURIComponent(roadmapId)}/deliverables`,
+      "POST",
+      body,
+    ),
+  updateDeliverable: (id: string, body: DeliverableUpdateBody) =>
+    request<Answer<"/api/v1/deliverables/{identity}", "patch">>(
+      `/deliverables/${encodeURIComponent(id)}`,
+      "PATCH",
+      body,
+    ),
+  submitDeliverable: (id: string, body: Schema["Expected"]) =>
+    request<Answer<"/api/v1/deliverables/{identity}/submit", "post">>(
+      `/deliverables/${encodeURIComponent(id)}/submit`,
+      "POST",
+      body,
+    ),
+  acceptDeliverable: (id: string, body: Schema["DeliverableAccept"]) =>
+    request<Answer<"/api/v1/deliverables/{identity}/accept", "post">>(
+      `/deliverables/${encodeURIComponent(id)}/accept`,
+      "POST",
+      body,
+    ),
+  reopenDeliverable: (id: string, body: Schema["DeliverableReopen"]) =>
+    request<Answer<"/api/v1/deliverables/{identity}/reopen", "post">>(
+      `/deliverables/${encodeURIComponent(id)}/reopen`,
+      "POST",
+      body,
+    ),
+  setDeliverableArchived: (
+    id: string,
+    archived: boolean,
+    body: Schema["Expected"],
+  ) => {
+    const deliverableId = encodeURIComponent(id);
+    return archived
+      ? request<Answer<"/api/v1/deliverables/{identity}/archive", "post">>(
+          `/deliverables/${deliverableId}/archive`,
+          "POST",
+          body,
+        )
+      : request<Answer<"/api/v1/deliverables/{identity}/recover", "post">>(
+          `/deliverables/${deliverableId}/recover`,
+          "POST",
+          body,
+        );
+  },
   setRoadmapArchived: (
     id: string,
     archived: boolean,

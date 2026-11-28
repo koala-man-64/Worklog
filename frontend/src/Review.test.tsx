@@ -601,6 +601,68 @@ it("still reports a failed lookup that is not a missing target", async () => {
   expect(await screen.findByText("Server error")).toBeInTheDocument();
   expect(screen.queryByText(CREATED_NOTE)).toBeNull();
 });
+it("safely previews malformed deliverable arrays and filters unavailable links", async () => {
+  requestMock.mockImplementation(async (path: string) => {
+    if (path === `/deliverables/${ID}`)
+      return {
+        id: ID,
+        roadmapId: OTHER_ID,
+        title: "Buildable output",
+        revision: 2,
+        requirements: [
+          null,
+          "malformed requirement",
+          {
+            text: 42,
+            checked: true,
+            evidence: [
+              null,
+              "malformed reference",
+              {
+                kind: "url",
+                label: "Unavailable link",
+                url: "https://example.test/unavailable",
+                href: "https://attacker.test/",
+                availability: "unavailable",
+              },
+            ],
+          },
+        ],
+        inputs: [null, false, { kind: "url", label: 10, url: "javascript:alert(1)" }],
+        outputs: [
+          {
+            kind: "url",
+            label: "Changed link",
+            url: "https://example.test/changed",
+            href: "javascript:alert(1)",
+            availability: "changed",
+            sourceRevision: 4,
+            sha256: "proof-hash",
+          },
+        ],
+      };
+    throw new ApiError(404, "Not found", "not_found");
+  });
+  show("deliverable.submit", { id: ID, revision: 2 });
+  await screen.findByText(/Untitled requirement/);
+  const summary = screen.getByText("Submits a deliverable for review").closest(
+    ".deliverable-proposal-summary",
+  ) as HTMLElement;
+  expect(within(summary).getByText(/Untitled requirement/)).toBeVisible();
+  const unavailable = within(summary)
+    .getAllByRole("listitem")
+    .find((item) => item.textContent?.includes("Unavailable link"));
+  expect(unavailable).toBeDefined();
+  expect(unavailable?.textContent).toContain("Unavailable");
+  expect(unavailable?.querySelector("a")).toBeNull();
+  expect(within(summary).getByRole("link", { name: "Changed link" })).toHaveAttribute(
+    "href",
+    "https://example.test/changed",
+  );
+  expect(summary).toHaveTextContent("Source revision 4");
+  expect(summary).toHaveTextContent("SHA-256 proof-hash");
+  expect(summary.querySelector('a[href^="javascript:"]')).toBeNull();
+});
 it("says what approving a repository registration would do", async () => {
   const registered = {
     id: ID,

@@ -26,6 +26,27 @@
 .diff-row.new .diff-after {
   grid-column: 2 / -1;
 }
+.deliverable-proposal-summary {
+  margin: 8px 0 12px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--teal);
+  background: var(--teal-wash);
+}
+.deliverable-proposal-summary > p:first-child {
+  margin-top: 0;
+}
+.deliverable-proposal-summary > p:last-child {
+  margin-bottom: 0;
+}
+.deliverable-proposal-summary ul {
+  margin-top: 5px;
+  margin-bottom: 8px;
+}
+.deliverable-proposal-references {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
 @media (max-width: 760px) {
   .diff-row {
     grid-template-columns: 1fr 1fr;
@@ -33,5 +54,8 @@
   .diff-row > strong,
   .diff-row.new .diff-after {
     grid-column: 1/-1;
+  }
+  .deliverable-proposal-references {
+    grid-template-columns: 1fr;
   }
 }

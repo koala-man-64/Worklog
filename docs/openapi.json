@@ -5268,6 +5268,682 @@
         }
       }
     },
+    "/api/v1/roadmaps/{identity}/deliverables": {
+      "get": {
+        "summary": "Roadmap Deliverables",
+        "operationId": "roadmap_deliverables_api_v1_roadmaps__identity__deliverables_get",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "tree",
+                "own"
+              ],
+              "type": "string",
+              "default": "tree",
+              "title": "Scope"
+            }
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Archived"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliverableList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Deliverable Create",
+        "operationId": "deliverable_create_api_v1_roadmaps__identity__deliverables_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeliverableCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliverableDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roadmaps/{identity}/deliverable-options": {
+      "get": {
+        "summary": "Deliverable Options",
+        "operationId": "deliverable_options_api_v1_roadmaps__identity__deliverable_options_get",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "step",
+                "attachment",
+                "resource",
+                "repository"
+              ],
+              "type": "string",
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 500,
+              "default": "",
+              "title": "Q"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliverableOptions"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/steps/{identity}/deliverables": {
+      "get": {
+        "summary": "Step Deliverables",
+        "operationId": "step_deliverables_api_v1_steps__identity__deliverables_get",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliverableBacklinks"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deliverables/{identity}": {
+      "get": {
+        "summary": "Deliverable Detail",
+        "operationId": "deliverable_detail_api_v1_deliverables__identity__get",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliverableDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Deliverable Update",
+        "operationId": "deliverable_update_api_v1_deliverables__identity__patch",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeliverableUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliverableDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deliverables/{identity}/history": {
+      "get": {
+        "summary": "Deliverable History",
+        "operationId": "deliverable_history_api_v1_deliverables__identity__history_get",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliverableHistory"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deliverables/{identity}/submit": {
+      "post": {
+        "summary": "Deliverable Submit",
+        "operationId": "deliverable_submit_api_v1_deliverables__identity__submit_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Expected"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliverableDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deliverables/{identity}/accept": {
+      "post": {
+        "summary": "Deliverable Accept",
+        "operationId": "deliverable_accept_api_v1_deliverables__identity__accept_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeliverableAccept"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliverableDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deliverables/{identity}/reopen": {
+      "post": {
+        "summary": "Deliverable Reopen",
+        "operationId": "deliverable_reopen_api_v1_deliverables__identity__reopen_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeliverableReopen"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliverableDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deliverables/{identity}/archive": {
+      "post": {
+        "summary": "Deliverable Archive",
+        "operationId": "deliverable_archive_api_v1_deliverables__identity__archive_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Expected"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliverableDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deliverables/{identity}/recover": {
+      "post": {
+        "summary": "Deliverable Recover",
+        "operationId": "deliverable_recover_api_v1_deliverables__identity__recover_post",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Expected"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliverableDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/roadmaps/{identity}/dispatch": {
       "get": {
         "summary": "Roadmap Dispatch",
@@ -16862,6 +17538,1104 @@
         ],
         "title": "DecisionUpdate"
       },
+      "DeliverableAccept": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 8000,
+            "title": "Note",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision"
+        ],
+        "title": "DeliverableAccept"
+      },
+      "DeliverableAcceptance": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "acceptedAt": {
+            "type": "string",
+            "title": "Acceptedat"
+          },
+          "actor": {
+            "$ref": "#/components/schemas/DeliverableActor"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          },
+          "proposalId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposalid"
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/DeliverableSnapshot"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision",
+          "acceptedAt",
+          "actor",
+          "note",
+          "proposalId",
+          "snapshot"
+        ],
+        "title": "DeliverableAcceptance"
+      },
+      "DeliverableActor": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "human",
+              "agent"
+            ],
+            "title": "Kind"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "kind"
+        ],
+        "title": "DeliverableActor"
+      },
+      "DeliverableBacklinks": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DeliverableSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "DeliverableBacklinks"
+      },
+      "DeliverableCounts": {
+        "properties": {
+          "planned": {
+            "type": "integer",
+            "title": "Planned"
+          },
+          "readyForReview": {
+            "type": "integer",
+            "title": "Readyforreview"
+          },
+          "accepted": {
+            "type": "integer",
+            "title": "Accepted"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "planned",
+          "readyForReview",
+          "accepted"
+        ],
+        "title": "DeliverableCounts"
+      },
+      "DeliverableCreate": {
+        "properties": {
+          "description": {
+            "type": "string",
+            "maxLength": 100000,
+            "title": "Description",
+            "default": ""
+          },
+          "stepIds": {
+            "items": {
+              "type": "string",
+              "maxLength": 200,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 500,
+            "title": "Stepids"
+          },
+          "requirements": {
+            "items": {
+              "$ref": "#/components/schemas/DeliverableRequirementInput"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Requirements"
+          },
+          "inputs": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/DeliverableUrl"
+                },
+                {
+                  "$ref": "#/components/schemas/DeliverableRecordReference"
+                },
+                {
+                  "$ref": "#/components/schemas/DeliverableProposalAttachment"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "kind",
+                "mapping": {
+                  "attachment": "#/components/schemas/DeliverableRecordReference",
+                  "proposal_attachment": "#/components/schemas/DeliverableProposalAttachment",
+                  "repository": "#/components/schemas/DeliverableRecordReference",
+                  "resource": "#/components/schemas/DeliverableRecordReference",
+                  "url": "#/components/schemas/DeliverableUrl"
+                }
+              }
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Inputs"
+          },
+          "outputs": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/DeliverableUrl"
+                },
+                {
+                  "$ref": "#/components/schemas/DeliverableRecordReference"
+                },
+                {
+                  "$ref": "#/components/schemas/DeliverableProposalAttachment"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "kind",
+                "mapping": {
+                  "attachment": "#/components/schemas/DeliverableRecordReference",
+                  "proposal_attachment": "#/components/schemas/DeliverableProposalAttachment",
+                  "repository": "#/components/schemas/DeliverableRecordReference",
+                  "resource": "#/components/schemas/DeliverableRecordReference",
+                  "url": "#/components/schemas/DeliverableUrl"
+                }
+              }
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Outputs"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Title"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "DeliverableCreate"
+      },
+      "DeliverableDetail": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/DeliverableStep"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "requirements": {
+            "items": {
+              "$ref": "#/components/schemas/DeliverableRequirement"
+            },
+            "type": "array",
+            "title": "Requirements"
+          },
+          "inputs": {
+            "items": {
+              "$ref": "#/components/schemas/DeliverableReference"
+            },
+            "type": "array",
+            "title": "Inputs"
+          },
+          "outputs": {
+            "items": {
+              "$ref": "#/components/schemas/DeliverableReference"
+            },
+            "type": "array",
+            "title": "Outputs"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "roadmapId": {
+            "type": "string",
+            "title": "Roadmapid"
+          },
+          "roadmapTitle": {
+            "type": "string",
+            "title": "Roadmaptitle"
+          },
+          "roadmapPath": {
+            "items": {
+              "$ref": "#/components/schemas/DeliverableRoadmap"
+            },
+            "type": "array",
+            "title": "Roadmappath"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "ready_for_review",
+              "accepted"
+            ],
+            "title": "Status"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "requirementCount": {
+            "type": "integer",
+            "title": "Requirementcount"
+          },
+          "checkedCount": {
+            "type": "integer",
+            "title": "Checkedcount"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          },
+          "stepIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stepids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title",
+          "description",
+          "steps",
+          "requirements",
+          "inputs",
+          "outputs",
+          "id",
+          "roadmapId",
+          "roadmapTitle",
+          "roadmapPath",
+          "status",
+          "archived",
+          "revision",
+          "requirementCount",
+          "checkedCount",
+          "createdAt",
+          "updatedAt",
+          "stepIds"
+        ],
+        "title": "DeliverableDetail"
+      },
+      "DeliverableEvent": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "actorId": {
+            "type": "string",
+            "title": "Actorid"
+          },
+          "actorLabel": {
+            "type": "string",
+            "title": "Actorlabel"
+          },
+          "actorKind": {
+            "type": "string",
+            "title": "Actorkind"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "actorId",
+          "actorLabel",
+          "actorKind",
+          "createdAt",
+          "reason"
+        ],
+        "title": "DeliverableEvent"
+      },
+      "DeliverableHistory": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DeliverableAcceptance"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/DeliverableEvent"
+            },
+            "type": "array",
+            "title": "Events"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "events"
+        ],
+        "title": "DeliverableHistory"
+      },
+      "DeliverableList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DeliverableSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/DeliverableCounts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "counts"
+        ],
+        "title": "DeliverableList"
+      },
+      "DeliverableOption": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "detail"
+        ],
+        "title": "DeliverableOption"
+      },
+      "DeliverableOptions": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DeliverableOption"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "DeliverableOptions"
+      },
+      "DeliverableProposalAttachment": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "proposal_attachment",
+            "title": "Kind"
+          },
+          "id": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Label",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "id"
+        ],
+        "title": "DeliverableProposalAttachment"
+      },
+      "DeliverableRecordReference": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "repository",
+              "resource",
+              "attachment"
+            ],
+            "title": "Kind"
+          },
+          "id": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Label",
+            "default": ""
+          },
+          "refresh": {
+            "type": "boolean",
+            "title": "Refresh",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "id"
+        ],
+        "title": "DeliverableRecordReference"
+      },
+      "DeliverableReference": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "url",
+              "repository",
+              "resource",
+              "attachment"
+            ],
+            "title": "Kind"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "href": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Href"
+          },
+          "availability": {
+            "type": "string",
+            "enum": [
+              "available",
+              "changed",
+              "unavailable"
+            ],
+            "title": "Availability"
+          },
+          "sourceRevision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sourcerevision"
+          },
+          "sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha256"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "label",
+          "href",
+          "availability"
+        ],
+        "title": "DeliverableReference"
+      },
+      "DeliverableReopen": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 8000,
+            "minLength": 1,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision",
+          "reason"
+        ],
+        "title": "DeliverableReopen"
+      },
+      "DeliverableRequirement": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "checked": {
+            "type": "boolean",
+            "title": "Checked"
+          },
+          "verificationNote": {
+            "type": "string",
+            "title": "Verificationnote"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/DeliverableReference"
+            },
+            "type": "array",
+            "title": "Evidence"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "checked",
+          "verificationNote",
+          "evidence"
+        ],
+        "title": "DeliverableRequirement"
+      },
+      "DeliverableRequirementInput": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "checked": {
+            "type": "boolean",
+            "title": "Checked",
+            "default": false
+          },
+          "verificationNote": {
+            "type": "string",
+            "maxLength": 8000,
+            "title": "Verificationnote",
+            "default": ""
+          },
+          "evidence": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/DeliverableUrl"
+                },
+                {
+                  "$ref": "#/components/schemas/DeliverableRecordReference"
+                },
+                {
+                  "$ref": "#/components/schemas/DeliverableProposalAttachment"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "kind",
+                "mapping": {
+                  "attachment": "#/components/schemas/DeliverableRecordReference",
+                  "proposal_attachment": "#/components/schemas/DeliverableProposalAttachment",
+                  "repository": "#/components/schemas/DeliverableRecordReference",
+                  "resource": "#/components/schemas/DeliverableRecordReference",
+                  "url": "#/components/schemas/DeliverableUrl"
+                }
+              }
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Evidence"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "DeliverableRequirementInput"
+      },
+      "DeliverableRoadmap": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "DeliverableRoadmap"
+      },
+      "DeliverableSnapshot": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/DeliverableStep"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "requirements": {
+            "items": {
+              "$ref": "#/components/schemas/DeliverableRequirement"
+            },
+            "type": "array",
+            "title": "Requirements"
+          },
+          "inputs": {
+            "items": {
+              "$ref": "#/components/schemas/DeliverableReference"
+            },
+            "type": "array",
+            "title": "Inputs"
+          },
+          "outputs": {
+            "items": {
+              "$ref": "#/components/schemas/DeliverableReference"
+            },
+            "type": "array",
+            "title": "Outputs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title",
+          "description",
+          "steps",
+          "requirements",
+          "inputs",
+          "outputs"
+        ],
+        "title": "DeliverableSnapshot"
+      },
+      "DeliverableStep": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "roadmapId": {
+            "type": "string",
+            "title": "Roadmapid"
+          },
+          "roadmapTitle": {
+            "type": "string",
+            "title": "Roadmaptitle"
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "roadmapId",
+          "roadmapTitle",
+          "available"
+        ],
+        "title": "DeliverableStep"
+      },
+      "DeliverableSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "roadmapId": {
+            "type": "string",
+            "title": "Roadmapid"
+          },
+          "roadmapTitle": {
+            "type": "string",
+            "title": "Roadmaptitle"
+          },
+          "roadmapPath": {
+            "items": {
+              "$ref": "#/components/schemas/DeliverableRoadmap"
+            },
+            "type": "array",
+            "title": "Roadmappath"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "ready_for_review",
+              "accepted"
+            ],
+            "title": "Status"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "requirementCount": {
+            "type": "integer",
+            "title": "Requirementcount"
+          },
+          "checkedCount": {
+            "type": "integer",
+            "title": "Checkedcount"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "roadmapId",
+          "roadmapTitle",
+          "roadmapPath",
+          "title",
+          "status",
+          "archived",
+          "revision",
+          "requirementCount",
+          "checkedCount",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "DeliverableSummary"
+      },
+      "DeliverableUpdate": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 100000,
+            "title": "Description",
+            "default": ""
+          },
+          "stepIds": {
+            "items": {
+              "type": "string",
+              "maxLength": 200,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 500,
+            "title": "Stepids"
+          },
+          "requirements": {
+            "items": {
+              "$ref": "#/components/schemas/DeliverableRequirementInput"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Requirements"
+          },
+          "inputs": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/DeliverableUrl"
+                },
+                {
+                  "$ref": "#/components/schemas/DeliverableRecordReference"
+                },
+                {
+                  "$ref": "#/components/schemas/DeliverableProposalAttachment"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "kind",
+                "mapping": {
+                  "attachment": "#/components/schemas/DeliverableRecordReference",
+                  "proposal_attachment": "#/components/schemas/DeliverableProposalAttachment",
+                  "repository": "#/components/schemas/DeliverableRecordReference",
+                  "resource": "#/components/schemas/DeliverableRecordReference",
+                  "url": "#/components/schemas/DeliverableUrl"
+                }
+              }
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Inputs"
+          },
+          "outputs": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/DeliverableUrl"
+                },
+                {
+                  "$ref": "#/components/schemas/DeliverableRecordReference"
+                },
+                {
+                  "$ref": "#/components/schemas/DeliverableProposalAttachment"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "kind",
+                "mapping": {
+                  "attachment": "#/components/schemas/DeliverableRecordReference",
+                  "proposal_attachment": "#/components/schemas/DeliverableProposalAttachment",
+                  "repository": "#/components/schemas/DeliverableRecordReference",
+                  "resource": "#/components/schemas/DeliverableRecordReference",
+                  "url": "#/components/schemas/DeliverableUrl"
+                }
+              }
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Outputs"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision"
+        ],
+        "title": "DeliverableUpdate"
+      },
+      "DeliverableUrl": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "url",
+            "title": "Kind"
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Url"
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Label",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "url"
+        ],
+        "title": "DeliverableUrl"
+      },
       "Dependencies": {
         "properties": {
           "prerequisites": {
@@ -22707,6 +24481,11 @@
               "step.create",
               "step.split",
               "step.move",
+              "deliverable.create",
+              "deliverable.update",
+              "deliverable.submit",
+              "deliverable.accept",
+              "deliverable.reopen",
               "wave.create",
               "wave.update",
               "wave.steps",

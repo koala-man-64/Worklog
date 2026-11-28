@@ -22,7 +22,7 @@ from .common import (
 )
 from .discussions import TAG_LIMIT, DiscussionService
 from .migrations import AUTOMATIC_APPROVAL_ID, stale_signature
-from .operations import OPERATIONS, keys, validate
+from .operations import OPERATIONS, deliverable_references, keys, validate
 from .plans import Forecast
 
 # Explicit schemas prevent a proposal becoming an arbitrary operation transport. Each operation's
@@ -123,8 +123,11 @@ def _string(value, name, max_bytes=1_000_000, required=False):
     return value.strip() if required else value
 
 
+OPERATION_LIMIT = 500
+
+
 def _operations(value):
-    if not isinstance(value, list) or len(value) > 500:
+    if not isinstance(value, list) or len(value) > OPERATION_LIMIT:
         raise AppError(422, "validation", "Operations must be a list of at most 500 operations")
     for operation in value:
         if not isinstance(operation, dict) or set(operation) != {"action", "payload"}:
@@ -408,6 +411,11 @@ class ProposalService:
         self.dispatch = dispatch
         self._applying_id: str | None = None
 
+    @property
+    def applying_id(self) -> str | None:
+        """The proposal being applied in the current write transaction."""
+        return self._applying_id
+
     def list(self, actor, status=None, limit=None, offset=0):
         """The proposals the caller may see, oldest first: a page of `limit` from `offset`, or with no
         limit every one, each by its title, status, dates, author and number of changes. Visibility is
@@ -556,8 +564,7 @@ class ProposalService:
             if verb == "submit" and approval_required(connection):
                 # A value its model refuses, or a file it cannot attach, would only wait for the
                 # person to reject it. With approval off, applying it below makes the same checks.
-                self._check_values(row)
-                self._check_files(connection, row)
+                self._check_files(connection, row, self._check_values(row))
             if verb == "approve":
                 self._apply(connection, row)
             result = self._advance(connection, identifier, verb, actor, before)
@@ -577,8 +584,8 @@ class ProposalService:
             return result
 
     def _apply(self, connection, row):
-        operations = json.loads(row["operations"])
-        _operations(operations)
+        operations = self._check_values(row)
+        self._check_files(connection, row, operations)
         proposer = {"id": row["actor_id"], "label": row["actor_label"], "kind": row["actor_kind"]}
         # Dispatch uses this same transaction. Any stale revision, validation
         # error, or injected failure rolls back all operations and approval.
@@ -631,15 +638,26 @@ class ProposalService:
                 validate(operation["action"], payload)
             except AppError as exc:
                 raise _numbered(exc, number, len(operations), operation["action"]) from exc
+        return operations
 
-    def _check_files(self, connection, row):
-        operations = json.loads(row["operations"])
+    def _check_files(self, connection, row, operations):
+        applied_count = len(operations)
         for number, operation in enumerate(operations, 1):
-            if operation["action"] == "attachment.create":
-                try:
-                    evidence_file(connection, row["id"], operation["payload"].get("attachmentId"))
-                except AppError as exc:
-                    raise _numbered(exc, number, len(operations), operation["action"]) from exc
+            action, payload = operation["action"], operation["payload"]
+            try:
+                if action == "attachment.create":
+                    evidence_file(connection, row["id"], payload.get("attachmentId"))
+                elif action in {"deliverable.create", "deliverable.update"}:
+                    uploads = dict.fromkeys(ref["id"] for ref in deliverable_references(payload)
+                                            if ref["kind"] == "proposal_attachment")
+                    applied_count += len(uploads)
+                    if applied_count > OPERATION_LIMIT:
+                        raise AppError(422, "validation",
+                                       f"A proposal may apply at most {OPERATION_LIMIT} operations including deliverable file copies")
+                    for identity in uploads:
+                        evidence_file(connection, row["id"], identity)
+            except AppError as exc:
+                raise _numbered(exc, number, len(operations), action) from exc
 
     def _advance(self, connection, identifier, verb, actor, before):
         state = {
@@ -667,6 +685,7 @@ class ProposalService:
         operations = json.loads(row["operations"])
         forecast = Forecast(conn)
         waves: dict[str, dict | None] = {}
+        deliverables: dict[str, dict | None] = {}
         conflicts = []
         for number, op in enumerate(operations, 1):
             action, payload = op["action"], op["payload"]
@@ -735,6 +754,30 @@ class ProposalService:
                     forecast.split_step(st, payload)
                 else:
                     forecast.update_step(st, payload)
+            elif action in {"deliverable.update", "deliverable.submit", "deliverable.accept", "deliverable.reopen"}:
+                identity = payload.get("id")
+                if not isinstance(identity, str):
+                    continue
+                if identity not in deliverables:
+                    drow = conn.execute("SELECT id,roadmap_id,title,revision FROM deliverables WHERE id=?", (identity,)).fetchone()
+                    deliverables[identity] = dict(drow) if drow else None
+                deliverable = deliverables[identity]
+                if deliverable is None:
+                    continue
+                if deliverable["revision"] != payload.get("revision"):
+                    if roadmap_id is None or deliverable["roadmap_id"] == roadmap_id:
+                        conflicts.append({
+                            "operation": number,
+                            "action": action,
+                            "targetType": "deliverable",
+                            "targetId": identity,
+                            "targetTitle": deliverable["title"],
+                            "roadmapId": deliverable["roadmap_id"],
+                            "expectedRevision": payload.get("revision"),
+                            "currentRevision": deliverable["revision"],
+                        })
+                else:
+                    deliverable["revision"] += 1
             elif action in {"wave.update", "wave.steps"}:
                 wid = payload.get("id")
                 if not isinstance(wid, str):

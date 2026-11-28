@@ -15,6 +15,11 @@ from .schema import BASELINE
 
 T = TypeVar("T")
 
+REQUIRED_TABLES = frozenset({"settings", "work_items", "days", "daily_entries", "notes", "file_references", "attachments",
+                             "credentials", "roadmaps", "steps", "proposals", "events", "receipts", "search_index",
+                             "roadmap_versions"})
+DELIVERABLE_TABLES = frozenset({"deliverables", "deliverable_steps", "deliverable_acceptances"})
+
 
 class Database:
     def __init__(self, path: str | Path):
@@ -46,7 +51,7 @@ class Database:
                     raise AppError(503, "schema_version", "Unsupported database schema; no data was changed")
                 if conn.execute("PRAGMA quick_check").fetchone()[0] != "ok":
                     raise AppError(503, "database_invalid", "Database integrity check failed")
-                required = {"settings", "work_items", "days", "daily_entries", "notes", "file_references", "attachments", "credentials", "roadmaps", "steps", "proposals", "events", "receipts", "search_index", "roadmap_versions"}
+                required = REQUIRED_TABLES | (DELIVERABLE_TABLES if version >= 39 else frozenset())
                 actual = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
                 if not required <= actual:
                     raise AppError(503, "database_invalid", "Database schema is incomplete")
@@ -65,6 +70,9 @@ class Database:
                 try:
                     conn.execute("BEGIN IMMEDIATE")
                     upgrade(conn)
+                    actual = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+                    if (REQUIRED_TABLES | DELIVERABLE_TABLES) - actual:
+                        raise AppError(503, "database_invalid", "Database schema is incomplete")
                     if conn.execute("PRAGMA foreign_key_check").fetchone():
                         raise AppError(503, "database_invalid", "Database has invalid references")
                     conn.commit()
@@ -78,6 +86,9 @@ class Database:
                 for key, value in {"timezone": "America/Chicago", "dataId": uid(), "backlogRevision": 1}.items():
                     conn.execute("INSERT INTO settings(key,value) VALUES(?,?)", (key, json.dumps(value)))
                 conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
+                actual = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+                if (REQUIRED_TABLES | DELIVERABLE_TABLES) - actual:
+                    raise AppError(503, "database_invalid", "Database schema is incomplete")
                 conn.commit()
             except Exception:
                 conn.rollback()

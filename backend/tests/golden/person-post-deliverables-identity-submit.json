@@ -1,0 +1,68 @@
+{
+  "body": {
+    "archived": false,
+    "checkedCount": 1,
+    "createdAt": "<time.ffffff+hh:mm>",
+    "description": "The parser and its setup instructions",
+    "id": "<id4>",
+    "inputs": [],
+    "outputs": [
+      {
+        "availability": "available",
+        "href": "#repositories/<id3>",
+        "id": "<id3>",
+        "kind": "repository",
+        "label": "worklog",
+        "sha256": null,
+        "sourceRevision": 1,
+        "url": null
+      }
+    ],
+    "requirementCount": 1,
+    "requirements": [
+      {
+        "checked": true,
+        "evidence": [
+          {
+            "availability": "available",
+            "href": "https://example.com/builds/1",
+            "id": null,
+            "kind": "url",
+            "label": "https://example.com/builds/1",
+            "sha256": null,
+            "sourceRevision": null,
+            "url": "https://example.com/builds/1"
+          }
+        ],
+        "id": "clean-build",
+        "text": "Build from a clean clone",
+        "verificationNote": ""
+      }
+    ],
+    "revision": 2,
+    "roadmapId": "<id2>",
+    "roadmapPath": [
+      {
+        "id": "<id2>",
+        "title": "Plan 2"
+      }
+    ],
+    "roadmapTitle": "Plan 2",
+    "status": "ready_for_review",
+    "stepIds": [
+      "<id1>"
+    ],
+    "steps": [
+      {
+        "available": true,
+        "id": "<id1>",
+        "roadmapId": "<id2>",
+        "roadmapTitle": "Plan 2",
+        "title": "Child"
+      }
+    ],
+    "title": "Buildable parser",
+    "updatedAt": "<time.ffffff+hh:mm>"
+  },
+  "status": 200
+}
